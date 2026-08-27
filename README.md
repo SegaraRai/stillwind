@@ -46,7 +46,12 @@ instead of package scripts. `@shorth/native` is a napi-rs Node-API addon, so
 the Vite plugin calls Rust directly rather than spawning `cargo` for every
 transform. The interactive playground lives in [`apps/play`](./apps/play): it
 calls that binding through the Vite dev server and displays the transformed
-source, CSS, diagnostics, and a live CSS preview.
+source, CSS, diagnostics, and a live CSS preview. Play accepts TSX components
+that export `App` (named, default, or the shorthand `export App;`), recompiles
+them as you type, and mounts them in an opaque-origin iframe with scripts only.
+The preview response applies a CSP that blocks network connections, forms,
+navigation, external images, and popups; user code never executes in the host
+Play page.
 
 ## CSS-first theme compatibility
 

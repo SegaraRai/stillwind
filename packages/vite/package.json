@@ -17,6 +17,8 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
-    "@shorth/native": "workspace:*"
+    "@shorth/native": "workspace:*",
+    "esbuild": "^0.28.2",
+    "shorth": "workspace:*"
   }
 }
