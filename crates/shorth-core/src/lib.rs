@@ -90,6 +90,7 @@ impl Compiler {
     /// arguments. Conditions, attributes, selectors, and transforms are added
     /// in successive compiler slices.
     #[must_use]
+    #[allow(clippy::too_many_lines)] // Coordinates source transforms with CSS emission.
     pub fn compile_react(source: &SourceFile, theme_source: &SourceFile) -> CompileResult {
         let parsed = Self::analyze_javascript(source);
         let mut result = CompileResult {
@@ -184,8 +185,9 @@ impl Compiler {
                         guard,
                         value,
                     } => (Some(guard), Some(selector.value), value),
-                    StyleInput::HandleProjection { .. } => unreachable!("handled above"),
-                    StyleInput::ContainerQuery { .. } => unreachable!("handled above"),
+                    StyleInput::HandleProjection { .. } | StyleInput::ContainerQuery { .. } => {
+                        unreachable!("handled above")
+                    }
                 };
                 let branch_index = if let Some(guard) = guard {
                     branches.push((Some(guard), String::new(), Vec::new()));
@@ -203,7 +205,7 @@ impl Compiler {
                     branch.1.push('\0');
                     match resolve_utility(&utility.value.raw, &theme) {
                         Some(mut utility) => {
-                            utility.selector = selector.clone();
+                            utility.selector.clone_from(&selector);
                             branch.2.push(utility);
                         }
                         None => result.diagnostics.push(Diagnostic::error(
@@ -477,11 +479,11 @@ fn emit_utility_rules(
     for utility in utilities.iter().filter(|utility| {
         !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
     }) {
-        let mut selector = utility
-            .selector
-            .as_deref()
-            .map(|selector| selector.replace('&', &format!(".{class_name}")))
-            .unwrap_or_else(|| format!(".{class_name}"));
+        let class_selector = format!(".{class_name}");
+        let mut selector = utility.selector.as_deref().map_or_else(
+            || class_selector.clone(),
+            |selector| selector.replace('&', &class_selector),
+        );
         let mut media = Vec::new();
         for variant in &utility.variants {
             match variant.as_str() {

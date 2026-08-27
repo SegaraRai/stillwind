@@ -334,7 +334,7 @@ impl<'a> MacroExtractor<'a> {
                     inputs.push(StyleInput::SelectorUtilityString {
                         selector: name,
                         value: self.string_literal(value),
-                    })
+                    });
                 }
                 Expression::LogicalExpression(expression)
                     if expression.operator == LogicalOperator::And =>

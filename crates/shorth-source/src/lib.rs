@@ -149,7 +149,12 @@ impl SourceFile {
 
     /// Converts a UTF-8 byte offset to a document-wide UTF-16 offset.
     ///
-    /// CodeMirror and Monaco use this coordinate system for selections.
+    /// `CodeMirror` and `Monaco` use this coordinate system for selections.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the offset lies outside this source buffer or is
+    /// not aligned to a UTF-8 character boundary.
     pub fn utf16_offset(&self, byte_offset: BytePos) -> Result<u32, SourceError> {
         let byte_offset_usize = byte_offset.0 as usize;
         if byte_offset_usize > self.text.len() || !self.text.is_char_boundary(byte_offset_usize) {
