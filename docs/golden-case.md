@@ -4,6 +4,12 @@ This document fixes the intended authoring experience for `stillwind`. It is a
 product contract, not yet an implementation specification: the syntax may gain
 small ergonomic refinements, but the principles below should not be weakened.
 
+Implementation status: the React compiler implements the examples in this
+document except the repeat-render/unstable-key warning for view transitions and
+directory-policy configuration for `unsafe`. Where JSX placement is visible in
+one file it validates handle ancestry; component boundaries, portals, and
+arbitrary `children` are intentionally left to the escape-hatch boundary.
+
 ## One static macro at the element
 
 `style()` is the only normal entry point for styles. It is a compile-time macro:

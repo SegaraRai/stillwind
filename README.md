@@ -64,18 +64,28 @@ task that assembles every CI-built artifact and pins optional package versions.
 
 ## CSS-first theme compatibility
 
-Stillwind accepts a Tailwind v4-style `@theme` block. The current compiler indexes
-`--color-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--text-*`, and
-`--breakpoint-*` custom properties and only resolves utilities backed by those
-tokens. It currently supports a tested compatibility slice of layout, flex,
-spacing, colors, radii, shadows, opacity, transitions, responsive breakpoints,
-state pseudo-classes, `aria-[name=value]`, and `data-[name=value]` variants.
+Stillwind accepts a Tailwind v4-style `@theme` block. The compiler indexes
+`--color-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--text-*`,
+`--duration-*`, `--ease-*`, `--z-index-*`, and `--breakpoint-*` custom
+properties and only resolves token-backed utilities. It supports a tested slice
+of layout, flex/grid, sizing, spacing, colors, outlines, transforms, radii,
+shadows, transitions, responsive breakpoints, state pseudo-classes,
+`aria-[name=value]`, and `data-[name=value]` variants.
 
 That makes incremental migration straightforward: retain the existing `@theme`
-surface, then replace selected `className` values with `style()` calls. It does
-not yet claim the entire Tailwind utility/variant grammar, nor the planned
-Stillwind handles, selectors, local animations, Vue, Svelte, or formatter/linter.
-Those need their own specification fixtures before implementation.
+surface, then replace selected `className` values with `style()` calls. The
+implemented Stillwind-specific surface includes finite conditional branches,
+element selectors, handle-tagged parent selectors, anchor/container projections,
+local utility animations, view-transition assets, and a static `style.unsafe()`
+escape hatch that requires a reason. The compiler checks all supported utility
+spellings; Vite also writes `src/stillwind.generated.d.ts` with the theme-backed
+token vocabulary for editor completion.
+
+The JSX linter checks parent handle selectors and container providers whenever
+both sides are visible in the same JSX tree. It deliberately does not infer
+relationships across component boundaries, `children`, or portals. Vue, Svelte,
+Astro, a full formatter, and full Tailwind candidate compatibility remain
+separate frontend/grammar work.
 
 Tailwind v4 documents this CSS-first model, its `@theme` namespaces, and its
 layer order in its [theme documentation](https://tailwindcss.com/docs/theme)

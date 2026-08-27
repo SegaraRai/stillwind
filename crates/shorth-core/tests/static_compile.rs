@@ -477,3 +477,35 @@ export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [
             .any(|item| item.code == "SHHANDLE007")
     );
 }
+
+#[test]
+fn resolves_a_broader_css_first_tailwind_compatibility_slice() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ModernCard.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("grid place-items-center size-10 flex-col grow border outline-2 outline-offset-2 outline-accent z-popover position-area-block-end grid-cols-3 text-3xl");"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --spacing-10: 2.5rem; --color-accent: red; --z-index-popover: 50; --text-3xl: 1.875rem; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("place-items:center;"));
+    assert!(
+        result
+            .css
+            .contains("width:var(--spacing-10);height:var(--spacing-10);")
+    );
+    assert!(
+        result
+            .css
+            .contains("grid-template-columns:repeat(3,minmax(0,1fr));")
+    );
+    assert!(result.css.contains("outline-color:var(--color-accent);"));
+    assert!(result.css.contains("z-index:var(--z-index-popover);"));
+}

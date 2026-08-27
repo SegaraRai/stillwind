@@ -763,19 +763,31 @@ fn resolve_static_utility(utility: &str) -> Option<String> {
     const UTILITIES: &[(&str, &str)] = &[
         ("block", "display:block;"),
         ("inline-block", "display:inline-block;"),
+        ("contents", "display:contents;"),
+        ("flow-root", "display:flow-root;"),
         ("flex", "display:flex;"),
         ("inline-flex", "display:inline-flex;"),
+        ("flex-row", "flex-direction:row;"),
+        ("flex-col", "flex-direction:column;"),
+        ("flex-wrap", "flex-wrap:wrap;"),
+        ("flex-1", "flex:1 1 0%;"),
+        ("grow", "flex-grow:1;"),
+        ("grow-0", "flex-grow:0;"),
+        ("shrink", "flex-shrink:1;"),
+        ("shrink-0", "flex-shrink:0;"),
         ("grid", "display:grid;"),
-        (
-            "grid-cols-2",
-            "grid-template-columns:repeat(2,minmax(0,1fr));",
-        ),
         ("hidden", "display:none;"),
+        ("visible", "visibility:visible;"),
+        ("invisible", "visibility:hidden;"),
+        ("place-items-center", "place-items:center;"),
+        ("place-content-center", "place-content:center;"),
         ("items-center", "align-items:center;"),
         ("items-start", "align-items:flex-start;"),
         ("items-end", "align-items:flex-end;"),
         ("justify-center", "justify-content:center;"),
         ("justify-between", "justify-content:space-between;"),
+        ("justify-start", "justify-content:flex-start;"),
+        ("justify-end", "justify-content:flex-end;"),
         ("text-center", "text-align:center;"),
         ("text-left", "text-align:left;"),
         ("font-medium", "font-weight:500;"),
@@ -785,6 +797,16 @@ fn resolve_static_utility(utility: &str) -> Option<String> {
         ("cursor-pointer", "cursor:pointer;"),
         ("relative", "position:relative;"),
         ("absolute", "position:absolute;"),
+        ("fixed", "position:fixed;"),
+        ("sticky", "position:sticky;"),
+        ("static", "position:static;"),
+        ("border", "border-width:1px;"),
+        ("border-0", "border-width:0;"),
+        ("outline-0", "outline-width:0;"),
+        ("outline-1", "outline-width:1px;"),
+        ("outline-2", "outline-width:2px;"),
+        ("outline-offset-2", "outline-offset:2px;"),
+        ("position-area-block-end", "position-area:block-end;"),
         ("overflow-hidden", "overflow:hidden;"),
         (
             "transition",
@@ -796,11 +818,20 @@ fn resolve_static_utility(utility: &str) -> Option<String> {
         ("translate-x-0", "transform:translateX(0);"),
         ("translate-y-0", "transform:translateY(0);"),
     ];
+    if let Some(columns) = utility.strip_prefix("grid-cols-")
+        && let Ok(columns) = columns.parse::<u8>()
+        && (1..=12).contains(&columns)
+    {
+        return Some(format!(
+            "grid-template-columns:repeat({columns},minmax(0,1fr));"
+        ));
+    }
     UTILITIES
         .iter()
         .find_map(|(name, declaration)| (*name == utility).then(|| (*declaration).to_owned()))
 }
 
+#[allow(clippy::too_many_lines)] // The typed utility registry intentionally stays auditable in one table.
 fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
     let (negative, utility) = utility
         .strip_prefix('-')
@@ -812,6 +843,34 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
     {
         return Some(format!(
             "background-color:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
+        ));
+    }
+    if let Some((prefix, color, opacity)) = ["bg", "text", "border", "outline"]
+        .into_iter()
+        .find_map(|prefix| {
+            utility
+                .strip_prefix(&format!("{prefix}-"))
+                .and_then(|value| value.rsplit_once('/'))
+                .map(|(color, opacity)| (prefix, color, opacity))
+        })
+        && theme.token("color", color).is_some()
+    {
+        let property = match prefix {
+            "bg" => "background-color",
+            "text" => "color",
+            "border" => "border-color",
+            "outline" => "outline-color",
+            _ => unreachable!("only known color utility prefixes are listed"),
+        };
+        return Some(format!(
+            "{property}:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
+        ));
+    }
+    if let Some(token) = utility.strip_prefix("size-")
+        && theme.token("spacing", token).is_some()
+    {
+        return Some(format!(
+            "width:var(--spacing-{token});height:var(--spacing-{token});"
         ));
     }
     if let Some(token) = utility.strip_prefix("translate-y-")
@@ -843,6 +902,7 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
         ("bg-", "color", "background-color", false),
         ("text-", "color", "color", false),
         ("border-", "color", "border-color", false),
+        ("outline-", "color", "outline-color", false),
         ("p-", "spacing", "padding", false),
         ("px-", "spacing", "padding-inline", false),
         ("py-", "spacing", "padding-block", false),
@@ -860,9 +920,18 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
         ("gap-", "spacing", "gap", false),
         ("w-", "spacing", "width", false),
         ("h-", "spacing", "height", false),
+        ("min-w-", "spacing", "min-width", false),
+        ("min-h-", "spacing", "min-height", false),
+        ("max-w-", "spacing", "max-width", false),
+        ("max-h-", "spacing", "max-height", false),
+        ("basis-", "spacing", "flex-basis", false),
         ("rounded-", "radius", "border-radius", false),
         ("shadow-", "shadow", "box-shadow", false),
         ("text-", "text", "font-size", false),
+        ("font-", "font", "font-family", false),
+        ("leading-", "leading", "line-height", false),
+        ("tracking-", "tracking", "letter-spacing", false),
+        ("z-", "z-index", "z-index", false),
         ("duration-", "duration", "transition-duration", false),
         ("ease-", "ease", "transition-timing-function", false),
     ] {
