@@ -29,6 +29,14 @@ export type StyleHandleSelector = {
   readonly [handleProjection]: true
 }
 
+export type StyleAnimationUse = {
+  readonly [handleProjection]: true
+}
+
+export type StyleAnimation = (options: string) => StyleAnimationUse
+
+export type StyleAnimationDefinition = Readonly<Record<string, string>>
+
 export type StyleArgument =
   | string
   | false
@@ -36,13 +44,15 @@ export type StyleArgument =
   | undefined
   | readonly StyleArgument[]
   | Partial<Record<StyleAttributeName, unknown>>
-  | Partial<Record<StyleSelector, string | false | null | undefined>>
+  | Partial<Record<StyleSelector, string | StyleAnimationUse | false | null | undefined>>
   | StyleHandleProjection
   | StyleHandleSelector
+  | StyleAnimationUse
 
 export type StyleMacro = {
   (...inputs: readonly StyleArgument[]): StyleProps
   handle(): StyleHandle
+  animation(definition: StyleAnimationDefinition): StyleAnimation
 }
 
 export const style = Object.assign(
@@ -54,6 +64,9 @@ export const style = Object.assign(
   {
     handle(): StyleHandle {
       throw new Error("stillwind/react style.handle() is a compile-time macro.")
+    },
+    animation(_definition: StyleAnimationDefinition): StyleAnimation {
+      throw new Error("stillwind/react style.animation() is a compile-time macro.")
     },
   },
 ) as StyleMacro

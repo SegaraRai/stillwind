@@ -15,6 +15,7 @@ pub struct ModuleIr {
     pub adapter: AdapterKind,
     pub style_calls: Vec<StyleCall>,
     pub handle_declarations: Vec<Span>,
+    pub animation_declarations: Vec<AnimationDefinition>,
 }
 
 impl ModuleIr {
@@ -23,6 +24,7 @@ impl ModuleIr {
             adapter: AdapterKind::React,
             style_calls: Vec::new(),
             handle_declarations: Vec::new(),
+            animation_declarations: Vec::new(),
         }
     }
 }
@@ -37,6 +39,19 @@ pub struct StyleCall {
 pub struct AttributeEntry {
     pub name: Spanned<String>,
     pub value: Span,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AnimationDefinition {
+    pub name: Spanned<String>,
+    pub call_span: Span,
+    pub frames: Vec<AnimationFrame>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AnimationFrame {
+    pub selector: Spanned<String>,
+    pub utilities: Spanned<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -86,5 +101,14 @@ pub enum StyleInput {
         handle: Spanned<String>,
         query: Spanned<String>,
         value: Spanned<String>,
+    },
+    AnimationUse {
+        animation: Spanned<String>,
+        options: Spanned<String>,
+    },
+    SelectorAnimationUse {
+        selector: Spanned<String>,
+        animation: Spanned<String>,
+        options: Spanned<String>,
     },
 }

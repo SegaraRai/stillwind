@@ -4,7 +4,7 @@ use std::fmt::Write;
 
 use serde::Serialize;
 use shorth_grammar::lex_utilities;
-use shorth_ir::{AttributeEntry, HandleProjection, StyleInput};
+use shorth_ir::{AnimationDefinition, AttributeEntry, HandleProjection, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -120,11 +120,50 @@ impl Compiler {
 
         let mut utility_css = String::new();
         let module = parsed.module;
+        for animation in &module.animation_declarations {
+            emit_animation_definition(&mut utility_css, animation, &theme, &mut result.diagnostics);
+        }
         for call in module.style_calls {
             let mut branches = vec![(None, true, String::new(), Vec::new())];
             let mut attributes = Vec::new();
             let mut handle_markers = Vec::new();
             for input in call.inputs {
+                if let StyleInput::AnimationUse { animation, options } = input {
+                    let branch = &mut branches[0];
+                    branch.2.push_str("animation:");
+                    branch.2.push_str(&animation.value);
+                    branch.2.push(':');
+                    branch.2.push_str(&options.value);
+                    branch.2.push('\0');
+                    if let Some(utility) =
+                        resolve_animation_use(&animation, &options, &theme, &mut result.diagnostics)
+                    {
+                        branch.3.push(utility);
+                    }
+                    continue;
+                }
+                if let StyleInput::SelectorAnimationUse {
+                    selector,
+                    animation,
+                    options,
+                } = input
+                {
+                    let branch = &mut branches[0];
+                    branch.2.push_str(&selector.value);
+                    branch.2.push('\0');
+                    branch.2.push_str("animation:");
+                    branch.2.push_str(&animation.value);
+                    branch.2.push(':');
+                    branch.2.push_str(&options.value);
+                    branch.2.push('\0');
+                    if let Some(mut utility) =
+                        resolve_animation_use(&animation, &options, &theme, &mut result.diagnostics)
+                    {
+                        utility.selector = Some(selector.value);
+                        branch.3.push(utility);
+                    }
+                    continue;
+                }
                 if let StyleInput::ContainerQuery {
                     handle,
                     query,
@@ -216,7 +255,10 @@ impl Compiler {
                         Some(handle_parent_selector(&handle, &selector.value)),
                         value,
                     ),
-                    StyleInput::HandleProjection { .. } | StyleInput::ContainerQuery { .. } => {
+                    StyleInput::HandleProjection { .. }
+                    | StyleInput::ContainerQuery { .. }
+                    | StyleInput::AnimationUse { .. }
+                    | StyleInput::SelectorAnimationUse { .. } => {
                         unreachable!("handled above")
                     }
                 };
@@ -279,6 +321,12 @@ impl Compiler {
                 replacement: "undefined".to_owned(),
             });
         }
+        for animation in module.animation_declarations {
+            result.transforms.push(PropsTransform {
+                call_span: animation.call_span,
+                replacement: "undefined".to_owned(),
+            });
+        }
 
         if result
             .diagnostics
@@ -303,6 +351,112 @@ fn handle_projection_name(projection: &HandleProjection) -> &'static str {
         HandleProjection::Scope => "scope",
         HandleProjection::Container(_) => "container",
     }
+}
+
+fn animation_css_name(animation: &Spanned<String>) -> String {
+    let identity = format!(
+        "{}:{}:{}",
+        animation.span.file.0, animation.span.start.0, animation.value
+    );
+    let hash = blake3::hash(identity.as_bytes());
+    format!("--sw-a-{}", &hash.to_hex()[..8])
+}
+
+fn emit_animation_definition(
+    output: &mut String,
+    animation: &AnimationDefinition,
+    theme: &shorth_css::ThemeIndex,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    output.push_str("@keyframes ");
+    output.push_str(&animation_css_name(&animation.name));
+    output.push('{');
+    for frame in &animation.frames {
+        let mut utilities = Vec::new();
+        for utility in lex_utilities(&frame.utilities) {
+            match resolve_utility(&utility.value.raw, theme) {
+                Some(utility) if utility.variants.is_empty() => utilities.push(utility),
+                Some(_) => diagnostics.push(Diagnostic::error(
+                    "SHANIMATION003",
+                    "animation keyframes cannot contain variants",
+                    utility.span,
+                )),
+                None => diagnostics.push(Diagnostic::error(
+                    "SH001",
+                    format!("unknown or unavailable utility `{}`", utility.value.raw),
+                    utility.span,
+                )),
+            }
+        }
+        output.push_str(&frame.selector.value);
+        output.push('{');
+        output.push_str(&combine_declarations(&utilities.iter().collect::<Vec<_>>()));
+        output.push('}');
+    }
+    output.push('}');
+}
+
+fn resolve_animation_use(
+    animation: &Spanned<String>,
+    options: &Spanned<String>,
+    theme: &shorth_css::ThemeIndex,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<CompiledUtility> {
+    let mut declaration = format!("animation-name:{};", animation_css_name(animation));
+    for option in lex_utilities(options) {
+        match option.value.raw.as_str() {
+            "none" | "forwards" | "backwards" | "both" => {
+                write!(
+                    &mut declaration,
+                    "animation-fill-mode:{};",
+                    option.value.raw
+                )
+                .expect("writing to a String cannot fail");
+            }
+            "running" | "paused" => {
+                write!(
+                    &mut declaration,
+                    "animation-play-state:{};",
+                    option.value.raw
+                )
+                .expect("writing to a String cannot fail");
+            }
+            "normal" | "reverse" | "alternate" | "alternate-reverse" => {
+                write!(
+                    &mut declaration,
+                    "animation-direction:{};",
+                    option.value.raw
+                )
+                .expect("writing to a String cannot fail");
+            }
+            "infinite" => declaration.push_str("animation-iteration-count:infinite;"),
+            value => match resolve_utility(value, theme) {
+                Some(utility)
+                    if utility.variants.is_empty()
+                        && (utility.declaration.starts_with("transition-duration:")
+                            || utility
+                                .declaration
+                                .starts_with("transition-timing-function:")) =>
+                {
+                    declaration.push_str(&utility.declaration.replace("transition-", "animation-"));
+                }
+                _ => diagnostics.push(Diagnostic::error(
+                    "SHANIMATION002",
+                    format!("unknown animation option `{value}`"),
+                    option.span,
+                )),
+            },
+        }
+    }
+    (!diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == shorth_source::Severity::Error))
+    .then_some(CompiledUtility {
+        variants: Vec::new(),
+        declaration,
+        selector: None,
+        container: None,
+    })
 }
 
 fn render_handle_projection(handle: &Spanned<String>, projection: &HandleProjection) -> String {
@@ -431,6 +585,8 @@ fn resolve_static_utility(utility: &str) -> Option<String> {
         ("opacity-0", "opacity:0;"),
         ("opacity-60", "opacity:.6;"),
         ("opacity-100", "opacity:1;"),
+        ("translate-x-0", "transform:translateX(0);"),
+        ("translate-y-0", "transform:translateY(0);"),
     ];
     UTILITIES
         .iter()
@@ -449,6 +605,21 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
         return Some(format!(
             "background-color:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
         ));
+    }
+    if let Some(token) = utility.strip_prefix("translate-y-")
+        && theme.token("spacing", token).is_some()
+    {
+        return Some(format!("transform:translateY(var(--spacing-{token}));"));
+    }
+    if let Some(token) = utility.strip_prefix("translate-x-")
+        && theme.token("spacing", token).is_some()
+    {
+        return Some(format!("transform:translateX(var(--spacing-{token}));"));
+    }
+    if let Some(token) = utility.strip_prefix("scale-")
+        && let Ok(percent) = token.parse::<u16>()
+    {
+        return Some(format!("transform:scale({});", f64::from(percent) / 100.0));
     }
     for (prefix, namespace, property, supports_negative) in [
         ("bg-", "color", "background-color", false),
@@ -521,8 +692,8 @@ fn emit_utility_rules(
         .filter(|utility| {
             utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
         })
-        .map(|utility| utility.declaration.as_str())
-        .collect::<String>();
+        .collect::<Vec<_>>();
+    let base = combine_declarations(&base);
     if !base.is_empty() {
         output.push('.');
         output.push_str(class_name);
@@ -566,7 +737,7 @@ fn emit_utility_rules(
                 }
             }
         }
-        let mut rule = format!("{selector}{{{}}}", utility.declaration);
+        let mut rule = format!("{selector}{{{}}}", combine_declarations(&[utility]));
         for condition in media.into_iter().rev() {
             rule = format!("@media {condition}{{{rule}}}");
         }
@@ -575,6 +746,27 @@ fn emit_utility_rules(
         }
         output.push_str(&rule);
     }
+}
+
+fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
+    let mut declarations = String::new();
+    let mut transforms = Vec::new();
+    for utility in utilities {
+        for declaration in utility.declaration.split_terminator(';') {
+            if let Some(transform) = declaration.strip_prefix("transform:") {
+                transforms.push(transform);
+            } else if !declaration.is_empty() {
+                declarations.push_str(declaration);
+                declarations.push(';');
+            }
+        }
+    }
+    if !transforms.is_empty() {
+        declarations.push_str("transform:");
+        declarations.push_str(&transforms.join(" "));
+        declarations.push(';');
+    }
+    declarations
 }
 
 fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> String {

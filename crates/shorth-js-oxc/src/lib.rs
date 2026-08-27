@@ -18,7 +18,10 @@ use oxc::{
     span::{GetSpan, SourceType},
     syntax::operator::LogicalOperator,
 };
-use shorth_ir::{AttributeEntry, HandleProjection, ModuleIr, StyleCall, StyleInput};
+use shorth_ir::{
+    AnimationDefinition, AnimationFrame, AttributeEntry, HandleProjection, ModuleIr, StyleCall,
+    StyleInput,
+};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Debug)]
@@ -50,6 +53,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
             adapter: shorth_ir::AdapterKind::React,
             style_calls: extractor.style_calls,
             handle_declarations: extractor.handle_declarations,
+            animation_declarations: extractor.animation_declarations,
         },
     }
 }
@@ -61,6 +65,8 @@ struct MacroExtractor<'a> {
     handle_symbols: HashMap<SymbolId, Spanned<String>>,
     handle_uses: Vec<(String, &'static str, Span)>,
     handle_declarations: Vec<Span>,
+    animation_symbols: HashMap<SymbolId, Spanned<String>>,
+    animation_declarations: Vec<AnimationDefinition>,
     style_calls: Vec<StyleCall>,
     diagnostics: Vec<Diagnostic>,
 }
@@ -74,6 +80,8 @@ impl<'a> MacroExtractor<'a> {
             handle_symbols: HashMap::new(),
             handle_uses: Vec::new(),
             handle_declarations: Vec::new(),
+            animation_symbols: HashMap::new(),
+            animation_declarations: Vec::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
         }
@@ -108,6 +116,10 @@ impl<'a> MacroExtractor<'a> {
         self.is_style_member(&call.callee, "handle") && call.arguments.is_empty()
     }
 
+    fn is_style_animation_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "animation")
+    }
+
     fn handle_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
         let Expression::Identifier(identifier) = expression else {
             return None;
@@ -115,6 +127,136 @@ impl<'a> MacroExtractor<'a> {
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         self.handle_symbols.get(&symbol_id).cloned()
+    }
+
+    fn animation_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
+        let Expression::Identifier(identifier) = expression else {
+            return None;
+        };
+        let reference_id = identifier.reference_id.get()?;
+        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        self.animation_symbols.get(&symbol_id).cloned()
+    }
+
+    fn animation_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
+        let Expression::CallExpression(call) = expression else {
+            return None;
+        };
+        let animation = self.animation_reference(&call.callee)?;
+        if call.arguments.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHANIMATION002",
+                "an animation use requires one literal options string",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        let Expression::StringLiteral(options) = call.arguments[0].to_expression() else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHANIMATION002",
+                "an animation use requires one literal options string",
+                self.source_span(call.arguments[0].span()),
+            ));
+            return None;
+        };
+        Some(StyleInput::AnimationUse {
+            animation,
+            options: self.string_literal(options),
+        })
+    }
+
+    fn property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<String>> {
+        match key {
+            PropertyKey::StaticIdentifier(identifier) => Some(Spanned::new(
+                identifier.name.to_string(),
+                self.source_span(identifier.span),
+            )),
+            PropertyKey::StringLiteral(literal) => Some(self.string_literal(literal)),
+            _ => None,
+        }
+    }
+
+    fn collect_animation_definition(
+        &mut self,
+        name: Spanned<String>,
+        call: &CallExpression<'a>,
+    ) -> Option<AnimationDefinition> {
+        if call.arguments.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHANIMATION001",
+                "style.animation() requires one object of static keyframe utility strings",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHANIMATION001",
+                "style.animation() requires one object of static keyframe utility strings",
+                self.source_span(call.arguments[0].span()),
+            ));
+            return None;
+        };
+        let mut frames = Vec::new();
+        for property in &object.properties {
+            let ObjectPropertyKind::ObjectProperty(property) = property else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHANIMATION001",
+                    "animation keyframes cannot use object spreads",
+                    self.source_span(property.span()),
+                ));
+                continue;
+            };
+            if property.computed || property.method || property.kind != PropertyKind::Init {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHANIMATION001",
+                    "animation keyframes must be plain static properties",
+                    self.source_span(property.span),
+                ));
+                continue;
+            }
+            let Some(selector) = self.property_name(&property.key) else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHANIMATION001",
+                    "animation frames must be `from`, `to`, or percentage keys",
+                    self.source_span(property.key.span()),
+                ));
+                continue;
+            };
+            if !is_animation_frame(&selector.value) {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHANIMATION001",
+                    "animation frames must be `from`, `to`, or comma-separated percentages",
+                    selector.span,
+                ));
+                continue;
+            }
+            let Expression::StringLiteral(utilities) = &property.value else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHANIMATION001",
+                    "animation frame values must be literal utility strings",
+                    self.source_span(property.value.span()),
+                ));
+                continue;
+            };
+            frames.push(AnimationFrame {
+                selector,
+                utilities: self.string_literal(utilities),
+            });
+        }
+        if frames.is_empty() {
+            self.diagnostics.push(Diagnostic::error(
+                "SHANIMATION001",
+                "style.animation() requires at least one valid keyframe",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        Some(AnimationDefinition {
+            name,
+            call_span: self.source_span(call.span),
+            frames,
+        })
     }
 
     fn collect_handle_projection(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
@@ -292,6 +434,10 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(projection);
             return;
         }
+        if let Some(animation) = self.animation_use(expression) {
+            inputs.push(animation);
+            return;
+        }
         match expression {
             Expression::StringLiteral(literal) => {
                 inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
@@ -455,6 +601,23 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             match &property.value {
+                Expression::CallExpression(_) => {
+                    let Some(StyleInput::AnimationUse { animation, options }) =
+                        self.animation_use(&property.value)
+                    else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHJS004",
+                            "a `&` selector must map to a literal utility string, animation use, or `condition && \"…\"`",
+                            self.source_span(property.value.span()),
+                        ));
+                        continue;
+                    };
+                    inputs.push(StyleInput::SelectorAnimationUse {
+                        selector: name,
+                        animation,
+                        options,
+                    });
+                }
                 Expression::StringLiteral(value) => {
                     inputs.push(StyleInput::SelectorUtilityString {
                         selector: name,
@@ -599,8 +762,34 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 ),
             );
         }
+        if let (
+            BindingPattern::BindingIdentifier(identifier),
+            Some(Expression::CallExpression(call)),
+        ) = (&declarator.id, &declarator.init)
+            && self.is_style_animation_call(call)
+            && let Some(symbol_id) = identifier.symbol_id.get()
+        {
+            let name = Spanned::new(
+                identifier.name.to_string(),
+                self.source_span(identifier.span),
+            );
+            if let Some(definition) = self.collect_animation_definition(name.clone(), call) {
+                self.animation_symbols.insert(symbol_id, name);
+                self.animation_declarations.push(definition);
+            }
+        }
         walk::walk_variable_declarator(self, declarator);
     }
+}
+
+fn is_animation_frame(value: &str) -> bool {
+    value == "from"
+        || value == "to"
+        || value.split(',').all(|part| {
+            part.trim()
+                .strip_suffix('%')
+                .is_some_and(|number| number.trim().parse::<u8>().is_ok())
+        })
 }
 
 #[cfg(test)]

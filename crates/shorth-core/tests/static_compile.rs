@@ -357,3 +357,44 @@ const child = style({ [trigger`&:hover`]: "text-accent" });"#,
     assert!(result.css.contains(&format!(".{marker}")));
     assert!(result.css.contains(":hover ._s_"));
 }
+
+#[test]
+fn compiles_local_utility_animations_and_selector_uses() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Dialog.tsx",
+        r#"import { style } from "stillwind/react";
+const enter = style.animation({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
+const exit = style.animation({ from: "opacity-100", to: "opacity-0 scale-98" });
+const panel = style("rounded-md", enter("duration-normal ease-standard both"), { "&[data-state=closed]": exit("duration-fast ease-standard both") });"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --radius-md: .375rem; --spacing-2: .5rem; --duration-fast: 120ms; --duration-normal: 180ms; --ease-standard: ease-out; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("@keyframes --sw-a-"));
+    assert!(
+        result
+            .css
+            .contains("from{opacity:0;transform:translateY(var(--spacing-2)) scale(0.98);}")
+    );
+    assert!(result.css.contains("animation-name:--sw-a-"));
+    assert!(
+        result
+            .css
+            .contains("animation-duration:var(--duration-normal);")
+    );
+    assert!(
+        result
+            .css
+            .contains("[data-state=closed]{animation-name:--sw-a-")
+    );
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(!transformed.contains("style.animation"));
+    assert!(transformed.contains("const enter = undefined;"));
+}
