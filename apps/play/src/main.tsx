@@ -50,6 +50,57 @@ type FileTab = "component" | "theme"
 type OutputTab = "css" | "transform" | "diagnostics"
 type Viewport = "desktop" | "tablet" | "mobile"
 
+function formatCss(source: string): string {
+  let output = ""
+  let token = ""
+  let indent = 0
+  let quote = ""
+  let parentheses = 0
+
+  const write = (value: string) => {
+    if (!value) return
+    output += `${"  ".repeat(indent)}${value}\n`
+  }
+  const normalize = (value: string, declaration = false) => {
+    const compact = value.trim().replace(/\s+/g, " ")
+    if (!declaration || compact.startsWith("@") || compact.startsWith("&") || compact.startsWith(":")) return compact
+    const colon = compact.indexOf(":")
+    return colon === -1 ? compact : `${compact.slice(0, colon).trim()}: ${compact.slice(colon + 1).trim()}`
+  }
+
+  for (const character of source) {
+    if (quote) {
+      token += character
+      if (character === quote && token.at(-2) !== "\\") quote = ""
+      continue
+    }
+    if (character === "\"" || character === "'") {
+      quote = character
+      token += character
+      continue
+    }
+    if (character === "(") parentheses += 1
+    if (character === ")") parentheses = Math.max(0, parentheses - 1)
+    if (parentheses === 0 && character === "{") {
+      write(`${normalize(token)} {`)
+      token = ""
+      indent += 1
+    } else if (parentheses === 0 && character === ";") {
+      write(`${normalize(token, true)};`)
+      token = ""
+    } else if (parentheses === 0 && character === "}") {
+      if (token.trim()) write(normalize(token, true))
+      token = ""
+      indent = Math.max(0, indent - 1)
+      write("}")
+    } else {
+      token += character
+    }
+  }
+  if (token.trim()) write(normalize(token, true))
+  return output.trim()
+}
+
 function CodeEditor({ value, onChange, extensions }: { value: string; onChange(value: string): void; extensions: Extension }) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
@@ -116,7 +167,8 @@ function Play() {
     return () => window.removeEventListener("message", receiveError)
   }, [])
 
-  const output = outputTab === "css" ? result?.css : outputTab === "transform" ? result?.code : result?.diagnostics.map((item) => `${item.code}  ${item.message}`).join("\n")
+  const diagnostics = result?.diagnostics ?? []
+  const output = outputTab === "css" ? result?.css && formatCss(result.css) : outputTab === "transform" ? result?.code : null
   const viewportLabel = { desktop: "Desktop", tablet: "Tablet", mobile: "Mobile" }[viewport]
   return <main className="play-shell">
     <header className="topbar">
@@ -128,7 +180,7 @@ function Play() {
       <aside className="files" aria-label="Playground files"><p>FILES</p><button className={fileTab === "component" ? "active" : ""} type="button" onClick={() => setFileTab("component")}>Component.tsx</button><button className={fileTab === "theme" ? "active" : ""} type="button" onClick={() => setFileTab("theme")}>shorth.css</button><small>React TSX · CSS-first theme</small></aside>
       <section className="editor-panel"><div className="panel-bar"><strong>{fileTab === "component" ? "Component.tsx" : "shorth.css"}</strong><span>Reactive compiler</span></div>{fileTab === "component" ? <CodeEditor value={source} onChange={setSource} extensions={tsxLanguage} /> : <CodeEditor value={theme} onChange={setTheme} extensions={cssLanguage} />}</section>
       <section className="preview-panel"><div className="panel-bar preview-bar"><strong>Preview</strong><div className="viewport-switcher" aria-label="Preview viewport">{(["desktop", "tablet", "mobile"] as const).map((item) => <button className={viewport === item ? "active" : ""} type="button" onClick={() => setViewport(item)} key={item}>{item[0].toUpperCase()}</button>)}</div><span>{viewportLabel}</span></div><div className={`preview-stage ${viewport}`}>{result?.previewUrl && !result.diagnostics.length ? <iframe key={result.previewUrl} ref={frame} title="Shorth Play preview" sandbox="allow-scripts" src={result.previewUrl} /> : <div className="preview-empty">{previewError ?? "Fix diagnostics to render the preview."}</div>}</div>{previewError ? <div className="runtime-error">Runtime: {previewError}</div> : null}</section>
-      <section className="output-panel"><div className="output-tabs">{(["css", "transform", "diagnostics"] as const).map((item) => <button type="button" key={item} onClick={() => setOutputTab(item)} className={outputTab === item ? "active" : ""}>{item === "css" ? "Generated CSS" : item === "transform" ? "Macro output" : `Diagnostics${result?.diagnostics.length ? ` (${result.diagnostics.length})` : ""}`}</button>)}</div><pre>{output || "Compiling…"}</pre></section>
+      <section className="output-panel"><div className="output-tabs">{(["css", "transform", "diagnostics"] as const).map((item) => <button type="button" key={item} onClick={() => setOutputTab(item)} className={outputTab === item ? "active" : ""}>{item === "css" ? "Generated CSS" : item === "transform" ? "Macro output" : `Diagnostics${diagnostics.length ? ` (${diagnostics.length})` : ""}`}</button>)}</div>{outputTab === "diagnostics" ? <div className="diagnostics-output" aria-live="polite">{!result ? <p className="output-empty">Compiling diagnostics…</p> : diagnostics.length === 0 ? <p className="output-empty"><strong>No diagnostics</strong><span>The current component and theme compile without issues.</span></p> : <table><thead><tr><th scope="col">Code</th><th scope="col">Message</th><th scope="col">Range</th></tr></thead><tbody>{diagnostics.map((item) => <tr key={`${item.code}-${item.start}-${item.end}`}><td><code>{item.code}</code></td><td>{item.message}</td><td><code>{item.start}–{item.end}</code></td></tr>)}</tbody></table>}</div> : <pre>{output || "Compiling…"}</pre>}</section>
     </section>
   </main>
 }
