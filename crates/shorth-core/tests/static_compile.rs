@@ -120,11 +120,11 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/shorth.css",
-        r#"@theme {
+        r"@theme {
   --color-accent: oklch(.6 .2 250);
   --spacing-4: 1rem;
   --breakpoint-md: 48rem;
-}"#,
+}",
     );
 
     let result = Compiler::compile_react(&component, &theme);

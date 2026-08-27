@@ -1,23 +1,26 @@
 //! Public orchestration API for the first compiler slice.
 
+use std::fmt::Write;
+
 use shorth_grammar::lex_utilities;
 use shorth_ir::{AttributeEntry, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span};
+use serde::Serialize;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
     pub class_name: String,
     pub call_span: Span,
     pub guard: Option<Span>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct PropsTransform {
     pub call_span: Span,
     pub replacement: String,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CompileResult {
     pub css: String,
     pub classes: Vec<GeneratedClass>,
@@ -31,6 +34,11 @@ impl CompileResult {
     /// This deliberately keeps the compiler's source mapping contract separate
     /// from any particular bundler. A Vite adapter can use the same plan and
     /// provide a high-resolution source map around these exact byte spans.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a transform targets another file or overlaps a
+    /// previously applied source span.
     pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, String> {
         let mut transforms = self.transforms.clone();
         transforms.sort_by_key(|transform| std::cmp::Reverse(transform.call_span.start.0));
@@ -344,12 +352,14 @@ fn emit_utility_rules(
                 "dark" => media.push("(prefers-color-scheme: dark)".to_owned()),
                 value if value.starts_with("aria-[") && value.ends_with(']') => {
                     if let Some((name, expected)) = value[6..value.len() - 1].split_once('=') {
-                        selector.push_str(&format!("[aria-{name}=\"{expected}\"]"));
+                        write!(&mut selector, "[aria-{name}=\"{expected}\"]")
+                            .expect("writing to a String cannot fail");
                     }
                 }
                 value if value.starts_with("data-[") && value.ends_with(']') => {
                     if let Some((name, expected)) = value[6..value.len() - 1].split_once('=') {
-                        selector.push_str(&format!("[data-{name}=\"{expected}\"]"));
+                        write!(&mut selector, "[data-{name}=\"{expected}\"]")
+                            .expect("writing to a String cannot fail");
                     }
                 }
                 value => {

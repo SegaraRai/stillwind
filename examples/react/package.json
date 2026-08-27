@@ -1,0 +1,22 @@
+{
+  "name": "@shorth/react-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shorth + React Vite integration example",
+  "license": "MIT",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.24.0",
+  "type": "module",
+  "dependencies": {
+    "shorth": "workspace:*",
+    "@shorth/vite": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

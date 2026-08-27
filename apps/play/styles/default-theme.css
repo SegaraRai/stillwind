@@ -1,0 +1,8 @@
+@theme {
+  --color-accent: oklch(.6 .2 250);
+  --color-white: white;
+  --spacing-2: .5rem;
+  --spacing-4: 1rem;
+  --radius-md: .375rem;
+  --breakpoint-md: 48rem;
+}

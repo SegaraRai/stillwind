@@ -1,0 +1,19 @@
+{
+  "name": "shorth",
+  "version": "0.0.0",
+  "description": "Runtime helpers and macro surface for Shorth React",
+  "license": "MIT",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.24.0",
+  "type": "module",
+  "exports": {
+    "./react": "./src/index.ts",
+    "./react/runtime": "./src/runtime.ts"
+  }
+}

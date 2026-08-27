@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 blake3.workspace = true
+serde.workspace = true
 shorth-css = { path = "../shorth-css" }
 shorth-grammar = { path = "../shorth-grammar" }
 shorth-ir = { path = "../shorth-ir" }

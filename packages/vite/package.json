@@ -1,0 +1,19 @@
+{
+  "name": "@shorth/vite",
+  "version": "0.0.0",
+  "description": "Vite adapter for the Shorth compiler",
+  "license": "MIT",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.24.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "peerDependencies": {
+    "vite": "^7.0.0"
+  }
+}
