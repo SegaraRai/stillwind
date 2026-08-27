@@ -32,7 +32,14 @@ pub struct StyleCall {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AttributeEntry {
+    pub name: Spanned<String>,
+    pub value: Span,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
     UtilityString(Spanned<String>),
     ConditionalUtilityString { guard: Span, value: Spanned<String> },
+    Attributes(Vec<AttributeEntry>),
 }

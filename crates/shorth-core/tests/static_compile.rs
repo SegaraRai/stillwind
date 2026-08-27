@@ -78,3 +78,33 @@ const props = style("bg-accent", loading && "opacity-60");"#,
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(result.css.contains("opacity:.6;"));
 }
+
+#[test]
+fn plans_react_props_for_classes_a_conditional_and_an_aria_attribute() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "shorth/react";
+declare const loading: boolean;
+const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading });"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/shorth.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.transforms.len(), 1);
+    let transform = &result.transforms[0];
+    assert_eq!(transform.call_span, result.classes[0].call_span);
+    assert_eq!(
+        transform.replacement,
+        format!(
+            "{{className:shorthClsx(\"{}\",loading&&\"{}\"),\"aria-busy\":loading}}",
+            result.classes[0].class_name, result.classes[1].class_name,
+        ),
+    );
+}

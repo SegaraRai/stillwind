@@ -6,7 +6,8 @@ use oxc::{
     allocator::Allocator,
     ast::ast::{
         Argument, CallExpression, Expression, ImportDeclaration, ImportDeclarationSpecifier,
-        ModuleExportName,
+        ModuleExportName, ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind,
+        StringLiteral,
     },
     ast_visit::{Visit, walk},
     parser::Parser,
@@ -14,7 +15,7 @@ use oxc::{
     span::{GetSpan, SourceType},
     syntax::operator::LogicalOperator,
 };
-use shorth_ir::{ModuleIr, StyleCall, StyleInput};
+use shorth_ir::{AttributeEntry, ModuleIr, StyleCall, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Debug)]
@@ -75,7 +76,7 @@ impl<'a> MacroExtractor<'a> {
         declaration.source.value.as_str() == "shorth/react"
     }
 
-    fn utility_string(&self, literal: &oxc::ast::ast::StringLiteral<'a>) -> Spanned<String> {
+    fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {
         let literal_span = self.source_span(literal.span);
         let content_span = Span::new(
             literal_span.file,
@@ -83,6 +84,50 @@ impl<'a> MacroExtractor<'a> {
             literal_span.end.0.saturating_sub(1),
         );
         Spanned::new(literal.value.to_string(), content_span)
+    }
+
+    fn attributes(&mut self, object: &ObjectExpression<'a>) -> Vec<AttributeEntry> {
+        let mut entries = Vec::new();
+        for property in &object.properties {
+            let ObjectPropertyKind::ObjectProperty(property) = property else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHJS003",
+                    "style() attribute objects do not support spread properties",
+                    self.source_span(property.span()),
+                ));
+                continue;
+            };
+            let PropertyKey::StringLiteral(name) = &property.key else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHJS003",
+                    "style() attribute keys must be quoted aria-* or data-* names",
+                    self.source_span(property.key.span()),
+                ));
+                continue;
+            };
+            if property.computed || property.method || property.kind != PropertyKind::Init {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHJS003",
+                    "style() attributes must be plain key-value properties",
+                    self.source_span(property.span),
+                ));
+                continue;
+            }
+            let name = self.string_literal(name);
+            if !name.value.starts_with("aria-") && !name.value.starts_with("data-") {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHJS003",
+                    "style() only accepts aria-* and data-* attribute keys in this compiler slice",
+                    name.span,
+                ));
+                continue;
+            }
+            entries.push(AttributeEntry {
+                name,
+                value: self.source_span(property.value.span()),
+            });
+        }
+        entries
     }
 }
 
@@ -130,7 +175,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         for argument in &call.arguments {
             match argument {
                 Argument::StringLiteral(literal) => {
-                    inputs.push(StyleInput::UtilityString(self.utility_string(literal)));
+                    inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
                 }
                 Argument::LogicalExpression(expression)
                     if expression.operator == LogicalOperator::And =>
@@ -145,8 +190,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     };
                     inputs.push(StyleInput::ConditionalUtilityString {
                         guard: self.source_span(expression.left.span()),
-                        value: self.utility_string(literal),
+                        value: self.string_literal(literal),
                     });
+                }
+                Argument::ObjectExpression(object) => {
+                    inputs.push(StyleInput::Attributes(self.attributes(object)));
                 }
                 _ => self.diagnostics.push(Diagnostic::error(
                     "SHJS002",
@@ -201,5 +249,28 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
         };
         assert_eq!(first.value, "px-4 text-center");
         assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
+    }
+
+    #[test]
+    fn extracts_aria_and_data_attributes_with_value_expression_spans() {
+        let source = SourceFile::new(
+            FileId(1),
+            "Button.tsx",
+            r#"import { style } from "shorth/react";
+const props = style({ "aria-busy": loading, "data-state": state });"#,
+        );
+
+        let parsed = parse(&source);
+
+        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        let Some(StyleInput::Attributes(entries)) = parsed.module.style_calls[0].inputs.first()
+        else {
+            panic!("the first input should be an attribute object");
+        };
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].name.value, "aria-busy");
+        assert_eq!(source.slice(entries[0].value).unwrap(), "loading");
+        assert_eq!(entries[1].name.value, "data-state");
+        assert_eq!(source.slice(entries[1].value).unwrap(), "state");
     }
 }

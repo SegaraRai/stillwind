@@ -1,7 +1,7 @@
 //! Public orchestration API for the first compiler slice.
 
 use shorth_grammar::lex_utilities;
-use shorth_ir::StyleInput;
+use shorth_ir::{AttributeEntry, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -11,10 +11,17 @@ pub struct GeneratedClass {
     pub guard: Option<Span>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PropsTransform {
+    pub call_span: Span,
+    pub replacement: String,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CompileResult {
     pub css: String,
     pub classes: Vec<GeneratedClass>,
+    pub transforms: Vec<PropsTransform>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -75,10 +82,15 @@ impl Compiler {
 
         for call in parsed.module.style_calls {
             let mut branches = vec![(None, String::new(), Vec::new())];
+            let mut attributes = Vec::new();
             for input in call.inputs {
                 let (guard, input) = match input {
                     StyleInput::UtilityString(input) => (None, input),
                     StyleInput::ConditionalUtilityString { guard, value } => (Some(guard), value),
+                    StyleInput::Attributes(entries) => {
+                        attributes.extend(entries);
+                        continue;
+                    }
                 };
                 let branch_index = if let Some(guard) = guard {
                     branches.push((Some(guard), String::new(), Vec::new()));
@@ -101,6 +113,7 @@ impl Compiler {
                 }
             }
 
+            let mut call_classes = Vec::new();
             for (guard, canonical_input, declarations) in branches {
                 if declarations.is_empty() {
                     continue;
@@ -111,10 +124,18 @@ impl Compiler {
                 result.css.push('{');
                 result.css.push_str(&declarations.concat());
                 result.css.push_str("}\n");
-                result.classes.push(GeneratedClass {
+                let generated_class = GeneratedClass {
                     class_name,
                     call_span: call.span,
                     guard,
+                };
+                call_classes.push(generated_class.clone());
+                result.classes.push(generated_class);
+            }
+            if let Some(replacement) = render_react_props(source, &call_classes, &attributes) {
+                result.transforms.push(PropsTransform {
+                    call_span: call.span,
+                    replacement,
                 });
             }
         }
@@ -126,10 +147,42 @@ impl Compiler {
         {
             result.css.clear();
             result.classes.clear();
+            result.transforms.clear();
         }
 
         result
     }
+}
+
+fn render_react_props(
+    source: &SourceFile,
+    classes: &[GeneratedClass],
+    attributes: &[AttributeEntry],
+) -> Option<String> {
+    let mut entries = Vec::new();
+    if !classes.is_empty() {
+        let class_names = classes
+            .iter()
+            .map(|class| match class.guard {
+                Some(guard) => source
+                    .slice(guard)
+                    .ok()
+                    .map(|guard| format!("{guard}&&\"{}\"", class.class_name)),
+                None => Some(format!("\"{}\"", class.class_name)),
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let class_value = if class_names.len() == 1 {
+            class_names.into_iter().next()?
+        } else {
+            format!("shorthClsx({})", class_names.join(","))
+        };
+        entries.push(format!("className:{class_value}"));
+    }
+    for attribute in attributes {
+        let value = source.slice(attribute.value).ok()?;
+        entries.push(format!("\"{}\":{value}", attribute.name.value));
+    }
+    Some(format!("{{{}}}", entries.join(",")))
 }
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
