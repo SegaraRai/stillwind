@@ -9,8 +9,9 @@ use oxc::{
     allocator::Allocator,
     ast::ast::{
         Argument, ArrayExpressionElement, BindingPattern, CallExpression, Expression,
-        ImportDeclaration, ImportDeclarationSpecifier, ModuleExportName, ObjectExpression,
-        ObjectPropertyKind, PropertyKey, PropertyKind, StringLiteral, VariableDeclarator,
+        ImportDeclaration, ImportDeclarationSpecifier, JSXElement, ModuleExportName,
+        ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind, StringLiteral,
+        VariableDeclarator,
     },
     ast_visit::{Visit, walk},
     parser::Parser,
@@ -64,7 +65,7 @@ struct MacroExtractor<'a> {
     scoping: &'a Scoping,
     style_symbols: HashSet<SymbolId>,
     handle_symbols: HashMap<SymbolId, Spanned<String>>,
-    handle_uses: Vec<(String, &'static str, Span)>,
+    handle_uses: Vec<HandleUse>,
     handle_declarations: Vec<Span>,
     animation_symbols: HashMap<SymbolId, Spanned<String>>,
     animation_declarations: Vec<AnimationDefinition>,
@@ -72,6 +73,15 @@ struct MacroExtractor<'a> {
     view_transition_declarations: Vec<ViewTransitionDefinition>,
     style_calls: Vec<StyleCall>,
     diagnostics: Vec<Diagnostic>,
+    jsx_depth: usize,
+}
+
+#[derive(Clone, Debug)]
+struct HandleUse {
+    name: String,
+    projection: &'static str,
+    span: Span,
+    jsx_depth: Option<usize>,
 }
 
 impl<'a> MacroExtractor<'a> {
@@ -89,6 +99,7 @@ impl<'a> MacroExtractor<'a> {
             view_transition_declarations: Vec::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
+            jsx_depth: 0,
         }
     }
 
@@ -596,6 +607,7 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 return None;
             };
+            self.record_handle_use(&handle, "container-query", self.source_span(call.span));
             return Some(StyleInput::ContainerQuery {
                 handle,
                 query: self.string_literal(query),
@@ -656,12 +668,26 @@ impl<'a> MacroExtractor<'a> {
             HandleProjection::Scope => "scope",
             HandleProjection::Container(_) => "container",
         };
-        self.handle_uses.push((
-            handle.value.clone(),
+        self.record_handle_use(
+            &handle,
             projection_name,
             self.source_span(expression.span()),
-        ));
+        );
         Some(StyleInput::HandleProjection { handle, projection })
+    }
+
+    fn record_handle_use(
+        &mut self,
+        handle: &Spanned<String>,
+        projection: &'static str,
+        span: Span,
+    ) {
+        self.handle_uses.push(HandleUse {
+            name: handle.value.clone(),
+            projection,
+            span,
+            jsx_depth: (self.jsx_depth > 0).then_some(self.jsx_depth),
+        });
     }
 
     fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {
@@ -722,11 +748,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         }
-        self.handle_uses.push((
-            handle.value.clone(),
-            "selector",
-            self.source_span(tagged.span),
-        ));
+        self.record_handle_use(&handle, "selector", self.source_span(tagged.span));
         Some((handle, selector))
     }
 
@@ -967,26 +989,70 @@ impl<'a> MacroExtractor<'a> {
         let names = self
             .handle_uses
             .iter()
-            .map(|(name, _, _)| name.clone())
+            .map(|handle_use| handle_use.name.clone())
             .collect::<HashSet<_>>();
         for name in names {
             let uses = self
                 .handle_uses
                 .iter()
-                .filter(|(candidate, _, _)| candidate == &name)
+                .filter(|handle_use| handle_use.name == name)
                 .collect::<Vec<_>>();
             let has_anchor = uses
                 .iter()
-                .any(|(_, projection, _)| *projection == "anchor");
+                .any(|handle_use| handle_use.projection == "anchor");
             if !has_anchor {
-                for (_, _, span) in uses
+                for handle_use in uses
                     .iter()
-                    .filter(|(_, projection, _)| *projection == "position")
+                    .filter(|handle_use| handle_use.projection == "position")
                 {
                     self.diagnostics.push(Diagnostic::error(
                         "SHHANDLE003",
                         format!("handle `{name}` uses position without an anchor projection"),
-                        *span,
+                        handle_use.span,
+                    ));
+                }
+            }
+            let has_container = uses
+                .iter()
+                .any(|handle_use| handle_use.projection == "container");
+            for handle_use in uses
+                .iter()
+                .filter(|handle_use| handle_use.projection == "container-query" && !has_container)
+            {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHHANDLE006",
+                    format!(
+                        "handle `{name}` uses a container query without a container projection"
+                    ),
+                    handle_use.span,
+                ));
+            }
+            let known_anchor_depths = uses
+                .iter()
+                .filter_map(|handle_use| {
+                    (handle_use.projection == "anchor")
+                        .then_some(handle_use.jsx_depth)
+                        .flatten()
+                })
+                .collect::<Vec<_>>();
+            for handle_use in uses
+                .iter()
+                .filter(|handle_use| handle_use.projection == "selector")
+            {
+                let Some(depth) = handle_use.jsx_depth else {
+                    continue;
+                };
+                if !known_anchor_depths.is_empty()
+                    && !known_anchor_depths
+                        .iter()
+                        .any(|anchor_depth| *anchor_depth < depth)
+                {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHHANDLE007",
+                        format!(
+                            "handle `{name}` selector has no known ancestor anchor in this JSX tree"
+                        ),
+                        handle_use.span,
                     ));
                 }
             }
@@ -995,6 +1061,12 @@ impl<'a> MacroExtractor<'a> {
 }
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
+    fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
+        self.jsx_depth += 1;
+        walk::walk_jsx_element(self, element);
+        self.jsx_depth -= 1;
+    }
+
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
         if Self::is_style_import(declaration)
             && let Some(specifiers) = &declaration.specifiers

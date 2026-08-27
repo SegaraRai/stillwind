@@ -451,3 +451,29 @@ const props = style.unsafe({ selector: "& [data-vendor-widget] .tooltip", css: {
     );
     assert!(result.transforms[0].replacement.contains("className:\"_s_"));
 }
+
+#[test]
+fn validates_handle_selector_ancestry_when_jsx_placement_is_known() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Menu.tsx",
+        r#"import { style } from "stillwind/react";
+const trigger = style.handle();
+export const Good = () => <div {...style(trigger.anchor)}><span {...style({ [trigger`&:hover`]: "text-accent" })} /></div>;
+export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "SHHANDLE007")
+    );
+}
