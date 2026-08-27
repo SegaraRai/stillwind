@@ -162,8 +162,42 @@ export { props };"#,
     let transformed = result.apply_to_source(&component).unwrap();
 
     assert!(
-        transformed
-            .starts_with("import { style } from \"stillwind/react\";\nconst props = {className:\"_s_")
+        transformed.starts_with(
+            "import { style } from \"stillwind/react\";\nconst props = {className:\"_s_"
+        )
     );
     assert!(transformed.ends_with("};\nexport { props };"));
+}
+
+#[test]
+fn compiles_nested_arrays_attributes_and_element_local_selectors() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "stillwind/react";
+declare const loading: boolean;
+const props = style(
+  ["bg-accent", ["px-4"], loading && "opacity-60"],
+  { "aria-busy": loading, "&:hover": "bg-accent/90" },
+);"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/stillwind.css",
+        "@theme { --color-accent: red; --spacing-4: 1rem; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.classes.len(), 2);
+    assert!(result.css.contains("background-color:var(--color-accent);"));
+    assert!(result.css.contains("padding-inline:var(--spacing-4);"));
+    assert!(result.css.contains(":hover{background-color:color-mix("));
+    assert!(result.css.contains("opacity:.6;"));
+    assert!(
+        result.transforms[0]
+            .replacement
+            .contains("\"aria-busy\":loading")
+    );
 }

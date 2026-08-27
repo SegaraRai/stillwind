@@ -8,12 +8,16 @@ export type StyleProps = {
   className?: string
 } & Partial<Record<StyleAttributeName, unknown>>
 
+export type StyleSelector = `&${string}`
+
 export type StyleArgument =
   | string
   | false
   | null
   | undefined
+  | readonly StyleArgument[]
   | Partial<Record<StyleAttributeName, unknown>>
+  | Partial<Record<StyleSelector, string | false | null | undefined>>
 
 export function style(..._arguments: readonly StyleArgument[]): StyleProps {
   throw new Error(

@@ -40,6 +40,18 @@ pub struct AttributeEntry {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
     UtilityString(Spanned<String>),
-    ConditionalUtilityString { guard: Span, value: Spanned<String> },
+    ConditionalUtilityString {
+        guard: Span,
+        value: Spanned<String>,
+    },
     Attributes(Vec<AttributeEntry>),
+    SelectorUtilityString {
+        selector: Spanned<String>,
+        value: Spanned<String>,
+    },
+    ConditionalSelectorUtilityString {
+        selector: Spanned<String>,
+        guard: Span,
+        value: Spanned<String>,
+    },
 }

@@ -121,13 +121,23 @@ impl Compiler {
             let mut branches = vec![(None, String::new(), Vec::new())];
             let mut attributes = Vec::new();
             for input in call.inputs {
-                let (guard, input) = match input {
-                    StyleInput::UtilityString(input) => (None, input),
-                    StyleInput::ConditionalUtilityString { guard, value } => (Some(guard), value),
+                let (guard, selector, input) = match input {
+                    StyleInput::UtilityString(input) => (None, None, input),
+                    StyleInput::ConditionalUtilityString { guard, value } => {
+                        (Some(guard), None, value)
+                    }
                     StyleInput::Attributes(entries) => {
                         attributes.extend(entries);
                         continue;
                     }
+                    StyleInput::SelectorUtilityString { selector, value } => {
+                        (None, Some(selector.value), value)
+                    }
+                    StyleInput::ConditionalSelectorUtilityString {
+                        selector,
+                        guard,
+                        value,
+                    } => (Some(guard), Some(selector.value), value),
                 };
                 let branch_index = if let Some(guard) = guard {
                     branches.push((Some(guard), String::new(), Vec::new()));
@@ -137,10 +147,17 @@ impl Compiler {
                 };
                 let branch = &mut branches[branch_index];
                 for utility in lex_utilities(&input) {
+                    if let Some(selector) = &selector {
+                        branch.1.push_str(selector);
+                        branch.1.push('\0');
+                    }
                     branch.1.push_str(&utility.value.raw);
                     branch.1.push('\0');
                     match resolve_utility(&utility.value.raw, &theme) {
-                        Some(utility) => branch.2.push(utility),
+                        Some(mut utility) => {
+                            utility.selector = selector.clone();
+                            branch.2.push(utility);
+                        }
                         None => result.diagnostics.push(Diagnostic::error(
                             "SH001",
                             format!("unknown or unavailable utility `{}`", utility.value.raw),
@@ -224,6 +241,7 @@ fn render_react_props(
 struct CompiledUtility {
     variants: Vec<String>,
     declaration: String,
+    selector: Option<String>,
 }
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
@@ -259,6 +277,7 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
     Some(CompiledUtility {
         variants,
         declaration,
+        selector: None,
     })
 }
 
@@ -336,7 +355,7 @@ fn emit_utility_rules(
 ) {
     let base = utilities
         .iter()
-        .filter(|utility| utility.variants.is_empty())
+        .filter(|utility| utility.variants.is_empty() && utility.selector.is_none())
         .map(|utility| utility.declaration.as_str())
         .collect::<String>();
     if !base.is_empty() {
@@ -348,9 +367,13 @@ fn emit_utility_rules(
     }
     for utility in utilities
         .iter()
-        .filter(|utility| !utility.variants.is_empty())
+        .filter(|utility| !utility.variants.is_empty() || utility.selector.is_some())
     {
-        let mut selector = format!(".{class_name}");
+        let mut selector = utility
+            .selector
+            .as_deref()
+            .map(|selector| selector.replace('&', &format!(".{class_name}")))
+            .unwrap_or_else(|| format!(".{class_name}"));
         let mut media = Vec::new();
         for variant in &utility.variants {
             match variant.as_str() {

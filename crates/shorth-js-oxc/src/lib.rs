@@ -5,9 +5,9 @@ use std::{collections::HashSet, path::Path};
 use oxc::{
     allocator::Allocator,
     ast::ast::{
-        Argument, CallExpression, Expression, ImportDeclaration, ImportDeclarationSpecifier,
-        ModuleExportName, ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind,
-        StringLiteral,
+        Argument, ArrayExpressionElement, CallExpression, Expression, ImportDeclaration,
+        ImportDeclarationSpecifier, ModuleExportName, ObjectExpression, ObjectPropertyKind,
+        PropertyKey, PropertyKind, StringLiteral,
     },
     ast_visit::{Visit, walk},
     parser::Parser,
@@ -86,7 +86,62 @@ impl<'a> MacroExtractor<'a> {
         Spanned::new(literal.value.to_string(), content_span)
     }
 
-    fn attributes(&mut self, object: &ObjectExpression<'a>) -> Vec<AttributeEntry> {
+    fn collect_style_expression(
+        &mut self,
+        expression: &Expression<'a>,
+        inputs: &mut Vec<StyleInput>,
+    ) {
+        match expression {
+            Expression::StringLiteral(literal) => {
+                inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
+            }
+            Expression::LogicalExpression(expression)
+                if expression.operator == LogicalOperator::And =>
+            {
+                let Expression::StringLiteral(literal) = &expression.right else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHJS002",
+                        "a style() conditional must have a literal utility string on its right side",
+                        self.source_span(expression.right.span()),
+                    ));
+                    return;
+                };
+                inputs.push(StyleInput::ConditionalUtilityString {
+                    guard: self.source_span(expression.left.span()),
+                    value: self.string_literal(literal),
+                });
+            }
+            Expression::ArrayExpression(array) => {
+                for element in &array.elements {
+                    match element {
+                        ArrayExpressionElement::SpreadElement(spread) => self.diagnostics.push(
+                            Diagnostic::error(
+                                "SHJS002",
+                                "style() arrays do not support spread elements",
+                                self.source_span(spread.span),
+                            ),
+                        ),
+                        ArrayExpressionElement::Elision(elision) => self.diagnostics.push(
+                            Diagnostic::error(
+                                "SHJS002",
+                                "style() arrays cannot contain empty slots",
+                                self.source_span(elision.span),
+                            ),
+                        ),
+                        _ => self.collect_style_expression(element.to_expression(), inputs),
+                    }
+                }
+            }
+            Expression::ObjectExpression(object) => self.collect_object(object, inputs),
+            _ => self.diagnostics.push(Diagnostic::error(
+                "SHJS002",
+                "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and `&` selectors",
+                self.source_span(expression.span()),
+            )),
+        }
+    }
+
+    fn collect_object(&mut self, object: &ObjectExpression<'a>, inputs: &mut Vec<StyleInput>) {
         let mut entries = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
@@ -114,20 +169,55 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let name = self.string_literal(name);
-            if !name.value.starts_with("aria-") && !name.value.starts_with("data-") {
+            if name.value.starts_with("aria-") || name.value.starts_with("data-") {
+                entries.push(AttributeEntry {
+                    name,
+                    value: self.source_span(property.value.span()),
+                });
+                continue;
+            }
+            if !name.value.starts_with('&') {
                 self.diagnostics.push(Diagnostic::error(
                     "SHJS003",
-                    "style() only accepts aria-* and data-* attribute keys in this compiler slice",
+                    "style() object keys must be quoted aria-*/data-* attributes or `&` selectors",
                     name.span,
                 ));
                 continue;
             }
-            entries.push(AttributeEntry {
-                name,
-                value: self.source_span(property.value.span()),
-            });
+            match &property.value {
+                Expression::StringLiteral(value) => {
+                    inputs.push(StyleInput::SelectorUtilityString {
+                        selector: name,
+                        value: self.string_literal(value),
+                    })
+                }
+                Expression::LogicalExpression(expression)
+                    if expression.operator == LogicalOperator::And =>
+                {
+                    let Expression::StringLiteral(value) = &expression.right else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHJS004",
+                            "a selector conditional must have a literal utility string on its right side",
+                            self.source_span(expression.right.span()),
+                        ));
+                        continue;
+                    };
+                    inputs.push(StyleInput::ConditionalSelectorUtilityString {
+                        selector: name,
+                        guard: self.source_span(expression.left.span()),
+                        value: self.string_literal(value),
+                    });
+                }
+                _ => self.diagnostics.push(Diagnostic::error(
+                    "SHJS004",
+                    "a `&` selector must map to a literal utility string or `condition && \"…\"`",
+                    self.source_span(property.value.span()),
+                )),
+            }
         }
-        entries
+        if !entries.is_empty() {
+            inputs.push(StyleInput::Attributes(entries));
+        }
     }
 }
 
@@ -173,34 +263,14 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
 
         let mut inputs = Vec::new();
         for argument in &call.arguments {
-            match argument {
-                Argument::StringLiteral(literal) => {
-                    inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
-                }
-                Argument::LogicalExpression(expression)
-                    if expression.operator == LogicalOperator::And =>
-                {
-                    let Expression::StringLiteral(literal) = &expression.right else {
-                        self.diagnostics.push(Diagnostic::error(
-                            "SHJS002",
-                            "a style() conditional must have a literal utility string on its right side",
-                            self.source_span(expression.right.span()),
-                        ));
-                        continue;
-                    };
-                    inputs.push(StyleInput::ConditionalUtilityString {
-                        guard: self.source_span(expression.left.span()),
-                        value: self.string_literal(literal),
-                    });
-                }
-                Argument::ObjectExpression(object) => {
-                    inputs.push(StyleInput::Attributes(self.attributes(object)));
-                }
-                _ => self.diagnostics.push(Diagnostic::error(
+            if let Argument::SpreadElement(spread) = argument {
+                self.diagnostics.push(Diagnostic::error(
                     "SHJS002",
-                    "the first compiler slice accepts literal utility strings and `condition && \"…\"` branches",
-                    self.source_span(argument.span()),
-                )),
+                    "style() does not support spread arguments",
+                    self.source_span(spread.span),
+                ));
+            } else {
+                self.collect_style_expression(argument.to_expression(), &mut inputs);
             }
         }
         self.style_calls.push(StyleCall {
@@ -272,5 +342,35 @@ const props = style({ "aria-busy": loading, "data-state": state });"#,
         assert_eq!(source.slice(entries[0].value).unwrap(), "loading");
         assert_eq!(entries[1].name.value, "data-state");
         assert_eq!(source.slice(entries[1].value).unwrap(), "state");
+    }
+
+    #[test]
+    fn flattens_arrays_and_retains_element_local_selectors() {
+        let source = SourceFile::new(
+            FileId(1),
+            "Button.tsx",
+            r#"import { style } from "stillwind/react";
+declare const loading: boolean;
+const props = style(["px-4", loading && "opacity-60"], { "&:hover": "bg-accent" });"#,
+        );
+
+        let parsed = parse(&source);
+
+        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        assert!(matches!(
+            parsed.module.style_calls[0].inputs[0],
+            StyleInput::UtilityString(_)
+        ));
+        assert!(matches!(
+            parsed.module.style_calls[0].inputs[1],
+            StyleInput::ConditionalUtilityString { .. }
+        ));
+        let Some(StyleInput::SelectorUtilityString { selector, value }) =
+            parsed.module.style_calls[0].inputs.get(2)
+        else {
+            panic!("the selector should be preserved in the style IR");
+        };
+        assert_eq!(selector.value, "&:hover");
+        assert_eq!(value.value, "bg-accent");
     }
 }
