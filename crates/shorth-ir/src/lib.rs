@@ -52,6 +52,7 @@ pub enum StyleInput {
     UtilityString(Spanned<String>),
     ConditionalUtilityString {
         guard: Span,
+        when_true: bool,
         value: Spanned<String>,
     },
     Attributes(Vec<AttributeEntry>),
@@ -62,6 +63,19 @@ pub enum StyleInput {
     ConditionalSelectorUtilityString {
         selector: Spanned<String>,
         guard: Span,
+        when_true: bool,
+        value: Spanned<String>,
+    },
+    HandleSelectorUtilityString {
+        handle: Spanned<String>,
+        selector: Spanned<String>,
+        value: Spanned<String>,
+    },
+    ConditionalHandleSelectorUtilityString {
+        handle: Spanned<String>,
+        selector: Spanned<String>,
+        guard: Span,
+        when_true: bool,
         value: Spanned<String>,
     },
     HandleProjection {

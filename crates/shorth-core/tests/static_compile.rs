@@ -80,6 +80,31 @@ const props = style("bg-accent", loading && "opacity-60");"#,
 }
 
 #[test]
+fn compiles_both_sides_of_a_static_ternary_branch() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "stillwind/react";
+declare const active: boolean;
+const props = style(active ? "bg-accent" : "bg-muted");"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --color-accent: red; --color-muted: gray; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.classes.len(), 2);
+    assert!(result.css.contains("background-color:var(--color-accent);"));
+    assert!(result.css.contains("background-color:var(--color-muted);"));
+    assert!(result.transforms[0].replacement.contains("active&&"));
+    assert!(result.transforms[0].replacement.contains("!active&&"));
+}
+
+#[test]
 fn plans_react_props_for_classes_a_conditional_and_an_aria_attribute() {
     let component = SourceFile::new(
         FileId(1),
@@ -306,4 +331,29 @@ const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
             .css
             .contains("grid-template-columns:repeat(2,minmax(0,1fr));")
     );
+}
+
+#[test]
+fn uses_handle_tagged_selectors_as_automatically_named_parent_groups() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Menu.tsx",
+        r#"import { style } from "stillwind/react";
+const trigger = style.handle();
+const parent = style(trigger.anchor, "inline-flex");
+const child = style({ [trigger`&:hover`]: "text-accent" });"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let marker = "sw-h-";
+    assert!(result.transforms[0].replacement.contains(marker));
+    assert!(result.css.contains(&format!(".{marker}")));
+    assert!(result.css.contains(":hover ._s_"));
 }

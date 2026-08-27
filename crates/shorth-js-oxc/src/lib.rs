@@ -227,6 +227,62 @@ impl<'a> MacroExtractor<'a> {
         Spanned::new(literal.value.to_string(), content_span)
     }
 
+    fn handle_tagged_selector(
+        &mut self,
+        key: &PropertyKey<'a>,
+    ) -> Option<(Spanned<String>, Spanned<String>)> {
+        let PropertyKey::TaggedTemplateExpression(tagged) = key else {
+            return None;
+        };
+        let Some(handle) = self.handle_reference(&tagged.tag) else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHHANDLE001",
+                "handle selectors must be tagged by an identity returned by style.handle()",
+                self.source_span(tagged.tag.span()),
+            ));
+            return None;
+        };
+        if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHHANDLE005",
+                "a handle selector must be a template literal without substitutions",
+                self.source_span(tagged.quasi.span),
+            ));
+            return None;
+        }
+        let Some(cooked) = tagged.quasi.quasis[0].value.cooked.as_ref() else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHHANDLE005",
+                "a handle selector must be a valid static template literal",
+                self.source_span(tagged.quasi.span),
+            ));
+            return None;
+        };
+        let template_span = self.source_span(tagged.quasi.span);
+        let selector = Spanned::new(
+            cooked.to_string(),
+            Span::new(
+                template_span.file,
+                template_span.start.0 + 1,
+                template_span.end.0.saturating_sub(1),
+            ),
+        );
+        if !selector.value.starts_with('&') {
+            self.diagnostics.push(Diagnostic::error(
+                "SHHANDLE005",
+                "a handle selector must start with `&`",
+                selector.span,
+            ));
+            return None;
+        }
+        self.handle_uses.push((
+            handle.value.clone(),
+            "selector",
+            self.source_span(tagged.span),
+        ));
+        Some((handle, selector))
+    }
+
     fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
@@ -253,7 +309,31 @@ impl<'a> MacroExtractor<'a> {
                 };
                 inputs.push(StyleInput::ConditionalUtilityString {
                     guard: self.source_span(expression.left.span()),
+                    when_true: true,
                     value: self.string_literal(literal),
+                });
+            }
+            Expression::ConditionalExpression(expression) => {
+                let (Expression::StringLiteral(consequent), Expression::StringLiteral(alternate)) =
+                    (&expression.consequent, &expression.alternate)
+                else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHJS002",
+                        "a style() ternary must contain literal utility strings on both sides",
+                        self.source_span(expression.span),
+                    ));
+                    return;
+                };
+                let guard = self.source_span(expression.test.span());
+                inputs.push(StyleInput::ConditionalUtilityString {
+                    guard,
+                    when_true: true,
+                    value: self.string_literal(consequent),
+                });
+                inputs.push(StyleInput::ConditionalUtilityString {
+                    guard,
+                    when_true: false,
+                    value: self.string_literal(alternate),
                 });
             }
             Expression::ArrayExpression(array) => {
@@ -286,6 +366,7 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // Keeps the tightly coupled object-key diagnostics together.
     fn collect_object(&mut self, object: &ObjectExpression<'a>, inputs: &mut Vec<StyleInput>) {
         let mut entries = Vec::new();
         for property in &object.properties {
@@ -297,6 +378,58 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             };
+            if property.method || property.kind != PropertyKind::Init {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHJS003",
+                    "style() attributes must be plain key-value properties",
+                    self.source_span(property.span),
+                ));
+                continue;
+            }
+            if property.computed {
+                let Some((handle, selector)) = self.handle_tagged_selector(&property.key) else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHJS003",
+                        "computed style() keys must be static selectors tagged by style.handle()",
+                        self.source_span(property.key.span()),
+                    ));
+                    continue;
+                };
+                match &property.value {
+                    Expression::StringLiteral(value) => {
+                        inputs.push(StyleInput::HandleSelectorUtilityString {
+                            handle,
+                            selector,
+                            value: self.string_literal(value),
+                        });
+                    }
+                    Expression::LogicalExpression(expression)
+                        if expression.operator == LogicalOperator::And =>
+                    {
+                        let Expression::StringLiteral(value) = &expression.right else {
+                            self.diagnostics.push(Diagnostic::error(
+                                "SHJS004",
+                                "a handle selector conditional must have a literal utility string on its right side",
+                                self.source_span(expression.right.span()),
+                            ));
+                            continue;
+                        };
+                        inputs.push(StyleInput::ConditionalHandleSelectorUtilityString {
+                            handle,
+                            selector,
+                            guard: self.source_span(expression.left.span()),
+                            when_true: true,
+                            value: self.string_literal(value),
+                        });
+                    }
+                    _ => self.diagnostics.push(Diagnostic::error(
+                        "SHJS004",
+                        "a handle selector must map to a literal utility string or `condition && \"…\"`",
+                        self.source_span(property.value.span()),
+                    )),
+                }
+                continue;
+            }
             let PropertyKey::StringLiteral(name) = &property.key else {
                 self.diagnostics.push(Diagnostic::error(
                     "SHJS003",
@@ -305,14 +438,6 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             };
-            if property.computed || property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(Diagnostic::error(
-                    "SHJS003",
-                    "style() attributes must be plain key-value properties",
-                    self.source_span(property.span),
-                ));
-                continue;
-            }
             let name = self.string_literal(name);
             if name.value.starts_with("aria-") || name.value.starts_with("data-") {
                 entries.push(AttributeEntry {
@@ -350,6 +475,7 @@ impl<'a> MacroExtractor<'a> {
                     inputs.push(StyleInput::ConditionalSelectorUtilityString {
                         selector: name,
                         guard: self.source_span(expression.left.span()),
+                        when_true: true,
                         value: self.string_literal(value),
                     });
                 }

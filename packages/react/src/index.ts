@@ -22,6 +22,11 @@ export type StyleHandle = {
   readonly scope: StyleHandleProjection
   container(type: "size" | "inline-size"): StyleHandleProjection
   at(query: string, utilities: string): StyleHandleProjection
+  (strings: TemplateStringsArray): StyleHandleSelector
+}
+
+export type StyleHandleSelector = {
+  readonly [handleProjection]: true
 }
 
 export type StyleArgument =
@@ -33,6 +38,7 @@ export type StyleArgument =
   | Partial<Record<StyleAttributeName, unknown>>
   | Partial<Record<StyleSelector, string | false | null | undefined>>
   | StyleHandleProjection
+  | StyleHandleSelector
 
 export type StyleMacro = {
   (...inputs: readonly StyleArgument[]): StyleProps

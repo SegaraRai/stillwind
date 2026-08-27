@@ -12,6 +12,7 @@ pub struct GeneratedClass {
     pub class_name: String,
     pub call_span: Span,
     pub guard: Option<Span>,
+    pub guard_when_true: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -120,8 +121,9 @@ impl Compiler {
         let mut utility_css = String::new();
         let module = parsed.module;
         for call in module.style_calls {
-            let mut branches = vec![(None, String::new(), Vec::new())];
+            let mut branches = vec![(None, true, String::new(), Vec::new())];
             let mut attributes = Vec::new();
+            let mut handle_markers = Vec::new();
             for input in call.inputs {
                 if let StyleInput::ContainerQuery {
                     handle,
@@ -130,19 +132,19 @@ impl Compiler {
                 } = input
                 {
                     let branch = &mut branches[0];
-                    branch.1.push_str("container:");
-                    branch.1.push_str(&handle.value);
-                    branch.1.push(':');
-                    branch.1.push_str(&query.value);
-                    branch.1.push('\0');
+                    branch.2.push_str("container:");
+                    branch.2.push_str(&handle.value);
+                    branch.2.push(':');
+                    branch.2.push_str(&query.value);
+                    branch.2.push('\0');
                     for utility in lex_utilities(&value) {
-                        branch.1.push_str(&utility.value.raw);
-                        branch.1.push('\0');
+                        branch.2.push_str(&utility.value.raw);
+                        branch.2.push('\0');
                         match resolve_utility(&utility.value.raw, &theme) {
                             Some(mut utility) => {
                                 utility.container =
                                     Some(format!("{} ({})", handle_css_name(&handle), query.value));
-                                branch.2.push(utility);
+                                branch.3.push(utility);
                             }
                             None => result.diagnostics.push(Diagnostic::error(
                                 "SH001",
@@ -155,12 +157,16 @@ impl Compiler {
                 }
                 if let StyleInput::HandleProjection { handle, projection } = input {
                     let branch = &mut branches[0];
-                    branch.1.push_str("handle:");
-                    branch.1.push_str(&handle.value);
-                    branch.1.push(':');
-                    branch.1.push_str(handle_projection_name(&projection));
-                    branch.1.push('\0');
-                    branch.2.push(CompiledUtility {
+                    let marker = handle_marker_class(&handle);
+                    if !handle_markers.contains(&marker) {
+                        handle_markers.push(marker);
+                    }
+                    branch.2.push_str("handle:");
+                    branch.2.push_str(&handle.value);
+                    branch.2.push(':');
+                    branch.2.push_str(handle_projection_name(&projection));
+                    branch.2.push('\0');
+                    branch.3.push(CompiledUtility {
                         variants: Vec::new(),
                         declaration: render_handle_projection(&handle, &projection),
                         selector: None,
@@ -168,29 +174,54 @@ impl Compiler {
                     });
                     continue;
                 }
-                let (guard, selector, input) = match input {
-                    StyleInput::UtilityString(input) => (None, None, input),
-                    StyleInput::ConditionalUtilityString { guard, value } => {
-                        (Some(guard), None, value)
-                    }
+                let (guard, guard_when_true, selector, input) = match input {
+                    StyleInput::UtilityString(input) => (None, true, None, input),
+                    StyleInput::ConditionalUtilityString {
+                        guard,
+                        when_true,
+                        value,
+                    } => (Some(guard), when_true, None, value),
                     StyleInput::Attributes(entries) => {
                         attributes.extend(entries);
                         continue;
                     }
                     StyleInput::SelectorUtilityString { selector, value } => {
-                        (None, Some(selector.value), value)
+                        (None, true, Some(selector.value), value)
                     }
                     StyleInput::ConditionalSelectorUtilityString {
                         selector,
                         guard,
+                        when_true,
                         value,
-                    } => (Some(guard), Some(selector.value), value),
+                    } => (Some(guard), when_true, Some(selector.value), value),
+                    StyleInput::HandleSelectorUtilityString {
+                        handle,
+                        selector,
+                        value,
+                    } => (
+                        None,
+                        true,
+                        Some(handle_parent_selector(&handle, &selector.value)),
+                        value,
+                    ),
+                    StyleInput::ConditionalHandleSelectorUtilityString {
+                        handle,
+                        selector,
+                        guard,
+                        when_true,
+                        value,
+                    } => (
+                        Some(guard),
+                        when_true,
+                        Some(handle_parent_selector(&handle, &selector.value)),
+                        value,
+                    ),
                     StyleInput::HandleProjection { .. } | StyleInput::ContainerQuery { .. } => {
                         unreachable!("handled above")
                     }
                 };
                 let branch_index = if let Some(guard) = guard {
-                    branches.push((Some(guard), String::new(), Vec::new()));
+                    branches.push((Some(guard), guard_when_true, String::new(), Vec::new()));
                     branches.len() - 1
                 } else {
                     0
@@ -198,15 +229,15 @@ impl Compiler {
                 let branch = &mut branches[branch_index];
                 for utility in lex_utilities(&input) {
                     if let Some(selector) = &selector {
-                        branch.1.push_str(selector);
-                        branch.1.push('\0');
+                        branch.2.push_str(selector);
+                        branch.2.push('\0');
                     }
-                    branch.1.push_str(&utility.value.raw);
-                    branch.1.push('\0');
+                    branch.2.push_str(&utility.value.raw);
+                    branch.2.push('\0');
                     match resolve_utility(&utility.value.raw, &theme) {
                         Some(mut utility) => {
                             utility.selector.clone_from(&selector);
-                            branch.2.push(utility);
+                            branch.3.push(utility);
                         }
                         None => result.diagnostics.push(Diagnostic::error(
                             "SH001",
@@ -218,7 +249,7 @@ impl Compiler {
             }
 
             let mut call_classes = Vec::new();
-            for (guard, canonical_input, utilities) in branches {
+            for (guard, guard_when_true, canonical_input, utilities) in branches {
                 if utilities.is_empty() {
                     continue;
                 }
@@ -228,11 +259,14 @@ impl Compiler {
                     class_name,
                     call_span: call.span,
                     guard,
+                    guard_when_true,
                 };
                 call_classes.push(generated_class.clone());
                 result.classes.push(generated_class);
             }
-            if let Some(replacement) = render_react_props(source, &call_classes, &attributes) {
+            if let Some(replacement) =
+                render_react_props(source, &call_classes, &attributes, &handle_markers)
+            {
                 result.transforms.push(PropsTransform {
                     call_span: call.span,
                     replacement,
@@ -292,23 +326,43 @@ fn handle_css_name(handle: &Spanned<String>) -> String {
     format!("--sw-h-{}", &hash.to_hex()[..8])
 }
 
+fn handle_marker_class(handle: &Spanned<String>) -> String {
+    handle_css_name(handle).trim_start_matches("--").to_owned()
+}
+
+fn handle_parent_selector(handle: &Spanned<String>, selector: &str) -> String {
+    let marker = handle_marker_class(handle);
+    format!("{} &", selector.replace('&', &format!(".{marker}")))
+}
+
 fn render_react_props(
     source: &SourceFile,
     classes: &[GeneratedClass],
     attributes: &[AttributeEntry],
+    handle_markers: &[String],
 ) -> Option<String> {
     let mut entries = Vec::new();
-    if !classes.is_empty() {
-        let class_names = classes
+    if !classes.is_empty() || !handle_markers.is_empty() {
+        let mut class_names = handle_markers
             .iter()
-            .map(|class| match class.guard {
-                Some(guard) => source
-                    .slice(guard)
-                    .ok()
-                    .map(|guard| format!("{guard}&&\"{}\"", class.class_name)),
-                None => Some(format!("\"{}\"", class.class_name)),
-            })
-            .collect::<Option<Vec<_>>>()?;
+            .map(|marker| format!("\"{marker}\""))
+            .collect::<Vec<_>>();
+        class_names.extend(
+            classes
+                .iter()
+                .map(|class| match class.guard {
+                    Some(guard) => source.slice(guard).ok().map(|guard| {
+                        let guard = if class.guard_when_true {
+                            guard.to_owned()
+                        } else {
+                            format!("!{guard}")
+                        };
+                        format!("{guard}&&\"{}\"", class.class_name)
+                    }),
+                    None => Some(format!("\"{}\"", class.class_name)),
+                })
+                .collect::<Option<Vec<_>>>()?,
+        );
         let class_value = if class_names.len() == 1 {
             class_names.into_iter().next()?
         } else {
