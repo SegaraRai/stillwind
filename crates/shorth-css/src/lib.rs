@@ -16,6 +16,22 @@ pub struct ThemeIndex {
     pub tokens: Vec<ThemeToken>,
 }
 
+impl ThemeIndex {
+    #[must_use]
+    pub fn token(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
+        let expected = format!("--{namespace}-{name}");
+        self.tokens
+            .iter()
+            .find(|token| token.name.value == expected)
+    }
+
+    #[must_use]
+    pub fn value(&self, namespace: &str, name: &str) -> Option<&str> {
+        self.token(namespace, name)
+            .map(|token| token.value.value.as_str())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ThemeError {
     #[error("CSS parse error: {0}")]
@@ -108,5 +124,7 @@ mod tests {
         assert_eq!(theme.tokens.len(), 2);
         assert_eq!(theme.tokens[0].name.value, "--color-accent");
         assert_eq!(source.slice(theme.tokens[1].value.span).unwrap(), "1rem");
+        assert_eq!(theme.value("color", "accent"), Some("oklch(.6 .2 250)"));
+        assert!(theme.token("spacing", "missing").is_none());
     }
 }

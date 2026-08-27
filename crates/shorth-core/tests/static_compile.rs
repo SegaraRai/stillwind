@@ -201,3 +201,37 @@ const props = style(
             .contains("\"aria-busy\":loading")
     );
 }
+
+#[test]
+fn resolves_negative_and_transition_utilities_from_declared_theme_tokens() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Card.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("-mt-4 duration-fast ease-standard");"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/stillwind.css",
+        "@theme { --spacing-4: 1rem; --duration-fast: 120ms; --ease-standard: ease-out; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains("margin-top:calc(var(--spacing-4) * -1);")
+    );
+    assert!(
+        result
+            .css
+            .contains("transition-duration:var(--duration-fast);")
+    );
+    assert!(
+        result
+            .css
+            .contains("transition-timing-function:var(--ease-standard);")
+    );
+}

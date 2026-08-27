@@ -246,34 +246,8 @@ struct CompiledUtility {
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
     let (variants, base) = split_variants(utility);
-    let declaration = match base {
-        "block" => Some("display:block;".to_owned()),
-        "inline-block" => Some("display:inline-block;".to_owned()),
-        "flex" => Some("display:flex;".to_owned()),
-        "inline-flex" => Some("display:inline-flex;".to_owned()),
-        "grid" => Some("display:grid;".to_owned()),
-        "hidden" => Some("display:none;".to_owned()),
-        "items-center" => Some("align-items:center;".to_owned()),
-        "items-start" => Some("align-items:flex-start;".to_owned()),
-        "items-end" => Some("align-items:flex-end;".to_owned()),
-        "justify-center" => Some("justify-content:center;".to_owned()),
-        "justify-between" => Some("justify-content:space-between;".to_owned()),
-        "text-center" => Some("text-align:center;".to_owned()),
-        "text-left" => Some("text-align:left;".to_owned()),
-        "font-medium" => Some("font-weight:500;".to_owned()),
-        "font-semibold" => Some("font-weight:600;".to_owned()),
-        "font-bold" => Some("font-weight:700;".to_owned()),
-        "cursor-wait" => Some("cursor:wait;".to_owned()),
-        "cursor-pointer" => Some("cursor:pointer;".to_owned()),
-        "relative" => Some("position:relative;".to_owned()),
-        "absolute" => Some("position:absolute;".to_owned()),
-        "overflow-hidden" => Some("overflow:hidden;".to_owned()),
-        "transition" => Some("transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-duration:.15s;transition-timing-function:cubic-bezier(.4,0,.2,1);".to_owned()),
-        "opacity-60" => Some("opacity:.6;".to_owned()),
-        "opacity-0" => Some("opacity:0;".to_owned()),
-        "opacity-100" => Some("opacity:1;".to_owned()),
-        _ => resolve_themed_utility(base, theme),
-    }?;
+    let declaration =
+        resolve_static_utility(base).or_else(|| resolve_themed_utility(base, theme))?;
     Some(CompiledUtility {
         variants,
         declaration,
@@ -281,52 +255,95 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
     })
 }
 
+fn resolve_static_utility(utility: &str) -> Option<String> {
+    const UTILITIES: &[(&str, &str)] = &[
+        ("block", "display:block;"),
+        ("inline-block", "display:inline-block;"),
+        ("flex", "display:flex;"),
+        ("inline-flex", "display:inline-flex;"),
+        ("grid", "display:grid;"),
+        ("hidden", "display:none;"),
+        ("items-center", "align-items:center;"),
+        ("items-start", "align-items:flex-start;"),
+        ("items-end", "align-items:flex-end;"),
+        ("justify-center", "justify-content:center;"),
+        ("justify-between", "justify-content:space-between;"),
+        ("text-center", "text-align:center;"),
+        ("text-left", "text-align:left;"),
+        ("font-medium", "font-weight:500;"),
+        ("font-semibold", "font-weight:600;"),
+        ("font-bold", "font-weight:700;"),
+        ("cursor-wait", "cursor:wait;"),
+        ("cursor-pointer", "cursor:pointer;"),
+        ("relative", "position:relative;"),
+        ("absolute", "position:absolute;"),
+        ("overflow-hidden", "overflow:hidden;"),
+        (
+            "transition",
+            "transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-duration:.15s;transition-timing-function:cubic-bezier(.4,0,.2,1);",
+        ),
+        ("opacity-0", "opacity:0;"),
+        ("opacity-60", "opacity:.6;"),
+        ("opacity-100", "opacity:1;"),
+    ];
+    UTILITIES
+        .iter()
+        .find_map(|(name, declaration)| (*name == utility).then(|| (*declaration).to_owned()))
+}
+
 fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
+    let (negative, utility) = utility
+        .strip_prefix('-')
+        .map_or((false, utility), |utility| (true, utility));
     if let Some((color, opacity)) = utility
         .strip_prefix("bg-")
         .and_then(|value| value.rsplit_once('/'))
-        && has_theme_token(theme, "color", color)
+        && theme.token("color", color).is_some()
     {
         return Some(format!(
             "background-color:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
         ));
     }
-    for (prefix, namespace, property) in [
-        ("bg-", "color", "background-color"),
-        ("text-", "color", "color"),
-        ("border-", "color", "border-color"),
-        ("p-", "spacing", "padding"),
-        ("px-", "spacing", "padding-inline"),
-        ("py-", "spacing", "padding-block"),
-        ("pt-", "spacing", "padding-top"),
-        ("pr-", "spacing", "padding-right"),
-        ("pb-", "spacing", "padding-bottom"),
-        ("pl-", "spacing", "padding-left"),
-        ("m-", "spacing", "margin"),
-        ("mx-", "spacing", "margin-inline"),
-        ("my-", "spacing", "margin-block"),
-        ("gap-", "spacing", "gap"),
-        ("w-", "spacing", "width"),
-        ("h-", "spacing", "height"),
-        ("rounded-", "radius", "border-radius"),
-        ("shadow-", "shadow", "box-shadow"),
-        ("text-", "text", "font-size"),
+    for (prefix, namespace, property, supports_negative) in [
+        ("bg-", "color", "background-color", false),
+        ("text-", "color", "color", false),
+        ("border-", "color", "border-color", false),
+        ("p-", "spacing", "padding", false),
+        ("px-", "spacing", "padding-inline", false),
+        ("py-", "spacing", "padding-block", false),
+        ("pt-", "spacing", "padding-top", false),
+        ("pr-", "spacing", "padding-right", false),
+        ("pb-", "spacing", "padding-bottom", false),
+        ("pl-", "spacing", "padding-left", false),
+        ("m-", "spacing", "margin", true),
+        ("mx-", "spacing", "margin-inline", true),
+        ("my-", "spacing", "margin-block", true),
+        ("mt-", "spacing", "margin-top", true),
+        ("mr-", "spacing", "margin-right", true),
+        ("mb-", "spacing", "margin-bottom", true),
+        ("ml-", "spacing", "margin-left", true),
+        ("gap-", "spacing", "gap", false),
+        ("w-", "spacing", "width", false),
+        ("h-", "spacing", "height", false),
+        ("rounded-", "radius", "border-radius", false),
+        ("shadow-", "shadow", "box-shadow", false),
+        ("text-", "text", "font-size", false),
+        ("duration-", "duration", "transition-duration", false),
+        ("ease-", "ease", "transition-timing-function", false),
     ] {
         let Some(token) = utility.strip_prefix(prefix) else {
             continue;
         };
-        if has_theme_token(theme, namespace, token) {
-            return Some(format!("{property}:var(--{namespace}-{token});"));
+        if theme.token(namespace, token).is_some() && (!negative || supports_negative) {
+            let value = if negative {
+                format!("calc(var(--{namespace}-{token}) * -1)")
+            } else {
+                format!("var(--{namespace}-{token})")
+            };
+            return Some(format!("{property}:{value};"));
         }
     }
     None
-}
-
-fn has_theme_token(theme: &shorth_css::ThemeIndex, namespace: &str, token: &str) -> bool {
-    theme
-        .tokens
-        .iter()
-        .any(|entry| entry.name.value == format!("--{namespace}-{token}"))
 }
 
 fn split_variants(utility: &str) -> (Vec<String>, &str) {
@@ -396,12 +413,8 @@ fn emit_utility_rules(
                     }
                 }
                 value => {
-                    if let Some(token) = theme
-                        .tokens
-                        .iter()
-                        .find(|token| token.name.value == format!("--breakpoint-{value}"))
-                    {
-                        media.push(format!("(width >= {})", token.value.value));
+                    if let Some(token) = theme.value("breakpoint", value) {
+                        media.push(format!("(width >= {token})"));
                     }
                 }
             }
