@@ -3,7 +3,7 @@ import { css } from "@codemirror/lang-css"
 import { javascript } from "@codemirror/lang-javascript"
 import { oneDark } from "@codemirror/theme-one-dark"
 import { EditorView } from "@codemirror/view"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
 import "./play.css"
 
@@ -84,6 +84,8 @@ function Play() {
   const [previewError, setPreviewError] = useState<string | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
   const requestId = useRef(0)
+  const tsxLanguage = useMemo(() => javascript({ jsx: true, typescript: true }), [])
+  const cssLanguage = useMemo(() => css(), [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -124,7 +126,7 @@ function Play() {
     </header>
     <section className="workspace">
       <aside className="files" aria-label="Playground files"><p>FILES</p><button className={fileTab === "component" ? "active" : ""} type="button" onClick={() => setFileTab("component")}>Component.tsx</button><button className={fileTab === "theme" ? "active" : ""} type="button" onClick={() => setFileTab("theme")}>shorth.css</button><small>React TSX · CSS-first theme</small></aside>
-      <section className="editor-panel"><div className="panel-bar"><strong>{fileTab === "component" ? "Component.tsx" : "shorth.css"}</strong><span>Reactive compiler</span></div>{fileTab === "component" ? <CodeEditor value={source} onChange={setSource} extensions={javascript({ jsx: true, typescript: true })} /> : <CodeEditor value={theme} onChange={setTheme} extensions={css()} />}</section>
+      <section className="editor-panel"><div className="panel-bar"><strong>{fileTab === "component" ? "Component.tsx" : "shorth.css"}</strong><span>Reactive compiler</span></div>{fileTab === "component" ? <CodeEditor value={source} onChange={setSource} extensions={tsxLanguage} /> : <CodeEditor value={theme} onChange={setTheme} extensions={cssLanguage} />}</section>
       <section className="preview-panel"><div className="panel-bar preview-bar"><strong>Preview</strong><div className="viewport-switcher" aria-label="Preview viewport">{(["desktop", "tablet", "mobile"] as const).map((item) => <button className={viewport === item ? "active" : ""} type="button" onClick={() => setViewport(item)} key={item}>{item[0].toUpperCase()}</button>)}</div><span>{viewportLabel}</span></div><div className={`preview-stage ${viewport}`}>{result?.previewUrl && !result.diagnostics.length ? <iframe key={result.previewUrl} ref={frame} title="Shorth Play preview" sandbox="allow-scripts" src={result.previewUrl} /> : <div className="preview-empty">{previewError ?? "Fix diagnostics to render the preview."}</div>}</div>{previewError ? <div className="runtime-error">Runtime: {previewError}</div> : null}</section>
       <section className="output-panel"><div className="output-tabs">{(["css", "transform", "diagnostics"] as const).map((item) => <button type="button" key={item} onClick={() => setOutputTab(item)} className={outputTab === item ? "active" : ""}>{item === "css" ? "Generated CSS" : item === "transform" ? "Macro output" : `Diagnostics${result?.diagnostics.length ? ` (${result.diagnostics.length})` : ""}`}</button>)}</div><pre>{output || "Compiling…"}</pre></section>
     </section>

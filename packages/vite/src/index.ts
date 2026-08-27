@@ -78,12 +78,18 @@ function previewSource(code: string): string {
 
 async function bundlePreview(source: string, css: string, server: ViteDevServer): Promise<string> {
   const userModuleId = "shorth-play-user"
+  const userSource = previewSource(source)
+  const appImport = /\bexport\s+default\b/.test(userSource)
+    ? `import App from "${userModuleId}";`
+    : /\bexport\s+(?:function|const|let|class)\s+App\b|\bexport\s*\{\s*App\s*\}/.test(userSource)
+      ? `import { App } from "${userModuleId}";`
+      : null
+  if (!appImport) throw new Error("Play expects `export default App`, `export function App`, or `export { App }`.")
   const entry = `
     import * as React from "react";
     import { createRoot } from "react-dom/client";
-    import * as UserModule from "${userModuleId}";
-    const App = Object.getOwnPropertyDescriptor(UserModule, "default")?.value ?? Object.getOwnPropertyDescriptor(UserModule, "App")?.value;
-    if (typeof App !== "function") throw new Error("Play expects an App export.");
+    ${appImport}
+    if (typeof App !== "function") throw new Error("Play expects an App component.");
     const root = document.getElementById("root");
     if (!root) throw new Error("Preview root is missing.");
     createRoot(root).render(React.createElement(App));
@@ -104,7 +110,7 @@ async function bundlePreview(source: string, css: string, server: ViteDevServer)
       setup(esbuild) {
         esbuild.onResolve({ filter: new RegExp(`^${userModuleId}$`) }, () => ({ path: userModuleId, namespace: "shorth-play" }))
         esbuild.onLoad({ filter: /.*/, namespace: "shorth-play" }, () => ({
-          contents: previewSource(source),
+          contents: userSource,
           loader: "tsx",
           resolveDir: server.config.root,
         }))
