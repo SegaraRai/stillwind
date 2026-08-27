@@ -9,7 +9,7 @@ fn fixture(name: &str) -> PathBuf {
 
 #[test]
 fn cli_compiles_a_react_module_to_layered_css_and_macro_free_code() {
-    let output = Command::new(env!("CARGO_BIN_EXE_shorth"))
+    let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
         .args([
             "compile",
             "--source",
@@ -18,7 +18,7 @@ fn cli_compiles_a_react_module_to_layered_css_and_macro_free_code() {
             fixture("shorth.css").to_str().unwrap(),
         ])
         .output()
-        .expect("the shorth CLI starts");
+        .expect("the stillwind CLI starts");
 
     assert!(
         output.status.success(),

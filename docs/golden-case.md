@@ -1,6 +1,6 @@
-# shorth — Golden Case
+# stillwind — Golden Case
 
-This document fixes the intended authoring experience for `shorth`. It is a
+This document fixes the intended authoring experience for `stillwind`. It is a
 product contract, not yet an implementation specification: the syntax may gain
 small ergonomic refinements, but the principles below should not be weakened.
 
@@ -11,7 +11,7 @@ it extracts every statically knowable branch, emits CSS, and returns framework
 props. It never builds CSS at runtime.
 
 ```tsx
-import { style } from "shorth/react";
+import { style } from "stillwind/react";
 
 function SaveButton({ loading }: { loading: boolean }) {
   return (
@@ -34,7 +34,7 @@ The conceptual React output is:
 
 ```tsx
 {
-  className: shorthClsx("_s_a1", loading && "_s_b2"),
+  className: stillwindClsx("_s_a1", loading && "_s_b2"),
   "aria-busy": loading || undefined,
 }
 ```
@@ -53,7 +53,7 @@ The CSS theme is the source of truth. The compiler reads it to generate utility
 vocabulary and optional TypeScript declarations.
 
 ```css
-/* src/styles/shorth.css */
+/* src/styles/stillwind.css */
 @theme {
   --color-accent: oklch(0.62 0.19 255);
   --color-surface: oklch(0.98 0.01 255);
@@ -150,9 +150,9 @@ const trigger = style.handle();
 The relevant projections are:
 
 ```ts
-trigger.anchor                  // anchor-name: --shorth-…
-trigger.position                // position-anchor: --shorth-…
-trigger.scope                   // anchor-scope: --shorth-…
+trigger.anchor                  // anchor-name: --stillwind-…
+trigger.position                // position-anchor: --stillwind-…
+trigger.scope                   // anchor-scope: --stillwind-…
 trigger.container("inline-size") // container-name/type
 trigger.at("width >= 40rem", "grid-cols-2") // named @container rule
 trigger`&:hover`                // selector rooted at this referenced element

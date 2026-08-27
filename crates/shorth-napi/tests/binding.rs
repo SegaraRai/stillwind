@@ -1,7 +1,7 @@
 #[test]
 fn serializes_a_layered_compile_result_for_node_consumers() {
     let output = shorth_napi::compile_react_json(
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90");"#,
         "Button.tsx",
         "@theme { --color-accent: oklch(.6 .2 250); }",

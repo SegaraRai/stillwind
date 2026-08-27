@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { build } from "esbuild"
-import { compileReact } from "@shorth/native"
+import { compileReact } from "@stillwind/native"
 import type { Plugin, ViteDevServer } from "vite"
 
-export interface ShorthOptions {
+export interface StillwindOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
   theme: string
 }
@@ -21,7 +21,7 @@ interface PlayOutput extends CompilerOutput {
   previewUrl: string | null
 }
 
-const virtualCssId = "virtual:shorth.css"
+const virtualCssId = "virtual:stillwind.css"
 const resolvedVirtualCssId = `\0${virtualCssId}`
 const maximumPlayPayloadBytes = 1_000_000
 
@@ -67,17 +67,17 @@ function readJson(request: IncomingMessage): Promise<{ source: string; theme: st
 
 function previewSource(code: string): string {
   const withoutMacroImport = code.replace(
-    /^\s*import\s+(?:[^;]+?)\s+from\s+["']shorth\/react["'];?\s*$/gm,
+    /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm,
     "",
   )
-  const withRuntime = withoutMacroImport.includes("shorthClsx(")
-    ? 'import { shorthClsx } from "shorth/react/runtime";\n' + withoutMacroImport
+  const withRuntime = withoutMacroImport.includes("stillwindClsx(")
+    ? 'import { stillwindClsx } from "stillwind/react/runtime";\n' + withoutMacroImport
     : withoutMacroImport
   return withRuntime.replace(/\bexport\s+App\s*;/g, "export { App };")
 }
 
 async function bundlePreview(source: string, css: string, server: ViteDevServer): Promise<string> {
-  const userModuleId = "shorth-play-user"
+  const userModuleId = "stillwind-play-user"
   const userSource = previewSource(source)
   const appImport = /\bexport\s+default\b/.test(userSource)
     ? `import App from "${userModuleId}";`
@@ -106,10 +106,10 @@ async function bundlePreview(source: string, css: string, server: ViteDevServer)
     target: ["es2022"],
     write: false,
     plugins: [{
-      name: "shorth-play-user-module",
+      name: "stillwind-play-user-module",
       setup(esbuild) {
-        esbuild.onResolve({ filter: new RegExp(`^${userModuleId}$`) }, () => ({ path: userModuleId, namespace: "shorth-play" }))
-        esbuild.onLoad({ filter: /.*/, namespace: "shorth-play" }, () => ({
+        esbuild.onResolve({ filter: new RegExp(`^${userModuleId}$`) }, () => ({ path: userModuleId, namespace: "stillwind-play" }))
+        esbuild.onLoad({ filter: /.*/, namespace: "stillwind-play" }, () => ({
           contents: userSource,
           loader: "tsx",
           resolveDir: server.config.root,
@@ -120,27 +120,27 @@ async function bundlePreview(source: string, css: string, server: ViteDevServer)
   const javascript = result.outputFiles[0]?.text
   if (!javascript) throw new Error("preview bundle did not produce JavaScript")
   return `
-window.addEventListener("error", (event) => parent.postMessage({type:"shorth-preview-error",message:event.message}, "*"));
-window.addEventListener("unhandledrejection", (event) => parent.postMessage({type:"shorth-preview-error",message:String(event.reason)}, "*"));
+window.addEventListener("error", (event) => parent.postMessage({type:"stillwind-preview-error",message:event.message}, "*"));
+window.addEventListener("unhandledrejection", (event) => parent.postMessage({type:"stillwind-preview-error",message:String(event.reason)}, "*"));
 const previewStyle = document.createElement("style");
 previewStyle.textContent = ${JSON.stringify(css)};
 document.head.append(previewStyle);
-try { ${javascript} } catch (error) { parent.postMessage({type:"shorth-preview-error",message:error instanceof Error ? error.message : String(error)}, "*"); }
+try { ${javascript} } catch (error) { parent.postMessage({type:"stillwind-preview-error",message:error instanceof Error ? error.message : String(error)}, "*"); }
 `
 }
 
 function previewHtml(id: string) {
   const encodedId = encodeURIComponent(id)
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'"><style>html,body,#root{min-height:100%;margin:0}</style></head><body><div id="root"></div><script src="/__shorth/preview-script?id=${encodedId}"></script></body></html>`
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'"><style>html,body,#root{min-height:100%;margin:0}</style></head><body><div id="root"></div><script src="/__stillwind/preview-script?id=${encodedId}"></script></body></html>`
 }
 
 /** Runs the native compiler and renders Play user modules only inside a sandboxed iframe. */
-export function shorth(options: ShorthOptions): Plugin {
+export function stillwind(options: StillwindOptions): Plugin {
   const cssByModule = new Map<string, string>()
   const previewBundles = new Map<string, string>()
 
   return {
-    name: "shorth",
+    name: "stillwind",
     enforce: "pre",
     resolveId(id) {
       return id === virtualCssId ? resolvedVirtualCssId : undefined
@@ -150,7 +150,7 @@ export function shorth(options: ShorthOptions): Plugin {
       return undefined
     },
     transform(code, id) {
-      if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules") || !code.includes("shorth/react")) return undefined
+      if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules") || !code.includes("stillwind/react")) return undefined
       const output = compile(code, id, readFileSync(options.theme, "utf8"))
       if (output.diagnostics.length > 0) {
         const diagnostic = output.diagnostics[0]
@@ -158,11 +158,11 @@ export function shorth(options: ShorthOptions): Plugin {
       }
       if (!output.code) return undefined
       cssByModule.set(id, output.css)
-      const runtimeImport = output.code.includes("shorthClsx(") ? 'import { shorthClsx } from "shorth/react/runtime";\n' : ""
+      const runtimeImport = output.code.includes("stillwindClsx(") ? 'import { stillwindClsx } from "stillwind/react/runtime";\n' : ""
       return { code: `${runtimeImport}import "${virtualCssId}";\n${output.code}`, map: null }
     },
     configureServer(server: ViteDevServer) {
-      server.middlewares.use("/__shorth/compile", (request, response) => {
+      server.middlewares.use("/__stillwind/compile", (request, response) => {
         if (request.method !== "POST") return sendJson(response, { error: "POST is required" }, 405)
         void readJson(request)
           .then(async ({ source, theme }) => {
@@ -173,7 +173,7 @@ export function shorth(options: ShorthOptions): Plugin {
                 const id = randomUUID()
                 previewBundles.set(id, await bundlePreview(output.code, output.css, server))
                 while (previewBundles.size > 12) previewBundles.delete(previewBundles.keys().next().value!)
-                previewUrl = `/__shorth/preview?id=${encodeURIComponent(id)}`
+                previewUrl = `/__stillwind/preview?id=${encodeURIComponent(id)}`
               } catch (error) {
                 output.diagnostics.push({ code: "SHPLAY001", message: error instanceof Error ? error.message : String(error), start: 0, end: 0 })
               }
@@ -182,8 +182,8 @@ export function shorth(options: ShorthOptions): Plugin {
           })
           .catch((error: unknown) => sendJson(response, { error: error instanceof Error ? error.message : String(error) }, 400))
       })
-      server.middlewares.use("/__shorth/preview", (request, response) => {
-        const id = new URL(request.url ?? "", "http://shorth.local").searchParams.get("id")
+      server.middlewares.use("/__stillwind/preview", (request, response) => {
+        const id = new URL(request.url ?? "", "http://stillwind.local").searchParams.get("id")
         if (!id || !previewBundles.has(id)) {
           response.statusCode = 404
           return response.end("Preview expired")
@@ -192,8 +192,8 @@ export function shorth(options: ShorthOptions): Plugin {
         response.setHeader("cache-control", "no-store")
         response.end(previewHtml(id))
       })
-      server.middlewares.use("/__shorth/preview-script", (request, response) => {
-        const id = new URL(request.url ?? "", "http://shorth.local").searchParams.get("id")
+      server.middlewares.use("/__stillwind/preview-script", (request, response) => {
+        const id = new URL(request.url ?? "", "http://stillwind.local").searchParams.get("id")
         const bundle = id ? previewBundles.get(id) : undefined
         if (!bundle) {
           response.statusCode = 404

@@ -1,7 +1,7 @@
 {
-  "name": "@shorth/vite",
+  "name": "@stillwind/vite",
   "version": "0.0.0",
-  "description": "Vite adapter for the Shorth compiler",
+  "description": "Vite adapter for the Stillwind compiler",
   "license": "MIT",
   "devEngines": {
     "packageManager": {
@@ -12,13 +12,16 @@
   },
   "packageManager": "pnpm@11.24.0",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": "./src/index.ts",
   "peerDependencies": {
     "vite": "^7.0.0"
   },
   "dependencies": {
-    "@shorth/native": "workspace:*",
+    "@stillwind/native": "workspace:*",
     "esbuild": "^0.28.2",
-    "shorth": "workspace:*"
+    "stillwind": "workspace:*"
   }
 }

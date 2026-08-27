@@ -249,7 +249,7 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.9
         version: 6.43.9
-      '@shorth/vite':
+      '@stillwind/vite':
         specifier: workspace:*
         version: link:../../packages/vite
       react:
@@ -258,13 +258,13 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      shorth:
+      stillwind:
         specifier: workspace:*
         version: link:../../packages/react
 
   examples/react:
     dependencies:
-      '@shorth/vite':
+      '@stillwind/vite':
         specifier: workspace:*
         version: link:../../packages/vite
       react:
@@ -273,23 +273,54 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      shorth:
+      stillwind:
         specifier: workspace:*
         version: link:../../packages/react
 
-  packages/native: {}
+  packages/native:
+    optionalDependencies:
+      '@stillwind/native-darwin-arm64':
+        specifier: workspace:*
+        version: link:npm/darwin-arm64
+      '@stillwind/native-darwin-x64':
+        specifier: workspace:*
+        version: link:npm/darwin-x64
+      '@stillwind/native-linux-arm64-gnu':
+        specifier: workspace:*
+        version: link:npm/linux-arm64-gnu
+      '@stillwind/native-linux-x64-gnu':
+        specifier: workspace:*
+        version: link:npm/linux-x64-gnu
+      '@stillwind/native-win32-arm64-msvc':
+        specifier: workspace:*
+        version: link:npm/win32-arm64-msvc
+      '@stillwind/native-win32-x64-msvc':
+        specifier: workspace:*
+        version: link:npm/win32-x64-msvc
+
+  packages/native/npm/darwin-arm64: {}
+
+  packages/native/npm/darwin-x64: {}
+
+  packages/native/npm/linux-arm64-gnu: {}
+
+  packages/native/npm/linux-x64-gnu: {}
+
+  packages/native/npm/win32-arm64-msvc: {}
+
+  packages/native/npm/win32-x64-msvc: {}
 
   packages/react: {}
 
   packages/vite:
     dependencies:
-      '@shorth/native':
+      '@stillwind/native':
         specifier: workspace:*
         version: link:../native
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
-      shorth:
+      stillwind:
         specifier: workspace:*
         version: link:../react
       vite:

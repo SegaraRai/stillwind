@@ -1,5 +1,5 @@
 /**
- * Compile-time React macro surface. Calls must be consumed by `@shorth/vite`;
+ * Compile-time React macro surface. Calls must be consumed by `@stillwind/vite`;
  * executing it at runtime means the compiler integration is missing.
  */
 export type StyleAttributeName = `aria-${string}` | `data-${string}`
@@ -17,6 +17,6 @@ export type StyleArgument =
 
 export function style(..._arguments: readonly StyleArgument[]): StyleProps {
   throw new Error(
-    "shorth/react style() is a compile-time macro. Add shorth() to your Vite plugins.",
+    "stillwind/react style() is a compile-time macro. Add stillwind() to your Vite plugins.",
   )
 }

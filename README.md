@@ -1,12 +1,12 @@
-# Shorth
+# Stillwind
 
-Shorth is a CSS-first, static CSS-in-JS compiler for component code. It uses
+Stillwind is a CSS-first, static CSS-in-JS compiler for component code. It uses
 Tailwind CSS v4-shaped theme variables and cascade layers, but turns each
 import-bound `style()` call into a compact generated class and a framework prop
 object at build time.
 
 ```tsx
-import { style } from "shorth/react"
+import { style } from "stillwind/react"
 
 <button
   {...style(
@@ -36,13 +36,13 @@ This repository contains a pnpm workspace backed by Vite+.
 
 ```powershell
 vp i
-vp run --filter @shorth/native build
-vp run --filter @shorth/react-example dev
-vp run --filter @shorth/play dev
+vp run --filter @stillwind/native build
+vp run --filter @stillwind/react-example dev
+vp run --filter @stillwind/play dev
 ```
 
 Each app declares its Vite+ tasks under `vite.config.ts#run.tasks`; use `vp run`
-instead of package scripts. `@shorth/native` is a napi-rs Node-API addon, so
+instead of package scripts. `@stillwind/native` is a napi-rs Node-API addon, so
 the Vite plugin calls Rust directly rather than spawning `cargo` for every
 transform. The interactive playground lives in [`apps/play`](./apps/play): it
 calls that binding through the Vite dev server and displays the transformed
@@ -53,9 +53,18 @@ The preview response applies a CSP that blocks network connections, forms,
 navigation, external images, and popups; user code never executes in the host
 Play page.
 
+`@stillwind/native` is a thin loader. Production installs select exactly one
+optional package for the host, such as `@stillwind/native-win32-x64-msvc` or
+`@stillwind/native-linux-x64-gnu`; generated target packages contain the
+platform-specific `.node` artifact. The local build task writes to the same
+target-package layout, so development exercises the production resolution path.
+`vp run --filter @stillwind/native sync-platform-packages` refreshes package
+metadata after the target list changes; `prepare-publish` is the release-stage
+task that assembles every CI-built artifact and pins optional package versions.
+
 ## CSS-first theme compatibility
 
-Shorth accepts a Tailwind v4-style `@theme` block. The current compiler indexes
+Stillwind accepts a Tailwind v4-style `@theme` block. The current compiler indexes
 `--color-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--text-*`, and
 `--breakpoint-*` custom properties and only resolves utilities backed by those
 tokens. It currently supports a tested compatibility slice of layout, flex,
@@ -65,7 +74,7 @@ state pseudo-classes, `aria-[name=value]`, and `data-[name=value]` variants.
 That makes incremental migration straightforward: retain the existing `@theme`
 surface, then replace selected `className` values with `style()` calls. It does
 not yet claim the entire Tailwind utility/variant grammar, nor the planned
-Shorth handles, selectors, local animations, Vue, Svelte, or formatter/linter.
+Stillwind handles, selectors, local animations, Vue, Svelte, or formatter/linter.
 Those need their own specification fixtures before implementation.
 
 Tailwind v4 documents this CSS-first model, its `@theme` namespaces, and its

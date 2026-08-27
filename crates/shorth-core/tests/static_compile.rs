@@ -6,7 +6,7 @@ fn compiles_a_real_react_style_call_against_a_css_theme() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 
 export function SaveButton() {
   return <button {...style("inline-flex items-center rounded-md bg-accent px-4 text-center")}>Save</button>;
@@ -33,7 +33,7 @@ fn reports_an_unknown_token_at_the_utility_not_the_whole_call() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 const props = style("bg-accnet");"#,
     );
     let theme = SourceFile::new(
@@ -61,7 +61,7 @@ fn emits_css_for_a_runtime_conditional_branch_without_evaluating_it() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60");"#,
     );
@@ -84,7 +84,7 @@ fn plans_react_props_for_classes_a_conditional_and_an_aria_attribute() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading });"#,
     );
@@ -103,7 +103,7 @@ const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading
     assert_eq!(
         transform.replacement,
         format!(
-            "{{className:shorthClsx(\"{}\",loading&&\"{}\"),\"aria-busy\":loading}}",
+            "{{className:stillwindClsx(\"{}\",loading&&\"{}\"),\"aria-busy\":loading}}",
             result.classes[0].class_name, result.classes[1].class_name,
         ),
     );
@@ -114,7 +114,7 @@ fn emits_tailwind_shaped_layers_theme_variables_and_variants() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opacity-60");"#,
     );
     let theme = SourceFile::new(
@@ -152,7 +152,7 @@ fn applies_a_transform_plan_without_touching_surrounding_source() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 const props = style("bg-accent");
 export { props };"#,
     );
@@ -163,7 +163,7 @@ export { props };"#,
 
     assert!(
         transformed
-            .starts_with("import { style } from \"shorth/react\";\nconst props = {className:\"_s_")
+            .starts_with("import { style } from \"stillwind/react\";\nconst props = {className:\"_s_")
     );
     assert!(transformed.ends_with("};\nexport { props };"));
 }

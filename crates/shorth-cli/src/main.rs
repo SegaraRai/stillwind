@@ -1,4 +1,4 @@
-//! Bundler-facing command line adapter for the shorth compiler.
+//! Bundler-facing command line adapter for the Stillwind compiler.
 
 use std::{env, fs};
 
@@ -100,8 +100,8 @@ fn run() -> Result<(), String> {
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("shorth: {error}");
-        eprintln!("usage: shorth compile --source <component.tsx> --theme <shorth.css>");
+        eprintln!("stillwind: {error}");
+        eprintln!("usage: stillwind compile --source <component.tsx> --theme <stillwind.css>");
         std::process::exit(2);
     }
 }

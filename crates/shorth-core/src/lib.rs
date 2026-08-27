@@ -209,7 +209,7 @@ fn render_react_props(
         let class_value = if class_names.len() == 1 {
             class_names.into_iter().next()?
         } else {
-            format!("shorthClsx({})", class_names.join(","))
+            format!("stillwindClsx({})", class_names.join(","))
         };
         entries.push(format!("className:{class_value}"));
     }

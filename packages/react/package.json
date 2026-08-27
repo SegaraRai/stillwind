@@ -1,7 +1,7 @@
 {
-  "name": "shorth",
+  "name": "stillwind",
   "version": "0.0.0",
-  "description": "Runtime helpers and macro surface for Shorth React",
+  "description": "Runtime helpers and macro surface for Stillwind React",
   "license": "MIT",
   "devEngines": {
     "packageManager": {

@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client"
 import "./play.css"
 
 const initialSource = `import { useState } from "react";
-import { style } from "shorth/react";
+import { style } from "stillwind/react";
 
 export function App() {
   const [loading, setLoading] = useState(false);
@@ -144,7 +144,7 @@ function Play() {
     setStatus("Compiling")
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch("/__shorth/compile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source, theme }), signal: controller.signal })
+        const response = await fetch("/__stillwind/compile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source, theme }), signal: controller.signal })
         const next = await response.json() as Result
         if (!response.ok) throw new Error("error" in next ? String(next.error) : "Preview compilation failed")
         if (requestId.current !== currentRequest) return
@@ -160,7 +160,7 @@ function Play() {
 
   useEffect(() => {
     const receiveError = (event: MessageEvent<{ type?: string; message?: string }>) => {
-      if (event.source !== frame.current?.contentWindow || event.data?.type !== "shorth-preview-error") return
+      if (event.source !== frame.current?.contentWindow || event.data?.type !== "stillwind-preview-error") return
       setPreviewError(event.data.message ?? "Preview execution failed"); setStatus("Runtime error")
     }
     window.addEventListener("message", receiveError)
@@ -172,7 +172,7 @@ function Play() {
   const viewportLabel = { desktop: "Desktop", tablet: "Tablet", mobile: "Mobile" }[viewport]
   return <main className="play-shell">
     <header className="topbar">
-      <a className="brand" href="/" aria-label="Shorth Play home">shorth<span>Play</span></a>
+      <a className="brand" href="/" aria-label="Stillwind Play home">stillwind<span>Play</span></a>
       <div className={`compile-state ${status === "Ready" ? "is-ready" : ""}`}><i />{status}</div>
       <div className="topbar-actions"><button type="button" onClick={() => setSource(initialSource)}>Reset</button><button type="button" className="share" onClick={() => navigator.clipboard.writeText(location.href)}>Copy link</button></div>
     </header>

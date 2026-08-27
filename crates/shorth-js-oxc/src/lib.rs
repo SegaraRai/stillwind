@@ -73,7 +73,7 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn is_style_import(declaration: &ImportDeclaration<'a>) -> bool {
-        declaration.source.value.as_str() == "shorth/react"
+        declaration.source.value.as_str() == "stillwind/react"
     }
 
     fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {
@@ -234,7 +234,7 @@ mod tests {
         let source = SourceFile::new(
             FileId(1),
             "Button.tsx",
-            r#"import { style as s } from "shorth/react";
+            r#"import { style as s } from "stillwind/react";
 const props = s("px-4 text-center", "hover:bg-accent");
 function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
         );
@@ -256,7 +256,7 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
         let source = SourceFile::new(
             FileId(1),
             "Button.tsx",
-            r#"import { style } from "shorth/react";
+            r#"import { style } from "stillwind/react";
 const props = style({ "aria-busy": loading, "data-state": state });"#,
         );
 

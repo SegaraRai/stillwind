@@ -63,7 +63,7 @@ pub fn compile_react_json(
     })
 }
 
-/// Native Node entrypoint used by `@shorth/vite`.
+/// Native Node entrypoint used by `@stillwind/vite`.
 ///
 /// The result is JSON to keep the N-API surface stable and exactly aligned with
 /// the CLI protocol during the migration period.

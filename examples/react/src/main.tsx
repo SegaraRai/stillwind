@@ -1,6 +1,6 @@
 import { StrictMode, useState } from "react"
 import { createRoot } from "react-dom/client"
-import { style } from "shorth/react"
+import { style } from "stillwind/react"
 import "./screen.css"
 
 function SaveButton() {

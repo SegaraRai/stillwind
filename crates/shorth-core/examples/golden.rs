@@ -5,7 +5,7 @@ fn main() {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
-        r#"import { style } from "shorth/react";
+        r#"import { style } from "stillwind/react";
 
 declare const loading: boolean;
 
@@ -29,7 +29,7 @@ export function SaveButton() {
 
     let result = Compiler::compile_react(&component, &theme);
 
-    println!("shorth golden demo\n");
+    println!("stillwind golden demo\n");
     println!("Props replacement:");
     for transform in &result.transforms {
         println!("  {}", transform.replacement);

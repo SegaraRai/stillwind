@@ -1,5 +1,5 @@
 /** A deliberately small clsx-compatible helper used only for static branches. */
-export function shorthClsx(...values: readonly unknown[]): string {
+export function stillwindClsx(...values: readonly unknown[]): string {
   return values.flatMap(flatten).filter(Boolean).join(" ")
 }
 

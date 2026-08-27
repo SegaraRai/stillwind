@@ -1,4 +1,4 @@
-# shorth compiler design
+# stillwind compiler design
 
 Status: proposed architecture. This document turns the golden case into an
 implementable compiler while preserving precise source locations for errors,
@@ -16,7 +16,7 @@ linting, quick-fixes, and a future formatter.
    for the word `style`.
 5. The compiler emits edit plans and CSS plans. Thin adapters apply edits to
    source code and host build-tool lifecycles.
-6. Formatter and linter consume the same parsed shorth IR. They do not recover
+6. Formatter and linter consume the same parsed Stillwind IR. They do not recover
    intent from generated CSS.
 
 Oxc is a strong fit for the first frontend: it parses JS, TS, JSX and TSX,
@@ -38,13 +38,13 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
 ## System overview
 
 ```text
- source files + shorth.css
+ source files + stillwind.css
           │
           ▼
  language frontend (Oxc first; framework extractors later)
           │  ModuleIR: calls, static expressions, markup facts, exact spans
           ▼
- shorth expression lowering
+ Stillwind expression lowering
           │  StyleIR: utility groups, guards, attrs, selectors, projections
           ▼
  semantic analysis
@@ -59,7 +59,7 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
           └──────────────► generated `.d.ts` and diagnostics
 ```
 
-The core owns parsing of shorth semantics, validation, rule generation, naming,
+The core owns parsing of Stillwind semantics, validation, rule generation, naming,
 incremental caching, and diagnostics. It does not own a bundler, filesystem
 watcher, or framework renderer.
 
@@ -80,7 +80,7 @@ crates/
 
 packages/
   react/                # types plus minimal runtime helpers
-  vite/                 # thin Vite integration over shorth-node
+  vite/                 # thin Vite integration over the Node binding
   vue/                  # later: adapter contract only
   svelte/               # later: adapter contract only
 ```
@@ -192,19 +192,19 @@ The Oxc frontend parses a module once, runs semantic analysis, and recognizes
 only bindings imported from supported adapter entry points.
 
 ```ts
-import { style } from "shorth/react";
-import { style as s } from "shorth/react";
-import * as shorth from "shorth/react";
+import { style } from "stillwind/react";
+import { style as s } from "stillwind/react";
+import * as stillwind from "stillwind/react";
 
 style("p-4");
 s("p-4");
-shorth.style("p-4");
+stillwind.style("p-4");
 ```
 
 Shadowed variables are ordinary JavaScript and are not transformed.
 
 ```ts
-import { style } from "shorth/react";
+import { style } from "stillwind/react";
 function example(style: (x: string) => unknown) {
   style("p-4"); // not a shorth call
 }
@@ -401,11 +401,11 @@ library, then injects any minimal adapter helper import. Retaining untouched
 source means comments, user formatting, and unfamiliar syntax survive exactly.
 
 For a fully static call, the replacement can be a plain object literal. For
-conditional classes, React's adapter may use a tiny `shorthClsx` helper:
+conditional classes, React's adapter may use a tiny `stillwindClsx` helper:
 
 ```tsx
 {
-  className: shorthClsx("_s_a1", loading && "_s_b2"),
+  className: stillwindClsx("_s_a1", loading && "_s_b2"),
   "aria-busy": loading || undefined,
 }
 ```
@@ -441,7 +441,7 @@ source map back to the style call and, where useful, to the exact utility token.
 
 ## Formatter architecture
 
-`shorth format` is initially a macro formatter, not a JS formatter. It uses
+`stillwind format` is initially a macro formatter, not a JS formatter. It uses
 the frontend to find `style()` ranges and uses `StyleIR` plus original source
 gaps to produce edits only inside those ranges.
 
