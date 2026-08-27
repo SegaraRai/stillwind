@@ -20,7 +20,7 @@ use oxc::{
 };
 use shorth_ir::{
     AnimationDefinition, AnimationFrame, AttributeEntry, HandleProjection, ModuleIr, StyleCall,
-    StyleInput, ViewTransitionDefinition,
+    StyleInput, UnsafeDeclaration, ViewTransitionDefinition,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -391,6 +391,176 @@ impl<'a> MacroExtractor<'a> {
             group,
             old,
             new,
+        })
+    }
+
+    #[allow(clippy::too_many_lines)] // Validates the complete escape-hatch object in one pass.
+    fn collect_unsafe_call(&mut self, call: &CallExpression<'a>) -> Option<StyleCall> {
+        if call.arguments.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHUNSAFE001",
+                "style.unsafe() requires one static { selector, css, reason } object",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHUNSAFE001",
+                "style.unsafe() requires one static { selector, css, reason } object",
+                self.source_span(call.arguments[0].span()),
+            ));
+            return None;
+        };
+        let mut selector = None;
+        let mut reason = None;
+        let mut declarations = Vec::new();
+        for property in &object.properties {
+            let ObjectPropertyKind::ObjectProperty(property) = property else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHUNSAFE001",
+                    "style.unsafe() does not support object spreads",
+                    self.source_span(property.span()),
+                ));
+                continue;
+            };
+            if property.computed || property.method || property.kind != PropertyKind::Init {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHUNSAFE001",
+                    "style.unsafe() properties must be plain static entries",
+                    self.source_span(property.span),
+                ));
+                continue;
+            }
+            let Some(name) = self.property_name(&property.key) else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHUNSAFE001",
+                    "style.unsafe() property names must be static",
+                    self.source_span(property.key.span()),
+                ));
+                continue;
+            };
+            match name.value.as_str() {
+                "selector" => {
+                    let Expression::StringLiteral(value) = &property.value else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHUNSAFE001",
+                            "unsafe selector must be a literal string",
+                            self.source_span(property.value.span()),
+                        ));
+                        continue;
+                    };
+                    selector = Some(self.string_literal(value));
+                }
+                "reason" => {
+                    let Expression::StringLiteral(value) = &property.value else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHUNSAFE001",
+                            "unsafe reason must be a literal string",
+                            self.source_span(property.value.span()),
+                        ));
+                        continue;
+                    };
+                    reason = Some(self.string_literal(value));
+                }
+                "css" => {
+                    let Expression::ObjectExpression(css) = &property.value else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHUNSAFE001",
+                            "unsafe css must be a static object",
+                            self.source_span(property.value.span()),
+                        ));
+                        continue;
+                    };
+                    for declaration in &css.properties {
+                        let ObjectPropertyKind::ObjectProperty(declaration) = declaration else {
+                            self.diagnostics.push(Diagnostic::error(
+                                "SHUNSAFE001",
+                                "unsafe css does not support object spreads",
+                                self.source_span(declaration.span()),
+                            ));
+                            continue;
+                        };
+                        if declaration.computed
+                            || declaration.method
+                            || declaration.kind != PropertyKind::Init
+                        {
+                            self.diagnostics.push(Diagnostic::error(
+                                "SHUNSAFE001",
+                                "unsafe css declarations must be plain static entries",
+                                self.source_span(declaration.span),
+                            ));
+                            continue;
+                        }
+                        let Some(property) = self.property_name(&declaration.key) else {
+                            self.diagnostics.push(Diagnostic::error(
+                                "SHUNSAFE001",
+                                "unsafe css property names must be static",
+                                self.source_span(declaration.key.span()),
+                            ));
+                            continue;
+                        };
+                        let value = match &declaration.value {
+                            Expression::StringLiteral(value) => self.string_literal(value).span,
+                            Expression::NumericLiteral(value) => self.source_span(value.span),
+                            _ => {
+                                self.diagnostics.push(Diagnostic::error(
+                                    "SHUNSAFE001",
+                                    "unsafe css values must be static strings or numbers",
+                                    self.source_span(declaration.value.span()),
+                                ));
+                                continue;
+                            }
+                        };
+                        declarations.push(UnsafeDeclaration { property, value });
+                    }
+                }
+                _ => self.diagnostics.push(Diagnostic::error(
+                    "SHUNSAFE001",
+                    "style.unsafe() only accepts selector, css, and reason",
+                    name.span,
+                )),
+            }
+        }
+        let Some(selector) = selector else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHUNSAFE001",
+                "style.unsafe() requires a selector",
+                self.source_span(call.span),
+            ));
+            return None;
+        };
+        if !selector.value.starts_with('&') {
+            self.diagnostics.push(Diagnostic::error(
+                "SHUNSAFE001",
+                "unsafe selector must start with `&` so it remains rooted at this element",
+                selector.span,
+            ));
+            return None;
+        }
+        let Some(reason) = reason.filter(|value| !value.value.trim().is_empty()) else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHUNSAFE001",
+                "style.unsafe() requires a non-empty reason",
+                self.source_span(call.span),
+            ));
+            return None;
+        };
+        if declarations.is_empty() {
+            self.diagnostics.push(Diagnostic::error(
+                "SHUNSAFE001",
+                "style.unsafe() requires at least one css declaration",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        Some(StyleCall {
+            span: self.source_span(call.span),
+            inputs: vec![StyleInput::Unsafe {
+                selector,
+                declarations,
+                reason,
+            }],
         })
     }
 
@@ -847,6 +1017,13 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     }
 
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
+        if self.is_style_member(&call.callee, "unsafe") {
+            if let Some(style_call) = self.collect_unsafe_call(call) {
+                self.style_calls.push(style_call);
+            }
+            walk::walk_call_expression(self, call);
+            return;
+        }
         let Expression::Identifier(callee) = &call.callee else {
             walk::walk_call_expression(self, call);
             return;

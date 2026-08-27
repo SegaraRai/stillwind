@@ -51,6 +51,12 @@ export type StyleViewTransitionDefinition = {
   new?: string
 }
 
+export type UnsafeStyle = {
+  selector: `&${string}`
+  css: Readonly<Record<string, string | number>>
+  reason: string
+}
+
 export type StyleArgument =
   | string
   | false
@@ -69,6 +75,7 @@ export type StyleMacro = {
   handle(): StyleHandle
   animation(definition: StyleAnimationDefinition): StyleAnimation
   viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition
+  unsafe(input: UnsafeStyle): StyleProps
 }
 
 export const style = Object.assign(
@@ -86,6 +93,9 @@ export const style = Object.assign(
     },
     viewTransition(_definition: StyleViewTransitionDefinition): StyleViewTransition {
       throw new Error("stillwind/react style.viewTransition() is a compile-time macro.")
+    },
+    unsafe(_input: UnsafeStyle): StyleProps {
+      throw new Error("stillwind/react style.unsafe() is a compile-time macro.")
     },
   },
 ) as StyleMacro

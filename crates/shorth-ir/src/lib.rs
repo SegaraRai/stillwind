@@ -66,6 +66,12 @@ pub struct ViewTransitionDefinition {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct UnsafeDeclaration {
+    pub property: Spanned<String>,
+    pub value: Span,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HandleProjection {
     Anchor,
     Position,
@@ -125,5 +131,10 @@ pub enum StyleInput {
     ViewTransitionUse {
         transition: Spanned<String>,
         key: Option<Span>,
+    },
+    Unsafe {
+        selector: Spanned<String>,
+        declarations: Vec<UnsafeDeclaration>,
+        reason: Spanned<String>,
     },
 }
