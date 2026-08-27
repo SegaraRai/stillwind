@@ -2,10 +2,10 @@
 
 use std::fmt::Write;
 
+use serde::Serialize;
 use shorth_grammar::lex_utilities;
 use shorth_ir::{AttributeEntry, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span};
-use serde::Serialize;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
@@ -256,14 +256,21 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
         "opacity-100" => Some("opacity:1;".to_owned()),
         _ => resolve_themed_utility(base, theme),
     }?;
-    Some(CompiledUtility { variants, declaration })
+    Some(CompiledUtility {
+        variants,
+        declaration,
+    })
 }
 
 fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
-    if let Some((color, opacity)) = utility.strip_prefix("bg-").and_then(|value| value.rsplit_once('/'))
+    if let Some((color, opacity)) = utility
+        .strip_prefix("bg-")
+        .and_then(|value| value.rsplit_once('/'))
         && has_theme_token(theme, "color", color)
     {
-        return Some(format!("background-color:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"));
+        return Some(format!(
+            "background-color:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
+        ));
     }
     for (prefix, namespace, property) in [
         ("bg-", "color", "background-color"),
@@ -339,7 +346,10 @@ fn emit_utility_rules(
         output.push_str(&base);
         output.push('}');
     }
-    for utility in utilities.iter().filter(|utility| !utility.variants.is_empty()) {
+    for utility in utilities
+        .iter()
+        .filter(|utility| !utility.variants.is_empty())
+    {
         let mut selector = format!(".{class_name}");
         let mut media = Vec::new();
         for variant in &utility.variants {
@@ -363,9 +373,11 @@ fn emit_utility_rules(
                     }
                 }
                 value => {
-                    if let Some(token) = theme.tokens.iter().find(|token| {
-                        token.name.value == format!("--breakpoint-{value}")
-                    }) {
+                    if let Some(token) = theme
+                        .tokens
+                        .iter()
+                        .find(|token| token.name.value == format!("--breakpoint-{value}"))
+                    {
                         media.push(format!("(width >= {})", token.value.value));
                     }
                 }

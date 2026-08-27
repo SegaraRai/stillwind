@@ -20,7 +20,11 @@ fn cli_compiles_a_react_module_to_layered_css_and_macro_free_code() {
         .output()
         .expect("the shorth CLI starts");
 
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let css = value["css"].as_str().unwrap();
     let code = value["code"].as_str().unwrap();

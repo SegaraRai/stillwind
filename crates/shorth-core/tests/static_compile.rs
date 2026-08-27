@@ -130,10 +130,18 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.starts_with("@layer theme, base, components, utilities;\n"));
+    assert!(
+        result
+            .css
+            .starts_with("@layer theme, base, components, utilities;\n")
+    );
     assert!(result.css.contains("@layer theme{:root{--color-accent:oklch(.6 .2 250);--spacing-4:1rem;--breakpoint-md:48rem;}}"));
     assert!(result.css.contains("background-color:var(--color-accent);"));
-    assert!(result.css.contains("background-color:color-mix(in oklab,var(--color-accent) 90%,transparent);"));
+    assert!(
+        result
+            .css
+            .contains("background-color:color-mix(in oklab,var(--color-accent) 90%,transparent);")
+    );
     assert!(result.css.contains(":hover{"));
     assert!(result.css.contains("[aria-busy=\"true\"]{"));
     assert!(result.css.contains("@media (width >= 48rem){"));
@@ -153,6 +161,9 @@ export { props };"#,
     let result = Compiler::compile_react(&component, &theme);
     let transformed = result.apply_to_source(&component).unwrap();
 
-    assert!(transformed.starts_with("import { style } from \"shorth/react\";\nconst props = {className:\"_s_"));
+    assert!(
+        transformed
+            .starts_with("import { style } from \"shorth/react\";\nconst props = {className:\"_s_")
+    );
     assert!(transformed.ends_with("};\nexport { props };"));
 }

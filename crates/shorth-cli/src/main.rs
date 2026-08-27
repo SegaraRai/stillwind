@@ -50,7 +50,9 @@ fn read_source(path: &str, id: u32) -> Result<SourceFile, String> {
 }
 
 fn run() -> Result<(), String> {
-    let command = env::args().nth(1).ok_or_else(|| "expected `compile` command".to_owned())?;
+    let command = env::args()
+        .nth(1)
+        .ok_or_else(|| "expected `compile` command".to_owned())?;
     if command != "compile" {
         return Err(format!("unknown command `{command}`; expected `compile`"));
     }
@@ -89,7 +91,10 @@ fn run() -> Result<(), String> {
         classes: result.classes,
         diagnostics,
     };
-    println!("{}", serde_json::to_string(&output).map_err(|error| error.to_string())?);
+    println!(
+        "{}",
+        serde_json::to_string(&output).map_err(|error| error.to_string())?
+    );
     Ok(())
 }
 
