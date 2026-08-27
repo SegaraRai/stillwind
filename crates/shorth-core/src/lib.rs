@@ -24,6 +24,17 @@ pub struct PropsTransform {
     pub replacement: String,
 }
 
+/// A generated CSS identifier with the canonical identity used to allocate it.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GeneratedSymbol {
+    pub name: String,
+    pub kind: String,
+    pub identity: String,
+    pub source_path: String,
+    pub start: u32,
+    pub end: u32,
+}
+
 #[derive(Clone, Debug)]
 struct DynamicStyleEntry {
     property: String,
@@ -35,6 +46,7 @@ struct DynamicStyleEntry {
 pub struct CompileResult {
     pub css: String,
     pub classes: Vec<GeneratedClass>,
+    pub symbols: Vec<GeneratedSymbol>,
     pub transforms: Vec<PropsTransform>,
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -142,12 +154,37 @@ impl Compiler {
 
         let mut utility_css = String::new();
         let module = parsed.module;
+        result.symbols.extend(
+            module
+                .handle_definitions
+                .iter()
+                .map(|definition| generated_symbol(source, "handle", &definition.name)),
+        );
+        result.symbols.extend(
+            module
+                .animation_declarations
+                .iter()
+                .map(|definition| generated_symbol(source, "animation", &definition.name)),
+        );
+        result.symbols.extend(
+            module
+                .view_transition_declarations
+                .iter()
+                .map(|definition| generated_symbol(source, "view-transition", &definition.name)),
+        );
         for animation in &module.animation_declarations {
-            emit_animation_definition(&mut utility_css, animation, &theme, &mut result.diagnostics);
+            emit_animation_definition(
+                &mut utility_css,
+                source,
+                animation,
+                &theme,
+                &mut result.diagnostics,
+            );
         }
         for transition in &module.view_transition_declarations {
             emit_view_transition_definition(
                 &mut utility_css,
+                source,
                 transition,
                 &theme,
                 &mut result.diagnostics,
@@ -182,7 +219,7 @@ impl Compiler {
                     continue;
                 }
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
-                    let name = view_transition_css_name(&transition);
+                    let name = symbol_name(source, "view-transition", &transition);
                     let branch = &mut branches[0];
                     branch.2.push_str("view-transition:");
                     branch.2.push_str(&transition.value);
@@ -218,6 +255,7 @@ impl Compiler {
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
                     branch.3.push(resolve_animation_use(
+                        source,
                         &animation,
                         &options,
                         &theme,
@@ -240,6 +278,7 @@ impl Compiler {
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
                     let mut utility = resolve_animation_use(
+                        source,
                         &animation,
                         &options,
                         &theme,
@@ -266,8 +305,11 @@ impl Compiler {
                         branch.2.push('\0');
                         match resolve_utility(&utility.value.raw, &theme) {
                             Some(mut utility) => {
-                                utility.container =
-                                    Some(format!("{} ({})", handle_css_name(&handle), query.value));
+                                utility.container = Some(format!(
+                                    "{} ({})",
+                                    symbol_name(source, "handle", &handle),
+                                    query.value
+                                ));
                                 branch.3.push(utility);
                             }
                             None => result.diagnostics.push(Diagnostic::error(
@@ -281,7 +323,7 @@ impl Compiler {
                 }
                 if let StyleInput::HandleProjection { handle, projection } = input {
                     let branch = &mut branches[0];
-                    let marker = handle_marker_class(&handle);
+                    let marker = handle_marker_class(source, &handle);
                     if !handle_markers.contains(&marker) {
                         handle_markers.push(marker);
                     }
@@ -292,7 +334,7 @@ impl Compiler {
                     branch.2.push('\0');
                     branch.3.push(CompiledUtility {
                         variants: Vec::new(),
-                        declaration: render_handle_projection(&handle, &projection),
+                        declaration: render_handle_projection(source, &handle, &projection),
                         selector: None,
                         container: None,
                     });
@@ -325,7 +367,7 @@ impl Compiler {
                     } => (
                         None,
                         true,
-                        Some(handle_parent_selector(&handle, &selector.value)),
+                        Some(handle_parent_selector(source, &handle, &selector.value)),
                         value,
                     ),
                     StyleInput::ConditionalHandleSelectorUtilityString {
@@ -337,7 +379,7 @@ impl Compiler {
                     } => (
                         Some(guard),
                         when_true,
-                        Some(handle_parent_selector(&handle, &selector.value)),
+                        Some(handle_parent_selector(source, &handle, &selector.value)),
                         value,
                     ),
                     StyleInput::HandleProjection { .. }
@@ -384,6 +426,12 @@ impl Compiler {
                 }
                 let class_name = class_name(&canonical_input);
                 emit_utility_rules(&mut utility_css, &class_name, &utilities, &theme);
+                result.symbols.push(generated_class_symbol(
+                    source,
+                    &class_name,
+                    &canonical_input,
+                    call.span,
+                ));
                 let generated_class = GeneratedClass {
                     class_name,
                     call_span: call.span,
@@ -406,9 +454,9 @@ impl Compiler {
                 });
             }
         }
-        for handle_declaration in module.handle_declarations {
+        for handle_definition in module.handle_definitions {
             result.transforms.push(PropsTransform {
-                call_span: handle_declaration,
+                call_span: handle_definition.call_span,
                 replacement: "undefined".to_owned(),
             });
         }
@@ -432,6 +480,7 @@ impl Compiler {
         {
             result.css.clear();
             result.classes.clear();
+            result.symbols.clear();
             result.transforms.clear();
         } else if !result.classes.is_empty() {
             result.css = render_stylesheet(&theme, &utility_css);
@@ -450,32 +499,72 @@ fn handle_projection_name(projection: &HandleProjection) -> &'static str {
     }
 }
 
-fn animation_css_name(animation: &Spanned<String>) -> String {
-    let identity = format!(
-        "{}:{}:{}",
-        animation.span.file.0, animation.span.start.0, animation.value
-    );
-    let hash = blake3::hash(identity.as_bytes());
-    format!("--sw-a-{}", &hash.to_hex()[..8])
+fn normalized_module_path(path: &str) -> String {
+    path.replace('\\', "/").trim_start_matches("./").to_owned()
 }
 
-fn view_transition_css_name(transition: &Spanned<String>) -> String {
-    let identity = format!(
-        "{}:{}:{}",
-        transition.span.file.0, transition.span.start.0, transition.value
-    );
+fn symbol_identity(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {
+    format!(
+        "stillwind/v1\0{}\0{kind}\0{}:{}:{}",
+        normalized_module_path(source.path()),
+        definition.span.start.0,
+        definition.span.end.0,
+        definition.value,
+    )
+}
+
+fn symbol_name(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {
+    let prefix = match kind {
+        "handle" => "--sw-h-",
+        "animation" => "--sw-a-",
+        "view-transition" => "--sw-v-",
+        _ => unreachable!("only named Stillwind asset kinds are allocated"),
+    };
+    let identity = symbol_identity(source, kind, definition);
     let hash = blake3::hash(identity.as_bytes());
-    format!("--sw-v-{}", &hash.to_hex()[..8])
+    format!("{prefix}{}", &hash.to_hex()[..8])
+}
+
+fn generated_symbol(
+    source: &SourceFile,
+    kind: &str,
+    definition: &Spanned<String>,
+) -> GeneratedSymbol {
+    GeneratedSymbol {
+        name: symbol_name(source, kind, definition),
+        kind: kind.to_owned(),
+        identity: symbol_identity(source, kind, definition),
+        source_path: normalized_module_path(source.path()),
+        start: definition.span.start.0,
+        end: definition.span.end.0,
+    }
+}
+
+fn generated_class_symbol(
+    source: &SourceFile,
+    name: &str,
+    canonical_input: &str,
+    span: Span,
+) -> GeneratedSymbol {
+    GeneratedSymbol {
+        name: name.to_owned(),
+        kind: "class".to_owned(),
+        identity: format!("stillwind/v1\0class\0{canonical_input}"),
+        source_path: normalized_module_path(source.path()),
+        start: span.start.0,
+        end: span.end.0,
+    }
 }
 
 fn emit_animation_definition(
     output: &mut String,
+    source: &SourceFile,
     animation: &AnimationDefinition,
     theme: &shorth_css::ThemeIndex,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     output.push_str("@keyframes ");
-    output.push_str(&animation_css_name(&animation.name));
+    output.push_str(&symbol_name(source, "animation", &animation.name));
     output.push('{');
     for frame in &animation.frames {
         let mut utilities = Vec::new();
@@ -503,12 +592,16 @@ fn emit_animation_definition(
 }
 
 fn resolve_animation_use(
+    source: &SourceFile,
     animation: &Spanned<String>,
     options: &Spanned<String>,
     theme: &shorth_css::ThemeIndex,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> CompiledUtility {
-    let mut declaration = format!("animation-name:{};", animation_css_name(animation));
+    let mut declaration = format!(
+        "animation-name:{};",
+        symbol_name(source, "animation", animation)
+    );
     declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
     CompiledUtility {
         variants: Vec::new(),
@@ -574,11 +667,12 @@ fn resolve_motion_options(
 
 fn emit_view_transition_definition(
     output: &mut String,
+    source: &SourceFile,
     transition: &ViewTransitionDefinition,
     theme: &shorth_css::ThemeIndex,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let name = view_transition_css_name(&transition.name);
+    let name = symbol_name(source, "view-transition", &transition.name);
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
         output.push_str(&name);
@@ -654,8 +748,12 @@ fn camel_to_kebab(value: &str) -> String {
     output
 }
 
-fn render_handle_projection(handle: &Spanned<String>, projection: &HandleProjection) -> String {
-    let name = handle_css_name(handle);
+fn render_handle_projection(
+    source: &SourceFile,
+    handle: &Spanned<String>,
+    projection: &HandleProjection,
+) -> String {
+    let name = symbol_name(source, "handle", handle);
     match projection {
         HandleProjection::Anchor => format!("anchor-name:{name};"),
         HandleProjection::Position => format!("position-anchor:{name};"),
@@ -666,21 +764,14 @@ fn render_handle_projection(handle: &Spanned<String>, projection: &HandleProject
     }
 }
 
-fn handle_css_name(handle: &Spanned<String>) -> String {
-    let identity = format!(
-        "{}:{}:{}",
-        handle.span.file.0, handle.span.start.0, handle.value
-    );
-    let hash = blake3::hash(identity.as_bytes());
-    format!("--sw-h-{}", &hash.to_hex()[..8])
+fn handle_marker_class(source: &SourceFile, handle: &Spanned<String>) -> String {
+    symbol_name(source, "handle", handle)
+        .trim_start_matches("--")
+        .to_owned()
 }
 
-fn handle_marker_class(handle: &Spanned<String>) -> String {
-    handle_css_name(handle).trim_start_matches("--").to_owned()
-}
-
-fn handle_parent_selector(handle: &Spanned<String>, selector: &str) -> String {
-    let marker = handle_marker_class(handle);
+fn handle_parent_selector(source: &SourceFile, handle: &Spanned<String>, selector: &str) -> String {
+    let marker = handle_marker_class(source, handle);
     format!("{} &", selector.replace('&', &format!(".{marker}")))
 }
 

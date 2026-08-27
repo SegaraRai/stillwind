@@ -3,7 +3,7 @@
 use napi::{Error, Result};
 use napi_derive::napi;
 use serde::Serialize;
-use shorth_core::{Compiler, GeneratedClass};
+use shorth_core::{Compiler, GeneratedClass, GeneratedSymbol};
 use shorth_source::{FileId, SourceFile};
 
 #[derive(Serialize)]
@@ -11,6 +11,7 @@ struct BindingOutput {
     css: String,
     code: Option<String>,
     classes: Vec<GeneratedClass>,
+    symbols: Vec<GeneratedSymbol>,
     diagnostics: Vec<BindingDiagnostic>,
 }
 
@@ -84,6 +85,7 @@ pub fn compile_react_json(
         css: result.css,
         code,
         classes: result.classes,
+        symbols: result.symbols,
         diagnostics,
     })
 }

@@ -12,6 +12,34 @@ const props = style("bg-accent hover:bg-accent/90");"#,
     assert!(value["css"].as_str().unwrap().contains("@layer utilities{"));
     assert!(value["css"].as_str().unwrap().contains(":hover{"));
     assert!(value["code"].as_str().unwrap().contains("className"));
+    assert_eq!(value["symbols"][0]["kind"], "class");
+    assert!(
+        value["symbols"][0]["name"]
+            .as_str()
+            .unwrap()
+            .starts_with("_s_")
+    );
+}
+
+#[test]
+fn exposes_generated_symbols_for_build_wide_collision_checks() {
+    let output = shorth_napi::compile_react_json(
+        r#"import { style } from "stillwind/react";
+const menu = style.handle();
+const props = style(menu.anchor);"#,
+        "src/Menu.tsx",
+        "@theme {}",
+    )
+    .unwrap();
+
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    assert_eq!(value["symbols"][0]["kind"], "handle");
+    assert!(
+        value["symbols"][0]["name"]
+            .as_str()
+            .unwrap()
+            .starts_with("--sw-h-")
+    );
 }
 
 #[test]

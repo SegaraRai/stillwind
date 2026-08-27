@@ -14,7 +14,7 @@ pub enum AdapterKind {
 pub struct ModuleIr {
     pub adapter: AdapterKind,
     pub style_calls: Vec<StyleCall>,
-    pub handle_declarations: Vec<Span>,
+    pub handle_definitions: Vec<HandleDefinition>,
     pub animation_declarations: Vec<AnimationDefinition>,
     pub view_transition_declarations: Vec<ViewTransitionDefinition>,
 }
@@ -24,7 +24,7 @@ impl ModuleIr {
         Self {
             adapter: AdapterKind::React,
             style_calls: Vec::new(),
-            handle_declarations: Vec::new(),
+            handle_definitions: Vec::new(),
             animation_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
         }
@@ -41,6 +41,12 @@ pub struct StyleCall {
 pub struct AttributeEntry {
     pub name: Spanned<String>,
     pub value: Span,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct HandleDefinition {
+    pub name: Spanned<String>,
+    pub call_span: Span,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

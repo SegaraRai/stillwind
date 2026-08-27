@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import type { IncomingMessage, ServerResponse } from "node:http"
-import { dirname, join } from "node:path"
+import { dirname, join, relative } from "node:path"
 import { build } from "esbuild"
 import { compileReact, generateReactTypes } from "@stillwind/native"
 import type { Plugin, ViteDevServer } from "vite"
@@ -17,6 +17,7 @@ interface CompilerOutput {
   css: string
   code: string | null
   classes: Array<{ class_name: string }>
+  symbols: GeneratedSymbol[]
   diagnostics: Array<{
     code: string
     message: string
@@ -31,6 +32,15 @@ interface CompilerOutput {
     end_column: number
     notes: string[]
   }>
+}
+
+interface GeneratedSymbol {
+  name: string
+  kind: string
+  identity: string
+  source_path: string
+  start: number
+  end: number
 }
 
 interface PlayOutput extends CompilerOutput {
@@ -49,6 +59,24 @@ function compilePlay(source: string, theme: string): CompilerOutput {
   // Play accepts the pleasant `export App;` shorthand in addition to regular
   // TypeScript exports. This replacement preserves byte length for source spans.
   return compile(source.replace(/\bexport App;/g, "export{App}"), "Play.tsx", theme)
+}
+
+function compilerModulePath(root: string, id: string): string {
+  return relative(root, id).replaceAll("\\", "/")
+}
+
+function findSymbolCollision(symbolsByModule: ReadonlyMap<string, readonly GeneratedSymbol[]>, moduleId: string, next: readonly GeneratedSymbol[]): [GeneratedSymbol, GeneratedSymbol] | null {
+  const names = new Map<string, GeneratedSymbol>()
+  for (const [candidateId, symbols] of symbolsByModule) {
+    if (candidateId === moduleId) continue
+    for (const symbol of symbols) names.set(symbol.name, symbol)
+  }
+  for (const symbol of next) {
+    const existing = names.get(symbol.name)
+    if (existing && existing.identity !== symbol.identity) return [existing, symbol]
+    names.set(symbol.name, symbol)
+  }
+  return null
 }
 
 function sendJson(response: ServerResponse, value: unknown, statusCode = 200) {
@@ -153,7 +181,9 @@ function previewHtml(id: string) {
 /** Runs the native compiler and renders Play user modules only inside a sandboxed iframe. */
 export function stillwind(options: StillwindOptions): Plugin {
   const cssByModule = new Map<string, string>()
+  const symbolsByModule = new Map<string, GeneratedSymbol[]>()
   const previewBundles = new Map<string, string>()
+  let projectRoot = ""
 
   return {
     name: "stillwind",
@@ -166,6 +196,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       return undefined
     },
     configResolved(config) {
+      projectRoot = config.root
       if (options.types === false) return
       const output = options.types ?? join(config.root, "src", "stillwind.generated.d.ts")
       const path = output.startsWith("/") || /^[A-Za-z]:[\\/]/.test(output) ? output : join(config.root, output)
@@ -179,13 +210,28 @@ export function stillwind(options: StillwindOptions): Plugin {
       writeFileSync(path, types)
     },
     transform(code, id) {
-      if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules") || !code.includes("stillwind/react")) return undefined
-      const output = compile(code, id, readFileSync(options.theme, "utf8"))
+      if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined
+      if (!code.includes("stillwind/react")) {
+        cssByModule.delete(id)
+        symbolsByModule.delete(id)
+        return undefined
+      }
+      const output = compile(code, compilerModulePath(projectRoot, id), readFileSync(options.theme, "utf8"))
       if (output.diagnostics.length > 0) {
         const diagnostic = output.diagnostics[0]
         this.error(`${diagnostic.code}: ${diagnostic.message} (${id}:${diagnostic.start})`)
       }
       if (!output.code) return undefined
+      const collision = findSymbolCollision(symbolsByModule, id, output.symbols)
+      if (collision) {
+        const [first, second] = collision
+        this.error(
+          `Stillwind generated identifier collision: ${second.name}\n` +
+          `  ${first.kind} at ${first.source_path}:${first.start}\n` +
+          `  ${second.kind} at ${second.source_path}:${second.start}`,
+        )
+      }
+      symbolsByModule.set(id, output.symbols)
       cssByModule.set(id, output.css)
       const runtimeImport = output.code.includes("stillwindClsx(") ? 'import { stillwindClsx } from "stillwind/react/runtime";\n' : ""
       return { code: `${runtimeImport}import "${virtualCssId}";\n${output.code}`, map: null }

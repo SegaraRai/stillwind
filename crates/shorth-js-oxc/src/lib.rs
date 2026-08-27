@@ -20,8 +20,8 @@ use oxc::{
     syntax::operator::LogicalOperator,
 };
 use shorth_ir::{
-    AnimationDefinition, AnimationFrame, AttributeEntry, HandleProjection, ModuleIr, StyleCall,
-    StyleInput, UnsafeDeclaration, ViewTransitionDefinition,
+    AnimationDefinition, AnimationFrame, AttributeEntry, HandleDefinition, HandleProjection,
+    ModuleIr, StyleCall, StyleInput, UnsafeDeclaration, ViewTransitionDefinition,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -53,7 +53,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
         module: ModuleIr {
             adapter: shorth_ir::AdapterKind::React,
             style_calls: extractor.style_calls,
-            handle_declarations: extractor.handle_declarations,
+            handle_definitions: extractor.handle_definitions,
             animation_declarations: extractor.animation_declarations,
             view_transition_declarations: extractor.view_transition_declarations,
         },
@@ -66,7 +66,7 @@ struct MacroExtractor<'a> {
     style_symbols: HashSet<SymbolId>,
     handle_symbols: HashMap<SymbolId, Spanned<String>>,
     handle_uses: Vec<HandleUse>,
-    handle_declarations: Vec<Span>,
+    handle_definitions: Vec<HandleDefinition>,
     animation_symbols: HashMap<SymbolId, Spanned<String>>,
     animation_declarations: Vec<AnimationDefinition>,
     view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
@@ -92,7 +92,7 @@ impl<'a> MacroExtractor<'a> {
             style_symbols: HashSet::new(),
             handle_symbols: HashMap::new(),
             handle_uses: Vec::new(),
-            handle_declarations: Vec::new(),
+            handle_definitions: Vec::new(),
             animation_symbols: HashMap::new(),
             animation_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
@@ -1141,14 +1141,15 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             && self.is_style_handle_call(call)
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
-            self.handle_declarations.push(self.source_span(call.span));
-            self.handle_symbols.insert(
-                symbol_id,
-                Spanned::new(
-                    identifier.name.to_string(),
-                    self.source_span(identifier.span),
-                ),
+            let name = Spanned::new(
+                identifier.name.to_string(),
+                self.source_span(identifier.span),
             );
+            self.handle_definitions.push(HandleDefinition {
+                name: name.clone(),
+                call_span: self.source_span(call.span),
+            });
+            self.handle_symbols.insert(symbol_id, name);
         }
         if let (
             BindingPattern::BindingIdentifier(identifier),

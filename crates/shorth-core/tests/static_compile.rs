@@ -509,3 +509,22 @@ const props = style("grid place-items-center size-10 flex-col grow border outlin
     assert!(result.css.contains("outline-color:var(--color-accent);"));
     assert!(result.css.contains("z-index:var(--z-index-popover);"));
 }
+
+#[test]
+fn names_symbols_from_normalized_module_paths_not_process_local_file_ids() {
+    let module = r#"import { style } from "stillwind/react";
+const trigger = style.handle();
+const props = style(trigger.anchor);"#;
+    let windows = SourceFile::new(FileId(1), "src\\Menu.tsx", module);
+    let unix = SourceFile::new(FileId(1), "src/Menu.tsx", module);
+    let other = SourceFile::new(FileId(1), "src/Other.tsx", module);
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let windows_result = Compiler::compile_react(&windows, &theme);
+    let unix_result = Compiler::compile_react(&unix, &theme);
+    let other_result = Compiler::compile_react(&other, &theme);
+
+    assert_eq!(windows_result.symbols[0].name, unix_result.symbols[0].name);
+    assert_ne!(windows_result.symbols[0].name, other_result.symbols[0].name);
+    assert!(windows_result.symbols[0].identity.contains("src/Menu.tsx"));
+}
