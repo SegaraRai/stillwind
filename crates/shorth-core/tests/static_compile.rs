@@ -55,3 +55,26 @@ const props = style("bg-accnet");"#,
     );
     assert!(result.css.is_empty());
 }
+
+#[test]
+fn emits_css_for_a_runtime_conditional_branch_without_evaluating_it() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "shorth/react";
+declare const loading: boolean;
+const props = style("bg-accent", loading && "opacity-60");"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/shorth.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.classes.len(), 2);
+    assert!(result.css.contains("background-color:var(--color-accent);"));
+    assert!(result.css.contains("opacity:.6;"));
+}

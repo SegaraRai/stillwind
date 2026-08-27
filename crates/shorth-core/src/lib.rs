@@ -8,6 +8,7 @@ use shorth_source::{Diagnostic, SourceFile, Span};
 pub struct GeneratedClass {
     pub class_name: String,
     pub call_span: Span,
+    pub guard: Option<Span>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -73,15 +74,24 @@ impl Compiler {
         }
 
         for call in parsed.module.style_calls {
-            let mut declarations = Vec::new();
-            let mut canonical_input = String::new();
+            let mut branches = vec![(None, String::new(), Vec::new())];
             for input in call.inputs {
-                let StyleInput::UtilityString(input) = input;
+                let (guard, input) = match input {
+                    StyleInput::UtilityString(input) => (None, input),
+                    StyleInput::ConditionalUtilityString { guard, value } => (Some(guard), value),
+                };
+                let branch_index = if let Some(guard) = guard {
+                    branches.push((Some(guard), String::new(), Vec::new()));
+                    branches.len() - 1
+                } else {
+                    0
+                };
+                let branch = &mut branches[branch_index];
                 for utility in lex_utilities(&input) {
-                    canonical_input.push_str(&utility.value.raw);
-                    canonical_input.push('\0');
+                    branch.1.push_str(&utility.value.raw);
+                    branch.1.push('\0');
                     match resolve_utility(&utility.value.raw, &theme) {
-                        Some(declaration) => declarations.push(declaration),
+                        Some(declaration) => branch.2.push(declaration),
                         None => result.diagnostics.push(Diagnostic::error(
                             "SH001",
                             format!("unknown or unavailable utility `{}`", utility.value.raw),
@@ -91,19 +101,22 @@ impl Compiler {
                 }
             }
 
-            if declarations.is_empty() {
-                continue;
+            for (guard, canonical_input, declarations) in branches {
+                if declarations.is_empty() {
+                    continue;
+                }
+                let class_name = class_name(&canonical_input);
+                result.css.push('.');
+                result.css.push_str(&class_name);
+                result.css.push('{');
+                result.css.push_str(&declarations.concat());
+                result.css.push_str("}\n");
+                result.classes.push(GeneratedClass {
+                    class_name,
+                    call_span: call.span,
+                    guard,
+                });
             }
-            let class_name = class_name(&canonical_input);
-            result.css.push('.');
-            result.css.push_str(&class_name);
-            result.css.push('{');
-            result.css.push_str(&declarations.concat());
-            result.css.push_str("}\n");
-            result.classes.push(GeneratedClass {
-                class_name,
-                call_span: call.span,
-            });
         }
 
         if result
@@ -124,6 +137,7 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Stri
         "inline-flex" => Some("display:inline-flex;".to_owned()),
         "items-center" => Some("align-items:center;".to_owned()),
         "text-center" => Some("text-align:center;".to_owned()),
+        "opacity-60" => Some("opacity:.6;".to_owned()),
         _ => resolve_themed_utility(utility, theme),
     }
 }

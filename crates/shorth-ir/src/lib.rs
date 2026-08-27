@@ -34,4 +34,5 @@ pub struct StyleCall {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
     UtilityString(Spanned<String>),
+    ConditionalUtilityString { guard: Span, value: Spanned<String> },
 }

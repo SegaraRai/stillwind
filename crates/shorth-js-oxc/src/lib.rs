@@ -12,6 +12,7 @@ use oxc::{
     parser::Parser,
     semantic::{Scoping, SemanticBuilder, SymbolId},
     span::{GetSpan, SourceType},
+    syntax::operator::LogicalOperator,
 };
 use shorth_ir::{ModuleIr, StyleCall, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
@@ -73,6 +74,16 @@ impl<'a> MacroExtractor<'a> {
     fn is_style_import(declaration: &ImportDeclaration<'a>) -> bool {
         declaration.source.value.as_str() == "shorth/react"
     }
+
+    fn utility_string(&self, literal: &oxc::ast::ast::StringLiteral<'a>) -> Spanned<String> {
+        let literal_span = self.source_span(literal.span);
+        let content_span = Span::new(
+            literal_span.file,
+            literal_span.start.0 + 1,
+            literal_span.end.0.saturating_sub(1),
+        );
+        Spanned::new(literal.value.to_string(), content_span)
+    }
 }
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
@@ -117,24 +128,32 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
 
         let mut inputs = Vec::new();
         for argument in &call.arguments {
-            let Argument::StringLiteral(literal) = argument else {
-                self.diagnostics.push(Diagnostic::error(
+            match argument {
+                Argument::StringLiteral(literal) => {
+                    inputs.push(StyleInput::UtilityString(self.utility_string(literal)));
+                }
+                Argument::LogicalExpression(expression)
+                    if expression.operator == LogicalOperator::And =>
+                {
+                    let Expression::StringLiteral(literal) = &expression.right else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHJS002",
+                            "a style() conditional must have a literal utility string on its right side",
+                            self.source_span(expression.right.span()),
+                        ));
+                        continue;
+                    };
+                    inputs.push(StyleInput::ConditionalUtilityString {
+                        guard: self.source_span(expression.left.span()),
+                        value: self.utility_string(literal),
+                    });
+                }
+                _ => self.diagnostics.push(Diagnostic::error(
                     "SHJS002",
-                    "the first compiler slice accepts only literal utility strings in style()",
+                    "the first compiler slice accepts literal utility strings and `condition && \"…\"` branches",
                     self.source_span(argument.span()),
-                ));
-                continue;
-            };
-            let literal_span = self.source_span(literal.span);
-            let content_span = Span::new(
-                literal_span.file,
-                literal_span.start.0 + 1,
-                literal_span.end.0.saturating_sub(1),
-            );
-            inputs.push(StyleInput::UtilityString(Spanned::new(
-                literal.value.to_string(),
-                content_span,
-            )));
+                )),
+            }
         }
         self.style_calls.push(StyleCall {
             span: self.source_span(call.span),
@@ -176,7 +195,10 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
 
         assert!(parsed.diagnostics.is_empty());
         assert_eq!(parsed.module.style_calls.len(), 1);
-        let StyleInput::UtilityString(first) = &parsed.module.style_calls[0].inputs[0];
+        let Some(StyleInput::UtilityString(first)) = parsed.module.style_calls[0].inputs.first()
+        else {
+            panic!("the first input should be a static utility string");
+        };
         assert_eq!(first.value, "px-4 text-center");
         assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
     }
