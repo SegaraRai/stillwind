@@ -235,3 +235,75 @@ const props = style("-mt-4 duration-fast ease-standard");"#,
             .contains("transition-timing-function:var(--ease-standard);")
     );
 }
+
+#[test]
+fn projects_one_handle_into_anchor_position_scope_and_container_css() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Popover.tsx",
+        r#"import { style } from "stillwind/react";
+const popover = style.handle();
+const root = style(popover.scope, popover.container("inline-size"));
+const trigger = style(popover.anchor, "relative");
+const panel = style(popover.position, "absolute");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("anchor-name:--sw-h-"));
+    assert!(result.css.contains("position-anchor:--sw-h-"));
+    assert!(result.css.contains("anchor-scope:--sw-h-"));
+    assert!(result.css.contains("container-name:--sw-h-"));
+    assert!(result.css.contains("container-type:inline-size;"));
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(!transformed.contains("style.handle()"));
+    assert!(transformed.contains("const popover = undefined;"));
+}
+
+#[test]
+fn reports_a_position_handle_without_an_anchor_provider() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Popover.tsx",
+        r#"import { style } from "stillwind/react";
+const popover = style.handle();
+const panel = style(popover.position);"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "SHHANDLE003")
+    );
+    assert!(result.css.is_empty());
+}
+
+#[test]
+fn emits_named_container_rules_from_handle_queries() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Card.tsx",
+        r#"import { style } from "stillwind/react";
+const card = style.handle();
+const root = style(card.container("inline-size"));
+const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("@container --sw-h-"));
+    assert!(result.css.contains("(width >= 40rem){"));
+    assert!(
+        result
+            .css
+            .contains("grid-template-columns:repeat(2,minmax(0,1fr));")
+    );
+}

@@ -14,6 +14,7 @@ pub enum AdapterKind {
 pub struct ModuleIr {
     pub adapter: AdapterKind,
     pub style_calls: Vec<StyleCall>,
+    pub handle_declarations: Vec<Span>,
 }
 
 impl ModuleIr {
@@ -21,6 +22,7 @@ impl ModuleIr {
         Self {
             adapter: AdapterKind::React,
             style_calls: Vec::new(),
+            handle_declarations: Vec::new(),
         }
     }
 }
@@ -38,6 +40,14 @@ pub struct AttributeEntry {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum HandleProjection {
+    Anchor,
+    Position,
+    Scope,
+    Container(Spanned<String>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
     UtilityString(Spanned<String>),
     ConditionalUtilityString {
@@ -52,6 +62,15 @@ pub enum StyleInput {
     ConditionalSelectorUtilityString {
         selector: Spanned<String>,
         guard: Span,
+        value: Spanned<String>,
+    },
+    HandleProjection {
+        handle: Spanned<String>,
+        projection: HandleProjection,
+    },
+    ContainerQuery {
+        handle: Spanned<String>,
+        query: Spanned<String>,
         value: Spanned<String>,
     },
 }

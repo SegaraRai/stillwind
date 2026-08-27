@@ -4,8 +4,8 @@ use std::fmt::Write;
 
 use serde::Serialize;
 use shorth_grammar::lex_utilities;
-use shorth_ir::{AttributeEntry, StyleInput};
-use shorth_source::{Diagnostic, SourceFile, Span};
+use shorth_ir::{AttributeEntry, HandleProjection, StyleInput};
+use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
@@ -117,10 +117,56 @@ impl Compiler {
         }
 
         let mut utility_css = String::new();
-        for call in parsed.module.style_calls {
+        let module = parsed.module;
+        for call in module.style_calls {
             let mut branches = vec![(None, String::new(), Vec::new())];
             let mut attributes = Vec::new();
             for input in call.inputs {
+                if let StyleInput::ContainerQuery {
+                    handle,
+                    query,
+                    value,
+                } = input
+                {
+                    let branch = &mut branches[0];
+                    branch.1.push_str("container:");
+                    branch.1.push_str(&handle.value);
+                    branch.1.push(':');
+                    branch.1.push_str(&query.value);
+                    branch.1.push('\0');
+                    for utility in lex_utilities(&value) {
+                        branch.1.push_str(&utility.value.raw);
+                        branch.1.push('\0');
+                        match resolve_utility(&utility.value.raw, &theme) {
+                            Some(mut utility) => {
+                                utility.container =
+                                    Some(format!("{} ({})", handle_css_name(&handle), query.value));
+                                branch.2.push(utility);
+                            }
+                            None => result.diagnostics.push(Diagnostic::error(
+                                "SH001",
+                                format!("unknown or unavailable utility `{}`", utility.value.raw),
+                                utility.span,
+                            )),
+                        }
+                    }
+                    continue;
+                }
+                if let StyleInput::HandleProjection { handle, projection } = input {
+                    let branch = &mut branches[0];
+                    branch.1.push_str("handle:");
+                    branch.1.push_str(&handle.value);
+                    branch.1.push(':');
+                    branch.1.push_str(handle_projection_name(&projection));
+                    branch.1.push('\0');
+                    branch.2.push(CompiledUtility {
+                        variants: Vec::new(),
+                        declaration: render_handle_projection(&handle, &projection),
+                        selector: None,
+                        container: None,
+                    });
+                    continue;
+                }
                 let (guard, selector, input) = match input {
                     StyleInput::UtilityString(input) => (None, None, input),
                     StyleInput::ConditionalUtilityString { guard, value } => {
@@ -138,6 +184,8 @@ impl Compiler {
                         guard,
                         value,
                     } => (Some(guard), Some(selector.value), value),
+                    StyleInput::HandleProjection { .. } => unreachable!("handled above"),
+                    StyleInput::ContainerQuery { .. } => unreachable!("handled above"),
                 };
                 let branch_index = if let Some(guard) = guard {
                     branches.push((Some(guard), String::new(), Vec::new()));
@@ -189,6 +237,12 @@ impl Compiler {
                 });
             }
         }
+        for handle_declaration in module.handle_declarations {
+            result.transforms.push(PropsTransform {
+                call_span: handle_declaration,
+                replacement: "undefined".to_owned(),
+            });
+        }
 
         if result
             .diagnostics
@@ -204,6 +258,36 @@ impl Compiler {
 
         result
     }
+}
+
+fn handle_projection_name(projection: &HandleProjection) -> &'static str {
+    match projection {
+        HandleProjection::Anchor => "anchor",
+        HandleProjection::Position => "position",
+        HandleProjection::Scope => "scope",
+        HandleProjection::Container(_) => "container",
+    }
+}
+
+fn render_handle_projection(handle: &Spanned<String>, projection: &HandleProjection) -> String {
+    let name = handle_css_name(handle);
+    match projection {
+        HandleProjection::Anchor => format!("anchor-name:{name};"),
+        HandleProjection::Position => format!("position-anchor:{name};"),
+        HandleProjection::Scope => format!("anchor-scope:{name};"),
+        HandleProjection::Container(kind) => {
+            format!("container-name:{name};container-type:{};", kind.value)
+        }
+    }
+}
+
+fn handle_css_name(handle: &Spanned<String>) -> String {
+    let identity = format!(
+        "{}:{}:{}",
+        handle.span.file.0, handle.span.start.0, handle.value
+    );
+    let hash = blake3::hash(identity.as_bytes());
+    format!("--sw-h-{}", &hash.to_hex()[..8])
 }
 
 fn render_react_props(
@@ -242,6 +326,7 @@ struct CompiledUtility {
     variants: Vec<String>,
     declaration: String,
     selector: Option<String>,
+    container: Option<String>,
 }
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
@@ -252,6 +337,7 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
         variants,
         declaration,
         selector: None,
+        container: None,
     })
 }
 
@@ -262,6 +348,10 @@ fn resolve_static_utility(utility: &str) -> Option<String> {
         ("flex", "display:flex;"),
         ("inline-flex", "display:inline-flex;"),
         ("grid", "display:grid;"),
+        (
+            "grid-cols-2",
+            "grid-template-columns:repeat(2,minmax(0,1fr));",
+        ),
         ("hidden", "display:none;"),
         ("items-center", "align-items:center;"),
         ("items-start", "align-items:flex-start;"),
@@ -372,7 +462,9 @@ fn emit_utility_rules(
 ) {
     let base = utilities
         .iter()
-        .filter(|utility| utility.variants.is_empty() && utility.selector.is_none())
+        .filter(|utility| {
+            utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
+        })
         .map(|utility| utility.declaration.as_str())
         .collect::<String>();
     if !base.is_empty() {
@@ -382,10 +474,9 @@ fn emit_utility_rules(
         output.push_str(&base);
         output.push('}');
     }
-    for utility in utilities
-        .iter()
-        .filter(|utility| !utility.variants.is_empty() || utility.selector.is_some())
-    {
+    for utility in utilities.iter().filter(|utility| {
+        !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
+    }) {
         let mut selector = utility
             .selector
             .as_deref()
@@ -422,6 +513,9 @@ fn emit_utility_rules(
         let mut rule = format!("{selector}{{{}}}", utility.declaration);
         for condition in media.into_iter().rev() {
             rule = format!("@media {condition}{{{rule}}}");
+        }
+        if let Some(container) = &utility.container {
+            rule = format!("@container {container}{{{rule}}}");
         }
         output.push_str(&rule);
     }

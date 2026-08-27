@@ -1,13 +1,16 @@
 //! Oxc-backed JS/TS/JSX parsing and the first import-bound `style()` extractor.
 
-use std::{collections::HashSet, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use oxc::{
     allocator::Allocator,
     ast::ast::{
-        Argument, ArrayExpressionElement, CallExpression, Expression, ImportDeclaration,
-        ImportDeclarationSpecifier, ModuleExportName, ObjectExpression, ObjectPropertyKind,
-        PropertyKey, PropertyKind, StringLiteral,
+        Argument, ArrayExpressionElement, BindingPattern, CallExpression, Expression,
+        ImportDeclaration, ImportDeclarationSpecifier, ModuleExportName, ObjectExpression,
+        ObjectPropertyKind, PropertyKey, PropertyKind, StringLiteral, VariableDeclarator,
     },
     ast_visit::{Visit, walk},
     parser::Parser,
@@ -15,7 +18,7 @@ use oxc::{
     span::{GetSpan, SourceType},
     syntax::operator::LogicalOperator,
 };
-use shorth_ir::{AttributeEntry, ModuleIr, StyleCall, StyleInput};
+use shorth_ir::{AttributeEntry, HandleProjection, ModuleIr, StyleCall, StyleInput};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Debug)]
@@ -38,6 +41,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
     let mut extractor = MacroExtractor::new(source, semantic.scoping());
     extractor.visit_program(&result.program);
+    extractor.validate_handles();
     diagnostics.extend(extractor.diagnostics);
 
     ParsedJavaScript {
@@ -45,6 +49,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
         module: ModuleIr {
             adapter: shorth_ir::AdapterKind::React,
             style_calls: extractor.style_calls,
+            handle_declarations: extractor.handle_declarations,
         },
     }
 }
@@ -53,6 +58,9 @@ struct MacroExtractor<'a> {
     source: &'a SourceFile,
     scoping: &'a Scoping,
     style_symbols: HashSet<SymbolId>,
+    handle_symbols: HashMap<SymbolId, Spanned<String>>,
+    handle_uses: Vec<(String, &'static str, Span)>,
+    handle_declarations: Vec<Span>,
     style_calls: Vec<StyleCall>,
     diagnostics: Vec<Diagnostic>,
 }
@@ -63,6 +71,9 @@ impl<'a> MacroExtractor<'a> {
             source,
             scoping,
             style_symbols: HashSet::new(),
+            handle_symbols: HashMap::new(),
+            handle_uses: Vec::new(),
+            handle_declarations: Vec::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
         }
@@ -74,6 +85,136 @@ impl<'a> MacroExtractor<'a> {
 
     fn is_style_import(declaration: &ImportDeclaration<'a>) -> bool {
         declaration.source.value.as_str() == "stillwind/react"
+    }
+
+    fn is_style_member(&self, expression: &Expression<'a>, property: &str) -> bool {
+        let Expression::StaticMemberExpression(member) = expression else {
+            return false;
+        };
+        let Expression::Identifier(identifier) = &member.object else {
+            return false;
+        };
+        let Some(reference_id) = identifier.reference_id.get() else {
+            return false;
+        };
+        self.scoping
+            .get_reference(reference_id)
+            .symbol_id()
+            .is_some_and(|symbol| self.style_symbols.contains(&symbol))
+            && member.property.name.as_str() == property
+    }
+
+    fn is_style_handle_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "handle") && call.arguments.is_empty()
+    }
+
+    fn handle_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
+        let Expression::Identifier(identifier) = expression else {
+            return None;
+        };
+        let reference_id = identifier.reference_id.get()?;
+        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        self.handle_symbols.get(&symbol_id).cloned()
+    }
+
+    fn collect_handle_projection(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
+        if let Expression::CallExpression(call) = expression
+            && let Expression::StaticMemberExpression(member) = &call.callee
+            && member.property.name.as_str() == "at"
+        {
+            if call.arguments.len() != 2 {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHHANDLE004",
+                    "handle.at() requires a literal query and a literal utility string",
+                    self.source_span(call.span),
+                ));
+                return None;
+            }
+            let Some(handle) = self.handle_reference(&member.object) else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHHANDLE001",
+                    "handle projections must use an identity returned by style.handle()",
+                    self.source_span(expression.span()),
+                ));
+                return None;
+            };
+            let (Expression::StringLiteral(query), Expression::StringLiteral(value)) = (
+                call.arguments[0].to_expression(),
+                call.arguments[1].to_expression(),
+            ) else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHHANDLE004",
+                    "handle.at() requires a literal query and a literal utility string",
+                    self.source_span(call.span),
+                ));
+                return None;
+            };
+            return Some(StyleInput::ContainerQuery {
+                handle,
+                query: self.string_literal(query),
+                value: self.string_literal(value),
+            });
+        }
+        let (handle_expression, projection) = match expression {
+            Expression::StaticMemberExpression(member) => {
+                let projection = match member.property.name.as_str() {
+                    "anchor" => HandleProjection::Anchor,
+                    "position" => HandleProjection::Position,
+                    "scope" => HandleProjection::Scope,
+                    _ => return None,
+                };
+                (&member.object, projection)
+            }
+            Expression::CallExpression(call) => {
+                let Expression::StaticMemberExpression(member) = &call.callee else {
+                    return None;
+                };
+                if member.property.name.as_str() != "container" {
+                    return None;
+                }
+                let Some(argument) = call.arguments.first() else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHHANDLE002",
+                        "handle.container() requires a literal container type",
+                        self.source_span(call.span),
+                    ));
+                    return None;
+                };
+                let Expression::StringLiteral(value) = argument.to_expression() else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHHANDLE002",
+                        "handle.container() requires a literal container type",
+                        self.source_span(argument.span()),
+                    ));
+                    return None;
+                };
+                (
+                    &member.object,
+                    HandleProjection::Container(self.string_literal(value)),
+                )
+            }
+            _ => return None,
+        };
+        let Some(handle) = self.handle_reference(handle_expression) else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHHANDLE001",
+                "handle projections must use an identity returned by style.handle()",
+                self.source_span(expression.span()),
+            ));
+            return None;
+        };
+        let projection_name = match &projection {
+            HandleProjection::Anchor => "anchor",
+            HandleProjection::Position => "position",
+            HandleProjection::Scope => "scope",
+            HandleProjection::Container(_) => "container",
+        };
+        self.handle_uses.push((
+            handle.value.clone(),
+            projection_name,
+            self.source_span(expression.span()),
+        ));
+        Some(StyleInput::HandleProjection { handle, projection })
     }
 
     fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {
@@ -91,6 +232,10 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) {
+        if let Some(projection) = self.collect_handle_projection(expression) {
+            inputs.push(projection);
+            return;
+        }
         match expression {
             Expression::StringLiteral(literal) => {
                 inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
@@ -219,6 +364,36 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(StyleInput::Attributes(entries));
         }
     }
+
+    fn validate_handles(&mut self) {
+        let names = self
+            .handle_uses
+            .iter()
+            .map(|(name, _, _)| name.clone())
+            .collect::<HashSet<_>>();
+        for name in names {
+            let uses = self
+                .handle_uses
+                .iter()
+                .filter(|(candidate, _, _)| candidate == &name)
+                .collect::<Vec<_>>();
+            let has_anchor = uses
+                .iter()
+                .any(|(_, projection, _)| *projection == "anchor");
+            if !has_anchor {
+                for (_, _, span) in uses
+                    .iter()
+                    .filter(|(_, projection, _)| *projection == "position")
+                {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHHANDLE003",
+                        format!("handle `{name}` uses position without an anchor projection"),
+                        *span,
+                    ));
+                }
+            }
+        }
+    }
 }
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
@@ -279,6 +454,26 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         });
 
         walk::walk_call_expression(self, call);
+    }
+
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+        if let (
+            BindingPattern::BindingIdentifier(identifier),
+            Some(Expression::CallExpression(call)),
+        ) = (&declarator.id, &declarator.init)
+            && self.is_style_handle_call(call)
+            && let Some(symbol_id) = identifier.symbol_id.get()
+        {
+            self.handle_declarations.push(self.source_span(call.span));
+            self.handle_symbols.insert(
+                symbol_id,
+                Spanned::new(
+                    identifier.name.to_string(),
+                    self.source_span(identifier.span),
+                ),
+            );
+        }
+        walk::walk_variable_declarator(self, declarator);
     }
 }
 
