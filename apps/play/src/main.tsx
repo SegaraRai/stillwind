@@ -1,4 +1,4 @@
-import { EditorState, type Extension } from "@codemirror/state"
+import { EditorSelection, EditorState, type Extension } from "@codemirror/state"
 import { css } from "@codemirror/lang-css"
 import { javascript } from "@codemirror/lang-javascript"
 import { oneDark } from "@codemirror/theme-one-dark"
@@ -43,7 +43,7 @@ const initialTheme = `@theme {
 type Result = {
   css: string
   code: string | null
-  diagnostics: Array<{ code: string; message: string; start: number; end: number }>
+  diagnostics: Array<{ code: string; message: string; file: string; start: number; end: number; start_utf16: number; end_utf16: number; start_line: number; start_column: number; end_line: number; end_column: number; notes: string[] }>
   previewUrl: string | null
 }
 type FileTab = "component" | "theme"
@@ -101,7 +101,7 @@ function formatCss(source: string): string {
   return output.trim()
 }
 
-function CodeEditor({ value, onChange, extensions }: { value: string; onChange(value: string): void; extensions: Extension }) {
+function CodeEditor({ value, onChange, extensions, selection }: { value: string; onChange(value: string): void; extensions: Extension; selection: { start: number; end: number } | null }) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -121,6 +121,12 @@ function CodeEditor({ value, onChange, extensions }: { value: string; onChange(v
     if (!editor || editor.state.doc.toString() === value) return
     editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } })
   }, [value])
+  useEffect(() => {
+    const editor = view.current
+    if (!editor || !selection) return
+    editor.dispatch({ selection: EditorSelection.range(selection.start, selection.end), scrollIntoView: true })
+    editor.focus()
+  }, [selection])
   return <div className="code-editor" ref={host} />
 }
 
@@ -133,6 +139,7 @@ function Play() {
   const [result, setResult] = useState<Result | null>(null)
   const [status, setStatus] = useState("Compiling")
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
   const requestId = useRef(0)
   const tsxLanguage = useMemo(() => javascript({ jsx: true, typescript: true }), [])
@@ -170,6 +177,10 @@ function Play() {
   const diagnostics = result?.diagnostics ?? []
   const output = outputTab === "css" ? result?.css && formatCss(result.css) : outputTab === "transform" ? result?.code : null
   const viewportLabel = { desktop: "Desktop", tablet: "Tablet", mobile: "Mobile" }[viewport]
+  const navigateToDiagnostic = (diagnostic: Result["diagnostics"][number]) => {
+    setFileTab(diagnostic.file === "stillwind.css" ? "theme" : "component")
+    setSelection({ start: diagnostic.start_utf16, end: diagnostic.end_utf16 })
+  }
   return <main className="play-shell">
     <header className="topbar">
       <a className="brand" href="/" aria-label="Stillwind Play home">stillwind<span>Play</span></a>
@@ -177,10 +188,10 @@ function Play() {
       <div className="topbar-actions"><button type="button" onClick={() => setSource(initialSource)}>Reset</button><button type="button" className="share" onClick={() => navigator.clipboard.writeText(location.href)}>Copy link</button></div>
     </header>
     <section className="workspace">
-      <aside className="files" aria-label="Playground files"><p>FILES</p><button className={fileTab === "component" ? "active" : ""} type="button" onClick={() => setFileTab("component")}>Component.tsx</button><button className={fileTab === "theme" ? "active" : ""} type="button" onClick={() => setFileTab("theme")}>shorth.css</button><small>React TSX · CSS-first theme</small></aside>
-      <section className="editor-panel"><div className="panel-bar"><strong>{fileTab === "component" ? "Component.tsx" : "shorth.css"}</strong><span>Reactive compiler</span></div>{fileTab === "component" ? <CodeEditor value={source} onChange={setSource} extensions={tsxLanguage} /> : <CodeEditor value={theme} onChange={setTheme} extensions={cssLanguage} />}</section>
+      <aside className="files" aria-label="Playground files"><p>FILES</p><button className={fileTab === "component" ? "active" : ""} type="button" onClick={() => { setSelection(null); setFileTab("component") }}>Component.tsx</button><button className={fileTab === "theme" ? "active" : ""} type="button" onClick={() => { setSelection(null); setFileTab("theme") }}>stillwind.css</button><small>React TSX · CSS-first theme</small></aside>
+      <section className="editor-panel"><div className="panel-bar"><strong>{fileTab === "component" ? "Component.tsx" : "stillwind.css"}</strong><span>Reactive compiler</span></div>{fileTab === "component" ? <CodeEditor value={source} onChange={setSource} extensions={tsxLanguage} selection={selection} /> : <CodeEditor value={theme} onChange={setTheme} extensions={cssLanguage} selection={selection} />}</section>
       <section className="preview-panel"><div className="panel-bar preview-bar"><strong>Preview</strong><div className="viewport-switcher" aria-label="Preview viewport">{(["desktop", "tablet", "mobile"] as const).map((item) => <button className={viewport === item ? "active" : ""} type="button" onClick={() => setViewport(item)} key={item}>{item[0].toUpperCase()}</button>)}</div><span>{viewportLabel}</span></div><div className={`preview-stage ${viewport}`}>{result?.previewUrl && !result.diagnostics.length ? <iframe key={result.previewUrl} ref={frame} title="Shorth Play preview" sandbox="allow-scripts" src={result.previewUrl} /> : <div className="preview-empty">{previewError ?? "Fix diagnostics to render the preview."}</div>}</div>{previewError ? <div className="runtime-error">Runtime: {previewError}</div> : null}</section>
-      <section className="output-panel"><div className="output-tabs">{(["css", "transform", "diagnostics"] as const).map((item) => <button type="button" key={item} onClick={() => setOutputTab(item)} className={outputTab === item ? "active" : ""}>{item === "css" ? "Generated CSS" : item === "transform" ? "Macro output" : `Diagnostics${diagnostics.length ? ` (${diagnostics.length})` : ""}`}</button>)}</div>{outputTab === "diagnostics" ? <div className="diagnostics-output" aria-live="polite">{!result ? <p className="output-empty">Compiling diagnostics…</p> : diagnostics.length === 0 ? <p className="output-empty"><strong>No diagnostics</strong><span>The current component and theme compile without issues.</span></p> : <table><thead><tr><th scope="col">Code</th><th scope="col">Message</th><th scope="col">Range</th></tr></thead><tbody>{diagnostics.map((item) => <tr key={`${item.code}-${item.start}-${item.end}`}><td><code>{item.code}</code></td><td>{item.message}</td><td><code>{item.start}–{item.end}</code></td></tr>)}</tbody></table>}</div> : <pre>{output || "Compiling…"}</pre>}</section>
+      <section className="output-panel"><div className="output-tabs">{(["css", "transform", "diagnostics"] as const).map((item) => <button type="button" key={item} onClick={() => setOutputTab(item)} className={outputTab === item ? "active" : ""}>{item === "css" ? "Generated CSS" : item === "transform" ? "Macro output" : `Diagnostics${diagnostics.length ? ` (${diagnostics.length})` : ""}`}</button>)}</div>{outputTab === "diagnostics" ? <div className="diagnostics-output" aria-live="polite">{!result ? <p className="output-empty">Compiling diagnostics…</p> : diagnostics.length === 0 ? <p className="output-empty"><strong>No diagnostics</strong><span>The current component and theme compile without issues.</span></p> : <table><thead><tr><th scope="col">Code</th><th scope="col">Message</th><th scope="col">Range</th></tr></thead><tbody>{diagnostics.map((item) => <tr key={`${item.code}-${item.start}-${item.end}`}><td><code>{item.code}</code></td><td>{item.message}{item.notes.map((note) => <small key={note}>{note}</small>)}</td><td><button className="diagnostic-jump" type="button" onClick={() => navigateToDiagnostic(item)}><code>{item.file}:{item.start_line + 1}:{item.start_column + 1}</code></button></td></tr>)}</tbody></table>}</div> : <pre>{output || "Compiling…"}</pre>}</section>
     </section>
   </main>
 }

@@ -18,8 +18,16 @@ struct BindingOutput {
 struct BindingDiagnostic {
     code: String,
     message: String,
+    file: String,
     start: u32,
     end: u32,
+    start_utf16: u32,
+    end_utf16: u32,
+    start_line: u32,
+    start_column: u32,
+    end_line: u32,
+    end_column: u32,
+    notes: Vec<String>,
 }
 
 /// Compiles a source buffer and returns the serializable compiler result.
@@ -36,7 +44,7 @@ pub fn compile_react_json(
     theme: &str,
 ) -> std::result::Result<String, serde_json::Error> {
     let source = SourceFile::new(FileId(1), source_path, source);
-    let theme = SourceFile::new(FileId(2), "shorth.css", theme);
+    let theme = SourceFile::new(FileId(2), "stillwind.css", theme);
     let result = Compiler::compile_react(&source, &theme);
     let code = result.apply_to_source(&source).ok();
     let diagnostics = result
@@ -47,11 +55,28 @@ pub fn compile_react_json(
                 .labels
                 .first()
                 .map_or(source.full_span(), |label| label.span);
+            let diagnostic_source = if span.file == theme.id() {
+                &theme
+            } else {
+                &source
+            };
+            let start_position = diagnostic_source.position(span.start).ok();
+            let end_position = diagnostic_source.position(span.end).ok();
             BindingDiagnostic {
                 code: diagnostic.code.to_owned(),
                 message: diagnostic.message.clone(),
+                file: diagnostic_source.path().to_owned(),
                 start: span.start.0,
                 end: span.end.0,
+                start_utf16: diagnostic_source
+                    .utf16_offset(span.start)
+                    .unwrap_or_default(),
+                end_utf16: diagnostic_source.utf16_offset(span.end).unwrap_or_default(),
+                start_line: start_position.map_or(0, |position| position.line),
+                start_column: start_position.map_or(0, |position| position.utf16_column),
+                end_line: end_position.map_or(0, |position| position.line),
+                end_column: end_position.map_or(0, |position| position.utf16_column),
+                notes: diagnostic.notes.clone(),
             }
         })
         .collect();

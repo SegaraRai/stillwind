@@ -13,3 +13,19 @@ const props = style("bg-accent hover:bg-accent/90");"#,
     assert!(value["css"].as_str().unwrap().contains(":hover{"));
     assert!(value["code"].as_str().unwrap().contains("className"));
 }
+
+#[test]
+fn serializes_editor_positions_for_diagnostics() {
+    let output = shorth_napi::compile_react_json(
+        "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
+        "Button.tsx",
+        "@theme { --color-accent: red; }",
+    )
+    .unwrap();
+
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let diagnostic = &value["diagnostics"][0];
+    assert_eq!(diagnostic["file"], "Button.tsx");
+    assert_eq!(diagnostic["start_line"], 1);
+    assert!(diagnostic["start_utf16"].as_u64().unwrap() > 0);
+}

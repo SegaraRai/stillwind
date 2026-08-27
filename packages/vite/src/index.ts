@@ -14,7 +14,20 @@ interface CompilerOutput {
   css: string
   code: string | null
   classes: Array<{ class_name: string }>
-  diagnostics: Array<{ code: string; message: string; start: number; end: number }>
+  diagnostics: Array<{
+    code: string
+    message: string
+    file: string
+    start: number
+    end: number
+    start_utf16: number
+    end_utf16: number
+    start_line: number
+    start_column: number
+    end_line: number
+    end_column: number
+    notes: string[]
+  }>
 }
 
 interface PlayOutput extends CompilerOutput {
@@ -175,7 +188,7 @@ export function stillwind(options: StillwindOptions): Plugin {
                 while (previewBundles.size > 12) previewBundles.delete(previewBundles.keys().next().value!)
                 previewUrl = `/__stillwind/preview?id=${encodeURIComponent(id)}`
               } catch (error) {
-                output.diagnostics.push({ code: "SHPLAY001", message: error instanceof Error ? error.message : String(error), start: 0, end: 0 })
+                output.diagnostics.push({ code: "SHPLAY001", message: error instanceof Error ? error.message : String(error), file: "Play.tsx", start: 0, end: 0, start_utf16: 0, end_utf16: 0, start_line: 0, start_column: 0, end_line: 0, end_column: 0, notes: [] })
               }
             }
             sendJson(response, { ...output, previewUrl } satisfies PlayOutput)

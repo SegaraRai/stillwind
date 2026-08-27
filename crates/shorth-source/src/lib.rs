@@ -146,6 +146,19 @@ impl SourceFile {
             utf16_column,
         })
     }
+
+    /// Converts a UTF-8 byte offset to a document-wide UTF-16 offset.
+    ///
+    /// CodeMirror and Monaco use this coordinate system for selections.
+    pub fn utf16_offset(&self, byte_offset: BytePos) -> Result<u32, SourceError> {
+        let byte_offset_usize = byte_offset.0 as usize;
+        if byte_offset_usize > self.text.len() || !self.text.is_char_boundary(byte_offset_usize) {
+            return Err(SourceError::InvalidOffset(byte_offset));
+        }
+        Ok(offset(
+            self.text[..byte_offset_usize].encode_utf16().count(),
+        ))
+    }
 }
 
 #[derive(Debug, Error)]
@@ -228,5 +241,6 @@ mod tests {
                 utf16_column: 0
             }
         );
+        assert_eq!(source.utf16_offset(BytePos(6)).unwrap(), 4);
     }
 }
