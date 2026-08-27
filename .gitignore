@@ -4,3 +4,4 @@ dist
 *.node
 packages/native/npm/*/index.d.ts
 *.retired.tmp.*
+**/stillwind.generated.d.ts

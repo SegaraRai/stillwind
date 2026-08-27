@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto"
-import { readFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import type { IncomingMessage, ServerResponse } from "node:http"
+import { dirname, join } from "node:path"
 import { build } from "esbuild"
-import { compileReact } from "@stillwind/native"
+import { compileReact, generateReactTypes } from "@stillwind/native"
 import type { Plugin, ViteDevServer } from "vite"
 
 export interface StillwindOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
   theme: string
+  /** Emits a module augmentation with the CSS theme's utility vocabulary. */
+  types?: false | string
 }
 
 interface CompilerOutput {
@@ -161,6 +164,19 @@ export function stillwind(options: StillwindOptions): Plugin {
     load(id) {
       if (id === resolvedVirtualCssId) return [...cssByModule.values()].join("\n")
       return undefined
+    },
+    configResolved(config) {
+      if (options.types === false) return
+      const output = options.types ?? join(config.root, "src", "stillwind.generated.d.ts")
+      const path = output.startsWith("/") || /^[A-Za-z]:[\\/]/.test(output) ? output : join(config.root, output)
+      const types = generateReactTypes(readFileSync(options.theme, "utf8"))
+      try {
+        if (readFileSync(path, "utf8") === types) return
+      } catch {
+        // The generated file is intentionally created only when it changes.
+      }
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, types)
     },
     transform(code, id) {
       if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules") || !code.includes("stillwind/react")) return undefined

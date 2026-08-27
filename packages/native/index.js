@@ -24,3 +24,4 @@ try {
 }
 
 export const compileReact = binding.compileReact
+export const generateReactTypes = binding.generateReactTypes

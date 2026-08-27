@@ -105,3 +105,10 @@ pub fn compile_react(source: String, source_path: Option<String>, theme: String)
     )
     .map_err(|error| Error::from_reason(error.to_string()))
 }
+
+/// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
+#[napi(js_name = "generateReactTypes")]
+pub fn generate_react_types(theme: String) -> Result<String> {
+    let source = SourceFile::new(FileId(2), "stillwind.css", theme);
+    Compiler::generate_react_types(&source).map_err(|error| Error::from_reason(error.to_string()))
+}

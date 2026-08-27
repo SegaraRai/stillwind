@@ -4,6 +4,22 @@
  */
 export type StyleAttributeName = `aria-${string}` | `data-${string}`
 
+/** Augmented by the generated `.stillwind/stillwind.generated.d.ts` file. */
+export interface StillwindUtilityVocabulary {}
+export interface StillwindVariantVocabulary {}
+
+type VocabularyUtility = keyof StillwindUtilityVocabulary
+type UtilityAtom = [VocabularyUtility] extends [never] ? string : VocabularyUtility
+type VocabularyVariant = keyof StillwindVariantVocabulary
+type VariantAtom = [VocabularyVariant] extends [never] ? string : VocabularyVariant
+/** One generated utility token, including one typed variant prefix. */
+export type StillwindUtility = UtilityAtom | `${VariantAtom}:${UtilityAtom}`
+
+// Utility lists are intentionally validated by the compiler. A recursive
+// template-literal union for arbitrary-length class lists quickly exceeds
+// TypeScript's union-complexity limit in real themes.
+type UtilityString = string
+
 export type StyleProps = {
   className?: string
 } & Partial<Record<StyleAttributeName, unknown>>
@@ -58,13 +74,13 @@ export type UnsafeStyle = {
 }
 
 export type StyleArgument =
-  | string
+  | UtilityString
   | false
   | null
   | undefined
   | readonly StyleArgument[]
   | Partial<Record<StyleAttributeName, unknown>>
-  | Partial<Record<StyleSelector, string | StyleAnimationUse | false | null | undefined>>
+  | Partial<Record<StyleSelector, UtilityString | StyleAnimationUse | false | null | undefined>>
   | StyleHandleProjection
   | StyleHandleSelector
   | StyleAnimationUse

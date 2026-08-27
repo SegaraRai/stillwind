@@ -29,3 +29,12 @@ fn serializes_editor_positions_for_diagnostics() {
     assert_eq!(diagnostic["start_line"], 1);
     assert!(diagnostic["start_utf16"].as_u64().unwrap() > 0);
 }
+
+#[test]
+fn generates_theme_backed_react_type_augmentations() {
+    let output =
+        shorth_napi::generate_react_types("@theme { --color-accent: red; }".to_owned()).unwrap();
+
+    assert!(output.contains("declare module \"stillwind/react\""));
+    assert!(output.contains("\"bg-accent\": true"));
+}
