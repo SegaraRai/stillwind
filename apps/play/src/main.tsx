@@ -12,20 +12,28 @@ import { style } from "stillwind/react";
 
 export function App() {
   const [loading, setLoading] = useState(false);
+  const trigger = style.handle();
+  const enter = style.animation({
+    from: "opacity-0 translate-y-2 scale-98",
+    to: "opacity-100 translate-y-0 scale-100",
+  });
   return (
-    <main {...style("bg-surface p-4 rounded-md")}>
+    <main {...style("bg-surface p-4 rounded-md", enter("duration-normal ease-standard both"))}>
       <p>Shorth Play</p>
       <h1>React, compiled as you type.</h1>
-      <button
-        {...style(
-          "inline-flex items-center rounded-md bg-accent px-4 py-2 text-white transition hover:bg-accent/90",
-          loading && "opacity-60 cursor-wait",
-          { "aria-busy": loading },
-        )}
-        onClick={() => setLoading((value) => !value)}
-      >
-        {loading ? "Saving…" : "Save changes"}
-      </button>
+      <div {...style(trigger.anchor, "inline-flex")}>
+        <button
+          {...style(
+            "inline-flex items-center rounded-md bg-accent px-4 py-2 text-white transition hover:bg-accent/90",
+            loading && "opacity-60 cursor-wait",
+            { "aria-busy": loading },
+          )}
+          onClick={() => setLoading((value) => !value)}
+        >
+          {loading ? "Saving…" : "Save changes"}
+        </button>
+        <span {...style({ [trigger\`&:hover\`]: "text-accent" })}> ← automatic named parent selector</span>
+      </div>
     </main>
   );
 }`
@@ -38,6 +46,8 @@ const initialTheme = `@theme {
   --spacing-4: 1rem;
   --radius-md: .5rem;
   --breakpoint-md: 48rem;
+  --duration-normal: 180ms;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
 }`
 
 type Result = {
