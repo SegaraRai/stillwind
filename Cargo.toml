@@ -2,6 +2,7 @@
 members = [
   "crates/shorth-source",
   "crates/shorth-ir",
+  "crates/shorth-grammar",
   "crates/shorth-css",
   "crates/shorth-js-oxc",
   "crates/shorth-core",
@@ -16,6 +17,7 @@ repository = "https://github.com/izual/shorth"
 version = "0.0.0"
 
 [workspace.dependencies]
+blake3 = "1.8.7"
 lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 oxc = { version = "0.147.0", features = ["ast_visit", "semantic"] }
 serde = { version = "1.0.229", features = ["derive"] }

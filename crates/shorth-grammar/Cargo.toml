@@ -1,0 +1,13 @@
+[package]
+name = "shorth-grammar"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+shorth-source = { path = "../shorth-source" }
+
+[lints]
+workspace = true
