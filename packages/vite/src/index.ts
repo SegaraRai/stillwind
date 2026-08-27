@@ -1,13 +1,11 @@
-import { execFileSync } from "node:child_process"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import { readFileSync } from "node:fs"
+import { compileReact } from "@shorth/native"
 import type { Plugin, ViteDevServer } from "vite"
 
 export interface ShorthOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
   theme: string
-  /** Repository root used to invoke the Rust workspace. */
-  compilerRoot: string
 }
 
 interface CompilerOutput {
@@ -28,17 +26,7 @@ export function shorth(options: ShorthOptions): Plugin {
   const cssByModule = new Map<string, string>()
 
   const compile = (source: string, path: string, theme: string): CompilerOutput => {
-    const stdout = execFileSync(
-      "cargo",
-      [
-        "run", "--quiet", "-p", "shorth-cli", "--bin", "shorth", "--", "compile",
-        "--source-text", source,
-        "--source-path", path,
-        "--theme-text", theme,
-      ],
-      { cwd: options.compilerRoot, encoding: "utf8", windowsHide: true },
-    )
-    return JSON.parse(stdout) as CompilerOutput
+    return JSON.parse(compileReact(source, path, theme)) as CompilerOutput
   }
 
   const loadPlayRequest = (request: IncomingMessage, response: ServerResponse) => {

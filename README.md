@@ -36,14 +36,17 @@ This repository contains a pnpm workspace backed by Vite+.
 
 ```powershell
 vp i
+vp run --filter @shorth/native build
 vp run --filter @shorth/react-example dev
 vp run --filter @shorth/play dev
 ```
 
 Each app declares its Vite+ tasks under `vite.config.ts#run.tasks`; use `vp run`
-instead of package scripts. The interactive playground lives in
-[`apps/play`](./apps/play): it calls the Rust CLI through the Vite dev server
-and displays the transformed source, CSS, diagnostics, and a live CSS preview.
+instead of package scripts. `@shorth/native` is a napi-rs Node-API addon, so
+the Vite plugin calls Rust directly rather than spawning `cargo` for every
+transform. The interactive playground lives in [`apps/play`](./apps/play): it
+calls that binding through the Vite dev server and displays the transformed
+source, CSS, diagnostics, and a live CSS preview.
 
 ## CSS-first theme compatibility
 

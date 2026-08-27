@@ -10,7 +10,6 @@ export default defineConfig({
     react(),
     shorth({
       theme: fileURLToPath(new URL("./styles/default-theme.css", import.meta.url)),
-      compilerRoot: fileURLToPath(new URL("../..", import.meta.url)),
     }),
   ],
   run: {
