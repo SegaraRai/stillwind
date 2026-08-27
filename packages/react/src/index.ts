@@ -37,6 +37,20 @@ export type StyleAnimation = (options: string) => StyleAnimationUse
 
 export type StyleAnimationDefinition = Readonly<Record<string, string>>
 
+export type StyleViewTransitionUse = {
+  readonly [handleProjection]: true
+}
+
+export type StyleViewTransition = StyleViewTransitionUse & {
+  for(key: string | number): StyleViewTransitionUse
+}
+
+export type StyleViewTransitionDefinition = {
+  group?: string
+  old?: string
+  new?: string
+}
+
 export type StyleArgument =
   | string
   | false
@@ -48,11 +62,13 @@ export type StyleArgument =
   | StyleHandleProjection
   | StyleHandleSelector
   | StyleAnimationUse
+  | StyleViewTransitionUse
 
 export type StyleMacro = {
   (...inputs: readonly StyleArgument[]): StyleProps
   handle(): StyleHandle
   animation(definition: StyleAnimationDefinition): StyleAnimation
+  viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition
 }
 
 export const style = Object.assign(
@@ -67,6 +83,9 @@ export const style = Object.assign(
     },
     animation(_definition: StyleAnimationDefinition): StyleAnimation {
       throw new Error("stillwind/react style.animation() is a compile-time macro.")
+    },
+    viewTransition(_definition: StyleViewTransitionDefinition): StyleViewTransition {
+      throw new Error("stillwind/react style.viewTransition() is a compile-time macro.")
     },
   },
 ) as StyleMacro

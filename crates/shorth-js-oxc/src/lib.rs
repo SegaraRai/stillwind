@@ -20,7 +20,7 @@ use oxc::{
 };
 use shorth_ir::{
     AnimationDefinition, AnimationFrame, AttributeEntry, HandleProjection, ModuleIr, StyleCall,
-    StyleInput,
+    StyleInput, ViewTransitionDefinition,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -54,6 +54,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
             style_calls: extractor.style_calls,
             handle_declarations: extractor.handle_declarations,
             animation_declarations: extractor.animation_declarations,
+            view_transition_declarations: extractor.view_transition_declarations,
         },
     }
 }
@@ -67,6 +68,8 @@ struct MacroExtractor<'a> {
     handle_declarations: Vec<Span>,
     animation_symbols: HashMap<SymbolId, Spanned<String>>,
     animation_declarations: Vec<AnimationDefinition>,
+    view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
+    view_transition_declarations: Vec<ViewTransitionDefinition>,
     style_calls: Vec<StyleCall>,
     diagnostics: Vec<Diagnostic>,
 }
@@ -82,6 +85,8 @@ impl<'a> MacroExtractor<'a> {
             handle_declarations: Vec::new(),
             animation_symbols: HashMap::new(),
             animation_declarations: Vec::new(),
+            view_transition_symbols: HashMap::new(),
+            view_transition_declarations: Vec::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
         }
@@ -120,6 +125,10 @@ impl<'a> MacroExtractor<'a> {
         self.is_style_member(&call.callee, "animation")
     }
 
+    fn is_style_view_transition_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "viewTransition")
+    }
+
     fn handle_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
         let Expression::Identifier(identifier) = expression else {
             return None;
@@ -136,6 +145,46 @@ impl<'a> MacroExtractor<'a> {
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         self.animation_symbols.get(&symbol_id).cloned()
+    }
+
+    fn view_transition_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
+        let Expression::Identifier(identifier) = expression else {
+            return None;
+        };
+        let reference_id = identifier.reference_id.get()?;
+        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        self.view_transition_symbols.get(&symbol_id).cloned()
+    }
+
+    fn view_transition_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
+        if let Some(transition) = self.view_transition_reference(expression) {
+            return Some(StyleInput::ViewTransitionUse {
+                transition,
+                key: None,
+            });
+        }
+        let Expression::CallExpression(call) = expression else {
+            return None;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return None;
+        };
+        if member.property.name.as_str() != "for" {
+            return None;
+        }
+        let transition = self.view_transition_reference(&member.object)?;
+        if call.arguments.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHVIEW002",
+                "viewTransition.for() requires one stable key expression",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        Some(StyleInput::ViewTransitionUse {
+            transition,
+            key: Some(self.source_span(call.arguments[0].span())),
+        })
     }
 
     fn animation_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
@@ -256,6 +305,92 @@ impl<'a> MacroExtractor<'a> {
             name,
             call_span: self.source_span(call.span),
             frames,
+        })
+    }
+
+    fn collect_view_transition_definition(
+        &mut self,
+        name: Spanned<String>,
+        call: &CallExpression<'a>,
+    ) -> Option<ViewTransitionDefinition> {
+        if call.arguments.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHVIEW001",
+                "style.viewTransition() requires one object of static utility strings",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHVIEW001",
+                "style.viewTransition() requires one object of static utility strings",
+                self.source_span(call.arguments[0].span()),
+            ));
+            return None;
+        };
+        let mut group = None;
+        let mut old = None;
+        let mut new = None;
+        for property in &object.properties {
+            let ObjectPropertyKind::ObjectProperty(property) = property else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHVIEW001",
+                    "view transition definitions cannot use object spreads",
+                    self.source_span(property.span()),
+                ));
+                continue;
+            };
+            if property.computed || property.method || property.kind != PropertyKind::Init {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHVIEW001",
+                    "view transition definitions must be plain static properties",
+                    self.source_span(property.span),
+                ));
+                continue;
+            }
+            let Some(property_name) = self.property_name(&property.key) else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHVIEW001",
+                    "view transition keys must be `group`, `old`, or `new`",
+                    self.source_span(property.key.span()),
+                ));
+                continue;
+            };
+            let Expression::StringLiteral(value) = &property.value else {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHVIEW001",
+                    "view transition values must be literal utility strings",
+                    self.source_span(property.value.span()),
+                ));
+                continue;
+            };
+            let value = self.string_literal(value);
+            match property_name.value.as_str() {
+                "group" => group = Some(value),
+                "old" => old = Some(value),
+                "new" => new = Some(value),
+                _ => self.diagnostics.push(Diagnostic::error(
+                    "SHVIEW001",
+                    "view transition keys must be `group`, `old`, or `new`",
+                    property_name.span,
+                )),
+            }
+        }
+        if group.is_none() && old.is_none() && new.is_none() {
+            self.diagnostics.push(Diagnostic::error(
+                "SHVIEW001",
+                "style.viewTransition() requires at least one of group, old, or new",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        Some(ViewTransitionDefinition {
+            name,
+            call_span: self.source_span(call.span),
+            group,
+            old,
+            new,
         })
     }
 
@@ -436,6 +571,10 @@ impl<'a> MacroExtractor<'a> {
         }
         if let Some(animation) = self.animation_use(expression) {
             inputs.push(animation);
+            return;
+        }
+        if let Some(transition) = self.view_transition_use(expression) {
+            inputs.push(transition);
             return;
         }
         match expression {
@@ -776,6 +915,22 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             if let Some(definition) = self.collect_animation_definition(name.clone(), call) {
                 self.animation_symbols.insert(symbol_id, name);
                 self.animation_declarations.push(definition);
+            }
+        }
+        if let (
+            BindingPattern::BindingIdentifier(identifier),
+            Some(Expression::CallExpression(call)),
+        ) = (&declarator.id, &declarator.init)
+            && self.is_style_view_transition_call(call)
+            && let Some(symbol_id) = identifier.symbol_id.get()
+        {
+            let name = Spanned::new(
+                identifier.name.to_string(),
+                self.source_span(identifier.span),
+            );
+            if let Some(definition) = self.collect_view_transition_definition(name.clone(), call) {
+                self.view_transition_symbols.insert(symbol_id, name);
+                self.view_transition_declarations.push(definition);
             }
         }
         walk::walk_variable_declarator(self, declarator);

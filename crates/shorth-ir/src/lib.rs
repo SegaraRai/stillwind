@@ -16,6 +16,7 @@ pub struct ModuleIr {
     pub style_calls: Vec<StyleCall>,
     pub handle_declarations: Vec<Span>,
     pub animation_declarations: Vec<AnimationDefinition>,
+    pub view_transition_declarations: Vec<ViewTransitionDefinition>,
 }
 
 impl ModuleIr {
@@ -25,6 +26,7 @@ impl ModuleIr {
             style_calls: Vec::new(),
             handle_declarations: Vec::new(),
             animation_declarations: Vec::new(),
+            view_transition_declarations: Vec::new(),
         }
     }
 }
@@ -52,6 +54,15 @@ pub struct AnimationDefinition {
 pub struct AnimationFrame {
     pub selector: Spanned<String>,
     pub utilities: Spanned<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ViewTransitionDefinition {
+    pub name: Spanned<String>,
+    pub call_span: Span,
+    pub group: Option<Spanned<String>>,
+    pub old: Option<Spanned<String>>,
+    pub new: Option<Spanned<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -110,5 +121,9 @@ pub enum StyleInput {
         selector: Spanned<String>,
         animation: Spanned<String>,
         options: Spanned<String>,
+    },
+    ViewTransitionUse {
+        transition: Spanned<String>,
+        key: Option<Span>,
     },
 }

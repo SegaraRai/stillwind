@@ -4,7 +4,9 @@ use std::fmt::Write;
 
 use serde::Serialize;
 use shorth_grammar::lex_utilities;
-use shorth_ir::{AnimationDefinition, AttributeEntry, HandleProjection, StyleInput};
+use shorth_ir::{
+    AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
+};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -19,6 +21,13 @@ pub struct GeneratedClass {
 pub struct PropsTransform {
     pub call_span: Span,
     pub replacement: String,
+}
+
+#[derive(Clone, Debug)]
+struct DynamicStyleEntry {
+    property: String,
+    key: Span,
+    prefix: String,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -123,11 +132,49 @@ impl Compiler {
         for animation in &module.animation_declarations {
             emit_animation_definition(&mut utility_css, animation, &theme, &mut result.diagnostics);
         }
+        for transition in &module.view_transition_declarations {
+            emit_view_transition_definition(
+                &mut utility_css,
+                transition,
+                &theme,
+                &mut result.diagnostics,
+            );
+        }
         for call in module.style_calls {
             let mut branches = vec![(None, true, String::new(), Vec::new())];
             let mut attributes = Vec::new();
             let mut handle_markers = Vec::new();
+            let mut dynamic_styles = Vec::new();
             for input in call.inputs {
+                if let StyleInput::ViewTransitionUse { transition, key } = input {
+                    let name = view_transition_css_name(&transition);
+                    let branch = &mut branches[0];
+                    branch.2.push_str("view-transition:");
+                    branch.2.push_str(&transition.value);
+                    if let Some(key) = key {
+                        branch.2.push_str(":keyed");
+                        dynamic_styles.push(DynamicStyleEntry {
+                            property: name.clone(),
+                            key,
+                            prefix: format!("{name}-"),
+                        });
+                        branch.3.push(CompiledUtility {
+                            variants: Vec::new(),
+                            declaration: format!("view-transition-name:var({name});"),
+                            selector: None,
+                            container: None,
+                        });
+                    } else {
+                        branch.3.push(CompiledUtility {
+                            variants: Vec::new(),
+                            declaration: format!("view-transition-name:{name};"),
+                            selector: None,
+                            container: None,
+                        });
+                    }
+                    branch.2.push('\0');
+                    continue;
+                }
                 if let StyleInput::AnimationUse { animation, options } = input {
                     let branch = &mut branches[0];
                     branch.2.push_str("animation:");
@@ -135,11 +182,12 @@ impl Compiler {
                     branch.2.push(':');
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
-                    if let Some(utility) =
-                        resolve_animation_use(&animation, &options, &theme, &mut result.diagnostics)
-                    {
-                        branch.3.push(utility);
-                    }
+                    branch.3.push(resolve_animation_use(
+                        &animation,
+                        &options,
+                        &theme,
+                        &mut result.diagnostics,
+                    ));
                     continue;
                 }
                 if let StyleInput::SelectorAnimationUse {
@@ -156,12 +204,14 @@ impl Compiler {
                     branch.2.push(':');
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
-                    if let Some(mut utility) =
-                        resolve_animation_use(&animation, &options, &theme, &mut result.diagnostics)
-                    {
-                        utility.selector = Some(selector.value);
-                        branch.3.push(utility);
-                    }
+                    let mut utility = resolve_animation_use(
+                        &animation,
+                        &options,
+                        &theme,
+                        &mut result.diagnostics,
+                    );
+                    utility.selector = Some(selector.value);
+                    branch.3.push(utility);
                     continue;
                 }
                 if let StyleInput::ContainerQuery {
@@ -258,7 +308,8 @@ impl Compiler {
                     StyleInput::HandleProjection { .. }
                     | StyleInput::ContainerQuery { .. }
                     | StyleInput::AnimationUse { .. }
-                    | StyleInput::SelectorAnimationUse { .. } => {
+                    | StyleInput::SelectorAnimationUse { .. }
+                    | StyleInput::ViewTransitionUse { .. } => {
                         unreachable!("handled above")
                     }
                 };
@@ -306,9 +357,13 @@ impl Compiler {
                 call_classes.push(generated_class.clone());
                 result.classes.push(generated_class);
             }
-            if let Some(replacement) =
-                render_react_props(source, &call_classes, &attributes, &handle_markers)
-            {
+            if let Some(replacement) = render_react_props(
+                source,
+                &call_classes,
+                &attributes,
+                &handle_markers,
+                &dynamic_styles,
+            ) {
                 result.transforms.push(PropsTransform {
                     call_span: call.span,
                     replacement,
@@ -324,6 +379,12 @@ impl Compiler {
         for animation in module.animation_declarations {
             result.transforms.push(PropsTransform {
                 call_span: animation.call_span,
+                replacement: "undefined".to_owned(),
+            });
+        }
+        for transition in module.view_transition_declarations {
+            result.transforms.push(PropsTransform {
+                call_span: transition.call_span,
                 replacement: "undefined".to_owned(),
             });
         }
@@ -360,6 +421,15 @@ fn animation_css_name(animation: &Spanned<String>) -> String {
     );
     let hash = blake3::hash(identity.as_bytes());
     format!("--sw-a-{}", &hash.to_hex()[..8])
+}
+
+fn view_transition_css_name(transition: &Spanned<String>) -> String {
+    let identity = format!(
+        "{}:{}:{}",
+        transition.span.file.0, transition.span.start.0, transition.value
+    );
+    let hash = blake3::hash(identity.as_bytes());
+    format!("--sw-v-{}", &hash.to_hex()[..8])
 }
 
 fn emit_animation_definition(
@@ -401,8 +471,23 @@ fn resolve_animation_use(
     options: &Spanned<String>,
     theme: &shorth_css::ThemeIndex,
     diagnostics: &mut Vec<Diagnostic>,
-) -> Option<CompiledUtility> {
+) -> CompiledUtility {
     let mut declaration = format!("animation-name:{};", animation_css_name(animation));
+    declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
+    CompiledUtility {
+        variants: Vec::new(),
+        declaration,
+        selector: None,
+        container: None,
+    }
+}
+
+fn resolve_motion_options(
+    options: &Spanned<String>,
+    theme: &shorth_css::ThemeIndex,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> String {
+    let mut declaration = String::new();
     for option in lex_utilities(options) {
         match option.value.raw.as_str() {
             "none" | "forwards" | "backwards" | "both" => {
@@ -448,15 +533,62 @@ fn resolve_animation_use(
             },
         }
     }
-    (!diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == shorth_source::Severity::Error))
-    .then_some(CompiledUtility {
-        variants: Vec::new(),
-        declaration,
-        selector: None,
-        container: None,
-    })
+    declaration
+}
+
+fn emit_view_transition_definition(
+    output: &mut String,
+    transition: &ViewTransitionDefinition,
+    theme: &shorth_css::ThemeIndex,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let name = view_transition_css_name(&transition.name);
+    if let Some(group) = &transition.group {
+        output.push_str("::view-transition-group(");
+        output.push_str(&name);
+        output.push_str("){ ");
+        output.push_str(&resolve_motion_options(group, theme, diagnostics));
+        output.push('}');
+    }
+    for (pseudo, utilities) in [
+        ("old", transition.old.as_ref()),
+        ("new", transition.new.as_ref()),
+    ] {
+        let Some(utilities) = utilities else {
+            continue;
+        };
+        output.push_str("::view-transition-");
+        output.push_str(pseudo);
+        output.push('(');
+        output.push_str(&name);
+        output.push_str("){ ");
+        output.push_str(&resolve_static_utility_list(utilities, theme, diagnostics));
+        output.push('}');
+    }
+}
+
+fn resolve_static_utility_list(
+    input: &Spanned<String>,
+    theme: &shorth_css::ThemeIndex,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> String {
+    let mut utilities = Vec::new();
+    for utility in lex_utilities(input) {
+        match resolve_utility(&utility.value.raw, theme) {
+            Some(utility) if utility.variants.is_empty() => utilities.push(utility),
+            Some(_) => diagnostics.push(Diagnostic::error(
+                "SHMOTION001",
+                "motion definition utilities cannot contain variants",
+                utility.span,
+            )),
+            None => diagnostics.push(Diagnostic::error(
+                "SH001",
+                format!("unknown or unavailable utility `{}`", utility.value.raw),
+                utility.span,
+            )),
+        }
+    }
+    combine_declarations(&utilities.iter().collect::<Vec<_>>())
 }
 
 fn render_handle_projection(handle: &Spanned<String>, projection: &HandleProjection) -> String {
@@ -494,6 +626,7 @@ fn render_react_props(
     classes: &[GeneratedClass],
     attributes: &[AttributeEntry],
     handle_markers: &[String],
+    dynamic_styles: &[DynamicStyleEntry],
 ) -> Option<String> {
     let mut entries = Vec::new();
     if !classes.is_empty() || !handle_markers.is_empty() {
@@ -527,6 +660,18 @@ fn render_react_props(
     for attribute in attributes {
         let value = source.slice(attribute.value).ok()?;
         entries.push(format!("\"{}\":{value}", attribute.name.value));
+    }
+    if !dynamic_styles.is_empty() {
+        let styles = dynamic_styles
+            .iter()
+            .map(|entry| {
+                source
+                    .slice(entry.key)
+                    .ok()
+                    .map(|key| format!("\"{}\":`{}${{{key}}}`", entry.property, entry.prefix))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        entries.push(format!("style:{{{}}}", styles.join(",")));
     }
     Some(format!("{{{}}}", entries.join(",")))
 }
@@ -609,12 +754,22 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
     if let Some(token) = utility.strip_prefix("translate-y-")
         && theme.token("spacing", token).is_some()
     {
-        return Some(format!("transform:translateY(var(--spacing-{token}));"));
+        let value = if negative {
+            format!("calc(var(--spacing-{token}) * -1)")
+        } else {
+            format!("var(--spacing-{token})")
+        };
+        return Some(format!("transform:translateY({value});"));
     }
     if let Some(token) = utility.strip_prefix("translate-x-")
         && theme.token("spacing", token).is_some()
     {
-        return Some(format!("transform:translateX(var(--spacing-{token}));"));
+        let value = if negative {
+            format!("calc(var(--spacing-{token}) * -1)")
+        } else {
+            format!("var(--spacing-{token})")
+        };
+        return Some(format!("transform:translateX({value});"));
     }
     if let Some(token) = utility.strip_prefix("scale-")
         && let Ok(percent) = token.parse::<u16>()

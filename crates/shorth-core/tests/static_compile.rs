@@ -398,3 +398,35 @@ const panel = style("rounded-md", enter("duration-normal ease-standard both"), {
     assert!(!transformed.contains("style.animation"));
     assert!(transformed.contains("const enter = undefined;"));
 }
+
+#[test]
+fn compiles_view_transition_assets_and_keyed_instances() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ProductCard.tsx",
+        r#"import { style } from "stillwind/react";
+declare const product: { id: string };
+const title = style.viewTransition({ group: "duration-normal ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
+const card = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
+const heading = style("text-accent", title);
+const item = style("rounded-md", card.for(product.id));"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --duration-normal: 180ms; --ease-standard: ease-out; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("::view-transition-group(--sw-v-"));
+    assert!(result.css.contains("::view-transition-old(--sw-v-"));
+    assert!(result.css.contains("::view-transition-new(--sw-v-"));
+    assert!(result.css.contains("view-transition-name:--sw-v-"));
+    assert!(result.css.contains("view-transition-name:var(--sw-v-"));
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(!transformed.contains("style.viewTransition"));
+    assert!(transformed.contains("style:{\"--sw-v-"));
+    assert!(transformed.contains("const title = undefined;"));
+}
