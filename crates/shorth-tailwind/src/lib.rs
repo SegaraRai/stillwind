@@ -37,6 +37,7 @@ pub enum VariantApplication {
     SelectorTemplate(String),
     SelectorMedia { selector: String, condition: String },
     Media(String),
+    Container(String),
     Supports(String),
     StartingStyle,
 }
@@ -165,6 +166,9 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     {
         return Some(VariantApplication::Supports(condition.replace('_', " ")));
     }
+    if let Some(application) = resolve_registered_variant(value, theme) {
+        return Some(application);
+    }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
             .strip_prefix(prefix)
@@ -176,28 +180,126 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             )));
         }
     }
-    if let Some(custom) = theme
-        .variants
-        .iter()
-        .rev()
-        .find(|variant| variant.name == *value)
-        .or_else(|| {
-            builtin_variants()
-                .iter()
-                .rev()
-                .find(|variant| variant.name == *value)
-        })
-    {
-        if let Some(application) = resolve_variant_body(&custom.body) {
-            return Some(application);
+    for (prefix, attribute) in [("aria-", "aria"), ("data-", "data")] {
+        if let Some(name) = value.strip_prefix(prefix) {
+            let selector = if attribute == "aria" {
+                format!("&[{attribute}-{name}=\"true\"]")
+            } else {
+                format!("&[{attribute}-{name}]")
+            };
+            return Some(VariantApplication::SelectorTemplate(selector));
         }
-        return Some(VariantApplication::SelectorTemplate(
-            custom.selector.clone(),
-        ));
+    }
+    if let Some(condition) = dynamic_media_condition(value, theme) {
+        return Some(VariantApplication::Media(condition));
+    }
+    if let Some(condition) = dynamic_container_condition(value, theme) {
+        return Some(VariantApplication::Container(condition));
+    }
+    for (prefix, pseudo) in [
+        ("nth-[", "nth-child"),
+        ("nth-last-[", "nth-last-child"),
+        ("nth-of-type-[", "nth-of-type"),
+        ("nth-last-of-type-[", "nth-last-of-type"),
+    ] {
+        if let Some(value) = bracketed(value, prefix) {
+            return Some(VariantApplication::SelectorTemplate(format!(
+                "&:{pseudo}({})",
+                value.replace('_', " ")
+            )));
+        }
+    }
+    for (prefix, pseudo) in [
+        ("nth-last-of-type-", "nth-last-of-type"),
+        ("nth-of-type-", "nth-of-type"),
+        ("nth-last-", "nth-last-child"),
+        ("nth-", "nth-child"),
+    ] {
+        if let Some(value) = value.strip_prefix(prefix) {
+            return Some(VariantApplication::SelectorTemplate(format!(
+                "&:{pseudo}({})",
+                value.replace('_', " ")
+            )));
+        }
+    }
+    if let Some(value) = value.strip_prefix("has-") {
+        return Some(VariantApplication::SelectorTemplate(format!(
+            "&:has(:{value})"
+        )));
+    }
+    if let Some(value) = value.strip_prefix("not-") {
+        return Some(VariantApplication::SelectorTemplate(format!(
+            "&:not(:{value})"
+        )));
+    }
+    if let Some(value) = value.strip_prefix("in-") {
+        return Some(VariantApplication::SelectorTemplate(format!(
+            ":where(:{value}) &"
+        )));
     }
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
+}
+
+fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
+    let custom = theme
+        .variants
+        .iter()
+        .rev()
+        .find(|variant| variant.name == value)
+        .or_else(|| {
+            builtin_variants()
+                .iter()
+                .rev()
+                .find(|variant| variant.name == value)
+        })?;
+    resolve_variant_body(&custom.body).or_else(|| {
+        Some(VariantApplication::SelectorTemplate(
+            custom.selector.clone(),
+        ))
+    })
+}
+
+fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
+    for (prefix, operator) in [("min-[", ">="), ("max-[", "<")] {
+        if let Some(value) = bracketed(value, prefix) {
+            return Some(format!("(width {operator} {})", value.replace('_', " ")));
+        }
+    }
+    for (prefix, operator) in [("min-", ">="), ("max-", "<")] {
+        if let Some(name) = value.strip_prefix(prefix)
+            && let Some(token) = theme.token_in(ThemeNamespace::Breakpoint, name)
+        {
+            return Some(format!("(width {operator} {})", token.value.value));
+        }
+    }
+    None
+}
+
+fn dynamic_container_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
+    for (prefix, operator) in [("@min-[", ">="), ("@max-[", "<")] {
+        if let Some(value) = bracketed(value, prefix) {
+            return Some(format!("(width {operator} {})", value.replace('_', " ")));
+        }
+    }
+    if let Some(value) = bracketed(value, "@[") {
+        return Some(format!("(width >= {})", value.replace('_', " ")));
+    }
+    let (prefix, operator) = if let Some(name) = value.strip_prefix("@max-") {
+        (name, "<")
+    } else if let Some(name) = value.strip_prefix("@min-") {
+        (name, ">=")
+    } else {
+        (value.strip_prefix('@')?, ">=")
+    };
+    theme
+        .token_in(ThemeNamespace::Container, prefix)
+        .map(|token| format!("(width {operator} {})", token.value.value))
+}
+
+fn bracketed<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
+    value.strip_prefix(prefix)?.strip_suffix(']')
 }
 
 fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
@@ -745,6 +847,42 @@ mod tests {
             ),
             Some(VariantApplication::Media(
                 "(prefers-reduced-motion: reduce)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn resolves_dynamic_media_container_structural_and_attribute_variants() {
+        let theme = theme();
+        let resolve = |candidate: &str| {
+            let candidate = parse_candidate(candidate).unwrap();
+            resolve_variant(&candidate.variants[0], &theme)
+        };
+
+        assert_eq!(
+            resolve("min-[40rem]:flex"),
+            Some(VariantApplication::Media("(width >= 40rem)".to_owned()))
+        );
+        assert_eq!(
+            resolve("@sm:flex"),
+            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
+        );
+        assert_eq!(
+            resolve("nth-[3n+1]:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                "&:nth-child(3n+1)".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve("aria-checked:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                "&[aria-checked=\"true\"]".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve("has-checked:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                "&:has(:checked)".to_owned()
             ))
         );
     }

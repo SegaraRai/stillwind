@@ -2083,6 +2083,9 @@
 @utility zoom-* {
   zoom: --value([*]);
 }
+@utility @container {
+  container-type: inline-size;
+}
 
 @variant * {
   & > * {

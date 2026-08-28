@@ -22,12 +22,15 @@ fn fixture_candidates(fixture: &str, case_name: &str) -> String {
 fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     let foundations = include_str!("../../../fixtures/tailwind-v4/cases/foundations.fixture.md");
     let variants = include_str!("../../../fixtures/tailwind-v4/cases/variants.fixture.md");
+    let responsive =
+        include_str!("../../../fixtures/tailwind-v4/cases/responsive-container.fixture.md");
     let candidates = [
         fixture_candidates(foundations, "foundations.preflight-and-default-theme"),
         fixture_candidates(
             variants,
             "variants.state-attribute-responsive-and-arbitrary",
         ),
+        fixture_candidates(responsive, "responsive.breakpoints-and-containers"),
     ]
     .join(" ");
     let component = SourceFile::new(
@@ -50,6 +53,7 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     assert!(result.css.contains("@media (width >= 48rem)"));
     assert!(result.css.contains("[aria-busy=\"true\"]"));
     assert!(result.css.contains(">svg{"));
+    assert!(result.css.contains("@container (width >= 24rem)"));
 }
 
 #[test]
