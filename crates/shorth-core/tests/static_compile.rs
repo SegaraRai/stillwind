@@ -802,6 +802,48 @@ const props = style("grid place-items-center size-10 flex-col grow border outlin
 }
 
 #[test]
+fn emits_tailwind_background_gradient_and_mask_declarations() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Hero.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue-500 mask-linear-from-0 mask-linear-to-100");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains("background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);")
+    );
+    assert!(result.css.contains("--tw-gradient-position:to right;"));
+    assert!(
+        result
+            .css
+            .contains("--tw-gradient-from:var(--color-red-500);")
+    );
+    assert!(result.css.contains("--tw-gradient-via:var(--color-white);"));
+    assert!(
+        result
+            .css
+            .contains("--tw-gradient-to:var(--color-blue-500);")
+    );
+    assert!(
+        result
+            .css
+            .contains("--tw-mask-linear-from-position:calc(var(--spacing) * 0);")
+    );
+    assert!(
+        result
+            .css
+            .contains("--tw-mask-linear-to-position:calc(var(--spacing) * 100);")
+    );
+}
+
+#[test]
 fn names_symbols_from_normalized_module_paths_not_process_local_file_ids() {
     let module = r#"import { style } from "stillwind/react";
 const trigger = style.handle();
