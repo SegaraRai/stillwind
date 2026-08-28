@@ -22,10 +22,14 @@ export function SaveButton() {
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 1);
-    assert_eq!(
-        result.css,
-        "@layer theme, base, components, utilities;\n@layer theme{:root{--color-accent:oklch(.6 .2 250);--spacing-4:1rem;--radius-md:.375rem;}}\n@layer utilities{._s_bc6dda5a{display:inline-flex;align-items:center;border-radius:var(--radius-md);background-color:var(--color-accent);padding-inline:var(--spacing-4);text-align:center;}}\n",
+    assert!(
+        result
+            .css
+            .starts_with("@layer theme, base, components, utilities;")
     );
+    assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
+    assert!(result.css.contains("@layer base"));
+    assert!(result.css.contains("._s_bc6dda5a{display:inline-flex;align-items:center;border-radius:var(--radius-md);background-color:var(--color-accent);padding-inline:var(--spacing-4);text-align:center;}"));
 }
 
 #[test]
@@ -160,7 +164,9 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
             .css
             .starts_with("@layer theme, base, components, utilities;\n")
     );
-    assert!(result.css.contains("@layer theme{:root{--color-accent:oklch(.6 .2 250);--spacing-4:1rem;--breakpoint-md:48rem;}}"));
+    assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
+    assert!(result.css.contains("--spacing-4:1rem;"));
+    assert!(result.css.contains("--breakpoint-md:48rem;"));
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(
         result
@@ -170,6 +176,83 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     assert!(result.css.contains(":hover{"));
     assert!(result.css.contains("[aria-busy=\"true\"]{"));
     assert!(result.css.contains("@media (width >= 48rem){"));
+}
+
+#[test]
+fn retains_authored_custom_properties_and_theme_selectors() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/App.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("bg-accent");"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/shorth.css",
+        r#"@theme inline { --color-accent: var(--app-accent); }
+:root { --app-accent: oklch(.6 .2 250); }
+[data-theme="dark"] { --app-accent: oklch(.3 .1 250); }"#,
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("--color-accent:var(--app-accent);"));
+    assert!(
+        result
+            .css
+            .contains(":root { --app-accent: oklch(.6 .2 250); }")
+    );
+    assert!(
+        result
+            .css
+            .contains("[data-theme=\"dark\"] { --app-accent: oklch(.3 .1 250); }")
+    );
+}
+
+#[test]
+fn resolves_v4_default_spacing_and_arbitrary_custom_properties() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/App.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)*2)]");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "src/styles/shorth.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains("padding-inline:calc(var(--spacing) * 4);")
+    );
+    assert!(result.css.contains("margin-top:calc(var(--spacing) * -2);"));
+    assert!(
+        result
+            .css
+            .contains("background-color:var(--color-red-500);")
+    );
+    assert!(result.css.contains("--gutter:1rem;"));
+    assert!(result.css.contains("width:calc(var(--gutter)*2);"));
+}
+
+#[test]
+fn resolves_v4_default_animations_and_emits_their_keyframes() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/App.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("animate-spin");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "src/styles/shorth.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("animation:var(--animate-spin);"));
+    assert!(result.css.contains("@keyframes spin"));
 }
 
 #[test]

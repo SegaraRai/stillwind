@@ -104,7 +104,7 @@ impl Compiler {
     pub fn read_theme(
         source: &SourceFile,
     ) -> Result<shorth_css::ThemeIndex, shorth_css::ThemeError> {
-        shorth_css::parse_theme(source)
+        shorth_css::parse_tailwind_theme(source)
     }
 
     /// Generates a module augmentation containing the theme-backed utility vocabulary.
@@ -840,14 +840,71 @@ struct CompiledUtility {
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
     let (variants, base) = split_variants(utility);
-    let declaration =
-        resolve_static_utility(base).or_else(|| resolve_themed_utility(base, theme))?;
+    let declaration = resolve_static_utility(base)
+        .or_else(|| resolve_themed_utility(base, theme))
+        .or_else(|| resolve_arbitrary_utility(base))?;
     Some(CompiledUtility {
         variants,
         declaration,
         selector: None,
         container: None,
     })
+}
+
+fn decode_arbitrary(value: &str) -> String {
+    let mut output = String::new();
+    let mut escaped = false;
+    for character in value.chars() {
+        if escaped {
+            output.push(character);
+            escaped = false;
+        } else if character == '\\' {
+            escaped = true;
+        } else if character == '_' {
+            output.push(' ');
+        } else {
+            output.push(character);
+        }
+    }
+    output
+}
+
+fn arbitrary_value(value: &str) -> Option<String> {
+    let value = value.strip_prefix('[')?.strip_suffix(']')?;
+    Some(decode_arbitrary(value))
+}
+
+fn resolve_arbitrary_utility(utility: &str) -> Option<String> {
+    if let Some(value) = arbitrary_value(utility)
+        && let Some((property, value)) = value.split_once(':')
+    {
+        return Some(format!("{property}:{value};"));
+    }
+    for (prefix, property) in [
+        ("bg-", "background-color"),
+        ("text-", "color"),
+        ("border-", "border-color"),
+        ("outline-", "outline-color"),
+        ("p-", "padding"),
+        ("px-", "padding-inline"),
+        ("py-", "padding-block"),
+        ("m-", "margin"),
+        ("mx-", "margin-inline"),
+        ("my-", "margin-block"),
+        ("w-", "width"),
+        ("h-", "height"),
+        ("min-w-", "min-width"),
+        ("min-h-", "min-height"),
+        ("max-w-", "max-width"),
+        ("max-h-", "max-height"),
+        ("gap-", "gap"),
+        ("rounded-", "border-radius"),
+    ] {
+        if let Some(value) = utility.strip_prefix(prefix).and_then(arbitrary_value) {
+            return Some(format!("{property}:{value};"));
+        }
+    }
+    None
 }
 
 fn resolve_static_utility(utility: &str) -> Option<String> {
@@ -927,6 +984,72 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
     let (negative, utility) = utility
         .strip_prefix('-')
         .map_or((false, utility), |utility| (true, utility));
+    if theme.custom_property("--spacing").is_some() {
+        for (prefix, properties) in [
+            (
+                "size-",
+                "width:calc(var(--spacing) * {value});height:calc(var(--spacing) * {value});",
+            ),
+            (
+                "translate-x-",
+                "transform:translateX(calc(var(--spacing) * {value}));",
+            ),
+            (
+                "translate-y-",
+                "transform:translateY(calc(var(--spacing) * {value}));",
+            ),
+        ] {
+            if let Some(value) = utility.strip_prefix(prefix)
+                && let Ok(value) = value.parse::<f64>()
+            {
+                if theme.token("spacing", &value.to_string()).is_some() {
+                    continue;
+                }
+                let value = if negative { -value } else { value };
+                return Some(properties.replace("{value}", &value.to_string()));
+            }
+        }
+        for (prefix, property, supports_negative) in [
+            ("p-", "padding", false),
+            ("px-", "padding-inline", false),
+            ("py-", "padding-block", false),
+            ("pt-", "padding-top", false),
+            ("pr-", "padding-right", false),
+            ("pb-", "padding-bottom", false),
+            ("pl-", "padding-left", false),
+            ("m-", "margin", true),
+            ("mx-", "margin-inline", true),
+            ("my-", "margin-block", true),
+            ("mt-", "margin-top", true),
+            ("mr-", "margin-right", true),
+            ("mb-", "margin-bottom", true),
+            ("ml-", "margin-left", true),
+            ("gap-", "gap", false),
+            ("w-", "width", false),
+            ("h-", "height", false),
+            ("min-w-", "min-width", false),
+            ("min-h-", "min-height", false),
+            ("max-w-", "max-width", false),
+            ("max-h-", "max-height", false),
+            ("basis-", "flex-basis", false),
+        ] {
+            let Some(value) = utility.strip_prefix(prefix) else {
+                continue;
+            };
+            if theme.token("spacing", value).is_some() {
+                continue;
+            }
+            if let Ok(value) = value.parse::<f64>()
+                && (!negative || supports_negative)
+            {
+                let value = if negative { -value } else { value };
+                return Some(format!("{property}:calc(var(--spacing) * {value});"));
+            }
+            if value == "px" && !negative {
+                return Some(format!("{property}:1px;"));
+            }
+        }
+    }
     if let Some((color, opacity)) = utility
         .strip_prefix("bg-")
         .and_then(|value| value.rsplit_once('/'))
@@ -963,6 +1086,11 @@ fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Opti
         return Some(format!(
             "width:var(--spacing-{token});height:var(--spacing-{token});"
         ));
+    }
+    if let Some(token) = utility.strip_prefix("animate-")
+        && theme.token("animate", token).is_some()
+    {
+        return Some(format!("animation:var(--animate-{token});"));
     }
     if let Some(token) = utility.strip_prefix("translate-y-")
         && theme.token("spacing", token).is_some()
@@ -1148,14 +1276,27 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
 }
 
 fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> String {
-    let mut css = String::from("@layer theme, base, components, utilities;\n@layer theme{:root{");
-    for token in &theme.tokens {
+    let mut css =
+        String::from("@layer theme, base, components, utilities;\n@layer theme{:root,:host{");
+    for token in theme.active_tokens() {
         css.push_str(&token.name.value);
         css.push(':');
-        css.push_str(&token.value.value);
+        css.push_str(&token.value.value.replace("--theme(", "var("));
         css.push(';');
     }
-    css.push_str("}}\n@layer utilities{");
+    css.push_str("}}\n");
+    css.push_str("@layer theme{");
+    css.push_str(&shorth_css::tailwind_v4_keyframes());
+    css.push_str("}\n");
+    css.push_str("@layer base{");
+    css.push_str(&shorth_css::tailwind_v4_preflight());
+    css.push('}');
+    if !theme.custom_css().trim().is_empty() {
+        css.push('\n');
+        css.push_str(theme.custom_css());
+        css.push('\n');
+    }
+    css.push_str("\n@layer utilities{");
     css.push_str(utility_css);
     css.push_str("}\n");
     css
@@ -1267,7 +1408,9 @@ mod tests {
         let css = SourceFile::new(FileId(2), "shorth.css", "@theme { --color-accent: red; }");
 
         assert!(Compiler::check_javascript(&js).is_empty());
-        assert_eq!(Compiler::read_theme(&css).unwrap().tokens.len(), 1);
+        let theme = Compiler::read_theme(&css).unwrap();
+        assert_eq!(theme.value("color", "accent"), Some("red"));
+        assert!(theme.token("color", "red-500").is_some());
     }
 
     #[test]
