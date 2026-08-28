@@ -4,7 +4,7 @@
 //! names, or Stillwind-only relations. It turns a parsed candidate and a
 //! CSS-first theme into standard CSS declarations and wrappers.
 
-use std::{fmt::Write, sync::OnceLock};
+use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
 use shorth_css::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace};
 use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
@@ -45,22 +45,55 @@ pub enum VariantApplication {
 const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
 const DEFAULT_UTILITY_REGISTRY_CSS: &str = include_str!("../assets/default-utilities.css");
 
-fn builtin_utilities() -> &'static [CustomUtility] {
-    static UTILITIES: OnceLock<Vec<CustomUtility>> = OnceLock::new();
-    UTILITIES
-        .get_or_init(|| {
-            shorth_css::parse_utility_definitions(DEFAULT_UTILITY_REGISTRY_CSS)
-                .into_iter()
-                .chain(shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS))
-                .map(|mut utility| {
-                    // The registry asset is intentionally formatted for humans. The generated
-                    // output must nevertheless be byte-stable across formatter versions.
-                    utility.body = canonical_builtin_body(&utility.body);
-                    utility
-                })
-                .collect()
-        })
-        .as_slice()
+struct BuiltinUtilityRegistry {
+    default_exact: HashMap<String, Vec<CustomUtility>>,
+    builtin_exact: HashMap<String, Vec<CustomUtility>>,
+    wildcards: Vec<CustomUtility>,
+}
+
+fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
+    static UTILITIES: OnceLock<BuiltinUtilityRegistry> = OnceLock::new();
+    UTILITIES.get_or_init(|| {
+        let normalize = |utility: CustomUtility| {
+            let mut utility = utility;
+            // The registry asset is intentionally formatted for humans. The generated
+            // output must nevertheless be byte-stable across formatter versions.
+            utility.body = canonical_builtin_body(&utility.body);
+            utility
+        };
+        let defaults = shorth_css::parse_utility_definitions(DEFAULT_UTILITY_REGISTRY_CSS)
+            .into_iter()
+            .map(&normalize)
+            .collect::<Vec<_>>();
+        let builtins = shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
+            .into_iter()
+            .map(normalize)
+            .collect::<Vec<_>>();
+        let mut default_exact = HashMap::<String, Vec<CustomUtility>>::new();
+        let mut builtin_exact = HashMap::<String, Vec<CustomUtility>>::new();
+        let mut wildcards = Vec::new();
+        for utility in defaults {
+            default_exact
+                .entry(utility.name.clone())
+                .or_default()
+                .push(utility);
+        }
+        for utility in builtins {
+            if utility.name.ends_with('*') {
+                wildcards.push(utility);
+            } else {
+                builtin_exact
+                    .entry(utility.name.clone())
+                    .or_default()
+                    .push(utility);
+            }
+        }
+        BuiltinUtilityRegistry {
+            default_exact,
+            builtin_exact,
+            wildcards,
+        }
+    })
 }
 
 fn builtin_variants() -> &'static [CustomVariant] {
@@ -370,7 +403,21 @@ fn resolve_css_utility(
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     matching_utilities(&theme.utilities, lookup)
-        .chain(matching_utilities(builtin_utilities(), lookup))
+        .chain(matching_utilities(&builtin_utilities().wildcards, lookup))
+        .chain(
+            builtin_utilities()
+                .builtin_exact
+                .get(lookup)
+                .into_iter()
+                .flat_map(|utilities| utilities.iter().rev()),
+        )
+        .chain(
+            builtin_utilities()
+                .default_exact
+                .get(lookup)
+                .into_iter()
+                .flat_map(|utilities| utilities.iter().rev()),
+        )
         .find_map(|utility| resolve_css_utility_body(utility, lookup, modifier, theme))
 }
 
