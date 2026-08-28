@@ -417,16 +417,6 @@ fn resolve_named_utility(
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    if let Some(columns) = name.strip_prefix("grid-cols-")
-        && let Ok(columns) = columns.parse::<u8>()
-        && (1..=12).contains(&columns)
-        && !negative
-        && modifier.is_none()
-    {
-        return Some(UtilityResolution::plain(format!(
-            "grid-template-columns:repeat({columns},minmax(0,1fr));"
-        )));
-    }
     resolve_arbitrary(name, negative).map(UtilityResolution::plain)
 }
 
@@ -714,17 +704,6 @@ fn resolve_special(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    if let Some(value) = name.strip_prefix("animate-")
-        && theme.token_in(ThemeNamespace::Animate, value).is_some()
-        && !negative
-        && modifier.is_none()
-    {
-        return Some(format!("animation:var(--animate-{value});"));
-    }
-    if let Some(value) = name.strip_prefix("size-") {
-        let value = theme_value(ThemeNamespace::Spacing, value, negative, theme)?;
-        return Some(format!("width:{value};height:{value};"));
-    }
     for (prefix, property) in [
         ("translate-x-", "translateX"),
         ("translate-y-", "translateY"),
@@ -1200,6 +1179,24 @@ mod tests {
         assert_eq!(
             resolve_utility("size-4", &theme).unwrap().declaration,
             "inline-size: calc(var(--spacing) * 4); block-size: calc(var(--spacing) * 4);"
+        );
+    }
+
+    #[test]
+    fn resolves_animation_size_and_grid_columns_from_css_value_domains() {
+        let theme = theme();
+
+        assert_eq!(
+            resolve_utility("animate-spin", &theme).unwrap().declaration,
+            "animation:var(--animate-spin);"
+        );
+        assert_eq!(
+            resolve_utility("size-[12px]", &theme).unwrap().declaration,
+            "width:12px;height:12px;"
+        );
+        assert_eq!(
+            resolve_utility("grid-cols-13", &theme).unwrap().declaration,
+            "grid-template-columns:repeat(13,minmax(0,1fr));"
         );
     }
 

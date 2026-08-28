@@ -1876,7 +1876,7 @@
   vertical-align: --value([*]);
 }
 @utility animate-* {
-  animation: --value([*]);
+  animation: --value(--animate-*, [*]);
 }
 @utility aspect-* {
   aspect-ratio: --value([*]);
@@ -1976,6 +1976,9 @@
   filter: grayscale(--value([*]));
 }
 @utility grid-cols-* {
+  grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
+}
+@utility grid-cols-* {
   grid-template-columns: --value([*]);
 }
 @utility grid-rows-* {
@@ -2022,6 +2025,10 @@
 }
 @utility opacity-* {
   opacity: --value([*]);
+}
+@utility size-* {
+  width: --value(--spacing-*, --spacing(), [length]);
+  height: --value(--spacing-*, --spacing(), [length]);
 }
 @utility order-* {
   order: --value([*]);
