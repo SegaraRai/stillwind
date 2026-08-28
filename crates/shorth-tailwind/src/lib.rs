@@ -65,6 +65,19 @@ pub enum VariantApplication {
 const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
 const DEFAULT_UTILITY_REGISTRY_CSS: &str = include_str!("../assets/default-utilities.css");
 
+/// Tailwind spellings intentionally owned by Stillwind's relationship-handle
+/// API rather than its Tailwind-compatibility registry.
+///
+/// Keep this list limited to DOM relationship primitives. `--container-*`
+/// theme values and ordinary sizing utilities remain Tailwind-compatible.
+const STILLWIND_OWNED_UTILITIES: &[&str] = &[
+    "container",
+    "@container",
+    "@container-normal",
+    "group",
+    "peer",
+];
+
 struct BuiltinUtilityRegistry {
     default_exact: HashMap<String, Vec<CustomUtility>>,
     builtin_exact: HashMap<String, Vec<CustomUtility>>,
@@ -182,6 +195,9 @@ fn is_word_character(character: char) -> bool {
 #[must_use]
 pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
     let candidate = parse_candidate(raw)?;
+    if is_stillwind_owned_utility(&candidate) {
+        return None;
+    }
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
@@ -215,6 +231,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
 
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
+    if is_stillwind_owned_variant(variant) {
+        return None;
+    }
     if let VariantKind::Arbitrary(value) = &variant.kind {
         if let Some(condition) = value
             .strip_prefix("@supports(")
@@ -260,9 +279,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if let Some(condition) = dynamic_media_condition(value, theme) {
         return Some(VariantApplication::Media(condition));
     }
-    if let Some(condition) = dynamic_container_condition(value, theme) {
-        return Some(VariantApplication::Container(condition));
-    }
     for (prefix, pseudo) in [
         ("nth-[", "nth-child"),
         ("nth-last-[", "nth-last-child"),
@@ -307,6 +323,36 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
+}
+
+/// Whether a Tailwind candidate intentionally belongs to Stillwind's
+/// relationship-handle API instead of the Tailwind compatibility surface.
+#[must_use]
+pub fn is_stillwind_owned_candidate(raw: &str) -> bool {
+    let Some(candidate) = parse_candidate(raw) else {
+        return false;
+    };
+    is_stillwind_owned_utility(&candidate)
+        || candidate.variants.iter().any(is_stillwind_owned_variant)
+}
+
+fn is_stillwind_owned_utility(candidate: &Candidate) -> bool {
+    matches!(
+        &candidate.utility,
+        Utility::Named { name, .. } if STILLWIND_OWNED_UTILITIES.contains(&name.as_str())
+    )
+}
+
+fn is_stillwind_owned_variant(variant: &Variant) -> bool {
+    matches!(
+        &variant.kind,
+        VariantKind::Named(name)
+            if name.starts_with('@')
+                || name == "group"
+                || name.starts_with("group-")
+                || name == "peer"
+                || name.starts_with("peer-")
+    )
 }
 
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
@@ -410,27 +456,6 @@ fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
         }
     }
     None
-}
-
-fn dynamic_container_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
-    for (prefix, operator) in [("@min-[", ">="), ("@max-[", "<")] {
-        if let Some(value) = bracketed(value, prefix) {
-            return Some(format!("(width {operator} {})", value.replace('_', " ")));
-        }
-    }
-    if let Some(value) = bracketed(value, "@[") {
-        return Some(format!("(width >= {})", value.replace('_', " ")));
-    }
-    let (prefix, operator) = if let Some(name) = value.strip_prefix("@max-") {
-        (name, "<")
-    } else if let Some(name) = value.strip_prefix("@min-") {
-        (name, ">=")
-    } else {
-        (value.strip_prefix('@')?, ">=")
-    };
-    theme
-        .token_in(ThemeNamespace::Container, prefix)
-        .map(|token| format!("(width {operator} {})", token.value.value))
 }
 
 fn bracketed<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
@@ -1052,20 +1077,40 @@ mod tests {
     #[test]
     fn preserves_supports_and_media_conditions_from_css_utilities() {
         let theme = theme();
-        let container = resolve_utility("container", &theme).unwrap();
         let outline = resolve_utility("outline-hidden", &theme).unwrap();
 
-        assert_eq!(container.declaration, "width:100%;");
-        assert!(container.nested.iter().any(|rule| {
-            rule.at_rule == NestedUtilityAtRule::Media
-                && rule.condition == "(width>=40rem)"
-                && rule.declaration == "max-width:40rem;"
-        }));
         assert!(outline.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Media
                 && rule.condition == "(forced-colors:active)"
                 && rule.declaration == "outline:2px solid transparent;outline-offset:2px;"
         }));
+    }
+
+    #[test]
+    fn excludes_tailwind_relationship_primitives_owned_by_stillwind() {
+        let theme = theme();
+
+        for candidate in [
+            "container",
+            "@container",
+            "@container-normal",
+            "group",
+            "peer",
+            "group-hover:flex",
+            "peer-checked:flex",
+            "@sm:flex",
+        ] {
+            assert!(is_stillwind_owned_candidate(candidate), "{candidate}");
+        }
+        assert!(!is_stillwind_owned_candidate("max-w-lg"));
+        assert_eq!(resolve_utility("container", &theme), None);
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("group-hover:flex").unwrap().variants[0],
+                &theme
+            ),
+            None
+        );
     }
 
     #[test]
@@ -1130,7 +1175,7 @@ mod tests {
     }
 
     #[test]
-    fn resolves_dynamic_media_container_structural_and_attribute_variants() {
+    fn resolves_dynamic_media_structural_and_attribute_variants() {
         let theme = theme();
         let resolve = |candidate: &str| {
             let candidate = parse_candidate(candidate).unwrap();
@@ -1141,10 +1186,7 @@ mod tests {
             resolve("min-[40rem]:flex"),
             Some(VariantApplication::Media("(width >= 40rem)".to_owned()))
         );
-        assert_eq!(
-            resolve("@sm:flex"),
-            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
-        );
+        assert_eq!(resolve("@sm:flex"), None);
         assert_eq!(
             resolve("nth-[3n+1]:flex"),
             Some(VariantApplication::SelectorTemplate(
@@ -1345,7 +1387,7 @@ mod tests {
         );
         assert_eq!(
             resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
-            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
+            None
         );
         assert_eq!(
             resolve_variant(

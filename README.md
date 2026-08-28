@@ -89,6 +89,11 @@ escape hatch that requires a reason. The compiler checks all supported utility
 spellings; Vite also writes `src/stillwind.generated.d.ts` with the theme-backed
 token vocabulary for editor completion.
 
+Tailwind's `container` / `@container`, `group`, and `peer` spellings are
+intentionally outside this compatibility surface. Stillwind owns those DOM
+relationships through `style.handle()` so their meaning remains local and can
+be linted structurally.
+
 The JSX linter checks parent handle selectors and container providers whenever
 both sides are visible in the same JSX tree. It deliberately does not infer
 relationships across component boundaries, `children`, or portals. Vue, Svelte,

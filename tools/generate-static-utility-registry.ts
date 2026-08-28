@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
+import { isStillwindOwnedUtilityCandidate } from "./lib/stillwind-exclusions.ts";
 
 const root = resolve(import.meta.dirname, "..");
 const fixtureRoot = join(root, "fixtures", "tailwind-v4");
@@ -10,7 +11,10 @@ const registryPath = join(root, "crates", "shorth-tailwind", "assets", "builtins
 const write = process.argv.includes("--write");
 
 const catalog = readFileSync(catalogPath, "utf8");
-const staticUtilities = section(catalog, "Static utilities").trim().split(/\s+/u);
+const staticUtilities = section(catalog, "Static utilities")
+  .trim()
+  .split(/\s+/u)
+  .filter((candidate) => !isStillwindOwnedUtilityCandidate(candidate));
 const input = '@import "tailwindcss/utilities" layer(utilities);';
 const rules = [];
 const skipped = [];

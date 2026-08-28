@@ -15,8 +15,10 @@ fn fixture_candidates(fixture: &str, case_name: &str) -> String {
         .split_once("\n```")
         .expect("fixture candidates must close")
         .0
-        .trim()
-        .to_owned()
+        .split_whitespace()
+        .filter(|candidate| !shorth_tailwind::is_stillwind_owned_candidate(candidate))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<String> {
@@ -50,7 +52,14 @@ fn supports_at_least_ninety_five_percent_of_tailwind_fixture_candidates() {
             let Some(candidates) = fixture_code_block(section, "Candidates", "text") else {
                 continue;
             };
-            candidate_count += candidates.split_whitespace().count();
+            let candidates = candidates
+                .split_whitespace()
+                .filter(|candidate| !shorth_tailwind::is_stillwind_owned_candidate(candidate))
+                .collect::<Vec<_>>();
+            candidate_count += candidates.len();
+            if candidates.is_empty() {
+                continue;
+            }
             let input_css = fixture_code_block(section, "Input CSS", "css")
                 .unwrap_or_else(|| "@theme {}".to_owned());
             let component = SourceFile::new(
@@ -58,7 +67,7 @@ fn supports_at_least_ninety_five_percent_of_tailwind_fixture_candidates() {
                 "src/Fixture.tsx",
                 format!(
                     "import {{ style }} from \"stillwind/react\"; const props = style({:?});",
-                    candidates.replace('\n', " ")
+                    candidates.join(" ")
                 ),
             );
             let theme = SourceFile::new(FileId(2), "stillwind.css", input_css);
@@ -117,7 +126,6 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     assert!(result.css.contains("@media (width >= 48rem)"));
     assert!(result.css.contains("[aria-busy=\"true\"]"));
     assert!(result.css.contains(">svg{"));
-    assert!(result.css.contains("@container (width >= 24rem)"));
 }
 
 #[test]
@@ -150,18 +158,15 @@ const props = style("bg-linear-to-r");"#,
 fn emits_nested_media_from_css_utility_definitions() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Container.tsx",
+        "src/Outline.tsx",
         r#"import { style } from "stillwind/react";
-const props = style("container outline-hidden");"#,
+const props = style("outline-hidden");"#,
     );
     let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
 
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("width:100%;"));
-    assert!(result.css.contains("@media (width>=40rem){._s_"));
-    assert!(result.css.contains("max-width:40rem;"));
     assert!(result.css.contains("@media (forced-colors:active){._s_"));
     assert!(result.css.contains("outline:2px solid transparent;"));
 }
