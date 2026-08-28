@@ -4,14 +4,6 @@
   "private": true,
   "description": "Interactive Stillwind compiler playground",
   "license": "MIT",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "11.24.0",
-      "onFail": "download"
-    }
-  },
-  "packageManager": "pnpm@11.24.0",
   "type": "module",
   "dependencies": {
     "@codemirror/lang-css": "^6.3.1",
@@ -23,5 +15,13 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "stillwind": "workspace:*"
-  }
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.24.0"
 }

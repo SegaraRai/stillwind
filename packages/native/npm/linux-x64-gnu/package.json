@@ -1,22 +1,22 @@
 {
   "name": "@stillwind/native-linux-x64-gnu",
   "version": "0.0.0",
-  "cpu": [
-    "x64"
-  ],
-  "main": "stillwind_native.linux-x64-gnu.node",
+  "description": "Native Node-API binding for the Stillwind compiler",
+  "license": "MIT",
   "files": [
     "stillwind_native.linux-x64-gnu.node"
   ],
-  "description": "Native Node-API binding for the Stillwind compiler",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "os": [
     "linux"
   ],
+  "cpu": [
+    "x64"
+  ],
   "libc": [
     "glibc"
-  ]
+  ],
+  "main": "stillwind_native.linux-x64-gnu.node",
+  "publishConfig": {
+    "access": "public"
+  }
 }

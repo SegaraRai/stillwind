@@ -3,5 +3,5 @@ module.exports = function ({ addUtilities }) {
     ".legacy-skew": {
       transform: "skewY(-10deg)",
     },
-  })
-}
+  });
+};

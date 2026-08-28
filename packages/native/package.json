@@ -3,23 +3,23 @@
   "version": "0.0.0",
   "description": "Native Node-API binding for the Stillwind compiler",
   "license": "MIT",
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "index.js",
-    "index.d.ts"
-  ],
   "optionalDependencies": {
-    "@stillwind/native-win32-x64-msvc": "workspace:*",
-    "@stillwind/native-win32-arm64-msvc": "workspace:*",
-    "@stillwind/native-darwin-x64": "workspace:*",
     "@stillwind/native-darwin-arm64": "workspace:*",
+    "@stillwind/native-darwin-x64": "workspace:*",
+    "@stillwind/native-linux-arm64-gnu": "workspace:*",
     "@stillwind/native-linux-x64-gnu": "workspace:*",
-    "@stillwind/native-linux-arm64-gnu": "workspace:*"
+    "@stillwind/native-win32-arm64-msvc": "workspace:*",
+    "@stillwind/native-win32-x64-msvc": "workspace:*"
   },
   "napi": {
     "binaryName": "stillwind_native",

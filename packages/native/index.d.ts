@@ -10,5 +10,9 @@
  *
  * Returns a JavaScript error if the compiler result cannot be serialized.
  */
-export declare function compileReact(source: string, sourcePath: string | undefined | null, theme: string): string
-export declare function generateReactTypes(theme: string): string
+export declare function compileReact(
+  source: string,
+  sourcePath: string | undefined | null,
+  theme: string,
+): string;
+export declare function generateReactTypes(theme: string): string;

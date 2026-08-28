@@ -4,6 +4,13 @@
   "private": true,
   "description": "Stillwind + React Vite integration example",
   "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@stillwind/vite": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "stillwind": "workspace:*"
+  },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
@@ -11,12 +18,5 @@
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@11.24.0",
-  "type": "module",
-  "dependencies": {
-    "stillwind": "workspace:*",
-    "@stillwind/vite": "workspace:*",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
-  }
+  "packageManager": "pnpm@11.24.0"
 }

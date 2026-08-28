@@ -6,7 +6,7 @@ import-bound `style()` call into a compact generated class and a framework prop
 object at build time.
 
 ```tsx
-import { style } from "stillwind/react"
+import { style } from "stillwind/react";
 
 <button
   {...style(
@@ -14,7 +14,7 @@ import { style } from "stillwind/react"
     loading && "opacity-60 cursor-wait",
     { "aria-busy": loading },
   )}
-/>
+/>;
 ```
 
 The React/Vite example is in [`examples/react`](./examples/react). It compiles
@@ -23,10 +23,18 @@ runtime, and emits CSS like:
 
 ```css
 @layer theme, base, components, utilities;
-@layer theme { :root { --color-accent: oklch(.6 .2 250); } }
+@layer theme {
+  :root {
+    --color-accent: oklch(0.6 0.2 250);
+  }
+}
 @layer utilities {
-  ._s_x { background-color: var(--color-accent); }
-  ._s_x:hover { background-color: color-mix(in oklab, var(--color-accent) 90%, transparent); }
+  ._s_x {
+    background-color: var(--color-accent);
+  }
+  ._s_x:hover {
+    background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);
+  }
 }
 ```
 

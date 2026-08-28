@@ -1,6 +1,6 @@
-import { createRequire } from "node:module"
+import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url)
+const require = createRequire(import.meta.url);
 const packages = {
   "win32-x64": "@stillwind/native-win32-x64-msvc",
   "win32-arm64": "@stillwind/native-win32-arm64-msvc",
@@ -8,20 +8,23 @@ const packages = {
   "darwin-arm64": "@stillwind/native-darwin-arm64",
   "linux-x64": "@stillwind/native-linux-x64-gnu",
   "linux-arm64": "@stillwind/native-linux-arm64-gnu",
-}
-const packageName = packages[`${process.platform}-${process.arch}`]
+};
+const packageName = packages[`${process.platform}-${process.arch}`];
 
-if (!packageName) throw new Error(`@stillwind/native has no binary package for ${process.platform}-${process.arch}`)
+if (!packageName)
+  throw new Error(
+    `@stillwind/native has no binary package for ${process.platform}-${process.arch}`,
+  );
 
-let binding
+let binding;
 try {
-  binding = require(packageName)
+  binding = require(packageName);
 } catch (error) {
   throw new Error(
     `Unable to load ${packageName}. Reinstall dependencies, or build the local target with \`vp run --filter @stillwind/native build\`.`,
     { cause: error },
-  )
+  );
 }
 
-export const compileReact = binding.compileReact
-export const generateReactTypes = binding.generateReactTypes
+export const compileReact = binding.compileReact;
+export const generateReactTypes = binding.generateReactTypes;

@@ -1,19 +1,19 @@
 {
   "name": "@stillwind/native-win32-x64-msvc",
   "version": "0.0.0",
+  "description": "Native Node-API binding for the Stillwind compiler",
+  "license": "MIT",
+  "files": [
+    "stillwind_native.win32-x64-msvc.node"
+  ],
+  "os": [
+    "win32"
+  ],
   "cpu": [
     "x64"
   ],
   "main": "stillwind_native.win32-x64-msvc.node",
-  "files": [
-    "stillwind_native.win32-x64-msvc.node"
-  ],
-  "description": "Native Node-API binding for the Stillwind compiler",
-  "license": "MIT",
   "publishConfig": {
     "access": "public"
-  },
-  "os": [
-    "win32"
-  ]
+  }
 }

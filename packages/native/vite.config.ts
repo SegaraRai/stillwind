@@ -6,9 +6,10 @@ const currentTarget = {
   "darwin-arm64": "darwin-arm64",
   "linux-x64": "linux-x64-gnu",
   "linux-arm64": "linux-arm64-gnu",
-}[`${process.platform}-${process.arch}`]
+}[`${process.platform}-${process.arch}`];
 
-if (!currentTarget) throw new Error(`No Stillwind native target for ${process.platform}-${process.arch}`)
+if (!currentTarget)
+  throw new Error(`No Stillwind native target for ${process.platform}-${process.arch}`);
 
 export default {
   run: {
@@ -24,8 +25,9 @@ export default {
         dependsOn: ["build"],
       },
       "prepare-publish": {
-        command: "napi pre-publish --package-json-path package.json --npm-dir npm --root-publisher pnpm",
+        command:
+          "napi pre-publish --package-json-path package.json --npm-dir npm --root-publisher pnpm",
       },
     },
   },
-}
+};

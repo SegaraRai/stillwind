@@ -1,10 +1,10 @@
-import { StrictMode, useState } from "react"
-import { createRoot } from "react-dom/client"
-import { style } from "stillwind/react"
-import "./screen.css"
+import { StrictMode, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { style } from "stillwind/react";
+import "./screen.css";
 
 function SaveButton() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   return (
     <button
@@ -17,7 +17,7 @@ function SaveButton() {
     >
       {loading ? "Saving…" : "Save changes"}
     </button>
-  )
+  );
 }
 
 function App() {
@@ -28,9 +28,11 @@ function App() {
       <p>Click the button to exercise a compile-time conditional branch.</p>
       <SaveButton />
     </main>
-  )
+  );
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><App /></StrictMode>,
-)
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

@@ -50,7 +50,7 @@ Arbitrary dynamic utility construction is rejected.
 
 ```tsx
 style(active ? "bg-accent" : "bg-muted"); // valid
-style(`bg-${color}`);                       // invalid
+style(`bg-${color}`); // invalid
 ```
 
 ## CSS-first theme and typed utility vocabulary
@@ -72,7 +72,7 @@ vocabulary and optional TypeScript declarations.
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
-  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 [data-theme="dark"] {
@@ -132,11 +132,9 @@ const trigger = style.handle();
 
 <div {...style(trigger.scope, "relative")}>
   <button
-    {...style(
-      trigger.anchor,
-      "inline-flex items-center rounded-md px-3 py-2",
-      { "aria-expanded": open },
-    )}
+    {...style(trigger.anchor, "inline-flex items-center rounded-md px-3 py-2", {
+      "aria-expanded": open,
+    })}
   >
     More
   </button>
@@ -156,12 +154,12 @@ const trigger = style.handle();
 The relevant projections are:
 
 ```ts
-trigger.anchor                  // anchor-name: --stillwind-…
-trigger.position                // position-anchor: --stillwind-…
-trigger.scope                   // anchor-scope: --stillwind-…
-trigger.container("inline-size") // container-name/type
-trigger.at("width >= 40rem", "grid-cols-2") // named @container rule
-trigger`&:hover`                // selector rooted at this referenced element
+trigger.anchor; // anchor-name: --stillwind-…
+trigger.position; // position-anchor: --stillwind-…
+trigger.scope; // anchor-scope: --stillwind-…
+trigger.container("inline-size"); // container-name/type
+trigger.at("width >= 40rem", "grid-cols-2"); // named @container rule
+trigger`&:hover`; // selector rooted at this referenced element
 ```
 
 `scope` is deliberately separate from `anchor`. It belongs on whichever
@@ -200,11 +198,9 @@ const exit = style.animation({
 });
 
 <section
-  {...style(
-    "rounded-xl bg-surface p-6 shadow-xl",
-    enter("duration-normal ease-standard both"),
-    { "&[data-state=closed]": exit("duration-fast ease-standard both") },
-  )}
+  {...style("rounded-xl bg-surface p-6 shadow-xl", enter("duration-normal ease-standard both"), {
+    "&[data-state=closed]": exit("duration-fast ease-standard both"),
+  })}
 />;
 ```
 

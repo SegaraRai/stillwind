@@ -173,12 +173,12 @@ original source text.
 
 This is the boundary that keeps future framework support sane:
 
-| File type | Initial parser | What it contributes |
-|---|---|---|
-| `.js`, `.ts`, `.jsx`, `.tsx` | Oxc | macro calls, bindings, JSX ancestry facts |
-| `.vue` | Vue compiler/parser adapter | script calls plus template placement facts |
-| `.svelte` | Svelte parser adapter | script calls plus template placement facts |
-| `.astro` | Astro parser adapter | frontmatter calls plus template placement facts |
+| File type                    | Initial parser              | What it contributes                             |
+| ---------------------------- | --------------------------- | ----------------------------------------------- |
+| `.js`, `.ts`, `.jsx`, `.tsx` | Oxc                         | macro calls, bindings, JSX ancestry facts       |
+| `.vue`                       | Vue compiler/parser adapter | script calls plus template placement facts      |
+| `.svelte`                    | Svelte parser adapter       | script calls plus template placement facts      |
+| `.astro`                     | Astro parser adapter        | frontmatter calls plus template placement facts |
 
 The framework parser owns host syntax and produces source spans in the original
 single-file component. The shorth core owns all styling semantics. No adapter
@@ -230,8 +230,8 @@ The extractor lowers only a deliberately finite subset.
 
 ```ts
 style(
-  "p-4",                       // string or no-substitution template literal
-  active && "bg-accent",       // logical guard
+  "p-4", // string or no-substitution template literal
+  active && "bg-accent", // logical guard
   active ? "block" : "hidden", // conditional guard
   ["rounded", compact && "p-2"],
   { "aria-busy": loading },
