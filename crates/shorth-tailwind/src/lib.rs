@@ -13,6 +13,22 @@ use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_cand
 pub struct ResolvedUtility {
     pub candidate: Candidate,
     pub declaration: String,
+    pub selector: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct UtilityResolution {
+    declaration: String,
+    selector: Option<String>,
+}
+
+impl UtilityResolution {
+    fn plain(declaration: String) -> Self {
+        Self {
+            declaration,
+            selector: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -109,18 +125,21 @@ fn is_word_character(character: char) -> bool {
 #[must_use]
 pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
     let candidate = parse_candidate(raw)?;
-    let declaration = match &candidate.utility {
-        Utility::ArbitraryProperty { property, value } => format!("{property}:{value};"),
+    let resolution = match &candidate.utility {
+        Utility::ArbitraryProperty { property, value } => {
+            UtilityResolution::plain(format!("{property}:{value};"))
+        }
         Utility::Named { name, modifier } => {
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
     Some(ResolvedUtility {
         declaration: if candidate.important {
-            important(&declaration)
+            important(&resolution.declaration)
         } else {
-            declaration
+            resolution.declaration
         },
+        selector: resolution.selector,
         candidate,
     })
 }
@@ -212,7 +231,7 @@ fn resolve_named_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
-) -> Option<String> {
+) -> Option<UtilityResolution> {
     if let Some(declaration) = resolve_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
@@ -222,11 +241,13 @@ fn resolve_named_utility(
         && !negative
         && modifier.is_none()
     {
-        return Some(format!(
+        return Some(UtilityResolution::plain(format!(
             "grid-template-columns:repeat({columns},minmax(0,1fr));"
-        ));
+        )));
     }
-    resolve_arbitrary(name, negative).or_else(|| resolve_special(name, modifier, negative, theme))
+    resolve_arbitrary(name, negative)
+        .or_else(|| resolve_special(name, modifier, negative, theme))
+        .map(UtilityResolution::plain)
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored
@@ -236,7 +257,7 @@ fn resolve_css_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
-) -> Option<String> {
+) -> Option<UtilityResolution> {
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     matching_utilities(&theme.utilities, lookup)
@@ -249,15 +270,16 @@ fn resolve_css_utility_body(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
-) -> Option<String> {
-    if utility.body.contains('&') || utility.body.contains("@slot") {
+) -> Option<UtilityResolution> {
+    if utility.body.contains("@slot") {
         return None;
     }
+    let (selector, body) = split_utility_selector(&utility.body)?;
     let capture = utility
         .name
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
-    let mut body = utility.body.clone();
+    let mut body = body.to_owned();
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
         let end = closing_parenthesis(&body, open)?;
@@ -286,7 +308,40 @@ fn resolve_css_utility_body(
         body.replace_range(start..=end, &replacement);
     }
     (!body.contains("--value(") && !body.contains("--modifier(") && !body.contains("--alpha("))
-        .then_some(body)
+        .then_some(UtilityResolution {
+            declaration: body,
+            selector,
+        })
+}
+
+fn split_utility_selector(body: &str) -> Option<(Option<String>, &str)> {
+    let Some(selector_start) = body.find('&') else {
+        return Some((None, body));
+    };
+    let open = body[selector_start..].find('{')? + selector_start;
+    let close = closing_brace(body, open)?;
+    if !body[close + 1..].trim().is_empty() {
+        return None;
+    }
+    let selector = body[selector_start..open].trim();
+    (!selector.is_empty()).then(|| (Some(selector.to_owned()), body[open + 1..close].trim()))
+}
+
+fn closing_brace(value: &str, open: usize) -> Option<usize> {
+    let mut depth = 0_u32;
+    for (offset, character) in value[open..].char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn matching_utilities<'a>(
@@ -571,6 +626,32 @@ mod tests {
             unresolved.is_empty(),
             "unresolved static utilities: {unresolved:?}"
         );
+    }
+
+    #[test]
+    fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
+        let catalog = include_str!("../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
+        let roots = catalog_section(catalog, "## Functional utility roots");
+        let theme = theme();
+
+        let unresolved = roots
+            .into_iter()
+            .map(|root| format!("{root}-[initial]"))
+            .filter(|candidate| resolve_utility(candidate, &theme).is_none())
+            .collect::<Vec<_>>();
+
+        assert!(
+            unresolved.is_empty(),
+            "unresolved functional utility candidates: {unresolved:?}"
+        );
+    }
+
+    #[test]
+    fn preserves_a_nested_selector_from_a_css_utility() {
+        let resolved = resolve_utility("divide-x-[2px]", &theme()).unwrap();
+
+        assert_eq!(resolved.declaration, "border-inline-end-width:2px;");
+        assert_eq!(resolved.selector.as_deref(), Some("&>:not(:last-child)"));
     }
 
     #[test]

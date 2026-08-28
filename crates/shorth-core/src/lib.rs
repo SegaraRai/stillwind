@@ -407,7 +407,12 @@ impl Compiler {
                     branch.2.push('\0');
                     match resolve_utility(&utility.value.raw, &theme) {
                         Some(mut utility) => {
-                            utility.selector.clone_from(&selector);
+                            if let Some(selector) = &selector {
+                                utility.selector = Some(utility.selector.as_deref().map_or_else(
+                                    || selector.clone(),
+                                    |nested| nested.replace('&', selector),
+                                ));
+                            }
                             branch.3.push(utility);
                         }
                         None => result.diagnostics.push(Diagnostic::error(
@@ -843,7 +848,7 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
     Some(CompiledUtility {
         variants: resolved.candidate.variants,
         declaration: resolved.declaration,
-        selector: None,
+        selector: resolved.selector,
         container: None,
     })
 }

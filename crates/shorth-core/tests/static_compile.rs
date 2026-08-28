@@ -53,6 +53,28 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
 }
 
 #[test]
+fn emits_selector_bearing_css_utilities_on_their_target_children() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Divider.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("divide-x-[2px]");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains(">:not(:last-child){border-inline-end-width:2px;"),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
 fn compiles_a_real_react_style_call_against_a_css_theme() {
     let component = SourceFile::new(
         FileId(1),

@@ -1869,3 +1869,217 @@
   overflow-wrap: normal;
 }
 /* END GENERATED STATIC UTILITIES */
+
+/* Functional arbitrary-value utilities. Theme-token overloads live above;
+ * these definitions provide the common arbitrary-value grammar. */
+@utility align-* {
+  vertical-align: --value([*]);
+}
+@utility animate-* {
+  animation: --value([*]);
+}
+@utility aspect-* {
+  aspect-ratio: --value([*]);
+}
+@utility auto-cols-* {
+  grid-auto-columns: --value([*]);
+}
+@utility auto-rows-* {
+  grid-auto-rows: --value([*]);
+}
+@utility backdrop-blur-* {
+  backdrop-filter: blur(--value([*]));
+}
+@utility backdrop-brightness-* {
+  backdrop-filter: brightness(--value([*]));
+}
+@utility backdrop-contrast-* {
+  backdrop-filter: contrast(--value([*]));
+}
+@utility backdrop-grayscale-* {
+  backdrop-filter: grayscale(--value([*]));
+}
+@utility backdrop-hue-rotate-* {
+  backdrop-filter: hue-rotate(--value([*]));
+}
+@utility backdrop-invert-* {
+  backdrop-filter: invert(--value([*]));
+}
+@utility backdrop-opacity-* {
+  backdrop-filter: opacity(--value([*]));
+}
+@utility backdrop-saturate-* {
+  backdrop-filter: saturate(--value([*]));
+}
+@utility backdrop-sepia-* {
+  backdrop-filter: sepia(--value([*]));
+}
+@utility bg-position-* {
+  background-position: --value([*]);
+}
+@utility bg-size-* {
+  background-size: --value([*]);
+}
+@utility blur-* {
+  filter: blur(--value([*]));
+}
+@utility brightness-* {
+  filter: brightness(--value([*]));
+}
+@utility col-* {
+  grid-column: --value([*]);
+}
+@utility col-end-* {
+  grid-column-end: --value([*]);
+}
+@utility col-span-* {
+  grid-column: span --value([*]) / span --value([*]);
+}
+@utility col-start-* {
+  grid-column-start: --value([*]);
+}
+@utility columns-* {
+  columns: --value([*]);
+}
+@utility contain-* {
+  contain: --value([*]);
+}
+@utility content-* {
+  content: --value([*]);
+}
+@utility contrast-* {
+  filter: contrast(--value([*]));
+}
+@utility cursor-* {
+  cursor: --value([*]);
+}
+@utility delay-* {
+  transition-delay: --value([*]);
+}
+@utility divide-x-* {
+  & > :not(:last-child) {
+    border-inline-end-width: --value([*]);
+  }
+}
+@utility divide-y-* {
+  & > :not(:last-child) {
+    border-bottom-width: --value([*]);
+  }
+}
+@utility font-features-* {
+  font-feature-settings: --value([*]);
+}
+@utility font-stretch-* {
+  font-stretch: --value([*]);
+}
+@utility grayscale-* {
+  filter: grayscale(--value([*]));
+}
+@utility grid-cols-* {
+  grid-template-columns: --value([*]);
+}
+@utility grid-rows-* {
+  grid-template-rows: --value([*]);
+}
+@utility grow-* {
+  flex-grow: --value([*]);
+}
+@utility hue-rotate-* {
+  filter: hue-rotate(--value([*]));
+}
+@utility invert-* {
+  filter: invert(--value([*]));
+}
+@utility line-clamp-* {
+  -webkit-line-clamp: --value([*]);
+}
+@utility list-* {
+  list-style-type: --value([*]);
+}
+@utility list-image-* {
+  list-style-image: --value([*]);
+}
+@utility mask-conic-* {
+  mask-image: conic-gradient(--value([*]));
+}
+@utility mask-linear-* {
+  mask-image: linear-gradient(--value([*]));
+}
+@utility mask-position-* {
+  mask-position: --value([*]);
+}
+@utility mask-radial-* {
+  mask-image: radial-gradient(--value([*]));
+}
+@utility mask-radial-at-* {
+  mask-position: --value([*]);
+}
+@utility mask-size-* {
+  mask-size: --value([*]);
+}
+@utility object-* {
+  object-position: --value([*]);
+}
+@utility opacity-* {
+  opacity: --value([*]);
+}
+@utility order-* {
+  order: --value([*]);
+}
+@utility origin-* {
+  transform-origin: --value([*]);
+}
+@utility outline-offset-* {
+  outline-offset: --value([*]);
+}
+@utility perspective-* {
+  perspective: --value([*]);
+}
+@utility perspective-origin-* {
+  perspective-origin: --value([*]);
+}
+@utility row-* {
+  grid-row: --value([*]);
+}
+@utility row-end-* {
+  grid-row-end: --value([*]);
+}
+@utility row-span-* {
+  grid-row: span --value([*]) / span --value([*]);
+}
+@utility row-start-* {
+  grid-row-start: --value([*]);
+}
+@utility saturate-* {
+  filter: saturate(--value([*]));
+}
+@utility sepia-* {
+  filter: sepia(--value([*]));
+}
+@utility shrink-* {
+  flex-shrink: --value([*]);
+}
+@utility skew-* {
+  transform: skew(--value([*]));
+}
+@utility skew-x-* {
+  transform: skewX(--value([*]));
+}
+@utility skew-y-* {
+  transform: skewY(--value([*]));
+}
+@utility tab-* {
+  tab-size: --value([*]);
+}
+@utility transition-* {
+  transition-property: --value([*]);
+}
+@utility underline-offset-* {
+  text-underline-offset: --value([*]);
+}
+@utility will-change-* {
+  will-change: --value([*]);
+}
+@utility zoom-* {
+  zoom: --value([*]);
+}
