@@ -187,6 +187,14 @@ pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
     extract_custom_utilities(css)
 }
 
+/// Parses `@custom-variant` and block `@variant` definitions without
+/// requiring a complete theme stylesheet. This mirrors the utility registry
+/// entry point so tools can build a registry once and share it at runtime.
+#[must_use]
+pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
+    extract_custom_variants(css)
+}
+
 impl ThemeIndex {
     #[must_use]
     pub fn token_in(&self, namespace: ThemeNamespace, name: &str) -> Option<&ThemeToken> {
@@ -547,6 +555,7 @@ fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
 }
 
 fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
+    let css = strip_css_comments(css);
     let mut variants = css
         .lines()
         .filter_map(|line| {
@@ -565,7 +574,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
         })
         .collect::<Vec<_>>();
     variants.extend(
-        extract_named_blocks(css, "@variant")
+        extract_named_blocks(&css, "@variant")
             .into_iter()
             .filter_map(|(header, body)| {
                 let name = header.split_whitespace().next()?.to_owned();

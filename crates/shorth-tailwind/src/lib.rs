@@ -6,7 +6,7 @@
 
 use std::{fmt::Write, sync::OnceLock};
 
-use shorth_css::{CustomUtility, ThemeIndex, ThemeNamespace};
+use shorth_css::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace};
 use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -19,6 +19,7 @@ pub struct ResolvedUtility {
 pub enum VariantApplication {
     SelectorSuffix(&'static str),
     SelectorTemplate(String),
+    SelectorMedia { selector: String, condition: String },
     Media(String),
     Supports(String),
 }
@@ -39,6 +40,13 @@ fn builtin_utilities() -> &'static [CustomUtility] {
                 })
                 .collect()
         })
+        .as_slice()
+}
+
+fn builtin_variants() -> &'static [CustomVariant] {
+    static VARIANTS: OnceLock<Vec<CustomVariant>> = OnceLock::new();
+    VARIANTS
+        .get_or_init(|| shorth_css::parse_variant_definitions(BUILTIN_REGISTRY_CSS))
         .as_slice()
 }
 
@@ -131,24 +139,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    let suffix = match value.as_str() {
-        "hover" => Some(":hover"),
-        "focus" => Some(":focus"),
-        "focus-visible" => Some(":focus-visible"),
-        "active" => Some(":active"),
-        "disabled" => Some(":disabled"),
-        "before" => Some("::before"),
-        "after" => Some("::after"),
-        _ => None,
-    };
-    if let Some(suffix) = suffix {
-        return Some(VariantApplication::SelectorSuffix(suffix));
-    }
-    if value == "dark" {
-        return Some(VariantApplication::Media(
-            "(prefers-color-scheme: dark)".to_owned(),
-        ));
-    }
     if let Some(condition) = value
         .strip_prefix("supports-[")
         .and_then(|value| value.strip_suffix(']'))
@@ -166,7 +156,18 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             )));
         }
     }
-    if let Some(custom) = theme.variant(value) {
+    if let Some(custom) = theme
+        .variants
+        .iter()
+        .rev()
+        .find(|variant| variant.name == *value)
+        .or_else(|| {
+            builtin_variants()
+                .iter()
+                .rev()
+                .find(|variant| variant.name == *value)
+        })
+    {
         if let Some(application) = resolve_variant_body(&custom.body) {
             return Some(application);
         }
@@ -183,16 +184,27 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {
         return None;
     }
-    if let Some(start) = body.find("@media (") {
+    if let Some(start) = body.find("@media ") {
         let condition_start = start + "@media ".len();
         let condition_end = body[condition_start..].find('{')? + condition_start;
-        return Some(VariantApplication::Media(
-            body[condition_start..condition_end].trim().to_owned(),
-        ));
+        let condition = body[condition_start..condition_end].trim().to_owned();
+        let nested = &body[condition_end + 1..];
+        if let Some(selector) = selector_from_variant_body(nested) {
+            return Some(VariantApplication::SelectorMedia {
+                selector,
+                condition,
+            });
+        }
+        return Some(VariantApplication::Media(condition));
     }
-    let selector_end = body.find('{')?;
-    let selector = body[..selector_end].trim();
-    (!selector.is_empty()).then(|| VariantApplication::SelectorTemplate(selector.to_owned()))
+    selector_from_variant_body(body).map(VariantApplication::SelectorTemplate)
+}
+
+fn selector_from_variant_body(body: &str) -> Option<String> {
+    let start = body.find('&')?;
+    let selector_end = body[start..].find('{')? + start;
+    let selector = body[start..selector_end].trim();
+    (!selector.is_empty()).then(|| selector.to_owned())
 }
 
 fn resolve_named_utility(
@@ -561,7 +573,10 @@ mod tests {
         let theme = theme();
         assert_eq!(
             resolve_variant(&parse_candidate("hover:flex").unwrap().variants[0], &theme),
-            Some(VariantApplication::SelectorSuffix(":hover"))
+            Some(VariantApplication::SelectorMedia {
+                selector: "&:hover".to_owned(),
+                condition: "(hover: hover)".to_owned(),
+            })
         );
         assert_eq!(
             resolve_variant(&parse_candidate("md:flex").unwrap().variants[0], &theme),
@@ -582,6 +597,15 @@ mod tests {
                 &theme
             ),
             Some(VariantApplication::SelectorTemplate("&>svg".to_owned()))
+        );
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("motion-reduce:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::Media(
+                "(prefers-reduced-motion: reduce)".to_owned()
+            ))
         );
     }
 

@@ -886,6 +886,13 @@ fn emit_utility_rules(
                 Some(shorth_tailwind::VariantApplication::SelectorTemplate(template)) => {
                     selector = template.replace('&', &selector);
                 }
+                Some(shorth_tailwind::VariantApplication::SelectorMedia {
+                    selector: template,
+                    condition,
+                }) => {
+                    selector = template.replace('&', &selector);
+                    media.push(condition);
+                }
                 Some(shorth_tailwind::VariantApplication::Media(condition)) => {
                     media.push(condition);
                 }
