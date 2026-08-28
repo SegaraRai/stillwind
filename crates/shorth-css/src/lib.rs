@@ -612,6 +612,12 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
             let mut header = header.split_whitespace();
             let domain = header.next();
             let negative = header.any(|flag| flag == "negative");
+            if domain == Some("mask-stop") {
+                return expand_mask_stop_family(&body);
+            }
+            if domain == Some("mask-radial-stop") {
+                return expand_mask_radial_stop_family(&body);
+            }
             let Some(value) = domain.and_then(utility_family_value) else {
                 return Vec::new();
             };
@@ -655,6 +661,109 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+/// Expands composable edge-mask stop utilities. The CSS source owns the
+/// utility roots and the affected edges; this helper merely stamps the shared
+/// custom-property protocol into each definition. It deliberately enumerates
+/// neither colors nor spacing values.
+fn expand_mask_stop_family(body: &str) -> Vec<CustomUtility> {
+    body.split(';')
+        .filter_map(|entry| {
+            let (name, edges) = entry.split_once(':')?;
+            let name = name.trim();
+            let stop = name.strip_prefix("mask-")?.rsplit_once('-')?.1.trim();
+            matches!(stop, "from" | "to").then_some((
+                name,
+                stop,
+                edges
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|edge| matches!(*edge, "top" | "right" | "bottom" | "left"))
+                    .collect::<Vec<_>>(),
+            ))
+        })
+        .flat_map(|(name, stop, edges)| {
+            [
+                mask_stop_body(&edges, stop, "position"),
+                mask_stop_body(&edges, stop, "color"),
+                mask_stop_body(&edges, stop, "alpha-color"),
+            ]
+            .into_iter()
+            .map(move |body| CustomUtility {
+                name: format!("{name}-*"),
+                body,
+            })
+        })
+        .collect()
+}
+
+fn mask_stop_body(edges: &[&str], stop: &str, kind: &str) -> String {
+    let mut body = String::from(
+        "mask-image:var(--tw-mask-linear),var(--tw-mask-radial),var(--tw-mask-conic);mask-composite:intersect;--tw-mask-linear:var(--tw-mask-left),var(--tw-mask-right),var(--tw-mask-bottom),var(--tw-mask-top);",
+    );
+    for edge in edges {
+        write!(
+            body,
+            "--tw-mask-{edge}:linear-gradient(to {edge},var(--tw-mask-{edge}-from-color,black) var(--tw-mask-{edge}-from-position,0%),var(--tw-mask-{edge}-to-color,transparent) var(--tw-mask-{edge}-to-position,100%));"
+        )
+        .expect("writing to a String cannot fail");
+    }
+    let value = match kind {
+        "position" => "--value(--spacing-*, --spacing(), percentage, [length])",
+        "color" => "--value(--color-*, current, inherit, transparent, [color])",
+        "alpha-color" => {
+            "color-mix(in oklab,--value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),transparent)"
+        }
+        _ => unreachable!("mask stop body kind is fixed by the expander"),
+    };
+    let suffix = if kind == "position" {
+        "position"
+    } else {
+        "color"
+    };
+    for edge in edges {
+        write!(body, "--tw-mask-{edge}-{stop}-{suffix}:{value};")
+            .expect("writing to a String cannot fail");
+    }
+    body
+}
+
+fn expand_mask_radial_stop_family(body: &str) -> Vec<CustomUtility> {
+    body.split(';')
+        .filter_map(|entry| entry.split_once(':').map(|(name, _)| name.trim()))
+        .filter_map(|name| {
+            let stop = name.strip_prefix("mask-radial-")?;
+            matches!(stop, "from" | "to").then_some((name, stop))
+        })
+        .flat_map(|(name, stop)| {
+            ["position", "color", "alpha-color"]
+                .into_iter()
+                .map(move |kind| CustomUtility {
+                    name: format!("{name}-*"),
+                    body: mask_radial_stop_body(stop, kind),
+                })
+        })
+        .collect()
+}
+
+fn mask_radial_stop_body(stop: &str, kind: &str) -> String {
+    let value = match kind {
+        "position" => "--value(--spacing-*, --spacing(), percentage, [length])",
+        "color" => "--value(--color-*, current, inherit, transparent, [color])",
+        "alpha-color" => {
+            "color-mix(in oklab,--value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),transparent)"
+        }
+        _ => unreachable!("radial mask stop body kind is fixed by the expander"),
+    };
+    let suffix = if kind == "position" {
+        "position"
+    } else {
+        "color"
+    };
+    format!(
+        "mask-image:var(--tw-mask-linear),var(--tw-mask-radial),var(--tw-mask-conic);mask-composite:intersect;--tw-mask-radial-stops:var(--tw-mask-radial-shape,ellipse) var(--tw-mask-radial-size,farthest-corner) at var(--tw-mask-radial-position,center),var(--tw-mask-radial-from-color,black) var(--tw-mask-radial-from-position,0%),var(--tw-mask-radial-to-color,transparent) var(--tw-mask-radial-to-position,100%);--tw-mask-radial:radial-gradient(var(--tw-mask-radial-stops));--tw-mask-radial-{stop}-{suffix}:{value};"
+    )
 }
 
 fn utility_family_value(domain: &str) -> Option<&'static str> {
@@ -788,6 +897,30 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn expands_mask_stop_roots_from_edge_metadata() {
+        let utilities =
+            parse_utility_definitions("@utility-family mask-stop { mask-x-from: left, right; }");
+
+        assert_eq!(utilities.len(), 3);
+        assert!(
+            utilities
+                .iter()
+                .all(|utility| utility.name == "mask-x-from-*")
+        );
+        assert!(
+            utilities[0]
+                .body
+                .contains("--tw-mask-left-from-position:--value(--spacing-*")
+        );
+        assert!(
+            utilities[1]
+                .body
+                .contains("--tw-mask-right-from-color:--value(--color-*")
+        );
+        assert!(utilities[2].body.contains("--alpha(--modifier())"));
     }
 
     #[test]

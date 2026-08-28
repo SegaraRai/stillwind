@@ -790,6 +790,12 @@ fn resolve_value_domains(
                 .filter(|value| value.parse::<f64>().is_ok())
                 .map(str::to_owned);
         }
+        if domain == "percentage" {
+            return capture
+                .and_then(|value| value.strip_suffix('%'))
+                .filter(|value| value.parse::<f64>().is_ok())
+                .map(|value| format!("{value}%"));
+        }
         if domain == "--spacing()" {
             return capture.and_then(|capture| {
                 theme_value(ThemeNamespace::Spacing, capture, negative, theme)

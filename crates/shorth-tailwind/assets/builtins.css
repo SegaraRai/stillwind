@@ -212,6 +212,10 @@
   scroll-mbe: scroll-margin-block-end;
 }
 @utility-family spacing {
+  pbs: padding-block-start;
+  pbe: padding-block-end;
+  ps: padding-inline-start;
+  pe: padding-inline-end;
   gap-x: column-gap;
   gap-y: row-gap;
   scroll-p: scroll-padding;
@@ -225,6 +229,12 @@
   scroll-pl: scroll-padding-left;
   scroll-pbs: scroll-padding-block-start;
   scroll-pbe: scroll-padding-block-end;
+}
+@utility-family spacing negative {
+  mbs: margin-block-start;
+  mbe: margin-block-end;
+  ms: margin-inline-start;
+  me: margin-inline-end;
 }
 @utility-family width {
   w: width;
@@ -262,10 +272,58 @@
   row-end: grid-row-end;
   tab: tab-size;
 }
+@utility-family mask-stop {
+  mask-x-from: left, right;
+  mask-x-to: left, right;
+  mask-y-from: top, bottom;
+  mask-y-to: top, bottom;
+  mask-t-from: top;
+  mask-t-to: top;
+  mask-r-from: right;
+  mask-r-to: right;
+  mask-b-from: bottom;
+  mask-b-to: bottom;
+  mask-l-from: left;
+  mask-l-to: left;
+}
+@utility-family mask-radial-stop {
+  mask-radial-from: radial;
+  mask-radial-to: radial;
+}
 @utility border-spacing-* {
   --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
   --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
   border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility border-x-* {
+  border-inline-width: calc(--value(integer) * 1px);
+}
+@utility border-y-* {
+  border-block-width: calc(--value(integer) * 1px);
+}
+@utility border-s-* {
+  border-inline-start-width: calc(--value(integer) * 1px);
+}
+@utility border-e-* {
+  border-inline-end-width: calc(--value(integer) * 1px);
+}
+@utility border-bs-* {
+  border-block-start-width: calc(--value(integer) * 1px);
+}
+@utility border-be-* {
+  border-block-end-width: calc(--value(integer) * 1px);
+}
+@utility border-t-* {
+  border-top-width: calc(--value(integer) * 1px);
+}
+@utility border-r-* {
+  border-right-width: calc(--value(integer) * 1px);
+}
+@utility border-b-* {
+  border-bottom-width: calc(--value(integer) * 1px);
+}
+@utility border-l-* {
+  border-left-width: calc(--value(integer) * 1px);
 }
 @utility border-spacing-x-* {
   --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
@@ -274,6 +332,113 @@
 @utility border-spacing-y-* {
   --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
   border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility inset-ring {
+  box-shadow: inset 0 0 0 1px var(--tw-inset-ring-color, currentColor);
+}
+@utility inset-ring-* {
+  box-shadow: inset 0 0 0 calc(--value(integer) * 1px) var(--tw-inset-ring-color, currentColor);
+}
+@utility inset-ring-* {
+  --tw-inset-ring-color: --value(--color-*, current, inherit, transparent, [color]);
+  box-shadow: inset 0 0 0 var(--tw-inset-ring-width, 1px) var(--tw-inset-ring-color);
+}
+@utility inset-ring-* {
+  --tw-inset-ring-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  box-shadow: inset 0 0 0 var(--tw-inset-ring-width, 1px) var(--tw-inset-ring-color);
+}
+@utility ring-offset-* {
+  --tw-ring-offset-width: calc(--value(integer) * 1px);
+}
+@utility ring-offset-* {
+  --tw-ring-offset-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility ring-offset-* {
+  --tw-ring-offset-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility scrollbar-track-* {
+  &::-webkit-scrollbar-track {
+    background-color: --value(--color-*, current, inherit, transparent, [color]);
+  }
+}
+@utility scrollbar-track-* {
+  &::-webkit-scrollbar-track {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
+@utility scrollbar-thumb-* {
+  &::-webkit-scrollbar-thumb {
+    background-color: --value(--color-*, current, inherit, transparent, [color]);
+  }
+}
+@utility scrollbar-thumb-* {
+  &::-webkit-scrollbar-thumb {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow: --value(--inset-shadow-*, none, [shadow]);
+  box-shadow: var(--tw-inset-shadow);
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
+}
+@utility text-shadow-* {
+  --tw-text-shadow: --value(--text-shadow-*, none, [shadow]);
+  text-shadow: var(--tw-text-shadow);
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
+  text-shadow: var(--tw-text-shadow, 0 0 #0000) var(--tw-text-shadow-color);
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  text-shadow: var(--tw-text-shadow, 0 0 #0000) var(--tw-text-shadow-color);
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow: --value(--drop-shadow-*, [shadow]);
+  filter: drop-shadow(var(--tw-drop-shadow));
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
+  filter: drop-shadow(var(--tw-drop-shadow, 0 0 #0000) var(--tw-drop-shadow-color));
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  filter: drop-shadow(var(--tw-drop-shadow, 0 0 #0000) var(--tw-drop-shadow-color));
 }
 @utility space-x-* {
   & > :not(:last-child) {
@@ -443,14 +608,26 @@
 @utility leading-* {
   line-height: --value(--leading-*);
 }
+@utility leading-* {
+  line-height: --value(--leading-*, --spacing(), number, [length]);
+}
 @utility tracking-* {
   letter-spacing: --value(--tracking-*);
 }
 @utility z-* {
   z-index: --value(--z-index-*);
 }
+@utility z-* {
+  z-index: --value(--z-index-*, integer, [integer]);
+}
 @utility duration-* {
   transition-duration: --value(--duration-*);
+}
+@utility duration-* {
+  transition-duration: calc(--value(integer) * 1ms);
+}
+@utility delay-* {
+  transition-delay: calc(--value(integer) * 1ms);
 }
 @utility ease-* {
   transition-timing-function: --value(--ease-*);
@@ -2135,6 +2312,15 @@
 @utility grid-rows-* {
   grid-template-rows: --value([*]);
 }
+@utility grid-rows-* {
+  grid-template-rows: repeat(--value(integer), minmax(0, 1fr));
+}
+@utility grid-rows-none {
+  grid-template-rows: none;
+}
+@utility grid-rows-subgrid {
+  grid-template-rows: subgrid;
+}
 @utility grow-* {
   flex-grow: --value([*]);
 }
@@ -2192,11 +2378,157 @@
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
   --tw-mask-linear-position: calc(1deg * -1 * --value(integer));
 }
+/* Mask stop utilities intentionally keep their gradient state on the element.
+ * This mirrors Tailwind's composable custom-property model without a generated
+ * table for every color, percentage, and spacing token. */
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position, 0deg),
+    var(--tw-mask-linear-from-color, black) var(--tw-mask-linear-from-position, 0%),
+    var(--tw-mask-linear-to-color, transparent) var(--tw-mask-linear-to-position, 100%);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position, 0deg),
+    var(--tw-mask-linear-from-color, black) var(--tw-mask-linear-from-position, 0%),
+    var(--tw-mask-linear-to-color, transparent) var(--tw-mask-linear-to-position, 100%);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position, 0deg),
+    var(--tw-mask-linear-from-color, black) var(--tw-mask-linear-from-position, 0%),
+    var(--tw-mask-linear-to-color, transparent) var(--tw-mask-linear-to-position, 100%);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position, 0deg),
+    var(--tw-mask-linear-from-color, black) var(--tw-mask-linear-from-position, 0%),
+    var(--tw-mask-linear-to-color, transparent) var(--tw-mask-linear-to-position, 100%);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position, 0deg),
+    var(--tw-mask-linear-from-color, black) var(--tw-mask-linear-from-position, 0%),
+    var(--tw-mask-linear-to-color, transparent) var(--tw-mask-linear-to-position, 100%);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position, 0deg),
+    var(--tw-mask-linear-from-color, black) var(--tw-mask-linear-from-position, 0%),
+    var(--tw-mask-linear-to-color, transparent) var(--tw-mask-linear-to-position, 100%);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility mask-conic-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+@utility mask-conic-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility mask-conic-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-from-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility mask-conic-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+@utility mask-conic-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility mask-conic-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-to-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
 @utility mask-position-* {
   mask-position: --value([*]);
 }
 @utility mask-radial-* {
   mask-image: radial-gradient(--value([*]));
+}
+@utility mask-radial {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial: radial-gradient(
+    var(--tw-mask-radial-stops, var(--tw-mask-radial-size, farthest-corner))
+  );
 }
 @utility mask-radial-at-* {
   mask-position: --value([*]);
@@ -2238,11 +2570,171 @@
   --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
   translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
 }
+@utility translate-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility -translate-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility -translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility -translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
 @utility scale-* {
   --tw-scale-x: calc(--value(integer) * 1%);
   --tw-scale-y: calc(--value(integer) * 1%);
   --tw-scale-z: calc(--value(integer) * 1%);
   scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility scale-x-* {
+  --tw-scale-x: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility scale-y-* {
+  --tw-scale-y: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility scale-z-* {
+  --tw-scale-z: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+@utility -scale-x-* {
+  --tw-scale-x: calc(--value(integer) * -1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility -scale-y-* {
+  --tw-scale-y: calc(--value(integer) * -1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility -scale-z-* {
+  --tw-scale-z: calc(--value(integer) * -1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+@utility rotate-x-* {
+  --tw-rotate-x: rotateX(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility rotate-y-* {
+  --tw-rotate-y: rotateY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility rotate-z-* {
+  --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -rotate-x-* {
+  --tw-rotate-x: rotateX(calc(--value(integer) * -1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -rotate-y-* {
+  --tw-rotate-y: rotateY(calc(--value(integer) * -1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -rotate-z-* {
+  --tw-rotate-z: rotateZ(calc(--value(integer) * -1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility skew-x-* {
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility skew-y-* {
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -skew-x-* {
+  --tw-skew-x: skewX(calc(--value(integer) * -1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -skew-y-* {
+  --tw-skew-y: skewY(calc(--value(integer) * -1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -col-start-* {
+  grid-column-start: calc(--value(integer) * -1);
+}
+@utility -col-end-* {
+  grid-column-end: calc(--value(integer) * -1);
+}
+@utility -row-start-* {
+  grid-row-start: calc(--value(integer) * -1);
+}
+@utility -row-end-* {
+  grid-row-end: calc(--value(integer) * -1);
+}
+@utility backdrop-opacity-* {
+  backdrop-filter: opacity(calc(--value(integer) * 1%));
+}
+@utility backdrop-brightness-* {
+  backdrop-filter: brightness(calc(--value(integer) * 1%));
+}
+@utility backdrop-contrast-* {
+  backdrop-filter: contrast(calc(--value(integer) * 1%));
+}
+@utility backdrop-grayscale-* {
+  backdrop-filter: grayscale(calc(--value(integer) * 1%));
+}
+@utility backdrop-hue-rotate-* {
+  backdrop-filter: hue-rotate(calc(--value(integer) * 1deg));
+}
+@utility backdrop-invert-* {
+  backdrop-filter: invert(calc(--value(integer) * 1%));
+}
+@utility backdrop-saturate-* {
+  backdrop-filter: saturate(calc(--value(integer) * 1%));
+}
+@utility backdrop-sepia-* {
+  backdrop-filter: sepia(calc(--value(integer) * 1%));
+}
+@utility underline-offset-* {
+  text-underline-offset: --value(--spacing-*, --spacing(), [length]);
+}
+@utility underline-offset-auto {
+  text-underline-offset: auto;
+}
+@utility col-span-* {
+  grid-column: span --value(integer) / span --value(integer);
+}
+@utility row-span-* {
+  grid-row: span --value(integer) / span --value(integer);
+}
+@utility col-start-auto {
+  grid-column-start: auto;
+}
+@utility col-end-auto {
+  grid-column-end: auto;
+}
+@utility row-start-auto {
+  grid-row-start: auto;
+}
+@utility row-end-auto {
+  grid-row-end: auto;
 }
 @utility scale-* {
   --tw-scale-x: --value([*]);
@@ -2352,6 +2844,9 @@
     var(--tw-gradient-to) var(--tw-gradient-to-position)
   );
 }
+@utility from-* {
+  --tw-gradient-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
 @utility via-* {
   --tw-gradient-via: --value(--color-*);
   --tw-gradient-via-stops:
@@ -2367,6 +2862,9 @@
     var(--tw-gradient-via) var(--tw-gradient-via-position),
     var(--tw-gradient-to) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-via-stops);
+}
+@utility via-* {
+  --tw-gradient-via-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
 @utility to-* {
   --tw-gradient-to: --value(--color-*);
@@ -2385,6 +2883,9 @@
     var(--tw-gradient-from) var(--tw-gradient-from-position),
     var(--tw-gradient-to) var(--tw-gradient-to-position)
   );
+}
+@utility to-* {
+  --tw-gradient-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
 @utility bg-linear-to-r {
   --tw-gradient-position: to right;
