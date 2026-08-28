@@ -405,10 +405,16 @@ fn resolve_named_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<UtilityResolution> {
+    // Application CSS is the authoritative registry layer. It must be able to
+    // replace every built-in name, including the few compatibility fallbacks
+    // still implemented below while their value grammar is being generalized.
+    if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
+        return Some(declaration);
+    }
     if let Some(declaration) = resolve_special(name, modifier, negative, theme) {
         return Some(UtilityResolution::plain(declaration));
     }
-    if let Some(declaration) = resolve_css_utility(name, modifier, negative, theme) {
+    if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
     if let Some(columns) = name.strip_prefix("grid-cols-")
@@ -426,7 +432,7 @@ fn resolve_named_utility(
 
 /// Resolves the same `@utility` body language for user CSS and vendored
 /// built-ins. `--value(...)` tries its comma-separated value domains in order.
-fn resolve_css_utility(
+fn resolve_user_css_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -435,7 +441,18 @@ fn resolve_css_utility(
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     matching_utilities(&theme.utilities, lookup)
-        .chain(matching_utilities(&builtin_utilities().wildcards, lookup))
+        .find_map(|utility| resolve_css_utility_body(utility, lookup, modifier, theme))
+}
+
+fn resolve_builtin_css_utility(
+    name: &str,
+    modifier: Option<&Value>,
+    negative: bool,
+    theme: &ThemeIndex,
+) -> Option<UtilityResolution> {
+    let lookup = negative.then(|| format!("-{name}"));
+    let lookup = lookup.as_deref().unwrap_or(name);
+    matching_utilities(&builtin_utilities().wildcards, lookup)
         .chain(
             builtin_utilities()
                 .builtin_exact
@@ -1168,6 +1185,21 @@ mod tests {
                 .unwrap()
                 .declaration,
             "width: 12px;"
+        );
+    }
+
+    #[test]
+    fn lets_user_css_override_compatibility_fallback_utility_names() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@utility size-* { inline-size: --value(--spacing-*); block-size: --value(--spacing-*); }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_utility("size-4", &theme).unwrap().declaration,
+            "inline-size: calc(var(--spacing) * 4); block-size: calc(var(--spacing) * 4);"
         );
     }
 
