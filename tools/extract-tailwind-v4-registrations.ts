@@ -4,10 +4,11 @@ import { join, resolve } from "node:path"
 const root = resolve(import.meta.dirname, "..")
 const fixtureRoot = join(root, "fixtures", "tailwind-v4")
 const sourceIndex = process.argv.indexOf("--upstream")
-const upstream = sourceIndex === -1 ? undefined : resolve(process.argv[sourceIndex + 1] ?? "")
+const upstreamArgument = sourceIndex === -1 ? process.env.STILLWIND_TAILWIND_UPSTREAM : process.argv[sourceIndex + 1]
+const upstream = upstreamArgument ? resolve(upstreamArgument) : undefined
 const write = process.argv.includes("--write")
 
-if (!upstream) throw new Error("pass --upstream <tailwindcss-v4.3.3-checkout>")
+if (!upstream) throw new Error("pass --upstream <tailwindcss-v4.3.3-checkout> or set STILLWIND_TAILWIND_UPSTREAM")
 
 function registrations(path, expression) {
   const source = readFileSync(path, "utf8")
