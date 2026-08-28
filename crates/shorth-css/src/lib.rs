@@ -367,40 +367,15 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
             return Err(ThemeError::UnterminatedTheme);
         };
         let open = theme_start + open_relative;
-        let Some(close_relative) = css[open + 1..].find('}') else {
+        let Some(close) = matching_brace(css, open) else {
             return Err(ThemeError::UnterminatedTheme);
         };
-        let close = open + 1 + close_relative;
 
-        let body = &css[open + 1..close];
-        let mut body_cursor = 0;
-        for declaration in body.split_inclusive(';') {
-            let declaration_start = open + 1 + body_cursor;
-            body_cursor += declaration.len();
-            let Some((raw_name, raw_value)) = declaration.trim_end_matches(';').split_once(':')
-            else {
-                continue;
-            };
-            let name = raw_name.trim();
-            let value = raw_value.trim();
-            if !name.starts_with("--") || value.is_empty() {
-                continue;
-            }
-
-            let name_start = declaration_start + declaration.find(name).unwrap_or_default();
-            let value_start = declaration_start + declaration.find(value).unwrap_or_default();
-            tokens.push(ThemeToken {
-                name: Spanned::new(
-                    name.to_owned(),
-                    Span::new(file, offset(name_start), offset(name_start + name.len())),
-                ),
-                value: Spanned::new(
-                    value.to_owned(),
-                    Span::new(file, offset(value_start), offset(value_start + value.len())),
-                ),
-                kind: classify_theme_token(name),
-            });
-        }
+        tokens.extend(extract_theme_declarations(
+            file,
+            &css[open + 1..close],
+            open + 1,
+        ));
 
         cursor = close + 1;
     }
@@ -411,6 +386,103 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         utilities: Vec::new(),
         variants: Vec::new(),
     })
+}
+
+fn extract_theme_declarations(file: FileId, body: &str, body_start: usize) -> Vec<ThemeToken> {
+    let mut tokens = Vec::new();
+    let mut cursor = 0;
+    while cursor < body.len() {
+        cursor += body[cursor..]
+            .find(|character: char| !character.is_whitespace())
+            .unwrap_or(body[cursor..].len());
+        if cursor >= body.len() {
+            break;
+        }
+        if body[cursor..].starts_with("/*") {
+            let Some(end) = body[cursor + 2..].find("*/") else {
+                break;
+            };
+            cursor += end + 4;
+            continue;
+        }
+        if body[cursor..].starts_with('@') {
+            let Some((offset, delimiter)) = body[cursor..]
+                .char_indices()
+                .find(|(_, character)| matches!(character, '{' | ';'))
+            else {
+                break;
+            };
+            if delimiter == ';' {
+                cursor += offset + 1;
+            } else if let Some(close) = matching_brace(body, cursor + offset) {
+                cursor = close + 1;
+            } else {
+                break;
+            }
+            continue;
+        }
+
+        let declaration_start = cursor;
+        let Some(end) = body[cursor..].find(';') else {
+            break;
+        };
+        let declaration = &body[cursor..cursor + end];
+        cursor += end + 1;
+        let Some((raw_name, raw_value)) = declaration.split_once(':') else {
+            continue;
+        };
+        let name = raw_name.trim();
+        let value = raw_value.trim();
+        if !name.starts_with("--") || value.is_empty() {
+            continue;
+        }
+        let name_start =
+            body_start + declaration_start + declaration.find(name).unwrap_or_default();
+        let value_start =
+            body_start + declaration_start + declaration.find(value).unwrap_or_default();
+        tokens.push(ThemeToken {
+            name: Spanned::new(
+                name.to_owned(),
+                Span::new(file, offset(name_start), offset(name_start + name.len())),
+            ),
+            value: Spanned::new(
+                value.to_owned(),
+                Span::new(file, offset(value_start), offset(value_start + value.len())),
+            ),
+            kind: classify_theme_token(name),
+        });
+    }
+    tokens
+}
+
+fn matching_brace(value: &str, open: usize) -> Option<usize> {
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for (offset, character) in value[open..].char_indices() {
+        if let Some(current_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == current_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn classify_theme_token(name: &str) -> ThemeTokenKind {
@@ -627,6 +699,24 @@ mod tests {
                 .iter()
                 .any(|token| token.name.value == "--spacing")
         );
+    }
+
+    #[test]
+    fn retains_default_tokens_after_nested_theme_keyframes() {
+        let theme = parse_tailwind_theme(&SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@theme { --color-brand: rebeccapurple; }",
+        ))
+        .unwrap();
+
+        assert!(theme.token_in(ThemeNamespace::Blur, "sm").is_some());
+        assert!(
+            theme
+                .token_in(ThemeNamespace::Perspective, "normal")
+                .is_some()
+        );
+        assert!(theme.token_in(ThemeNamespace::Color, "brand").is_some());
     }
 
     #[test]

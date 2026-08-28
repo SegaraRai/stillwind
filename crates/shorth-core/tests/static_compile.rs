@@ -19,48 +19,64 @@ fn fixture_candidates(fixture: &str, case_name: &str) -> String {
         .to_owned()
 }
 
+fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<String> {
+    let marker = format!("### {heading}\n\n```{language}\n");
+    let start = section.find(&marker)? + marker.len();
+    Some(section[start..].split_once("\n```")?.0.trim().to_owned())
+}
+
 #[test]
 #[ignore = "compatibility audit: enable once every fixture candidate is supported"]
 fn every_tailwind_fixture_candidate_compiles_without_diagnostics() {
     let case_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
-    let mut candidates = fs::read_dir(case_root)
+    let fixtures = fs::read_dir(case_root)
         .expect("fixture directory must exist")
         .map(|entry| entry.expect("fixture entry must be readable").path())
         .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
-        .map(|path| fs::read_to_string(path).expect("fixture must be readable"))
-        .flat_map(|fixture| {
-            fixture
-                .split("### Candidates\n\n```text\n")
-                .skip(1)
-                .filter_map(|section| section.split_once("\n```"))
-                .map(|(candidates, _)| candidates.replace('\n', " "))
-                .collect::<Vec<_>>()
+        .map(|path| {
+            (
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .expect("fixture file name must be UTF-8")
+                    .to_owned(),
+                fs::read_to_string(path).expect("fixture must be readable"),
+            )
         })
         .collect::<Vec<_>>();
-    candidates.sort();
-    let candidates = candidates.join(" ");
-    let component = SourceFile::new(
-        FileId(1),
-        "src/AllTailwindFixtures.tsx",
-        format!(
-            "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
-        ),
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
 
-    let result = Compiler::compile_react(&component, &theme);
-    let unknown = result
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| diagnostic.code == "SH001")
-        .map(|diagnostic| diagnostic.message.clone())
-        .collect::<Vec<_>>();
+    let mut unknown = Vec::new();
+    for (fixture_name, fixture) in fixtures {
+        for section in fixture.split("\n## `").skip(1) {
+            let Some(candidates) = fixture_code_block(section, "Candidates", "text") else {
+                continue;
+            };
+            let input_css = fixture_code_block(section, "Input CSS", "css")
+                .unwrap_or_else(|| "@theme {}".to_owned());
+            let component = SourceFile::new(
+                FileId(1),
+                "src/Fixture.tsx",
+                format!(
+                    "import {{ style }} from \"stillwind/react\"; const props = style({:?});",
+                    candidates.replace('\n', " ")
+                ),
+            );
+            let theme = SourceFile::new(FileId(2), "stillwind.css", input_css);
+            let result = Compiler::compile_react(&component, &theme);
+            unknown.extend(
+                result
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code == "SH001")
+                    .map(|diagnostic| format!("{fixture_name}: {}", diagnostic.message)),
+            );
+        }
+    }
+    unknown.sort();
 
     assert!(
         unknown.is_empty(),
         "unresolved fixture candidates: {unknown:#?}"
     );
-    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
 }
 
 #[test]
@@ -400,12 +416,13 @@ fn resolves_css_defined_custom_utilities_and_variants() {
         FileId(1),
         "src/App.tsx",
         r#"import { style } from "stillwind/react";
-const props = style("content-auto data-checked:content-auto");"#,
+const props = style("content-auto data-checked:content-auto tab-8");"#,
     );
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/shorth.css",
         r#"@utility content-auto { content-visibility: auto; }
+@utility tab-* { tab-size: --value(integer); }
 @custom-variant data-checked (&[data-ui~="checked"]);"#,
     );
 
@@ -414,6 +431,7 @@ const props = style("content-auto data-checked:content-auto");"#,
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("content-visibility: auto;"));
     assert!(result.css.contains("[data-ui~=\"checked\"]{"));
+    assert!(result.css.contains("tab-size: 8;"));
 }
 
 #[test]

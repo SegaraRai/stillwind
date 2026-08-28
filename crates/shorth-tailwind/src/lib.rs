@@ -538,6 +538,16 @@ fn resolve_value_domains(
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
+        if domain == "integer" {
+            return capture
+                .filter(|value| value.parse::<i64>().is_ok())
+                .map(str::to_owned);
+        }
+        if domain == "number" {
+            return capture
+                .filter(|value| value.parse::<f64>().is_ok())
+                .map(str::to_owned);
+        }
         if domain == "--spacing()" {
             return capture.and_then(|capture| {
                 theme_value(ThemeNamespace::Spacing, capture, negative, theme)
@@ -549,6 +559,9 @@ fn resolve_value_domains(
             .and_then(ThemeNamespace::parse)
         {
             return capture.and_then(|capture| theme_value(namespace, capture, negative, theme));
+        }
+        if !domain.starts_with('[') && !domain.starts_with("--") {
+            return capture.filter(|value| *value == domain).map(str::to_owned);
         }
         let hint = domain.strip_prefix('[')?.strip_suffix(']')?;
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
@@ -878,6 +891,26 @@ mod tests {
                 .unwrap()
                 .declaration,
             "--tw-gradient-position:to right;background-image:linear-gradient(var(--tw-gradient-stops));"
+        );
+    }
+
+    #[test]
+    fn resolves_numeric_css_domains_and_default_filter_tokens() {
+        let theme = theme();
+        let custom_theme = ThemeIndex {
+            utilities: shorth_css::parse_utility_definitions(
+                "@utility tab-* { tab-size: --value(integer); }",
+            ),
+            ..ThemeIndex::default()
+        };
+
+        assert_eq!(
+            resolve_utility("tab-8", &custom_theme).unwrap().declaration,
+            "tab-size: 8;"
+        );
+        assert_eq!(
+            resolve_utility("blur-sm", &theme).unwrap().declaration,
+            "--tw-blur:blur(var(--blur-sm));filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
         );
     }
 
