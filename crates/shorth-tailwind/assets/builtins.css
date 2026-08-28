@@ -2542,6 +2542,63 @@
 @utility opacity-* {
   opacity: --value([*]);
 }
+@utility opacity-* {
+  opacity: calc(--value(integer) * 1%);
+}
+@utility flex-* {
+  flex: --value(integer, [*]);
+}
+@utility order-* {
+  order: --value(integer, [integer]);
+}
+@utility -order-* {
+  order: calc(--value(integer) * -1);
+}
+@utility columns-* {
+  columns: --value(integer, [integer]);
+}
+@utility rotate-* {
+  rotate: calc(--value(integer) * 1deg);
+}
+@utility -rotate-* {
+  rotate: calc(--value(integer) * -1deg);
+}
+@utility skew-* {
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg));
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility -skew-* {
+  --tw-skew-x: skewX(calc(--value(integer) * -1deg));
+  --tw-skew-y: skewY(calc(--value(integer) * -1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+@utility brightness-* {
+  filter: brightness(calc(--value(integer) * 1%));
+}
+@utility contrast-* {
+  filter: contrast(calc(--value(integer) * 1%));
+}
+@utility grayscale-* {
+  filter: grayscale(calc(--value(integer) * 1%));
+}
+@utility invert-* {
+  filter: invert(calc(--value(integer) * 1%));
+}
+@utility saturate-* {
+  filter: saturate(calc(--value(integer) * 1%));
+}
+@utility sepia-* {
+  filter: sepia(calc(--value(integer) * 1%));
+}
+@utility hue-rotate-* {
+  filter: hue-rotate(calc(--value(integer) * 1deg));
+}
+@utility outline-offset-* {
+  outline-offset: --value(--spacing-*, --spacing(), [length]);
+}
 @utility size-* {
   width: --value(--spacing-*, --spacing(), [length]);
   height: --value(--spacing-*, --spacing(), [length]);
