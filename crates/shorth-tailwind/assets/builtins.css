@@ -2497,3 +2497,28 @@
     @slot;
   }
 }
+@variant min-* {
+  @media (width >= --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+@variant max-* {
+  @media (width < --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+@variant @* {
+  @container (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+@variant @min-* {
+  @container (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+@variant @max-* {
+  @container (width < --value(--container-*)) {
+    @slot;
+  }
+}

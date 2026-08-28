@@ -313,6 +313,7 @@ fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<Variant
     let (custom, capture) = find_registered_variant(&theme.variants, value)
         .or_else(|| find_registered_variant(builtin_variants(), value))?;
     let body = substitute_variant_capture(&custom.body, capture)?;
+    let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
     resolve_variant_body(&body).or_else(|| {
         substitute_variant_capture(&custom.selector, capture)
             .map(VariantApplication::SelectorTemplate)
@@ -352,6 +353,47 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
             .replace(":root", &format!(":{capture}"))
             .replace("0n", &capture),
     )
+}
+
+fn resolve_variant_css_placeholders(
+    body: &str,
+    variant_name: &str,
+    value: &str,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let capture = variant_name
+        .strip_suffix('*')
+        .and_then(|prefix| value.strip_prefix(prefix));
+    let mut body = body.to_owned();
+    while let Some(start) = body.find("--value(") {
+        let open = start + "--value".len();
+        let end = closing_parenthesis(&body, open)?;
+        let replacement = resolve_variant_value_domains(&body[open + 1..end], capture, theme)?;
+        body.replace_range(start..=end, &replacement);
+    }
+    (!body.contains("--value(")).then_some(body)
+}
+
+fn resolve_variant_value_domains(
+    domains: &str,
+    capture: Option<&str>,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    split_domains(domains).into_iter().find_map(|domain| {
+        let domain = domain.trim();
+        if let Some(namespace) = domain
+            .strip_prefix("--")
+            .and_then(|domain| domain.strip_suffix("-*"))
+            .and_then(ThemeNamespace::parse)
+        {
+            return capture.and_then(|name| {
+                theme
+                    .token_in(namespace, name)
+                    .map(|token| token.value.value.clone())
+            });
+        }
+        resolve_value_domains(domain, capture, false, theme)
+    })
 }
 
 fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
@@ -414,6 +456,24 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
             });
         }
         return Some(VariantApplication::Media(condition));
+    }
+    if let Some(start) = body.find("@container ") {
+        let condition_start = start + "@container ".len();
+        let condition_end = body[condition_start..].find('{')? + condition_start;
+        return Some(VariantApplication::Container(
+            body[condition_start..condition_end].trim().to_owned(),
+        ));
+    }
+    if let Some(start) = body.find("@supports ") {
+        let condition_start = start + "@supports ".len();
+        let condition_end = body[condition_start..].find('{')? + condition_start;
+        let condition = body[condition_start..condition_end]
+            .trim()
+            .strip_prefix('(')
+            .and_then(|condition| condition.strip_suffix(')'))?
+            .trim()
+            .to_owned();
+        return Some(VariantApplication::Supports(condition));
     }
     selector_from_variant_body(body).map(VariantApplication::SelectorTemplate)
 }
@@ -1267,6 +1327,32 @@ mod tests {
             Some(VariantApplication::SelectorTemplate(
                 "&[aria-expanded=\"true\"]".to_owned()
             ))
+        );
+    }
+
+    #[test]
+    fn resolves_wildcard_conditional_variants_from_css() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@theme { --breakpoint-narrow: 40rem; }\n@variant narrow-* { @media (width < --value(--breakpoint-*)) { @slot; } }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_variant(&parse_candidate("min-md:flex").unwrap().variants[0], &theme),
+            Some(VariantApplication::Media("(width >= 48rem)".to_owned()))
+        );
+        assert_eq!(
+            resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
+            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
+        );
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("narrow-narrow:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::Media("(width < 40rem)".to_owned()))
         );
     }
 }
