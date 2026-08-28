@@ -692,7 +692,7 @@ const panel = style("rounded-md", enter("duration-normal ease-standard both"), {
     assert!(
         result
             .css
-            .contains("from{opacity:0;transform:translateY(var(--spacing-2)) scale(0.98);}")
+            .contains("from{opacity:0;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:calc(98*1%);--tw-scale-y:calc(98*1%);--tw-scale-z:calc(98*1%);scale:var(--tw-scale-x) var(--tw-scale-y);}")
     );
     assert!(result.css.contains("animation-name:--sw-a-"));
     assert!(

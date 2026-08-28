@@ -411,9 +411,6 @@ fn resolve_named_utility(
     if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    if let Some(declaration) = resolve_special(name, modifier, negative, theme) {
-        return Some(UtilityResolution::plain(declaration));
-    }
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
@@ -696,32 +693,6 @@ fn split_domains(value: &str) -> Vec<&str> {
     }
     domains.push(&value[start..]);
     domains
-}
-
-fn resolve_special(
-    name: &str,
-    modifier: Option<&Value>,
-    negative: bool,
-    theme: &ThemeIndex,
-) -> Option<String> {
-    for (prefix, property) in [
-        ("translate-x-", "translateX"),
-        ("translate-y-", "translateY"),
-    ] {
-        if let Some(value) = name.strip_prefix(prefix) {
-            let value = theme_value(ThemeNamespace::Spacing, value, negative, theme)?;
-            return Some(format!("transform:{property}({value});"));
-        }
-    }
-    if let Some(percent) = name
-        .strip_prefix("scale-")
-        .and_then(|value| value.parse::<u16>().ok())
-        && !negative
-        && modifier.is_none()
-    {
-        return Some(format!("transform:scale({});", f64::from(percent) / 100.0));
-    }
-    None
 }
 
 fn theme_value(
@@ -1197,6 +1168,28 @@ mod tests {
         assert_eq!(
             resolve_utility("grid-cols-13", &theme).unwrap().declaration,
             "grid-template-columns:repeat(13,minmax(0,1fr));"
+        );
+    }
+
+    #[test]
+    fn resolves_translate_and_scale_fallbacks_from_css_value_domains() {
+        let theme = theme();
+
+        assert_eq!(
+            resolve_utility("translate-x-[12px]", &theme)
+                .unwrap()
+                .declaration,
+            "--tw-translate-x:12px;translate:var(--tw-translate-x) var(--tw-translate-y);"
+        );
+        assert_eq!(
+            resolve_utility("-translate-y-[12px]", &theme)
+                .unwrap()
+                .declaration,
+            "--tw-translate-y:calc(12px * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
+        );
+        assert_eq!(
+            resolve_utility("scale-[0.8]", &theme).unwrap().declaration,
+            "--tw-scale-x:0.8;--tw-scale-y:0.8;--tw-scale-z:0.8;scale:var(--tw-scale-x) var(--tw-scale-y);"
         );
     }
 

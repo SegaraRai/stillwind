@@ -2030,6 +2030,34 @@
   width: --value(--spacing-*, --spacing(), [length]);
   height: --value(--spacing-*, --spacing(), [length]);
 }
+@utility translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), [*]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility -translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), [*]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), [*]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility -translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), [*]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility scale-* {
+  --tw-scale-x: calc(--value(integer) * 1%);
+  --tw-scale-y: calc(--value(integer) * 1%);
+  --tw-scale-z: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility scale-* {
+  --tw-scale-x: --value([*]);
+  --tw-scale-y: --value([*]);
+  --tw-scale-z: --value([*]);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
 @utility order-* {
   order: --value([*]);
 }
