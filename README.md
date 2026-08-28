@@ -95,6 +95,36 @@ relationships across component boundaries, `children`, or portals. Vue, Svelte,
 Astro, a full formatter, and full Tailwind candidate compatibility remain
 separate frontend/grammar work.
 
+### Extending the same registry
+
+Built-ins and application extensions use the same CSS registry. `@utility`
+supports Tailwind-shaped `--value(...)` domains, while `@variant` uses `@slot`
+for the generated selector. A trailing `*` captures the candidate suffix.
+
+```css
+@utility surface-* {
+  background-color: --value(--color-*);
+}
+
+@variant state-* {
+  &[data-state="--value()"] {
+    @slot;
+  }
+}
+
+@variant narrow-* {
+  @media (width < --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+```
+
+The examples above compile `surface-brand`, `state-open:bg-accent`, and
+`narrow-sm:grid` without a JavaScript registry entry. In selectors, `--value()`
+substitutes the wildcard suffix; in conditional at-rules, token domains resolve
+to the theme token's concrete value. An attribute-name capture uses CSS's
+escaped-star spelling, for example `[aria-\*="true"]` in `@variant aria-*`.
+
 Tailwind v4 documents this CSS-first model, its `@theme` namespaces, and its
 layer order in its [theme documentation](https://tailwindcss.com/docs/theme)
 and [functions/directives reference](https://tailwindcss.com/docs/functions-and-directives).
