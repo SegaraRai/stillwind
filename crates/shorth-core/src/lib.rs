@@ -898,7 +898,7 @@ fn emit_utility_rules(
                 utility,
                 theme,
                 &nested.declaration,
-                Some(&nested.condition),
+                Some(nested),
             ));
         }
     }
@@ -909,7 +909,7 @@ fn render_utility_rule(
     utility: &CompiledUtility,
     theme: &shorth_css::ThemeIndex,
     declaration: &str,
-    nested_supports: Option<&str>,
+    nested_rule: Option<&shorth_tailwind::NestedUtilityRule>,
 ) -> String {
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
@@ -951,8 +951,15 @@ fn render_utility_rule(
         }
     }
     let mut rule = format!("{selector}{{{declaration}}}");
-    if let Some(condition) = nested_supports {
-        rule = format!("@supports ({condition}){{{rule}}}");
+    if let Some(nested) = nested_rule {
+        rule = match nested.at_rule {
+            shorth_tailwind::NestedUtilityAtRule::Media => {
+                format!("@media {}{{{rule}}}", nested.condition)
+            }
+            shorth_tailwind::NestedUtilityAtRule::Supports => {
+                format!("@supports ({}){{{rule}}}", nested.condition)
+            }
+        };
     }
     for condition in supports.into_iter().rev() {
         rule = format!("@supports ({condition}){{{rule}}}");

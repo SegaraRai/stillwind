@@ -20,9 +20,19 @@ pub struct ResolvedUtility {
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NestedUtilityRule {
+    pub at_rule: NestedUtilityAtRule,
     pub condition: String,
     pub declaration: String,
 }
+
+/// The CSS conditional wrapper associated with a nested utility declaration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NestedUtilityAtRule {
+    Media,
+    Supports,
+}
+
+type ParsedNestedUtilityRule = (NestedUtilityAtRule, String, String);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct UtilityResolution {
@@ -453,14 +463,15 @@ fn resolve_css_utility_body(
         return None;
     }
     let (selector, body) = split_utility_selector(&utility.body)?;
-    let (body, nested) = split_nested_supports(body)?;
+    let (body, nested) = split_nested_conditions(body)?;
     let declaration =
         resolve_css_placeholders(&body, utility.name.as_str(), name, modifier, theme)?;
     let nested = nested
         .into_iter()
-        .map(|(condition, body)| {
+        .map(|(at_rule, condition, body)| {
             resolve_css_placeholders(&body, utility.name.as_str(), name, modifier, theme).map(
                 |declaration| NestedUtilityRule {
+                    at_rule,
                     condition,
                     declaration,
                 },
@@ -516,33 +527,49 @@ fn resolve_css_placeholders(
         .then_some(body)
 }
 
-fn split_nested_supports(body: &str) -> Option<(String, Vec<(String, String)>)> {
-    let Some(first) = body.find("@supports") else {
-        return Some((body.trim().to_owned(), Vec::new()));
-    };
+fn split_nested_conditions(body: &str) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
     let mut direct = String::with_capacity(body.len());
     let mut nested = Vec::new();
     let mut cursor = 0;
-    let mut start = first;
-    loop {
+    while let Some((start, at_rule, keyword)) = next_nested_condition(body, cursor) {
         direct.push_str(&body[cursor..start]);
         let open = body[start..].find('{')? + start;
         let close = closing_brace(body, open)?;
-        let condition = body[start + "@supports".len()..open].trim();
-        let condition = condition
-            .strip_prefix('(')
-            .and_then(|value| value.strip_suffix(')'))?
-            .trim()
-            .to_owned();
-        nested.push((condition, body[open + 1..close].trim().to_owned()));
-        cursor = close + 1;
-        let Some(next) = body[cursor..].find("@supports") else {
-            direct.push_str(&body[cursor..]);
-            break;
+        let condition = body[start + keyword.len()..open].trim();
+        let condition = match at_rule {
+            NestedUtilityAtRule::Media => condition.to_owned(),
+            NestedUtilityAtRule::Supports => condition
+                .strip_prefix('(')
+                .and_then(|value| value.strip_suffix(')'))?
+                .trim()
+                .to_owned(),
         };
-        start = cursor + next;
+        nested.push((at_rule, condition, body[open + 1..close].trim().to_owned()));
+        cursor = close + 1;
     }
+    direct.push_str(&body[cursor..]);
     Some((direct.trim().to_owned(), nested))
+}
+
+fn next_nested_condition(
+    body: &str,
+    cursor: usize,
+) -> Option<(usize, NestedUtilityAtRule, &'static str)> {
+    let supports = body[cursor..]
+        .find("@supports")
+        .map(|offset| (cursor + offset, NestedUtilityAtRule::Supports, "@supports"));
+    let media = body[cursor..]
+        .find("@media")
+        .map(|offset| (cursor + offset, NestedUtilityAtRule::Media, "@media"));
+    match (supports, media) {
+        (Some(supports), Some(media)) => Some(if supports.0 < media.0 {
+            supports
+        } else {
+            media
+        }),
+        (Some(condition), None) | (None, Some(condition)) => Some(condition),
+        (None, None) => None,
+    }
 }
 
 fn split_utility_selector(body: &str) -> Option<(Option<String>, &str)> {
@@ -967,6 +994,25 @@ mod tests {
                 .declaration,
             "--tw-gradient-position:to right;background-image:linear-gradient(var(--tw-gradient-stops));"
         );
+    }
+
+    #[test]
+    fn preserves_supports_and_media_conditions_from_css_utilities() {
+        let theme = theme();
+        let container = resolve_utility("container", &theme).unwrap();
+        let outline = resolve_utility("outline-hidden", &theme).unwrap();
+
+        assert_eq!(container.declaration, "width:100%;");
+        assert!(container.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Media
+                && rule.condition == "(width>=40rem)"
+                && rule.declaration == "max-width:40rem;"
+        }));
+        assert!(outline.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Media
+                && rule.condition == "(forced-colors:active)"
+                && rule.declaration == "outline:2px solid transparent;outline-offset:2px;"
+        }));
     }
 
     #[test]

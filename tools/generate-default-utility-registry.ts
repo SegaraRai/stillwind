@@ -15,15 +15,21 @@ const input =
 const rules = [];
 const skipped = [];
 const unsupportedAtRules = new Map();
+const candidatesByAtRule = new Map();
 
 for (const candidate of candidates) {
   const css = await compileTailwindCss({ css: input, candidates: [candidate], base: fixtureRoot });
   const body = firstUtilityBody(css);
-  if (!body || /@(?!supports\b)/u.test(body)) {
+  if (!body || /@(?!supports\b|media\b)/u.test(body)) {
     skipped.push(candidate);
     for (const match of body?.matchAll(/@(\w[\w-]*)/gu) ?? []) {
-      if (match[1] !== "supports")
+      if (match[1] !== "supports" && match[1] !== "media")
         unsupportedAtRules.set(match[1], (unsupportedAtRules.get(match[1]) ?? 0) + 1);
+      if (match[1] !== "supports" && match[1] !== "media") {
+        const entries = candidatesByAtRule.get(match[1]) ?? [];
+        entries.push(candidate);
+        candidatesByAtRule.set(match[1], entries);
+      }
     }
     continue;
   }
@@ -38,6 +44,8 @@ if (unsupportedAtRules.size > 0)
       .map(([name, count]) => `@${name} (${count})`)
       .join(", ")}`,
   );
+for (const [name, entries] of candidatesByAtRule)
+  console.warn(`@${name} candidates: ${entries.join(", ")}`);
 const output = `/* GENERATED DEFAULT COMPLETIONS. Run vp run @stillwind/tools#registry:defaults:write. */\n${rules.join("\n")}\n`;
 if (write) writeFileSync(outputPath, output);
 console.log(`Lowered ${rules.length}/${candidates.length} default completions into CSS registry.`);

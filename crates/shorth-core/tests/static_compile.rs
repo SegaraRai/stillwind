@@ -147,6 +147,26 @@ const props = style("bg-linear-to-r");"#,
 }
 
 #[test]
+fn emits_nested_media_from_css_utility_definitions() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Container.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("container outline-hidden");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("width:100%;"));
+    assert!(result.css.contains("@media (width>=40rem){._s_"));
+    assert!(result.css.contains("max-width:40rem;"));
+    assert!(result.css.contains("@media (forced-colors:active){._s_"));
+    assert!(result.css.contains("outline:2px solid transparent;"));
+}
+
+#[test]
 fn emits_selector_bearing_css_utilities_on_their_target_children() {
     let component = SourceFile::new(
         FileId(1),
@@ -209,7 +229,7 @@ export function SaveButton() {
     assert!(
         result
             .css
-            .starts_with("@layer theme, base, components, utilities;")
+            .starts_with("@layer properties;\n@layer theme, base, components, utilities;")
     );
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("@layer base"));
@@ -346,7 +366,7 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     assert!(
         result
             .css
-            .starts_with("@layer theme, base, components, utilities;\n")
+            .starts_with("@layer properties;\n@layer theme, base, components, utilities;\n")
     );
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("--spacing-4:1rem;"));
