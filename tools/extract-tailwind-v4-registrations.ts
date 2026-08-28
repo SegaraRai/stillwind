@@ -3,12 +3,14 @@ import { join, resolve } from "node:path"
 
 const root = resolve(import.meta.dirname, "..")
 const fixtureRoot = join(root, "fixtures", "tailwind-v4")
+const installedTailwind = JSON.parse(readFileSync(join(root, "tools", "node_modules", "tailwindcss", "package.json"), "utf8"))
+const tailwindLabel = `Tailwind CSS v${installedTailwind.version}`
 const sourceIndex = process.argv.indexOf("--upstream")
 const upstreamArgument = sourceIndex === -1 ? process.env.STILLWIND_TAILWIND_UPSTREAM : process.argv[sourceIndex + 1]
 const upstream = upstreamArgument ? resolve(upstreamArgument) : undefined
 const write = process.argv.includes("--write")
 
-if (!upstream) throw new Error("pass --upstream <tailwindcss-v4.3.3-checkout> or set STILLWIND_TAILWIND_UPSTREAM")
+if (!upstream) throw new Error("pass --upstream <tailwindcss-checkout> or set STILLWIND_TAILWIND_UPSTREAM")
 
 function registrations(path, expression) {
   const source = readFileSync(path, "utf8")
@@ -43,9 +45,9 @@ const defaultCompletions = [...classListSnapshot.matchAll(/^  "([^"]+)",?$/gm)].
 const variantSnapshot = /exports\[`getVariants 1`\] = `\n([\s\S]*?)\n`;/m.exec(intellisenseSnapshot)?.[1]
 if (!variantSnapshot) throw new Error("could not find the default getVariants snapshot")
 
-const catalog = `# Tailwind v4.3.3 direct registrations\n\nThis file is generated from the pinned upstream source. It records every\ndirect \`staticUtility\`, \`functionalUtility\`, and static/functional/compound\nvariant registration. Template-generated registrations and parameterized grammar\nare covered by the dedicated candidate and dynamic-variant fixtures.\n\n## Static utilities (${staticUtilities.length})\n\n\`\`\`text\n${lines(staticUtilities)}\`\`\`\n\n## Functional utility roots (${functionalUtilities.length})\n\n\`\`\`text\n${lines(functionalUtilities)}\`\`\`\n\n## Static variants (${staticVariants.length})\n\n\`\`\`text\n${lines(staticVariants)}\`\`\`\n\n## Functional variant roots (${functionalVariants.length})\n\n\`\`\`text\n${lines(functionalVariants)}\`\`\`\n\n## Compound variant roots (${compoundVariants.length})\n\n\`\`\`text\n${lines(compoundVariants)}\`\`\`\n`
-const completionCatalog = `# Tailwind v4.3.3 default completion catalog\n\nThis is the complete default-theme class list from upstream's\n\`getClassList\` IntelliSense snapshot. It includes utility values generated\nfrom theme namespaces and loop-based registrations, complementing the direct\nregistration catalog.\n\n## Default completions (${defaultCompletions.length})\n\n\`\`\`text\n${lines(defaultCompletions, 8)}\`\`\`\n`
-const variantCatalog = `# Tailwind v4.3.3 variant catalog\n\nThis is the complete default \`getVariants\` IntelliSense snapshot from\nupstream. It preserves every variant name, its parameter suggestions, and\nmetadata used by the compiler's public completion surface. The executable\nfixtures cover every static registration and each dynamic grammar root.\n\n\`\`\`text\n${variantSnapshot.trim()}\n\`\`\`\n`
+const catalog = `# ${tailwindLabel} direct registrations\n\nThis file is generated from the upstream source matching the tools dependency. It records every\ndirect \`staticUtility\`, \`functionalUtility\`, and static/functional/compound\nvariant registration. Template-generated registrations and parameterized grammar\nare covered by the dedicated candidate and dynamic-variant fixtures.\n\n## Static utilities (${staticUtilities.length})\n\n\`\`\`text\n${lines(staticUtilities)}\`\`\`\n\n## Functional utility roots (${functionalUtilities.length})\n\n\`\`\`text\n${lines(functionalUtilities)}\`\`\`\n\n## Static variants (${staticVariants.length})\n\n\`\`\`text\n${lines(staticVariants)}\`\`\`\n\n## Functional variant roots (${functionalVariants.length})\n\n\`\`\`text\n${lines(functionalVariants)}\`\`\`\n\n## Compound variant roots (${compoundVariants.length})\n\n\`\`\`text\n${lines(compoundVariants)}\`\`\`\n`
+const completionCatalog = `# ${tailwindLabel} default completion catalog\n\nThis is the complete default-theme class list from upstream's\n\`getClassList\` IntelliSense snapshot. It includes utility values generated\nfrom theme namespaces and loop-based registrations, complementing the direct\nregistration catalog.\n\n## Default completions (${defaultCompletions.length})\n\n\`\`\`text\n${lines(defaultCompletions, 8)}\`\`\`\n`
+const variantCatalog = `# ${tailwindLabel} variant catalog\n\nThis is the complete default \`getVariants\` IntelliSense snapshot from\nupstream. It preserves every variant name, its parameter suggestions, and\nmetadata used by the compiler's public completion surface. The executable\nfixtures cover every static registration and each dynamic grammar root.\n\n\`\`\`text\n${variantSnapshot.trim()}\n\`\`\`\n`
 
 const input = '@import "tailwindcss/theme" layer(theme);\n@import "tailwindcss/utilities" layer(utilities);'
 const candidateBlocks = new Map([

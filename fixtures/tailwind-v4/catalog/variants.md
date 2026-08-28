@@ -1,4 +1,4 @@
-# Tailwind v4.3.3 variant catalog
+# Tailwind CSS v4.3.3 variant catalog
 
 This is the complete default `getVariants` IntelliSense snapshot from
 upstream. It preserves every variant name, its parameter suggestions, and

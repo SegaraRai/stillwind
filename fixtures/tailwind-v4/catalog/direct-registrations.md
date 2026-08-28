@@ -1,6 +1,6 @@
-# Tailwind v4.3.3 direct registrations
+# Tailwind CSS v4.3.3 direct registrations
 
-This file is generated from the pinned upstream source. It records every
+This file is generated from the upstream source matching the tools dependency. It records every
 direct `staticUtility`, `functionalUtility`, and static/functional/compound
 variant registration. Template-generated registrations and parameterized grammar
 are covered by the dedicated candidate and dynamic-variant fixtures.

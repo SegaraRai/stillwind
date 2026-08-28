@@ -1,4 +1,4 @@
-# Tailwind v4.3.3 default completion catalog
+# Tailwind CSS v4.3.3 default completion catalog
 
 This is the complete default-theme class list from upstream's
 `getClassList` IntelliSense snapshot. It includes utility values generated

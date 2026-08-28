@@ -1,5 +1,0 @@
-version = "4.3.3"
-repository = "https://github.com/tailwindlabs/tailwindcss"
-commit = "c2b24dd15fed1c59dd521bd86082f520c9f5ad0d"
-license = "MIT"
-compiler_package = "tailwindcss@4.3.3"

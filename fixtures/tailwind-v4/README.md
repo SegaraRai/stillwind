@@ -8,7 +8,6 @@ the oracle; Stillwind itself is never used to generate an expected result.
 
 ```
 fixtures/tailwind-v4/
-  oracle.toml                 # pinned upstream release and commit
   cases/*.fixture.md          # one reviewable Markdown file per capability
 tools/regenerate-tailwind-v4-fixtures.ts
 ```
@@ -70,11 +69,10 @@ vp run --filter @stillwind/tools fixtures:write
 
 ## Oracle policy
 
-The exact tag and Git commit are locked in `oracle.toml`. Regeneration calls
-the pinned `tailwindcss` compiler API directly from `@stillwind/tools`;
-Stillwind compiler packages do not depend on Tailwind. A release upgrade must
-update the manifest, the tool package, and every fixture in one reviewable
-commit.
+Regeneration calls the pinned `tailwindcss` compiler API directly from
+`@stillwind/tools`; Stillwind compiler packages do not depend on Tailwind. A
+release upgrade changes that package's development dependency and regenerates
+every fixture in one reviewable commit.
 
 Run:
 

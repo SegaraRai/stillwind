@@ -1,9 +1,9 @@
-# Tailwind CSS v4.3.3 coverage map
+# Tailwind CSS v4 coverage map
 
-The source of truth for this suite is Tailwind CSS `v4.3.3`
-(`c2b24dd15fed1c59dd521bd86082f520c9f5ad0d`). The fixture families mirror
-the upstream compiler's public candidate and directive surface, rather than
-Stillwind's current implementation details.
+The source of truth for this suite is the `tailwindcss` version pinned by
+`@stillwind/tools`. The fixture families mirror the upstream compiler's public
+candidate and directive surface, rather than Stillwind's current implementation
+details.
 
 | Upstream surface | Fixture family | Representative coverage |
 | --- | --- | --- |
