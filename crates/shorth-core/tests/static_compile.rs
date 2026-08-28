@@ -1,6 +1,57 @@
 use shorth_core::Compiler;
 use shorth_source::{FileId, SourceFile};
 
+fn fixture_candidates(fixture: &str, case_name: &str) -> String {
+    let case_start = fixture
+        .find(&format!("## `{case_name}`"))
+        .expect("fixture case must exist");
+    let candidates_start = fixture[case_start..]
+        .find("### Candidates\n\n```text\n")
+        .expect("fixture candidates must exist")
+        + case_start
+        + "### Candidates\n\n```text\n".len();
+    fixture[candidates_start..]
+        .split_once("\n```")
+        .expect("fixture candidates must close")
+        .0
+        .trim()
+        .to_owned()
+}
+
+#[test]
+fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
+    let foundations = include_str!("../../../fixtures/tailwind-v4/cases/foundations.fixture.md");
+    let variants = include_str!("../../../fixtures/tailwind-v4/cases/variants.fixture.md");
+    let candidates = [
+        fixture_candidates(foundations, "foundations.preflight-and-default-theme"),
+        fixture_candidates(
+            variants,
+            "variants.state-attribute-responsive-and-arbitrary",
+        ),
+    ]
+    .join(" ");
+    let component = SourceFile::new(
+        FileId(1),
+        "src/FixtureCard.tsx",
+        format!(
+            "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidates}\");"
+        ),
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains("background-color:var(--color-red-500);")
+    );
+    assert!(result.css.contains("@media (width >= 48rem)"));
+    assert!(result.css.contains("[aria-busy=\"true\"]"));
+    assert!(result.css.contains(">svg{"));
+}
+
 #[test]
 fn compiles_a_real_react_style_call_against_a_css_theme() {
     let component = SourceFile::new(

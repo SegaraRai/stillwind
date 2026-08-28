@@ -3,7 +3,7 @@
 use std::fmt::Write;
 
 use serde::Serialize;
-use shorth_grammar::lex_utilities;
+use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
     AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, UnsafeDeclaration,
     ViewTransitionDefinition,
@@ -832,365 +832,20 @@ fn render_react_props(
 
 #[derive(Clone, Debug)]
 struct CompiledUtility {
-    variants: Vec<String>,
+    variants: Vec<Variant>,
     declaration: String,
     selector: Option<String>,
     container: Option<String>,
 }
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
-    let (variants, base) = split_variants(utility);
-    let declaration = resolve_static_utility(base)
-        .or_else(|| resolve_themed_utility(base, theme))
-        .or_else(|| resolve_custom_utility(base, theme))
-        .or_else(|| resolve_arbitrary_utility(base))?;
+    let resolved = shorth_tailwind::resolve_utility(utility, theme)?;
     Some(CompiledUtility {
-        variants,
-        declaration,
+        variants: resolved.candidate.variants,
+        declaration: resolved.declaration,
         selector: None,
         container: None,
     })
-}
-
-fn resolve_custom_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
-    let custom = theme.utility(utility)?;
-    (!custom.body.contains('&')).then(|| custom.body.clone())
-}
-
-fn decode_arbitrary(value: &str) -> String {
-    let mut output = String::new();
-    let mut escaped = false;
-    for character in value.chars() {
-        if escaped {
-            output.push(character);
-            escaped = false;
-        } else if character == '\\' {
-            escaped = true;
-        } else if character == '_' {
-            output.push(' ');
-        } else {
-            output.push(character);
-        }
-    }
-    output
-}
-
-fn arbitrary_value(value: &str) -> Option<String> {
-    let value = value.strip_prefix('[')?.strip_suffix(']')?;
-    Some(decode_arbitrary(value))
-}
-
-fn resolve_arbitrary_utility(utility: &str) -> Option<String> {
-    if let Some(value) = arbitrary_value(utility)
-        && let Some((property, value)) = value.split_once(':')
-    {
-        return Some(format!("{property}:{value};"));
-    }
-    for (prefix, property) in [
-        ("bg-", "background-color"),
-        ("text-", "color"),
-        ("border-", "border-color"),
-        ("outline-", "outline-color"),
-        ("p-", "padding"),
-        ("px-", "padding-inline"),
-        ("py-", "padding-block"),
-        ("m-", "margin"),
-        ("mx-", "margin-inline"),
-        ("my-", "margin-block"),
-        ("w-", "width"),
-        ("h-", "height"),
-        ("min-w-", "min-width"),
-        ("min-h-", "min-height"),
-        ("max-w-", "max-width"),
-        ("max-h-", "max-height"),
-        ("gap-", "gap"),
-        ("rounded-", "border-radius"),
-    ] {
-        if let Some(value) = utility.strip_prefix(prefix).and_then(arbitrary_value) {
-            return Some(format!("{property}:{value};"));
-        }
-    }
-    None
-}
-
-fn resolve_static_utility(utility: &str) -> Option<String> {
-    const UTILITIES: &[(&str, &str)] = &[
-        ("block", "display:block;"),
-        ("inline-block", "display:inline-block;"),
-        ("contents", "display:contents;"),
-        ("flow-root", "display:flow-root;"),
-        ("flex", "display:flex;"),
-        ("inline-flex", "display:inline-flex;"),
-        ("flex-row", "flex-direction:row;"),
-        ("flex-col", "flex-direction:column;"),
-        ("flex-wrap", "flex-wrap:wrap;"),
-        ("flex-1", "flex:1 1 0%;"),
-        ("grow", "flex-grow:1;"),
-        ("grow-0", "flex-grow:0;"),
-        ("shrink", "flex-shrink:1;"),
-        ("shrink-0", "flex-shrink:0;"),
-        ("grid", "display:grid;"),
-        ("hidden", "display:none;"),
-        ("visible", "visibility:visible;"),
-        ("invisible", "visibility:hidden;"),
-        ("place-items-center", "place-items:center;"),
-        ("place-content-center", "place-content:center;"),
-        ("items-center", "align-items:center;"),
-        ("items-start", "align-items:flex-start;"),
-        ("items-end", "align-items:flex-end;"),
-        ("justify-center", "justify-content:center;"),
-        ("justify-between", "justify-content:space-between;"),
-        ("justify-start", "justify-content:flex-start;"),
-        ("justify-end", "justify-content:flex-end;"),
-        ("text-center", "text-align:center;"),
-        ("text-left", "text-align:left;"),
-        ("font-medium", "font-weight:500;"),
-        ("font-semibold", "font-weight:600;"),
-        ("font-bold", "font-weight:700;"),
-        ("cursor-wait", "cursor:wait;"),
-        ("cursor-pointer", "cursor:pointer;"),
-        ("relative", "position:relative;"),
-        ("absolute", "position:absolute;"),
-        ("fixed", "position:fixed;"),
-        ("sticky", "position:sticky;"),
-        ("static", "position:static;"),
-        ("border", "border-width:1px;"),
-        ("border-0", "border-width:0;"),
-        ("outline-0", "outline-width:0;"),
-        ("outline-1", "outline-width:1px;"),
-        ("outline-2", "outline-width:2px;"),
-        ("outline-offset-2", "outline-offset:2px;"),
-        ("position-area-block-end", "position-area:block-end;"),
-        ("overflow-hidden", "overflow:hidden;"),
-        (
-            "transition",
-            "transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-duration:.15s;transition-timing-function:cubic-bezier(.4,0,.2,1);",
-        ),
-        ("opacity-0", "opacity:0;"),
-        ("opacity-60", "opacity:.6;"),
-        ("opacity-100", "opacity:1;"),
-        ("translate-x-0", "transform:translateX(0);"),
-        ("translate-y-0", "transform:translateY(0);"),
-    ];
-    if let Some(columns) = utility.strip_prefix("grid-cols-")
-        && let Ok(columns) = columns.parse::<u8>()
-        && (1..=12).contains(&columns)
-    {
-        return Some(format!(
-            "grid-template-columns:repeat({columns},minmax(0,1fr));"
-        ));
-    }
-    UTILITIES
-        .iter()
-        .find_map(|(name, declaration)| (*name == utility).then(|| (*declaration).to_owned()))
-}
-
-#[allow(clippy::too_many_lines)] // The typed utility registry intentionally stays auditable in one table.
-fn resolve_themed_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
-    let (negative, utility) = utility
-        .strip_prefix('-')
-        .map_or((false, utility), |utility| (true, utility));
-    if theme.custom_property("--spacing").is_some() {
-        for (prefix, properties) in [
-            (
-                "size-",
-                "width:calc(var(--spacing) * {value});height:calc(var(--spacing) * {value});",
-            ),
-            (
-                "translate-x-",
-                "transform:translateX(calc(var(--spacing) * {value}));",
-            ),
-            (
-                "translate-y-",
-                "transform:translateY(calc(var(--spacing) * {value}));",
-            ),
-        ] {
-            if let Some(value) = utility.strip_prefix(prefix)
-                && let Ok(value) = value.parse::<f64>()
-            {
-                if theme.token("spacing", &value.to_string()).is_some() {
-                    continue;
-                }
-                let value = if negative { -value } else { value };
-                return Some(properties.replace("{value}", &value.to_string()));
-            }
-        }
-        for (prefix, property, supports_negative) in [
-            ("p-", "padding", false),
-            ("px-", "padding-inline", false),
-            ("py-", "padding-block", false),
-            ("pt-", "padding-top", false),
-            ("pr-", "padding-right", false),
-            ("pb-", "padding-bottom", false),
-            ("pl-", "padding-left", false),
-            ("m-", "margin", true),
-            ("mx-", "margin-inline", true),
-            ("my-", "margin-block", true),
-            ("mt-", "margin-top", true),
-            ("mr-", "margin-right", true),
-            ("mb-", "margin-bottom", true),
-            ("ml-", "margin-left", true),
-            ("gap-", "gap", false),
-            ("w-", "width", false),
-            ("h-", "height", false),
-            ("min-w-", "min-width", false),
-            ("min-h-", "min-height", false),
-            ("max-w-", "max-width", false),
-            ("max-h-", "max-height", false),
-            ("basis-", "flex-basis", false),
-        ] {
-            let Some(value) = utility.strip_prefix(prefix) else {
-                continue;
-            };
-            if theme.token("spacing", value).is_some() {
-                continue;
-            }
-            if let Ok(value) = value.parse::<f64>()
-                && (!negative || supports_negative)
-            {
-                let value = if negative { -value } else { value };
-                return Some(format!("{property}:calc(var(--spacing) * {value});"));
-            }
-            if value == "px" && !negative {
-                return Some(format!("{property}:1px;"));
-            }
-        }
-    }
-    if let Some((color, opacity)) = utility
-        .strip_prefix("bg-")
-        .and_then(|value| value.rsplit_once('/'))
-        && theme.token("color", color).is_some()
-    {
-        return Some(format!(
-            "background-color:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
-        ));
-    }
-    if let Some((prefix, color, opacity)) = ["bg", "text", "border", "outline"]
-        .into_iter()
-        .find_map(|prefix| {
-            utility
-                .strip_prefix(&format!("{prefix}-"))
-                .and_then(|value| value.rsplit_once('/'))
-                .map(|(color, opacity)| (prefix, color, opacity))
-        })
-        && theme.token("color", color).is_some()
-    {
-        let property = match prefix {
-            "bg" => "background-color",
-            "text" => "color",
-            "border" => "border-color",
-            "outline" => "outline-color",
-            _ => unreachable!("only known color utility prefixes are listed"),
-        };
-        return Some(format!(
-            "{property}:color-mix(in oklab,var(--color-{color}) {opacity}%,transparent);"
-        ));
-    }
-    if let Some(token) = utility.strip_prefix("size-")
-        && theme.token("spacing", token).is_some()
-    {
-        return Some(format!(
-            "width:var(--spacing-{token});height:var(--spacing-{token});"
-        ));
-    }
-    if let Some(token) = utility.strip_prefix("animate-")
-        && theme.token("animate", token).is_some()
-    {
-        return Some(format!("animation:var(--animate-{token});"));
-    }
-    if let Some(token) = utility.strip_prefix("translate-y-")
-        && theme.token("spacing", token).is_some()
-    {
-        let value = if negative {
-            format!("calc(var(--spacing-{token}) * -1)")
-        } else {
-            format!("var(--spacing-{token})")
-        };
-        return Some(format!("transform:translateY({value});"));
-    }
-    if let Some(token) = utility.strip_prefix("translate-x-")
-        && theme.token("spacing", token).is_some()
-    {
-        let value = if negative {
-            format!("calc(var(--spacing-{token}) * -1)")
-        } else {
-            format!("var(--spacing-{token})")
-        };
-        return Some(format!("transform:translateX({value});"));
-    }
-    if let Some(token) = utility.strip_prefix("scale-")
-        && let Ok(percent) = token.parse::<u16>()
-    {
-        return Some(format!("transform:scale({});", f64::from(percent) / 100.0));
-    }
-    for (prefix, namespace, property, supports_negative) in [
-        ("bg-", "color", "background-color", false),
-        ("text-", "color", "color", false),
-        ("border-", "color", "border-color", false),
-        ("outline-", "color", "outline-color", false),
-        ("p-", "spacing", "padding", false),
-        ("px-", "spacing", "padding-inline", false),
-        ("py-", "spacing", "padding-block", false),
-        ("pt-", "spacing", "padding-top", false),
-        ("pr-", "spacing", "padding-right", false),
-        ("pb-", "spacing", "padding-bottom", false),
-        ("pl-", "spacing", "padding-left", false),
-        ("m-", "spacing", "margin", true),
-        ("mx-", "spacing", "margin-inline", true),
-        ("my-", "spacing", "margin-block", true),
-        ("mt-", "spacing", "margin-top", true),
-        ("mr-", "spacing", "margin-right", true),
-        ("mb-", "spacing", "margin-bottom", true),
-        ("ml-", "spacing", "margin-left", true),
-        ("gap-", "spacing", "gap", false),
-        ("w-", "spacing", "width", false),
-        ("h-", "spacing", "height", false),
-        ("min-w-", "spacing", "min-width", false),
-        ("min-h-", "spacing", "min-height", false),
-        ("max-w-", "spacing", "max-width", false),
-        ("max-h-", "spacing", "max-height", false),
-        ("basis-", "spacing", "flex-basis", false),
-        ("rounded-", "radius", "border-radius", false),
-        ("shadow-", "shadow", "box-shadow", false),
-        ("text-", "text", "font-size", false),
-        ("font-", "font", "font-family", false),
-        ("leading-", "leading", "line-height", false),
-        ("tracking-", "tracking", "letter-spacing", false),
-        ("z-", "z-index", "z-index", false),
-        ("duration-", "duration", "transition-duration", false),
-        ("ease-", "ease", "transition-timing-function", false),
-    ] {
-        let Some(token) = utility.strip_prefix(prefix) else {
-            continue;
-        };
-        if theme.token(namespace, token).is_some() && (!negative || supports_negative) {
-            let value = if negative {
-                format!("calc(var(--{namespace}-{token}) * -1)")
-            } else {
-                format!("var(--{namespace}-{token})")
-            };
-            return Some(format!("{property}:{value};"));
-        }
-    }
-    None
-}
-
-fn split_variants(utility: &str) -> (Vec<String>, &str) {
-    let mut depth = 0_u8;
-    let mut start = 0;
-    let mut variants = Vec::new();
-    for (index, character) in utility.char_indices() {
-        match character {
-            '[' => depth = depth.saturating_add(1),
-            ']' => depth = depth.saturating_sub(1),
-            ':' if depth == 0 => {
-                variants.push(utility[start..index].to_owned());
-                start = index + 1;
-            }
-            _ => {}
-        }
-    }
-    (variants, &utility[start..])
 }
 
 fn emit_utility_rules(
@@ -1222,36 +877,28 @@ fn emit_utility_rules(
             |selector| selector.replace('&', &class_selector),
         );
         let mut media = Vec::new();
+        let mut supports = Vec::new();
         for variant in &utility.variants {
-            match variant.as_str() {
-                "hover" => selector.push_str(":hover"),
-                "focus" => selector.push_str(":focus"),
-                "focus-visible" => selector.push_str(":focus-visible"),
-                "active" => selector.push_str(":active"),
-                "disabled" => selector.push_str(":disabled"),
-                "dark" => media.push("(prefers-color-scheme: dark)".to_owned()),
-                value if value.starts_with("aria-[") && value.ends_with(']') => {
-                    if let Some((name, expected)) = value[6..value.len() - 1].split_once('=') {
-                        write!(&mut selector, "[aria-{name}=\"{expected}\"]")
-                            .expect("writing to a String cannot fail");
-                    }
+            match shorth_tailwind::resolve_variant(variant, theme) {
+                Some(shorth_tailwind::VariantApplication::SelectorSuffix(suffix)) => {
+                    selector.push_str(suffix);
                 }
-                value if value.starts_with("data-[") && value.ends_with(']') => {
-                    if let Some((name, expected)) = value[6..value.len() - 1].split_once('=') {
-                        write!(&mut selector, "[data-{name}=\"{expected}\"]")
-                            .expect("writing to a String cannot fail");
-                    }
+                Some(shorth_tailwind::VariantApplication::SelectorTemplate(template)) => {
+                    selector = template.replace('&', &selector);
                 }
-                value => {
-                    if let Some(variant) = theme.variant(value) {
-                        selector = variant.selector.replace('&', &selector);
-                    } else if let Some(token) = theme.value("breakpoint", value) {
-                        media.push(format!("(width >= {token})"));
-                    }
+                Some(shorth_tailwind::VariantApplication::Media(condition)) => {
+                    media.push(condition);
                 }
+                Some(shorth_tailwind::VariantApplication::Supports(condition)) => {
+                    supports.push(condition);
+                }
+                None => {}
             }
         }
         let mut rule = format!("{selector}{{{}}}", combine_declarations(&[utility]));
+        for condition in supports.into_iter().rev() {
+            rule = format!("@supports ({condition}){{{rule}}}");
+        }
         for condition in media.into_iter().rev() {
             rule = format!("@media {condition}{{{rule}}}");
         }

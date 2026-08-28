@@ -11,6 +11,7 @@ blake3.workspace = true
 serde.workspace = true
 shorth-css = { path = "../shorth-css" }
 shorth-grammar = { path = "../shorth-grammar" }
+shorth-tailwind = { path = "../shorth-tailwind" }
 shorth-ir = { path = "../shorth-ir" }
 shorth-js-oxc = { path = "../shorth-js-oxc" }
 shorth-source = { path = "../shorth-source" }

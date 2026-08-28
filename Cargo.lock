@@ -1101,6 +1101,7 @@ dependencies = [
  "shorth-ir",
  "shorth-js-oxc",
  "shorth-source",
+ "shorth-tailwind",
 ]
 
 [[package]]
@@ -1155,6 +1156,15 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "shorth-tailwind"
+version = "0.0.0"
+dependencies = [
+ "shorth-css",
+ "shorth-grammar",
+ "shorth-source",
 ]
 
 [[package]]

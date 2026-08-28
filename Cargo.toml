@@ -4,6 +4,7 @@ members = [
   "crates/shorth-ir",
   "crates/shorth-grammar",
   "crates/shorth-css",
+  "crates/shorth-tailwind",
   "crates/shorth-js-oxc",
   "crates/shorth-core",
   "crates/shorth-cli",
