@@ -310,22 +310,48 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
 }
 
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
-    let custom = theme
-        .variants
-        .iter()
-        .rev()
-        .find(|variant| variant.name == value)
-        .or_else(|| {
-            builtin_variants()
-                .iter()
-                .rev()
-                .find(|variant| variant.name == value)
-        })?;
-    resolve_variant_body(&custom.body).or_else(|| {
-        Some(VariantApplication::SelectorTemplate(
-            custom.selector.clone(),
-        ))
+    let (custom, capture) = find_registered_variant(&theme.variants, value)
+        .or_else(|| find_registered_variant(builtin_variants(), value))?;
+    let body = substitute_variant_capture(&custom.body, capture)?;
+    resolve_variant_body(&body).or_else(|| {
+        substitute_variant_capture(&custom.selector, capture)
+            .map(VariantApplication::SelectorTemplate)
     })
+}
+
+fn find_registered_variant<'a, 'b>(
+    variants: &'a [CustomVariant],
+    value: &'b str,
+) -> Option<(&'a CustomVariant, Option<&'b str>)> {
+    if let Some(variant) = variants.iter().rev().find(|variant| variant.name == value) {
+        return Some((variant, None));
+    }
+    variants.iter().rev().find_map(|variant| {
+        let prefix = variant.name.strip_suffix('*')?;
+        if prefix.is_empty() {
+            return None;
+        }
+        let capture = value.strip_prefix(prefix)?;
+        (!capture.is_empty() && !capture.starts_with('[')).then_some((variant, Some(capture)))
+    })
+}
+
+fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
+    if !value.contains("--value()")
+        && !value.contains(r"\*")
+        && !value.contains(":root")
+        && !value.contains("0n")
+    {
+        return Some(value.to_owned());
+    }
+    let capture = capture?.replace('_', " ");
+    Some(
+        value
+            .replace("--value()", &capture)
+            .replace(r"\*", &capture)
+            .replace(":root", &format!(":{capture}"))
+            .replace("0n", &capture),
+    )
 }
 
 fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
@@ -1212,6 +1238,35 @@ mod tests {
         assert_eq!(
             resolve_variant(&parse_candidate("narrow:flex").unwrap().variants[0], &theme),
             Some(VariantApplication::Media("(width < 40rem)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn resolves_wildcard_selector_variants_from_application_css() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@variant state-* { &[data-state=--value()] { @slot; } }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("state-open:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorTemplate(
+                "&[data-state=open]".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("aria-expanded:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorTemplate(
+                "&[aria-expanded=\"true\"]".to_owned()
+            ))
         );
     }
 }

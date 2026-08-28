@@ -2450,3 +2450,50 @@
     @slot;
   }
 }
+/* Dynamic selector variants intentionally use the same wildcard and
+ * --value() placeholder syntax available to application CSS. */
+@variant aria-* {
+  &[aria-\*="true"] {
+    @slot;
+  }
+}
+@variant data-* {
+  &[data-\*] {
+    @slot;
+  }
+}
+@variant has-* {
+  &:has(:root) {
+    @slot;
+  }
+}
+@variant not-* {
+  &:not(:root) {
+    @slot;
+  }
+}
+@variant in-* {
+  :where(:root) & {
+    @slot;
+  }
+}
+@variant nth-* {
+  &:nth-child(0n) {
+    @slot;
+  }
+}
+@variant nth-last-* {
+  &:nth-last-child(0n) {
+    @slot;
+  }
+}
+@variant nth-of-type-* {
+  &:nth-of-type(0n) {
+    @slot;
+  }
+}
+@variant nth-last-of-type-* {
+  &:nth-last-of-type(0n) {
+    @slot;
+  }
+}
