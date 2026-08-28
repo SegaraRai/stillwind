@@ -176,6 +176,8 @@ pub struct CustomUtility {
 pub struct CustomVariant {
     pub name: String,
     pub selector: String,
+    /// Full `@variant` body. Empty for the `@custom-variant` selector shorthand.
+    pub body: String,
 }
 
 impl ThemeIndex {
@@ -440,6 +442,7 @@ fn classify_theme_token(name: &str) -> ThemeTokenKind {
 fn strip_framework_directives(css: &str) -> String {
     let css = strip_blocks(css, "@theme");
     let css = strip_blocks(&css, "@utility");
+    let css = strip_blocks(&css, "@variant");
     css.lines()
         .filter(|line| !line.trim_start().starts_with("@custom-variant"))
         .collect::<Vec<_>>()
@@ -522,7 +525,8 @@ fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
 }
 
 fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
-    css.lines()
+    let mut variants = css
+        .lines()
         .filter_map(|line| {
             let line = line.trim();
             let value = line.strip_prefix("@custom-variant ")?.trim_end_matches(';');
@@ -534,9 +538,23 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     .trim_start_matches('(')
                     .trim_end_matches(')')
                     .to_owned(),
+                body: String::new(),
             })
         })
-        .collect()
+        .collect::<Vec<_>>();
+    variants.extend(
+        extract_named_blocks(css, "@variant")
+            .into_iter()
+            .filter_map(|(header, body)| {
+                let name = header.split_whitespace().next()?.to_owned();
+                Some(CustomVariant {
+                    name,
+                    selector: String::new(),
+                    body,
+                })
+            }),
+    );
+    variants
 }
 
 #[cfg(test)]
@@ -605,5 +623,23 @@ mod tests {
         );
         assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
         assert_eq!(theme.tokens[2].kind, ThemeTokenKind::Custom);
+    }
+
+    #[test]
+    fn parses_block_variants_and_omits_them_from_authored_output() {
+        let source = SourceFile::new(
+            FileId(7),
+            "shorth.css",
+            "@variant pressed { &:active { @slot; } }\n.card { color: red; }",
+        );
+
+        let theme = parse_theme(&source).unwrap();
+
+        assert_eq!(
+            theme.variant("pressed").unwrap().body,
+            "&:active { @slot; }"
+        );
+        assert!(theme.custom_css().contains(".card"));
+        assert!(!theme.custom_css().contains("@variant"));
     }
 }

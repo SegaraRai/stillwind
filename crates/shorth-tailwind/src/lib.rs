@@ -535,6 +535,9 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         }
     }
     if let Some(custom) = theme.variant(value) {
+        if let Some(application) = resolve_variant_body(&custom.body) {
+            return Some(application);
+        }
         return Some(VariantApplication::SelectorTemplate(
             custom.selector.clone(),
         ));
@@ -544,16 +547,30 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
 }
 
+fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
+    if body.is_empty() || !body.contains("@slot") {
+        return None;
+    }
+    if let Some(start) = body.find("@media (") {
+        let condition_start = start + "@media ".len();
+        let condition_end = body[condition_start..].find('{')? + condition_start;
+        return Some(VariantApplication::Media(
+            body[condition_start..condition_end].trim().to_owned(),
+        ));
+    }
+    let selector_end = body.find('{')?;
+    let selector = body[..selector_end].trim();
+    (!selector.is_empty()).then(|| VariantApplication::SelectorTemplate(selector.to_owned()))
+}
+
 fn resolve_named_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    if let Some(custom) = theme.utility(name)
-        && !custom.body.contains('&')
-    {
-        return (!negative && modifier.is_none()).then(|| custom.body.clone());
+    if let Some(declaration) = resolve_css_utility(name, modifier, negative, theme) {
+        return Some(declaration);
     }
     if let Some(declaration) = STATIC_UTILITIES
         .iter()
@@ -575,6 +592,112 @@ fn resolve_named_utility(
     resolve_arbitrary(name, negative)
         .or_else(|| resolve_special(name, modifier, negative, theme))
         .or_else(|| resolve_theme_utility(name, modifier, negative, theme))
+}
+
+/// Resolves the same `@utility` body language for user CSS and vendored
+/// built-ins. `--value(...)` tries its comma-separated value domains in order.
+fn resolve_css_utility(
+    name: &str,
+    modifier: Option<&Value>,
+    negative: bool,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let utility = theme.utility(name).or_else(|| {
+        theme.utilities.iter().rev().find(|utility| {
+            utility
+                .name
+                .strip_suffix('*')
+                .is_some_and(|prefix| name.starts_with(prefix))
+        })
+    })?;
+    if utility.body.contains('&') || utility.body.contains("@slot") {
+        return None;
+    }
+    let capture = utility
+        .name
+        .strip_suffix('*')
+        .and_then(|prefix| name.strip_prefix(prefix));
+    let mut body = utility.body.clone();
+    while let Some(start) = body.find("--value(") {
+        let open = start + "--value".len();
+        let end = closing_parenthesis(&body, open)?;
+        let replacement = resolve_value_domains(&body[open + 1..end], capture, negative, theme)?;
+        body.replace_range(start..=end, &replacement);
+    }
+    while let Some(start) = body.find("--modifier(") {
+        let open = start + "--modifier".len();
+        let end = closing_parenthesis(&body, open)?;
+        let modifier = modifier?;
+        let replacement = match modifier {
+            Value::Named(value) | Value::Arbitrary(value) => value.clone(),
+            Value::CssVariable(value) => format!("var({value})"),
+        };
+        body.replace_range(start..=end, &replacement);
+    }
+    (!body.contains("--value(") && !body.contains("--modifier(")).then_some(body)
+}
+
+fn closing_parenthesis(value: &str, open: usize) -> Option<usize> {
+    let mut depth = 0_u32;
+    for (offset, character) in value[open..].char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn resolve_value_domains(
+    domains: &str,
+    capture: Option<&str>,
+    negative: bool,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    split_domains(domains).into_iter().find_map(|domain| {
+        let domain = domain.trim();
+        if domain == "--spacing()" {
+            return capture.and_then(|capture| {
+                theme_value(ThemeNamespace::Spacing, capture, negative, theme)
+            });
+        }
+        if let Some(namespace) = domain
+            .strip_prefix("--")
+            .and_then(|domain| domain.strip_suffix("-*"))
+            .and_then(ThemeNamespace::parse)
+        {
+            return capture.and_then(|capture| theme_value(namespace, capture, negative, theme));
+        }
+        let hint = domain.strip_prefix('[')?.strip_suffix(']')?;
+        let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
+        let (actual_hint, value) = arbitrary.split_once(':').unwrap_or(("*", arbitrary));
+        (hint == "*" || hint == actual_hint).then(|| decode_arbitrary(value))
+    })
+}
+
+fn split_domains(value: &str) -> Vec<&str> {
+    let mut domains = Vec::new();
+    let mut start = 0;
+    let mut depth = 0_u32;
+    for (index, character) in value.char_indices() {
+        match character {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                domains.push(&value[start..index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    domains.push(&value[start..]);
+    domains
 }
 
 fn resolve_special(
@@ -842,6 +965,63 @@ mod tests {
                 &theme
             ),
             Some(VariantApplication::SelectorTemplate("&>svg".to_owned()))
+        );
+    }
+
+    #[test]
+    fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            r"@theme { --color-brand: red; }
+@utility tone-* { color: --value(--color-*); }
+@utility rail-* { inline-size: --value(--spacing()); }
+@utility mask-* { mask-size: --value([length]); }
+@utility alpha-* { opacity: --modifier(); }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_utility("tone-brand", &theme).unwrap().declaration,
+            "color: var(--color-brand);"
+        );
+        assert_eq!(
+            resolve_utility("rail-4", &theme).unwrap().declaration,
+            "inline-size: calc(var(--spacing) * 4);"
+        );
+        assert_eq!(
+            resolve_utility("mask-[length:12px]", &theme)
+                .unwrap()
+                .declaration,
+            "mask-size: 12px;"
+        );
+        assert_eq!(
+            resolve_utility("alpha-brand/50", &theme)
+                .unwrap()
+                .declaration,
+            "opacity: 50;"
+        );
+    }
+
+    #[test]
+    fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@variant pressed { &:active { @slot; } }\n@variant narrow { @media (width < 40rem) { @slot; } }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("pressed:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorTemplate("&:active".to_owned()))
+        );
+        assert_eq!(
+            resolve_variant(&parse_candidate("narrow:flex").unwrap().variants[0], &theme),
+            Some(VariantApplication::Media("(width < 40rem)".to_owned()))
         );
     }
 }
