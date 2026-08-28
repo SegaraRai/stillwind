@@ -7,10 +7,13 @@ if [ -z "$files" ]; then
   exit 0
 fi
 
-vp fmt $files
-vp lint $files
+vp fmt --no-error-on-unmatched-pattern $files
 
 if ! git diff --quiet -- $files; then
   echo "vp fmt changed files; stage the formatting changes and commit again."
   exit 1
 fi
+
+vp lint --no-error-on-unmatched-pattern $files
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
