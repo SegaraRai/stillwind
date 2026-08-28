@@ -14,12 +14,17 @@ const input =
   '@import "tailwindcss/theme" layer(theme);\n@import "tailwindcss/utilities" layer(utilities);';
 const rules = [];
 const skipped = [];
+const unsupportedAtRules = new Map();
 
 for (const candidate of candidates) {
   const css = await compileTailwindCss({ css: input, candidates: [candidate], base: fixtureRoot });
   const body = firstUtilityBody(css);
   if (!body || /@(?!supports\b)/u.test(body)) {
     skipped.push(candidate);
+    for (const match of body?.matchAll(/@(\w[\w-]*)/gu) ?? []) {
+      if (match[1] !== "supports")
+        unsupportedAtRules.set(match[1], (unsupportedAtRules.get(match[1]) ?? 0) + 1);
+    }
     continue;
   }
   rules.push(`@utility ${candidate} {\n${indent(body.trim(), 2)}\n}`);
@@ -27,6 +32,12 @@ for (const candidate of candidates) {
 
 if (skipped.length > 0)
   console.warn(`Skipped ${skipped.length} completion rules with unsupported nested at-rules.`);
+if (unsupportedAtRules.size > 0)
+  console.warn(
+    `Unsupported nested at-rules: ${[...unsupportedAtRules.entries()]
+      .map(([name, count]) => `@${name} (${count})`)
+      .join(", ")}`,
+  );
 const output = `/* GENERATED DEFAULT COMPLETIONS. Run vp run @stillwind/tools#registry:defaults:write. */\n${rules.join("\n")}\n`;
 if (write) writeFileSync(outputPath, output);
 console.log(`Lowered ${rules.length}/${candidates.length} default completions into CSS registry.`);
