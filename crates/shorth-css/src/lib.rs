@@ -1,7 +1,7 @@
 //! CSS-first theme parsing. Lightning CSS validates the stylesheet before shorth
 //! extracts its small, source-spanned `@theme` surface.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Write};
 
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use shorth_source::{FileId, SourceFile, Span, Spanned};
@@ -579,13 +579,94 @@ fn strip_blocks(css: &str, directive: &str) -> String {
 
 fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
     let css = strip_css_comments(css);
-    extract_named_blocks(&css, "@utility")
+    let mut utilities = extract_named_blocks(&css, "@utility")
         .into_iter()
         .filter_map(|(header, body)| {
+            if header.starts_with("-family") {
+                return None;
+            }
             let name = header.split_whitespace().next()?.to_owned();
             Some(CustomUtility { name, body })
         })
+        .collect::<Vec<_>>();
+    utilities.extend(extract_utility_families(&css));
+    utilities
+}
+
+/// Expands Stillwind's compact built-in utility-family syntax.
+///
+/// ```css
+/// @utility-family spacing negative {
+///   inset: inset;
+///   inset-x: inset-inline;
+/// }
+/// ```
+///
+/// The example declares `inset-*`, `inset-x-*`, and their negative forms,
+/// all backed by the same typed Tailwind spacing value domain. It keeps a
+/// family definition reviewable without enumerating its default values.
+fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
+    extract_named_blocks(css, "@utility-family")
+        .into_iter()
+        .flat_map(|(header, body)| {
+            let mut header = header.split_whitespace();
+            let domain = header.next();
+            let negative = header.any(|flag| flag == "negative");
+            let Some(value) = domain.and_then(utility_family_value) else {
+                return Vec::new();
+            };
+            body.split(';')
+                .filter_map(|entry| {
+                    let (names, properties) = entry.split_once(':')?;
+                    let names = names
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|name| !name.is_empty());
+                    let properties = properties
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|property| !property.is_empty())
+                        .collect::<Vec<_>>();
+                    (!properties.is_empty()).then_some((names, properties))
+                })
+                .flat_map(move |(names, properties)| {
+                    names.flat_map({
+                        let value = value.to_owned();
+                        move |name| {
+                            let mut body = String::new();
+                            for property in &properties {
+                                write!(body, "{property}:{value};")
+                                    .expect("writing to a String cannot fail");
+                            }
+                            let mut utilities = vec![CustomUtility {
+                                name: format!("{name}-*"),
+                                body: body.clone(),
+                            }];
+                            if negative {
+                                utilities.push(CustomUtility {
+                                    name: format!("-{name}-*"),
+                                    body,
+                                });
+                            }
+                            utilities
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
         .collect()
+}
+
+fn utility_family_value(domain: &str) -> Option<&'static str> {
+    match domain {
+        "spacing" => Some("--value(--spacing-*, --spacing(), [length])"),
+        "spacing-fraction" => Some("--value(--spacing-*, --spacing(), --fraction(), [length])"),
+        "length" => Some("--value(--spacing-*, --spacing(), --container-*, [length])"),
+        "integer" => Some("--value(integer, [integer])"),
+        "number" => Some("--value(number, [number])"),
+        "color" => Some("--value(--color-*, current, inherit, transparent, [color])"),
+        _ => None,
+    }
 }
 
 fn strip_css_comments(css: &str) -> String {
@@ -670,6 +751,35 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn expands_compact_utility_families_without_enumerating_values() {
+        let utilities = parse_utility_definitions(
+            "@utility-family spacing negative { inset: inset; inset-x: inset-inline; }",
+        );
+
+        assert_eq!(
+            utilities,
+            vec![
+                CustomUtility {
+                    name: "inset-*".to_owned(),
+                    body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                },
+                CustomUtility {
+                    name: "-inset-*".to_owned(),
+                    body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                },
+                CustomUtility {
+                    name: "inset-x-*".to_owned(),
+                    body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                },
+                CustomUtility {
+                    name: "-inset-x-*".to_owned(),
+                    body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                },
+            ]
+        );
+    }
 
     #[test]
     fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {

@@ -770,6 +770,12 @@ fn resolve_value_domains(
                 theme_value(ThemeNamespace::Spacing, capture, negative, theme)
             });
         }
+        if domain == "--fraction()" {
+            return capture.and_then(|capture| fraction_value(capture, negative));
+        }
+        if domain == "--size()" {
+            return capture.and_then(|capture| size_value(capture, negative));
+        }
         if let Some(namespace) = domain
             .strip_prefix("--")
             .and_then(|domain| domain.strip_suffix("-*"))
@@ -838,6 +844,42 @@ fn theme_value(
     negative
         .then(|| format!("calc({value} * -1)"))
         .or(Some(value))
+}
+
+fn fraction_value(value: &str, negative: bool) -> Option<String> {
+    let (numerator, denominator) = value.split_once('/')?;
+    let numerator = numerator.parse::<u16>().ok()?;
+    let denominator = denominator.parse::<u16>().ok()?;
+    (denominator != 0).then(|| {
+        let value = format!("calc({numerator} / {denominator} * 100%)");
+        if negative {
+            format!("calc({value} * -1)")
+        } else {
+            value
+        }
+    })
+}
+
+fn size_value(value: &str, negative: bool) -> Option<String> {
+    let value = match value {
+        "auto" => "auto",
+        "full" => "100%",
+        "screen" => "100vw",
+        "svw" => "100svw",
+        "lvw" => "100lvw",
+        "dvw" => "100dvw",
+        "svh" => "100svh",
+        "lvh" => "100lvh",
+        "dvh" => "100dvh",
+        "min" => "min-content",
+        "max" => "max-content",
+        "fit" => "fit-content",
+        "lh" => "1lh",
+        _ => return None,
+    };
+    negative
+        .then(|| format!("calc({value} * -1)"))
+        .or_else(|| Some(value.to_owned()))
 }
 
 fn resolve_arbitrary(name: &str, negative: bool) -> Option<String> {
@@ -1130,6 +1172,20 @@ mod tests {
         assert_eq!(
             resolve_utility("blur-sm", &theme).unwrap().declaration,
             "--tw-blur:blur(var(--blur-sm));filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
+        );
+    }
+
+    #[test]
+    fn resolves_compact_spacing_families_with_negative_and_fractional_values() {
+        let theme = theme();
+
+        assert_eq!(
+            resolve_utility("-left-4", &theme).unwrap().declaration,
+            "left:calc(var(--spacing) * -4);"
+        );
+        assert_eq!(
+            resolve_utility("scroll-px-4", &theme).unwrap().declaration,
+            "scroll-padding-inline:calc(var(--spacing) * 4);"
         );
     }
 
