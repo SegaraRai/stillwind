@@ -8,12 +8,15 @@ export type StyleAttributeName = `aria-${string}` | `data-${string}`;
 export interface StillwindUtilityVocabulary {}
 export interface StillwindVariantVocabulary {}
 
-type VocabularyUtility = keyof StillwindUtilityVocabulary;
-type UtilityAtom = [VocabularyUtility] extends [never] ? string : VocabularyUtility;
-type VocabularyVariant = keyof StillwindVariantVocabulary;
-type VariantAtom = [VocabularyVariant] extends [never] ? string : VocabularyVariant;
+type VocabularyUtility = Extract<keyof StillwindUtilityVocabulary, string>;
+type VocabularyVariant = Extract<keyof StillwindVariantVocabulary, string>;
+type UtilityWithVariant<Utility extends string, Variant extends string> = [Utility] extends [never]
+  ? string
+  : [Variant] extends [never]
+    ? Utility
+    : Utility | `${Variant}:${Utility}`;
 /** One generated utility token, including one typed variant prefix. */
-export type StillwindUtility = UtilityAtom | `${VariantAtom}:${UtilityAtom}`;
+export type StillwindUtility = UtilityWithVariant<VocabularyUtility, VocabularyVariant>;
 
 // Utility lists are intentionally validated by the compiler. A recursive
 // template-literal union for arbitrary-length class lists quickly exceeds

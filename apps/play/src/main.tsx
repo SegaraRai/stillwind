@@ -139,7 +139,7 @@ function CodeEditor({
   selection,
 }: {
   value: string;
-  onChange(value: string): void;
+  onChange(this: void, value: string): void;
   extensions: Extension;
   selection: { start: number; end: number } | null;
 }) {
