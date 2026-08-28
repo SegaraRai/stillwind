@@ -14,12 +14,21 @@ pub struct ResolvedUtility {
     pub candidate: Candidate,
     pub declaration: String,
     pub selector: Option<String>,
+    pub nested: Vec<NestedUtilityRule>,
+}
+
+/// A conditional declaration authored inside a CSS `@utility` body.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NestedUtilityRule {
+    pub condition: String,
+    pub declaration: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct UtilityResolution {
     declaration: String,
     selector: Option<String>,
+    nested: Vec<NestedUtilityRule>,
 }
 
 impl UtilityResolution {
@@ -27,6 +36,7 @@ impl UtilityResolution {
         Self {
             declaration,
             selector: None,
+            nested: Vec::new(),
         }
     }
 }
@@ -170,13 +180,25 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
+    let declaration = if candidate.important {
+        important(&resolution.declaration)
+    } else {
+        resolution.declaration
+    };
+    let nested = resolution
+        .nested
+        .into_iter()
+        .map(|mut nested| {
+            if candidate.important {
+                nested.declaration = important(&nested.declaration);
+            }
+            nested
+        })
+        .collect();
     Some(ResolvedUtility {
-        declaration: if candidate.important {
-            important(&resolution.declaration)
-        } else {
-            resolution.declaration
-        },
+        declaration,
         selector: resolution.selector,
+        nested,
         candidate,
     })
 }
@@ -431,8 +453,35 @@ fn resolve_css_utility_body(
         return None;
     }
     let (selector, body) = split_utility_selector(&utility.body)?;
-    let capture = utility
-        .name
+    let (body, nested) = split_nested_supports(body)?;
+    let declaration =
+        resolve_css_placeholders(&body, utility.name.as_str(), name, modifier, theme)?;
+    let nested = nested
+        .into_iter()
+        .map(|(condition, body)| {
+            resolve_css_placeholders(&body, utility.name.as_str(), name, modifier, theme).map(
+                |declaration| NestedUtilityRule {
+                    condition,
+                    declaration,
+                },
+            )
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (!declaration.is_empty() || !nested.is_empty()).then_some(UtilityResolution {
+        declaration,
+        selector,
+        nested,
+    })
+}
+
+fn resolve_css_placeholders(
+    body: &str,
+    utility_name: &str,
+    name: &str,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let capture = utility_name
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_owned();
@@ -442,7 +491,7 @@ fn resolve_css_utility_body(
         let replacement = resolve_value_domains(
             &body[open + 1..end],
             capture,
-            utility.name.starts_with('-'),
+            utility_name.starts_with('-'),
             theme,
         )?;
         body.replace_range(start..=end, &replacement);
@@ -464,10 +513,36 @@ fn resolve_css_utility_body(
         body.replace_range(start..=end, &replacement);
     }
     (!body.contains("--value(") && !body.contains("--modifier(") && !body.contains("--alpha("))
-        .then_some(UtilityResolution {
-            declaration: body,
-            selector,
-        })
+        .then_some(body)
+}
+
+fn split_nested_supports(body: &str) -> Option<(String, Vec<(String, String)>)> {
+    let Some(first) = body.find("@supports") else {
+        return Some((body.trim().to_owned(), Vec::new()));
+    };
+    let mut direct = String::with_capacity(body.len());
+    let mut nested = Vec::new();
+    let mut cursor = 0;
+    let mut start = first;
+    loop {
+        direct.push_str(&body[cursor..start]);
+        let open = body[start..].find('{')? + start;
+        let close = closing_brace(body, open)?;
+        let condition = body[start + "@supports".len()..open].trim();
+        let condition = condition
+            .strip_prefix('(')
+            .and_then(|value| value.strip_suffix(')'))?
+            .trim()
+            .to_owned();
+        nested.push((condition, body[open + 1..close].trim().to_owned()));
+        cursor = close + 1;
+        let Some(next) = body[cursor..].find("@supports") else {
+            direct.push_str(&body[cursor..]);
+            break;
+        };
+        start = cursor + next;
+    }
+    Some((direct.trim().to_owned(), nested))
 }
 
 fn split_utility_selector(body: &str) -> Option<(Option<String>, &str)> {

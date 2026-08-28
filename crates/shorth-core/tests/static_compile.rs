@@ -118,6 +118,32 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
 }
 
 #[test]
+fn emits_nested_supports_from_css_utility_definitions() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Gradient.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("bg-linear-to-r");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("--tw-gradient-position:to right;"));
+    assert!(
+        result
+            .css
+            .contains("@supports (background-image:linear-gradient(in lab,red,red)){._s_")
+    );
+    assert!(
+        result
+            .css
+            .contains("--tw-gradient-position:to right in oklab;")
+    );
+}
+
+#[test]
 fn emits_selector_bearing_css_utilities_on_their_target_children() {
     let component = SourceFile::new(
         FileId(1),

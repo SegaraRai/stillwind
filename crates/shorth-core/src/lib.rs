@@ -214,6 +214,7 @@ impl Compiler {
                             declaration,
                             selector: Some(selector.value),
                             container: None,
+                            nested: Vec::new(),
                         });
                     }
                     continue;
@@ -235,6 +236,7 @@ impl Compiler {
                             declaration: format!("view-transition-name:var({name});"),
                             selector: None,
                             container: None,
+                            nested: Vec::new(),
                         });
                     } else {
                         branch.3.push(CompiledUtility {
@@ -242,6 +244,7 @@ impl Compiler {
                             declaration: format!("view-transition-name:{name};"),
                             selector: None,
                             container: None,
+                            nested: Vec::new(),
                         });
                     }
                     branch.2.push('\0');
@@ -337,6 +340,7 @@ impl Compiler {
                         declaration: render_handle_projection(source, &handle, &projection),
                         selector: None,
                         container: None,
+                        nested: Vec::new(),
                     });
                     continue;
                 }
@@ -613,6 +617,7 @@ fn resolve_animation_use(
         declaration,
         selector: None,
         container: None,
+        nested: Vec::new(),
     }
 }
 
@@ -841,6 +846,7 @@ struct CompiledUtility {
     declaration: String,
     selector: Option<String>,
     container: Option<String>,
+    nested: Vec<shorth_tailwind::NestedUtilityRule>,
 }
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
@@ -850,6 +856,7 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
         declaration: resolved.declaration,
         selector: resolved.selector,
         container: None,
+        nested: resolved.nested,
     })
 }
 
@@ -876,63 +883,93 @@ fn emit_utility_rules(
     for utility in utilities.iter().filter(|utility| {
         !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
     }) {
-        let class_selector = format!(".{class_name}");
-        let mut selector = utility.selector.as_deref().map_or_else(
-            || class_selector.clone(),
-            |selector| selector.replace('&', &class_selector),
-        );
-        let mut media = Vec::new();
-        let mut containers = Vec::new();
-        let mut supports = Vec::new();
-        let mut starting_style = false;
-        for variant in &utility.variants {
-            match shorth_tailwind::resolve_variant(variant, theme) {
-                Some(shorth_tailwind::VariantApplication::SelectorSuffix(suffix)) => {
-                    selector.push_str(suffix);
-                }
-                Some(shorth_tailwind::VariantApplication::SelectorTemplate(template)) => {
-                    selector = template.replace('&', &selector);
-                }
-                Some(shorth_tailwind::VariantApplication::SelectorMedia {
-                    selector: template,
-                    condition,
-                }) => {
-                    selector = template.replace('&', &selector);
-                    media.push(condition);
-                }
-                Some(shorth_tailwind::VariantApplication::Media(condition)) => {
-                    media.push(condition);
-                }
-                Some(shorth_tailwind::VariantApplication::Container(condition)) => {
-                    containers.push(condition);
-                }
-                Some(shorth_tailwind::VariantApplication::Supports(condition)) => {
-                    supports.push(condition);
-                }
-                Some(shorth_tailwind::VariantApplication::StartingStyle) => {
-                    starting_style = true;
-                }
-                None => {}
-            }
-        }
-        let mut rule = format!("{selector}{{{}}}", combine_declarations(&[utility]));
-        for condition in supports.into_iter().rev() {
-            rule = format!("@supports ({condition}){{{rule}}}");
-        }
-        for condition in media.into_iter().rev() {
-            rule = format!("@media {condition}{{{rule}}}");
-        }
-        for condition in containers.into_iter().rev() {
-            rule = format!("@container {condition}{{{rule}}}");
-        }
-        if starting_style {
-            rule = format!("@starting-style{{{rule}}}");
-        }
-        if let Some(container) = &utility.container {
-            rule = format!("@container {container}{{{rule}}}");
-        }
-        output.push_str(&rule);
+        output.push_str(&render_utility_rule(
+            class_name,
+            utility,
+            theme,
+            &combine_declarations(&[utility]),
+            None,
+        ));
     }
+    for utility in utilities {
+        for nested in &utility.nested {
+            output.push_str(&render_utility_rule(
+                class_name,
+                utility,
+                theme,
+                &nested.declaration,
+                Some(&nested.condition),
+            ));
+        }
+    }
+}
+
+fn render_utility_rule(
+    class_name: &str,
+    utility: &CompiledUtility,
+    theme: &shorth_css::ThemeIndex,
+    declaration: &str,
+    nested_supports: Option<&str>,
+) -> String {
+    let class_selector = format!(".{class_name}");
+    let mut selector = utility.selector.as_deref().map_or_else(
+        || class_selector.clone(),
+        |selector| selector.replace('&', &class_selector),
+    );
+    let mut media = Vec::new();
+    let mut containers = Vec::new();
+    let mut supports = Vec::new();
+    let mut starting_style = false;
+    for variant in &utility.variants {
+        match shorth_tailwind::resolve_variant(variant, theme) {
+            Some(shorth_tailwind::VariantApplication::SelectorSuffix(suffix)) => {
+                selector.push_str(suffix);
+            }
+            Some(shorth_tailwind::VariantApplication::SelectorTemplate(template)) => {
+                selector = template.replace('&', &selector);
+            }
+            Some(shorth_tailwind::VariantApplication::SelectorMedia {
+                selector: template,
+                condition,
+            }) => {
+                selector = template.replace('&', &selector);
+                media.push(condition);
+            }
+            Some(shorth_tailwind::VariantApplication::Media(condition)) => {
+                media.push(condition);
+            }
+            Some(shorth_tailwind::VariantApplication::Container(condition)) => {
+                containers.push(condition);
+            }
+            Some(shorth_tailwind::VariantApplication::Supports(condition)) => {
+                supports.push(condition);
+            }
+            Some(shorth_tailwind::VariantApplication::StartingStyle) => {
+                starting_style = true;
+            }
+            None => {}
+        }
+    }
+    let mut rule = format!("{selector}{{{declaration}}}");
+    if let Some(condition) = nested_supports {
+        rule = format!("@supports ({condition}){{{rule}}}");
+    }
+    for condition in supports.into_iter().rev() {
+        rule = format!("@supports ({condition}){{{rule}}}");
+    }
+    for condition in media.into_iter().rev() {
+        rule = format!("@media {condition}{{{rule}}}");
+    }
+    for condition in containers.into_iter().rev() {
+        rule = format!("@container {condition}{{{rule}}}");
+    }
+    if starting_style {
+        rule = format!("@starting-style{{{rule}}}");
+    }
+    if let Some(container) = &utility.container {
+        rule = format!("@container {container}{{{rule}}}");
+    }
+    rule
 }
 
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
