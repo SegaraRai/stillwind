@@ -661,7 +661,15 @@ fn utility_family_value(domain: &str) -> Option<&'static str> {
     match domain {
         "spacing" => Some("--value(--spacing-*, --spacing(), [length])"),
         "spacing-fraction" => Some("--value(--spacing-*, --spacing(), --fraction(), [length])"),
-        "length" => Some("--value(--spacing-*, --spacing(), --container-*, [length])"),
+        "length" => {
+            Some("--value(--spacing-*, --spacing(), --container-*, --fraction(), [length])")
+        }
+        "width" => Some(
+            "--value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length])",
+        ),
+        "height" => Some(
+            "--value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length])",
+        ),
         "integer" => Some("--value(integer, [integer])"),
         "number" => Some("--value(number, [number])"),
         "color" => Some("--value(--color-*, current, inherit, transparent, [color])"),

@@ -773,8 +773,11 @@ fn resolve_value_domains(
         if domain == "--fraction()" {
             return capture.and_then(|capture| fraction_value(capture, negative));
         }
-        if domain == "--size()" {
-            return capture.and_then(|capture| size_value(capture, negative));
+        if domain == "--width()" {
+            return capture.and_then(|capture| axis_size_value(capture, "vw", negative));
+        }
+        if domain == "--height()" {
+            return capture.and_then(|capture| axis_size_value(capture, "vh", negative));
         }
         if let Some(namespace) = domain
             .strip_prefix("--")
@@ -860,26 +863,26 @@ fn fraction_value(value: &str, negative: bool) -> Option<String> {
     })
 }
 
-fn size_value(value: &str, negative: bool) -> Option<String> {
+fn axis_size_value(value: &str, viewport_axis: &str, negative: bool) -> Option<String> {
     let value = match value {
-        "auto" => "auto",
-        "full" => "100%",
-        "screen" => "100vw",
-        "svw" => "100svw",
-        "lvw" => "100lvw",
-        "dvw" => "100dvw",
-        "svh" => "100svh",
-        "lvh" => "100lvh",
-        "dvh" => "100dvh",
-        "min" => "min-content",
-        "max" => "max-content",
-        "fit" => "fit-content",
-        "lh" => "1lh",
+        "auto" => "auto".to_owned(),
+        "full" => "100%".to_owned(),
+        "screen" => format!("100{viewport_axis}"),
+        "svw" => "100svw".to_owned(),
+        "lvw" => "100lvw".to_owned(),
+        "dvw" => "100dvw".to_owned(),
+        "svh" => "100svh".to_owned(),
+        "lvh" => "100lvh".to_owned(),
+        "dvh" => "100dvh".to_owned(),
+        "min" => "min-content".to_owned(),
+        "max" => "max-content".to_owned(),
+        "fit" => "fit-content".to_owned(),
+        "lh" => "1lh".to_owned(),
         _ => return None,
     };
     negative
         .then(|| format!("calc({value} * -1)"))
-        .or_else(|| Some(value.to_owned()))
+        .or(Some(value))
 }
 
 fn resolve_arbitrary(name: &str, negative: bool) -> Option<String> {

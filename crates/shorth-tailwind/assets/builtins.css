@@ -216,6 +216,42 @@
   scroll-pbs: scroll-padding-block-start;
   scroll-pbe: scroll-padding-block-end;
 }
+@utility-family width {
+  w: width;
+  min-w: min-width;
+  max-w: max-width;
+  inline: inline-size;
+  min-inline: min-inline-size;
+  max-inline: max-inline-size;
+  basis: flex-basis;
+}
+@utility-family height {
+  h: height;
+  min-h: min-height;
+  max-h: max-height;
+  block: block-size;
+  min-block: min-block-size;
+  max-block: max-block-size;
+}
+@utility-family color {
+  border-x: border-inline-color;
+  border-y: border-block-color;
+  border-s: border-inline-start-color;
+  border-e: border-inline-end-color;
+  border-bs: border-block-start-color;
+  border-be: border-block-end-color;
+  border-t: border-top-color;
+  border-r: border-right-color;
+  border-b: border-bottom-color;
+  border-l: border-left-color;
+}
+@utility-family integer {
+  col-start: grid-column-start;
+  col-end: grid-column-end;
+  row-start: grid-row-start;
+  row-end: grid-row-end;
+  tab: tab-size;
+}
 @utility bg-* {
   background-color: --value(--color-*);
 }
@@ -2054,6 +2090,21 @@
 }
 @utility mask-conic-* {
   mask-image: conic-gradient(--value([*]));
+}
+@utility mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: calc(1deg * --value(integer));
+}
+@utility mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(
+    in --modifier(),
+    var(--tw-mask-conic-stops, var(--tw-mask-conic-position))
+  );
+  --tw-mask-conic-position: calc(1deg * --value(integer));
 }
 @utility mask-linear-* {
   mask-image: linear-gradient(--value([*]));
