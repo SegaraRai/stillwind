@@ -162,3 +162,144 @@
   transition-duration: 0.15s;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Functional registrations. Several entries intentionally share a root: a
+ * value domain decides which expression accepts each candidate. */
+@utility bg-* {
+  background-color: --value(--color-*);
+}
+@utility bg-* {
+  background-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility text-* {
+  font-size: --value(--text-*);
+}
+@utility text-* {
+  color: --value(--color-*);
+}
+@utility text-* {
+  color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility border-* {
+  border-color: --value(--color-*);
+}
+@utility border-* {
+  border-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility outline-* {
+  outline-color: --value(--color-*);
+}
+@utility outline-* {
+  outline-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility p-* {
+  padding: --value(--spacing-*, --spacing(), [length]);
+}
+@utility px-* {
+  padding-inline: --value(--spacing-*, --spacing(), [length]);
+}
+@utility py-* {
+  padding-block: --value(--spacing-*, --spacing(), [length]);
+}
+@utility pt-* {
+  padding-top: --value(--spacing-*, --spacing(), [length]);
+}
+@utility pr-* {
+  padding-right: --value(--spacing-*, --spacing(), [length]);
+}
+@utility pb-* {
+  padding-bottom: --value(--spacing-*, --spacing(), [length]);
+}
+@utility pl-* {
+  padding-left: --value(--spacing-*, --spacing(), [length]);
+}
+@utility m-* {
+  margin: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mx-* {
+  margin-inline: --value(--spacing-*, --spacing(), [length]);
+}
+@utility my-* {
+  margin-block: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mt-* {
+  margin-top: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mr-* {
+  margin-right: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mb-* {
+  margin-bottom: --value(--spacing-*, --spacing(), [length]);
+}
+@utility ml-* {
+  margin-left: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -m-* {
+  margin: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mx-* {
+  margin-inline: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -my-* {
+  margin-block: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mt-* {
+  margin-top: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mr-* {
+  margin-right: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mb-* {
+  margin-bottom: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -ml-* {
+  margin-left: --value(--spacing-*, --spacing(), [length]);
+}
+@utility gap-* {
+  gap: --value(--spacing-*, --spacing(), [length]);
+}
+@utility w-* {
+  width: --value(--spacing-*, --spacing(), [length]);
+}
+@utility h-* {
+  height: --value(--spacing-*, --spacing(), [length]);
+}
+@utility min-w-* {
+  min-width: --value(--spacing-*, --spacing(), [length]);
+}
+@utility min-h-* {
+  min-height: --value(--spacing-*, --spacing(), [length]);
+}
+@utility max-w-* {
+  max-width: --value(--spacing-*, --spacing(), [length]);
+}
+@utility max-h-* {
+  max-height: --value(--spacing-*, --spacing(), [length]);
+}
+@utility basis-* {
+  flex-basis: --value(--spacing-*, --spacing(), [length]);
+}
+@utility rounded-* {
+  border-radius: --value(--radius-*);
+}
+@utility shadow-* {
+  box-shadow: --value(--shadow-*);
+}
+@utility font-* {
+  font-family: --value(--font-*);
+}
+@utility leading-* {
+  line-height: --value(--leading-*);
+}
+@utility tracking-* {
+  letter-spacing: --value(--tracking-*);
+}
+@utility z-* {
+  z-index: --value(--z-index-*);
+}
+@utility duration-* {
+  transition-duration: --value(--duration-*);
+}
+@utility ease-* {
+  transition-timing-function: --value(--ease-*);
+}

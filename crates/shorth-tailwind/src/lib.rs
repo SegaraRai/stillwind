@@ -23,14 +23,6 @@ pub enum VariantApplication {
     Supports(String),
 }
 
-#[derive(Clone, Copy)]
-struct ThemeUtility {
-    prefix: &'static str,
-    namespace: ThemeNamespace,
-    property: &'static str,
-    supports_negative: bool,
-}
-
 const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
 
 fn builtin_utilities() -> &'static [CustomUtility] {
@@ -58,6 +50,7 @@ fn canonical_builtin_body(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut quote = None;
     let mut escaped = false;
+    let mut whitespace = false;
 
     for character in value.chars() {
         if let Some(current_quote) = quote {
@@ -74,229 +67,35 @@ fn canonical_builtin_body(value: &str) -> String {
 
         match character {
             '\'' | '"' => {
+                if whitespace && output.chars().last().is_some_and(is_word_character) {
+                    output.push(' ');
+                }
+                whitespace = false;
                 quote = Some(character);
                 output.push(character);
             }
-            character if character.is_whitespace() => {}
-            character => output.push(character),
+            character if character.is_whitespace() => whitespace = true,
+            character => {
+                if whitespace && let Some(previous) = output.chars().last() {
+                    let adjacent_words =
+                        is_word_character(previous) && is_word_character(character);
+                    let function_followed_by_word = previous == ')' && is_word_character(character);
+                    if adjacent_words || function_followed_by_word {
+                        output.push(' ');
+                    }
+                }
+                whitespace = false;
+                output.push(character);
+            }
         }
     }
 
     output
 }
 
-const THEME_UTILITIES: &[ThemeUtility] = &[
-    ThemeUtility {
-        prefix: "bg-",
-        namespace: ThemeNamespace::Color,
-        property: "background-color",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "text-",
-        namespace: ThemeNamespace::Color,
-        property: "color",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "border-",
-        namespace: ThemeNamespace::Color,
-        property: "border-color",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "outline-",
-        namespace: ThemeNamespace::Color,
-        property: "outline-color",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "p-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "px-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding-inline",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "py-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding-block",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "pt-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding-top",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "pr-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding-right",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "pb-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding-bottom",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "pl-",
-        namespace: ThemeNamespace::Spacing,
-        property: "padding-left",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "m-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "mx-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin-inline",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "my-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin-block",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "mt-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin-top",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "mr-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin-right",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "mb-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin-bottom",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "ml-",
-        namespace: ThemeNamespace::Spacing,
-        property: "margin-left",
-        supports_negative: true,
-    },
-    ThemeUtility {
-        prefix: "gap-",
-        namespace: ThemeNamespace::Spacing,
-        property: "gap",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "w-",
-        namespace: ThemeNamespace::Spacing,
-        property: "width",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "h-",
-        namespace: ThemeNamespace::Spacing,
-        property: "height",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "min-w-",
-        namespace: ThemeNamespace::Spacing,
-        property: "min-width",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "min-h-",
-        namespace: ThemeNamespace::Spacing,
-        property: "min-height",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "max-w-",
-        namespace: ThemeNamespace::Spacing,
-        property: "max-width",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "max-h-",
-        namespace: ThemeNamespace::Spacing,
-        property: "max-height",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "basis-",
-        namespace: ThemeNamespace::Spacing,
-        property: "flex-basis",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "rounded-",
-        namespace: ThemeNamespace::Radius,
-        property: "border-radius",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "shadow-",
-        namespace: ThemeNamespace::Shadow,
-        property: "box-shadow",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "text-",
-        namespace: ThemeNamespace::Text,
-        property: "font-size",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "font-",
-        namespace: ThemeNamespace::Font,
-        property: "font-family",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "leading-",
-        namespace: ThemeNamespace::Leading,
-        property: "line-height",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "tracking-",
-        namespace: ThemeNamespace::Tracking,
-        property: "letter-spacing",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "z-",
-        namespace: ThemeNamespace::ZIndex,
-        property: "z-index",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "duration-",
-        namespace: ThemeNamespace::Duration,
-        property: "transition-duration",
-        supports_negative: false,
-    },
-    ThemeUtility {
-        prefix: "ease-",
-        namespace: ThemeNamespace::Ease,
-        property: "transition-timing-function",
-        supports_negative: false,
-    },
-];
+fn is_word_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
+}
 
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]
@@ -415,9 +214,7 @@ fn resolve_named_utility(
             "grid-template-columns:repeat({columns},minmax(0,1fr));"
         ));
     }
-    resolve_arbitrary(name, negative)
-        .or_else(|| resolve_special(name, modifier, negative, theme))
-        .or_else(|| resolve_theme_utility(name, modifier, negative, theme))
+    resolve_arbitrary(name, negative).or_else(|| resolve_special(name, modifier, negative, theme))
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored
@@ -428,10 +225,19 @@ fn resolve_css_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    let utility = theme
-        .utility(name)
-        .or_else(|| matching_utility(&theme.utilities, name))
-        .or_else(|| matching_utility(builtin_utilities(), name))?;
+    let lookup = negative.then(|| format!("-{name}"));
+    let lookup = lookup.as_deref().unwrap_or(name);
+    matching_utilities(&theme.utilities, lookup)
+        .chain(matching_utilities(builtin_utilities(), lookup))
+        .find_map(|utility| resolve_css_utility_body(utility, lookup, modifier, theme))
+}
+
+fn resolve_css_utility_body(
+    utility: &CustomUtility,
+    name: &str,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+) -> Option<String> {
     if utility.body.contains('&') || utility.body.contains("@slot") {
         return None;
     }
@@ -443,7 +249,12 @@ fn resolve_css_utility(
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
         let end = closing_parenthesis(&body, open)?;
-        let replacement = resolve_value_domains(&body[open + 1..end], capture, negative, theme)?;
+        let replacement = resolve_value_domains(
+            &body[open + 1..end],
+            capture,
+            utility.name.starts_with('-'),
+            theme,
+        )?;
         body.replace_range(start..=end, &replacement);
     }
     while let Some(start) = body.find("--modifier(") {
@@ -456,11 +267,21 @@ fn resolve_css_utility(
         };
         body.replace_range(start..=end, &replacement);
     }
-    (!body.contains("--value(") && !body.contains("--modifier(")).then_some(body)
+    while let Some(start) = body.find("--alpha(") {
+        let open = start + "--alpha".len();
+        let end = closing_parenthesis(&body, open)?;
+        let replacement = alpha(&body[open + 1..end])?;
+        body.replace_range(start..=end, &replacement);
+    }
+    (!body.contains("--value(") && !body.contains("--modifier(") && !body.contains("--alpha("))
+        .then_some(body)
 }
 
-fn matching_utility<'a>(utilities: &'a [CustomUtility], name: &str) -> Option<&'a CustomUtility> {
-    utilities.iter().rev().find(|utility| {
+fn matching_utilities<'a>(
+    utilities: &'a [CustomUtility],
+    name: &'a str,
+) -> impl Iterator<Item = &'a CustomUtility> {
+    utilities.iter().rev().filter(move |utility| {
         utility.name == name
             || utility
                 .name
@@ -569,37 +390,6 @@ fn resolve_special(
     None
 }
 
-fn resolve_theme_utility(
-    name: &str,
-    modifier: Option<&Value>,
-    negative: bool,
-    theme: &ThemeIndex,
-) -> Option<String> {
-    for utility in THEME_UTILITIES {
-        let Some(value) = name.strip_prefix(utility.prefix) else {
-            continue;
-        };
-        if negative && !utility.supports_negative {
-            continue;
-        }
-        if utility.namespace == ThemeNamespace::Color {
-            let Some(token) = theme.token_in(ThemeNamespace::Color, value) else {
-                continue;
-            };
-            let value = match modifier {
-                Some(modifier) => color_mix(&token.name.value, &opacity(modifier)?),
-                None => format!("var({})", token.name.value),
-            };
-            return Some(format!("{}:{value};", utility.property));
-        }
-        if modifier.is_none() {
-            let value = theme_value(utility.namespace, value, negative, theme)?;
-            return Some(format!("{}:{value};", utility.property));
-        }
-    }
-    None
-}
-
 fn theme_value(
     namespace: ThemeNamespace,
     value: &str,
@@ -699,21 +489,16 @@ fn decode_arbitrary(value: &str) -> String {
     result
 }
 
-fn opacity(value: &Value) -> Option<String> {
-    let value = match value {
-        Value::Named(value) | Value::Arbitrary(value) => value,
-        Value::CssVariable(value) => return Some(format!("var({value})")),
-    };
+fn alpha(value: &str) -> Option<String> {
+    if value.starts_with("var(") {
+        return Some(value.to_owned());
+    }
     let number = value.parse::<f64>().ok()?;
     Some(if number <= 1.0 {
-        (number * 100.0).to_string()
+        format!("{}%", number * 100.0)
     } else {
-        number.to_string()
+        format!("{number}%")
     })
-}
-
-fn color_mix(token: &str, opacity: &str) -> String {
-    format!("color-mix(in oklab,var({token}) {opacity}%,transparent)")
 }
 
 fn important(declaration: &str) -> String {
@@ -832,6 +617,30 @@ mod tests {
                 .unwrap()
                 .declaration,
             "opacity: 50;"
+        );
+    }
+
+    #[test]
+    fn tries_overloaded_css_utility_definitions_in_reverse_source_order() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            r"@utility token-* { width: --value([length]); }
+@utility token-* { color: --value([color]); }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_utility("token-[color:rebeccapurple]", &theme)
+                .unwrap()
+                .declaration,
+            "color: rebeccapurple;"
+        );
+        assert_eq!(
+            resolve_utility("token-[length:12px]", &theme)
+                .unwrap()
+                .declaration,
+            "width: 12px;"
         );
     }
 
