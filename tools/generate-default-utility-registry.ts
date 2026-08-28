@@ -18,16 +18,15 @@ const skipped = [];
 for (const candidate of candidates) {
   const css = await compileTailwindCss({ css: input, candidates: [candidate], base: fixtureRoot });
   const body = firstUtilityBody(css);
-  if (!body || body.includes("@")) {
+  if (!body || /@(?!supports\b)/u.test(body)) {
     skipped.push(candidate);
     continue;
   }
   rules.push(`@utility ${candidate} {\n${indent(body.trim(), 2)}\n}`);
 }
 
-if (skipped.length > 0) {
-  console.warn(`Skipped ${skipped.length} completion rules requiring nested-rule support.`);
-}
+if (skipped.length > 0)
+  console.warn(`Skipped ${skipped.length} completion rules with unsupported nested at-rules.`);
 const output = `/* GENERATED DEFAULT COMPLETIONS. Run vp run @stillwind/tools#registry:defaults:write. */\n${rules.join("\n")}\n`;
 if (write) writeFileSync(outputPath, output);
 console.log(`Lowered ${rules.length}/${candidates.length} default completions into CSS registry.`);
