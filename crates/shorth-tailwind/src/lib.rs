@@ -4,9 +4,9 @@
 //! names, or Stillwind-only relations. It turns a parsed candidate and a
 //! CSS-first theme into standard CSS declarations and wrappers.
 
-use std::fmt::Write;
+use std::{fmt::Write, sync::OnceLock};
 
-use shorth_css::{ThemeIndex, ThemeNamespace};
+use shorth_css::{CustomUtility, ThemeIndex, ThemeNamespace};
 use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,12 +24,6 @@ pub enum VariantApplication {
 }
 
 #[derive(Clone, Copy)]
-struct StaticUtility {
-    name: &'static str,
-    declaration: &'static str,
-}
-
-#[derive(Clone, Copy)]
 struct ThemeUtility {
     prefix: &'static str,
     namespace: ThemeNamespace,
@@ -37,220 +31,59 @@ struct ThemeUtility {
     supports_negative: bool,
 }
 
-const STATIC_UTILITIES: &[StaticUtility] = &[
-    StaticUtility {
-        name: "block",
-        declaration: "display:block;",
-    },
-    StaticUtility {
-        name: "inline-block",
-        declaration: "display:inline-block;",
-    },
-    StaticUtility {
-        name: "contents",
-        declaration: "display:contents;",
-    },
-    StaticUtility {
-        name: "flow-root",
-        declaration: "display:flow-root;",
-    },
-    StaticUtility {
-        name: "flex",
-        declaration: "display:flex;",
-    },
-    StaticUtility {
-        name: "inline-flex",
-        declaration: "display:inline-flex;",
-    },
-    StaticUtility {
-        name: "flex-row",
-        declaration: "flex-direction:row;",
-    },
-    StaticUtility {
-        name: "flex-col",
-        declaration: "flex-direction:column;",
-    },
-    StaticUtility {
-        name: "flex-wrap",
-        declaration: "flex-wrap:wrap;",
-    },
-    StaticUtility {
-        name: "flex-1",
-        declaration: "flex:1 1 0%;",
-    },
-    StaticUtility {
-        name: "grow",
-        declaration: "flex-grow:1;",
-    },
-    StaticUtility {
-        name: "grow-0",
-        declaration: "flex-grow:0;",
-    },
-    StaticUtility {
-        name: "shrink",
-        declaration: "flex-shrink:1;",
-    },
-    StaticUtility {
-        name: "shrink-0",
-        declaration: "flex-shrink:0;",
-    },
-    StaticUtility {
-        name: "grid",
-        declaration: "display:grid;",
-    },
-    StaticUtility {
-        name: "hidden",
-        declaration: "display:none;",
-    },
-    StaticUtility {
-        name: "visible",
-        declaration: "visibility:visible;",
-    },
-    StaticUtility {
-        name: "invisible",
-        declaration: "visibility:hidden;",
-    },
-    StaticUtility {
-        name: "place-items-center",
-        declaration: "place-items:center;",
-    },
-    StaticUtility {
-        name: "place-content-center",
-        declaration: "place-content:center;",
-    },
-    StaticUtility {
-        name: "items-center",
-        declaration: "align-items:center;",
-    },
-    StaticUtility {
-        name: "items-start",
-        declaration: "align-items:flex-start;",
-    },
-    StaticUtility {
-        name: "items-end",
-        declaration: "align-items:flex-end;",
-    },
-    StaticUtility {
-        name: "justify-center",
-        declaration: "justify-content:center;",
-    },
-    StaticUtility {
-        name: "justify-between",
-        declaration: "justify-content:space-between;",
-    },
-    StaticUtility {
-        name: "justify-start",
-        declaration: "justify-content:flex-start;",
-    },
-    StaticUtility {
-        name: "justify-end",
-        declaration: "justify-content:flex-end;",
-    },
-    StaticUtility {
-        name: "text-center",
-        declaration: "text-align:center;",
-    },
-    StaticUtility {
-        name: "text-left",
-        declaration: "text-align:left;",
-    },
-    StaticUtility {
-        name: "font-medium",
-        declaration: "font-weight:500;",
-    },
-    StaticUtility {
-        name: "font-semibold",
-        declaration: "font-weight:600;",
-    },
-    StaticUtility {
-        name: "font-bold",
-        declaration: "font-weight:700;",
-    },
-    StaticUtility {
-        name: "cursor-wait",
-        declaration: "cursor:wait;",
-    },
-    StaticUtility {
-        name: "cursor-pointer",
-        declaration: "cursor:pointer;",
-    },
-    StaticUtility {
-        name: "relative",
-        declaration: "position:relative;",
-    },
-    StaticUtility {
-        name: "absolute",
-        declaration: "position:absolute;",
-    },
-    StaticUtility {
-        name: "fixed",
-        declaration: "position:fixed;",
-    },
-    StaticUtility {
-        name: "sticky",
-        declaration: "position:sticky;",
-    },
-    StaticUtility {
-        name: "static",
-        declaration: "position:static;",
-    },
-    StaticUtility {
-        name: "border",
-        declaration: "border-width:1px;",
-    },
-    StaticUtility {
-        name: "border-0",
-        declaration: "border-width:0;",
-    },
-    StaticUtility {
-        name: "outline-0",
-        declaration: "outline-width:0;",
-    },
-    StaticUtility {
-        name: "outline-1",
-        declaration: "outline-width:1px;",
-    },
-    StaticUtility {
-        name: "outline-2",
-        declaration: "outline-width:2px;",
-    },
-    StaticUtility {
-        name: "outline-offset-2",
-        declaration: "outline-offset:2px;",
-    },
-    StaticUtility {
-        name: "position-area-block-end",
-        declaration: "position-area:block-end;",
-    },
-    StaticUtility {
-        name: "overflow-hidden",
-        declaration: "overflow:hidden;",
-    },
-    StaticUtility {
-        name: "opacity-0",
-        declaration: "opacity:0;",
-    },
-    StaticUtility {
-        name: "opacity-60",
-        declaration: "opacity:.6;",
-    },
-    StaticUtility {
-        name: "opacity-100",
-        declaration: "opacity:1;",
-    },
-    StaticUtility {
-        name: "translate-x-0",
-        declaration: "transform:translateX(0);",
-    },
-    StaticUtility {
-        name: "translate-y-0",
-        declaration: "transform:translateY(0);",
-    },
-    StaticUtility {
-        name: "transition",
-        declaration: "transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-duration:.15s;transition-timing-function:cubic-bezier(.4,0,.2,1);",
-    },
-];
+const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
+
+fn builtin_utilities() -> &'static [CustomUtility] {
+    static UTILITIES: OnceLock<Vec<CustomUtility>> = OnceLock::new();
+    UTILITIES
+        .get_or_init(|| {
+            shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
+                .into_iter()
+                .map(|mut utility| {
+                    // The registry asset is intentionally formatted for humans. The generated
+                    // output must nevertheless be byte-stable across formatter versions.
+                    utility.body = canonical_builtin_body(&utility.body);
+                    utility
+                })
+                .collect()
+        })
+        .as_slice()
+}
+
+/// Removes non-semantic whitespace from vendored declarations.
+///
+/// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
+/// their authored serialization. Quoted values are preserved byte-for-byte.
+fn canonical_builtin_body(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut quote = None;
+    let mut escaped = false;
+
+    for character in value.chars() {
+        if let Some(current_quote) = quote {
+            output.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == current_quote {
+                quote = None;
+            }
+            continue;
+        }
+
+        match character {
+            '\'' | '"' => {
+                quote = Some(character);
+                output.push(character);
+            }
+            character if character.is_whitespace() => {}
+            character => output.push(character),
+        }
+    }
+
+    output
+}
 
 const THEME_UTILITIES: &[ThemeUtility] = &[
     ThemeUtility {
@@ -572,13 +405,6 @@ fn resolve_named_utility(
     if let Some(declaration) = resolve_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    if let Some(declaration) = STATIC_UTILITIES
-        .iter()
-        .find(|utility| utility.name == name)
-        .map(|utility| utility.declaration.to_owned())
-    {
-        return (!negative && modifier.is_none()).then_some(declaration);
-    }
     if let Some(columns) = name.strip_prefix("grid-cols-")
         && let Ok(columns) = columns.parse::<u8>()
         && (1..=12).contains(&columns)
@@ -602,14 +428,10 @@ fn resolve_css_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    let utility = theme.utility(name).or_else(|| {
-        theme.utilities.iter().rev().find(|utility| {
-            utility
-                .name
-                .strip_suffix('*')
-                .is_some_and(|prefix| name.starts_with(prefix))
-        })
-    })?;
+    let utility = theme
+        .utility(name)
+        .or_else(|| matching_utility(&theme.utilities, name))
+        .or_else(|| matching_utility(builtin_utilities(), name))?;
     if utility.body.contains('&') || utility.body.contains("@slot") {
         return None;
     }
@@ -635,6 +457,16 @@ fn resolve_css_utility(
         body.replace_range(start..=end, &replacement);
     }
     (!body.contains("--value(") && !body.contains("--modifier(")).then_some(body)
+}
+
+fn matching_utility<'a>(utilities: &'a [CustomUtility], name: &str) -> Option<&'a CustomUtility> {
+    utilities.iter().rev().find(|utility| {
+        utility.name == name
+            || utility
+                .name
+                .strip_suffix('*')
+                .is_some_and(|prefix| name.starts_with(prefix))
+    })
 }
 
 fn closing_parenthesis(value: &str, open: usize) -> Option<usize> {

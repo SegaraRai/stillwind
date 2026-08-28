@@ -180,6 +180,13 @@ pub struct CustomVariant {
     pub body: String,
 }
 
+/// Parses `@utility` definitions without requiring a complete theme stylesheet.
+/// This is used for vendored built-in registries as well as tooling.
+#[must_use]
+pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
+    extract_custom_utilities(css)
+}
+
 impl ThemeIndex {
     #[must_use]
     pub fn token_in(&self, namespace: ThemeNamespace, name: &str) -> Option<&ThemeToken> {
@@ -484,13 +491,28 @@ fn strip_blocks(css: &str, directive: &str) -> String {
 }
 
 fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
-    extract_named_blocks(css, "@utility")
+    let css = strip_css_comments(css);
+    extract_named_blocks(&css, "@utility")
         .into_iter()
         .filter_map(|(header, body)| {
             let name = header.split_whitespace().next()?.to_owned();
             Some(CustomUtility { name, body })
         })
         .collect()
+}
+
+fn strip_css_comments(css: &str) -> String {
+    let mut output = String::new();
+    let mut remaining = css;
+    while let Some(start) = remaining.find("/*") {
+        output.push_str(&remaining[..start]);
+        let Some(end) = remaining[start + 2..].find("*/") else {
+            break;
+        };
+        remaining = &remaining[start + 2 + end + 2..];
+    }
+    output.push_str(remaining);
+    output
 }
 
 fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {

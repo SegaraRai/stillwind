@@ -131,7 +131,7 @@ const props = style("bg-accent", loading && "opacity-60");"#,
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
     assert!(result.css.contains("background-color:var(--color-accent);"));
-    assert!(result.css.contains("opacity:.6;"));
+    assert!(result.css.contains("opacity:0.6;"));
 }
 
 #[test]
@@ -375,7 +375,7 @@ const props = style(
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(result.css.contains("padding-inline:var(--spacing-4);"));
     assert!(result.css.contains(":hover{background-color:color-mix("));
-    assert!(result.css.contains("opacity:.6;"));
+    assert!(result.css.contains("opacity:0.6;"));
     assert!(
         result.transforms[0]
             .replacement
