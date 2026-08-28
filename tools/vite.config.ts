@@ -14,6 +14,12 @@ export default {
       "registry:static:write": {
         command: "node generate-static-utility-registry.ts --write",
       },
+      "registry:defaults": {
+        command: "node generate-default-utility-registry.ts",
+      },
+      "registry:defaults:write": {
+        command: "node generate-default-utility-registry.ts --write",
+      },
     },
   },
 };

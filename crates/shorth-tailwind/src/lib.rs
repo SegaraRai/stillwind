@@ -43,13 +43,15 @@ pub enum VariantApplication {
 }
 
 const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
+const DEFAULT_UTILITY_REGISTRY_CSS: &str = include_str!("../assets/default-utilities.css");
 
 fn builtin_utilities() -> &'static [CustomUtility] {
     static UTILITIES: OnceLock<Vec<CustomUtility>> = OnceLock::new();
     UTILITIES
         .get_or_init(|| {
-            shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
+            shorth_css::parse_utility_definitions(DEFAULT_UTILITY_REGISTRY_CSS)
                 .into_iter()
+                .chain(shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS))
                 .map(|mut utility| {
                     // The registry asset is intentionally formatted for humans. The generated
                     // output must nevertheless be byte-stable across formatter versions.
@@ -338,6 +340,9 @@ fn resolve_named_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<UtilityResolution> {
+    if let Some(declaration) = resolve_special(name, modifier, negative, theme) {
+        return Some(UtilityResolution::plain(declaration));
+    }
     if let Some(declaration) = resolve_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
@@ -351,9 +356,7 @@ fn resolve_named_utility(
             "grid-template-columns:repeat({columns},minmax(0,1fr));"
         )));
     }
-    resolve_arbitrary(name, negative)
-        .or_else(|| resolve_special(name, modifier, negative, theme))
-        .map(UtilityResolution::plain)
+    resolve_arbitrary(name, negative).map(UtilityResolution::plain)
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored
