@@ -12,6 +12,106 @@ pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../assets/tailwind-v4-pref
 
 const TAILWIND_V4_THEME: &str = include_str!("../assets/tailwind-v4-theme.css");
 
+/// Tailwind v4 theme namespaces that participate in built-in utility and
+/// variant resolution. Unknown custom properties remain available as authored
+/// CSS but never accidentally create a utility.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ThemeNamespace {
+    Animate,
+    AspectRatio,
+    Blur,
+    Breakpoint,
+    Color,
+    Container,
+    DropShadow,
+    Ease,
+    Font,
+    FontWeight,
+    InsetShadow,
+    Leading,
+    Perspective,
+    Radius,
+    Shadow,
+    Spacing,
+    Text,
+    TextShadow,
+    Tracking,
+    ZIndex,
+    Duration,
+}
+
+impl ThemeNamespace {
+    #[must_use]
+    pub const fn css_name(self) -> &'static str {
+        match self {
+            Self::Animate => "animate",
+            Self::AspectRatio => "aspect-ratio",
+            Self::Blur => "blur",
+            Self::Breakpoint => "breakpoint",
+            Self::Color => "color",
+            Self::Container => "container",
+            Self::DropShadow => "drop-shadow",
+            Self::Ease => "ease",
+            Self::Font => "font",
+            Self::FontWeight => "font-weight",
+            Self::InsetShadow => "inset-shadow",
+            Self::Leading => "leading",
+            Self::Perspective => "perspective",
+            Self::Radius => "radius",
+            Self::Shadow => "shadow",
+            Self::Spacing => "spacing",
+            Self::Text => "text",
+            Self::TextShadow => "text-shadow",
+            Self::Tracking => "tracking",
+            Self::ZIndex => "z-index",
+            Self::Duration => "duration",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        [
+            Self::AspectRatio,
+            Self::FontWeight,
+            Self::InsetShadow,
+            Self::DropShadow,
+            Self::TextShadow,
+            Self::Breakpoint,
+            Self::Perspective,
+            Self::Container,
+            Self::Tracking,
+            Self::Duration,
+            Self::Animate,
+            Self::Color,
+            Self::Spacing,
+            Self::Radius,
+            Self::Shadow,
+            Self::Leading,
+            Self::Font,
+            Self::Text,
+            Self::Blur,
+            Self::Ease,
+            Self::ZIndex,
+        ]
+        .into_iter()
+        .find(|namespace| namespace.css_name() == value)
+    }
+}
+
+/// The semantic identity of one custom property in a `@theme` block.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ThemeTokenKind {
+    /// `--spacing` is a scalar used by numeric spacing utilities.
+    Scale(ThemeNamespace),
+    /// A named token such as `--color-accent` or `--breakpoint-md`.
+    Token {
+        namespace: ThemeNamespace,
+        name: String,
+    },
+    /// A property that Stillwind emits unchanged but does not use for built-ins.
+    Custom,
+}
+
 /// Browser-ready Preflight with Tailwind's build-time `--theme()` calls
 /// lowered to standard `var()` calls.
 #[must_use]
@@ -55,6 +155,7 @@ pub fn tailwind_v4_keyframes() -> String {
 pub struct ThemeToken {
     pub name: Spanned<String>,
     pub value: Spanned<String>,
+    pub kind: ThemeTokenKind,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -79,7 +180,44 @@ pub struct CustomVariant {
 
 impl ThemeIndex {
     #[must_use]
+    pub fn token_in(&self, namespace: ThemeNamespace, name: &str) -> Option<&ThemeToken> {
+        self.active_tokens().into_iter().find(|token| {
+            token.kind
+                == (ThemeTokenKind::Token {
+                    namespace,
+                    name: name.to_owned(),
+                })
+        })
+    }
+
+    #[must_use]
+    pub fn tokens_in(&self, namespace: ThemeNamespace) -> Vec<&ThemeToken> {
+        self.active_tokens()
+            .into_iter()
+            .filter(|token| {
+                matches!(
+                    token.kind,
+                    ThemeTokenKind::Token {
+                        namespace: token_namespace,
+                        ..
+                    } if token_namespace == namespace
+                )
+            })
+            .collect()
+    }
+
+    #[must_use]
+    pub fn scale(&self, namespace: ThemeNamespace) -> Option<&ThemeToken> {
+        self.active_tokens()
+            .into_iter()
+            .find(|token| token.kind == ThemeTokenKind::Scale(namespace))
+    }
+
+    #[must_use]
     pub fn token(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
+        if let Some(namespace) = ThemeNamespace::parse(namespace) {
+            return self.token_in(namespace, name);
+        }
         let expected = format!("--{namespace}-{name}");
         self.active_tokens()
             .into_iter()
@@ -243,6 +381,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
                     value.to_owned(),
                     Span::new(file, offset(value_start), offset(value_start + value.len())),
                 ),
+                kind: classify_theme_token(name),
             });
         }
 
@@ -255,6 +394,47 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         utilities: Vec::new(),
         variants: Vec::new(),
     })
+}
+
+fn classify_theme_token(name: &str) -> ThemeTokenKind {
+    let Some(name) = name.strip_prefix("--") else {
+        return ThemeTokenKind::Custom;
+    };
+    for namespace in [
+        ThemeNamespace::AspectRatio,
+        ThemeNamespace::FontWeight,
+        ThemeNamespace::InsetShadow,
+        ThemeNamespace::DropShadow,
+        ThemeNamespace::TextShadow,
+        ThemeNamespace::Breakpoint,
+        ThemeNamespace::Perspective,
+        ThemeNamespace::Container,
+        ThemeNamespace::Tracking,
+        ThemeNamespace::Duration,
+        ThemeNamespace::Animate,
+        ThemeNamespace::Color,
+        ThemeNamespace::Spacing,
+        ThemeNamespace::Radius,
+        ThemeNamespace::Shadow,
+        ThemeNamespace::Leading,
+        ThemeNamespace::Font,
+        ThemeNamespace::Text,
+        ThemeNamespace::Blur,
+        ThemeNamespace::Ease,
+        ThemeNamespace::ZIndex,
+    ] {
+        let namespace_name = namespace.css_name();
+        if name == namespace_name {
+            return ThemeTokenKind::Scale(namespace);
+        }
+        if let Some(token_name) = name.strip_prefix(&format!("{namespace_name}-")) {
+            return ThemeTokenKind::Token {
+                namespace,
+                name: token_name.to_owned(),
+            };
+        }
+    }
+    ThemeTokenKind::Custom
 }
 
 fn strip_framework_directives(css: &str) -> String {
@@ -398,5 +578,32 @@ mod tests {
                 .iter()
                 .any(|token| token.name.value == "--spacing")
         );
+    }
+
+    #[test]
+    fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
+        let source = SourceFile::new(
+            FileId(7),
+            "shorth.css",
+            "@theme { --spacing: .25rem; --color-accent: oklch(.6 .2 250); --vendor-value: 1; }",
+        );
+
+        let theme = parse_theme(&source).unwrap();
+        let color = theme.token_in(ThemeNamespace::Color, "accent").unwrap();
+
+        assert_eq!(
+            color.kind,
+            ThemeTokenKind::Token {
+                namespace: ThemeNamespace::Color,
+                name: "accent".to_owned(),
+            }
+        );
+        assert_eq!(source.slice(color.name.span).unwrap(), "--color-accent");
+        assert_eq!(
+            theme.scale(ThemeNamespace::Spacing).unwrap().value.value,
+            ".25rem"
+        );
+        assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
+        assert_eq!(theme.tokens[2].kind, ThemeTokenKind::Custom);
     }
 }
