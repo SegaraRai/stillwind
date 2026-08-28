@@ -2087,6 +2087,99 @@
   container-type: inline-size;
 }
 
+@utility fill-* {
+  fill: --value(--color-*);
+}
+@utility fill-* {
+  fill: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility stroke-* {
+  stroke: --value(--color-*);
+}
+@utility stroke-* {
+  stroke: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility caret-* {
+  caret-color: --value(--color-*);
+}
+@utility caret-* {
+  caret-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility accent-* {
+  accent-color: --value(--color-*);
+}
+@utility accent-* {
+  accent-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+}
+@utility from-* {
+  --tw-gradient-from: --value(--color-*);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+@utility from-* {
+  --tw-gradient-from: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+@utility via-* {
+  --tw-gradient-via: --value(--color-*);
+  --tw-gradient-via-stops:
+    var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-via) var(--tw-gradient-via-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops);
+}
+@utility via-* {
+  --tw-gradient-via: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  --tw-gradient-via-stops:
+    var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-via) var(--tw-gradient-via-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops);
+}
+@utility to-* {
+  --tw-gradient-to: --value(--color-*);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+@utility to-* {
+  --tw-gradient-to: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+@utility bg-linear-to-r {
+  --tw-gradient-position: to right;
+  background-image: linear-gradient(var(--tw-gradient-stops));
+}
+@utility bg-linear-to-l {
+  --tw-gradient-position: to left;
+  background-image: linear-gradient(var(--tw-gradient-stops));
+}
+@utility bg-linear-to-t {
+  --tw-gradient-position: to top;
+  background-image: linear-gradient(var(--tw-gradient-stops));
+}
+@utility bg-linear-to-b {
+  --tw-gradient-position: to bottom;
+  background-image: linear-gradient(var(--tw-gradient-stops));
+}
+
 @variant * {
   & > * {
     @slot;

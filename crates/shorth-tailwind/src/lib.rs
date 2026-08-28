@@ -861,6 +861,27 @@ mod tests {
     }
 
     #[test]
+    fn resolves_css_defined_color_and_gradient_utilities() {
+        let theme = theme();
+        assert_eq!(
+            resolve_utility("fill-brand/50", &theme)
+                .unwrap()
+                .declaration,
+            "fill:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+        );
+        assert_eq!(
+            resolve_utility("from-brand", &theme).unwrap().declaration,
+            "--tw-gradient-from:var(--color-brand);--tw-gradient-stops:var(--tw-gradient-via-stops,var(--tw-gradient-position),var(--tw-gradient-from) var(--tw-gradient-from-position),var(--tw-gradient-to) var(--tw-gradient-to-position));"
+        );
+        assert_eq!(
+            resolve_utility("bg-linear-to-r", &theme)
+                .unwrap()
+                .declaration,
+            "--tw-gradient-position:to right;background-image:linear-gradient(var(--tw-gradient-stops));"
+        );
+    }
+
+    #[test]
     fn resolves_state_attribute_responsive_and_selector_variants() {
         let theme = theme();
         assert_eq!(
