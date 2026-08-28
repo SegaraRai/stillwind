@@ -256,6 +256,28 @@ const props = style("animate-spin");"#,
 }
 
 #[test]
+fn resolves_css_defined_custom_utilities_and_variants() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/App.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("content-auto data-checked:content-auto");"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/shorth.css",
+        r#"@utility content-auto { content-visibility: auto; }
+@custom-variant data-checked (&[data-ui~="checked"]);"#,
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("content-visibility: auto;"));
+    assert!(result.css.contains("[data-ui~=\"checked\"]{"));
+}
+
+#[test]
 fn applies_a_transform_plan_without_touching_surrounding_source() {
     let component = SourceFile::new(
         FileId(1),

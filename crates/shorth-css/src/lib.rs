@@ -61,6 +61,20 @@ pub struct ThemeToken {
 pub struct ThemeIndex {
     pub tokens: Vec<ThemeToken>,
     pub custom_css: String,
+    pub utilities: Vec<CustomUtility>,
+    pub variants: Vec<CustomVariant>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomUtility {
+    pub name: String,
+    pub body: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomVariant {
+    pub name: String,
+    pub selector: String,
 }
 
 impl ThemeIndex {
@@ -119,6 +133,22 @@ impl ThemeIndex {
     pub fn custom_css(&self) -> &str {
         &self.custom_css
     }
+
+    #[must_use]
+    pub fn utility(&self, name: &str) -> Option<&CustomUtility> {
+        self.utilities
+            .iter()
+            .rev()
+            .find(|utility| utility.name == name)
+    }
+
+    #[must_use]
+    pub fn variant(&self, name: &str) -> Option<&CustomVariant> {
+        self.variants
+            .iter()
+            .rev()
+            .find(|variant| variant.name == name)
+    }
 }
 
 #[derive(Debug, Error)]
@@ -140,7 +170,9 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
         .map_err(|error| ThemeError::Parse(error.to_string()))?;
 
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
-    theme.custom_css = strip_theme_blocks(source.text());
+    theme.custom_css = strip_framework_directives(source.text());
+    theme.utilities = extract_custom_utilities(source.text());
+    theme.variants = extract_custom_variants(source.text());
     Ok(theme)
 }
 
@@ -160,7 +192,9 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
     tokens.extend(extract_theme_tokens(source.id(), source.text())?.tokens);
     Ok(ThemeIndex {
         tokens,
-        custom_css: strip_theme_blocks(source.text()),
+        custom_css: strip_framework_directives(source.text()),
+        utilities: extract_custom_utilities(source.text()),
+        variants: extract_custom_variants(source.text()),
     })
 }
 
@@ -218,13 +252,24 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
     Ok(ThemeIndex {
         tokens,
         custom_css: String::new(),
+        utilities: Vec::new(),
+        variants: Vec::new(),
     })
 }
 
-fn strip_theme_blocks(css: &str) -> String {
+fn strip_framework_directives(css: &str) -> String {
+    let css = strip_blocks(css, "@theme");
+    let css = strip_blocks(&css, "@utility");
+    css.lines()
+        .filter(|line| !line.trim_start().starts_with("@custom-variant"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn strip_blocks(css: &str, directive: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
-    while let Some(relative) = css[cursor..].find("@theme") {
+    while let Some(relative) = css[cursor..].find(directive) {
         let start = cursor + relative;
         output.push_str(&css[cursor..start]);
         let Some(open_relative) = css[start..].find('{') else {
@@ -253,6 +298,65 @@ fn strip_theme_blocks(css: &str) -> String {
         output.push_str(&css[cursor..]);
     }
     output
+}
+
+fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
+    extract_named_blocks(css, "@utility")
+        .into_iter()
+        .filter_map(|(header, body)| {
+            let name = header.split_whitespace().next()?.to_owned();
+            Some(CustomUtility { name, body })
+        })
+        .collect()
+}
+
+fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
+    let mut blocks = Vec::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find(directive) {
+        let start = cursor + relative;
+        let Some(open_relative) = css[start..].find('{') else {
+            break;
+        };
+        let open = start + open_relative;
+        let header = css[start + directive.len()..open].trim().to_owned();
+        let mut depth = 1_u32;
+        let mut close = open;
+        for (offset, character) in css[open + 1..].char_indices() {
+            match character {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = open + 1 + offset;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        blocks.push((header, css[open + 1..close].trim().to_owned()));
+        cursor = close + 1;
+    }
+    blocks
+}
+
+fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
+    css.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            let value = line.strip_prefix("@custom-variant ")?.trim_end_matches(';');
+            let (name, selector) = value.split_once(' ')?;
+            Some(CustomVariant {
+                name: name.to_owned(),
+                selector: selector
+                    .trim()
+                    .trim_start_matches('(')
+                    .trim_end_matches(')')
+                    .to_owned(),
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -842,6 +842,7 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
     let (variants, base) = split_variants(utility);
     let declaration = resolve_static_utility(base)
         .or_else(|| resolve_themed_utility(base, theme))
+        .or_else(|| resolve_custom_utility(base, theme))
         .or_else(|| resolve_arbitrary_utility(base))?;
     Some(CompiledUtility {
         variants,
@@ -849,6 +850,11 @@ fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<Comp
         selector: None,
         container: None,
     })
+}
+
+fn resolve_custom_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<String> {
+    let custom = theme.utility(utility)?;
+    (!custom.body.contains('&')).then(|| custom.body.clone())
 }
 
 fn decode_arbitrary(value: &str) -> String {
@@ -1237,7 +1243,9 @@ fn emit_utility_rules(
                     }
                 }
                 value => {
-                    if let Some(token) = theme.value("breakpoint", value) {
+                    if let Some(variant) = theme.variant(value) {
+                        selector = variant.selector.replace('&', &selector);
+                    } else if let Some(token) = theme.value("breakpoint", value) {
                         media.push(format!("(width >= {token})"));
                     }
                 }
