@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process"
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { basename, join, resolve } from "node:path"
 
@@ -31,11 +31,16 @@ function compile(input, candidates) {
   const source = join(directory, "input.css")
   const output = join(directory, "output.css")
   try {
-    const importMatch = /(@import\s+"tailwindcss"[^;]*)(;)/.exec(input)
-    if (!importMatch || importMatch[1].includes("source(")) {
-      throw new Error("fixture Input CSS must import tailwindcss without source(...) so the oracle can isolate candidate detection")
+    const resources = join(fixtureRoot, "resources")
+    if (existsSync(resources)) cpSync(resources, join(directory, "resources"), { recursive: true })
+    const imports = [...input.matchAll(/(@import\s+"tailwindcss(?:\/[^\"]+)?"[^;]*)(;)/g)]
+    const importMatch = imports.find((match) => match[1].includes('"tailwindcss"') || match[1].includes('"tailwindcss/utilities"')) ?? imports[0]
+    if (!importMatch) {
+      throw new Error("fixture Input CSS must import a tailwindcss stylesheet so the oracle can isolate candidate detection")
     }
-    const isolatedInput = input.replace(importMatch[0], `${importMatch[1]} source(none)${importMatch[2]}`)
+    const isolatedInput = importMatch[1].includes("source(")
+      ? input
+      : input.replace(importMatch[0], `${importMatch[1]} source(none)${importMatch[2]}`)
     writeFileSync(source, `${isolatedInput}\n@source inline("${candidates}");\n`)
     execFileSync("vp", ["dlx", "--package", cliPackage, "--", "tailwindcss", "-i", source, "-o", output], {
       cwd: root,

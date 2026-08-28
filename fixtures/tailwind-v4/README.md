@@ -48,7 +48,25 @@ directive by the regeneration tool. The expected block is its formatted
 compiler output and is the sole snapshot assertion target.
 
 The input import may include other Tailwind v4 import modifiers such as
-`prefix(...)`; the oracle preserves them and appends only `source(none)`.
+`prefix(...)` or an explicit `source(...)`; the oracle preserves them and
+otherwise appends only `source(none)`.
+
+Ordinary cases import `tailwindcss/theme` and `tailwindcss/utilities` directly,
+so they never include Preflight. Cases named `reset.*` use the complete
+`tailwindcss` import and preserve the raw compiler output as the dedicated
+Preflight/reset compatibility contract. The generator never post-processes
+compiler CSS.
+
+## Upstream registration catalog
+
+`tools/extract-tailwind-v4-registrations.mjs` derives the exhaustive direct
+registration catalog and its corresponding fixture from the pinned upstream
+checkout. It does not add a dependency to this workspace.
+
+```powershell
+vp node tools/extract-tailwind-v4-registrations.mjs --upstream C:\path\to\tailwindcss --write
+vp node tools/regenerate-tailwind-v4-fixtures.mjs --write
+```
 
 ## Oracle policy
 
