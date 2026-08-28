@@ -11,6 +11,7 @@ use thiserror::Error;
 pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../assets/tailwind-v4-preflight.css");
 
 const TAILWIND_V4_THEME: &str = include_str!("../assets/tailwind-v4-theme.css");
+const TAILWIND_V4_PROPERTIES: &str = include_str!("../assets/tailwind-v4-properties.css");
 
 /// Tailwind v4 theme namespaces that participate in built-in utility and
 /// variant resolution. Unknown custom properties remain available as authored
@@ -149,6 +150,12 @@ pub fn tailwind_v4_keyframes() -> String {
         cursor = close + 1;
     }
     output
+}
+
+/// Typed custom-property registrations used by Tailwind-compatible utilities.
+#[must_use]
+pub const fn tailwind_v4_properties() -> &'static str {
+    TAILWIND_V4_PROPERTIES
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

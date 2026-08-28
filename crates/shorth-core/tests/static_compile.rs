@@ -841,6 +841,8 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
             .css
             .contains("--tw-mask-linear-to-position:calc(var(--spacing) * 100);")
     );
+    assert!(result.css.contains("@property --tw-gradient-position {"));
+    assert!(result.css.contains("@property --tw-mask-linear {"));
 }
 
 #[test]

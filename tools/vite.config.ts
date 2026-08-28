@@ -20,6 +20,9 @@ export default {
       "registry:defaults:write": {
         command: "node generate-default-utility-registry.ts --write",
       },
+      "registry:properties:write": {
+        command: "node generate-tailwind-property-registry.ts --write",
+      },
     },
   },
 };

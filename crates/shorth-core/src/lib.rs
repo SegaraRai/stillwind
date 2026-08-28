@@ -994,8 +994,9 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
 }
 
 fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> String {
-    let mut css =
-        String::from("@layer theme, base, components, utilities;\n@layer theme{:root,:host{");
+    let mut css = String::from(
+        "@layer properties;\n@layer theme, base, components, utilities;\n@layer theme{:root,:host{",
+    );
     for token in theme.active_tokens() {
         css.push_str(&token.name.value);
         css.push(':');
@@ -1017,6 +1018,7 @@ fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> Strin
     css.push_str("\n@layer utilities{");
     css.push_str(utility_css);
     css.push_str("}\n");
+    css.push_str(shorth_css::tailwind_v4_properties());
     css
 }
 
