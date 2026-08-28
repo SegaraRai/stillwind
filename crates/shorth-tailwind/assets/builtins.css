@@ -615,7 +615,7 @@
   }
 }
 
-/* GENERATED STATIC UTILITIES: run vp run registry:static --write. */
+/* Tailwind v4-compatible static utility definitions. */
 @utility -translate-full {
   --tw-translate-x: -100%;
   --tw-translate-y: -100%;
@@ -1919,7 +1919,6 @@
 @utility wrap-normal {
   overflow-wrap: normal;
 }
-/* END GENERATED STATIC UTILITIES */
 
 /* Functional arbitrary-value utilities. Theme-token overloads live above;
  * these definitions provide the common arbitrary-value grammar. */

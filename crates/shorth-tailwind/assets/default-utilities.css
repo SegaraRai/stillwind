@@ -1,4 +1,5 @@
-/* GENERATED DEFAULT COMPLETIONS. Run vp run @stillwind/tools#registry:defaults:write. */
+/* Transitional Tailwind v4 utility registry. This is being replaced by native
+ * `@utility-family` definitions; fixtures must never generate this file. */
 @utility -bg-conic-0 {
   --tw-gradient-position: from calc(0deg * -1) in oklab;
   background-image: conic-gradient(var(--tw-gradient-stops));

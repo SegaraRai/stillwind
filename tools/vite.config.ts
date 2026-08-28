@@ -8,21 +8,6 @@ export default {
       "fixtures:check": {
         command: "node regenerate-tailwind-v4-fixtures.ts",
       },
-      "registry:static": {
-        command: "node generate-static-utility-registry.ts",
-      },
-      "registry:static:write": {
-        command: "node generate-static-utility-registry.ts --write",
-      },
-      "registry:defaults": {
-        command: "node generate-default-utility-registry.ts",
-      },
-      "registry:defaults:write": {
-        command: "node generate-default-utility-registry.ts --write",
-      },
-      "registry:properties:write": {
-        command: "node generate-tailwind-property-registry.ts --write",
-      },
     },
   },
 };
