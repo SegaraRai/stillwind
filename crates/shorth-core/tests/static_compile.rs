@@ -1,5 +1,6 @@
 use shorth_core::Compiler;
 use shorth_source::{FileId, SourceFile};
+use std::{fs, path::Path};
 
 fn fixture_candidates(fixture: &str, case_name: &str) -> String {
     let case_start = fixture
@@ -16,6 +17,50 @@ fn fixture_candidates(fixture: &str, case_name: &str) -> String {
         .0
         .trim()
         .to_owned()
+}
+
+#[test]
+#[ignore = "compatibility audit: enable once every fixture candidate is supported"]
+fn every_tailwind_fixture_candidate_compiles_without_diagnostics() {
+    let case_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
+    let mut candidates = fs::read_dir(case_root)
+        .expect("fixture directory must exist")
+        .map(|entry| entry.expect("fixture entry must be readable").path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
+        .map(|path| fs::read_to_string(path).expect("fixture must be readable"))
+        .flat_map(|fixture| {
+            fixture
+                .split("### Candidates\n\n```text\n")
+                .skip(1)
+                .filter_map(|section| section.split_once("\n```"))
+                .map(|(candidates, _)| candidates.replace('\n', " "))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    candidates.sort();
+    let candidates = candidates.join(" ");
+    let component = SourceFile::new(
+        FileId(1),
+        "src/AllTailwindFixtures.tsx",
+        format!(
+            "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
+        ),
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+    let unknown = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "SH001")
+        .map(|diagnostic| diagnostic.message.clone())
+        .collect::<Vec<_>>();
+
+    assert!(
+        unknown.is_empty(),
+        "unresolved fixture candidates: {unknown:#?}"
+    );
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
 }
 
 #[test]
