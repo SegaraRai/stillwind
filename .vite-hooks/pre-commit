@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+set -eu
+
+files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$files" ]; then
+  exit 0
+fi
+
+vp fmt $files
+vp lint $files
+
+if ! git diff --quiet -- $files; then
+  echo "vp fmt changed files; stage the formatting changes and commit again."
+  exit 1
+fi
