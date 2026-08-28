@@ -75,6 +75,23 @@ const props = style("divide-x-[2px]");"#,
 }
 
 #[test]
+fn emits_starting_style_variants_as_a_css_wrapper() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/EnteringPanel.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("starting:opacity-0");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("@starting-style{._s_"));
+    assert!(result.css.contains("{opacity:0;}"));
+}
+
+#[test]
 fn compiles_a_real_react_style_call_against_a_css_theme() {
     let component = SourceFile::new(
         FileId(1),

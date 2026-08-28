@@ -883,6 +883,7 @@ fn emit_utility_rules(
         );
         let mut media = Vec::new();
         let mut supports = Vec::new();
+        let mut starting_style = false;
         for variant in &utility.variants {
             match shorth_tailwind::resolve_variant(variant, theme) {
                 Some(shorth_tailwind::VariantApplication::SelectorSuffix(suffix)) => {
@@ -904,6 +905,9 @@ fn emit_utility_rules(
                 Some(shorth_tailwind::VariantApplication::Supports(condition)) => {
                     supports.push(condition);
                 }
+                Some(shorth_tailwind::VariantApplication::StartingStyle) => {
+                    starting_style = true;
+                }
                 None => {}
             }
         }
@@ -913,6 +917,9 @@ fn emit_utility_rules(
         }
         for condition in media.into_iter().rev() {
             rule = format!("@media {condition}{{{rule}}}");
+        }
+        if starting_style {
+            rule = format!("@starting-style{{{rule}}}");
         }
         if let Some(container) = &utility.container {
             rule = format!("@container {container}{{{rule}}}");

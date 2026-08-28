@@ -2083,3 +2083,79 @@
 @utility zoom-* {
   zoom: --value([*]);
 }
+
+@variant * {
+  & > * {
+    @slot;
+  }
+}
+@variant ** {
+  & * {
+    @slot;
+  }
+}
+@variant autofill {
+  &:autofill {
+    @slot;
+  }
+}
+@variant backdrop {
+  &::backdrop {
+    @slot;
+  }
+}
+@variant details-content {
+  &::details-content {
+    @slot;
+  }
+}
+@variant in-range {
+  &:in-range {
+    @slot;
+  }
+}
+@variant inert {
+  &:is([inert], [inert] *) {
+    @slot;
+  }
+}
+@variant ltr {
+  &:dir(ltr) {
+    @slot;
+  }
+}
+@variant noscript {
+  noscript & {
+    @slot;
+  }
+}
+@variant out-of-range {
+  &:out-of-range {
+    @slot;
+  }
+}
+@variant rtl {
+  &:dir(rtl) {
+    @slot;
+  }
+}
+@variant starting {
+  @starting-style {
+    @slot;
+  }
+}
+@variant user-invalid {
+  &:user-invalid {
+    @slot;
+  }
+}
+@variant user-valid {
+  &:user-valid {
+    @slot;
+  }
+}
+@variant visited {
+  &:visited {
+    @slot;
+  }
+}

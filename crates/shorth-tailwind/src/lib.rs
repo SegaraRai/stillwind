@@ -38,6 +38,7 @@ pub enum VariantApplication {
     SelectorMedia { selector: String, condition: String },
     Media(String),
     Supports(String),
+    StartingStyle,
 }
 
 const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
@@ -202,6 +203,9 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
 fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {
         return None;
+    }
+    if body.contains("@starting-style") {
+        return Some(VariantApplication::StartingStyle);
     }
     if let Some(start) = body.find("@media ") {
         let condition_start = start + "@media ".len();
@@ -643,6 +647,27 @@ mod tests {
         assert!(
             unresolved.is_empty(),
             "unresolved functional utility candidates: {unresolved:?}"
+        );
+    }
+
+    #[test]
+    fn resolves_every_upstream_static_variant_from_the_css_registry() {
+        let catalog = include_str!("../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
+        let variants = catalog_section(catalog, "## Static variants");
+        let theme = theme();
+
+        let unresolved = variants
+            .into_iter()
+            .filter(|name| {
+                let candidate =
+                    parse_candidate(&format!("{name}:flex")).expect("catalog variants must parse");
+                resolve_variant(&candidate.variants[0], &theme).is_none()
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            unresolved.is_empty(),
+            "unresolved static variants: {unresolved:?}"
         );
     }
 
