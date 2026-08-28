@@ -63,7 +63,6 @@ pub enum VariantApplication {
 }
 
 const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
-const DEFAULT_UTILITY_REGISTRY_CSS: &str = include_str!("../assets/default-utilities.css");
 
 /// Tailwind spellings intentionally owned by Stillwind's relationship-handle
 /// API rather than its Tailwind-compatibility registry.
@@ -79,7 +78,6 @@ const STILLWIND_OWNED_UTILITIES: &[&str] = &[
 ];
 
 struct BuiltinUtilityRegistry {
-    default_exact: HashMap<String, Vec<CustomUtility>>,
     builtin_exact: HashMap<String, Vec<CustomUtility>>,
     wildcards: Vec<CustomUtility>,
 }
@@ -94,23 +92,12 @@ fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
             utility.body = canonical_builtin_body(&utility.body);
             utility
         };
-        let defaults = shorth_css::parse_utility_definitions(DEFAULT_UTILITY_REGISTRY_CSS)
-            .into_iter()
-            .map(&normalize)
-            .collect::<Vec<_>>();
         let builtins = shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
             .into_iter()
             .map(normalize)
             .collect::<Vec<_>>();
-        let mut default_exact = HashMap::<String, Vec<CustomUtility>>::new();
         let mut builtin_exact = HashMap::<String, Vec<CustomUtility>>::new();
         let mut wildcards = Vec::new();
-        for utility in defaults {
-            default_exact
-                .entry(utility.name.clone())
-                .or_default()
-                .push(utility);
-        }
         for utility in builtins {
             if utility.name.ends_with('*') {
                 wildcards.push(utility);
@@ -122,7 +109,6 @@ fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
             }
         }
         BuiltinUtilityRegistry {
-            default_exact,
             builtin_exact,
             wildcards,
         }
@@ -558,13 +544,6 @@ fn resolve_builtin_css_utility(
                 .into_iter()
                 .flat_map(|utilities| utilities.iter().rev()),
         )
-        .chain(
-            builtin_utilities()
-                .default_exact
-                .get(lookup)
-                .into_iter()
-                .flat_map(|utilities| utilities.iter().rev()),
-        )
         .find_map(|utility| resolve_css_utility_body(utility, lookup, modifier, theme))
 }
 
@@ -614,12 +593,26 @@ fn resolve_css_placeholders(
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
         let end = closing_parenthesis(&body, open)?;
-        let replacement = resolve_value_domains(
-            &body[open + 1..end],
-            capture,
-            utility_name.starts_with('-'),
-            theme,
-        )?;
+        let domains = &body[open + 1..end];
+        // The candidate grammar deliberately represents the slash in `w-1/2`
+        // as a modifier. Value domains that explicitly opt into fractions can
+        // reassemble that spelling without changing slash semantics for color
+        // opacity, fonts, or arbitrary modifiers.
+        let fraction_capture = if domains.contains("--fraction()") {
+            capture.zip(modifier).and_then(|(capture, modifier)| {
+                let modifier = match modifier {
+                    Value::Named(value) => value,
+                    Value::Arbitrary(_) | Value::CssVariable(_) => return None,
+                };
+                (capture.parse::<u16>().is_ok() && modifier.parse::<u16>().is_ok())
+                    .then(|| format!("{capture}/{modifier}"))
+            })
+        } else {
+            None
+        };
+        let capture = fraction_capture.as_deref().or(capture);
+        let replacement =
+            resolve_value_domains(domains, capture, utility_name.starts_with('-'), theme)?;
         body.replace_range(start..=end, &replacement);
     }
     while let Some(start) = body.find("--modifier(") {
@@ -632,14 +625,46 @@ fn resolve_css_placeholders(
         };
         body.replace_range(start..=end, &replacement);
     }
+    while let Some(start) = body.find("--modifier-map(") {
+        let open = start + "--modifier-map".len();
+        let end = closing_parenthesis(&body, open)?;
+        let modifier = modifier?;
+        let modifier = match modifier {
+            Value::Named(value) | Value::Arbitrary(value) => value,
+            Value::CssVariable(_) => return None,
+        };
+        let replacement = split_domains(&body[open + 1..end])
+            .into_iter()
+            .find_map(|entry| {
+                let (key, value) = entry.trim().split_once(':')?;
+                (key.trim() == modifier).then(|| value.trim())
+            })?
+            .to_owned();
+        body.replace_range(start..=end, &replacement);
+    }
+    while let Some(start) = body.find("--modifier-none()") {
+        if modifier.is_some() {
+            return None;
+        }
+        let declaration_start = body[..start].rfind(';').map_or(0, |end| end + 1);
+        let declaration_end = body[start..].find(';').map_or_else(
+            || start + "--modifier-none()".len(),
+            |offset| start + offset + 1,
+        );
+        body.replace_range(declaration_start..declaration_end, "");
+    }
     while let Some(start) = body.find("--alpha(") {
         let open = start + "--alpha".len();
         let end = closing_parenthesis(&body, open)?;
         let replacement = alpha(&body[open + 1..end])?;
         body.replace_range(start..=end, &replacement);
     }
-    (!body.contains("--value(") && !body.contains("--modifier(") && !body.contains("--alpha("))
-        .then_some(body)
+    (!body.contains("--value(")
+        && !body.contains("--modifier(")
+        && !body.contains("--modifier-map(")
+        && !body.contains("--modifier-none()")
+        && !body.contains("--alpha("))
+    .then_some(body)
 }
 
 fn split_nested_conditions(body: &str) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
@@ -773,6 +798,9 @@ fn resolve_value_domains(
         if domain == "--fraction()" {
             return capture.and_then(|capture| fraction_value(capture, negative));
         }
+        if domain == "--inset()" {
+            return capture.and_then(|capture| inset_value(capture, negative));
+        }
         if domain == "--width()" {
             return capture.and_then(|capture| axis_size_value(capture, "vw", negative));
         }
@@ -861,6 +889,17 @@ fn fraction_value(value: &str, negative: bool) -> Option<String> {
             value
         }
     })
+}
+
+fn inset_value(value: &str, negative: bool) -> Option<String> {
+    let value = match value {
+        "auto" if !negative => "auto".to_owned(),
+        "full" => "100%".to_owned(),
+        _ => return None,
+    };
+    negative
+        .then(|| format!("calc({value} * -1)"))
+        .or(Some(value))
 }
 
 fn axis_size_value(value: &str, viewport_axis: &str, negative: bool) -> Option<String> {
@@ -1099,6 +1138,41 @@ mod tests {
     }
 
     #[test]
+    fn resolves_native_mask_conic_angles() {
+        let resolved = resolve_utility("mask-conic-45", &theme()).expect("mask conic angle");
+        assert!(
+            resolved
+                .declaration
+                .contains("--tw-mask-conic-position:calc(1deg*45);"),
+            "{resolved:?}"
+        );
+        assert!(
+            resolve_utility("-mask-conic-45", &theme())
+                .expect("negative mask conic angle")
+                .declaration
+                .contains("--tw-mask-conic-position:calc(1deg*-1*45);")
+        );
+    }
+
+    #[test]
+    fn resolves_gradient_interpolation_modifiers_in_the_css_registry() {
+        let default = resolve_utility("bg-conic-45", &theme()).expect("default conic");
+        assert!(
+            default
+                .declaration
+                .contains("--tw-gradient-position:from calc(1deg*45) in oklab;"),
+            "{default:?}"
+        );
+        let interpolated =
+            resolve_utility("bg-conic-45/increasing", &theme()).expect("interpolated conic");
+        assert!(
+            interpolated
+                .declaration
+                .contains("--tw-gradient-position:from calc(1deg*45) in oklch increasing hue;")
+        );
+    }
+
+    #[test]
     fn resolves_css_defined_color_and_gradient_utilities() {
         let theme = theme();
         assert_eq!(
@@ -1189,6 +1263,14 @@ mod tests {
         assert_eq!(
             resolve_utility("scroll-px-4", &theme).unwrap().declaration,
             "scroll-padding-inline:calc(var(--spacing) * 4);"
+        );
+        assert_eq!(
+            resolve_utility("-left-1/2", &theme).unwrap().declaration,
+            "left:calc(calc(1 / 2 * 100%) * -1);"
+        );
+        assert_eq!(
+            resolve_utility("-bottom-full", &theme).unwrap().declaration,
+            "bottom:calc(100% * -1);"
         );
     }
 

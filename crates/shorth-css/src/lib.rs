@@ -661,6 +661,7 @@ fn utility_family_value(domain: &str) -> Option<&'static str> {
     match domain {
         "spacing" => Some("--value(--spacing-*, --spacing(), [length])"),
         "spacing-fraction" => Some("--value(--spacing-*, --spacing(), --fraction(), [length])"),
+        "inset" => Some("--value(--spacing-*, --spacing(), --fraction(), --inset(), [length])"),
         "length" => {
             Some("--value(--spacing-*, --spacing(), --container-*, --fraction(), [length])")
         }

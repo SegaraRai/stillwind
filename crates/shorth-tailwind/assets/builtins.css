@@ -136,6 +136,14 @@
 @utility outline-2 {
   outline-width: 2px;
 }
+@utility outline-hidden {
+  --tw-outline-style: none;
+  outline-style: none;
+  @media (forced-colors: active) {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
 @utility outline-offset-2 {
   outline-offset: 2px;
 }
@@ -176,7 +184,7 @@
  * spacing values it accepts. The `negative` flag produces the paired negative
  * utility with the same typed value grammar.
  */
-@utility-family spacing-fraction negative {
+@utility-family inset negative {
   inset: inset;
   inset-x: inset-inline;
   inset-y: inset-block;
@@ -204,6 +212,8 @@
   scroll-mbe: scroll-margin-block-end;
 }
 @utility-family spacing {
+  gap-x: column-gap;
+  gap-y: row-gap;
   scroll-p: scroll-padding;
   scroll-px: scroll-padding-inline;
   scroll-py: scroll-padding-block;
@@ -251,6 +261,61 @@
   row-start: grid-row-start;
   row-end: grid-row-end;
   tab: tab-size;
+}
+@utility border-spacing-* {
+  --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
+  --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility border-spacing-x-* {
+  --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility border-spacing-y-* {
+  --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility space-x-* {
+  & > :not(:last-child) {
+    --tw-space-x-reverse: 0;
+    margin-inline-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-x-reverse))
+    );
+    margin-inline-end: calc(
+      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-x-reverse)
+    );
+  }
+}
+@utility -space-x-* {
+  & > :not(:last-child) {
+    --tw-space-x-reverse: 0;
+    margin-inline-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-x-reverse))
+    );
+    margin-inline-end: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * var(--tw-space-x-reverse)
+    );
+  }
+}
+@utility space-y-* {
+  & > :not(:last-child) {
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-y-reverse))
+    );
+    margin-block-end: calc(--value(--spacing-*, --spacing(), [length]) * var(--tw-space-y-reverse));
+  }
+}
+@utility -space-y-* {
+  & > :not(:last-child) {
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-y-reverse))
+    );
+    margin-block-end: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * var(--tw-space-y-reverse)
+    );
+  }
 }
 @utility bg-* {
   background-color: --value(--color-*);
@@ -2097,6 +2162,12 @@
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
   --tw-mask-conic-position: calc(1deg * --value(integer));
 }
+@utility -mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: calc(1deg * -1 * --value(integer));
+}
 @utility mask-conic-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -2108,6 +2179,18 @@
 }
 @utility mask-linear-* {
   mask-image: linear-gradient(--value([*]));
+}
+@utility mask-linear-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: calc(1deg * --value(integer));
+}
+@utility -mask-linear-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: calc(1deg * -1 * --value(integer));
 }
 @utility mask-position-* {
   mask-position: --value([*]);
@@ -2146,6 +2229,14 @@
 @utility -translate-y-* {
   --tw-translate-y: --value(--spacing-*, --spacing(), [*]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+@utility translate-z-* {
+  --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
+}
+@utility -translate-z-* {
+  --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
 }
 @utility scale-* {
   --tw-scale-x: calc(--value(integer) * 1%);
@@ -2366,6 +2457,65 @@
 @utility -bg-linear-* {
   --tw-gradient-position: calc(--value(integer) deg * -1) in --modifier();
   background-image: linear-gradient(var(--tw-gradient-stops));
+}
+/* Gradient interpolation follows the CSS Images 4 color-space spelling.
+ * `--modifier-map` is registry syntax, so user-defined utilities get the
+ * same checked modifier behaviour without a JavaScript-side special case. */
+@utility bg-conic {
+  --stillwind-modifier-guard: --modifier-none();
+  --tw-gradient-position: in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic {
+  --tw-gradient-position: --modifier-map(
+    oklab: in oklab,
+    oklch: in oklch,
+    srgb: in srgb,
+    hsl: in hsl,
+    longer: in oklch longer hue,
+    shorter: in oklch shorter hue,
+    increasing: in oklch increasing hue,
+    decreasing: in oklch decreasing hue
+  );
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic-* {
+  --stillwind-modifier-guard: --modifier-none();
+  --tw-gradient-position: from calc(1deg * --value(integer)) in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic-* {
+  --tw-gradient-position: from calc(1deg * --value(integer))
+    --modifier-map(
+      oklab: in oklab,
+      oklch: in oklch,
+      srgb: in srgb,
+      hsl: in hsl,
+      longer: in oklch longer hue,
+      shorter: in oklch shorter hue,
+      increasing: in oklch increasing hue,
+      decreasing: in oklch decreasing hue
+    );
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility -bg-conic-* {
+  --stillwind-modifier-guard: --modifier-none();
+  --tw-gradient-position: from calc(1deg * -1 * --value(integer)) in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility -bg-conic-* {
+  --tw-gradient-position: from calc(1deg * -1 * --value(integer))
+    --modifier-map(
+      oklab: in oklab,
+      oklch: in oklch,
+      srgb: in srgb,
+      hsl: in hsl,
+      longer: in oklch longer hue,
+      shorter: in oklch shorter hue,
+      increasing: in oklch increasing hue,
+      decreasing: in oklch decreasing hue
+    );
+  background-image: conic-gradient(var(--tw-gradient-stops));
 }
 @utility divide-* {
   & > :not(:last-child) {
