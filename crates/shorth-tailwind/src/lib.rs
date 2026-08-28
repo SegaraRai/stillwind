@@ -539,6 +539,40 @@ mod tests {
         .unwrap()
     }
 
+    fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
+        let start = markdown
+            .find(heading)
+            .and_then(|start| {
+                markdown[start..]
+                    .find("```text\n")
+                    .map(|offset| start + offset + 8)
+            })
+            .expect("catalog section must contain candidates");
+        markdown[start..]
+            .split_once("\n```")
+            .expect("catalog section must close")
+            .0
+            .split_whitespace()
+            .collect()
+    }
+
+    #[test]
+    fn resolves_every_upstream_static_utility_from_the_css_registry() {
+        let catalog = include_str!("../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
+        let candidates = catalog_section(catalog, "## Static utilities");
+        let theme = theme();
+
+        let unresolved = candidates
+            .into_iter()
+            .filter(|candidate| resolve_utility(candidate, &theme).is_none())
+            .collect::<Vec<_>>();
+
+        assert!(
+            unresolved.is_empty(),
+            "unresolved static utilities: {unresolved:?}"
+        );
+    }
+
     #[test]
     fn resolves_fixture_style_static_theme_and_arbitrary_candidates() {
         let theme = theme();
