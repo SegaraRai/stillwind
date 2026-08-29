@@ -1022,28 +1022,34 @@ fn theme_value(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    let value = if let Some(value) = typed_theme_arbitrary(namespace, value) {
-        value
-    } else if let Some(value) = css_variable(value) {
-        format!("var({value})")
-    } else if theme.token_in(namespace, value).is_some() {
-        format!("var(--{}-{value})", namespace.css_name())
-    } else if namespace == ThemeNamespace::Spacing && theme.scale(ThemeNamespace::Spacing).is_some()
-    {
-        if value == "px" {
-            "1px".to_owned()
-        } else if value.parse::<f64>().is_ok() {
-            let multiplier = if negative {
-                format!("-{value}")
-            } else {
-                value.to_owned()
-            };
-            return Some(format!("calc(var(--spacing) * {multiplier})"));
-        } else {
-            return None;
+    let value = match (namespace, value) {
+        // These are CSS colour keywords, not `@theme` tokens. They are
+        // nevertheless part of every Tailwind colour utility's public value
+        // grammar, including after an application resets `--color-*`.
+        (ThemeNamespace::Color, "current") => "currentcolor".to_owned(),
+        (ThemeNamespace::Color, "inherit" | "transparent") => value.to_owned(),
+        _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
+        _ if let Some(value) = css_variable(value) => format!("var({value})"),
+        _ if theme.token_in(namespace, value).is_some() => {
+            format!("var(--{}-{value})", namespace.css_name())
         }
-    } else {
-        return None;
+        _ if namespace == ThemeNamespace::Spacing
+            && theme.scale(ThemeNamespace::Spacing).is_some() =>
+        {
+            if value == "px" {
+                "1px".to_owned()
+            } else if value.parse::<f64>().is_ok() {
+                let multiplier = if negative {
+                    format!("-{value}")
+                } else {
+                    value.to_owned()
+                };
+                return Some(format!("calc(var(--spacing) * {multiplier})"));
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
     };
     negative
         .then(|| format!("calc({value} * -1)"))
@@ -1346,6 +1352,18 @@ mod tests {
                 .unwrap()
                 .declaration,
             "background-color:var(--color-brand);"
+        );
+        assert_eq!(
+            resolve_utility("bg-current", &reset_theme)
+                .unwrap()
+                .declaration,
+            "background-color:currentcolor;"
+        );
+        assert_eq!(
+            resolve_utility("bg-transparent", &reset_theme)
+                .unwrap()
+                .declaration,
+            "background-color:transparent;"
         );
     }
 
