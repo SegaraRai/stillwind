@@ -678,7 +678,11 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
     });
+    let requires_modifier = declarations
+        .iter()
+        .any(|declaration| declaration.contains("--modifier("));
     let mut resolved_placeholder = false;
+    let mut resolved_modifier = false;
     let mut output = String::new();
 
     for declaration in declarations {
@@ -687,11 +691,13 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(");
+        let contains_modifier = declaration.contains("--modifier(");
         if let Some(declaration) =
             resolve_css_placeholders(declaration, utility_name, name, modifier, theme)
             && !declaration.trim().is_empty()
         {
             resolved_placeholder |= contains_placeholder;
+            resolved_modifier |= contains_modifier;
             if output.is_empty() {
                 output.push_str(declaration.trim_start());
             } else {
@@ -703,7 +709,10 @@ fn resolve_css_declarations(
     // Static declarations in a functional body are supporting declarations,
     // not an independent branch. For example the generic `translate-*` body
     // must not emit `translate: …` when none of its typed values match.
-    (!uses_placeholder || resolved_placeholder).then_some(output)
+    (!uses_placeholder || resolved_placeholder)
+        .then_some(())
+        .filter(|()| !requires_modifier || resolved_modifier)
+        .map(|()| output)
 }
 
 /// Splits a declaration list without mistaking a semicolon in a string or a
@@ -786,9 +795,22 @@ fn resolve_css_placeholders(
         let open = start + "--modifier".len();
         let end = closing_parenthesis(&body, open)?;
         let modifier = modifier?;
-        let replacement = match modifier {
-            Value::Named(value) | Value::Arbitrary(value) => value.clone(),
-            Value::CssVariable(value) => format!("var({value})"),
+        let domains = &body[open + 1..end];
+        let replacement = if domains.trim().is_empty() {
+            match modifier {
+                Value::Named(value) | Value::Arbitrary(value) => value.clone(),
+                Value::CssVariable(value) => format!("var({value})"),
+            }
+        } else {
+            let capture = match modifier {
+                Value::Named(value) => value.clone(),
+                // `Value::Arbitrary` is decoded by the grammar. Re-wrap it
+                // so the same typed-domain resolver used by `--value(...)`
+                // can check an optional arbitrary-value hint.
+                Value::Arbitrary(value) => format!("[{value}]"),
+                Value::CssVariable(value) => format!("({value})"),
+            };
+            resolve_value_domains(domains, Some(&capture), false, theme)?
         };
         body.replace_range(start..=end, &replacement);
     }
@@ -1490,6 +1512,25 @@ mod tests {
                 .declaration,
             "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
         );
+    }
+
+    #[test]
+    fn resolves_typed_modifier_domains_without_accepting_other_types() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            r"@utility prose-* {
+  font-size: --value(--text-*);
+  line-height: --modifier(--leading-*, --spacing(), [length]);
+}",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_utility("prose-sm/6", &theme).unwrap().declaration,
+            "font-size: var(--text-sm);\n  line-height: calc(var(--spacing) * 6);"
+        );
+        assert!(resolve_utility("prose-sm/[color:rebeccapurple]", &theme).is_none());
     }
 
     #[test]

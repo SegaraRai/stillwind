@@ -618,6 +618,9 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
             if domain == Some("mask-radial-stop") {
                 return expand_mask_radial_stop_family(&body);
             }
+            if domain == Some("color-alpha-default") {
+                return expand_color_alpha_default_family(&body);
+            }
             let Some(value) = domain.and_then(utility_family_value) else {
                 return Vec::new();
             };
@@ -659,6 +662,44 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                     })
                 })
                 .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// Expands bare colour utilities such as `border/50` without inventing a
+/// default-palette table. The value is always `currentcolor`; a slash modifier
+/// is required by the generated body and is validated by the shared
+/// `--modifier(...)` resolver.
+fn expand_color_alpha_default_family(body: &str) -> Vec<CustomUtility> {
+    body.split(';')
+        .filter_map(|entry| {
+            let (names, properties) = entry.split_once(':')?;
+            let properties = properties
+                .split(',')
+                .map(str::trim)
+                .filter(|property| !property.is_empty())
+                .collect::<Vec<_>>();
+            (!properties.is_empty()).then_some((names, properties))
+        })
+        .flat_map(|(names, properties)| {
+            names
+                .split(',')
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(move |name| {
+                    let mut body = String::new();
+                    for property in &properties {
+                        write!(
+                            body,
+                            "{property}:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent);"
+                        )
+                        .expect("writing to a String cannot fail");
+                    }
+                    CustomUtility {
+                        name: name.to_owned(),
+                        body,
+                    }
+                })
         })
         .collect()
 }
@@ -783,6 +824,9 @@ fn utility_family_value(domain: &str) -> Option<&'static str> {
         "integer" => Some("--value(integer, [integer])"),
         "number" => Some("--value(number, [number])"),
         "color" => Some("--value(--color-*, current, inherit, transparent, [color])"),
+        "color-alpha" => Some(
+            "color-mix(in oklab, --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()), transparent)",
+        ),
         _ => None,
     }
 }
@@ -897,6 +941,19 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn expands_bare_colour_modifier_families() {
+        let utilities = parse_utility_definitions(
+            "@utility-family color-alpha-default { border, outline: border-color, outline-color; }",
+        );
+
+        assert_eq!(utilities.len(), 2);
+        assert_eq!(utilities[0].name, "border");
+        assert!(utilities[0].body.contains("border-color:color-mix"));
+        assert_eq!(utilities[1].name, "outline");
+        assert!(utilities[1].body.contains("outline-color:color-mix"));
     }
 
     #[test]
