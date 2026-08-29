@@ -27,6 +27,48 @@ fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<St
     Some(section[start..].split_once("\n```")?.0.trim().to_owned())
 }
 
+fn css_rule(css: &str, class_name: &str) -> String {
+    let selector = format!(".{class_name}");
+    let start = css
+        .find(&selector)
+        .unwrap_or_else(|| panic!("CSS rule `{selector}` must exist"));
+    let open = css[start..]
+        .find('{')
+        .map(|offset| start + offset)
+        .expect("CSS rule must open");
+    let mut depth = 0_u32;
+    for (offset, character) in css[open..].char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return css[start..=open + offset].to_owned();
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("CSS rule must close");
+}
+
+fn normalize_css(css: &str) -> String {
+    css.chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
+}
+
+fn tailwind_class_selector(candidate: &str) -> String {
+    candidate
+        .chars()
+        .flat_map(|character| match character {
+            '/' | '[' | ']' | ':' | '!' | '(' | ')' => ['\\', character],
+            character => ['\0', character],
+        })
+        .filter(|character| *character != '\0')
+        .collect()
+}
+
 #[test]
 fn supports_at_least_ninety_five_percent_of_tailwind_fixture_candidates() {
     let case_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
@@ -126,6 +168,76 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     assert!(result.css.contains("@media (width >= 48rem)"));
     assert!(result.css.contains("[aria-busy=\"true\"]"));
     assert!(result.css.contains(">svg{"));
+}
+
+#[test]
+fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
+    let cases = [
+        ("transitions-animation.fixture.md", "transition-colors"),
+        ("layout-positioning.fixture.md", "aspect-video"),
+    ];
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
+
+    for (fixture_name, candidate) in cases {
+        let fixture =
+            fs::read_to_string(root.join(fixture_name)).expect("fixture must be readable");
+        let expected_css = fixture_code_block(&fixture, "Expected CSS", "css")
+            .expect("fixture must provide expected CSS");
+        let component = SourceFile::new(
+            FileId(1),
+            "src/Fixture.tsx",
+            format!(
+                "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidate}\");"
+            ),
+        );
+        let result = Compiler::compile_react(
+            &component,
+            &SourceFile::new(FileId(2), "stillwind.css", "@theme {}"),
+        );
+        assert!(
+            result.diagnostics.is_empty(),
+            "{candidate}: {:#?}",
+            result.diagnostics
+        );
+        let class_name = &result.classes[0].class_name;
+        let actual = css_rule(&result.css, class_name);
+        let expected_selector = tailwind_class_selector(candidate);
+        let expected = css_rule(&expected_css, &expected_selector);
+        let expected = expected.replacen(
+            &format!(".{expected_selector}"),
+            &format!(".{class_name}"),
+            1,
+        );
+        assert_eq!(
+            normalize_css(&actual),
+            normalize_css(&expected),
+            "Tailwind semantic utility mismatch for {candidate}"
+        );
+    }
+}
+
+#[test]
+fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
+    let fixture = include_str!("../../../fixtures/tailwind-v4/cases/theme.fixture.md");
+    let section = fixture
+        .split("## `")
+        .find(|section| section.starts_with("theme.namespace-reset-and-negative-token`"))
+        .expect("theme reset fixture must exist");
+    let input_css = fixture_code_block(section, "Input CSS", "css").unwrap();
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Fixture.tsx",
+        "import { style } from \"stillwind/react\"; const props = style(\"bg-brand p-4\");",
+    );
+    let result = Compiler::compile_react(
+        &component,
+        &SourceFile::new(FileId(2), "stillwind.css", input_css),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("--spacing:0.5rem;"));
+    assert!(result.css.contains("--color-brand:oklch(62% 0.2 280);"));
+    assert!(!result.css.contains("--color-red-500:"));
 }
 
 #[test]

@@ -571,7 +571,7 @@ fn resolve_css_utility_branches<'a>(
     let mut branches = utilities
         .filter_map(|utility| {
             resolve_css_utility_body(utility, name, modifier, theme)
-                .map(|resolution| (utility_branch_specificity(utility), resolution))
+                .map(|resolution| (utility_branch_specificity(utility, name), resolution))
         })
         .collect::<Vec<_>>();
     branches.sort_by_key(|(specificity, _)| std::cmp::Reverse(*specificity));
@@ -590,7 +590,7 @@ fn resolve_css_utility_branches<'a>(
     Some(resolution)
 }
 
-fn utility_branch_specificity(utility: &CustomUtility) -> usize {
+fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
     let body = utility.body.as_str();
     let typed_arbitrary = body
         .matches('[')
@@ -598,7 +598,11 @@ fn utility_branch_specificity(utility: &CustomUtility) -> usize {
         .saturating_sub(body.matches("[*]").count());
     let theme_domain = body.matches("--value(--").count();
     let modifier = body.matches("--modifier(").count();
-    typed_arbitrary * 4 + theme_domain * 2 + modifier
+    // An exact registration is a semantic override of a wildcard family.
+    // This keeps the canonical Tailwind spelling (`opacity-60`, `bg-none`,
+    // …) intact while still letting typed wildcard branches discriminate
+    // arbitrary values among themselves.
+    usize::from(utility.name == name) * 32 + typed_arbitrary * 4 + theme_domain * 2 + modifier
 }
 
 fn merge_declarations(primary: &str, secondary: &str) -> String {
@@ -635,23 +639,39 @@ fn resolve_css_utility_body(
     // declaration) from accepting `bg-red-500/not-an-opacity` merely because
     // another overload happened to define modifiers. Fractions are the one
     // exception: their slash is deliberately reassembled by `--fraction()`.
-    if modifier.is_some() && !body.contains("--modifier") && !body.contains("--fraction()") {
+    let consumes_modifier = body.contains("--modifier")
+        || body.contains("--fraction()")
+        || nested
+            .iter()
+            .any(|(_, _, body)| body.contains("--modifier") || body.contains("--fraction()"));
+    if modifier.is_some() && !consumes_modifier {
         return None;
     }
     let declaration =
         resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
+    let mut modifier_resolved = body.contains("--modifier(")
+        || body.contains("--modifier-map(")
+        || body.contains("--fraction()");
     let nested = nested
         .into_iter()
         .filter_map(|(at_rule, condition, body)| {
+            let uses_modifier = body.contains("--modifier(")
+                || body.contains("--modifier-map(")
+                || body.contains("--fraction()");
             let declaration =
                 resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
-            (!declaration.is_empty()).then_some(NestedUtilityRule {
+            let rule = (!declaration.is_empty()).then_some(NestedUtilityRule {
                 at_rule,
                 condition,
                 declaration,
-            })
+            });
+            modifier_resolved |= uses_modifier && rule.is_some();
+            rule
         })
         .collect::<Vec<_>>();
+    if modifier.is_some() && consumes_modifier && !modifier_resolved {
+        return None;
+    }
     (!declaration.is_empty() || !nested.is_empty()).then_some(UtilityResolution {
         declaration,
         selector,
@@ -1334,10 +1354,16 @@ mod tests {
             resolve_utility("-mt-4", &theme).unwrap().declaration,
             "margin-top:calc(var(--spacing) * -4);"
         );
+        let background = resolve_utility("bg-brand/50", &theme).unwrap();
         assert_eq!(
-            resolve_utility("bg-brand/50", &theme).unwrap().declaration,
-            "background-color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+            background.declaration,
+            "background-color:color-mix(in srgb,var(--color-brand) 50%,transparent);"
         );
+        assert!(background.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Supports
+                && rule.declaration
+                    == "background-color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+        }));
         assert_eq!(
             resolve_utility("w-(--sidebar)", &theme)
                 .unwrap()
@@ -1506,12 +1532,16 @@ mod tests {
 
         assert!(resolve_utility("bg-red-500/not-an-opacity", &theme).is_none());
         assert!(resolve_utility("bg-[image:url(/hero.svg)]/50", &theme).is_none());
+        let background = resolve_utility("bg-red-500/50", &theme).unwrap();
         assert_eq!(
-            resolve_utility("bg-red-500/50", &theme)
-                .unwrap()
-                .declaration,
-            "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
+            background.declaration,
+            "background-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);"
         );
+        assert!(background.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Supports
+                && rule.declaration
+                    == "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
+        }));
     }
 
     #[test]

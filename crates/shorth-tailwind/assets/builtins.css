@@ -725,10 +725,17 @@
 }
 @utility bg-* {
   background-color: color-mix(
-    in oklab,
+    in srgb,
     --value(--color-*, [color]) --alpha(--modifier()),
     transparent
   );
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-*, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
 }
 @utility bg-* {
   background-image: --value([image], [url]);
