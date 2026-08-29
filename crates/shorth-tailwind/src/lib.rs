@@ -1936,6 +1936,19 @@ mod tests {
     }
 
     #[test]
+    fn resolves_placeholder_colours_as_typed_pseudo_element_utilities() {
+        let resolved = resolve_utility("placeholder-current/50", &theme()).unwrap();
+        assert_eq!(resolved.selector.as_deref(), Some("&::placeholder"));
+        assert!(
+            resolved
+                .declaration
+                .contains("color:color-mix(in oklab,currentcolor 50%,transparent);"),
+            "{resolved:#?}"
+        );
+        assert!(resolve_utility("placeholder-[length:1rem]", &theme()).is_none());
+    }
+
+    #[test]
     fn resolves_gradient_direction_and_interpolation_from_css_maps() {
         let resolved = resolve_utility("bg-linear-to-r/oklch", &theme()).unwrap();
         assert!(

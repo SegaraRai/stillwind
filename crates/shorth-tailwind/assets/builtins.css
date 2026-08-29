@@ -1023,6 +1023,20 @@
 @utility font-stretch-* {
   font-stretch: --value(percentage);
 }
+@utility placeholder-* {
+  &::placeholder {
+    color: --value(--color-*, current, inherit, transparent, [color]);
+  }
+}
+@utility placeholder-* {
+  &::placeholder {
+    color: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
 
 /* Functional registrations. Several entries intentionally share a root: a
  * value domain decides which expression accepts each candidate. */
