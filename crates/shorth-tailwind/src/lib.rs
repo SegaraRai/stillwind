@@ -607,7 +607,9 @@ fn resolve_css_utility_branches<'a>(
         // Overloads with a shared selector form one declaration list. CSS
         // fallback declarations intentionally retain their original order.
         if branch.selector == resolution.selector {
-            resolution.declaration.push_str(&branch.declaration);
+            if branch.declaration != resolution.declaration {
+                resolution.declaration.push_str(&branch.declaration);
+            }
             resolution.nested.extend(branch.nested);
             resolution.additional.extend(branch.additional);
         } else {
@@ -713,10 +715,14 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
     });
+    let uses_value = declarations
+        .iter()
+        .any(|declaration| declaration.contains("--value("));
     let requires_modifier = declarations
         .iter()
         .any(|declaration| declaration.contains("--modifier("));
     let mut resolved_placeholder = false;
+    let mut resolved_value = false;
     let mut resolved_modifier = false;
     let mut output = String::new();
 
@@ -727,11 +733,13 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(");
         let contains_modifier = declaration.contains("--modifier(");
+        let contains_value = declaration.contains("--value(");
         if let Some(declaration) =
             resolve_css_placeholders(declaration, utility_name, name, modifier, theme)
             && !declaration.trim().is_empty()
         {
             resolved_placeholder |= contains_placeholder;
+            resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
             if output.is_empty() {
                 output.push_str(declaration.trim_start());
@@ -746,6 +754,11 @@ fn resolve_css_declarations(
     // must not emit `translate: …` when none of its typed values match.
     (!uses_placeholder || resolved_placeholder)
         .then_some(())
+        // A modifier-only sibling (such as `text-*/leading`) cannot make an
+        // unresolved value branch valid. This is what prevents a colour token
+        // from being misinterpreted as a spacing value merely because both
+        // spellings use a slash.
+        .filter(|()| !uses_value || resolved_value)
         .filter(|()| !requires_modifier || resolved_modifier)
         .map(|()| output)
 }
@@ -1472,7 +1485,7 @@ mod tests {
             resolve_utility("fill-brand/50", &theme)
                 .unwrap()
                 .declaration,
-            "fill:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+            "fill:color-mix(in srgb,var(--color-brand) 50%,transparent);"
         );
         assert_eq!(
             resolve_utility("from-brand", &theme).unwrap().declaration,
@@ -1819,6 +1832,22 @@ mod tests {
             resolved.additional[0].declaration,
             "color: red; color: color(display-p3 1 0 0);"
         );
+    }
+
+    #[test]
+    fn color_alpha_family_emits_srgb_fallback_and_oklab_upgrade() {
+        let resolved = resolve_utility("text-brand/50", &theme()).unwrap();
+        assert_eq!(
+            resolved.declaration,
+            "color:color-mix(in srgb,var(--color-brand) 50%,transparent);"
+        );
+        assert!(resolved.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Supports
+                && rule.condition == "color:color-mix(in lab,red,red)"
+                && rule.declaration
+                    == "color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+        }));
+        assert!(resolve_utility("text-brand/[length:12px]", &theme()).is_none());
     }
 
     #[test]

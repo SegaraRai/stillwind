@@ -478,6 +478,13 @@
   border-l: border-left-color;
 }
 @utility-family color-alpha {
+  text: color;
+  border: border-color;
+  outline: outline-color;
+  fill: fill;
+  stroke: stroke;
+  caret: caret-color;
+  accent: accent-color;
   border-x: border-inline-color;
   border-y: border-block-color;
   border-s: border-inline-start-color;
@@ -756,20 +763,11 @@
 @utility text-* {
   color: --value(--color-*);
 }
-@utility text-* {
-  color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
-}
 @utility border-* {
   border-color: --value(--color-*);
 }
-@utility border-* {
-  border-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
-}
 @utility outline-* {
   outline-color: --value(--color-*);
-}
-@utility outline-* {
-  outline-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
 }
 @utility p-* {
   padding: --value(--spacing-*, --spacing(), [length]);
@@ -3199,26 +3197,14 @@
 @utility fill-* {
   fill: --value(--color-*);
 }
-@utility fill-* {
-  fill: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
-}
 @utility stroke-* {
   stroke: --value(--color-*);
-}
-@utility stroke-* {
-  stroke: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
 }
 @utility caret-* {
   caret-color: --value(--color-*);
 }
-@utility caret-* {
-  caret-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
-}
 @utility accent-* {
   accent-color: --value(--color-*);
-}
-@utility accent-* {
-  accent-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
 }
 @utility from-* {
   --tw-gradient-from: --value(--color-*);

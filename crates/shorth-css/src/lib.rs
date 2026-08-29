@@ -809,6 +809,9 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
             if domain == Some("color-alpha-default") {
                 return expand_color_alpha_default_family(&body);
             }
+            if domain == Some("color-alpha") {
+                return expand_color_alpha_family(&body);
+            }
             let Some(value) = domain.and_then(utility_family_value) else {
                 return Vec::new();
             };
@@ -850,6 +853,53 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                     })
                 })
                 .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// Expands colour-with-alpha utility roots without a palette enumeration.
+/// The same source DSL emits Tailwind's sRGB fallback and its Oklab upgrade;
+/// individual utilities therefore cannot accidentally drift in colour-space
+/// behaviour.
+fn expand_color_alpha_family(body: &str) -> Vec<CustomUtility> {
+    body.split(';')
+        .filter_map(|entry| {
+            let (names, properties) = entry.split_once(':')?;
+            let properties = properties
+                .split(',')
+                .map(str::trim)
+                .filter(|property| !property.is_empty())
+                .collect::<Vec<_>>();
+            (!properties.is_empty()).then_some((names, properties))
+        })
+        .flat_map(|(names, properties)| {
+            names
+                .split(',')
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(move |name| {
+                    let mut body = String::new();
+                    for property in &properties {
+                        write!(
+                            body,
+                            "{property}:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);"
+                        )
+                        .expect("writing to a String cannot fail");
+                    }
+                    body.push_str("@supports (color:color-mix(in lab,red,red)){");
+                    for property in &properties {
+                        write!(
+                            body,
+                            "{property}:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);"
+                        )
+                        .expect("writing to a String cannot fail");
+                    }
+                    body.push('}');
+                    CustomUtility {
+                        name: format!("{name}-*"),
+                        body,
+                    }
+                })
         })
         .collect()
 }
