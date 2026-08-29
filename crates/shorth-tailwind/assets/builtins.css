@@ -2696,6 +2696,81 @@
   --tw-scale-z: calc(--value(integer) * -1%);
   scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
+@utility -scale-* {
+  --tw-scale-x: calc(--value(integer) * -1%);
+  --tw-scale-y: calc(--value(integer) * -1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@utility zoom-* {
+  zoom: calc(--value(integer) * 1%);
+}
+@utility font-stretch-* {
+  font-stretch: calc(--value(integer) * 1%);
+}
+@utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value(integer);
+}
+@utility line-clamp-none {
+  overflow: visible;
+  display: block;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: unset;
+}
+@utility ring-* {
+  --tw-ring-shadow: 0 0 0 calc(--value(integer) * 1px) var(--tw-ring-color, currentColor);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+@utility ring-* {
+  --tw-ring-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility ring-* {
+  --tw-ring-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility decoration-* {
+  text-decoration-thickness: calc(--value(integer) * 1px);
+}
+@utility decoration-* {
+  text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility decoration-* {
+  text-decoration-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility stroke-* {
+  stroke-width: --value(integer, [length]);
+}
+@utility stroke-* {
+  stroke: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility stroke-* {
+  stroke: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility divide-x-* {
+  & > :not(:last-child) {
+    border-inline-end-width: calc(--value(integer) * 1px);
+  }
+}
+@utility divide-y-* {
+  & > :not(:last-child) {
+    border-bottom-width: calc(--value(integer) * 1px);
+  }
+}
 @utility rotate-x-* {
   --tw-rotate-x: rotateX(calc(--value(integer) * 1deg));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
