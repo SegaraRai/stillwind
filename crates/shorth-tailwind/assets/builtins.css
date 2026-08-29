@@ -781,6 +781,15 @@
 @utility columns-auto {
   columns: auto;
 }
+@utility grid-cols-none {
+  grid-template-columns: none;
+}
+@utility grid-cols-subgrid {
+  grid-template-columns: subgrid;
+}
+@utility leading-none {
+  line-height: 1;
+}
 @utility divide-x {
   & > :not(:last-child) {
     border-inline-end-width: 1px;
@@ -945,6 +954,30 @@
 @utility object-top-left {
   object-position: left top;
 }
+@utility origin-top-left {
+  transform-origin: top left;
+}
+@utility origin-top {
+  transform-origin: top;
+}
+@utility origin-top-right {
+  transform-origin: top right;
+}
+@utility origin-right {
+  transform-origin: right;
+}
+@utility origin-bottom-right {
+  transform-origin: bottom right;
+}
+@utility origin-bottom {
+  transform-origin: bottom;
+}
+@utility origin-bottom-left {
+  transform-origin: bottom left;
+}
+@utility origin-left {
+  transform-origin: left;
+}
 @utility order-first {
   order: calc(-infinity);
 }
@@ -1022,6 +1055,12 @@
 }
 @utility font-stretch-* {
   font-stretch: --value(percentage);
+}
+@utility font-stretch-* {
+  font-stretch: --value(--font-stretch-*);
+}
+@utility text-* {
+  font-size: --value(--text-*, [length]);
 }
 @utility placeholder-* {
   &::placeholder {

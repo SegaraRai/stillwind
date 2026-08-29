@@ -27,6 +27,7 @@ pub enum ThemeNamespace {
     DropShadow,
     Ease,
     Font,
+    FontStretch,
     FontWeight,
     InsetShadow,
     Leading,
@@ -54,6 +55,7 @@ impl ThemeNamespace {
             Self::DropShadow => "drop-shadow",
             Self::Ease => "ease",
             Self::Font => "font",
+            Self::FontStretch => "font-stretch",
             Self::FontWeight => "font-weight",
             Self::InsetShadow => "inset-shadow",
             Self::Leading => "leading",
@@ -74,6 +76,7 @@ impl ThemeNamespace {
         [
             Self::AspectRatio,
             Self::FontWeight,
+            Self::FontStretch,
             Self::InsetShadow,
             Self::DropShadow,
             Self::TextShadow,
@@ -687,6 +690,7 @@ fn classify_theme_token(name: &str) -> ThemeTokenKind {
     for namespace in [
         ThemeNamespace::AspectRatio,
         ThemeNamespace::FontWeight,
+        ThemeNamespace::FontStretch,
         ThemeNamespace::InsetShadow,
         ThemeNamespace::DropShadow,
         ThemeNamespace::TextShadow,

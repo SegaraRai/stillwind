@@ -1936,6 +1936,42 @@ mod tests {
     }
 
     #[test]
+    fn resolves_text_lengths_and_additional_discrete_layout_keywords() {
+        let theme = theme();
+        for (candidate, declaration) in [
+            ("text-[length:1.25rem]", "font-size:1.25rem;"),
+            ("grid-cols-subgrid", "grid-template-columns:subgrid;"),
+            ("leading-none", "line-height:1;"),
+            ("origin-bottom-left", "transform-origin:bottom left;"),
+        ] {
+            let resolved = resolve_utility(candidate, &theme)
+                .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+            assert!(
+                resolved.declaration.contains(declaration),
+                "{candidate}: {resolved:#?}"
+            );
+        }
+
+        let custom_theme = parse_tailwind_theme(&SourceFile::new(
+            FileId(2),
+            "theme.css",
+            "@theme { --font-stretch-superbold: 150%; }",
+        ))
+        .unwrap();
+        assert!(
+            custom_theme
+                .token_in(ThemeNamespace::FontStretch, "superbold")
+                .is_some()
+        );
+        assert_eq!(
+            resolve_utility("font-stretch-superbold", &custom_theme)
+                .unwrap()
+                .declaration,
+            "font-stretch:var(--font-stretch-superbold);"
+        );
+    }
+
+    #[test]
     fn resolves_placeholder_colours_as_typed_pseudo_element_utilities() {
         let resolved = resolve_utility("placeholder-current/50", &theme()).unwrap();
         assert_eq!(resolved.selector.as_deref(), Some("&::placeholder"));
