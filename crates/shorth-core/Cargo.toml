@@ -16,5 +16,8 @@ shorth-ir = { path = "../shorth-ir" }
 shorth-js-oxc = { path = "../shorth-js-oxc" }
 shorth-source = { path = "../shorth-source" }
 
+[dev-dependencies]
+proptest.workspace = true
+
 [lints]
 workspace = true
