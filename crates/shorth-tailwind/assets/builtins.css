@@ -770,6 +770,14 @@
 @utility cursor-none {
   cursor: none;
 }
+@utility bg-radial {
+  --tw-gradient-position: in oklab;
+  background-image: radial-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic {
+  --tw-gradient-position: in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
 @utility columns-auto {
   columns: auto;
 }
@@ -1005,6 +1013,15 @@
 }
 @utility rounded-es-full {
   border-end-start-radius: calc(infinity * 1px);
+}
+@utility flex-* {
+  flex: --value(--fraction());
+}
+@utility columns-* {
+  columns: --value(--container-*, integer, [integer]);
+}
+@utility font-stretch-* {
+  font-stretch: --value(percentage);
 }
 
 /* Functional registrations. Several entries intentionally share a root: a

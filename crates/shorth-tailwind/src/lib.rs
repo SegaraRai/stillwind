@@ -1917,6 +1917,25 @@ mod tests {
     }
 
     #[test]
+    fn resolves_fraction_and_theme_value_families_from_typed_css_domains() {
+        let theme = theme();
+        for (candidate, declaration) in [
+            ("flex-5/12", "flex:calc(5 / 12 * 100%);"),
+            ("columns-lg", "columns:var(--container-lg);"),
+            ("font-stretch-125%", "font-stretch:125%;"),
+            ("bg-radial", "--tw-gradient-position:in oklab;"),
+            ("bg-conic", "--tw-gradient-position:in oklab;"),
+        ] {
+            let resolved = resolve_utility(candidate, &theme)
+                .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+            assert!(
+                resolved.declaration.contains(declaration),
+                "{candidate}: {resolved:#?}"
+            );
+        }
+    }
+
+    #[test]
     fn resolves_gradient_direction_and_interpolation_from_css_maps() {
         let resolved = resolve_utility("bg-linear-to-r/oklch", &theme()).unwrap();
         assert!(
