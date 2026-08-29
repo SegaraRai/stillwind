@@ -1001,31 +1001,53 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
 }
 
 fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> String {
-    let mut css = String::from(
-        "@layer properties;\n@layer theme, base, components, utilities;\n@layer theme{:root,:host{",
-    );
-    for token in theme.active_tokens() {
-        css.push_str(&token.name.value);
-        css.push(':');
-        css.push_str(&token.value.value.replace("--theme(", "var("));
-        css.push(';');
+    let imports = &theme.imports;
+    let mut css = String::new();
+    if imports.properties {
+        css.push_str("@layer properties;\n");
     }
-    css.push_str("}}\n");
-    css.push_str("@layer theme{");
-    css.push_str(&shorth_css::tailwind_v4_keyframes());
-    css.push_str("}\n");
-    css.push_str("@layer base{");
-    css.push_str(&shorth_css::tailwind_v4_preflight());
-    css.push('}');
+    if imports.has_any() {
+        css.push_str("@layer theme, base, components, utilities;\n");
+    }
+    if let Some(layer) = &imports.theme_layer {
+        css.push_str("@layer ");
+        css.push_str(layer);
+        css.push_str("{:root,:host{");
+        for token in theme.active_tokens() {
+            css.push_str(&token.name.value);
+            css.push(':');
+            css.push_str(&token.value.value.replace("--theme(", "var("));
+            css.push(';');
+        }
+        css.push_str("}}\n");
+        css.push_str("@layer ");
+        css.push_str(layer);
+        css.push('{');
+        css.push_str(&shorth_css::tailwind_v4_keyframes());
+        css.push_str("}\n");
+    }
+    if let Some(layer) = &imports.base_layer {
+        css.push_str("@layer ");
+        css.push_str(layer);
+        css.push('{');
+        css.push_str(&shorth_css::tailwind_v4_preflight());
+        css.push('}');
+    }
     if !theme.custom_css().trim().is_empty() {
         css.push('\n');
         css.push_str(theme.custom_css());
         css.push('\n');
     }
-    css.push_str("\n@layer utilities{");
-    css.push_str(utility_css);
-    css.push_str("}\n");
-    css.push_str(shorth_css::tailwind_v4_properties());
+    if let Some(layer) = &imports.utilities_layer {
+        css.push_str("\n@layer ");
+        css.push_str(layer);
+        css.push('{');
+        css.push_str(utility_css);
+        css.push_str("}\n");
+    }
+    if imports.properties {
+        css.push_str(shorth_css::tailwind_v4_properties());
+    }
     css
 }
 

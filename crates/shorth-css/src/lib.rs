@@ -171,6 +171,50 @@ pub struct ThemeIndex {
     pub custom_css: String,
     pub utilities: Vec<CustomUtility>,
     pub variants: Vec<CustomVariant>,
+    /// Framework layers requested by the authored Tailwind-compatible imports.
+    ///
+    /// A stylesheet without a framework import retains the historical full
+    /// Stillwind baseline. Once an official Tailwind import is present, its
+    /// selected entry points are authoritative.
+    pub imports: FrameworkImports,
+}
+
+/// The Tailwind entry points selected by an authored `@import` directive.
+/// Layer names are retained rather than inferred during rendering so a custom
+/// `layer(...)` placement remains observable in the generated stylesheet.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FrameworkImports {
+    pub theme_layer: Option<String>,
+    pub base_layer: Option<String>,
+    pub utilities_layer: Option<String>,
+    pub properties: bool,
+}
+
+impl Default for FrameworkImports {
+    fn default() -> Self {
+        Self {
+            theme_layer: Some("theme".to_owned()),
+            base_layer: Some("base".to_owned()),
+            utilities_layer: Some("utilities".to_owned()),
+            properties: true,
+        }
+    }
+}
+
+impl FrameworkImports {
+    fn explicit() -> Self {
+        Self {
+            theme_layer: None,
+            base_layer: None,
+            utilities_layer: None,
+            properties: false,
+        }
+    }
+
+    #[must_use]
+    pub fn has_any(&self) -> bool {
+        self.theme_layer.is_some() || self.base_layer.is_some() || self.utilities_layer.is_some()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -357,6 +401,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         custom_css: strip_framework_directives(source.text()),
         utilities: extract_custom_utilities(source.text()),
         variants: extract_custom_variants(source.text()),
+        imports: framework_imports(source.text()),
     })
 }
 
@@ -392,7 +437,72 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         custom_css: String::new(),
         utilities: Vec::new(),
         variants: Vec::new(),
+        imports: FrameworkImports::default(),
     })
+}
+
+/// Extracts only Stillwind's compatible Tailwind entry points.  This is kept
+/// independent from fixtures: it understands ordinary CSS import syntax and
+/// ignores all non-framework imports for the browser to resolve.
+fn framework_imports(css: &str) -> FrameworkImports {
+    let imports = css
+        .split('@')
+        .filter_map(|segment| segment.strip_prefix("import "))
+        .filter_map(|segment| segment.split_once(';').map(|(rule, _)| rule));
+    let mut found = false;
+    let mut output = FrameworkImports::explicit();
+
+    for rule in imports {
+        let rule = rule.trim();
+        let Some((path, tail)) = parse_import_path(rule) else {
+            continue;
+        };
+        let layer = import_layer(tail);
+        match path {
+            "tailwindcss" => {
+                found = true;
+                output.theme_layer = Some(layer.clone().unwrap_or_else(|| "theme".to_owned()));
+                output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
+                output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
+                output.properties = true;
+            }
+            "tailwindcss/theme" => {
+                found = true;
+                output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
+            }
+            "tailwindcss/preflight" => {
+                found = true;
+                output.base_layer = Some(layer.unwrap_or_else(|| "base".to_owned()));
+            }
+            "tailwindcss/utilities" => {
+                found = true;
+                output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
+            }
+            _ => {}
+        }
+    }
+
+    if found {
+        output
+    } else {
+        FrameworkImports::default()
+    }
+}
+
+fn parse_import_path(rule: &str) -> Option<(&str, &str)> {
+    let quote = rule.chars().next()?;
+    if !matches!(quote, '\'' | '"') {
+        return None;
+    }
+    let end = rule[1..].find(quote)? + 1;
+    Some((&rule[1..end], &rule[end + 1..]))
+}
+
+fn import_layer(tail: &str) -> Option<String> {
+    let start = tail.find("layer(")? + "layer(".len();
+    let end = tail[start..].find(')')? + start;
+    let layer = tail[start..end].trim();
+    (!layer.is_empty()).then(|| layer.to_owned())
 }
 
 fn extract_theme_declarations(file: FileId, body: &str, body_start: usize) -> Vec<ThemeToken> {

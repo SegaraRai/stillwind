@@ -241,6 +241,35 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
 }
 
 #[test]
+fn framework_imports_gate_baseline_layers() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Fixture.tsx",
+        "import { style } from \"stillwind/react\"; const props = style(\"p-4\");",
+    );
+    let compiler = |css| {
+        Compiler::compile_react(
+            &component,
+            &SourceFile::new(FileId(2), "stillwind.css", css),
+        )
+    };
+
+    let utilities_only = compiler(
+        "@import \"tailwindcss/theme\" layer(theme);\n@import \"tailwindcss/utilities\" layer(utilities);",
+    );
+    assert!(utilities_only.diagnostics.is_empty());
+    assert!(!utilities_only.css.contains("box-sizing:border-box"));
+    assert!(!utilities_only.css.contains("@property --tw-"));
+    assert!(utilities_only.css.contains("@layer theme{:root,:host{"));
+    assert!(utilities_only.css.contains("@layer utilities{"));
+
+    let full = compiler("@import \"tailwindcss\";");
+    assert!(full.diagnostics.is_empty());
+    assert!(full.css.contains("box-sizing: border-box"));
+    assert!(full.css.contains("@property --tw-"));
+}
+
+#[test]
 fn emits_nested_supports_from_css_utility_definitions() {
     let component = SourceFile::new(
         FileId(1),
