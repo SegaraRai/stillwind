@@ -483,10 +483,23 @@
   }
 }
 @utility bg-* {
-  background-color: --value(--color-*);
+  background-color: --value(--color-*, [color]);
 }
 @utility bg-* {
-  background-color: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  background-color: color-mix(
+    in oklab,
+    --value(--color-*, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility bg-* {
+  background-image: --value([image], [url]);
+}
+@utility bg-* {
+  background-position: --value([position]);
+}
+@utility bg-* {
+  background-size: --value([bg-size], [length]);
 }
 @utility text-* {
   font-size: --value(--text-*);

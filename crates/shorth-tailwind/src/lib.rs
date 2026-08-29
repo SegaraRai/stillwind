@@ -524,8 +524,12 @@ fn resolve_user_css_utility(
 ) -> Option<UtilityResolution> {
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
-    matching_utilities(&theme.utilities, lookup)
-        .find_map(|utility| resolve_css_utility_body(utility, lookup, modifier, theme))
+    resolve_css_utility_branches(
+        matching_utilities(&theme.utilities, lookup),
+        lookup,
+        modifier,
+        theme,
+    )
 }
 
 fn resolve_builtin_css_utility(
@@ -536,15 +540,79 @@ fn resolve_builtin_css_utility(
 ) -> Option<UtilityResolution> {
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
-    matching_utilities(&builtin_utilities().wildcards, lookup)
-        .chain(
+    resolve_css_utility_branches(
+        matching_utilities(&builtin_utilities().wildcards, lookup).chain(
             builtin_utilities()
                 .builtin_exact
                 .get(lookup)
                 .into_iter()
                 .flat_map(|utilities| utilities.iter().rev()),
-        )
-        .find_map(|utility| resolve_css_utility_body(utility, lookup, modifier, theme))
+        ),
+        lookup,
+        modifier,
+        theme,
+    )
+}
+
+/// Every matching `@utility` block is a typed declaration branch. A candidate
+/// such as `bg-[url(...)]` may therefore select the image branch while a
+/// colour candidate selects the colour branch, without giving the root an
+/// implementation-specific special case.
+fn resolve_css_utility_branches<'a>(
+    utilities: impl Iterator<Item = &'a CustomUtility>,
+    name: &str,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+) -> Option<UtilityResolution> {
+    let mut branches = utilities
+        .filter_map(|utility| {
+            resolve_css_utility_body(utility, name, modifier, theme)
+                .map(|resolution| (utility_branch_specificity(utility), resolution))
+        })
+        .collect::<Vec<_>>();
+    branches.sort_by_key(|(specificity, _)| std::cmp::Reverse(*specificity));
+    let (_, mut resolution) = branches.first()?.clone();
+    for (_, branch) in branches.into_iter().skip(1) {
+        // A single utility class can safely accumulate declarations from
+        // overloads only when they target the same selector. Selector-bearing
+        // utilities are intentionally separate candidates until the IR grows
+        // multiple rule targets per class.
+        if branch.selector == resolution.selector {
+            resolution.declaration =
+                merge_declarations(&resolution.declaration, &branch.declaration);
+            resolution.nested.extend(branch.nested);
+        }
+    }
+    Some(resolution)
+}
+
+fn utility_branch_specificity(utility: &CustomUtility) -> usize {
+    let body = utility.body.as_str();
+    let typed_arbitrary = body
+        .matches('[')
+        .count()
+        .saturating_sub(body.matches("[*]").count());
+    let theme_domain = body.matches("--value(--").count();
+    let modifier = body.matches("--modifier(").count();
+    typed_arbitrary * 4 + theme_domain * 2 + modifier
+}
+
+fn merge_declarations(primary: &str, secondary: &str) -> String {
+    let mut properties = primary
+        .split_terminator(';')
+        .filter_map(|declaration| declaration.split_once(':').map(|(property, _)| property))
+        .collect::<std::collections::HashSet<_>>();
+    let mut merged = primary.to_owned();
+    for declaration in secondary.split_terminator(';') {
+        let Some((property, _)) = declaration.split_once(':') else {
+            continue;
+        };
+        if properties.insert(property) {
+            merged.push_str(declaration);
+            merged.push(';');
+        }
+    }
+    merged
 }
 
 fn resolve_css_utility_body(
@@ -855,7 +923,7 @@ fn theme_value(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    let value = if let Some(value) = arbitrary(value) {
+    let value = if let Some(value) = typed_theme_arbitrary(namespace, value) {
         value
     } else if let Some(value) = css_variable(value) {
         format!("var({value})")
@@ -881,6 +949,20 @@ fn theme_value(
     negative
         .then(|| format!("calc({value} * -1)"))
         .or(Some(value))
+}
+
+fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<String> {
+    let value = value.strip_prefix('[')?.strip_suffix(']')?;
+    let (hint, value) = value.split_once(':').unwrap_or(("*", value));
+    let allowed = match namespace {
+        ThemeNamespace::Color => matches!(hint, "*" | "color"),
+        ThemeNamespace::Spacing
+        | ThemeNamespace::Radius
+        | ThemeNamespace::Blur
+        | ThemeNamespace::Leading => matches!(hint, "*" | "length"),
+        _ => hint == "*",
+    };
+    allowed.then(|| decode_arbitrary(value))
 }
 
 fn fraction_value(value: &str, negative: bool) -> Option<String> {
@@ -1196,6 +1278,35 @@ mod tests {
                 .unwrap()
                 .declaration,
             "--tw-gradient-position:to right;background-image:linear-gradient(var(--tw-gradient-stops));"
+        );
+    }
+
+    #[test]
+    fn resolves_ambiguous_backgrounds_through_typed_utility_branches() {
+        let theme = theme();
+        assert_eq!(
+            resolve_utility("bg-[color:rebeccapurple]", &theme)
+                .unwrap()
+                .declaration,
+            "background-color:rebeccapurple;"
+        );
+        assert_eq!(
+            resolve_utility("bg-[image:linear-gradient(red,blue)]", &theme)
+                .unwrap()
+                .declaration,
+            "background-image:linear-gradient(red,blue);"
+        );
+        assert_eq!(
+            resolve_utility("bg-[position:center_20%]", &theme)
+                .unwrap()
+                .declaration,
+            "background-position:center 20%;"
+        );
+        assert_eq!(
+            resolve_utility("bg-[bg-size:24rem_auto]", &theme)
+                .unwrap()
+                .declaration,
+            "background-size:24rem auto;"
         );
     }
 
