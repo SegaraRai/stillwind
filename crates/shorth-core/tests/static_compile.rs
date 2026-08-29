@@ -954,6 +954,11 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
     assert!(
         result
             .css
+            .contains("background-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);")
+    );
+    assert!(
+        result
+            .css
             .contains("background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);")
     );
     assert!(result.css.contains("--tw-gradient-position:to right;"));
