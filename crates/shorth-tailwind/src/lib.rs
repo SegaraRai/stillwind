@@ -6,7 +6,9 @@
 
 use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
-use shorth_css::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueType};
+use shorth_css::{
+    CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
+};
 use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -843,19 +845,9 @@ fn resolve_css_placeholders(
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_owned();
-    while let Some(start) = body.find("--value-map(") {
-        let open = start + "--value-map".len();
-        let end = closing_parenthesis(&body, open)?;
-        let capture = capture?;
-        let replacement = split_domains(&body[open + 1..end])
-            .into_iter()
-            .find_map(|entry| {
-                let (key, value) = entry.trim().split_once(':')?;
-                (key.trim() == capture).then(|| value.trim())
-            })?
-            .to_owned();
-        body.replace_range(start..=end, &replacement);
-    }
+    resolve_literal_value_placeholders(&mut body, capture, utility_name.starts_with('-'), theme)?;
+    resolve_text_line_height_placeholders(&mut body, capture, theme)?;
+    resolve_value_map_placeholders(&mut body, capture)?;
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
         let end = closing_parenthesis(&body, open)?;
@@ -939,12 +931,63 @@ fn resolve_css_placeholders(
         body.replace_range(start..=end, &replacement);
     }
     (!body.contains("--value(")
+        && !body.contains("--value-literal(")
+        && !body.contains("--text-line-height()")
         && !body.contains("--value-map(")
         && !body.contains("--modifier(")
         && !body.contains("--modifier-map(")
         && !body.contains("--modifier-none()")
         && !body.contains("--alpha("))
     .then_some(body)
+}
+
+fn resolve_literal_value_placeholders(
+    body: &mut String,
+    capture: Option<&str>,
+    negative: bool,
+    theme: &ThemeIndex,
+) -> Option<()> {
+    while let Some(start) = body.find("--value-literal(") {
+        let open = start + "--value-literal".len();
+        let end = closing_parenthesis(body, open)?;
+        let replacement =
+            resolve_literal_value_domains(&body[open + 1..end], capture, negative, theme)?;
+        body.replace_range(start..=end, &replacement);
+    }
+    Some(())
+}
+
+fn resolve_text_line_height_placeholders(
+    body: &mut String,
+    capture: Option<&str>,
+    theme: &ThemeIndex,
+) -> Option<()> {
+    while let Some(start) = body.find("--text-line-height()") {
+        let capture = capture?;
+        let token = theme.token_in(ThemeNamespace::Text, &format!("{capture}--line-height"))?;
+        body.replace_range(
+            start..start + "--text-line-height()".len(),
+            &format!("var({})", token.name.value),
+        );
+    }
+    Some(())
+}
+
+fn resolve_value_map_placeholders(body: &mut String, capture: Option<&str>) -> Option<()> {
+    while let Some(start) = body.find("--value-map(") {
+        let open = start + "--value-map".len();
+        let end = closing_parenthesis(body, open)?;
+        let capture = capture?;
+        let replacement = split_domains(&body[open + 1..end])
+            .into_iter()
+            .find_map(|entry| {
+                let (key, value) = entry.trim().split_once(':')?;
+                (key.trim() == capture).then(|| value.trim())
+            })?
+            .to_owned();
+        body.replace_range(start..=end, &replacement);
+    }
+    Some(())
 }
 
 fn split_nested_conditions(body: &str) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
@@ -1103,14 +1146,35 @@ fn resolve_value_domains(
         if !domain.starts_with('[') && !domain.starts_with("--") {
             return capture.filter(|value| *value == domain).map(str::to_owned);
         }
-        let expected = ValueType::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
+        let expected = ValueDomain::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
         let (hint, value) = arbitrary.split_once(':').unwrap_or(("", arbitrary));
         let value = decode_arbitrary(value);
-        let hint_is_compatible = hint.is_empty()
-            || expected == ValueType::Any
-            || ValueType::from_hint(hint).is_some_and(|actual| expected.accepts_hint(actual));
+        let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
         (hint_is_compatible && expected.accepts(&value)).then_some(value)
+    })
+}
+
+/// Resolves a typed domain to its authored theme token value rather than a
+/// `var(--token)` reference. Tailwind uses this form for broad-gamut-safe sRGB
+/// fallbacks, while retaining the variable reference in the upgraded branch.
+fn resolve_literal_value_domains(
+    domains: &str,
+    capture: Option<&str>,
+    negative: bool,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    split_domains(domains).into_iter().find_map(|domain| {
+        let domain = domain.trim();
+        let namespace = domain
+            .strip_prefix("--")
+            .and_then(|domain| domain.strip_suffix("-*"))
+            .and_then(ThemeNamespace::parse);
+        if let Some(namespace) = namespace {
+            return capture
+                .and_then(|capture| theme_value_literal(namespace, capture, negative, theme));
+        }
+        resolve_value_domains(domain, capture, negative, theme)
     })
 }
 
@@ -1167,6 +1231,25 @@ fn theme_value(
             }
         }
         _ => return None,
+    };
+    negative
+        .then(|| format!("calc({value} * -1)"))
+        .or(Some(value))
+}
+
+fn theme_value_literal(
+    namespace: ThemeNamespace,
+    value: &str,
+    negative: bool,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let value = match (namespace, value) {
+        (ThemeNamespace::Color, "current") => "currentcolor".to_owned(),
+        (ThemeNamespace::Color, "inherit" | "transparent") => value.to_owned(),
+        _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
+        _ if let Some(value) = css_variable(value) => format!("var({value})"),
+        _ if let Some(token) = theme.token_in(namespace, value) => token.value.value.clone(),
+        _ => return theme_value(namespace, value, negative, theme),
     };
     negative
         .then(|| format!("calc({value} * -1)"))
@@ -1311,6 +1394,14 @@ mod tests {
         .unwrap()
     }
 
+    #[test]
+    fn builtins_declare_no_untyped_arbitrary_value_domains() {
+        assert!(
+            !BUILTIN_REGISTRY_CSS.contains("[*]"),
+            "built-in utilities must use a CSS value or property grammar"
+        );
+    }
+
     fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
         let start = markdown
             .find(heading)
@@ -1406,7 +1497,7 @@ mod tests {
         let background = resolve_utility("bg-brand/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb,var(--color-brand) 50%,transparent);"
+            "background-color:color-mix(in srgb,red 50%,transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
@@ -1584,7 +1675,7 @@ mod tests {
         let background = resolve_utility("bg-red-500/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);"
+            "background-color:color-mix(in srgb,oklch(63.7% 0.237 25.331) 50%,transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
@@ -2021,6 +2112,37 @@ mod tests {
             "z-[1.5]",
             "z-[integer:1.5]",
             "z-[number:1]",
+        ] {
+            assert!(
+                resolve_utility(candidate, &theme).is_none(),
+                "expected `{candidate}` to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validates_arbitrary_utilities_against_property_grammars() {
+        let theme = theme();
+        for candidate in [
+            "opacity-[.5]",
+            "delay-[150ms]",
+            "aspect-[16/9]",
+            "grid-cols-[repeat(2,_minmax(0,_1fr))]",
+            "content-['stillwind']",
+            "mask-linear-[45deg,_red,_blue]",
+        ] {
+            assert!(
+                resolve_utility(candidate, &theme).is_some(),
+                "expected `{candidate}` to resolve"
+            );
+        }
+        for candidate in [
+            "opacity-[red]",
+            "delay-[red]",
+            "aspect-[red]",
+            "grid-cols-[red]",
+            "content-[red]",
+            "mask-linear-[red_/_blue]",
         ] {
             assert!(
                 resolve_utility(candidate, &theme).is_none(),

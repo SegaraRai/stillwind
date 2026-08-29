@@ -105,10 +105,17 @@ separate frontend/grammar work.
 Built-ins and application extensions use the same CSS registry. `@utility`
 supports Tailwind-shaped `--value(...)` domains, while `@variant` uses `@slot`
 for the generated selector. A trailing `*` captures the candidate suffix.
+`[property:name]` delegates an arbitrary value to Lightning CSS's parser for
+that exact browser property; it is a closed, typo-safe registry rather than an
+unchecked fallback.
 
 ```css
 @utility surface-* {
   background-color: --value(--color-*);
+}
+
+@utility panel-width-* {
+  width: --value([property: width]);
 }
 
 @variant state-* {

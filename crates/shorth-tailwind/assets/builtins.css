@@ -221,9 +221,11 @@
   position: static;
 }
 @utility border {
+  border-style: var(--tw-border-style);
   border-width: 1px;
 }
 @utility border-0 {
+  border-style: var(--tw-border-style);
   border-width: 0;
 }
 @utility border-x {
@@ -1424,7 +1426,7 @@
 @utility bg-* {
   background-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value-literal(--color-*, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
@@ -1446,6 +1448,10 @@
 }
 @utility text-* {
   font-size: --value(--text-*);
+}
+@utility text-* {
+  font-size: --value(--text-*);
+  line-height: var(--tw-leading, --text-line-height());
 }
 @utility text-* {
   font-size: --value(--text-*);
@@ -3221,116 +3227,117 @@
 /* Functional arbitrary-value utilities. Theme-token overloads live above;
  * these definitions provide the common arbitrary-value grammar. */
 @utility align-* {
-  vertical-align: --value([*]);
+  vertical-align: --value([property: vertical-align]);
 }
 @utility animate-* {
-  animation: --value(--animate-*, [*]);
+  animation: --value(--animate-*, [property: animation]);
 }
 @utility aspect-* {
-  aspect-ratio: --value([*]);
+  aspect-ratio: --value([property: aspect-ratio]);
 }
 @utility auto-cols-* {
-  grid-auto-columns: --value([*]);
+  grid-auto-columns: --value([property: grid-auto-columns]);
 }
 @utility auto-rows-* {
-  grid-auto-rows: --value([*]);
+  grid-auto-rows: --value([property: grid-auto-rows]);
 }
 @utility backdrop-blur-* {
-  backdrop-filter: blur(--value([*]));
+  backdrop-filter: blur(--value([length]));
 }
 @utility backdrop-brightness-* {
-  backdrop-filter: brightness(--value([*]));
+  backdrop-filter: brightness(--value([number-percentage]));
 }
 @utility backdrop-contrast-* {
-  backdrop-filter: contrast(--value([*]));
+  backdrop-filter: contrast(--value([number-percentage]));
 }
 @utility backdrop-grayscale-* {
-  backdrop-filter: grayscale(--value([*]));
+  backdrop-filter: grayscale(--value([number-percentage]));
 }
 @utility backdrop-hue-rotate-* {
-  backdrop-filter: hue-rotate(--value([*]));
+  backdrop-filter: hue-rotate(--value([angle]));
 }
 @utility backdrop-invert-* {
-  backdrop-filter: invert(--value([*]));
+  backdrop-filter: invert(--value([number-percentage]));
 }
 @utility backdrop-opacity-* {
-  backdrop-filter: opacity(--value([*]));
+  backdrop-filter: opacity(--value([number-percentage]));
 }
 @utility backdrop-saturate-* {
-  backdrop-filter: saturate(--value([*]));
+  backdrop-filter: saturate(--value([number-percentage]));
 }
 @utility backdrop-sepia-* {
-  backdrop-filter: sepia(--value([*]));
+  backdrop-filter: sepia(--value([number-percentage]));
 }
 @utility bg-position-* {
-  background-position: --value([*]);
+  background-position: --value([property: background-position]);
 }
 @utility bg-size-* {
-  background-size: --value([*]);
+  background-size: --value([property: background-size]);
 }
 @utility blur-* {
-  filter: blur(--value([*]));
+  filter: blur(--value([length]));
 }
 @utility brightness-* {
-  filter: brightness(--value([*]));
+  filter: brightness(--value([number-percentage]));
 }
 @utility col-* {
-  grid-column: --value([*]);
+  grid-column: --value([property: grid-column]);
 }
 @utility col-end-* {
-  grid-column-end: --value([*]);
+  grid-column-end: --value([property: grid-column-end]);
 }
 @utility col-span-* {
-  grid-column: span --value([*]) / span --value([*]);
+  grid-column: span --value([integer]) / span --value([integer]);
 }
 @utility col-start-* {
-  grid-column-start: --value([*]);
+  grid-column-start: --value([property: grid-column-start]);
 }
 @utility columns-* {
-  columns: --value([*]);
+  columns: --value([property: columns]);
 }
 @utility contain-* {
-  contain: --value([*]);
+  contain: --value([property: contain]);
 }
 @utility content-* {
-  content: --value([*]);
+  --tw-content: --value([content]);
+  content: var(--tw-content);
 }
 @utility contrast-* {
-  filter: contrast(--value([*]));
+  filter: contrast(--value([number-percentage]));
 }
 @utility cursor-* {
-  cursor: --value([*]);
+  cursor: --value([property: cursor]);
 }
 @utility delay-* {
-  transition-delay: --value([*]);
+  transition-delay: --value([property: transition-delay]);
 }
 @utility divide-x-* {
   & > :not(:last-child) {
-    border-inline-end-width: --value([*]);
+    border-inline-end-width: --value([line-width]);
   }
 }
 @utility divide-y-* {
   & > :not(:last-child) {
-    border-bottom-width: --value([*]);
+    border-bottom-width: --value([line-width]);
   }
 }
 @utility font-features-* {
-  font-feature-settings: --value([*]);
+  font-feature-settings: --value([property: font-feature-settings]);
 }
 @utility font-stretch-* {
-  font-stretch: --value([*]);
+  font-stretch: --value([property: font-stretch]);
 }
 @utility grayscale-* {
-  filter: grayscale(--value([*]));
+  filter: grayscale(--value([number-percentage]));
 }
 @utility grid-cols-* {
   grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
 }
 @utility grid-cols-* {
-  grid-template-columns: --value([*]);
+  grid-template-columns: --value([property: grid-template-columns]);
 }
 @utility grid-rows-* {
-  grid-template-rows: --value([*]);
+  grid-template-rows: --value([property: grid-template-rows]);
 }
 @utility grid-rows-* {
   grid-template-rows: repeat(--value(integer), minmax(0, 1fr));
@@ -3342,25 +3349,25 @@
   grid-template-rows: subgrid;
 }
 @utility grow-* {
-  flex-grow: --value([*]);
+  flex-grow: --value([property: flex-grow]);
 }
 @utility hue-rotate-* {
-  filter: hue-rotate(--value([*]));
+  filter: hue-rotate(--value([angle]));
 }
 @utility invert-* {
-  filter: invert(--value([*]));
+  filter: invert(--value([number-percentage]));
 }
 @utility line-clamp-* {
-  -webkit-line-clamp: --value([*]);
+  -webkit-line-clamp: --value([integer]);
 }
 @utility list-* {
-  list-style-type: --value([*]);
+  list-style-type: --value([property: list-style-type]);
 }
 @utility list-image-* {
-  list-style-image: --value([*]);
+  list-style-image: --value([property: list-style-image]);
 }
 @utility mask-conic-* {
-  mask-image: conic-gradient(--value([*]));
+  mask-image: conic-gradient(--value([conic-gradient-arguments]));
 }
 @utility mask-conic-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -3384,7 +3391,7 @@
   --tw-mask-conic-position: calc(1deg * --value(integer));
 }
 @utility mask-linear-* {
-  mask-image: linear-gradient(--value([*]));
+  mask-image: linear-gradient(--value([linear-gradient-arguments]));
 }
 @utility mask-linear-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -3538,10 +3545,10 @@
   );
 }
 @utility mask-position-* {
-  mask-position: --value([*]);
+  mask-position: --value([property: mask-position]);
 }
 @utility mask-radial-* {
-  mask-image: radial-gradient(--value([*]));
+  mask-image: radial-gradient(--value([radial-gradient-arguments]));
 }
 @utility mask-radial {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -3551,22 +3558,22 @@
   );
 }
 @utility mask-radial-at-* {
-  mask-position: --value([*]);
+  mask-position: --value([property: mask-position]);
 }
 @utility mask-size-* {
-  mask-size: --value([*]);
+  mask-size: --value([property: mask-size]);
 }
 @utility object-* {
-  object-position: --value([*]);
+  object-position: --value([property: object-position]);
 }
 @utility opacity-* {
-  opacity: --value([*]);
+  opacity: --value([property: opacity]);
 }
 @utility opacity-* {
   opacity: calc(--value(integer) * 1%);
 }
 @utility flex-* {
-  flex: --value(integer, [*]);
+  flex: --value(integer, [property: flex]);
 }
 @utility order-* {
   order: --value(integer, [integer]);
@@ -3676,19 +3683,19 @@
   height: 100svh;
 }
 @utility translate-x-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), [*]);
+  --tw-translate-x: --value(--spacing-*, --spacing(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 @utility -translate-x-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), [*]);
+  --tw-translate-x: --value(--spacing-*, --spacing(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 @utility translate-y-* {
-  --tw-translate-y: --value(--spacing-*, --spacing(), [*]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 @utility -translate-y-* {
-  --tw-translate-y: --value(--spacing-*, --spacing(), [*]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 @utility translate-z-* {
@@ -3941,70 +3948,70 @@
   grid-row-end: auto;
 }
 @utility scale-* {
-  --tw-scale-x: --value([*]);
-  --tw-scale-y: --value([*]);
-  --tw-scale-z: --value([*]);
+  --tw-scale-x: --value([number-percentage]);
+  --tw-scale-y: --value([number-percentage]);
+  --tw-scale-z: --value([number-percentage]);
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @utility order-* {
-  order: --value([*]);
+  order: --value([property: order]);
 }
 @utility origin-* {
-  transform-origin: --value([*]);
+  transform-origin: --value([property: transform-origin]);
 }
 @utility outline-offset-* {
-  outline-offset: --value([*]);
+  outline-offset: --value([property: outline-offset]);
 }
 @utility perspective-* {
-  perspective: --value([*]);
+  perspective: --value([property: perspective]);
 }
 @utility perspective-origin-* {
-  perspective-origin: --value([*]);
+  perspective-origin: --value([property: perspective-origin]);
 }
 @utility row-* {
-  grid-row: --value([*]);
+  grid-row: --value([property: grid-row]);
 }
 @utility row-end-* {
-  grid-row-end: --value([*]);
+  grid-row-end: --value([property: grid-row-end]);
 }
 @utility row-span-* {
-  grid-row: span --value([*]) / span --value([*]);
+  grid-row: span --value([integer]) / span --value([integer]);
 }
 @utility row-start-* {
-  grid-row-start: --value([*]);
+  grid-row-start: --value([property: grid-row-start]);
 }
 @utility saturate-* {
-  filter: saturate(--value([*]));
+  filter: saturate(--value([number-percentage]));
 }
 @utility sepia-* {
-  filter: sepia(--value([*]));
+  filter: sepia(--value([number-percentage]));
 }
 @utility shrink-* {
-  flex-shrink: --value([*]);
+  flex-shrink: --value([property: flex-shrink]);
 }
 @utility skew-* {
-  transform: skew(--value([*]));
+  transform: skew(--value([skew-arguments]));
 }
 @utility skew-x-* {
-  transform: skewX(--value([*]));
+  transform: skewX(--value([skew-x-arguments]));
 }
 @utility skew-y-* {
-  transform: skewY(--value([*]));
+  transform: skewY(--value([skew-y-arguments]));
 }
 @utility tab-* {
-  tab-size: --value([*]);
+  tab-size: --value([property: tab-size]);
 }
 @utility transition-* {
-  transition-property: --value([*]);
+  transition-property: --value([property: transition-property]);
 }
 @utility underline-offset-* {
-  text-underline-offset: --value([*]);
+  text-underline-offset: --value([property: text-underline-offset]);
 }
 @utility will-change-* {
-  will-change: --value([*]);
+  will-change: --value([property: will-change]);
 }
 @utility zoom-* {
-  zoom: --value([*]);
+  zoom: --value([property: zoom]);
 }
 @utility fill-* {
   fill: --value(--color-*);

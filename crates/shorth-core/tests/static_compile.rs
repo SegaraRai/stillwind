@@ -159,7 +159,7 @@ fn tailwind_class_selector(candidate: &str) -> String {
     candidate
         .chars()
         .flat_map(|character| match character {
-            '/' | '[' | ']' | ':' | '!' | '(' | ')' => ['\\', character],
+            '/' | '[' | ']' | ':' | '!' | '(' | ')' | '\'' | '"' => ['\\', character],
             character => ['\0', character],
         })
         .filter(|character| *character != '\0')
@@ -273,6 +273,14 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         ("foundations.fixture.md", "p-4"),
         ("transitions-animation.fixture.md", "transition-colors"),
         ("layout-positioning.fixture.md", "aspect-video"),
+        ("layout.fixture.md", "grid-cols-3"),
+        ("backgrounds-gradients.fixture.md", "bg-cover"),
+        ("borders-effects.fixture.md", "border"),
+        ("typography.fixture.md", "text-3xl"),
+        ("filters-transforms.fixture.md", "blur-sm"),
+        ("accessibility-interaction.fixture.md", "sr-only"),
+        ("variants.fixture.md", "hover:bg-red-500"),
+        ("candidate-syntax.fixture.md", "content-['hello']"),
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
 
@@ -1158,11 +1166,9 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(
-        result
-            .css
-            .contains("background-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);")
-    );
+    assert!(result.css.contains(
+        "background-color:color-mix(in srgb,oklch(63.7% 0.237 25.331) 50%,transparent);"
+    ));
     assert!(
         result
             .css

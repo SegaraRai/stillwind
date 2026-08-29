@@ -4,16 +4,23 @@
 use std::{collections::BTreeMap, fmt::Write};
 
 use lightningcss::{
-    properties::{background::BackgroundSize, border::BorderSideWidth, box_shadow::BoxShadow},
+    properties::{
+        Property, PropertyId, background::BackgroundSize, border::BorderSideWidth,
+        box_shadow::BoxShadow,
+    },
     stylesheet::{ParserOptions, StyleSheet},
     traits::Parse,
     values::{
+        angle::{Angle, AnglePercentage},
         color::CssColor,
+        easing::EasingFunction,
         image::Image,
         length::{Length, LengthPercentage},
         number::CSSNumber,
-        percentage::Percentage,
+        percentage::{NumberOrPercentage, Percentage},
         position::Position,
+        ratio::Ratio,
+        time::Time,
         url::Url,
     },
 };
@@ -37,8 +44,14 @@ pub enum ValueType {
     Integer,
     Number,
     Percentage,
+    NumberPercentage,
     Length,
     LengthPercentage,
+    Angle,
+    AnglePercentage,
+    Time,
+    Ratio,
+    Easing,
     LineWidth,
     ZIndex,
     Color,
@@ -47,6 +60,13 @@ pub enum ValueType {
     Position,
     BackgroundSize,
     Shadow,
+    Content,
+    LinearGradientArguments,
+    RadialGradientArguments,
+    ConicGradientArguments,
+    SkewArguments,
+    SkewXArguments,
+    SkewYArguments,
 }
 
 impl ValueType {
@@ -58,8 +78,14 @@ impl ValueType {
             "integer" => Some(Self::Integer),
             "number" => Some(Self::Number),
             "percentage" => Some(Self::Percentage),
+            "number-percentage" => Some(Self::NumberPercentage),
             "length" => Some(Self::Length),
             "length-percentage" => Some(Self::LengthPercentage),
+            "angle" => Some(Self::Angle),
+            "angle-percentage" => Some(Self::AnglePercentage),
+            "time" => Some(Self::Time),
+            "ratio" => Some(Self::Ratio),
+            "easing" => Some(Self::Easing),
             "line-width" => Some(Self::LineWidth),
             "z-index" => Some(Self::ZIndex),
             "color" => Some(Self::Color),
@@ -68,6 +94,13 @@ impl ValueType {
             "position" => Some(Self::Position),
             "bg-size" => Some(Self::BackgroundSize),
             "shadow" => Some(Self::Shadow),
+            "content" => Some(Self::Content),
+            "linear-gradient-arguments" => Some(Self::LinearGradientArguments),
+            "radial-gradient-arguments" => Some(Self::RadialGradientArguments),
+            "conic-gradient-arguments" => Some(Self::ConicGradientArguments),
+            "skew-arguments" => Some(Self::SkewArguments),
+            "skew-x-arguments" => Some(Self::SkewXArguments),
+            "skew-y-arguments" => Some(Self::SkewYArguments),
             _ => None,
         }
     }
@@ -89,8 +122,14 @@ impl ValueType {
             }
             Self::Number => CSSNumber::parse_string(value).is_ok(),
             Self::Percentage => Percentage::parse_string(value).is_ok(),
+            Self::NumberPercentage => NumberOrPercentage::parse_string(value).is_ok(),
             Self::Length => Length::parse_string(value).is_ok(),
             Self::LengthPercentage => LengthPercentage::parse_string(value).is_ok(),
+            Self::Angle => Angle::parse_string(value).is_ok(),
+            Self::AnglePercentage => AnglePercentage::parse_string(value).is_ok(),
+            Self::Time => Time::parse_string(value).is_ok(),
+            Self::Ratio => Ratio::parse_string(value).is_ok(),
+            Self::Easing => EasingFunction::parse_string(value).is_ok(),
             Self::LineWidth => BorderSideWidth::parse_string(value).is_ok(),
             Self::ZIndex => value.trim() == "auto" || Self::Integer.accepts(value),
             Self::Color => CssColor::parse_string(value).is_ok(),
@@ -99,6 +138,17 @@ impl ValueType {
             Self::Position => Position::parse_string(value).is_ok(),
             Self::BackgroundSize => BackgroundSize::parse_string(value).is_ok(),
             Self::Shadow => BoxShadow::parse_string(value).is_ok(),
+            // Lightning CSS has no typed `content` property parser yet. Keep
+            // this narrow exception here rather than treating the whole
+            // property as unchecked: it accepts the primitive content
+            // productions used by Tailwind and rejects bare identifiers.
+            Self::Content => content_value(value),
+            Self::LinearGradientArguments => gradient_arguments("linear-gradient", value),
+            Self::RadialGradientArguments => gradient_arguments("radial-gradient", value),
+            Self::ConicGradientArguments => gradient_arguments("conic-gradient", value),
+            Self::SkewArguments => transform_function_arguments("skew", value),
+            Self::SkewXArguments => transform_function_arguments("skewX", value),
+            Self::SkewYArguments => transform_function_arguments("skewY", value),
         }
     }
 
@@ -113,9 +163,229 @@ impl ValueType {
             || matches!(
                 (self, actual),
                 (Self::LengthPercentage, Self::Length | Self::Percentage)
+                    | (Self::AnglePercentage, Self::Angle | Self::Percentage)
+                    | (Self::NumberPercentage, Self::Number | Self::Percentage)
                     | (Self::LineWidth, Self::Length)
                     | (Self::ZIndex, Self::Integer)
             )
+    }
+}
+
+fn gradient_arguments(function: &str, value: &str) -> bool {
+    Image::parse_string(&format!("{function}({value})")).is_ok()
+}
+
+fn content_value(value: &str) -> bool {
+    let value = value.trim();
+    matches!(
+        value,
+        "normal" | "none" | "open-quote" | "close-quote" | "no-open-quote" | "no-close-quote"
+    ) || is_css_string(value)
+        || ["attr(", "counter(", "counters(", "leader(", "element("]
+            .iter()
+            .any(|prefix| {
+                value
+                    .strip_prefix(prefix)
+                    .is_some_and(|value| value.ends_with(')'))
+            })
+        || Image::parse_string(value).is_ok()
+}
+
+fn transform_function_arguments(function: &str, value: &str) -> bool {
+    let value = format!("{function}({value})");
+    matches!(
+        Property::parse_string(
+            PropertyId::from("transform"),
+            &value,
+            ParserOptions::default(),
+        ),
+        Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
+    )
+}
+
+fn is_css_string(value: &str) -> bool {
+    let Some(quote) = value
+        .chars()
+        .next()
+        .filter(|quote| matches!(quote, '\'' | '"'))
+    else {
+        return false;
+    };
+    value.ends_with(quote)
+        && value.len() >= quote.len_utf8() * 2
+        && !value[..value.len() - quote.len_utf8()].ends_with('\\')
+}
+
+/// A browser CSS property whose value grammar is delegated to Lightning CSS.
+///
+/// This is intentionally a closed registry: a typo in `[property:...]` must
+/// never degrade into an unchecked arbitrary value. Add a property here only
+/// with an acceptance/rejection test that documents its CSS grammar boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CssProperty(&'static str);
+
+const PROPERTY_GRAMMARS: &[&str] = &[
+    "animation",
+    "aspect-ratio",
+    "background-image",
+    "background-position",
+    "background-size",
+    "border-color",
+    "border-width",
+    "border-inline-width",
+    "border-block-width",
+    "border-inline-start-width",
+    "border-inline-end-width",
+    "border-block-start-width",
+    "border-block-end-width",
+    "border-top-width",
+    "border-right-width",
+    "border-bottom-width",
+    "border-left-width",
+    "border-radius",
+    "box-shadow",
+    "color",
+    "columns",
+    "contain",
+    "cursor",
+    "flex",
+    "flex-basis",
+    "flex-grow",
+    "flex-shrink",
+    "font-family",
+    "font-feature-settings",
+    "font-size",
+    "font-stretch",
+    "gap",
+    "grid-auto-columns",
+    "grid-auto-rows",
+    "grid-column",
+    "grid-column-start",
+    "grid-column-end",
+    "grid-row",
+    "grid-row-start",
+    "grid-row-end",
+    "grid-template-columns",
+    "grid-template-rows",
+    "height",
+    "min-height",
+    "max-height",
+    "width",
+    "min-width",
+    "max-width",
+    "letter-spacing",
+    "list-style-image",
+    "list-style-type",
+    "line-height",
+    "margin",
+    "margin-inline",
+    "margin-block",
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
+    "mask-image",
+    "mask-position",
+    "mask-size",
+    "object-position",
+    "opacity",
+    "order",
+    "outline-offset",
+    "padding",
+    "padding-inline",
+    "padding-block",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "perspective",
+    "perspective-origin",
+    "rotate",
+    "scale",
+    "tab-size",
+    "text-underline-offset",
+    "transform",
+    "transform-origin",
+    "transition-delay",
+    "transition-duration",
+    "transition-property",
+    "transition-timing-function",
+    "vertical-align",
+    "will-change",
+    "z-index",
+    "zoom",
+];
+
+impl CssProperty {
+    /// Parses the closed property registry used by `[property:name]` domains.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        PROPERTY_GRAMMARS
+            .iter()
+            .copied()
+            .find(|candidate| *candidate == name)
+            .map(Self)
+    }
+
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        self.0
+    }
+
+    /// Validates the value through Lightning CSS's parser for this exact CSS
+    /// property. This intentionally covers property-specific keyword and
+    /// shorthand rules that a generic value type cannot express.
+    #[must_use]
+    pub fn accepts(self, value: &str) -> bool {
+        if is_css_wide_keyword(value) {
+            return true;
+        }
+        matches!(
+            Property::parse_string(
+                PropertyId::from(self.name()),
+                value.trim(),
+                ParserOptions::default(),
+            ),
+            Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
+        )
+    }
+}
+
+/// A `--value([…])` domain. Type domains validate a CSS value definition;
+/// property domains validate the full grammar of one concrete CSS property.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ValueDomain {
+    Type(ValueType),
+    Property(CssProperty),
+}
+
+impl ValueDomain {
+    #[must_use]
+    pub fn from_hint(hint: &str) -> Option<Self> {
+        if let Some(property) = hint.strip_prefix("property:") {
+            return CssProperty::from_name(property).map(Self::Property);
+        }
+        ValueType::from_hint(hint).map(Self::Type)
+    }
+
+    #[must_use]
+    pub fn accepts(self, value: &str) -> bool {
+        match self {
+            Self::Type(value_type) => value_type.accepts(value),
+            Self::Property(property) => property.accepts(value),
+        }
+    }
+
+    #[must_use]
+    pub fn accepts_hint(self, hint: &str) -> bool {
+        match self {
+            Self::Type(expected) => {
+                ValueType::from_hint(hint).is_some_and(|actual| expected.accepts_hint(actual))
+            }
+            Self::Property(property) => hint
+                .strip_prefix("property:")
+                .is_some_and(|actual| actual == property.name()),
+        }
     }
 }
 
@@ -1275,10 +1545,16 @@ mod tests {
             (ValueType::Integer, "calc(4 / 2)", "1.5"),
             (ValueType::Number, "calc(1 / 2)", "1px"),
             (ValueType::Percentage, "12.5%", "12px"),
+            (ValueType::NumberPercentage, ".5", "1px"),
             (ValueType::Length, "calc(1rem + 2px)", "50%"),
             (ValueType::LengthPercentage, "calc(1rem + 50%)", "1s"),
             (ValueType::LineWidth, "thin", "50%"),
             (ValueType::ZIndex, "auto", "1.5"),
+            (ValueType::Angle, "0.5turn", "1s"),
+            (ValueType::AnglePercentage, "calc(90deg + 50%)", "1s"),
+            (ValueType::Time, "150ms", "1px"),
+            (ValueType::Ratio, "16 / 9", "1px"),
+            (ValueType::Easing, "cubic-bezier(.2, .8, .2, 1)", "1px"),
             (ValueType::Color, "oklch(62% .2 280)", "12px"),
             (ValueType::Image, "linear-gradient(red, blue)", "red"),
             (
@@ -1289,6 +1565,25 @@ mod tests {
             (ValueType::Position, "right 1rem bottom 2px", "red"),
             (ValueType::BackgroundSize, "cover", "red"),
             (ValueType::Shadow, "0 1px 2px #000", "1rem"),
+            (ValueType::Content, "'stillwind'", "stillwind"),
+            (
+                ValueType::LinearGradientArguments,
+                "45deg, red, blue",
+                "red / blue",
+            ),
+            (
+                ValueType::RadialGradientArguments,
+                "at 20% 30%, red, blue",
+                "red / blue",
+            ),
+            (
+                ValueType::ConicGradientArguments,
+                "from 45deg, red, blue",
+                "red / blue",
+            ),
+            (ValueType::SkewArguments, "15deg", "red"),
+            (ValueType::SkewXArguments, "15deg", "red"),
+            (ValueType::SkewYArguments, "15deg", "red"),
         ] {
             assert!(value_type.accepts(valid), "{value_type:?}: {valid}");
             assert!(!value_type.accepts(invalid), "{value_type:?}: {invalid}");
@@ -1306,6 +1601,30 @@ mod tests {
         assert!(ValueType::ZIndex.accepts_hint(ValueType::Integer));
         assert!(!ValueType::ZIndex.accepts_hint(ValueType::Number));
         assert!(ValueType::LineWidth.accepts_hint(ValueType::Length));
+        assert!(ValueType::NumberPercentage.accepts_hint(ValueType::Percentage));
+    }
+
+    #[test]
+    fn validates_property_domains_with_lightningcss_property_grammars() {
+        for (name, valid, invalid) in [
+            ("padding", "calc(1rem + 50%)", "red"),
+            ("margin", "auto", "red"),
+            ("border-width", "thin", "50%"),
+            ("transition-duration", "150ms", "red"),
+            ("aspect-ratio", "16 / 9", "red"),
+            ("opacity", ".5", "red"),
+        ] {
+            let property = CssProperty::from_name(name).unwrap();
+            assert!(property.accepts(valid), "{name}: {valid}");
+            assert!(!property.accepts(invalid), "{name}: {invalid}");
+        }
+
+        let padding = ValueDomain::from_hint("property:padding").unwrap();
+        assert!(padding.accepts("50%"));
+        assert!(!padding.accepts("red"));
+        assert!(padding.accepts_hint("property:padding"));
+        assert!(!padding.accepts_hint("property:margin"));
+        assert!(ValueDomain::from_hint("property:unknown").is_none());
     }
 
     #[test]
