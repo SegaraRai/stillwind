@@ -511,7 +511,11 @@ fn resolve_named_utility(
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    resolve_arbitrary(name, negative).map(UtilityResolution::plain)
+    modifier
+        .is_none()
+        .then(|| resolve_arbitrary(name, negative))
+        .flatten()
+        .map(UtilityResolution::plain)
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored
@@ -626,25 +630,120 @@ fn resolve_css_utility_body(
     }
     let (selector, body) = split_utility_selector(&utility.body)?;
     let (body, nested) = split_nested_conditions(body)?;
+    // A slash modifier is meaningful only when a branch explicitly consumes
+    // it. This prevents a broad base branch (for example `bg-*`'s colour
+    // declaration) from accepting `bg-red-500/not-an-opacity` merely because
+    // another overload happened to define modifiers. Fractions are the one
+    // exception: their slash is deliberately reassembled by `--fraction()`.
+    if modifier.is_some() && !body.contains("--modifier") && !body.contains("--fraction()") {
+        return None;
+    }
     let declaration =
-        resolve_css_placeholders(&body, utility.name.as_str(), name, modifier, theme)?;
+        resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
     let nested = nested
         .into_iter()
-        .map(|(at_rule, condition, body)| {
-            resolve_css_placeholders(&body, utility.name.as_str(), name, modifier, theme).map(
-                |declaration| NestedUtilityRule {
-                    at_rule,
-                    condition,
-                    declaration,
-                },
-            )
+        .filter_map(|(at_rule, condition, body)| {
+            let declaration =
+                resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
+            (!declaration.is_empty()).then_some(NestedUtilityRule {
+                at_rule,
+                condition,
+                declaration,
+            })
         })
-        .collect::<Option<Vec<_>>>()?;
+        .collect::<Vec<_>>();
     (!declaration.is_empty() || !nested.is_empty()).then_some(UtilityResolution {
         declaration,
         selector,
         nested,
     })
+}
+
+/// Resolves each declaration independently. `@utility` overloads are often
+/// intentionally broad: a single body can expose both colour and length
+/// forms. A failed typed placeholder must remove only the incompatible
+/// declaration, never the compatible siblings.
+fn resolve_css_declarations(
+    body: &str,
+    utility_name: &str,
+    name: &str,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let declarations = split_css_declarations(body);
+    let uses_placeholder = declarations.iter().any(|declaration| {
+        declaration.contains("--value(")
+            || declaration.contains("--modifier(")
+            || declaration.contains("--modifier-map(")
+            || declaration.contains("--modifier-none()")
+            || declaration.contains("--alpha(")
+    });
+    let mut resolved_placeholder = false;
+    let mut output = String::new();
+
+    for declaration in declarations {
+        let contains_placeholder = declaration.contains("--value(")
+            || declaration.contains("--modifier(")
+            || declaration.contains("--modifier-map(")
+            || declaration.contains("--modifier-none()")
+            || declaration.contains("--alpha(");
+        if let Some(declaration) =
+            resolve_css_placeholders(declaration, utility_name, name, modifier, theme)
+            && !declaration.trim().is_empty()
+        {
+            resolved_placeholder |= contains_placeholder;
+            if output.is_empty() {
+                output.push_str(declaration.trim_start());
+            } else {
+                output.push_str(&declaration);
+            }
+        }
+    }
+
+    // Static declarations in a functional body are supporting declarations,
+    // not an independent branch. For example the generic `translate-*` body
+    // must not emit `translate: …` when none of its typed values match.
+    (!uses_placeholder || resolved_placeholder).then_some(output)
+}
+
+/// Splits a declaration list without mistaking a semicolon in a string or a
+/// function argument for a CSS declaration boundary.
+fn split_css_declarations(body: &str) -> Vec<&str> {
+    let mut declarations = Vec::new();
+    let mut start = 0;
+    let mut paren_depth = 0_u32;
+    let mut bracket_depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+
+    for (index, character) in body.char_indices() {
+        if let Some(current_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == current_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            ';' if paren_depth == 0 && bracket_depth == 0 => {
+                declarations.push(&body[start..=index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    if !body[start..].trim().is_empty() {
+        declarations.push(&body[start..]);
+    }
+    declarations
 }
 
 fn resolve_css_placeholders(
@@ -1226,6 +1325,31 @@ mod tests {
     }
 
     #[test]
+    fn respects_tailwind_theme_namespace_resets_when_resolving_utilities() {
+        let default_theme = theme();
+        assert_eq!(
+            resolve_utility("bg-red-500", &default_theme)
+                .expect("the vendored Tailwind theme provides red-500")
+                .declaration,
+            "background-color:var(--color-red-500);"
+        );
+
+        let reset_theme = parse_tailwind_theme(&SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@theme { --color-*: initial; --color-brand: rebeccapurple; }",
+        ))
+        .unwrap();
+        assert!(resolve_utility("bg-red-500", &reset_theme).is_none());
+        assert_eq!(
+            resolve_utility("bg-brand", &reset_theme)
+                .unwrap()
+                .declaration,
+            "background-color:var(--color-brand);"
+        );
+    }
+
+    #[test]
     fn resolves_native_mask_conic_angles() {
         let resolved = resolve_utility("mask-conic-45", &theme()).expect("mask conic angle");
         assert!(
@@ -1307,6 +1431,46 @@ mod tests {
                 .unwrap()
                 .declaration,
             "background-size:24rem auto;"
+        );
+    }
+
+    #[test]
+    fn prunes_only_incompatible_declarations_from_a_typed_utility_body() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            r"@utility token-* {
+  color: --value([color]);
+  width: --value([length]);
+}",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+
+        assert_eq!(
+            resolve_utility("token-[color:rebeccapurple]", &theme)
+                .unwrap()
+                .declaration,
+            "color: rebeccapurple;"
+        );
+        assert_eq!(
+            resolve_utility("token-[length:12px]", &theme)
+                .unwrap()
+                .declaration,
+            "width: 12px;"
+        );
+    }
+
+    #[test]
+    fn rejects_untyped_or_invalid_modifiers_instead_of_ignoring_them() {
+        let theme = theme();
+
+        assert!(resolve_utility("bg-red-500/not-an-opacity", &theme).is_none());
+        assert!(resolve_utility("bg-[image:url(/hero.svg)]/50", &theme).is_none());
+        assert_eq!(
+            resolve_utility("bg-red-500/50", &theme)
+                .unwrap()
+                .declaration,
+            "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
         );
     }
 
