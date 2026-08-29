@@ -15,6 +15,17 @@ pub struct ResolvedUtility {
     pub declaration: String,
     pub selector: Option<String>,
     pub nested: Vec<NestedUtilityRule>,
+    /// Additional selector targets produced by typed `@utility` overloads.
+    /// CSS fallbacks and selector-bearing branches must never be discarded
+    /// merely because they share one candidate spelling.
+    pub additional: Vec<ResolvedUtilityTarget>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedUtilityTarget {
+    pub declaration: String,
+    pub selector: Option<String>,
+    pub nested: Vec<NestedUtilityRule>,
 }
 
 /// A conditional declaration authored inside a CSS `@utility` body.
@@ -39,6 +50,7 @@ struct UtilityResolution {
     declaration: String,
     selector: Option<String>,
     nested: Vec<NestedUtilityRule>,
+    additional: Vec<ResolvedUtilityTarget>,
 }
 
 impl UtilityResolution {
@@ -47,6 +59,7 @@ impl UtilityResolution {
             declaration,
             selector: None,
             nested: Vec::new(),
+            additional: Vec::new(),
         }
     }
 }
@@ -207,10 +220,24 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
+    let additional = resolution
+        .additional
+        .into_iter()
+        .map(|mut target| {
+            if candidate.important {
+                target.declaration = important(&target.declaration);
+                for nested in &mut target.nested {
+                    nested.declaration = important(&nested.declaration);
+                }
+            }
+            target
+        })
+        .collect();
     Some(ResolvedUtility {
         declaration,
         selector: resolution.selector,
         nested,
+        additional,
         candidate,
     })
 }
@@ -577,14 +604,19 @@ fn resolve_css_utility_branches<'a>(
     branches.sort_by_key(|(specificity, _)| std::cmp::Reverse(*specificity));
     let (_, mut resolution) = branches.first()?.clone();
     for (_, branch) in branches.into_iter().skip(1) {
-        // A single utility class can safely accumulate declarations from
-        // overloads only when they target the same selector. Selector-bearing
-        // utilities are intentionally separate candidates until the IR grows
-        // multiple rule targets per class.
+        // Overloads with a shared selector form one declaration list. CSS
+        // fallback declarations intentionally retain their original order.
         if branch.selector == resolution.selector {
-            resolution.declaration =
-                merge_declarations(&resolution.declaration, &branch.declaration);
+            resolution.declaration.push_str(&branch.declaration);
             resolution.nested.extend(branch.nested);
+            resolution.additional.extend(branch.additional);
+        } else {
+            resolution.additional.push(ResolvedUtilityTarget {
+                declaration: branch.declaration,
+                selector: branch.selector,
+                nested: branch.nested,
+            });
+            resolution.additional.extend(branch.additional);
         }
     }
     Some(resolution)
@@ -603,24 +635,6 @@ fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
     // …) intact while still letting typed wildcard branches discriminate
     // arbitrary values among themselves.
     usize::from(utility.name == name) * 32 + typed_arbitrary * 4 + theme_domain * 2 + modifier
-}
-
-fn merge_declarations(primary: &str, secondary: &str) -> String {
-    let mut properties = primary
-        .split_terminator(';')
-        .filter_map(|declaration| declaration.split_once(':').map(|(property, _)| property))
-        .collect::<std::collections::HashSet<_>>();
-    let mut merged = primary.to_owned();
-    for declaration in secondary.split_terminator(';') {
-        let Some((property, _)) = declaration.split_once(':') else {
-            continue;
-        };
-        if properties.insert(property) {
-            merged.push_str(declaration);
-            merged.push(';');
-        }
-    }
-    merged
 }
 
 fn resolve_css_utility_body(
@@ -676,6 +690,7 @@ fn resolve_css_utility_body(
         declaration,
         selector,
         nested,
+        additional: Vec::new(),
     })
 }
 
@@ -1774,6 +1789,35 @@ mod tests {
                 .unwrap()
                 .declaration,
             "width: 12px;"
+        );
+    }
+
+    #[test]
+    fn preserves_css_fallbacks_and_multiple_selector_targets() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            r#"@utility paint-* { color: red; color: color(display-p3 1 0 0); }
+@utility paint-* { &::before { content: "fallback"; } }"#,
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+        let resolved = resolve_utility("paint-card", &theme).unwrap();
+
+        assert!(
+            resolved
+                .declaration
+                .contains("color: red; color: color(display-p3 1 0 0);")
+                || resolved.additional.iter().any(|target| target
+                    .declaration
+                    .contains("color: red; color: color(display-p3 1 0 0);")),
+            "{resolved:#?}"
+        );
+        assert_eq!(resolved.additional.len(), 1);
+        assert_eq!(resolved.selector.as_deref(), Some("&::before"));
+        assert_eq!(resolved.declaration, "content: \"fallback\";");
+        assert_eq!(
+            resolved.additional[0].declaration,
+            "color: red; color: color(display-p3 1 0 0);"
         );
     }
 

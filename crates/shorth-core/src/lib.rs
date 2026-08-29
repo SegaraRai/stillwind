@@ -306,14 +306,16 @@ impl Compiler {
                     for utility in lex_utilities(&value) {
                         branch.2.push_str(&utility.value.raw);
                         branch.2.push('\0');
-                        match resolve_utility(&utility.value.raw, &theme) {
-                            Some(mut utility) => {
-                                utility.container = Some(format!(
-                                    "{} ({})",
-                                    symbol_name(source, "handle", &handle),
-                                    query.value
-                                ));
-                                branch.3.push(utility);
+                        match resolve_utility_targets(&utility.value.raw, &theme) {
+                            Some(mut utilities) => {
+                                for utility in &mut utilities {
+                                    utility.container = Some(format!(
+                                        "{} ({})",
+                                        symbol_name(source, "handle", &handle),
+                                        query.value
+                                    ));
+                                }
+                                branch.3.append(&mut utilities);
                             }
                             None => result.diagnostics.push(Diagnostic::error(
                                 "SH001",
@@ -409,15 +411,18 @@ impl Compiler {
                     }
                     branch.2.push_str(&utility.value.raw);
                     branch.2.push('\0');
-                    match resolve_utility(&utility.value.raw, &theme) {
-                        Some(mut utility) => {
-                            if let Some(selector) = &selector {
-                                utility.selector = Some(utility.selector.as_deref().map_or_else(
-                                    || selector.clone(),
-                                    |nested| nested.replace('&', selector),
-                                ));
+                    match resolve_utility_targets(&utility.value.raw, &theme) {
+                        Some(mut utilities) => {
+                            for utility in &mut utilities {
+                                if let Some(selector) = &selector {
+                                    utility.selector =
+                                        Some(utility.selector.as_deref().map_or_else(
+                                            || selector.clone(),
+                                            |nested| nested.replace('&', selector),
+                                        ));
+                                }
                             }
-                            branch.3.push(utility);
+                            branch.3.append(&mut utilities);
                         }
                         None => result.diagnostics.push(Diagnostic::error(
                             "SH001",
@@ -850,14 +855,32 @@ struct CompiledUtility {
 }
 
 fn resolve_utility(utility: &str, theme: &shorth_css::ThemeIndex) -> Option<CompiledUtility> {
+    resolve_utility_targets(utility, theme)?.into_iter().next()
+}
+
+fn resolve_utility_targets(
+    utility: &str,
+    theme: &shorth_css::ThemeIndex,
+) -> Option<Vec<CompiledUtility>> {
     let resolved = shorth_tailwind::resolve_utility(utility, theme)?;
-    Some(CompiledUtility {
-        variants: resolved.candidate.variants,
+    let mut targets = vec![shorth_tailwind::ResolvedUtilityTarget {
         declaration: resolved.declaration,
         selector: resolved.selector,
-        container: None,
         nested: resolved.nested,
-    })
+    }];
+    targets.extend(resolved.additional);
+    Some(
+        targets
+            .into_iter()
+            .map(|target| CompiledUtility {
+                variants: resolved.candidate.variants.clone(),
+                declaration: target.declaration,
+                selector: target.selector,
+                container: None,
+                nested: target.nested,
+            })
+            .collect(),
+    )
 }
 
 fn emit_utility_rules(

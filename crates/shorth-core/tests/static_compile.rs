@@ -298,6 +298,40 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
 }
 
 #[test]
+fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Fixture.tsx",
+        "import { style } from \"stillwind/react\"; const props = style(\"paint-card\");",
+    );
+    let result = Compiler::compile_react(
+        &component,
+        &SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            r#"@import "tailwindcss/utilities" layer(utilities);
+@utility paint-* { color: red; color: color(display-p3 1 0 0); }
+@utility paint-* { &::before { content: "fallback"; } }"#,
+        ),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let class_name = &result.classes[0].class_name;
+    assert!(
+        result.css.contains(&format!(
+            ".{class_name}{{color: red; color: color(display-p3 1 0 0);}}"
+        )),
+        "{}",
+        result.css
+    );
+    assert!(
+        result
+            .css
+            .contains(&format!(".{class_name}::before{{content: \"fallback\";}}"))
+    );
+}
+
+#[test]
 fn emits_nested_supports_from_css_utility_definitions() {
     let component = SourceFile::new(
         FileId(1),
