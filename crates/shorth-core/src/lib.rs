@@ -1025,8 +1025,12 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
 
 fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> String {
     let imports = &theme.imports;
+    // Tailwind only emits typed custom-property registrations when a generated
+    // utility actually participates in one of those protocols. An import is
+    // permission to use the layer, not a request to eagerly dump it.
+    let properties = imports.properties || (imports.has_any() && utility_css.contains("--tw-"));
     let mut css = String::new();
-    if imports.properties {
+    if properties {
         css.push_str("@layer properties;\n");
     }
     if imports.has_any() {
@@ -1084,7 +1088,7 @@ fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> Strin
         css.push_str(utility_css);
         css.push_str("}\n");
     }
-    if imports.properties {
+    if properties {
         css.push_str(shorth_css::tailwind_v4_properties());
     }
     css

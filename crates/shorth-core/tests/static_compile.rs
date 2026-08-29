@@ -27,6 +27,20 @@ fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<St
     Some(section[start..].split_once("\n```")?.0.trim().to_owned())
 }
 
+fn fixture_case_for_candidate<'a>(fixture: &'a str, candidate: &str) -> &'a str {
+    fixture
+        .split("## `")
+        .skip(1)
+        .find(|section| {
+            fixture_code_block(section, "Candidates", "text").is_some_and(|candidates| {
+                candidates
+                    .split_whitespace()
+                    .any(|value| value == candidate)
+            })
+        })
+        .unwrap_or_else(|| panic!("fixture case for `{candidate}` must exist"))
+}
+
 fn css_rule(css: &str, class_name: &str) -> String {
     let selector = format!(".{class_name}");
     let start = css
@@ -173,6 +187,7 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
 #[test]
 fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
     let cases = [
+        ("foundations.fixture.md", "p-4"),
         ("transitions-animation.fixture.md", "transition-colors"),
         ("layout-positioning.fixture.md", "aspect-video"),
     ];
@@ -181,8 +196,11 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
     for (fixture_name, candidate) in cases {
         let fixture =
             fs::read_to_string(root.join(fixture_name)).expect("fixture must be readable");
-        let expected_css = fixture_code_block(&fixture, "Expected CSS", "css")
+        let section = fixture_case_for_candidate(&fixture, candidate);
+        let expected_css = fixture_code_block(section, "Expected CSS", "css")
             .expect("fixture must provide expected CSS");
+        let input_css = fixture_code_block(section, "Input CSS", "css")
+            .expect("fixture must provide input CSS");
         let component = SourceFile::new(
             FileId(1),
             "src/Fixture.tsx",
@@ -192,7 +210,7 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         );
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(FileId(2), "stillwind.css", "@theme {}"),
+            &SourceFile::new(FileId(2), "stillwind.css", input_css),
         );
         assert!(
             result.diagnostics.is_empty(),
@@ -266,7 +284,22 @@ fn framework_imports_gate_baseline_layers() {
     let full = compiler("@import \"tailwindcss\";");
     assert!(full.diagnostics.is_empty());
     assert!(full.css.contains("box-sizing: border-box"));
-    assert!(full.css.contains("@property --tw-"));
+    assert!(!full.css.contains("@property --tw-"));
+
+    let content = Compiler::compile_react(
+        &SourceFile::new(
+            FileId(3),
+            "src/Content.tsx",
+            "import { style } from \"stillwind/react\"; const props = style(\"bg-linear-to-r\");",
+        ),
+        &SourceFile::new(
+            FileId(4),
+            "stillwind.css",
+            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities);",
+        ),
+    );
+    assert!(content.diagnostics.is_empty());
+    assert!(content.css.contains("@property --tw-gradient-position"));
 }
 
 #[test]

@@ -542,7 +542,7 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 output.theme_layer = Some(layer.clone().unwrap_or_else(|| "theme".to_owned()));
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
-                output.properties = true;
+                output.properties = false;
             }
             "tailwindcss/theme" => {
                 found = true;

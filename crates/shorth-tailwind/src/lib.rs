@@ -605,11 +605,12 @@ fn resolve_css_utility_branches<'a>(
     let (_, mut resolution) = branches.first()?.clone();
     for (_, branch) in branches.into_iter().skip(1) {
         // Overloads with a shared selector form one declaration list. CSS
-        // fallback declarations intentionally retain their original order.
+        // fallbacks authored within one overload intentionally retain their
+        // order, while competing overloads cannot overwrite a more-specific
+        // property branch.
         if branch.selector == resolution.selector {
-            if branch.declaration != resolution.declaration {
-                resolution.declaration.push_str(&branch.declaration);
-            }
+            resolution.declaration =
+                merge_branch_declarations(&resolution.declaration, &branch.declaration);
             resolution.nested.extend(branch.nested);
             resolution.additional.extend(branch.additional);
         } else {
@@ -622,6 +623,31 @@ fn resolve_css_utility_branches<'a>(
         }
     }
     Some(resolution)
+}
+
+/// Merges independent `@utility` overloads without erasing repeated fallback
+/// declarations inside either body. For example `opacity-0` keeps its static
+/// declaration instead of also gaining the generic percentage overload.
+fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
+    let mut properties = primary
+        .split_terminator(';')
+        .filter_map(|declaration| {
+            declaration
+                .split_once(':')
+                .map(|(property, _)| property.trim())
+        })
+        .collect::<std::collections::HashSet<_>>();
+    let mut merged = primary.to_owned();
+    for declaration in secondary.split_terminator(';') {
+        let Some((property, _)) = declaration.split_once(':') else {
+            continue;
+        };
+        if properties.insert(property.trim()) {
+            merged.push_str(declaration);
+            merged.push(';');
+        }
+    }
+    merged
 }
 
 fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
