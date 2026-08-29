@@ -34,6 +34,24 @@ pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../assets/tailwind-v4-pref
 const TAILWIND_V4_THEME: &str = include_str!("../assets/tailwind-v4-theme.css");
 const TAILWIND_V4_PROPERTIES: &str = include_str!("../assets/tailwind-v4-properties.css");
 
+/// One curated CSS property definition extracted from the CSSWG Web Living
+/// Standards by W3C Webref. The generated table is the source of truth for
+/// supported property names and their formal value syntax.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct WebrefPropertySyntax {
+    pub name: &'static str,
+    pub syntax: &'static str,
+    pub href: &'static str,
+}
+
+include!("../assets/webref-properties.rs");
+
+fn webref_property(name: &str) -> Option<&'static WebrefPropertySyntax> {
+    WEBREF_PROPERTIES
+        .iter()
+        .find(|property| property.name.eq_ignore_ascii_case(name))
+}
+
 /// A CSS value type accepted by a typed `--value([type])` domain.
 ///
 /// The variants intentionally model CSS value definitions, rather than the
@@ -72,6 +90,22 @@ pub enum ValueType {
     FontFamily,
     FontSize,
     FontWeight,
+    VerticalAlign,
+    GridTrackSize,
+    GridLine,
+    Columns,
+    Contain,
+    Cursor,
+    FontFeatureSettings,
+    FontStretch,
+    GridTrackList,
+    Flex,
+    ListStyleType,
+    ListStyleImage,
+    TabSize,
+    TransitionProperty,
+    WillChange,
+    Zoom,
 }
 
 impl ValueType {
@@ -110,6 +144,22 @@ impl ValueType {
             "font-family" => Some(Self::FontFamily),
             "font-size" => Some(Self::FontSize),
             "font-weight" => Some(Self::FontWeight),
+            "vertical-align" => Some(Self::VerticalAlign),
+            "grid-track-size" => Some(Self::GridTrackSize),
+            "grid-line" => Some(Self::GridLine),
+            "columns" => Some(Self::Columns),
+            "contain" => Some(Self::Contain),
+            "cursor" => Some(Self::Cursor),
+            "font-feature-settings" => Some(Self::FontFeatureSettings),
+            "font-stretch" => Some(Self::FontStretch),
+            "grid-track-list" => Some(Self::GridTrackList),
+            "flex" => Some(Self::Flex),
+            "list-style-type" => Some(Self::ListStyleType),
+            "list-style-image" => Some(Self::ListStyleImage),
+            "tab-size" => Some(Self::TabSize),
+            "transition-property" => Some(Self::TransitionProperty),
+            "will-change" => Some(Self::WillChange),
+            "zoom" => Some(Self::Zoom),
             _ => None,
         }
     }
@@ -170,6 +220,22 @@ impl ValueType {
             Self::FontFamily => property_value("font-family", value),
             Self::FontSize => property_value("font-size", value),
             Self::FontWeight => property_value("font-weight", value),
+            Self::VerticalAlign => property_value("vertical-align", value),
+            Self::GridTrackSize => property_value("grid-auto-columns", value),
+            Self::GridLine => property_value("grid-column", value),
+            Self::Columns => property_value("columns", value),
+            Self::Contain => property_value("contain", value),
+            Self::Cursor => property_value("cursor", value),
+            Self::FontFeatureSettings => property_value("font-feature-settings", value),
+            Self::FontStretch => property_value("font-stretch", value),
+            Self::GridTrackList => property_value("grid-template-columns", value),
+            Self::Flex => property_value("flex", value),
+            Self::ListStyleType => property_value("list-style-type", value),
+            Self::ListStyleImage => property_value("list-style-image", value),
+            Self::TabSize => property_value("tab-size", value),
+            Self::TransitionProperty => property_value("transition-property", value),
+            Self::WillChange => property_value("will-change", value),
+            Self::Zoom => property_value("zoom", value),
         }
     }
 
@@ -303,13 +369,13 @@ fn is_css_string(value: &str) -> bool {
         && !value[..value.len() - quote.len_utf8()].ends_with('\\')
 }
 
-/// A browser CSS property whose value grammar is delegated to Lightning CSS.
+/// A CSSWG-defined property whose value grammar is delegated to Lightning CSS
+/// where available, with narrow temporary exceptions where it is not.
 ///
-/// The supported set is discovered from `lightningcss::PropertyId`, rather
-/// than maintained as a partial list. This keeps `[property:…]` domains in
-/// lockstep with Lightning CSS's generated CSS property grammar. A small,
-/// explicit exception table covers newer properties that Lightning CSS has not
-/// modelled yet; an unknown property never becomes an unchecked domain.
+/// The supported set is generated from W3C Webref's curated CSSWG data,
+/// rather than maintained as a partial list. It is an internal validator for
+/// named CSS value domains; property names are never part of the public
+/// `--value([type])` grammar.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssProperty {
     name: String,
@@ -319,6 +385,7 @@ pub struct CssProperty {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CssPropertyGrammar {
     LightningCss,
+    Columns,
     Contain,
     FontFeatureSettings,
     ObjectPosition,
@@ -336,6 +403,7 @@ const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
     // Lightning CSS property table. Keep their grammar exceptions explicit
     // and covered by acceptance/rejection tests.
     ("contain", CssPropertyGrammar::Contain),
+    ("columns", CssPropertyGrammar::Columns),
     (
         "font-feature-settings",
         CssPropertyGrammar::FontFeatureSettings,
@@ -357,13 +425,14 @@ const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
 ];
 
 impl CssProperty {
-    /// Parses the closed property registry used by `[property:name]` domains.
+    /// Finds a CSSWG-defined property for an internal value-domain validator.
     #[must_use]
     pub fn from_name(name: &str) -> Option<Self> {
+        let webref = webref_property(name)?;
         let property_id = PropertyId::from(name);
         if !matches!(property_id, PropertyId::Custom(_)) {
             return Some(Self {
-                name: property_id.name().to_owned(),
+                name: webref.name.to_owned(),
                 grammar: CssPropertyGrammar::LightningCss,
             });
         }
@@ -398,6 +467,7 @@ impl CssProperty {
                 ),
                 Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
             ),
+            CssPropertyGrammar::Columns => columns_value(value),
             CssPropertyGrammar::Contain => contain_value(value),
             CssPropertyGrammar::FontFeatureSettings => font_feature_settings(value),
             CssPropertyGrammar::ObjectPosition => Position::parse_string(value).is_ok(),
@@ -417,6 +487,25 @@ impl CssProperty {
             CssPropertyGrammar::PositionTryFallbacks => position_try_fallbacks(value),
         }
     }
+}
+
+fn columns_value(value: &str) -> bool {
+    let values = value.split_whitespace().collect::<Vec<_>>();
+    if values.is_empty() || values.len() > 2 {
+        return false;
+    }
+    let mut width = false;
+    let mut count = false;
+    for value in values {
+        if !width && (value == "auto" || Length::parse_string(value).is_ok()) {
+            width = true;
+        } else if !count && (value == "auto" || value.parse::<u32>().is_ok_and(|value| value > 0)) {
+            count = true;
+        } else {
+            return false;
+        }
+    }
+    width || count
 }
 
 fn contain_value(value: &str) -> bool {
@@ -558,20 +647,17 @@ fn position_try_fallbacks(value: &str) -> bool {
     })
 }
 
-/// A `--value([…])` domain. Type domains validate a CSS value definition;
-/// property domains validate the full grammar of one concrete CSS property.
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// A `--value([…])` domain. These names are CSS value definitions, not CSS
+/// property names. Complex built-in grammars receive a named value domain
+/// only when they cannot be expressed as a composition of standard types.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ValueDomain {
     Type(ValueType),
-    Property(CssProperty),
 }
 
 impl ValueDomain {
     #[must_use]
     pub fn from_hint(hint: &str) -> Option<Self> {
-        if let Some(property) = hint.strip_prefix("property:") {
-            return CssProperty::from_name(property.trim()).map(Self::Property);
-        }
         ValueType::from_hint(hint).map(Self::Type)
     }
 
@@ -579,7 +665,6 @@ impl ValueDomain {
     pub fn accepts(&self, value: &str) -> bool {
         match self {
             Self::Type(value_type) => value_type.accepts(value),
-            Self::Property(property) => property.accepts(value),
         }
     }
 
@@ -589,9 +674,6 @@ impl ValueDomain {
             Self::Type(expected) => {
                 ValueType::from_hint(hint).is_some_and(|actual| expected.accepts_hint(actual))
             }
-            Self::Property(property) => hint
-                .strip_prefix("property:")
-                .is_some_and(|actual| actual.trim().eq_ignore_ascii_case(property.name())),
         }
     }
 }
@@ -1795,6 +1877,22 @@ mod tests {
             (ValueType::FontFamily, "ui-sans-serif, sans-serif", "12px"),
             (ValueType::FontSize, "1rem", "red"),
             (ValueType::FontWeight, "650", "red"),
+            (ValueType::VerticalAlign, "middle", "red"),
+            (ValueType::GridTrackSize, "minmax(0, 1fr)", "red"),
+            (ValueType::GridLine, "span 2", "1px"),
+            (ValueType::Columns, "12rem 3", "red"),
+            (ValueType::Contain, "layout paint", "red"),
+            (ValueType::Cursor, "pointer", "red"),
+            (ValueType::FontFeatureSettings, "\"liga\" 1", "liga"),
+            (ValueType::FontStretch, "125%", "red"),
+            (ValueType::GridTrackList, "repeat(3, minmax(0, 1fr))", "red"),
+            (ValueType::Flex, "1 1 0%", "red"),
+            (ValueType::ListStyleType, "disc", "1px"),
+            (ValueType::ListStyleImage, "url(icon.svg)", "red"),
+            (ValueType::TabSize, "4", "red"),
+            (ValueType::TransitionProperty, "transform", "1px"),
+            (ValueType::WillChange, "transform", "1px"),
+            (ValueType::Zoom, "125%", "red"),
         ] {
             assert!(value_type.accepts(valid), "{value_type:?}: {valid}");
             assert!(!value_type.accepts(invalid), "{value_type:?}: {invalid}");
@@ -1818,7 +1916,7 @@ mod tests {
     }
 
     #[test]
-    fn validates_property_domains_with_lightningcss_property_grammars() {
+    fn validates_csswg_property_grammars_with_lightningcss_or_exceptions() {
         for (name, valid, invalid) in [
             ("padding", "calc(1rem + 50%)", "red"),
             ("margin", "auto", "red"),
@@ -1842,17 +1940,44 @@ mod tests {
             assert!(!property.accepts(invalid), "{name}: {invalid}");
         }
 
-        let padding = ValueDomain::from_hint("property:padding").unwrap();
-        assert!(padding.accepts("50%"));
-        assert!(!padding.accepts("red"));
-        assert!(padding.accepts_hint("property:padding"));
-        assert!(!padding.accepts_hint("property:margin"));
-        assert!(ValueDomain::from_hint("property:unknown").is_none());
+        assert!(webref_property("padding").is_some());
+        assert!(webref_property("grid-template-columns").is_some());
+        assert!(webref_property("view-transition-name").is_some());
+        assert!(webref_property("not-a-css-property").is_none());
+        assert!(ValueDomain::from_hint("property:padding").is_none());
+    }
+
+    #[test]
+    fn generated_webref_snapshot_covers_every_internal_complex_value_domain() {
+        for property in [
+            "animation",
+            "columns",
+            "contain",
+            "cursor",
+            "flex",
+            "font-feature-settings",
+            "font-stretch",
+            "grid-auto-columns",
+            "grid-column",
+            "grid-template-columns",
+            "list-style-image",
+            "list-style-type",
+            "tab-size",
+            "transition-property",
+            "vertical-align",
+            "will-change",
+            "zoom",
+        ] {
+            let definition = webref_property(property)
+                .unwrap_or_else(|| panic!("Webref must define `{property}`"));
+            assert!(!definition.syntax.is_empty(), "{property}");
+            assert!(definition.href.starts_with("https://"), "{property}");
+        }
     }
 
     #[test]
     fn validates_anchor_positioning_with_explicit_property_exceptions() {
-        let domain = |name| ValueDomain::from_hint(&format!("property:{name}")).unwrap();
+        let domain = |name| CssProperty::from_name(name).unwrap();
 
         assert!(domain("anchor-name").accepts("--card --tooltip"));
         assert!(!domain("anchor-name").accepts("card"));

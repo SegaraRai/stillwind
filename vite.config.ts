@@ -14,6 +14,12 @@ export default {
       "fmt:write": {
         command: "vp fmt",
       },
+      "webref:generate": {
+        command: "node tools/generate-webref-css-domains.mts",
+      },
+      "webref:check": {
+        command: "node tools/generate-webref-css-domains.mts --check",
+      },
       lint: {
         command: "vp lint",
       },

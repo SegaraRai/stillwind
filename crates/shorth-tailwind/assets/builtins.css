@@ -3243,19 +3243,19 @@
 /* Functional arbitrary-value utilities. Theme-token overloads live above;
  * these definitions provide the common arbitrary-value grammar. */
 @utility align-* {
-  vertical-align: --value([property: vertical-align]);
+  vertical-align: --value([vertical-align]);
 }
 @utility animate-* {
-  animation: --value(--animate-*, [property: animation]);
+  animation: --value(--animate-*, [animation]);
 }
 @utility aspect-* {
-  aspect-ratio: --value([property: aspect-ratio]);
+  aspect-ratio: --value([ratio]);
 }
 @utility auto-cols-* {
-  grid-auto-columns: --value([property: grid-auto-columns]);
+  grid-auto-columns: --value([grid-track-size]);
 }
 @utility auto-rows-* {
-  grid-auto-rows: --value([property: grid-auto-rows]);
+  grid-auto-rows: --value([grid-track-size]);
 }
 @utility backdrop-blur-* {
   backdrop-filter: blur(--value([length]));
@@ -3285,10 +3285,10 @@
   backdrop-filter: sepia(--value([number-percentage]));
 }
 @utility bg-position-* {
-  background-position: --value([property: background-position]);
+  background-position: --value([position]);
 }
 @utility bg-size-* {
-  background-size: --value([property: background-size]);
+  background-size: --value([bg-size]);
 }
 @utility blur-* {
   filter: blur(--value([length]));
@@ -3297,22 +3297,22 @@
   filter: brightness(--value([number-percentage]));
 }
 @utility col-* {
-  grid-column: --value([property: grid-column]);
+  grid-column: --value([grid-line]);
 }
 @utility col-end-* {
-  grid-column-end: --value([property: grid-column-end]);
+  grid-column-end: --value([grid-line]);
 }
 @utility col-span-* {
   grid-column: span --value([integer]) / span --value([integer]);
 }
 @utility col-start-* {
-  grid-column-start: --value([property: grid-column-start]);
+  grid-column-start: --value([grid-line]);
 }
 @utility columns-* {
-  columns: --value([property: columns]);
+  columns: --value([columns]);
 }
 @utility contain-* {
-  contain: --value([property: contain]);
+  contain: --value([contain]);
 }
 @utility content-* {
   --tw-content: --value([content]);
@@ -3322,10 +3322,10 @@
   filter: contrast(--value([number-percentage]));
 }
 @utility cursor-* {
-  cursor: --value([property: cursor]);
+  cursor: --value([cursor]);
 }
 @utility delay-* {
-  transition-delay: --value([property: transition-delay]);
+  transition-delay: --value([time]);
 }
 @utility divide-x-* {
   & > :not(:last-child) {
@@ -3338,10 +3338,10 @@
   }
 }
 @utility font-features-* {
-  font-feature-settings: --value([property: font-feature-settings]);
+  font-feature-settings: --value([font-feature-settings]);
 }
 @utility font-stretch-* {
-  font-stretch: --value([property: font-stretch]);
+  font-stretch: --value([font-stretch]);
 }
 @utility grayscale-* {
   filter: grayscale(--value([number-percentage]));
@@ -3350,10 +3350,10 @@
   grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
 }
 @utility grid-cols-* {
-  grid-template-columns: --value([property: grid-template-columns]);
+  grid-template-columns: --value([grid-track-list]);
 }
 @utility grid-rows-* {
-  grid-template-rows: --value([property: grid-template-rows]);
+  grid-template-rows: --value([grid-track-list]);
 }
 @utility grid-rows-* {
   grid-template-rows: repeat(--value(integer), minmax(0, 1fr));
@@ -3365,7 +3365,7 @@
   grid-template-rows: subgrid;
 }
 @utility grow-* {
-  flex-grow: --value([property: flex-grow]);
+  flex-grow: --value([number]);
 }
 @utility hue-rotate-* {
   filter: hue-rotate(--value([angle]));
@@ -3377,10 +3377,10 @@
   -webkit-line-clamp: --value([integer]);
 }
 @utility list-* {
-  list-style-type: --value([property: list-style-type]);
+  list-style-type: --value([list-style-type]);
 }
 @utility list-image-* {
-  list-style-image: --value([property: list-style-image]);
+  list-style-image: --value([list-style-image]);
 }
 @utility mask-conic-* {
   mask-image: conic-gradient(--value([conic-gradient-arguments]));
@@ -3561,7 +3561,7 @@
   );
 }
 @utility mask-position-* {
-  mask-position: --value([property: mask-position]);
+  mask-position: --value([position]);
 }
 @utility mask-radial-* {
   mask-image: radial-gradient(--value([radial-gradient-arguments]));
@@ -3574,22 +3574,22 @@
   );
 }
 @utility mask-radial-at-* {
-  mask-position: --value([property: mask-position]);
+  mask-position: --value([position]);
 }
 @utility mask-size-* {
-  mask-size: --value([property: mask-size]);
+  mask-size: --value([bg-size]);
 }
 @utility object-* {
-  object-position: --value([property: object-position]);
+  object-position: --value([position]);
 }
 @utility opacity-* {
-  opacity: --value([property: opacity]);
+  opacity: --value([number-percentage]);
 }
 @utility opacity-* {
   opacity: calc(--value(integer) * 1%);
 }
 @utility flex-* {
-  flex: --value(integer, [property: flex]);
+  flex: --value(integer, [flex]);
 }
 @utility order-* {
   order: --value(integer, [integer]);
@@ -3970,31 +3970,31 @@
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @utility order-* {
-  order: --value([property: order]);
+  order: --value([integer]);
 }
 @utility origin-* {
-  transform-origin: --value([property: transform-origin]);
+  transform-origin: --value([position]);
 }
 @utility outline-offset-* {
-  outline-offset: --value([property: outline-offset]);
+  outline-offset: --value([length]);
 }
 @utility perspective-* {
-  perspective: --value([property: perspective]);
+  perspective: --value([length]);
 }
 @utility perspective-origin-* {
-  perspective-origin: --value([property: perspective-origin]);
+  perspective-origin: --value([position]);
 }
 @utility row-* {
-  grid-row: --value([property: grid-row]);
+  grid-row: --value([grid-line]);
 }
 @utility row-end-* {
-  grid-row-end: --value([property: grid-row-end]);
+  grid-row-end: --value([grid-line]);
 }
 @utility row-span-* {
   grid-row: span --value([integer]) / span --value([integer]);
 }
 @utility row-start-* {
-  grid-row-start: --value([property: grid-row-start]);
+  grid-row-start: --value([grid-line]);
 }
 @utility saturate-* {
   filter: saturate(--value([number-percentage]));
@@ -4003,7 +4003,7 @@
   filter: sepia(--value([number-percentage]));
 }
 @utility shrink-* {
-  flex-shrink: --value([property: flex-shrink]);
+  flex-shrink: --value([number]);
 }
 @utility skew-* {
   transform: skew(--value([skew-arguments]));
@@ -4015,19 +4015,19 @@
   transform: skewY(--value([skew-y-arguments]));
 }
 @utility tab-* {
-  tab-size: --value([property: tab-size]);
+  tab-size: --value([tab-size]);
 }
 @utility transition-* {
-  transition-property: --value([property: transition-property]);
+  transition-property: --value([transition-property]);
 }
 @utility underline-offset-* {
-  text-underline-offset: --value([property: text-underline-offset]);
+  text-underline-offset: --value([length]);
 }
 @utility will-change-* {
-  will-change: --value([property: will-change]);
+  will-change: --value([will-change]);
 }
 @utility zoom-* {
-  zoom: --value([property: zoom]);
+  zoom: --value([zoom]);
 }
 @utility fill-* {
   fill: --value(--color-*);

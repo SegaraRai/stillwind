@@ -105,11 +105,11 @@ separate frontend/grammar work.
 Built-ins and application extensions use the same CSS registry. `@utility`
 supports Tailwind-shaped `--value(...)` domains, while `@variant` uses `@slot`
 for the generated selector. A trailing `*` captures the candidate suffix.
-`[property:name]` delegates an arbitrary value to Lightning CSS's parser for
-that exact browser property. The accepted property set comes from Lightning
-CSS's generated property registry, with narrow documented exceptions for
-newer Anchor Positioning properties; typos remain an error rather than an
-unchecked fallback.
+Arbitrary values use Tailwind-shaped CSS value types such as `[length:…]`,
+`[color:…]`, and `[grid-track-list:…]`. Stillwind never exposes a
+property-name escape hatch: built-ins use standard value domains where
+possible, and narrowly named value domains only for CSS grammars that cannot
+be reduced to one.
 
 ```css
 @utility surface-* {
@@ -117,11 +117,7 @@ unchecked fallback.
 }
 
 @utility panel-width-* {
-  width: --value([property: width]);
-}
-
-@utility anchored-* {
-  position-anchor: --value([property: position-anchor]);
+  width: --value([length]);
 }
 
 @variant state-* {

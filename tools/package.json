@@ -6,6 +6,7 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
+    "@webref/css": "8.7.3",
     "tailwindcss": "4.3.3",
     "typescript": "^7.0.2"
   }

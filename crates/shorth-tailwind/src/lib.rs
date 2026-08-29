@@ -1456,7 +1456,11 @@ mod tests {
     fn builtins_declare_no_untyped_arbitrary_value_domains() {
         assert!(
             !BUILTIN_REGISTRY_CSS.contains("[*]"),
-            "built-in utilities must use a CSS value or property grammar"
+            "built-in utilities must use a typed CSS value domain"
+        );
+        assert!(
+            !BUILTIN_REGISTRY_CSS.contains("[property:"),
+            "property names are not CSS value-domain syntax"
         );
     }
 
