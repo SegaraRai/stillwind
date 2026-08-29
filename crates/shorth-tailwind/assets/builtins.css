@@ -369,6 +369,75 @@
 @utility opacity-100 {
   opacity: 1;
 }
+@utility blur-none {
+  filter: blur(0);
+}
+@utility grayscale {
+  filter: grayscale(100%);
+}
+@utility invert {
+  filter: invert(100%);
+}
+@utility sepia {
+  filter: sepia(100%);
+}
+@utility backdrop-blur-none {
+  backdrop-filter: blur(0);
+}
+@utility backdrop-grayscale {
+  backdrop-filter: grayscale(100%);
+}
+@utility backdrop-invert {
+  backdrop-filter: invert(100%);
+}
+@utility backdrop-sepia {
+  backdrop-filter: sepia(100%);
+}
+@utility perspective-none {
+  perspective: none;
+}
+@utility perspective-dramatic {
+  perspective: 100px;
+}
+@utility perspective-near {
+  perspective: 300px;
+}
+@utility perspective-normal {
+  perspective: 500px;
+}
+@utility perspective-midrange {
+  perspective: 500px;
+}
+@utility perspective-distant {
+  perspective: 800px;
+}
+@utility perspective-origin-center {
+  perspective-origin: center;
+}
+@utility perspective-origin-top {
+  perspective-origin: top;
+}
+@utility perspective-origin-top-right {
+  perspective-origin: top right;
+}
+@utility perspective-origin-right {
+  perspective-origin: right;
+}
+@utility perspective-origin-bottom-right {
+  perspective-origin: bottom right;
+}
+@utility perspective-origin-bottom {
+  perspective-origin: bottom;
+}
+@utility perspective-origin-bottom-left {
+  perspective-origin: bottom left;
+}
+@utility perspective-origin-left {
+  perspective-origin: left;
+}
+@utility perspective-origin-top-left {
+  perspective-origin: top left;
+}
 @utility translate-x-0 {
   transform: translateX(0);
 }

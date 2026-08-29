@@ -1952,6 +1952,27 @@ mod tests {
     }
 
     #[test]
+    fn resolves_filter_and_perspective_keywords() {
+        let theme = theme();
+        assert_eq!(
+            resolve_utility("blur-none", &theme).unwrap().declaration,
+            "filter:blur(0);"
+        );
+        assert_eq!(
+            resolve_utility("perspective-dramatic", &theme)
+                .unwrap()
+                .declaration,
+            "perspective:100px;"
+        );
+        assert_eq!(
+            resolve_utility("perspective-origin-top-left", &theme)
+                .unwrap()
+                .declaration,
+            "perspective-origin:top left;"
+        );
+    }
+
+    #[test]
     fn lets_user_css_override_compatibility_fallback_utility_names() {
         let source = SourceFile::new(
             FileId(1),
