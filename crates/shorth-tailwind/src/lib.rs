@@ -6,7 +6,7 @@
 
 use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
-use shorth_css::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace};
+use shorth_css::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueType};
 use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1103,10 +1103,14 @@ fn resolve_value_domains(
         if !domain.starts_with('[') && !domain.starts_with("--") {
             return capture.filter(|value| *value == domain).map(str::to_owned);
         }
-        let hint = domain.strip_prefix('[')?.strip_suffix(']')?;
+        let expected = ValueType::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
-        let (actual_hint, value) = arbitrary.split_once(':').unwrap_or(("*", arbitrary));
-        (hint == "*" || hint == actual_hint).then(|| decode_arbitrary(value))
+        let (hint, value) = arbitrary.split_once(':').unwrap_or(("", arbitrary));
+        let value = decode_arbitrary(value);
+        let hint_is_compatible = hint.is_empty()
+            || expected == ValueType::Any
+            || ValueType::from_hint(hint).is_some_and(|actual| actual == expected);
+        (hint_is_compatible && expected.accepts(&value)).then_some(value)
     })
 }
 
@@ -1171,16 +1175,30 @@ fn theme_value(
 
 fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<String> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
-    let (hint, value) = value.split_once(':').unwrap_or(("*", value));
-    let allowed = match namespace {
-        ThemeNamespace::Color => matches!(hint, "*" | "color"),
-        ThemeNamespace::Spacing
-        | ThemeNamespace::Radius
-        | ThemeNamespace::Blur
-        | ThemeNamespace::Leading => matches!(hint, "*" | "length"),
-        _ => hint == "*",
-    };
-    allowed.then(|| decode_arbitrary(value))
+    let (hint, value) = value.split_once(':').unwrap_or(("", value));
+    let value = decode_arbitrary(value);
+    let types = theme_arbitrary_types(namespace);
+    let hint_is_compatible = hint.is_empty()
+        || types.is_empty()
+        || ValueType::from_hint(hint).is_some_and(|hint| types.contains(&hint));
+    (hint_is_compatible && (types.is_empty() || types.iter().any(|kind| kind.accepts(&value))))
+        .then_some(value)
+}
+
+fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
+    match namespace {
+        ThemeNamespace::Color => &[ValueType::Color],
+        ThemeNamespace::Spacing | ThemeNamespace::Radius | ThemeNamespace::Blur => {
+            &[ValueType::Length]
+        }
+        ThemeNamespace::Leading => &[ValueType::Number, ValueType::Length],
+        ThemeNamespace::FontStretch => &[ValueType::Percentage],
+        ThemeNamespace::ZIndex => &[ValueType::Integer],
+        // These namespaces deliberately remain open until each Tailwind value
+        // definition has a corresponding browser value parser. They still
+        // require a non-empty arbitrary value through `ValueType::Any`.
+        _ => &[],
+    }
 }
 
 fn fraction_value(value: &str, negative: bool) -> Option<String> {
@@ -1969,6 +1987,30 @@ mod tests {
                 .declaration,
             "font-stretch:var(--font-stretch-superbold);"
         );
+    }
+
+    #[test]
+    fn validates_unhinted_and_hint_checked_arbitrary_css_values() {
+        let theme = theme();
+        for candidate in ["p-[1rem]", "border-[3px]", "z-[12]"] {
+            assert!(
+                resolve_utility(candidate, &theme).is_some(),
+                "expected `{candidate}` to resolve"
+            );
+        }
+        for candidate in [
+            "p-[50%]",
+            "p-[length:bogus]",
+            "border-[time:1ms]",
+            "border-[length:bogus]",
+            "z-[1.5]",
+            "z-[integer:1.5]",
+        ] {
+            assert!(
+                resolve_utility(candidate, &theme).is_none(),
+                "expected `{candidate}` to be rejected"
+            );
+        }
     }
 
     #[test]

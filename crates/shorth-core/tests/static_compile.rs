@@ -117,6 +117,18 @@ proptest! {
     }
 
     #[test]
+    fn typed_arbitrary_numeric_values_are_validated_and_emitted(n in 1_u16..10_000) {
+        let result = compile_one_utility(&format!(
+            "p-[length:{n}px] border-[length:{n}px] z-[integer:{n}]"
+        ));
+        prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+        let css = normalize_css(&result.css);
+        prop_assert!(css.contains(&format!("padding:{n}px;")), "{}", result.css);
+        prop_assert!(css.contains(&format!("border-width:{n}px;")), "{}", result.css);
+        prop_assert!(css.contains(&format!("z-index:{n};")), "{}", result.css);
+    }
+
+    #[test]
     fn typed_numeric_roots_reject_incompatible_arbitrary_values(n in 0_u16..10_000) {
         let result = compile_one_utility(&format!(
             "p-[color:rgb({n}_0_0)] border-[time:{n}ms] z-[length:{n}px]"

@@ -3,7 +3,15 @@
 
 use std::{collections::BTreeMap, fmt::Write};
 
-use lightningcss::stylesheet::{ParserOptions, StyleSheet};
+use lightningcss::{
+    properties::{background::BackgroundSize, box_shadow::BoxShadow},
+    stylesheet::{ParserOptions, StyleSheet},
+    traits::Parse,
+    values::{
+        color::CssColor, image::Image, length::Length, number::CSSNumber, percentage::Percentage,
+        position::Position, url::Url,
+    },
+};
 use shorth_source::{FileId, SourceFile, Span, Spanned};
 use thiserror::Error;
 
@@ -12,6 +20,81 @@ pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../assets/tailwind-v4-pref
 
 const TAILWIND_V4_THEME: &str = include_str!("../assets/tailwind-v4-theme.css");
 const TAILWIND_V4_PROPERTIES: &str = include_str!("../assets/tailwind-v4-properties.css");
+
+/// A CSS value type accepted by a typed `--value([type])` domain.
+///
+/// The variants intentionally model CSS value definitions, rather than the
+/// utility that happens to consume them. This keeps `p-*`, `border-*`, and
+/// `z-*` distinct even when their source spelling contains the same digits.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ValueType {
+    Any,
+    Integer,
+    Number,
+    Percentage,
+    Length,
+    Color,
+    Image,
+    Url,
+    Position,
+    BackgroundSize,
+    Shadow,
+}
+
+impl ValueType {
+    /// Parses the public arbitrary-value hint used inside `[hint:value]`.
+    #[must_use]
+    pub fn from_hint(value: &str) -> Option<Self> {
+        match value {
+            "*" => Some(Self::Any),
+            "integer" => Some(Self::Integer),
+            "number" => Some(Self::Number),
+            "percentage" => Some(Self::Percentage),
+            "length" => Some(Self::Length),
+            "color" => Some(Self::Color),
+            "image" => Some(Self::Image),
+            "url" => Some(Self::Url),
+            "position" => Some(Self::Position),
+            "bg-size" => Some(Self::BackgroundSize),
+            "shadow" => Some(Self::Shadow),
+            _ => None,
+        }
+    }
+
+    /// Validates a decoded arbitrary value against its CSS value definition.
+    ///
+    /// Lightning CSS owns the grammar for browser CSS types. The small
+    /// integer check is layered on top because CSS exposes `<number>`, while
+    /// Stillwind's utility grammar needs the narrower integral subset.
+    #[must_use]
+    pub fn accepts(self, value: &str) -> bool {
+        if is_css_wide_keyword(value) {
+            return true;
+        }
+        match self {
+            Self::Any => !value.trim().is_empty(),
+            Self::Integer => {
+                CSSNumber::parse_string(value).is_ok_and(|number| number.fract() == 0.0)
+            }
+            Self::Number => CSSNumber::parse_string(value).is_ok(),
+            Self::Percentage => Percentage::parse_string(value).is_ok(),
+            Self::Length => Length::parse_string(value).is_ok(),
+            Self::Color => CssColor::parse_string(value).is_ok(),
+            Self::Image => Image::parse_string(value).is_ok(),
+            Self::Url => Url::parse_string(value).is_ok(),
+            Self::Position => Position::parse_string(value).is_ok(),
+            Self::BackgroundSize => BackgroundSize::parse_string(value).is_ok(),
+            Self::Shadow => BoxShadow::parse_string(value).is_ok(),
+        }
+    }
+}
+
+fn is_css_wide_keyword(value: &str) -> bool {
+    matches!(
+        value.trim(),
+        "initial" | "inherit" | "unset" | "revert" | "revert-layer"
+    )
+}
 
 /// Tailwind v4 theme namespaces that participate in built-in utility and
 /// variant resolution. Unknown custom properties remain available as authored
@@ -1155,6 +1238,32 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn validates_arbitrary_values_with_lightningcss_value_parsers() {
+        for (value_type, valid, invalid) in [
+            (ValueType::Integer, "calc(4 / 2)", "1.5"),
+            (ValueType::Number, "calc(1 / 2)", "1px"),
+            (ValueType::Percentage, "12.5%", "12px"),
+            (ValueType::Length, "calc(1rem + 2px)", "50%"),
+            (ValueType::Color, "oklch(62% .2 280)", "12px"),
+            (ValueType::Image, "linear-gradient(red, blue)", "red"),
+            (
+                ValueType::Url,
+                "url(/hero.png)",
+                "linear-gradient(red, blue)",
+            ),
+            (ValueType::Position, "right 1rem bottom 2px", "red"),
+            (ValueType::BackgroundSize, "cover", "red"),
+            (ValueType::Shadow, "0 1px 2px #000", "1rem"),
+        ] {
+            assert!(value_type.accepts(valid), "{value_type:?}: {valid}");
+            assert!(!value_type.accepts(invalid), "{value_type:?}: {invalid}");
+        }
+        assert_eq!(ValueType::from_hint("length"), Some(ValueType::Length));
+        assert_eq!(ValueType::from_hint("unknown"), None);
+        assert!(ValueType::Integer.accepts("initial"));
+    }
 
     #[test]
     fn expands_compact_utility_families_without_enumerating_values() {
