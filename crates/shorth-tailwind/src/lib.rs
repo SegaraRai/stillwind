@@ -8,6 +8,7 @@ use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
 use shorth_css::{
     CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
+    shadow_with_color_fallback,
 };
 use shorth_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -686,9 +687,12 @@ fn resolve_css_utility_body(
     // exception: their slash is deliberately reassembled by `--fraction()`.
     let consumes_modifier = body.contains("--modifier")
         || body.contains("--fraction()")
-        || nested
-            .iter()
-            .any(|(_, _, body)| body.contains("--modifier") || body.contains("--fraction()"));
+        || body.contains("--shadow-color(")
+        || nested.iter().any(|(_, _, body)| {
+            body.contains("--modifier")
+                || body.contains("--fraction()")
+                || body.contains("--shadow-color(")
+        });
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
@@ -696,13 +700,15 @@ fn resolve_css_utility_body(
         resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
-        || body.contains("--fraction()");
+        || body.contains("--fraction()")
+        || body.contains("--shadow-color(");
     let nested = nested
         .into_iter()
         .filter_map(|(at_rule, condition, body)| {
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
-                || body.contains("--fraction()");
+                || body.contains("--fraction()")
+                || body.contains("--shadow-color(");
             let declaration =
                 resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
             let rule = (!declaration.is_empty()).then_some(NestedUtilityRule {
@@ -739,18 +745,20 @@ fn resolve_css_declarations(
     let declarations = split_css_declarations(body);
     let uses_placeholder = declarations.iter().any(|declaration| {
         declaration.contains("--value(")
+            || declaration.contains("--value-literal(")
             || declaration.contains("--value-map(")
             || declaration.contains("--modifier(")
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
+            || declaration.contains("--shadow-color(")
     });
-    let uses_value = declarations
-        .iter()
-        .any(|declaration| declaration.contains("--value("));
-    let requires_modifier = declarations
-        .iter()
-        .any(|declaration| declaration.contains("--modifier("));
+    let uses_value = declarations.iter().any(|declaration| {
+        declaration.contains("--value(") || declaration.contains("--value-literal(")
+    });
+    let requires_modifier = declarations.iter().any(|declaration| {
+        declaration.contains("--modifier(") || declaration.contains("--shadow-color(")
+    });
     let mut resolved_placeholder = false;
     let mut resolved_value = false;
     let mut resolved_modifier = false;
@@ -758,13 +766,17 @@ fn resolve_css_declarations(
 
     for declaration in declarations {
         let contains_placeholder = declaration.contains("--value(")
+            || declaration.contains("--value-literal(")
             || declaration.contains("--value-map(")
             || declaration.contains("--modifier(")
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
-            || declaration.contains("--alpha(");
-        let contains_modifier = declaration.contains("--modifier(");
-        let contains_value = declaration.contains("--value(");
+            || declaration.contains("--alpha(")
+            || declaration.contains("--shadow-color(");
+        let contains_modifier =
+            declaration.contains("--modifier(") || declaration.contains("--shadow-color(");
+        let contains_value =
+            declaration.contains("--value(") || declaration.contains("--value-literal(");
         if let Some(declaration) =
             resolve_css_placeholders(declaration, utility_name, name, modifier, theme)
             && !declaration.trim().is_empty()
@@ -930,6 +942,12 @@ fn resolve_css_placeholders(
         let replacement = alpha(&body[open + 1..end])?;
         body.replace_range(start..=end, &replacement);
     }
+    while let Some(start) = body.find("--shadow-color(") {
+        let open = start + "--shadow-color".len();
+        let end = closing_parenthesis(&body, open)?;
+        let replacement = resolve_shadow_color(&body[open + 1..end], capture, theme)?;
+        body.replace_range(start..=end, &replacement);
+    }
     (!body.contains("--value(")
         && !body.contains("--value-literal(")
         && !body.contains("--text-line-height()")
@@ -937,8 +955,37 @@ fn resolve_css_placeholders(
         && !body.contains("--modifier(")
         && !body.contains("--modifier-map(")
         && !body.contains("--modifier-none()")
-        && !body.contains("--alpha("))
+        && !body.contains("--alpha(")
+        && !body.contains("--shadow-color("))
     .then_some(body)
+}
+
+/// CSS-first extension for theme shadow opacity modifiers. `--value()` emits
+/// the normal `var(--shadow-*)` reference; this intentionally reads the
+/// authored token to construct a CSS Color 5 relative colour function.
+fn resolve_shadow_color(
+    arguments: &str,
+    capture: Option<&str>,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let arguments = split_domains(arguments);
+    let [domain, color_property, alpha] = arguments.as_slice() else {
+        return None;
+    };
+    let namespace = domain
+        .trim()
+        .strip_prefix("--")
+        .and_then(|domain| domain.strip_suffix("-*"))
+        .and_then(ThemeNamespace::parse)?;
+    let value = theme_value_literal(namespace, capture?, false, theme)?;
+    let color_property = color_property.trim();
+    color_property.strip_prefix("--").filter(|name| {
+        !name.is_empty()
+            && name.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+            })
+    })?;
+    shadow_with_color_fallback(&value, color_property, alpha.trim())
 }
 
 fn resolve_literal_value_placeholders(
@@ -1272,16 +1319,27 @@ fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<Strin
 fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
     match namespace {
         ThemeNamespace::Color => &[ValueType::Color],
-        ThemeNamespace::Spacing | ThemeNamespace::Radius | ThemeNamespace::Blur => {
-            &[ValueType::Length]
-        }
+        ThemeNamespace::Spacing
+        | ThemeNamespace::Radius
+        | ThemeNamespace::Blur
+        | ThemeNamespace::Breakpoint
+        | ThemeNamespace::Container
+        | ThemeNamespace::Perspective
+        | ThemeNamespace::Tracking => &[ValueType::Length],
+        ThemeNamespace::AspectRatio => &[ValueType::Ratio],
+        ThemeNamespace::Animate => &[ValueType::Animation],
+        ThemeNamespace::DropShadow
+        | ThemeNamespace::InsetShadow
+        | ThemeNamespace::Shadow
+        | ThemeNamespace::TextShadow => &[ValueType::Shadow],
+        ThemeNamespace::Ease => &[ValueType::Easing],
+        ThemeNamespace::Font => &[ValueType::FontFamily],
+        ThemeNamespace::FontWeight => &[ValueType::FontWeight],
         ThemeNamespace::Leading => &[ValueType::Number, ValueType::Length],
         ThemeNamespace::FontStretch => &[ValueType::Percentage],
+        ThemeNamespace::Text => &[ValueType::FontSize],
+        ThemeNamespace::Duration => &[ValueType::Time],
         ThemeNamespace::ZIndex => &[ValueType::ZIndex],
-        // These namespaces deliberately remain open until each Tailwind value
-        // definition has a corresponding browser value parser. They still
-        // require a non-empty arbitrary value through `ValueType::Any`.
-        _ => &[],
     }
 }
 
@@ -1400,6 +1458,39 @@ mod tests {
             !BUILTIN_REGISTRY_CSS.contains("[*]"),
             "built-in utilities must use a CSS value or property grammar"
         );
+    }
+
+    #[test]
+    fn every_tailwind_theme_namespace_has_a_typed_arbitrary_value_domain() {
+        for namespace in [
+            ThemeNamespace::Animate,
+            ThemeNamespace::AspectRatio,
+            ThemeNamespace::Blur,
+            ThemeNamespace::Breakpoint,
+            ThemeNamespace::Color,
+            ThemeNamespace::Container,
+            ThemeNamespace::DropShadow,
+            ThemeNamespace::Ease,
+            ThemeNamespace::Font,
+            ThemeNamespace::FontStretch,
+            ThemeNamespace::FontWeight,
+            ThemeNamespace::InsetShadow,
+            ThemeNamespace::Leading,
+            ThemeNamespace::Perspective,
+            ThemeNamespace::Radius,
+            ThemeNamespace::Shadow,
+            ThemeNamespace::Spacing,
+            ThemeNamespace::Text,
+            ThemeNamespace::TextShadow,
+            ThemeNamespace::Tracking,
+            ThemeNamespace::ZIndex,
+            ThemeNamespace::Duration,
+        ] {
+            assert!(
+                !theme_arbitrary_types(namespace).is_empty(),
+                "{namespace:?} must not fall back to an unchecked arbitrary value"
+            );
+        }
     }
 
     fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
@@ -1760,6 +1851,40 @@ mod tests {
             resolve_utility("blur-sm", &theme).unwrap().declaration,
             "--tw-blur:blur(var(--blur-sm));filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
         );
+    }
+
+    #[test]
+    fn resolves_theme_shadow_opacity_with_a_relative_colour_function() {
+        let shadow = resolve_utility("inset-shadow-sm/50", &theme()).unwrap();
+
+        assert!(shadow.declaration.contains("--tw-inset-shadow-alpha:50%;"));
+        assert!(
+            shadow.declaration.contains(
+                "--tw-inset-shadow:inset 0 2px 4px var(--tw-inset-shadow-color, oklab(from rgb(0 0 0 / 0.05) l a b / 50%));"
+            ),
+            "{}",
+            shadow.declaration
+        );
+        assert!(shadow.declaration.contains(
+            "box-shadow:var(--tw-inset-shadow),var(--tw-inset-ring-shadow),var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow);"
+        ));
+        assert!(resolve_utility("inset-shadow-sm/not-an-opacity", &theme()).is_none());
+    }
+
+    #[test]
+    fn resolves_css_wide_keywords_for_property_typed_built_ins() {
+        for candidate in [
+            "contain-[initial]",
+            "font-features-[initial]",
+            "object-[initial]",
+            "will-change-[initial]",
+            "zoom-[initial]",
+        ] {
+            assert!(
+                resolve_utility(candidate, &theme()).is_some(),
+                "{candidate} must resolve through its exact CSS property grammar"
+            );
+        }
     }
 
     #[test]

@@ -1332,7 +1332,23 @@
 }
 @utility inset-shadow-* {
   --tw-inset-shadow: --value(--inset-shadow-*, none, [shadow]);
-  box-shadow: var(--tw-inset-shadow);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+/* A token shadow with a slash opacity modifier needs its authored colour,
+ * rather than a `var()` reference. `--shadow-color` is the narrow registry
+ * extension for this CSS Color 5 relative-colour operation. */
+@utility inset-shadow-* {
+  --tw-inset-shadow-alpha: --alpha(--modifier());
+  --tw-inset-shadow: --shadow-color(
+    --inset-shadow-*,
+    --tw-inset-shadow-color,
+    --alpha(--modifier())
+  );
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent, [color]);

@@ -106,7 +106,9 @@ Built-ins and application extensions use the same CSS registry. `@utility`
 supports Tailwind-shaped `--value(...)` domains, while `@variant` uses `@slot`
 for the generated selector. A trailing `*` captures the candidate suffix.
 `[property:name]` delegates an arbitrary value to Lightning CSS's parser for
-that exact browser property; it is a closed, typo-safe registry rather than an
+that exact browser property. The accepted property set comes from Lightning
+CSS's generated property registry, with narrow documented exceptions for
+newer Anchor Positioning properties; typos remain an error rather than an
 unchecked fallback.
 
 ```css
@@ -116,6 +118,10 @@ unchecked fallback.
 
 @utility panel-width-* {
   width: --value([property: width]);
+}
+
+@utility anchored-* {
+  position-anchor: --value([property: position-anchor]);
 }
 
 @variant state-* {

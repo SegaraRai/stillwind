@@ -4,12 +4,13 @@
 use std::{collections::BTreeMap, fmt::Write};
 
 use lightningcss::{
+    printer::PrinterOptions,
     properties::{
         Property, PropertyId, background::BackgroundSize, border::BorderSideWidth,
         box_shadow::BoxShadow,
     },
     stylesheet::{ParserOptions, StyleSheet},
-    traits::Parse,
+    traits::{Parse, ToCss},
     values::{
         angle::{Angle, AnglePercentage},
         color::CssColor,
@@ -67,6 +68,10 @@ pub enum ValueType {
     SkewArguments,
     SkewXArguments,
     SkewYArguments,
+    Animation,
+    FontFamily,
+    FontSize,
+    FontWeight,
 }
 
 impl ValueType {
@@ -101,6 +106,10 @@ impl ValueType {
             "skew-arguments" => Some(Self::SkewArguments),
             "skew-x-arguments" => Some(Self::SkewXArguments),
             "skew-y-arguments" => Some(Self::SkewYArguments),
+            "animation" => Some(Self::Animation),
+            "font-family" => Some(Self::FontFamily),
+            "font-size" => Some(Self::FontSize),
+            "font-weight" => Some(Self::FontWeight),
             _ => None,
         }
     }
@@ -111,8 +120,16 @@ impl ValueType {
     /// integer check is layered on top because CSS exposes `<number>`, while
     /// Stillwind's utility grammar needs the narrower integral subset.
     #[must_use]
-    pub fn accepts(self, value: &str) -> bool {
+    pub fn accepts(&self, value: &str) -> bool {
         if is_css_wide_keyword(value) {
+            return true;
+        }
+        // Custom properties are substituted before a property's value grammar
+        // is computed. Without generated project typings we cannot know a
+        // referenced variable's domain, so `var(--token)` (including inside a
+        // `calc()`) is correctly a runtime-typed value rather than a static
+        // type error. Plain literals continue through the strict parsers.
+        if contains_custom_property_reference(value) {
             return true;
         }
         match self {
@@ -149,6 +166,10 @@ impl ValueType {
             Self::SkewArguments => transform_function_arguments("skew", value),
             Self::SkewXArguments => transform_function_arguments("skewX", value),
             Self::SkewYArguments => transform_function_arguments("skewY", value),
+            Self::Animation => property_value("animation", value),
+            Self::FontFamily => property_value("font-family", value),
+            Self::FontSize => property_value("font-size", value),
+            Self::FontWeight => property_value("font-weight", value),
         }
     }
 
@@ -169,6 +190,19 @@ impl ValueType {
                     | (Self::ZIndex, Self::Integer)
             )
     }
+}
+
+fn contains_custom_property_reference(value: &str) -> bool {
+    let mut cursor = value;
+    while let Some(start) = cursor.find("var(") {
+        let after_function = &cursor[start + "var(".len()..];
+        let name = after_function.trim_start();
+        if name.starts_with("--") {
+            return true;
+        }
+        cursor = after_function;
+    }
+    false
 }
 
 fn gradient_arguments(function: &str, value: &str) -> bool {
@@ -203,6 +237,59 @@ fn transform_function_arguments(function: &str, value: &str) -> bool {
     )
 }
 
+fn property_value(property: &str, value: &str) -> bool {
+    CssProperty::from_name(property).is_some_and(|property| property.accepts(value))
+}
+
+/// Rewrites one box-shadow colour with a custom-property override and CSS
+/// Color 5 relative-colour fallback. This is the semantic operation Tailwind
+/// uses for `shadow-*/opacity` families, while the parser owns the shadow
+/// grammar.
+#[must_use]
+pub fn shadow_with_color_fallback(
+    value: &str,
+    color_property: &str,
+    alpha: &str,
+) -> Option<String> {
+    let shadow = BoxShadow::parse_string(value).ok()?;
+    if let Some((base, color)) = trailing_top_level_css_component(value)
+        && CssColor::parse_string(color).is_ok()
+    {
+        return Some(format!(
+            "{base} var({color_property}, oklab(from {color} l a b / {alpha}))"
+        ));
+    }
+
+    // The fallback remains grammar-driven for shadows whose colour is not
+    // written as the final component. Built-in theme shadows take the source
+    // preserving path above, so their authored precision is retained.
+    let color = shadow.color.to_css_string(PrinterOptions::default()).ok()?;
+    let serialized = shadow.to_css_string(PrinterOptions::default()).ok()?;
+    let without_color = serialized
+        .strip_suffix(&format!(" {color}"))
+        .unwrap_or(&serialized);
+    Some(format!(
+        "{without_color} var({color_property}, oklab(from {color} l a b / {alpha}))"
+    ))
+}
+
+fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
+    let mut depth = 0_u32;
+    let mut boundary = None;
+    for (index, character) in value.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1)?,
+            character if character.is_whitespace() && depth == 0 => boundary = Some(index),
+            _ => {}
+        }
+    }
+    let boundary = boundary?;
+    let (base, component) = value.split_at(boundary);
+    let component = component.trim();
+    (!base.trim().is_empty() && !component.is_empty()).then_some((base.trim_end(), component))
+}
+
 fn is_css_string(value: &str) -> bool {
     let Some(quote) = value
         .chars()
@@ -218,142 +305,262 @@ fn is_css_string(value: &str) -> bool {
 
 /// A browser CSS property whose value grammar is delegated to Lightning CSS.
 ///
-/// This is intentionally a closed registry: a typo in `[property:...]` must
-/// never degrade into an unchecked arbitrary value. Add a property here only
-/// with an acceptance/rejection test that documents its CSS grammar boundary.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct CssProperty(&'static str);
+/// The supported set is discovered from `lightningcss::PropertyId`, rather
+/// than maintained as a partial list. This keeps `[property:…]` domains in
+/// lockstep with Lightning CSS's generated CSS property grammar. A small,
+/// explicit exception table covers newer properties that Lightning CSS has not
+/// modelled yet; an unknown property never becomes an unchecked domain.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CssProperty {
+    name: String,
+    grammar: CssPropertyGrammar,
+}
 
-const PROPERTY_GRAMMARS: &[&str] = &[
-    "animation",
-    "aspect-ratio",
-    "background-image",
-    "background-position",
-    "background-size",
-    "border-color",
-    "border-width",
-    "border-inline-width",
-    "border-block-width",
-    "border-inline-start-width",
-    "border-inline-end-width",
-    "border-block-start-width",
-    "border-block-end-width",
-    "border-top-width",
-    "border-right-width",
-    "border-bottom-width",
-    "border-left-width",
-    "border-radius",
-    "box-shadow",
-    "color",
-    "columns",
-    "contain",
-    "cursor",
-    "flex",
-    "flex-basis",
-    "flex-grow",
-    "flex-shrink",
-    "font-family",
-    "font-feature-settings",
-    "font-size",
-    "font-stretch",
-    "gap",
-    "grid-auto-columns",
-    "grid-auto-rows",
-    "grid-column",
-    "grid-column-start",
-    "grid-column-end",
-    "grid-row",
-    "grid-row-start",
-    "grid-row-end",
-    "grid-template-columns",
-    "grid-template-rows",
-    "height",
-    "min-height",
-    "max-height",
-    "width",
-    "min-width",
-    "max-width",
-    "letter-spacing",
-    "list-style-image",
-    "list-style-type",
-    "line-height",
-    "margin",
-    "margin-inline",
-    "margin-block",
-    "margin-top",
-    "margin-right",
-    "margin-bottom",
-    "margin-left",
-    "mask-image",
-    "mask-position",
-    "mask-size",
-    "object-position",
-    "opacity",
-    "order",
-    "outline-offset",
-    "padding",
-    "padding-inline",
-    "padding-block",
-    "padding-top",
-    "padding-right",
-    "padding-bottom",
-    "padding-left",
-    "perspective",
-    "perspective-origin",
-    "rotate",
-    "scale",
-    "tab-size",
-    "text-underline-offset",
-    "transform",
-    "transform-origin",
-    "transition-delay",
-    "transition-duration",
-    "transition-property",
-    "transition-timing-function",
-    "vertical-align",
-    "will-change",
-    "z-index",
-    "zoom",
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CssPropertyGrammar {
+    LightningCss,
+    Contain,
+    FontFeatureSettings,
+    ObjectPosition,
+    WillChange,
+    Zoom,
+    AnchorName,
+    PositionAnchor,
+    AnchorScope,
+    PositionArea,
+    PositionTryFallbacks,
+}
+
+const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
+    // These established properties are not represented by the current
+    // Lightning CSS property table. Keep their grammar exceptions explicit
+    // and covered by acceptance/rejection tests.
+    ("contain", CssPropertyGrammar::Contain),
+    (
+        "font-feature-settings",
+        CssPropertyGrammar::FontFeatureSettings,
+    ),
+    ("object-position", CssPropertyGrammar::ObjectPosition),
+    ("will-change", CssPropertyGrammar::WillChange),
+    ("zoom", CssPropertyGrammar::Zoom),
+    // CSS Anchor Positioning is intentionally kept here until Lightning CSS
+    // exposes property parsers for it. Each exception has a narrow validator
+    // below and a boundary test; do not add an unchecked catch-all.
+    ("anchor-name", CssPropertyGrammar::AnchorName),
+    ("position-anchor", CssPropertyGrammar::PositionAnchor),
+    ("anchor-scope", CssPropertyGrammar::AnchorScope),
+    ("position-area", CssPropertyGrammar::PositionArea),
+    (
+        "position-try-fallbacks",
+        CssPropertyGrammar::PositionTryFallbacks,
+    ),
 ];
 
 impl CssProperty {
     /// Parses the closed property registry used by `[property:name]` domains.
     #[must_use]
     pub fn from_name(name: &str) -> Option<Self> {
-        PROPERTY_GRAMMARS
+        let property_id = PropertyId::from(name);
+        if !matches!(property_id, PropertyId::Custom(_)) {
+            return Some(Self {
+                name: property_id.name().to_owned(),
+                grammar: CssPropertyGrammar::LightningCss,
+            });
+        }
+        PROPERTY_GRAMMAR_EXCEPTIONS
             .iter()
-            .copied()
-            .find(|candidate| *candidate == name)
-            .map(Self)
+            .find(|(candidate, _)| candidate.eq_ignore_ascii_case(name))
+            .map(|(name, grammar)| Self {
+                name: (*name).to_owned(),
+                grammar: *grammar,
+            })
     }
 
     #[must_use]
-    pub const fn name(self) -> &'static str {
-        self.0
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Validates the value through Lightning CSS's parser for this exact CSS
     /// property. This intentionally covers property-specific keyword and
     /// shorthand rules that a generic value type cannot express.
     #[must_use]
-    pub fn accepts(self, value: &str) -> bool {
+    pub fn accepts(&self, value: &str) -> bool {
         if is_css_wide_keyword(value) {
             return true;
         }
-        matches!(
-            Property::parse_string(
-                PropertyId::from(self.name()),
-                value.trim(),
-                ParserOptions::default(),
+        match self.grammar {
+            CssPropertyGrammar::LightningCss => matches!(
+                Property::parse_string(
+                    PropertyId::from(self.name()),
+                    value.trim(),
+                    ParserOptions::default(),
+                ),
+                Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
             ),
-            Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
-        )
+            CssPropertyGrammar::Contain => contain_value(value),
+            CssPropertyGrammar::FontFeatureSettings => font_feature_settings(value),
+            CssPropertyGrammar::ObjectPosition => Position::parse_string(value).is_ok(),
+            CssPropertyGrammar::WillChange => will_change(value),
+            CssPropertyGrammar::Zoom => {
+                matches!(value.trim(), "normal" | "reset")
+                    || NumberOrPercentage::parse_string(value).is_ok()
+            }
+            CssPropertyGrammar::AnchorName => dashed_ident_list(value, "none"),
+            CssPropertyGrammar::PositionAnchor => {
+                value.trim() == "auto" || dashed_ident(value.trim())
+            }
+            CssPropertyGrammar::AnchorScope => {
+                matches!(value.trim(), "none" | "all") || dashed_ident_list(value, "")
+            }
+            CssPropertyGrammar::PositionArea => position_area(value),
+            CssPropertyGrammar::PositionTryFallbacks => position_try_fallbacks(value),
+        }
     }
+}
+
+fn contain_value(value: &str) -> bool {
+    const SINGLE: &[&str] = &["none", "strict", "content"];
+    const COMPONENTS: &[&str] = &["size", "inline-size", "layout", "style", "paint"];
+    let values = value.split_whitespace().collect::<Vec<_>>();
+    SINGLE.contains(&value.trim())
+        || (!values.is_empty()
+            && values.len() <= COMPONENTS.len()
+            && values.iter().all(|value| COMPONENTS.contains(value))
+            && values.windows(2).all(|pair| pair[0] != pair[1]))
+}
+
+fn font_feature_settings(value: &str) -> bool {
+    let value = value.trim();
+    value == "normal"
+        || value.split(',').all(|feature| {
+            let mut parts = feature.split_whitespace();
+            let Some(tag) = parts.next() else {
+                return false;
+            };
+            let valid_tag = tag
+                .strip_prefix('"')
+                .and_then(|tag| tag.strip_suffix('"'))
+                .is_some_and(|tag| tag.len() == 4 && tag.is_ascii());
+            let valid_value = match parts.next() {
+                None | Some("on" | "off") => true,
+                Some(number) => number.parse::<i32>().is_ok(),
+            };
+            valid_tag && valid_value && parts.next().is_none()
+        })
+}
+
+fn will_change(value: &str) -> bool {
+    let value = value.trim();
+    value == "auto"
+        || value.split(',').all(|item| {
+            let item = item.trim();
+            matches!(item, "scroll-position" | "contents") || custom_ident(item)
+        })
+}
+
+fn custom_ident(value: &str) -> bool {
+    value
+        .chars()
+        .next()
+        .is_some_and(|character| !character.is_ascii_digit())
+        && !matches!(
+            value,
+            "initial" | "inherit" | "unset" | "revert" | "revert-layer"
+        )
+        && value.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || matches!(character, '-' | '_')
+                || !character.is_ascii()
+        })
+}
+
+fn dashed_ident_list(value: &str, keyword: &str) -> bool {
+    let value = value.trim();
+    value == keyword || (!value.is_empty() && value.split_whitespace().all(dashed_ident))
+}
+
+fn dashed_ident(value: &str) -> bool {
+    let Some(rest) = value.strip_prefix("--") else {
+        return false;
+    };
+    !rest.is_empty()
+        && rest.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || matches!(character, '-' | '_')
+                || !character.is_ascii()
+        })
+}
+
+fn position_area(value: &str) -> bool {
+    const HORIZONTAL: &[&str] = &[
+        "left",
+        "center",
+        "right",
+        "span-left",
+        "span-right",
+        "x-start",
+        "x-end",
+        "span-x-start",
+        "span-x-end",
+        "self-x-start",
+        "self-x-end",
+        "span-self-x-start",
+        "span-self-x-end",
+        "span-all",
+        "inline-start",
+        "inline-end",
+        "span-inline-start",
+        "span-inline-end",
+        "self-inline-start",
+        "self-inline-end",
+        "span-self-inline-start",
+        "span-self-inline-end",
+    ];
+    const VERTICAL: &[&str] = &[
+        "top",
+        "center",
+        "bottom",
+        "span-top",
+        "span-bottom",
+        "y-start",
+        "y-end",
+        "span-y-start",
+        "span-y-end",
+        "self-y-start",
+        "self-y-end",
+        "span-self-y-start",
+        "span-self-y-end",
+        "span-all",
+        "block-start",
+        "block-end",
+        "span-block-start",
+        "span-block-end",
+        "self-block-start",
+        "self-block-end",
+        "span-self-block-start",
+        "span-self-block-end",
+    ];
+
+    let values = value.split_whitespace().collect::<Vec<_>>();
+    matches!(values.as_slice(), [single] if HORIZONTAL.contains(single) || VERTICAL.contains(single))
+        || matches!(values.as_slice(), [first, second] if {
+            (HORIZONTAL.contains(first) && VERTICAL.contains(second))
+                || (VERTICAL.contains(first) && HORIZONTAL.contains(second))
+        })
+}
+
+fn position_try_fallbacks(value: &str) -> bool {
+    const TACTICS: &[&str] = &["flip-block", "flip-inline", "flip-start", "flip-end"];
+    value.split(',').all(|item| {
+        let item = item.trim();
+        !item.is_empty() && (dashed_ident(item) || TACTICS.contains(&item))
+    })
 }
 
 /// A `--value([…])` domain. Type domains validate a CSS value definition;
 /// property domains validate the full grammar of one concrete CSS property.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueDomain {
     Type(ValueType),
     Property(CssProperty),
@@ -363,13 +570,13 @@ impl ValueDomain {
     #[must_use]
     pub fn from_hint(hint: &str) -> Option<Self> {
         if let Some(property) = hint.strip_prefix("property:") {
-            return CssProperty::from_name(property).map(Self::Property);
+            return CssProperty::from_name(property.trim()).map(Self::Property);
         }
         ValueType::from_hint(hint).map(Self::Type)
     }
 
     #[must_use]
-    pub fn accepts(self, value: &str) -> bool {
+    pub fn accepts(&self, value: &str) -> bool {
         match self {
             Self::Type(value_type) => value_type.accepts(value),
             Self::Property(property) => property.accepts(value),
@@ -377,14 +584,14 @@ impl ValueDomain {
     }
 
     #[must_use]
-    pub fn accepts_hint(self, hint: &str) -> bool {
+    pub fn accepts_hint(&self, hint: &str) -> bool {
         match self {
             Self::Type(expected) => {
                 ValueType::from_hint(hint).is_some_and(|actual| expected.accepts_hint(actual))
             }
             Self::Property(property) => hint
                 .strip_prefix("property:")
-                .is_some_and(|actual| actual == property.name()),
+                .is_some_and(|actual| actual.trim().eq_ignore_ascii_case(property.name())),
         }
     }
 }
@@ -1584,6 +1791,10 @@ mod tests {
             (ValueType::SkewArguments, "15deg", "red"),
             (ValueType::SkewXArguments, "15deg", "red"),
             (ValueType::SkewYArguments, "15deg", "red"),
+            (ValueType::Animation, "spin 1s linear infinite", "1px"),
+            (ValueType::FontFamily, "ui-sans-serif, sans-serif", "12px"),
+            (ValueType::FontSize, "1rem", "red"),
+            (ValueType::FontWeight, "650", "red"),
         ] {
             assert!(value_type.accepts(valid), "{value_type:?}: {valid}");
             assert!(!value_type.accepts(invalid), "{value_type:?}: {invalid}");
@@ -1595,6 +1806,8 @@ mod tests {
         );
         assert_eq!(ValueType::from_hint("unknown"), None);
         assert!(ValueType::Integer.accepts("initial"));
+        assert!(ValueType::Length.accepts("calc(var(--gutter) * 2)"));
+        assert!(!ValueType::Length.accepts("var(gutter)"));
         assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Percentage));
         assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Length));
         assert!(!ValueType::Length.accepts_hint(ValueType::Percentage));
@@ -1613,6 +1826,16 @@ mod tests {
             ("transition-duration", "150ms", "red"),
             ("aspect-ratio", "16 / 9", "red"),
             ("opacity", ".5", "red"),
+            // This property was deliberately absent from the old hand-written
+            // list. Its acceptance proves the domain comes from Lightning
+            // CSS's generated property registry, not a fixture-derived list.
+            ("text-decoration-line", "underline overline", "12px"),
+            ("view-transition-name", "hero", "12px"),
+            ("contain", "layout paint", "middle"),
+            ("font-feature-settings", "\"liga\" 1", "liga"),
+            ("object-position", "left 25%", "middle middle"),
+            ("will-change", "transform, opacity", "1px"),
+            ("zoom", "125%", "red"),
         ] {
             let property = CssProperty::from_name(name).unwrap();
             assert!(property.accepts(valid), "{name}: {valid}");
@@ -1625,6 +1848,39 @@ mod tests {
         assert!(padding.accepts_hint("property:padding"));
         assert!(!padding.accepts_hint("property:margin"));
         assert!(ValueDomain::from_hint("property:unknown").is_none());
+    }
+
+    #[test]
+    fn validates_anchor_positioning_with_explicit_property_exceptions() {
+        let domain = |name| ValueDomain::from_hint(&format!("property:{name}")).unwrap();
+
+        assert!(domain("anchor-name").accepts("--card --tooltip"));
+        assert!(!domain("anchor-name").accepts("card"));
+        assert!(domain("position-anchor").accepts("--card"));
+        assert!(domain("position-anchor").accepts("auto"));
+        assert!(!domain("position-anchor").accepts("card"));
+        assert!(domain("anchor-scope").accepts("all"));
+        assert!(domain("anchor-scope").accepts("--dialog"));
+        assert!(!domain("anchor-scope").accepts("dialog"));
+        assert!(domain("position-area").accepts("top span-inline-end"));
+        assert!(!domain("position-area").accepts("middle middle"));
+        assert!(domain("position-try-fallbacks").accepts("--fallback, flip-block"));
+        assert!(!domain("position-try-fallbacks").accepts("fallback"));
+    }
+
+    #[test]
+    fn preserves_authored_shadow_colour_when_applying_an_alpha_modifier() {
+        assert_eq!(
+            shadow_with_color_fallback(
+                "inset 0 2px 4px rgb(0 0 0 / 0.05)",
+                "--tw-inset-shadow-color",
+                "50%",
+            ),
+            Some(
+                "inset 0 2px 4px var(--tw-inset-shadow-color, oklab(from rgb(0 0 0 / 0.05) l a b / 50%))"
+                    .to_owned()
+            )
+        );
     }
 
     #[test]

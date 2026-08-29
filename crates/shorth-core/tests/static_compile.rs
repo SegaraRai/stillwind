@@ -166,8 +166,17 @@ fn tailwind_class_selector(candidate: &str) -> String {
         .collect()
 }
 
+/// Completion fixtures intentionally also contain suggestions that Tailwind
+/// does not compile (for example, a token name without a matching theme
+/// variable). Measure compatibility against the Tailwind CSS oracle, rather
+/// than treating its editor-only suggestions as emitted utilities.
+fn tailwind_emits_candidate(expected_css: &str, candidate: &str) -> bool {
+    let selector = tailwind_class_selector(candidate);
+    expected_css.contains(&format!(".{selector}"))
+}
+
 #[test]
-fn supports_at_least_ninety_five_percent_of_tailwind_fixture_candidates() {
+fn supports_at_least_ninety_eight_percent_of_tailwind_emitted_fixture_candidates() {
     let case_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
     let fixtures = fs::read_dir(case_root)
         .expect("fixture directory must exist")
@@ -191,9 +200,12 @@ fn supports_at_least_ninety_five_percent_of_tailwind_fixture_candidates() {
             let Some(candidates) = fixture_code_block(section, "Candidates", "text") else {
                 continue;
             };
+            let expected_css = fixture_code_block(section, "Expected CSS", "css")
+                .expect("every utility fixture section must provide Tailwind output");
             let candidates = candidates
                 .split_whitespace()
                 .filter(|candidate| !shorth_tailwind::is_stillwind_owned_candidate(candidate))
+                .filter(|candidate| tailwind_emits_candidate(&expected_css, candidate))
                 .collect::<Vec<_>>();
             candidate_count += candidates.len();
             if candidates.is_empty() {
@@ -221,9 +233,20 @@ fn supports_at_least_ninety_five_percent_of_tailwind_fixture_candidates() {
         }
     }
     unknown.sort();
+    eprintln!(
+        "Tailwind-emitted fixture acceptance: {}/{} ({} unresolved)",
+        candidate_count - unknown.len(),
+        candidate_count,
+        unknown.len()
+    );
+    if std::env::var_os("STILLWIND_REPORT_UNRESOLVED").is_some() {
+        for candidate in &unknown {
+            eprintln!("unresolved: {candidate}");
+        }
+    }
 
     assert!(
-        unknown.len() * 100 <= candidate_count * 5,
+        unknown.len() * 100 <= candidate_count * 2,
         "supported {}/{} fixture candidates; unresolved: {unknown:#?}",
         candidate_count - unknown.len(),
         candidate_count,
@@ -281,6 +304,7 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         ("accessibility-interaction.fixture.md", "sr-only"),
         ("variants.fixture.md", "hover:bg-red-500"),
         ("candidate-syntax.fixture.md", "content-['hello']"),
+        ("default-completions.fixture.md", "inset-shadow-sm/50"),
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
 
