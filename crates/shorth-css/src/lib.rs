@@ -52,6 +52,17 @@ fn webref_property(name: &str) -> Option<&'static WebrefPropertySyntax> {
         .find(|property| property.name.eq_ignore_ascii_case(name))
 }
 
+/// Returns the CSSWG Web Living Standard's formal value syntax for a CSS
+/// property, when Webref publishes one.
+///
+/// This intentionally exposes only the grammar text. Consumers use it to
+/// audit their own value domains; parsing it is not part of Stillwind's public
+/// utility syntax.
+#[must_use]
+pub fn csswg_formal_syntax(property: &str) -> Option<&'static str> {
+    webref_property(property).map(|definition| definition.syntax)
+}
+
 /// A CSS value type accepted by a typed `--value([type])` domain.
 ///
 /// The variants intentionally model CSS value definitions, rather than the
@@ -161,6 +172,73 @@ impl ValueType {
             "will-change" => Some(Self::WillChange),
             "zoom" => Some(Self::Zoom),
             _ => None,
+        }
+    }
+
+    /// Returns the CSSWG formal-syntax productions used to audit this simple
+    /// value domain. `None` denotes a compound domain whose grammar is
+    /// validated by Lightning CSS (or a focused parser) instead.
+    ///
+    /// The terms deliberately name CSS value productions, not CSS properties:
+    /// a registry audit can therefore discover newly used properties without
+    /// maintaining a property allow-list.
+    #[must_use]
+    pub const fn csswg_formal_terms(self) -> Option<&'static [&'static str]> {
+        match self {
+            Self::Any => Some(&[]),
+            // `<integer>` is a valid restricted production wherever the
+            // formal syntax accepts `<number>` (for example `tab-size`).
+            Self::Integer => Some(&["integer", "number"]),
+            Self::Number => Some(&["number"]),
+            Self::Percentage => Some(&[
+                "percentage",
+                "number-percentage",
+                "length-percentage",
+                "angle-percentage",
+            ]),
+            Self::NumberPercentage => Some(&["number", "percentage", "number-percentage"]),
+            Self::Length => Some(&["length", "length-percentage"]),
+            Self::LengthPercentage => Some(&["length-percentage"]),
+            Self::Angle => Some(&["angle", "angle-percentage"]),
+            Self::AnglePercentage => Some(&["angle-percentage"]),
+            Self::Time => Some(&["time"]),
+            Self::Ratio => Some(&["ratio"]),
+            Self::Easing => Some(&["easing-function"]),
+            Self::LineWidth => Some(&["line-width"]),
+            Self::ZIndex => Some(&["integer"]),
+            Self::Color => Some(&["color"]),
+            Self::Image => Some(&["image"]),
+            Self::Url => Some(&["url"]),
+            Self::Position => Some(&["position"]),
+            Self::BackgroundSize => Some(&["bg-size"]),
+            Self::Shadow
+            | Self::Content
+            | Self::LinearGradientArguments
+            | Self::RadialGradientArguments
+            | Self::ConicGradientArguments
+            | Self::SkewArguments
+            | Self::SkewXArguments
+            | Self::SkewYArguments
+            | Self::Animation
+            | Self::FontFamily
+            | Self::FontSize
+            | Self::FontWeight
+            | Self::VerticalAlign
+            | Self::GridTrackSize
+            | Self::GridLine
+            | Self::Columns
+            | Self::Contain
+            | Self::Cursor
+            | Self::FontFeatureSettings
+            | Self::FontStretch
+            | Self::GridTrackList
+            | Self::Flex
+            | Self::ListStyleType
+            | Self::ListStyleImage
+            | Self::TabSize
+            | Self::TransitionProperty
+            | Self::WillChange
+            | Self::Zoom => None,
         }
     }
 

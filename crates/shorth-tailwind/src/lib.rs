@@ -1438,10 +1438,107 @@ fn important(declaration: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use shorth_css::parse_tailwind_theme;
     use shorth_source::{FileId, SourceFile};
 
     use super::*;
+
+    const SIMPLE_CSSWG_TERMS: &[&str] = &[
+        "angle",
+        "angle-percentage",
+        "color",
+        "easing-function",
+        "image",
+        "integer",
+        "length",
+        "length-percentage",
+        "line-width",
+        "number",
+        "number-percentage",
+        "percentage",
+        "position",
+        "ratio",
+        "time",
+        "url",
+    ];
+
+    fn property_references(syntax: &str) -> Vec<&str> {
+        let mut references = Vec::new();
+        let mut remainder = syntax;
+        while let Some(start) = remainder.find("<'") {
+            let after_start = &remainder[start + 2..];
+            let Some(end) = after_start.find("'>") else {
+                break;
+            };
+            references.push(&after_start[..end]);
+            remainder = &after_start[end + 2..];
+        }
+        references
+    }
+
+    fn expanded_csswg_syntax(property: &str, visited: &mut BTreeSet<String>) -> Option<String> {
+        if !visited.insert(property.to_owned()) {
+            return Some(String::new());
+        }
+        let syntax = shorth_css::csswg_formal_syntax(property)?;
+        let mut expanded = syntax.to_owned();
+        for referenced_property in property_references(syntax) {
+            expanded.push(' ');
+            expanded.push_str(&expanded_csswg_syntax(referenced_property, visited)?);
+        }
+        Some(expanded)
+    }
+
+    fn formal_terms(syntax: &str) -> BTreeSet<&str> {
+        let mut terms = BTreeSet::new();
+        let mut remainder = syntax;
+        while let Some(start) = remainder.find('<') {
+            let after_start = &remainder[start + 1..];
+            let Some(end) = after_start.find('>') else {
+                break;
+            };
+            if after_start.starts_with('\'') {
+                remainder = &after_start[end + 1..];
+                continue;
+            }
+            let term = after_start[..end]
+                .split(|character: char| !character.is_ascii_alphanumeric() && character != '-')
+                .next()
+                .unwrap_or_default();
+            if !term.is_empty() {
+                terms.insert(term);
+            }
+            remainder = &after_start[end + 1..];
+        }
+        terms
+    }
+
+    fn direct_value_domains(value: &str) -> Vec<ValueType> {
+        if !value.trim_start().starts_with("--value(") {
+            return Vec::new();
+        }
+        let mut domains = Vec::new();
+        let mut remainder = value;
+        while let Some(start) = remainder.find('[') {
+            let after_start = &remainder[start + 1..];
+            let Some(end) = after_start.find(']') else {
+                break;
+            };
+            if let Some(domain) = ValueType::from_hint(&after_start[..end]) {
+                domains.push(domain);
+            }
+            remainder = &after_start[end + 1..];
+        }
+        domains
+    }
+
+    fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) -> bool {
+        syntax.contains("&&")
+            || syntax.contains("||")
+            || terms.iter().any(|term| !SIMPLE_CSSWG_TERMS.contains(term))
+    }
 
     fn theme() -> ThemeIndex {
         parse_tailwind_theme(&SourceFile::new(
@@ -1461,6 +1558,66 @@ mod tests {
         assert!(
             !BUILTIN_REGISTRY_CSS.contains("[property:"),
             "property names are not CSS value-domain syntax"
+        );
+    }
+
+    #[test]
+    fn simple_utility_domains_follow_csswg_formal_syntax() {
+        let mut checked = BTreeSet::new();
+        let mut failures = Vec::new();
+        for utility in shorth_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS) {
+            for declaration in utility.body.split(';') {
+                let Some((property, value)) = declaration.split_once(':') else {
+                    continue;
+                };
+                let property = property.trim();
+                if property.starts_with('-') || property.contains('{') {
+                    continue;
+                }
+                for domain in direct_value_domains(value) {
+                    let Some(expected_terms) = domain.csswg_formal_terms() else {
+                        continue;
+                    };
+                    let mut visited = BTreeSet::new();
+                    let Some(syntax) = expanded_csswg_syntax(property, &mut visited) else {
+                        failures.push(format!(
+                            "{property} in @utility {} has no Webref formal syntax",
+                            utility.name
+                        ));
+                        continue;
+                    };
+                    let terms = formal_terms(&syntax);
+                    // A named production such as `<grid-line>` needs
+                    // property-specific interpretation. Those compound
+                    // grammars are detected from their syntax rather than a
+                    // per-property exception list.
+                    if has_complex_csswg_grammar(&syntax, &terms) {
+                        continue;
+                    }
+                    if expected_terms
+                        .iter()
+                        .any(|expected| terms.contains(expected))
+                    {
+                        checked.insert(format!("{property} [{domain:?}]"));
+                    } else {
+                        failures.push(format!(
+                            "{property} in @utility {} uses [{domain:?}], but CSSWG declares {syntax:?}",
+                            utility.name
+                        ));
+                    }
+                }
+            }
+        }
+
+        assert!(
+            failures.is_empty(),
+            "built-in simple value domains diverge from CSSWG formal syntax:\n{}",
+            failures.join("\n")
+        );
+        assert!(
+            checked.len() >= 20,
+            "the registry-wide audit unexpectedly covered only {} declarations: {checked:?}",
+            checked.len()
         );
     }
 
