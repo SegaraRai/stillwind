@@ -530,19 +530,20 @@ fn resolve_named_utility(
     theme: &ThemeIndex,
 ) -> Option<UtilityResolution> {
     // Application CSS is the authoritative registry layer. It must be able to
-    // replace every built-in name, including the few compatibility fallbacks
-    // still implemented below while their value grammar is being generalized.
+    // replace every built-in name.
     if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    modifier
-        .is_none()
-        .then(|| resolve_arbitrary(name, negative))
-        .flatten()
-        .map(UtilityResolution::plain)
+    // A failed `@utility` branch is a type error, not an invitation to use a
+    // legacy property-prefix fallback. Keeping that fallback here made
+    // `p-[color:red]` and `border-[time:1ms]` appear valid after the typed
+    // registry correctly rejected them. Arbitrary properties (`[x:y]`) are
+    // handled explicitly by the candidate grammar above; named utilities are
+    // defined solely by CSS registry entries.
+    None
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored
@@ -1229,47 +1230,6 @@ fn axis_size_value(value: &str, viewport_axis: &str, negative: bool) -> Option<S
         .or(Some(value))
 }
 
-fn resolve_arbitrary(name: &str, negative: bool) -> Option<String> {
-    let mappings = [
-        ("bg-", "background-color"),
-        ("text-", "color"),
-        ("border-", "border-color"),
-        ("outline-", "outline-color"),
-        ("p-", "padding"),
-        ("px-", "padding-inline"),
-        ("py-", "padding-block"),
-        ("m-", "margin"),
-        ("mx-", "margin-inline"),
-        ("my-", "margin-block"),
-        ("w-", "width"),
-        ("h-", "height"),
-        ("min-w-", "min-width"),
-        ("min-h-", "min-height"),
-        ("max-w-", "max-width"),
-        ("max-h-", "max-height"),
-        ("gap-", "gap"),
-        ("rounded-", "border-radius"),
-    ];
-    for (prefix, property) in mappings {
-        if let Some(value) = name.strip_prefix(prefix).and_then(arbitrary) {
-            let value = if negative {
-                format!("calc({value} * -1)")
-            } else {
-                value
-            };
-            return Some(format!("{property}:{value};"));
-        }
-    }
-    None
-}
-
-fn arbitrary(value: &str) -> Option<String> {
-    value
-        .strip_prefix('[')
-        .and_then(|value| value.strip_suffix(']'))
-        .map(decode_arbitrary)
-}
-
 fn css_variable(value: &str) -> Option<&str> {
     value
         .strip_prefix('(')
@@ -1918,6 +1878,41 @@ mod tests {
                 resolved.declaration.contains(declaration),
                 "{candidate}: {resolved:#?}"
             );
+        }
+    }
+
+    #[test]
+    fn resolves_discrete_tailwind_keywords_without_fixture_mappings() {
+        let theme = theme();
+        for (candidate, declaration, selector) in [
+            (
+                "divide-y",
+                "border-bottom-width:1px;",
+                Some("&>:not(:last-child)"),
+            ),
+            (
+                "divide-dashed",
+                "border-style:dashed;",
+                Some("&>:not(:last-child)"),
+            ),
+            ("m-auto", "margin:auto;", None),
+            ("mix-blend-color-dodge", "mix-blend-mode:color-dodge;", None),
+            ("object-bottom-left", "object-position:left bottom;", None),
+            ("outline", "outline-style:solid;outline-width:1px;", None),
+            ("ring", "--tw-ring-shadow:0 0 0 1px", None),
+            (
+                "rounded-se-full",
+                "border-start-end-radius:calc(infinity*1px);",
+                None,
+            ),
+        ] {
+            let resolved = resolve_utility(candidate, &theme)
+                .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+            assert!(
+                resolved.declaration.contains(declaration),
+                "{candidate}: {resolved:#?}"
+            );
+            assert_eq!(resolved.selector.as_deref(), selector, "{candidate}");
         }
     }
 

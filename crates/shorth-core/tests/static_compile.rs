@@ -119,7 +119,7 @@ proptest! {
     #[test]
     fn typed_numeric_roots_reject_incompatible_arbitrary_values(n in 0_u16..10_000) {
         let result = compile_one_utility(&format!(
-            "p-invalid-{n} border-invalid-{n} z-[length:{n}px]"
+            "p-[color:rgb({n}_0_0)] border-[time:{n}ms] z-[length:{n}px]"
         ));
         let unknown = result
             .diagnostics
