@@ -1109,7 +1109,7 @@ fn resolve_value_domains(
         let value = decode_arbitrary(value);
         let hint_is_compatible = hint.is_empty()
             || expected == ValueType::Any
-            || ValueType::from_hint(hint).is_some_and(|actual| actual == expected);
+            || ValueType::from_hint(hint).is_some_and(|actual| expected.accepts_hint(actual));
         (hint_is_compatible && expected.accepts(&value)).then_some(value)
     })
 }
@@ -1180,7 +1180,8 @@ fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<Strin
     let types = theme_arbitrary_types(namespace);
     let hint_is_compatible = hint.is_empty()
         || types.is_empty()
-        || ValueType::from_hint(hint).is_some_and(|hint| types.contains(&hint));
+        || ValueType::from_hint(hint)
+            .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint)));
     (hint_is_compatible && (types.is_empty() || types.iter().any(|kind| kind.accepts(&value))))
         .then_some(value)
 }
@@ -1193,7 +1194,7 @@ fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
         }
         ThemeNamespace::Leading => &[ValueType::Number, ValueType::Length],
         ThemeNamespace::FontStretch => &[ValueType::Percentage],
-        ThemeNamespace::ZIndex => &[ValueType::Integer],
+        ThemeNamespace::ZIndex => &[ValueType::ZIndex],
         // These namespaces deliberately remain open until each Tailwind value
         // definition has a corresponding browser value parser. They still
         // require a non-empty arbitrary value through `ValueType::Any`.
@@ -1992,7 +1993,17 @@ mod tests {
     #[test]
     fn validates_unhinted_and_hint_checked_arbitrary_css_values() {
         let theme = theme();
-        for candidate in ["p-[1rem]", "p-[50%]", "border-[3px]", "z-[12]"] {
+        for candidate in [
+            "p-[1rem]",
+            "p-[50%]",
+            "p-[calc(1rem_+_50%)]",
+            "p-[length:1rem]",
+            "p-[percentage:50%]",
+            "border-[3px]",
+            "border-[thin]",
+            "z-[12]",
+            "z-[auto]",
+        ] {
             assert!(
                 resolve_utility(candidate, &theme).is_some(),
                 "expected `{candidate}` to resolve"
@@ -2006,13 +2017,37 @@ mod tests {
             "p-[length:bogus]",
             "border-[time:1ms]",
             "border-[length:bogus]",
+            "border-[50%]",
             "z-[1.5]",
             "z-[integer:1.5]",
+            "z-[number:1]",
         ] {
             assert!(
                 resolve_utility(candidate, &theme).is_none(),
                 "expected `{candidate}` to be rejected"
             );
+        }
+    }
+
+    #[test]
+    fn matches_tailwind_unbracketed_value_grammar_catalog() {
+        let catalog = include_str!("../../../fixtures/tailwind-v4/catalog/value-grammar.md");
+        let theme = theme();
+        for (heading, expected) in [
+            ("## Padding: accepted without brackets", true),
+            ("## Padding: rejected without brackets", false),
+            ("## Border width: accepted without brackets", true),
+            ("## Border width: rejected without brackets", false),
+            ("## Z index: accepted without brackets", true),
+            ("## Z index: rejected without brackets", false),
+        ] {
+            for candidate in catalog_section(catalog, heading) {
+                assert_eq!(
+                    resolve_utility(candidate, &theme).is_some(),
+                    expected,
+                    "{heading}: `{candidate}`"
+                );
+            }
         }
     }
 

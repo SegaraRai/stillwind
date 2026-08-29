@@ -8,6 +8,9 @@ export default {
       "fixtures:check": {
         command: "node regenerate-tailwind-v4-fixtures.ts",
       },
+      "tailwind:value-grammar": {
+        command: "node verify-tailwind-v4-value-grammar.ts",
+      },
     },
   },
 };

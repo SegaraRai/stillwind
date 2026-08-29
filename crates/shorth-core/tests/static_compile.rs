@@ -119,11 +119,12 @@ proptest! {
     #[test]
     fn typed_arbitrary_numeric_values_are_validated_and_emitted(n in 1_u16..10_000) {
         let result = compile_one_utility(&format!(
-            "p-[length:{n}px] border-[length:{n}px] z-[integer:{n}]"
+            "p-[length:{n}px] p-[percentage:{n}%] border-[length:{n}px] z-[integer:{n}]"
         ));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
         let css = normalize_css(&result.css);
         prop_assert!(css.contains(&format!("padding:{n}px;")), "{}", result.css);
+        prop_assert!(css.contains(&format!("padding:{n}%;")), "{}", result.css);
         prop_assert!(css.contains(&format!("border-width:{n}px;")), "{}", result.css);
         prop_assert!(css.contains(&format!("z-index:{n};")), "{}", result.css);
     }
@@ -131,14 +132,26 @@ proptest! {
     #[test]
     fn typed_numeric_roots_reject_incompatible_arbitrary_values(n in 0_u16..10_000) {
         let result = compile_one_utility(&format!(
-            "p-[color:rgb({n}_0_0)] border-[time:{n}ms] z-[length:{n}px]"
+            "p-[color:rgb({n}_0_0)] border-[time:{n}ms] z-[length:{n}px] z-[number:{n}]"
         ));
         let unknown = result
             .diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.code == "SH001")
             .count();
-        prop_assert_eq!(unknown, 3, "{:#?}", result.diagnostics);
+        prop_assert_eq!(unknown, 4, "{:#?}", result.diagnostics);
+    }
+
+    #[test]
+    fn typed_css_value_families_accept_only_their_own_grammar(n in 1_u16..10_000) {
+        let result = compile_one_utility(&format!(
+            "p-[length-percentage:calc({n}px_+_50%)] border-[line-width:thin] z-[z-index:auto]"
+        ));
+        prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+        let css = normalize_css(&result.css);
+        prop_assert!(css.contains(&format!("padding:calc({n}px+50%);")), "{}", result.css);
+        prop_assert!(css.contains("border-width:thin;"), "{}", result.css);
+        prop_assert!(css.contains("z-index:auto;"), "{}", result.css);
     }
 }
 

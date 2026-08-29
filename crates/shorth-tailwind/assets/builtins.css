@@ -1461,61 +1461,91 @@
   border-width: calc(--value(integer) * 1px);
 }
 @utility border-* {
-  border-width: --value([length]);
+  border-width: --value([line-width]);
 }
 @utility border-x-* {
   border-inline-width: calc(--value(integer) * 1px);
 }
+@utility border-x-* {
+  border-inline-width: --value([line-width]);
+}
 @utility border-y-* {
   border-block-width: calc(--value(integer) * 1px);
+}
+@utility border-y-* {
+  border-block-width: --value([line-width]);
 }
 @utility border-s-* {
   border-inline-start-width: calc(--value(integer) * 1px);
 }
+@utility border-s-* {
+  border-inline-start-width: --value([line-width]);
+}
 @utility border-e-* {
   border-inline-end-width: calc(--value(integer) * 1px);
+}
+@utility border-e-* {
+  border-inline-end-width: --value([line-width]);
 }
 @utility border-bs-* {
   border-block-start-width: calc(--value(integer) * 1px);
 }
+@utility border-bs-* {
+  border-block-start-width: --value([line-width]);
+}
 @utility border-be-* {
   border-block-end-width: calc(--value(integer) * 1px);
+}
+@utility border-be-* {
+  border-block-end-width: --value([line-width]);
 }
 @utility border-t-* {
   border-top-width: calc(--value(integer) * 1px);
 }
+@utility border-t-* {
+  border-top-width: --value([line-width]);
+}
 @utility border-r-* {
   border-right-width: calc(--value(integer) * 1px);
+}
+@utility border-r-* {
+  border-right-width: --value([line-width]);
 }
 @utility border-b-* {
   border-bottom-width: calc(--value(integer) * 1px);
 }
+@utility border-b-* {
+  border-bottom-width: --value([line-width]);
+}
 @utility border-l-* {
   border-left-width: calc(--value(integer) * 1px);
+}
+@utility border-l-* {
+  border-left-width: --value([line-width]);
 }
 @utility outline-* {
   outline-color: --value(--color-*);
 }
 @utility p-* {
-  padding: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility px-* {
-  padding-inline: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding-inline: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility py-* {
-  padding-block: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding-block: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility pt-* {
-  padding-top: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding-top: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility pr-* {
-  padding-right: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding-right: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility pb-* {
-  padding-bottom: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding-bottom: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility pl-* {
-  padding-left: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
+  padding-left: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 @utility m-* {
   margin: --value(--spacing-*, --spacing(), [length]);
@@ -1605,10 +1635,10 @@
   z-index: --value(--z-index-*);
 }
 @utility z-* {
-  z-index: --value(--z-index-*, integer, [integer]);
+  z-index: --value(--z-index-*, integer, [z-index]);
 }
 @utility -z-* {
-  z-index: calc(--value(--z-index-*, integer, [integer]) * -1);
+  z-index: calc(--value(--z-index-*, integer, [z-index]) * -1);
 }
 @utility duration-* {
   transition-duration: --value(--duration-*);

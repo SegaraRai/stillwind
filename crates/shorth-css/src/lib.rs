@@ -4,12 +4,17 @@
 use std::{collections::BTreeMap, fmt::Write};
 
 use lightningcss::{
-    properties::{background::BackgroundSize, box_shadow::BoxShadow},
+    properties::{background::BackgroundSize, border::BorderSideWidth, box_shadow::BoxShadow},
     stylesheet::{ParserOptions, StyleSheet},
     traits::Parse,
     values::{
-        color::CssColor, image::Image, length::Length, number::CSSNumber, percentage::Percentage,
-        position::Position, url::Url,
+        color::CssColor,
+        image::Image,
+        length::{Length, LengthPercentage},
+        number::CSSNumber,
+        percentage::Percentage,
+        position::Position,
+        url::Url,
     },
 };
 use shorth_source::{FileId, SourceFile, Span, Spanned};
@@ -33,6 +38,9 @@ pub enum ValueType {
     Number,
     Percentage,
     Length,
+    LengthPercentage,
+    LineWidth,
+    ZIndex,
     Color,
     Image,
     Url,
@@ -51,6 +59,9 @@ impl ValueType {
             "number" => Some(Self::Number),
             "percentage" => Some(Self::Percentage),
             "length" => Some(Self::Length),
+            "length-percentage" => Some(Self::LengthPercentage),
+            "line-width" => Some(Self::LineWidth),
+            "z-index" => Some(Self::ZIndex),
             "color" => Some(Self::Color),
             "image" => Some(Self::Image),
             "url" => Some(Self::Url),
@@ -79,6 +90,9 @@ impl ValueType {
             Self::Number => CSSNumber::parse_string(value).is_ok(),
             Self::Percentage => Percentage::parse_string(value).is_ok(),
             Self::Length => Length::parse_string(value).is_ok(),
+            Self::LengthPercentage => LengthPercentage::parse_string(value).is_ok(),
+            Self::LineWidth => BorderSideWidth::parse_string(value).is_ok(),
+            Self::ZIndex => value.trim() == "auto" || Self::Integer.accepts(value),
             Self::Color => CssColor::parse_string(value).is_ok(),
             Self::Image => Image::parse_string(value).is_ok(),
             Self::Url => Url::parse_string(value).is_ok(),
@@ -86,6 +100,22 @@ impl ValueType {
             Self::BackgroundSize => BackgroundSize::parse_string(value).is_ok(),
             Self::Shadow => BoxShadow::parse_string(value).is_ok(),
         }
+    }
+
+    /// Returns whether an arbitrary-value hint is a valid narrower spelling
+    /// for this CSS value type. For example, `<length>` and `<percentage>`
+    /// may annotate a `<length-percentage>` value, while `<integer>` may
+    /// annotate a `z-index` value.
+    #[must_use]
+    pub fn accepts_hint(self, actual: Self) -> bool {
+        self == Self::Any
+            || self == actual
+            || matches!(
+                (self, actual),
+                (Self::LengthPercentage, Self::Length | Self::Percentage)
+                    | (Self::LineWidth, Self::Length)
+                    | (Self::ZIndex, Self::Integer)
+            )
     }
 }
 
@@ -1246,6 +1276,9 @@ mod tests {
             (ValueType::Number, "calc(1 / 2)", "1px"),
             (ValueType::Percentage, "12.5%", "12px"),
             (ValueType::Length, "calc(1rem + 2px)", "50%"),
+            (ValueType::LengthPercentage, "calc(1rem + 50%)", "1s"),
+            (ValueType::LineWidth, "thin", "50%"),
+            (ValueType::ZIndex, "auto", "1.5"),
             (ValueType::Color, "oklch(62% .2 280)", "12px"),
             (ValueType::Image, "linear-gradient(red, blue)", "red"),
             (
@@ -1261,8 +1294,18 @@ mod tests {
             assert!(!value_type.accepts(invalid), "{value_type:?}: {invalid}");
         }
         assert_eq!(ValueType::from_hint("length"), Some(ValueType::Length));
+        assert_eq!(
+            ValueType::from_hint("length-percentage"),
+            Some(ValueType::LengthPercentage)
+        );
         assert_eq!(ValueType::from_hint("unknown"), None);
         assert!(ValueType::Integer.accepts("initial"));
+        assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Percentage));
+        assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Length));
+        assert!(!ValueType::Length.accepts_hint(ValueType::Percentage));
+        assert!(ValueType::ZIndex.accepts_hint(ValueType::Integer));
+        assert!(!ValueType::ZIndex.accepts_hint(ValueType::Number));
+        assert!(ValueType::LineWidth.accepts_hint(ValueType::Length));
     }
 
     #[test]
