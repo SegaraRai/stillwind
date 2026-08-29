@@ -736,6 +736,7 @@ fn resolve_css_declarations(
     let declarations = split_css_declarations(body);
     let uses_placeholder = declarations.iter().any(|declaration| {
         declaration.contains("--value(")
+            || declaration.contains("--value-map(")
             || declaration.contains("--modifier(")
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
@@ -754,6 +755,7 @@ fn resolve_css_declarations(
 
     for declaration in declarations {
         let contains_placeholder = declaration.contains("--value(")
+            || declaration.contains("--value-map(")
             || declaration.contains("--modifier(")
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
@@ -840,6 +842,19 @@ fn resolve_css_placeholders(
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_owned();
+    while let Some(start) = body.find("--value-map(") {
+        let open = start + "--value-map".len();
+        let end = closing_parenthesis(&body, open)?;
+        let capture = capture?;
+        let replacement = split_domains(&body[open + 1..end])
+            .into_iter()
+            .find_map(|entry| {
+                let (key, value) = entry.trim().split_once(':')?;
+                (key.trim() == capture).then(|| value.trim())
+            })?
+            .to_owned();
+        body.replace_range(start..=end, &replacement);
+    }
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
         let end = closing_parenthesis(&body, open)?;
@@ -923,6 +938,7 @@ fn resolve_css_placeholders(
         body.replace_range(start..=end, &replacement);
     }
     (!body.contains("--value(")
+        && !body.contains("--value-map(")
         && !body.contains("--modifier(")
         && !body.contains("--modifier-map(")
         && !body.contains("--modifier-none()")
@@ -1885,6 +1901,9 @@ mod tests {
             ("overscroll-y-none", "overscroll-behavior-y:none;"),
             ("break-after-page", "break-after:page;"),
             ("z-auto", "z-index:auto;"),
+            ("z-73", "z-index:73;"),
+            ("-z-73", "z-index:calc(73*-1);"),
+            ("border-13", "border-width:calc(13*1px);"),
             ("col-span-full", "grid-column:1/-1;"),
             ("row-auto", "grid-row:auto;"),
             (
@@ -1900,6 +1919,22 @@ mod tests {
                 "{candidate}: {resolved:#?}"
             );
         }
+    }
+
+    #[test]
+    fn resolves_gradient_direction_and_interpolation_from_css_maps() {
+        let resolved = resolve_utility("bg-linear-to-r/oklch", &theme()).unwrap();
+        assert!(
+            resolved
+                .declaration
+                .contains("--tw-gradient-position:to right in oklch;")
+        );
+        let radial = resolve_utility("bg-radial/hsl", &theme()).unwrap();
+        assert!(
+            radial
+                .declaration
+                .contains("--tw-gradient-position:in hsl;")
+        );
     }
 
     #[test]

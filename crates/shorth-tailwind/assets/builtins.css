@@ -226,15 +226,6 @@
 @utility border-0 {
   border-width: 0;
 }
-@utility border-2 {
-  border-width: 2px;
-}
-@utility border-4 {
-  border-width: 4px;
-}
-@utility border-8 {
-  border-width: 8px;
-}
 @utility border-x {
   border-inline-width: 1px;
 }
@@ -356,42 +347,6 @@
 }
 @utility z-auto {
   z-index: auto;
-}
-@utility z-0 {
-  z-index: 0;
-}
-@utility z-10 {
-  z-index: 10;
-}
-@utility z-20 {
-  z-index: 20;
-}
-@utility z-30 {
-  z-index: 30;
-}
-@utility z-40 {
-  z-index: 40;
-}
-@utility z-50 {
-  z-index: 50;
-}
-@utility -z-0 {
-  z-index: 0;
-}
-@utility -z-10 {
-  z-index: -10;
-}
-@utility -z-20 {
-  z-index: -20;
-}
-@utility -z-30 {
-  z-index: -30;
-}
-@utility -z-40 {
-  z-index: -40;
-}
-@utility -z-50 {
-  z-index: -50;
 }
 @utility col-auto {
   grid-column: auto;
@@ -1120,6 +1075,42 @@
 @utility border-* {
   border-color: --value(--color-*);
 }
+@utility border-* {
+  border-width: calc(--value(integer) * 1px);
+}
+@utility border-* {
+  border-width: --value([length]);
+}
+@utility border-x-* {
+  border-inline-width: calc(--value(integer) * 1px);
+}
+@utility border-y-* {
+  border-block-width: calc(--value(integer) * 1px);
+}
+@utility border-s-* {
+  border-inline-start-width: calc(--value(integer) * 1px);
+}
+@utility border-e-* {
+  border-inline-end-width: calc(--value(integer) * 1px);
+}
+@utility border-bs-* {
+  border-block-start-width: calc(--value(integer) * 1px);
+}
+@utility border-be-* {
+  border-block-end-width: calc(--value(integer) * 1px);
+}
+@utility border-t-* {
+  border-top-width: calc(--value(integer) * 1px);
+}
+@utility border-r-* {
+  border-right-width: calc(--value(integer) * 1px);
+}
+@utility border-b-* {
+  border-bottom-width: calc(--value(integer) * 1px);
+}
+@utility border-l-* {
+  border-left-width: calc(--value(integer) * 1px);
+}
 @utility outline-* {
   outline-color: --value(--color-*);
 }
@@ -1233,6 +1224,9 @@
 }
 @utility z-* {
   z-index: --value(--z-index-*, integer, [integer]);
+}
+@utility -z-* {
+  z-index: calc(--value(--z-index-*, integer, [integer]) * -1);
 }
 @utility duration-* {
   transition-duration: --value(--duration-*);
@@ -3676,6 +3670,42 @@
     --tw-gradient-position: to top left in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
+}
+@utility bg-linear-to-* {
+  --tw-gradient-position: --value-map(
+      t: to top,
+      tr: to top right,
+      r: to right,
+      br: to bottom right,
+      b: to bottom,
+      bl: to bottom left,
+      l: to left,
+      tl: to top left
+    )
+    --modifier-map(
+      oklab: in oklab,
+      oklch: in oklch,
+      srgb: in srgb,
+      hsl: in hsl,
+      longer: in oklch longer hue,
+      shorter: in oklch shorter hue,
+      increasing: in oklch increasing hue,
+      decreasing: in oklch decreasing hue
+    );
+  background-image: linear-gradient(var(--tw-gradient-stops));
+}
+@utility bg-radial {
+  --tw-gradient-position: --modifier-map(
+    oklab: in oklab,
+    oklch: in oklch,
+    srgb: in srgb,
+    hsl: in hsl,
+    longer: in oklch longer hue,
+    shorter: in oklch shorter hue,
+    increasing: in oklch increasing hue,
+    decreasing: in oklch decreasing hue
+  );
+  background-image: radial-gradient(var(--tw-gradient-stops));
 }
 @utility bg-linear-* {
   --tw-gradient-position: --value(integer) deg;
