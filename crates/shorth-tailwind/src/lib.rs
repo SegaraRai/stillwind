@@ -1938,6 +1938,20 @@ mod tests {
     }
 
     #[test]
+    fn resolves_size_as_a_functional_fraction_or_keyword() {
+        let fractional = resolve_utility("size-7/12", &theme()).unwrap();
+        assert!(
+            fractional
+                .declaration
+                .contains("width:calc(7 / 12 * 100%);height:calc(7 / 12 * 100%);")
+        );
+        assert_eq!(
+            resolve_utility("size-fit", &theme()).unwrap().declaration,
+            "width:fit-content;height:fit-content;"
+        );
+    }
+
+    #[test]
     fn lets_user_css_override_compatibility_fallback_utility_names() {
         let source = SourceFile::new(
             FileId(1),

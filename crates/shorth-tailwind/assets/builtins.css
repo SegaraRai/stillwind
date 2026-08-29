@@ -3211,6 +3211,58 @@
   width: --value(--spacing-*, --spacing(), [length]);
   height: --value(--spacing-*, --spacing(), [length]);
 }
+@utility size-* {
+  width: --value(--fraction(), --inset());
+  height: --value(--fraction(), --inset());
+}
+@utility size-auto {
+  width: auto;
+  height: auto;
+}
+@utility size-full {
+  width: 100%;
+  height: 100%;
+}
+@utility size-screen {
+  width: 100vw;
+  height: 100vh;
+}
+@utility size-min {
+  width: min-content;
+  height: min-content;
+}
+@utility size-max {
+  width: max-content;
+  height: max-content;
+}
+@utility size-fit {
+  width: fit-content;
+  height: fit-content;
+}
+@utility size-dvw {
+  width: 100dvw;
+  height: 100dvw;
+}
+@utility size-dvh {
+  width: 100dvh;
+  height: 100dvh;
+}
+@utility size-lvw {
+  width: 100lvw;
+  height: 100lvw;
+}
+@utility size-lvh {
+  width: 100lvh;
+  height: 100lvh;
+}
+@utility size-svw {
+  width: 100svw;
+  height: 100svw;
+}
+@utility size-svh {
+  width: 100svh;
+  height: 100svh;
+}
 @utility translate-x-* {
   --tw-translate-x: --value(--spacing-*, --spacing(), [*]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
