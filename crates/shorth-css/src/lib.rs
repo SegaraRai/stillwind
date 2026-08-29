@@ -152,6 +152,29 @@ pub fn tailwind_v4_keyframes() -> String {
     output
 }
 
+/// Returns only the vendored keyframes named by the selected animation theme
+/// tokens. Keeping this beside the theme source makes tree-shaking a semantic
+/// property of the registry rather than a fixture-specific post-process.
+#[must_use]
+pub fn tailwind_v4_keyframes_for(names: &[String]) -> String {
+    let mut output = String::new();
+    for name in names {
+        let needle = format!("@keyframes {name}");
+        let Some(start) = TAILWIND_V4_THEME.find(&needle) else {
+            continue;
+        };
+        let Some(open_relative) = TAILWIND_V4_THEME[start..].find('{') else {
+            continue;
+        };
+        let open = start + open_relative;
+        let Some(close) = matching_brace(TAILWIND_V4_THEME, open) else {
+            continue;
+        };
+        output.push_str(&TAILWIND_V4_THEME[start..=close]);
+    }
+    output
+}
+
 /// Typed custom-property registrations used by Tailwind-compatible utilities.
 #[must_use]
 pub const fn tailwind_v4_properties() -> &'static str {
@@ -333,6 +356,39 @@ impl ThemeIndex {
         values.into_values().collect()
     }
 
+    /// Selects the effective tokens required by emitted declarations. Project
+    /// tokens are retained as authored; vendored defaults are tree-shaken and
+    /// their `var()` dependencies are followed transitively.
+    #[must_use]
+    pub fn tokens_required_by(&self, css: &str, include_preflight: bool) -> Vec<&ThemeToken> {
+        let tokens = self.active_tokens();
+        let mut required = custom_property_references(css);
+        if include_preflight {
+            required.extend(custom_property_references(&tailwind_v4_preflight()));
+        }
+        for token in &tokens {
+            if token.name.span.file != FileId(0) {
+                required.insert(token.name.value.clone());
+            }
+        }
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for token in &tokens {
+                if required.contains(&token.name.value) {
+                    for dependency in custom_property_references(&token.value.value) {
+                        changed |= required.insert(dependency);
+                    }
+                }
+            }
+        }
+        tokens
+            .into_iter()
+            .filter(|token| required.contains(&token.name.value))
+            .collect()
+    }
+
     /// CSS outside of `@theme` blocks, retained verbatim for custom properties,
     /// theme selectors, layers, and ordinary authored CSS.
     #[must_use]
@@ -355,6 +411,28 @@ impl ThemeIndex {
             .rev()
             .find(|variant| variant.name == name)
     }
+}
+
+fn custom_property_references(css: &str) -> std::collections::BTreeSet<String> {
+    let mut references = std::collections::BTreeSet::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find("--") {
+        let start = cursor + relative;
+        let end = css[start..]
+            .char_indices()
+            .take_while(|(_, character)| {
+                character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+            })
+            .last()
+            .map_or(start + 2, |(offset, character)| {
+                start + offset + character.len_utf8()
+            });
+        if end > start + 2 {
+            references.insert(css[start..end].to_owned());
+        }
+        cursor = end.max(start + 2);
+    }
+    references
 }
 
 #[derive(Debug, Error)]

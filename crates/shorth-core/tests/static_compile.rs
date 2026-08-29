@@ -270,6 +270,34 @@ fn framework_imports_gate_baseline_layers() {
 }
 
 #[test]
+fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Fixture.tsx",
+        "import { style } from \"stillwind/react\"; const props = style(\"p-4 animate-spin\");",
+    );
+    let result = Compiler::compile_react(
+        &component,
+        &SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities);",
+        ),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("--spacing:0.25rem;"));
+    assert!(
+        result
+            .css
+            .contains("--animate-spin:spin 1s linear infinite;")
+    );
+    assert!(result.css.contains("@keyframes spin {"));
+    assert!(!result.css.contains("--color-red-500:"));
+    assert!(!result.css.contains("@keyframes pulse {"));
+}
+
+#[test]
 fn emits_nested_supports_from_css_utility_definitions() {
     let component = SourceFile::new(
         FileId(1),

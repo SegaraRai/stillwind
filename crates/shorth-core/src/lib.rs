@@ -1013,7 +1013,8 @@ fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> Strin
         css.push_str("@layer ");
         css.push_str(layer);
         css.push_str("{:root,:host{");
-        for token in theme.active_tokens() {
+        let required_tokens = theme.tokens_required_by(utility_css, imports.base_layer.is_some());
+        for token in &required_tokens {
             css.push_str(&token.name.value);
             css.push(':');
             css.push_str(&token.value.value.replace("--theme(", "var("));
@@ -1023,7 +1024,22 @@ fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> Strin
         css.push_str("@layer ");
         css.push_str(layer);
         css.push('{');
-        css.push_str(&shorth_css::tailwind_v4_keyframes());
+        let animations = required_tokens
+            .iter()
+            .filter_map(|token| match &token.kind {
+                shorth_css::ThemeTokenKind::Token {
+                    namespace: shorth_css::ThemeNamespace::Animate,
+                    ..
+                } => token
+                    .value
+                    .value
+                    .split_whitespace()
+                    .next()
+                    .map(str::to_owned),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        css.push_str(&shorth_css::tailwind_v4_keyframes_for(&animations));
         css.push_str("}\n");
     }
     if let Some(layer) = &imports.base_layer {
