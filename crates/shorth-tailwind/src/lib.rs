@@ -1992,14 +1992,17 @@ mod tests {
     #[test]
     fn validates_unhinted_and_hint_checked_arbitrary_css_values() {
         let theme = theme();
-        for candidate in ["p-[1rem]", "border-[3px]", "z-[12]"] {
+        for candidate in ["p-[1rem]", "p-[50%]", "border-[3px]", "z-[12]"] {
             assert!(
                 resolve_utility(candidate, &theme).is_some(),
                 "expected `{candidate}` to resolve"
             );
         }
+        assert_eq!(
+            resolve_utility("p-[50%]", &theme).unwrap().declaration,
+            "padding:50%;"
+        );
         for candidate in [
-            "p-[50%]",
             "p-[length:bogus]",
             "border-[time:1ms]",
             "border-[length:bogus]",

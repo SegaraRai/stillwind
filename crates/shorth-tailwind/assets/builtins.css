@@ -1497,25 +1497,25 @@
   outline-color: --value(--color-*);
 }
 @utility p-* {
-  padding: --value(--spacing-*, --spacing(), [length]);
+  padding: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility px-* {
-  padding-inline: --value(--spacing-*, --spacing(), [length]);
+  padding-inline: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility py-* {
-  padding-block: --value(--spacing-*, --spacing(), [length]);
+  padding-block: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility pt-* {
-  padding-top: --value(--spacing-*, --spacing(), [length]);
+  padding-top: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility pr-* {
-  padding-right: --value(--spacing-*, --spacing(), [length]);
+  padding-right: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility pb-* {
-  padding-bottom: --value(--spacing-*, --spacing(), [length]);
+  padding-bottom: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility pl-* {
-  padding-left: --value(--spacing-*, --spacing(), [length]);
+  padding-left: --value(--spacing-*, --spacing(), percentage, [percentage], [length]);
 }
 @utility m-* {
   margin: --value(--spacing-*, --spacing(), [length]);
