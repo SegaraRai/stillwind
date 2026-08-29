@@ -1877,6 +1877,32 @@ mod tests {
     }
 
     #[test]
+    fn resolves_tailwind_static_keyword_utilities_from_the_css_registry() {
+        let theme = theme();
+        for (candidate, declaration) in [
+            ("cursor-alias", "cursor:alias;"),
+            ("overflow-scroll", "overflow:scroll;"),
+            ("overscroll-y-none", "overscroll-behavior-y:none;"),
+            ("break-after-page", "break-after:page;"),
+            ("z-auto", "z-index:auto;"),
+            ("col-span-full", "grid-column:1/-1;"),
+            ("row-auto", "grid-row:auto;"),
+            (
+                "rounded-tl-full",
+                "border-top-left-radius:calc(infinity*1px);",
+            ),
+            ("touch-pan-left", "--tw-pan-x:pan-left;"),
+        ] {
+            let resolved = resolve_utility(candidate, &theme)
+                .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+            assert!(
+                resolved.declaration.contains(declaration),
+                "{candidate}: {resolved:#?}"
+            );
+        }
+    }
+
+    #[test]
     fn lets_user_css_override_compatibility_fallback_utility_names() {
         let source = SourceFile::new(
             FileId(1),

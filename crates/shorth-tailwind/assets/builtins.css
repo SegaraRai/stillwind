@@ -106,6 +106,105 @@
 @utility cursor-pointer {
   cursor: pointer;
 }
+@utility cursor-alias {
+  cursor: alias;
+}
+@utility cursor-all-scroll {
+  cursor: all-scroll;
+}
+@utility cursor-auto {
+  cursor: auto;
+}
+@utility cursor-cell {
+  cursor: cell;
+}
+@utility cursor-context-menu {
+  cursor: context-menu;
+}
+@utility cursor-copy {
+  cursor: copy;
+}
+@utility cursor-crosshair {
+  cursor: crosshair;
+}
+@utility cursor-default {
+  cursor: default;
+}
+@utility cursor-grab {
+  cursor: grab;
+}
+@utility cursor-grabbing {
+  cursor: grabbing;
+}
+@utility cursor-help {
+  cursor: help;
+}
+@utility cursor-move {
+  cursor: move;
+}
+@utility cursor-no-drop {
+  cursor: no-drop;
+}
+@utility cursor-not-allowed {
+  cursor: not-allowed;
+}
+@utility cursor-progress {
+  cursor: progress;
+}
+@utility cursor-text {
+  cursor: text;
+}
+@utility cursor-vertical-text {
+  cursor: vertical-text;
+}
+@utility cursor-zoom-in {
+  cursor: zoom-in;
+}
+@utility cursor-zoom-out {
+  cursor: zoom-out;
+}
+@utility cursor-col-resize {
+  cursor: col-resize;
+}
+@utility cursor-row-resize {
+  cursor: row-resize;
+}
+@utility cursor-n-resize {
+  cursor: n-resize;
+}
+@utility cursor-e-resize {
+  cursor: e-resize;
+}
+@utility cursor-s-resize {
+  cursor: s-resize;
+}
+@utility cursor-w-resize {
+  cursor: w-resize;
+}
+@utility cursor-ne-resize {
+  cursor: ne-resize;
+}
+@utility cursor-nw-resize {
+  cursor: nw-resize;
+}
+@utility cursor-se-resize {
+  cursor: se-resize;
+}
+@utility cursor-sw-resize {
+  cursor: sw-resize;
+}
+@utility cursor-ew-resize {
+  cursor: ew-resize;
+}
+@utility cursor-ns-resize {
+  cursor: ns-resize;
+}
+@utility cursor-nesw-resize {
+  cursor: nesw-resize;
+}
+@utility cursor-nwse-resize {
+  cursor: nwse-resize;
+}
 @utility relative {
   position: relative;
 }
@@ -126,6 +225,15 @@
 }
 @utility border-0 {
   border-width: 0;
+}
+@utility border-2 {
+  border-width: 2px;
+}
+@utility border-4 {
+  border-width: 4px;
+}
+@utility border-8 {
+  border-width: 8px;
 }
 @utility border-x {
   border-inline-width: 1px;
@@ -182,6 +290,120 @@
 }
 @utility overflow-hidden {
   overflow: hidden;
+}
+@utility overflow-auto {
+  overflow: auto;
+}
+@utility overflow-clip {
+  overflow: clip;
+}
+@utility overflow-scroll {
+  overflow: scroll;
+}
+@utility overflow-visible {
+  overflow: visible;
+}
+@utility overflow-x-hidden {
+  overflow-x: hidden;
+}
+@utility overflow-x-clip {
+  overflow-x: clip;
+}
+@utility overflow-x-scroll {
+  overflow-x: scroll;
+}
+@utility overflow-x-visible {
+  overflow-x: visible;
+}
+@utility overflow-y-auto {
+  overflow-y: auto;
+}
+@utility overflow-y-hidden {
+  overflow-y: hidden;
+}
+@utility overflow-y-clip {
+  overflow-y: clip;
+}
+@utility overflow-y-scroll {
+  overflow-y: scroll;
+}
+@utility overflow-y-visible {
+  overflow-y: visible;
+}
+@utility overscroll-auto {
+  overscroll-behavior: auto;
+}
+@utility overscroll-none {
+  overscroll-behavior: none;
+}
+@utility overscroll-x-auto {
+  overscroll-behavior-x: auto;
+}
+@utility overscroll-x-contain {
+  overscroll-behavior-x: contain;
+}
+@utility overscroll-x-none {
+  overscroll-behavior-x: none;
+}
+@utility overscroll-y-auto {
+  overscroll-behavior-y: auto;
+}
+@utility overscroll-y-contain {
+  overscroll-behavior-y: contain;
+}
+@utility overscroll-y-none {
+  overscroll-behavior-y: none;
+}
+@utility z-auto {
+  z-index: auto;
+}
+@utility z-0 {
+  z-index: 0;
+}
+@utility z-10 {
+  z-index: 10;
+}
+@utility z-20 {
+  z-index: 20;
+}
+@utility z-30 {
+  z-index: 30;
+}
+@utility z-40 {
+  z-index: 40;
+}
+@utility z-50 {
+  z-index: 50;
+}
+@utility -z-0 {
+  z-index: 0;
+}
+@utility -z-10 {
+  z-index: -10;
+}
+@utility -z-20 {
+  z-index: -20;
+}
+@utility -z-30 {
+  z-index: -30;
+}
+@utility -z-40 {
+  z-index: -40;
+}
+@utility -z-50 {
+  z-index: -50;
+}
+@utility col-auto {
+  grid-column: auto;
+}
+@utility col-span-full {
+  grid-column: 1 / -1;
+}
+@utility row-auto {
+  grid-row: auto;
+}
+@utility row-span-full {
+  grid-row: 1 / -1;
 }
 @utility opacity-0 {
   opacity: 0;
@@ -277,6 +499,62 @@
 @utility rounded-full {
   border-radius: calc(infinity * 1px);
 }
+@utility rounded-t-none {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+@utility rounded-t-full {
+  border-top-left-radius: calc(infinity * 1px);
+  border-top-right-radius: calc(infinity * 1px);
+}
+@utility rounded-r-none {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+@utility rounded-r-full {
+  border-top-right-radius: calc(infinity * 1px);
+  border-bottom-right-radius: calc(infinity * 1px);
+}
+@utility rounded-b-none {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+@utility rounded-b-full {
+  border-bottom-right-radius: calc(infinity * 1px);
+  border-bottom-left-radius: calc(infinity * 1px);
+}
+@utility rounded-l-none {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+@utility rounded-l-full {
+  border-top-left-radius: calc(infinity * 1px);
+  border-bottom-left-radius: calc(infinity * 1px);
+}
+@utility rounded-tl-none {
+  border-top-left-radius: 0;
+}
+@utility rounded-tl-full {
+  border-top-left-radius: calc(infinity * 1px);
+}
+@utility rounded-tr-none {
+  border-top-right-radius: 0;
+}
+@utility rounded-tr-full {
+  border-top-right-radius: calc(infinity * 1px);
+}
+@utility rounded-br-none {
+  border-bottom-right-radius: 0;
+}
+@utility rounded-br-full {
+  border-bottom-right-radius: calc(infinity * 1px);
+}
+@utility rounded-bl-none {
+  border-bottom-left-radius: 0;
+}
+@utility rounded-bl-full {
+  border-bottom-left-radius: calc(infinity * 1px);
+}
 @utility overflow-x-auto {
   overflow-x: auto;
 }
@@ -322,6 +600,22 @@
   --tw-pan-y: pan-y;
   touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
 }
+@utility touch-pan-left {
+  --tw-pan-x: pan-left;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+@utility touch-pan-right {
+  --tw-pan-x: pan-right;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+@utility touch-pan-up {
+  --tw-pan-y: pan-up;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+@utility touch-pan-down {
+  --tw-pan-y: pan-down;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
 @utility touch-none {
   touch-action: none;
 }
@@ -330,6 +624,66 @@
 }
 @utility touch-manipulation {
   touch-action: manipulation;
+}
+@utility break-after-auto {
+  break-after: auto;
+}
+@utility break-after-avoid {
+  break-after: avoid;
+}
+@utility break-after-all {
+  break-after: all;
+}
+@utility break-after-avoid-page {
+  break-after: avoid-page;
+}
+@utility break-after-column {
+  break-after: column;
+}
+@utility break-after-left {
+  break-after: left;
+}
+@utility break-after-page {
+  break-after: page;
+}
+@utility break-after-right {
+  break-after: right;
+}
+@utility break-before-auto {
+  break-before: auto;
+}
+@utility break-before-avoid {
+  break-before: avoid;
+}
+@utility break-before-all {
+  break-before: all;
+}
+@utility break-before-avoid-page {
+  break-before: avoid-page;
+}
+@utility break-before-column {
+  break-before: column;
+}
+@utility break-before-left {
+  break-before: left;
+}
+@utility break-before-page {
+  break-before: page;
+}
+@utility break-before-right {
+  break-before: right;
+}
+@utility break-inside-auto {
+  break-inside: auto;
+}
+@utility break-inside-avoid {
+  break-inside: avoid;
+}
+@utility break-inside-avoid-column {
+  break-inside: avoid-column;
+}
+@utility break-inside-avoid-page {
+  break-inside: avoid-page;
 }
 @utility bg-blend-normal {
   background-blend-mode: normal;
