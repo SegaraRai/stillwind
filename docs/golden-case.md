@@ -5,10 +5,10 @@ product contract, not yet an implementation specification: the syntax may gain
 small ergonomic refinements, but the principles below should not be weakened.
 
 Implementation status: the React compiler implements the examples in this
-document except the repeat-render/unstable-key warning for view transitions and
-directory-policy configuration for `unsafe`. Where JSX placement is visible in
-one file it validates handle ancestry; component boundaries, portals, and
-arbitrary `children` are intentionally left to the escape-hatch boundary.
+document except the repeat-render/unstable-key warning for view transitions.
+Where JSX placement is visible in one file it validates handle ancestry;
+component boundaries, portals, and arbitrary `children` are intentionally not
+inferred.
 
 ## One static macro at the element
 
@@ -244,19 +244,3 @@ const productCard = style.viewTransition({
 needed for a unique transition name. Lint warns when a static transition is used
 inside a repeated render, or when an unstable key such as an array index is
 used.
-
-## Escape hatch
-
-Unsupported third-party DOM, deeply dynamic selectors, and similar cases are
-explicitly opt-in and visible to review tooling.
-
-```tsx
-style.unsafe({
-  selector: "& [data-vendor-widget] .tooltip",
-  css: { zIndex: 100 },
-  reason: "The vendor widget exposes no styling part or anchor.",
-});
-```
-
-`unsafe` is lintable and can be prohibited in selected directories or CI. It is
-an escape hatch for the exceptional 5%, never the normal styling path.

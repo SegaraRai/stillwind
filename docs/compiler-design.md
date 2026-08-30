@@ -355,7 +355,6 @@ Initial checks:
 - selector relationship impossible in locally visible JSX/template ancestry;
 - a static view transition used in a repeated render;
 - duplicate or contradictory declarations at the same selector/guard level;
-- forbidden `unsafe` use or missing `reason`.
 
 Framework frontends may provide only partial structural facts. A lint rule must
 report its confidence: it may error for locally proven misuse, warn for likely

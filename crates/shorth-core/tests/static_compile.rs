@@ -1099,27 +1099,6 @@ const item = style("rounded-md", card.for(product.id));"#,
 }
 
 #[test]
-fn compiles_an_explicitly_reasoned_unsafe_escape_hatch() {
-    let component = SourceFile::new(
-        FileId(1),
-        "src/VendorWidget.tsx",
-        r#"import { style } from "stillwind/react";
-const props = style.unsafe({ selector: "& [data-vendor-widget] .tooltip", css: { zIndex: 100, "pointer-events": "none" }, reason: "The vendor widget exposes no styling part." });"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
-
-    let result = Compiler::compile_react(&component, &theme);
-
-    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(
-        result
-            .css
-            .contains("[data-vendor-widget] .tooltip{z-index:100;pointer-events:none;}")
-    );
-    assert!(result.transforms[0].replacement.contains("className:\"_s_"));
-}
-
-#[test]
 fn validates_handle_selector_ancestry_when_jsx_placement_is_known() {
     let component = SourceFile::new(
         FileId(1),

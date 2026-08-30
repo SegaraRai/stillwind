@@ -84,8 +84,7 @@ That makes incremental migration straightforward: retain the existing `@theme`
 surface, then replace selected `className` values with `style()` calls. The
 implemented Stillwind-specific surface includes finite conditional branches,
 element selectors, handle-tagged parent selectors, anchor/container projections,
-local utility animations, view-transition assets, and a static `style.unsafe()`
-escape hatch that requires a reason. The compiler checks all supported utility
+local utility animations, and view-transition assets. The compiler checks all supported utility
 spellings; Vite also writes `src/stillwind.generated.d.ts` with the theme-backed
 token vocabulary for editor completion.
 

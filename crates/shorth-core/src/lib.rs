@@ -5,8 +5,7 @@ use std::fmt::Write;
 use serde::Serialize;
 use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
-    AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, UnsafeDeclaration,
-    ViewTransitionDefinition,
+    AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -196,29 +195,6 @@ impl Compiler {
             let mut handle_markers = Vec::new();
             let mut dynamic_styles = Vec::new();
             for input in call.inputs {
-                if let StyleInput::Unsafe {
-                    selector,
-                    declarations,
-                    reason: _,
-                } = input
-                {
-                    let branch = &mut branches[0];
-                    branch.2.push_str("unsafe:");
-                    branch.2.push_str(&selector.value);
-                    branch.2.push('\0');
-                    if let Some(declaration) = unsafe_declaration_list(source, &declarations) {
-                        branch.2.push_str(&declaration);
-                        branch.2.push('\0');
-                        branch.3.push(CompiledUtility {
-                            variants: Vec::new(),
-                            declaration,
-                            selector: Some(selector.value),
-                            container: None,
-                            nested: Vec::new(),
-                        });
-                    }
-                    continue;
-                }
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
                     let name = symbol_name(source, "view-transition", &transition);
                     let branch = &mut branches[0];
@@ -392,8 +368,7 @@ impl Compiler {
                     | StyleInput::ContainerQuery { .. }
                     | StyleInput::AnimationUse { .. }
                     | StyleInput::SelectorAnimationUse { .. }
-                    | StyleInput::ViewTransitionUse { .. }
-                    | StyleInput::Unsafe { .. } => {
+                    | StyleInput::ViewTransitionUse { .. } => {
                         unreachable!("handled above")
                     }
                 };
@@ -734,33 +709,6 @@ fn resolve_static_utility_list(
         }
     }
     combine_declarations(&utilities.iter().collect::<Vec<_>>())
-}
-
-fn unsafe_declaration_list(
-    source: &SourceFile,
-    declarations: &[UnsafeDeclaration],
-) -> Option<String> {
-    let mut output = String::new();
-    for declaration in declarations {
-        output.push_str(&camel_to_kebab(&declaration.property.value));
-        output.push(':');
-        output.push_str(source.slice(declaration.value).ok()?);
-        output.push(';');
-    }
-    Some(output)
-}
-
-fn camel_to_kebab(value: &str) -> String {
-    let mut output = String::new();
-    for character in value.chars() {
-        if character.is_ascii_uppercase() {
-            output.push('-');
-            output.extend(character.to_lowercase());
-        } else {
-            output.push(character);
-        }
-    }
-    output
 }
 
 fn render_handle_projection(
