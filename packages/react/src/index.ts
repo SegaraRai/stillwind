@@ -29,27 +29,34 @@ export type StyleProps = {
 
 export type StyleSelector = `&${string}`;
 
-declare const handleProjection: unique symbol;
+declare const refProjection: unique symbol;
+declare const scopeIdentity: unique symbol;
+declare const refIdentity: unique symbol;
 
-export type StyleHandleProjection = {
-  readonly [handleProjection]: true;
+export type StyleRefProjection = {
+  readonly [refProjection]: true;
 };
 
-export type StyleHandle = {
-  readonly anchor: StyleHandleProjection;
-  readonly position: StyleHandleProjection;
-  readonly scope: StyleHandleProjection;
-  container(type: "size" | "inline-size"): StyleHandleProjection;
-  at(query: string, utilities: string): StyleHandleProjection;
-  (strings: TemplateStringsArray): StyleHandleSelector;
+export type StyleScope = {
+  readonly [scopeIdentity]: true;
 };
 
-export type StyleHandleSelector = {
-  readonly [handleProjection]: true;
+export type StyleRef = {
+  readonly [refIdentity]: true;
+  readonly anchor: StyleRefProjection;
+  readonly position: StyleRefProjection;
+  readonly anchorScope: StyleRefProjection;
+  container(type: "size" | "inline-size"): StyleRefProjection;
+  at(query: string, utilities: string): StyleRefProjection;
+  (strings: TemplateStringsArray): StyleRefSelector;
+};
+
+export type StyleRefSelector = {
+  readonly [refProjection]: true;
 };
 
 export type StyleAnimationUse = {
-  readonly [handleProjection]: true;
+  readonly [refProjection]: true;
 };
 
 export type StyleAnimation = (options: string) => StyleAnimationUse;
@@ -57,7 +64,7 @@ export type StyleAnimation = (options: string) => StyleAnimationUse;
 export type StyleAnimationDefinition = Readonly<Record<string, string>>;
 
 export type StyleViewTransitionUse = {
-  readonly [handleProjection]: true;
+  readonly [refProjection]: true;
 };
 
 export type StyleViewTransition = StyleViewTransitionUse & {
@@ -78,14 +85,21 @@ export type StyleArgument =
   | readonly StyleArgument[]
   | Partial<Record<StyleAttributeName, unknown>>
   | Partial<Record<StyleSelector, UtilityString | StyleAnimationUse | false | null | undefined>>
-  | StyleHandleProjection
-  | StyleHandleSelector
+  | StyleScope
+  | StyleRef
+  | StyleRefProjection
+  | StyleRefSelector
   | StyleAnimationUse
   | StyleViewTransitionUse;
 
 export type StyleMacro = {
   (...inputs: readonly StyleArgument[]): StyleProps;
-  handle(): StyleHandle;
+  scope(): StyleScope;
+  scope(name: string): StyleScope;
+  ref(): StyleRef;
+  ref(name: string): StyleRef;
+  ref(scope: StyleScope): StyleRef;
+  ref(scope: StyleScope, name: string): StyleRef;
   animation(definition: StyleAnimationDefinition): StyleAnimation;
   viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition;
 };
@@ -97,8 +111,11 @@ export const style = Object.assign(
     );
   },
   {
-    handle(): StyleHandle {
-      throw new Error("stillwind/react style.handle() is a compile-time macro.");
+    scope(_name?: string): StyleScope {
+      throw new Error("stillwind/react style.scope() is a compile-time macro.");
+    },
+    ref(_scopeOrName?: StyleScope | string, _name?: string): StyleRef {
+      throw new Error("stillwind/react style.ref() is a compile-time macro.");
     },
     animation(_definition: StyleAnimationDefinition): StyleAnimation {
       throw new Error("stillwind/react style.animation() is a compile-time macro.");

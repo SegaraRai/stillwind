@@ -157,7 +157,25 @@ impl Compiler {
             module
                 .handle_definitions
                 .iter()
-                .map(|definition| generated_symbol(source, "handle", &definition.name)),
+                .map(|definition| generated_symbol(source, "ref", &definition.name)),
+        );
+        result.symbols.extend(
+            module
+                .handle_definitions
+                .iter()
+                .map(|definition| generated_ref_marker_symbol(source, definition)),
+        );
+        result.symbols.extend(
+            module
+                .scope_definitions
+                .iter()
+                .map(|definition| generated_symbol(source, "scope", &definition.name)),
+        );
+        result.symbols.extend(
+            module
+                .scope_definitions
+                .iter()
+                .map(|definition| generated_scope_marker_symbol(source, definition)),
         );
         result.symbols.extend(
             module
@@ -275,7 +293,7 @@ impl Compiler {
                 {
                     let branch = &mut branches[0];
                     branch.2.push_str("container:");
-                    branch.2.push_str(&handle.value);
+                    branch.2.push_str(&handle.name.value);
                     branch.2.push(':');
                     branch.2.push_str(&query.value);
                     branch.2.push('\0');
@@ -287,7 +305,7 @@ impl Compiler {
                                 for utility in &mut utilities {
                                     utility.container = Some(format!(
                                         "{} ({})",
-                                        symbol_name(source, "handle", &handle),
+                                        symbol_name(source, "ref", &handle.name),
                                         query.value
                                     ));
                                 }
@@ -309,7 +327,7 @@ impl Compiler {
                         handle_markers.push(marker);
                     }
                     branch.2.push_str("handle:");
-                    branch.2.push_str(&handle.value);
+                    branch.2.push_str(&handle.name.value);
                     branch.2.push(':');
                     branch.2.push_str(handle_projection_name(&projection));
                     branch.2.push('\0');
@@ -320,6 +338,28 @@ impl Compiler {
                         container: None,
                         nested: Vec::new(),
                     });
+                    continue;
+                }
+                if let StyleInput::ScopeAttachment(scope) = input {
+                    let marker = scope_marker_class(source, &scope)
+                        .trim_start_matches('.')
+                        .to_owned();
+                    if !handle_markers.contains(&marker) {
+                        handle_markers.push(marker);
+                    }
+                    branches[0].2.push_str("scope:");
+                    branches[0].2.push_str(&scope.name.value);
+                    branches[0].2.push('\0');
+                    continue;
+                }
+                if let StyleInput::HandleAttachment(handle) = input {
+                    let marker = handle_marker_class(source, &handle);
+                    if !handle_markers.contains(&marker) {
+                        handle_markers.push(marker);
+                    }
+                    branches[0].2.push_str("ref:");
+                    branches[0].2.push_str(&handle.name.value);
+                    branches[0].2.push('\0');
                     continue;
                 }
                 let (guard, guard_when_true, selector, input) = match input {
@@ -365,6 +405,8 @@ impl Compiler {
                         value,
                     ),
                     StyleInput::HandleProjection { .. }
+                    | StyleInput::ScopeAttachment(_)
+                    | StyleInput::HandleAttachment(_)
                     | StyleInput::ContainerQuery { .. }
                     | StyleInput::AnimationUse { .. }
                     | StyleInput::SelectorAnimationUse { .. }
@@ -449,6 +491,12 @@ impl Compiler {
                 replacement: "undefined".to_owned(),
             });
         }
+        for scope_definition in module.scope_definitions {
+            result.transforms.push(PropsTransform {
+                call_span: scope_definition.call_span,
+                replacement: "undefined".to_owned(),
+            });
+        }
         for animation in module.animation_declarations {
             result.transforms.push(PropsTransform {
                 call_span: animation.call_span,
@@ -504,7 +552,8 @@ fn symbol_identity(source: &SourceFile, kind: &str, definition: &Spanned<String>
 
 fn symbol_name(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {
     let prefix = match kind {
-        "handle" => "--sw-h-",
+        "ref" => "--sw-r-",
+        "scope" => "--sw-s-",
         "animation" => "--sw-a-",
         "view-transition" => "--sw-v-",
         _ => unreachable!("only named Stillwind asset kinds are allocated"),
@@ -526,6 +575,36 @@ fn generated_symbol(
         source_path: normalized_module_path(source.path()),
         start: definition.span.start.0,
         end: definition.span.end.0,
+    }
+}
+
+fn generated_ref_marker_symbol(
+    source: &SourceFile,
+    definition: &shorth_ir::HandleDefinition,
+) -> GeneratedSymbol {
+    GeneratedSymbol {
+        name: handle_marker_class(source, definition),
+        kind: "ref-marker".to_owned(),
+        identity: symbol_identity(source, "ref-marker", &definition.name),
+        source_path: normalized_module_path(source.path()),
+        start: definition.name.span.start.0,
+        end: definition.name.span.end.0,
+    }
+}
+
+fn generated_scope_marker_symbol(
+    source: &SourceFile,
+    definition: &shorth_ir::ScopeDefinition,
+) -> GeneratedSymbol {
+    GeneratedSymbol {
+        name: scope_marker_class(source, definition)
+            .trim_start_matches('.')
+            .to_owned(),
+        kind: "scope-marker".to_owned(),
+        identity: symbol_identity(source, "scope-marker", &definition.name),
+        source_path: normalized_module_path(source.path()),
+        start: definition.name.span.start.0,
+        end: definition.name.span.end.0,
     }
 }
 
@@ -713,10 +792,10 @@ fn resolve_static_utility_list(
 
 fn render_handle_projection(
     source: &SourceFile,
-    handle: &Spanned<String>,
+    handle: &shorth_ir::HandleDefinition,
     projection: &HandleProjection,
 ) -> String {
-    let name = symbol_name(source, "handle", handle);
+    let name = symbol_name(source, "ref", &handle.name);
     match projection {
         HandleProjection::Anchor => format!("anchor-name:{name};"),
         HandleProjection::Position => format!("position-anchor:{name};"),
@@ -727,15 +806,38 @@ fn render_handle_projection(
     }
 }
 
-fn handle_marker_class(source: &SourceFile, handle: &Spanned<String>) -> String {
-    symbol_name(source, "handle", handle)
-        .trim_start_matches("--")
-        .to_owned()
+fn handle_marker_class(source: &SourceFile, handle: &shorth_ir::HandleDefinition) -> String {
+    let hash = &blake3::hash(symbol_identity(source, "ref", &handle.name).as_bytes()).to_hex()[..8];
+    match &handle.label {
+        Some(label) => format!("s_{}_{}", label.value, hash),
+        None => format!("s_{hash}"),
+    }
 }
 
-fn handle_parent_selector(source: &SourceFile, handle: &Spanned<String>, selector: &str) -> String {
+fn handle_parent_selector(
+    source: &SourceFile,
+    handle: &shorth_ir::HandleDefinition,
+    selector: &str,
+) -> String {
     let marker = handle_marker_class(source, handle);
-    format!("{} &", selector.replace('&', &format!(".{marker}")))
+    let reference = match selector.strip_prefix('&') {
+        Some("") => format!(".{marker}"),
+        Some(suffix) => format!(".{marker}:where({suffix})"),
+        None => unreachable!("the extractor requires ref selectors to begin with `&`"),
+    };
+    match &handle.scope {
+        Some(scope) => format!("{}:has({reference}) &", scope_marker_class(source, scope)),
+        None => format!("{reference} &"),
+    }
+}
+
+fn scope_marker_class(source: &SourceFile, scope: &shorth_ir::ScopeDefinition) -> String {
+    let hash =
+        &blake3::hash(symbol_identity(source, "scope", &scope.name).as_bytes()).to_hex()[..8];
+    match &scope.label {
+        Some(label) => format!(".s_{}_{}", label.value, hash),
+        None => format!(".s_{hash}"),
+    }
 }
 
 fn render_react_props(

@@ -21,7 +21,7 @@ use oxc::{
 };
 use shorth_ir::{
     AnimationDefinition, AnimationFrame, AttributeEntry, HandleDefinition, HandleProjection,
-    ModuleIr, StyleCall, StyleInput, ViewTransitionDefinition,
+    ModuleIr, ScopeDefinition, StyleCall, StyleInput, ViewTransitionDefinition,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -54,6 +54,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
             adapter: shorth_ir::AdapterKind::React,
             style_calls: extractor.style_calls,
             handle_definitions: extractor.handle_definitions,
+            scope_definitions: extractor.scope_definitions,
             animation_declarations: extractor.animation_declarations,
             view_transition_declarations: extractor.view_transition_declarations,
         },
@@ -64,16 +65,20 @@ struct MacroExtractor<'a> {
     source: &'a SourceFile,
     scoping: &'a Scoping,
     style_symbols: HashSet<SymbolId>,
-    handle_symbols: HashMap<SymbolId, Spanned<String>>,
+    handle_symbols: HashMap<SymbolId, HandleDefinition>,
+    scope_symbols: HashMap<SymbolId, ScopeDefinition>,
     handle_uses: Vec<HandleUse>,
+    scope_uses: Vec<ScopeUse>,
     handle_definitions: Vec<HandleDefinition>,
+    scope_definitions: Vec<ScopeDefinition>,
     animation_symbols: HashMap<SymbolId, Spanned<String>>,
     animation_declarations: Vec<AnimationDefinition>,
     view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
     view_transition_declarations: Vec<ViewTransitionDefinition>,
     style_calls: Vec<StyleCall>,
     diagnostics: Vec<Diagnostic>,
-    jsx_depth: usize,
+    jsx_path: Vec<usize>,
+    next_jsx_element: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -81,7 +86,13 @@ struct HandleUse {
     name: String,
     projection: &'static str,
     span: Span,
-    jsx_depth: Option<usize>,
+    jsx_path: Option<Vec<usize>>,
+}
+
+#[derive(Clone, Debug)]
+struct ScopeUse {
+    name: String,
+    jsx_path: Option<Vec<usize>>,
 }
 
 impl<'a> MacroExtractor<'a> {
@@ -91,15 +102,19 @@ impl<'a> MacroExtractor<'a> {
             scoping,
             style_symbols: HashSet::new(),
             handle_symbols: HashMap::new(),
+            scope_symbols: HashMap::new(),
             handle_uses: Vec::new(),
+            scope_uses: Vec::new(),
             handle_definitions: Vec::new(),
+            scope_definitions: Vec::new(),
             animation_symbols: HashMap::new(),
             animation_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
-            jsx_depth: 0,
+            jsx_path: Vec::new(),
+            next_jsx_element: 0,
         }
     }
 
@@ -128,8 +143,12 @@ impl<'a> MacroExtractor<'a> {
             && member.property.name.as_str() == property
     }
 
-    fn is_style_handle_call(&self, call: &CallExpression<'a>) -> bool {
-        self.is_style_member(&call.callee, "handle") && call.arguments.is_empty()
+    fn is_style_ref_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "ref")
+    }
+
+    fn is_style_scope_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "scope")
     }
 
     fn is_style_animation_call(&self, call: &CallExpression<'a>) -> bool {
@@ -140,13 +159,22 @@ impl<'a> MacroExtractor<'a> {
         self.is_style_member(&call.callee, "viewTransition")
     }
 
-    fn handle_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
+    fn handle_reference(&self, expression: &Expression<'a>) -> Option<HandleDefinition> {
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         self.handle_symbols.get(&symbol_id).cloned()
+    }
+
+    fn scope_reference(&self, expression: &Expression<'a>) -> Option<ScopeDefinition> {
+        let Expression::Identifier(identifier) = expression else {
+            return None;
+        };
+        let reference_id = identifier.reference_id.get()?;
+        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        self.scope_symbols.get(&symbol_id).cloned()
     }
 
     fn animation_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
@@ -412,16 +440,16 @@ impl<'a> MacroExtractor<'a> {
         {
             if call.arguments.len() != 2 {
                 self.diagnostics.push(Diagnostic::error(
-                    "SHHANDLE004",
-                    "handle.at() requires a literal query and a literal utility string",
+                    "SHREF004",
+                    "ref.at() requires a literal query and a literal utility string",
                     self.source_span(call.span),
                 ));
                 return None;
             }
             let Some(handle) = self.handle_reference(&member.object) else {
                 self.diagnostics.push(Diagnostic::error(
-                    "SHHANDLE001",
-                    "handle projections must use an identity returned by style.handle()",
+                    "SHREF001",
+                    "ref projections must use an identity returned by style.ref()",
                     self.source_span(expression.span()),
                 ));
                 return None;
@@ -431,8 +459,8 @@ impl<'a> MacroExtractor<'a> {
                 call.arguments[1].to_expression(),
             ) else {
                 self.diagnostics.push(Diagnostic::error(
-                    "SHHANDLE004",
-                    "handle.at() requires a literal query and a literal utility string",
+                    "SHREF004",
+                    "ref.at() requires a literal query and a literal utility string",
                     self.source_span(call.span),
                 ));
                 return None;
@@ -449,7 +477,7 @@ impl<'a> MacroExtractor<'a> {
                 let projection = match member.property.name.as_str() {
                     "anchor" => HandleProjection::Anchor,
                     "position" => HandleProjection::Position,
-                    "scope" => HandleProjection::Scope,
+                    "anchorScope" => HandleProjection::Scope,
                     _ => return None,
                 };
                 (&member.object, projection)
@@ -463,16 +491,16 @@ impl<'a> MacroExtractor<'a> {
                 }
                 let Some(argument) = call.arguments.first() else {
                     self.diagnostics.push(Diagnostic::error(
-                        "SHHANDLE002",
-                        "handle.container() requires a literal container type",
+                        "SHREF002",
+                        "ref.container() requires a literal container type",
                         self.source_span(call.span),
                     ));
                     return None;
                 };
                 let Expression::StringLiteral(value) = argument.to_expression() else {
                     self.diagnostics.push(Diagnostic::error(
-                        "SHHANDLE002",
-                        "handle.container() requires a literal container type",
+                        "SHREF002",
+                        "ref.container() requires a literal container type",
                         self.source_span(argument.span()),
                     ));
                     return None;
@@ -486,8 +514,8 @@ impl<'a> MacroExtractor<'a> {
         };
         let Some(handle) = self.handle_reference(handle_expression) else {
             self.diagnostics.push(Diagnostic::error(
-                "SHHANDLE001",
-                "handle projections must use an identity returned by style.handle()",
+                "SHREF001",
+                "ref projections must use an identity returned by style.ref()",
                 self.source_span(expression.span()),
             ));
             return None;
@@ -508,15 +536,22 @@ impl<'a> MacroExtractor<'a> {
 
     fn record_handle_use(
         &mut self,
-        handle: &Spanned<String>,
+        handle: &HandleDefinition,
         projection: &'static str,
         span: Span,
     ) {
         self.handle_uses.push(HandleUse {
-            name: handle.value.clone(),
+            name: handle.name.value.clone(),
             projection,
             span,
-            jsx_depth: (self.jsx_depth > 0).then_some(self.jsx_depth),
+            jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
+        });
+    }
+
+    fn record_scope_use(&mut self, scope: &ScopeDefinition) {
+        self.scope_uses.push(ScopeUse {
+            name: scope.name.value.clone(),
+            jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
     }
 
@@ -530,33 +565,142 @@ impl<'a> MacroExtractor<'a> {
         Spanned::new(literal.value.to_string(), content_span)
     }
 
+    fn collect_scope_definition(
+        &mut self,
+        name: Spanned<String>,
+        call: &CallExpression<'a>,
+    ) -> Option<ScopeDefinition> {
+        let label = match call.arguments.as_slice() {
+            [] => None,
+            [argument] => {
+                if let Expression::StringLiteral(label) = argument.to_expression() {
+                    Some(self.string_literal(label))
+                } else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHSCOPE001",
+                        "style.scope() accepts an optional literal name",
+                        self.source_span(argument.span()),
+                    ));
+                    return None;
+                }
+            }
+            _ => {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHSCOPE001",
+                    "style.scope() accepts at most one literal name",
+                    self.source_span(call.span),
+                ));
+                return None;
+            }
+        };
+        if label.as_ref().is_some_and(|label| !is_marker_label(label)) {
+            self.diagnostics.push(Diagnostic::error(
+                "SHSCOPE001",
+                "style.scope() names may contain only ASCII letters, digits, `_`, and `-`",
+                label.expect("checked above").span,
+            ));
+            return None;
+        }
+        Some(ScopeDefinition {
+            name,
+            label,
+            call_span: self.source_span(call.span),
+        })
+    }
+
+    fn collect_ref_definition(
+        &mut self,
+        name: Spanned<String>,
+        call: &CallExpression<'a>,
+    ) -> Option<HandleDefinition> {
+        let (scope, label) = match call.arguments.as_slice() {
+            [] => (None, None),
+            [argument] => match argument.to_expression() {
+                Expression::StringLiteral(label) => (None, Some(self.string_literal(label))),
+                expression => {
+                    if let Some(scope) = self.scope_reference(expression) {
+                        (Some(scope), None)
+                    } else {
+                        self.diagnostics.push(Diagnostic::error(
+                            "SHREF001",
+                            "style.ref() accepts an optional literal name or a scope identity",
+                            self.source_span(argument.span()),
+                        ));
+                        return None;
+                    }
+                }
+            },
+            [scope, label] => {
+                let Some(scope) = self.scope_reference(scope.to_expression()) else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHREF001",
+                        "the first style.ref() argument must be an identity returned by style.scope()",
+                        self.source_span(scope.span()),
+                    ));
+                    return None;
+                };
+                let Expression::StringLiteral(label) = label.to_expression() else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHREF001",
+                        "the second style.ref() argument must be a literal name",
+                        self.source_span(label.span()),
+                    ));
+                    return None;
+                };
+                (Some(scope), Some(self.string_literal(label)))
+            }
+            _ => {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHREF001",
+                    "style.ref() accepts (), (name), (scope), or (scope, name)",
+                    self.source_span(call.span),
+                ));
+                return None;
+            }
+        };
+        if label.as_ref().is_some_and(|label| !is_marker_label(label)) {
+            self.diagnostics.push(Diagnostic::error(
+                "SHREF001",
+                "style.ref() names may contain only ASCII letters, digits, `_`, and `-`",
+                label.expect("checked above").span,
+            ));
+            return None;
+        }
+        Some(HandleDefinition {
+            name,
+            label,
+            scope,
+            call_span: self.source_span(call.span),
+        })
+    }
+
     fn handle_tagged_selector(
         &mut self,
         key: &PropertyKey<'a>,
-    ) -> Option<(Spanned<String>, Spanned<String>)> {
+    ) -> Option<(HandleDefinition, Spanned<String>)> {
         let PropertyKey::TaggedTemplateExpression(tagged) = key else {
             return None;
         };
         let Some(handle) = self.handle_reference(&tagged.tag) else {
             self.diagnostics.push(Diagnostic::error(
-                "SHHANDLE001",
-                "handle selectors must be tagged by an identity returned by style.handle()",
+                "SHREF001",
+                "ref selectors must be tagged by an identity returned by style.ref()",
                 self.source_span(tagged.tag.span()),
             ));
             return None;
         };
         if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
             self.diagnostics.push(Diagnostic::error(
-                "SHHANDLE005",
-                "a handle selector must be a template literal without substitutions",
+                "SHREF005",
+                "a ref selector must be a template literal without substitutions",
                 self.source_span(tagged.quasi.span),
             ));
             return None;
         }
         let Some(cooked) = tagged.quasi.quasis[0].value.cooked.as_ref() else {
             self.diagnostics.push(Diagnostic::error(
-                "SHHANDLE005",
-                "a handle selector must be a valid static template literal",
+                "SHREF005",
+                "a ref selector must be a valid static template literal",
                 self.source_span(tagged.quasi.span),
             ));
             return None;
@@ -572,8 +716,8 @@ impl<'a> MacroExtractor<'a> {
         );
         if !selector.value.starts_with('&') {
             self.diagnostics.push(Diagnostic::error(
-                "SHHANDLE005",
-                "a handle selector must start with `&`",
+                "SHREF005",
+                "a ref selector must start with `&`",
                 selector.span,
             ));
             return None;
@@ -587,6 +731,16 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) {
+        if let Some(scope) = self.scope_reference(expression) {
+            self.record_scope_use(&scope);
+            inputs.push(StyleInput::ScopeAttachment(scope));
+            return;
+        }
+        if let Some(handle) = self.handle_reference(expression) {
+            self.record_handle_use(&handle, "ref", self.source_span(expression.span()));
+            inputs.push(StyleInput::HandleAttachment(handle));
+            return;
+        }
         if let Some(projection) = self.collect_handle_projection(expression) {
             inputs.push(projection);
             return;
@@ -697,7 +851,7 @@ impl<'a> MacroExtractor<'a> {
                 let Some((handle, selector)) = self.handle_tagged_selector(&property.key) else {
                     self.diagnostics.push(Diagnostic::error(
                         "SHJS003",
-                        "computed style() keys must be static selectors tagged by style.handle()",
+                        "computed style() keys must be static selectors tagged by style.ref()",
                         self.source_span(property.key.span()),
                     ));
                     continue;
@@ -716,7 +870,7 @@ impl<'a> MacroExtractor<'a> {
                         let Expression::StringLiteral(value) = &expression.right else {
                             self.diagnostics.push(Diagnostic::error(
                                 "SHJS004",
-                                "a handle selector conditional must have a literal utility string on its right side",
+                                "a ref selector conditional must have a literal utility string on its right side",
                                 self.source_span(expression.right.span()),
                             ));
                             continue;
@@ -731,7 +885,7 @@ impl<'a> MacroExtractor<'a> {
                     }
                     _ => self.diagnostics.push(Diagnostic::error(
                         "SHJS004",
-                        "a handle selector must map to a literal utility string or `condition && \"…\"`",
+                        "a ref selector must map to a literal utility string or `condition && \"…\"`",
                         self.source_span(property.value.span()),
                     )),
                 }
@@ -827,6 +981,10 @@ impl<'a> MacroExtractor<'a> {
                 .iter()
                 .filter(|handle_use| handle_use.name == name)
                 .collect::<Vec<_>>();
+            let is_scoped = self
+                .handle_definitions
+                .iter()
+                .any(|definition| definition.name.value == name && definition.scope.is_some());
             let has_anchor = uses
                 .iter()
                 .any(|handle_use| handle_use.projection == "anchor");
@@ -836,8 +994,8 @@ impl<'a> MacroExtractor<'a> {
                     .filter(|handle_use| handle_use.projection == "position")
                 {
                     self.diagnostics.push(Diagnostic::error(
-                        "SHHANDLE003",
-                        format!("handle `{name}` uses position without an anchor projection"),
+                        "SHREF003",
+                        format!("ref `{name}` uses position without an anchor projection"),
                         handle_use.span,
                     ));
                 }
@@ -850,18 +1008,16 @@ impl<'a> MacroExtractor<'a> {
                 .filter(|handle_use| handle_use.projection == "container-query" && !has_container)
             {
                 self.diagnostics.push(Diagnostic::error(
-                    "SHHANDLE006",
-                    format!(
-                        "handle `{name}` uses a container query without a container projection"
-                    ),
+                    "SHREF006",
+                    format!("ref `{name}` uses a container query without a container projection"),
                     handle_use.span,
                 ));
             }
-            let known_anchor_depths = uses
+            let known_anchor_paths = uses
                 .iter()
                 .filter_map(|handle_use| {
-                    (handle_use.projection == "anchor")
-                        .then_some(handle_use.jsx_depth)
+                    (handle_use.projection == "anchor" || handle_use.projection == "ref")
+                        .then_some(handle_use.jsx_path.as_ref())
                         .flatten()
                 })
                 .collect::<Vec<_>>();
@@ -869,20 +1025,94 @@ impl<'a> MacroExtractor<'a> {
                 .iter()
                 .filter(|handle_use| handle_use.projection == "selector")
             {
-                let Some(depth) = handle_use.jsx_depth else {
+                let Some(path) = &handle_use.jsx_path else {
                     continue;
                 };
-                if !known_anchor_depths.is_empty()
-                    && !known_anchor_depths
+                if !is_scoped
+                    && !known_anchor_paths.is_empty()
+                    && !known_anchor_paths
                         .iter()
-                        .any(|anchor_depth| *anchor_depth < depth)
+                        .any(|anchor_path| is_strict_ancestor(anchor_path, path))
                 {
                     self.diagnostics.push(Diagnostic::error(
-                        "SHHANDLE007",
-                        format!(
-                            "handle `{name}` selector has no known ancestor anchor in this JSX tree"
-                        ),
+                        "SHREF007",
+                        format!("ref `{name}` selector has no known ancestor ref in this JSX tree"),
                         handle_use.span,
+                    ));
+                }
+            }
+        }
+
+        self.validate_scoped_refs();
+    }
+
+    fn validate_scoped_refs(&mut self) {
+        for definition in self
+            .handle_definitions
+            .iter()
+            .filter(|definition| definition.scope.is_some())
+        {
+            let scope = definition.scope.as_ref().expect("filtered above");
+            let providers = self
+                .scope_uses
+                .iter()
+                .filter(|use_| use_.name == scope.name.value)
+                .collect::<Vec<_>>();
+            if providers.is_empty() {
+                self.diagnostics.push(Diagnostic::error(
+                    "SHSCOPE002",
+                    format!(
+                        "ref `{}` is bound to scope `{}`, but that scope is not attached to a JSX element",
+                        definition.name.value, scope.name.value
+                    ),
+                    definition.call_span,
+                ));
+                continue;
+            }
+            for reference_use in self.handle_uses.iter().filter(|use_| {
+                use_.name == definition.name.value
+                    && !matches!(use_.projection, "selector" | "container-query")
+            }) {
+                let Some(reference_path) = &reference_use.jsx_path else {
+                    continue;
+                };
+                if !providers.iter().any(|provider| {
+                    provider
+                        .jsx_path
+                        .as_ref()
+                        .is_some_and(|path| is_strict_ancestor(path, reference_path))
+                }) {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHSCOPE003",
+                        format!(
+                            "scope `{}` must be attached to an ancestor of ref `{}`",
+                            scope.name.value, definition.name.value
+                        ),
+                        reference_use.span,
+                    ));
+                }
+            }
+            for selector_use in self
+                .handle_uses
+                .iter()
+                .filter(|use_| use_.name == definition.name.value && use_.projection == "selector")
+            {
+                let Some(target_path) = &selector_use.jsx_path else {
+                    continue;
+                };
+                if !providers.iter().any(|provider| {
+                    provider
+                        .jsx_path
+                        .as_ref()
+                        .is_some_and(|path| is_strict_ancestor(path, target_path))
+                }) {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHSCOPE004",
+                        format!(
+                            "a selector using scoped ref `{}` must target an element inside scope `{}`",
+                            definition.name.value, scope.name.value
+                        ),
+                        selector_use.span,
                     ));
                 }
             }
@@ -890,11 +1120,25 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
+    ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
+}
+
+fn is_marker_label(label: &Spanned<String>) -> bool {
+    !label.value.is_empty()
+        && label
+            .value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
 impl<'a> Visit<'a> for MacroExtractor<'a> {
     fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
-        self.jsx_depth += 1;
+        let element_id = self.next_jsx_element;
+        self.next_jsx_element += 1;
+        self.jsx_path.push(element_id);
         walk::walk_jsx_element(self, element);
-        self.jsx_depth -= 1;
+        self.jsx_path.pop();
     }
 
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
@@ -961,18 +1205,33 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             BindingPattern::BindingIdentifier(identifier),
             Some(Expression::CallExpression(call)),
         ) = (&declarator.id, &declarator.init)
-            && self.is_style_handle_call(call)
+            && self.is_style_ref_call(call)
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
             let name = Spanned::new(
                 identifier.name.to_string(),
                 self.source_span(identifier.span),
             );
-            self.handle_definitions.push(HandleDefinition {
-                name: name.clone(),
-                call_span: self.source_span(call.span),
-            });
-            self.handle_symbols.insert(symbol_id, name);
+            if let Some(definition) = self.collect_ref_definition(name, call) {
+                self.handle_symbols.insert(symbol_id, definition.clone());
+                self.handle_definitions.push(definition);
+            }
+        }
+        if let (
+            BindingPattern::BindingIdentifier(identifier),
+            Some(Expression::CallExpression(call)),
+        ) = (&declarator.id, &declarator.init)
+            && self.is_style_scope_call(call)
+            && let Some(symbol_id) = identifier.symbol_id.get()
+        {
+            let name = Spanned::new(
+                identifier.name.to_string(),
+                self.source_span(identifier.span),
+            );
+            if let Some(definition) = self.collect_scope_definition(name, call) {
+                self.scope_symbols.insert(symbol_id, definition.clone());
+                self.scope_definitions.push(definition);
+            }
         }
         if let (
             BindingPattern::BindingIdentifier(identifier),
@@ -1057,6 +1316,58 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
         };
         assert_eq!(first.value, "px-4 text-center");
         assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
+    }
+
+    #[test]
+    fn parses_named_and_scoped_ref_declarations() {
+        let source = SourceFile::new(
+            FileId(1),
+            "Menu.tsx",
+            r#"import { style } from "stillwind/react";
+const anonymousScope = style.scope();
+const menu = style.scope("menu");
+const anonymous = style.ref();
+const named = style.ref("trigger");
+const scoped = style.ref(menu);
+const scopedNamed = style.ref(menu, "item");
+export const Menu = () => <div {...style(menu)}><button {...style(scoped)} /></div>;"#,
+        );
+
+        let parsed = parse(&source);
+
+        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        assert_eq!(parsed.module.scope_definitions.len(), 2);
+        assert_eq!(parsed.module.scope_definitions[0].label, None);
+        assert_eq!(
+            parsed.module.scope_definitions[1]
+                .label
+                .as_ref()
+                .map(|label| label.value.as_str()),
+            Some("menu")
+        );
+        assert_eq!(parsed.module.handle_definitions.len(), 4);
+        assert_eq!(parsed.module.handle_definitions[0].scope, None);
+        assert_eq!(
+            parsed.module.handle_definitions[1]
+                .label
+                .as_ref()
+                .map(|label| label.value.as_str()),
+            Some("trigger")
+        );
+        assert_eq!(
+            parsed.module.handle_definitions[2]
+                .scope
+                .as_ref()
+                .map(|scope| scope.name.value.as_str()),
+            Some("menu")
+        );
+        assert_eq!(
+            parsed.module.handle_definitions[3]
+                .label
+                .as_ref()
+                .map(|label| label.value.as_str()),
+            Some("item")
+        );
     }
 
     #[test]

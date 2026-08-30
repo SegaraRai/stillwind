@@ -114,71 +114,64 @@ Known `aria-*` and `data-*` contracts are type-checked where they are declared.
 State selectors should be preferred over JavaScript conditionals when they
 express the same visual state.
 
-## One DOM relationship handle
+## DOM refs and scopes
 
-`style.handle()` creates the only handle kind for relationships between DOM
-elements. It is an opaque, compile-time identity, not a runtime object or a
-manual class name.
-
-```tsx
-const trigger = style.handle();
-```
-
-The DOM decides where this identity is attached and how elements relate. The
-style declaration does **not** prescribe a component tree or a slot structure.
+`style.ref()` is an opaque compile-time identity for a DOM element. Without a
+scope it is the named, local equivalent of Tailwind's `group`: a selector rooted
+at the ref can target its descendants.
 
 ```tsx
-const trigger = style.handle();
+const trigger = style.ref("trigger");
 
-<div {...style(trigger.scope, "relative")}>
-  <button
-    {...style(trigger.anchor, "inline-flex items-center rounded-md px-3 py-2", {
-      "aria-expanded": open,
-    })}
-  >
-    More
-  </button>
-
-  <div
-    {...style(
-      trigger.position,
-      "absolute position-area-block-end z-popover rounded-md border bg-surface p-3",
-      { [trigger`&[aria-expanded=true]`]: "block" },
-    )}
-  >
-    Menu
-  </div>
-</div>;
+<button {...style(trigger, "inline-flex")}>
+  <span {...style({ [trigger`&:hover`]: "text-accent" })}>More</span>
+</button>;
 ```
 
-The relevant projections are:
-
-```ts
-trigger.anchor; // anchor-name: --stillwind-…
-trigger.position; // position-anchor: --stillwind-…
-trigger.scope; // anchor-scope: --stillwind-…
-trigger.container("inline-size"); // container-name/type
-trigger.at("width >= 40rem", "grid-cols-2"); // named @container rule
-trigger`&:hover`; // selector rooted at this referenced element
-```
-
-`scope` is deliberately separate from `anchor`. It belongs on whichever
-existing DOM element is the intended visibility boundary. This matters when an
-anchor and its positioned element are siblings: putting the scope on the anchor
-itself would hide that anchor from its sibling.
+`style.scope()` creates a DOM boundary. Binding a ref to that scope permits the
+ref and selector target to be siblings or otherwise independently nested within
+the boundary.
 
 ```tsx
-const panel = style.handle();
+const menu = style.scope("menu");
+const trigger = style.ref(menu, "trigger");
 
-<section {...style(panel.container("inline-size"), "rounded-xl p-4")}>
-  <div {...style("grid gap-4", panel.at("width >= 40rem", "grid-cols-2"))} />
+<section {...style(menu, "relative")}>
+  <button {...style(trigger, "inline-flex items-center rounded-md px-3 py-2")}>More</button>
+  <div {...style({ [trigger`&:hover`]: "block" })}>Menu</div>
 </section>;
 ```
 
-The linter validates what it can from the JSX tree and handle graph. It reports
-missing anchor/container providers, invalid scope boundaries, impossible
-selector relationships, and accidental handle reuse. It does not pretend to
-prove component-boundary, portal, or arbitrary `children` relationships.
+The scope must be attached to a strict ancestor of its bound ref. When JSX is
+visible in one file the linter verifies that invariant. The generated selector
+for the sibling example has the form:
+
+```css
+.s_menu_<hash>:has(.s_trigger_<hash>:where(:hover)) .s_<target-hash> { ... }
+```
+
+Names are optional. `style.scope()` and `style.ref()` emit `.s_<hash>`;
+`style.scope("menu")` and `style.ref(menu, "trigger")` emit
+`.s_menu_<hash>` and `.s_trigger_<hash>`. The hash keeps these local identities
+deterministic and collision-checked.
+
+Refs also own anchor positioning and container-query projections:
+
+```tsx
+const popover = style.ref();
+
+<div {...style(popover.anchorScope, popover.container("inline-size"), "relative")}>
+  <button {...style(popover.anchor, "inline-flex")}>More</button>
+  <div {...style(popover.position, "absolute position-area-block-end")} />
+  <div {...style(popover.at("width >= 40rem", "grid-cols-2"))} />
+</div>;
+```
+
+`anchorScope` is deliberately distinct from `style.scope()`: it emits CSS
+`anchor-scope`, while `style.scope()` creates the structural boundary used for
+ref selectors. The linter also checks missing anchor/container providers; it
+does not infer relationships across component boundaries, portals, or arbitrary
+`children`.
 
 ## Local animation, written with utilities
 
@@ -209,10 +202,10 @@ declarations are validated against the same design-token policy as normal
 styles. Shared motion belongs in `@theme`; component-specific motion stays next
 to the component.
 
-## View transitions are named CSS assets, not DOM handles
+## View transitions are named CSS assets, not DOM refs
 
 View transitions are independent from element-to-element relationships, so they
-do not use `style.handle()`.
+do not use `style.ref()`.
 
 ```tsx
 const pageTitle = style.viewTransition({

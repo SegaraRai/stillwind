@@ -2,7 +2,7 @@
 /*
  * Intentionally not provided: Tailwind's `container`, `@container`, `group`,
  * and `peer` utilities/variants. Stillwind owns DOM relationships through
- * `style.handle()` and its anchor/container projections instead.
+ * `style.ref()` and its anchor/container projections instead.
  */
 @utility block {
   display: block;

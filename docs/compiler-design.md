@@ -48,7 +48,7 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
           │  StyleIR: utility groups, guards, attrs, selectors, projections
           ▼
  semantic analysis
-          │  theme lookup, selector grammar, handle graph, lint diagnostics
+          │  theme lookup, selector grammar, ref/scope graph, lint diagnostics
           ├───────────────────────────┐
           ▼                           ▼
  CSS plan + CSS source map       source edit plan + runtime imports
@@ -73,7 +73,7 @@ crates/
   shorth-css/           # @theme extraction and CSS plan/source-map emission
   shorth-ir/            # language-neutral ModuleIR and StyleIR
   shorth-grammar/       # utility, selector-fragment, animation grammars
-  shorth-semantic/      # theme resolution, handle graph, lint rules
+  shorth-semantic/      # theme resolution, ref/scope graph, lint rules
   shorth-codegen/       # deterministic class/symbol allocation, transform plan
   shorth-node/          # napi-rs binding; no compiler logic
   shorth-cli/           # check, build, format and diagnostics rendering
@@ -214,7 +214,8 @@ For v1, macro declarations must be stable `const` bindings in the current
 module. The compiler recognizes:
 
 ```ts
-const trigger = style.handle();
+const menu = style.scope("menu");
+const trigger = style.ref(menu, "trigger");
 const enter = style.animation({ from: "opacity-0", to: "opacity-100" });
 const title = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 ```
@@ -243,7 +244,7 @@ style(
 The IR preserves guard expressions as source spans. The generated transform
 reuses their original text; it does not serialize Oxc AST back into JavaScript.
 
-Rejected examples include interpolated utility strings, computed non-handle
+Rejected examples include interpolated utility strings, computed non-ref
 keys, object spreads, unknown function calls, and loop-derived collections.
 The error is attached to the smallest unsupported expression and includes a
 suggestion when a finite conditional form exists.
@@ -263,8 +264,10 @@ pub enum StyleInput {
     Utilities { text: DecodedText, guard: Guard, origin: Origin },
     Attributes { entries: Vec<AttributeEntry>, guard: Guard, origin: Origin },
     SelfSelector { selector: SelectorFragment, body: Vec<StyleInput>, guard: Guard },
-    HandleSelector { handle: HandleRef, selector: SelectorFragment, body: Vec<StyleInput>, guard: Guard },
-    Projection { handle: HandleRef, kind: ProjectionKind, origin: Origin },
+    RefSelector { reference: Ref, selector: SelectorFragment, body: Vec<StyleInput>, guard: Guard },
+    ScopeAttachment { scope: Scope, origin: Origin },
+    RefAttachment { reference: Ref, origin: Origin },
+    Projection { reference: Ref, kind: ProjectionKind, origin: Origin },
     AnimationUse { animation: AnimationRef, options: DecodedText, guard: Guard },
     ViewTransitionUse { transition: TransitionRef, key: Option<ExprSpan>, guard: Guard },
 }
@@ -284,9 +287,10 @@ pub enum ProjectionKind {
 }
 ```
 
-The handle graph is semantic data, not a naming convention. It links each
-`anchor`, `position`, `scope`, `container`, `at`, and selector use to the one
-definition that created the handle.
+The ref/scope graph is semantic data, not a naming convention. A scope must be
+attached to a strict ancestor of every bound ref. An unscoped ref targets its
+own descendants; a scoped ref generates `scope:has(ref:where(selector))` and
+may target any descendant of that scope.
 
 ## Utility and selector grammar
 
@@ -304,7 +308,7 @@ theme namespace it may reference.
 Selector keys are parsed by a separate restricted grammar:
 
 - self selector: begins with `&`;
-- handle selector: tagged template must begin with `&`;
+- ref selector: tagged template must begin with `&`;
 - permitted pseudos, attribute selectors, `:has()`, and supported at-rules;
 - no arbitrary descendant/global selector in the safe API.
 
@@ -497,7 +501,7 @@ pure and testable without Vite.
 4. React transform plan plus Vite adapter; support static strings and finite
    conditional branches.
 5. Attributes and self selectors.
-6. `style.handle()` graph, selector relations, anchor positioning, and
+6. `style.ref()` / `style.scope()` graph, selector relations, anchor positioning, and
    container queries with lint rules.
 7. String-based `style.animation()` and named view-transition assets.
 8. `.d.ts`, CLI `check`, macro formatter, and editor/LSP integration.

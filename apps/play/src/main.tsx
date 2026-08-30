@@ -12,7 +12,7 @@ import { style } from "stillwind/react";
 
 export function App() {
   const [loading, setLoading] = useState(false);
-  const trigger = style.handle();
+  const trigger = style.ref();
   const enter = style.animation({
     from: "opacity-0 translate-y-2 scale-98",
     to: "opacity-100 translate-y-0 scale-100",

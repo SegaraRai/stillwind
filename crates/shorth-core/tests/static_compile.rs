@@ -929,13 +929,13 @@ const props = style("-mt-4 duration-fast ease-standard");"#,
 }
 
 #[test]
-fn projects_one_handle_into_anchor_position_scope_and_container_css() {
+fn projects_one_ref_into_anchor_position_scope_and_container_css() {
     let component = SourceFile::new(
         FileId(1),
         "src/Popover.tsx",
         r#"import { style } from "stillwind/react";
-const popover = style.handle();
-const root = style(popover.scope, popover.container("inline-size"));
+const popover = style.ref();
+const root = style(popover.anchorScope, popover.container("inline-size"));
 const trigger = style(popover.anchor, "relative");
 const panel = style(popover.position, "absolute");"#,
     );
@@ -944,23 +944,23 @@ const panel = style(popover.position, "absolute");"#,
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("anchor-name:--sw-h-"));
-    assert!(result.css.contains("position-anchor:--sw-h-"));
-    assert!(result.css.contains("anchor-scope:--sw-h-"));
-    assert!(result.css.contains("container-name:--sw-h-"));
+    assert!(result.css.contains("anchor-name:--sw-r-"));
+    assert!(result.css.contains("position-anchor:--sw-r-"));
+    assert!(result.css.contains("anchor-scope:--sw-r-"));
+    assert!(result.css.contains("container-name:--sw-r-"));
     assert!(result.css.contains("container-type:inline-size;"));
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(!transformed.contains("style.handle()"));
+    assert!(!transformed.contains("style.ref()"));
     assert!(transformed.contains("const popover = undefined;"));
 }
 
 #[test]
-fn reports_a_position_handle_without_an_anchor_provider() {
+fn reports_a_position_ref_without_an_anchor_provider() {
     let component = SourceFile::new(
         FileId(1),
         "src/Popover.tsx",
         r#"import { style } from "stillwind/react";
-const popover = style.handle();
+const popover = style.ref();
 const panel = style(popover.position);"#,
     );
     let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
@@ -971,18 +971,18 @@ const panel = style(popover.position);"#,
         result
             .diagnostics
             .iter()
-            .any(|item| item.code == "SHHANDLE003")
+            .any(|item| item.code == "SHREF003")
     );
     assert!(result.css.is_empty());
 }
 
 #[test]
-fn emits_named_container_rules_from_handle_queries() {
+fn emits_named_container_rules_from_ref_queries() {
     let component = SourceFile::new(
         FileId(1),
         "src/Card.tsx",
         r#"import { style } from "stillwind/react";
-const card = style.handle();
+const card = style.ref();
 const root = style(card.container("inline-size"));
 const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
     );
@@ -991,7 +991,7 @@ const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("@container --sw-h-"));
+    assert!(result.css.contains("@container --sw-r-"));
     assert!(result.css.contains("(width >= 40rem){"));
     assert!(
         result
@@ -1001,12 +1001,12 @@ const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
 }
 
 #[test]
-fn uses_handle_tagged_selectors_as_automatically_named_parent_groups() {
+fn uses_ref_tagged_selectors_as_automatically_named_parent_groups() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const trigger = style.handle();
+const trigger = style.ref();
 const parent = style(trigger.anchor, "inline-flex");
 const child = style({ [trigger`&:hover`]: "text-accent" });"#,
     );
@@ -1019,10 +1019,101 @@ const child = style({ [trigger`&:hover`]: "text-accent" });"#,
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    let marker = "sw-h-";
+    let marker = "s_";
     assert!(result.transforms[0].replacement.contains(marker));
     assert!(result.css.contains(&format!(".{marker}")));
-    assert!(result.css.contains(":hover ._s_"));
+    assert!(result.css.contains(":where(:hover) ._s_"));
+}
+
+#[test]
+fn scopes_refs_across_siblings_and_uses_readable_marker_names() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Menu.tsx",
+        r#"import { style } from "stillwind/react";
+const menu = style.scope("menu");
+const trigger = style.ref(menu, "trigger");
+export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></section>;"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("s_menu_"));
+    assert!(transformed.contains("s_trigger_"));
+    assert!(result.css.contains(".s_menu_"));
+    assert!(result.css.contains(":has(.s_trigger_"));
+    assert!(result.css.contains(":where(:hover)) ._s_"));
+    assert!(
+        result
+            .symbols
+            .iter()
+            .any(|symbol| symbol.kind == "scope-marker" && symbol.name.starts_with("s_menu_"))
+    );
+    assert!(
+        result
+            .symbols
+            .iter()
+            .any(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with("s_trigger_"))
+    );
+}
+
+#[test]
+fn rejects_a_scoped_ref_selector_target_outside_its_scope() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Menu.tsx",
+        r#"import { style } from "stillwind/react";
+const menu = style.scope();
+const trigger = style.ref(menu);
+export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "SHSCOPE004"),
+        "{:#?}",
+        result.diagnostics
+    );
+}
+
+#[test]
+fn rejects_a_scope_attached_outside_its_ref_ancestry() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Menu.tsx",
+        r#"import { style } from "stillwind/react";
+const menu = style.scope();
+const trigger = style.ref(menu);
+export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "SHSCOPE003"),
+        "{:#?}",
+        result.diagnostics
+    );
 }
 
 #[test]
@@ -1099,12 +1190,12 @@ const item = style("rounded-md", card.for(product.id));"#,
 }
 
 #[test]
-fn validates_handle_selector_ancestry_when_jsx_placement_is_known() {
+fn validates_ref_selector_ancestry_when_jsx_placement_is_known() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const trigger = style.handle();
+const trigger = style.ref();
 export const Good = () => <div {...style(trigger.anchor)}><span {...style({ [trigger`&:hover`]: "text-accent" })} /></div>;
 export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
     );
@@ -1120,7 +1211,7 @@ export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [
         result
             .diagnostics
             .iter()
-            .any(|item| item.code == "SHHANDLE007")
+            .any(|item| item.code == "SHREF007")
     );
 }
 
@@ -1206,7 +1297,7 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
 #[test]
 fn names_symbols_from_normalized_module_paths_not_process_local_file_ids() {
     let module = r#"import { style } from "stillwind/react";
-const trigger = style.handle();
+const trigger = style.ref();
 const props = style(trigger.anchor);"#;
     let windows = SourceFile::new(FileId(1), "src\\Menu.tsx", module);
     let unix = SourceFile::new(FileId(1), "src/Menu.tsx", module);

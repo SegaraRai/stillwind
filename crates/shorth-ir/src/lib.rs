@@ -15,6 +15,7 @@ pub struct ModuleIr {
     pub adapter: AdapterKind,
     pub style_calls: Vec<StyleCall>,
     pub handle_definitions: Vec<HandleDefinition>,
+    pub scope_definitions: Vec<ScopeDefinition>,
     pub animation_declarations: Vec<AnimationDefinition>,
     pub view_transition_declarations: Vec<ViewTransitionDefinition>,
 }
@@ -25,6 +26,7 @@ impl ModuleIr {
             adapter: AdapterKind::React,
             style_calls: Vec::new(),
             handle_definitions: Vec::new(),
+            scope_definitions: Vec::new(),
             animation_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
         }
@@ -46,6 +48,15 @@ pub struct AttributeEntry {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct HandleDefinition {
     pub name: Spanned<String>,
+    pub label: Option<Spanned<String>>,
+    pub scope: Option<ScopeDefinition>,
+    pub call_span: Span,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ScopeDefinition {
+    pub name: Spanned<String>,
+    pub label: Option<Spanned<String>>,
     pub call_span: Span,
 }
 
@@ -99,26 +110,28 @@ pub enum StyleInput {
         value: Spanned<String>,
     },
     HandleSelectorUtilityString {
-        handle: Spanned<String>,
+        handle: HandleDefinition,
         selector: Spanned<String>,
         value: Spanned<String>,
     },
     ConditionalHandleSelectorUtilityString {
-        handle: Spanned<String>,
+        handle: HandleDefinition,
         selector: Spanned<String>,
         guard: Span,
         when_true: bool,
         value: Spanned<String>,
     },
     HandleProjection {
-        handle: Spanned<String>,
+        handle: HandleDefinition,
         projection: HandleProjection,
     },
     ContainerQuery {
-        handle: Spanned<String>,
+        handle: HandleDefinition,
         query: Spanned<String>,
         value: Spanned<String>,
     },
+    ScopeAttachment(ScopeDefinition),
+    HandleAttachment(HandleDefinition),
     AnimationUse {
         animation: Spanned<String>,
         options: Spanned<String>,

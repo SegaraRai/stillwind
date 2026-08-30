@@ -25,7 +25,7 @@ const props = style("bg-accent hover:bg-accent/90");"#,
 fn exposes_generated_symbols_for_build_wide_collision_checks() {
     let output = shorth_napi::compile_react_json(
         r#"import { style } from "stillwind/react";
-const menu = style.handle();
+const menu = style.ref();
 const props = style(menu.anchor);"#,
         "src/Menu.tsx",
         "@theme {}",
@@ -33,12 +33,12 @@ const props = style(menu.anchor);"#,
     .unwrap();
 
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
-    assert_eq!(value["symbols"][0]["kind"], "handle");
+    assert_eq!(value["symbols"][0]["kind"], "ref");
     assert!(
         value["symbols"][0]["name"]
             .as_str()
             .unwrap()
-            .starts_with("--sw-h-")
+            .starts_with("--sw-r-")
     );
 }
 

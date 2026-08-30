@@ -83,17 +83,18 @@ shadows, transitions, responsive breakpoints, state pseudo-classes,
 That makes incremental migration straightforward: retain the existing `@theme`
 surface, then replace selected `className` values with `style()` calls. The
 implemented Stillwind-specific surface includes finite conditional branches,
-element selectors, handle-tagged parent selectors, anchor/container projections,
-local utility animations, and view-transition assets. The compiler checks all supported utility
+element selectors, ref-tagged parent selectors, scope-aware relationships,
+anchor/container projections, local utility animations, and view-transition
+assets. The compiler checks all supported utility
 spellings; Vite also writes `src/stillwind.generated.d.ts` with the theme-backed
 token vocabulary for editor completion.
 
 Tailwind's `container` / `@container`, `group`, and `peer` spellings are
 intentionally outside this compatibility surface. Stillwind owns those DOM
-relationships through `style.handle()` so their meaning remains local and can
-be linted structurally.
+relationships through `style.ref()` and `style.scope()` so their meaning remains
+local and can be linted structurally.
 
-The JSX linter checks parent handle selectors and container providers whenever
+The JSX linter checks ref selectors, scope ancestry, and container providers whenever
 both sides are visible in the same JSX tree. It deliberately does not infer
 relationships across component boundaries, `children`, or portals. Vue, Svelte,
 Astro, a full formatter, and full Tailwind candidate compatibility remain
