@@ -235,7 +235,7 @@ style(
   active && "bg-accent", // logical guard
   active ? "block" : "hidden", // conditional guard
   ["rounded", compact && "p-2"],
-  { "aria-busy": loading },
+  { class: ["legacy-button", loading && "is-loading"], "aria-busy": loading },
   { "&:hover": "bg-accent/90" },
   { [trigger`&:hover`]: "text-accent" },
 );
@@ -245,7 +245,10 @@ The IR preserves guard expressions as source spans. The generated transform
 reuses their original text; it does not serialize Oxc AST back into JavaScript.
 
 Rejected examples include interpolated utility strings, computed non-ref
-keys, object spreads, unknown function calls, and loop-derived collections.
+keys, object spreads outside the explicit `{ class: … }` value, unknown
+function calls, and loop-derived collections. Object syntax is never a clsx
+dictionary: external classes are opt-in through `class`, whose value is passed
+unchanged to the clsx-compatible runtime helper.
 The error is attached to the smallest unsupported expression and includes a
 suggestion when a finite conditional form exists.
 

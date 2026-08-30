@@ -114,6 +114,24 @@ Known `aria-*` and `data-*` contracts are type-checked where they are declared.
 State selectors should be preferred over JavaScript conditionals when they
 express the same visual state.
 
+Object syntax is intentionally **not** a `clsx` object form. This leaves every
+ordinary object key available for an attribute or selector, without an
+ambiguous class-name branch. To add classes not owned by Stillwind, use the
+explicit `class` entry. Its value is passed through a `clsx`-compatible helper,
+so strings, numbers, nested arrays, logical branches, and object dictionaries
+all work.
+
+```tsx
+style("rounded-md bg-accent", {
+  class: ["legacy-button", loading && "is-loading", { "legacy-enabled": enabled }],
+  "aria-busy": loading,
+  "&:hover": "bg-accent/90",
+});
+```
+
+Plain strings passed directly to `style()` remain Stillwind utility strings and
+are rejected if they are not in the configured utility vocabulary.
+
 ## DOM refs and scopes
 
 `style.ref()` is an opaque compile-time identity for a DOM element. Without a

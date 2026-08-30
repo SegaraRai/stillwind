@@ -132,6 +132,11 @@ pub enum StyleInput {
     },
     ScopeAttachment(ScopeDefinition),
     HandleAttachment(HandleDefinition),
+    /// A user-owned class value evaluated by the runtime `stillwindClsx` helper.
+    ///
+    /// This is intentionally available only through `{ class: … }`, so the
+    /// surrounding object syntax remains unambiguous for attributes/selectors.
+    ExternalClass(Span),
     AnimationUse {
         animation: Spanned<String>,
         options: Spanned<String>,

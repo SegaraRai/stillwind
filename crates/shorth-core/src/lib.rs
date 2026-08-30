@@ -211,6 +211,7 @@ impl Compiler {
             let mut branches = vec![(None, true, String::new(), Vec::new())];
             let mut attributes = Vec::new();
             let mut handle_markers = Vec::new();
+            let mut external_classes = Vec::new();
             let mut dynamic_styles = Vec::new();
             for input in call.inputs {
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
@@ -362,6 +363,10 @@ impl Compiler {
                     branches[0].2.push('\0');
                     continue;
                 }
+                if let StyleInput::ExternalClass(value) = input {
+                    external_classes.push(value);
+                    continue;
+                }
                 let (guard, guard_when_true, selector, input) = match input {
                     StyleInput::UtilityString(input) => (None, true, None, input),
                     StyleInput::ConditionalUtilityString {
@@ -407,6 +412,7 @@ impl Compiler {
                     StyleInput::HandleProjection { .. }
                     | StyleInput::ScopeAttachment(_)
                     | StyleInput::HandleAttachment(_)
+                    | StyleInput::ExternalClass(_)
                     | StyleInput::ContainerQuery { .. }
                     | StyleInput::AnimationUse { .. }
                     | StyleInput::SelectorAnimationUse { .. }
@@ -477,6 +483,7 @@ impl Compiler {
                 &call_classes,
                 &attributes,
                 &handle_markers,
+                &external_classes,
                 &dynamic_styles,
             ) {
                 result.transforms.push(PropsTransform {
@@ -845,10 +852,11 @@ fn render_react_props(
     classes: &[GeneratedClass],
     attributes: &[AttributeEntry],
     handle_markers: &[String],
+    external_classes: &[Span],
     dynamic_styles: &[DynamicStyleEntry],
 ) -> Option<String> {
     let mut entries = Vec::new();
-    if !classes.is_empty() || !handle_markers.is_empty() {
+    if !classes.is_empty() || !handle_markers.is_empty() || !external_classes.is_empty() {
         let mut class_names = handle_markers
             .iter()
             .map(|marker| format!("\"{marker}\""))
@@ -869,7 +877,13 @@ fn render_react_props(
                 })
                 .collect::<Option<Vec<_>>>()?,
         );
-        let class_value = if class_names.len() == 1 {
+        class_names.extend(
+            external_classes
+                .iter()
+                .map(|value| source.slice(*value).ok().map(str::to_owned))
+                .collect::<Option<Vec<_>>>()?,
+        );
+        let class_value = if external_classes.is_empty() && class_names.len() == 1 {
             class_names.into_iter().next()?
         } else {
             format!("stillwindClsx({})", class_names.join(","))

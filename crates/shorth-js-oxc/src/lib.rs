@@ -891,10 +891,19 @@ impl<'a> MacroExtractor<'a> {
                 }
                 continue;
             }
+            if self
+                .property_name(&property.key)
+                .is_some_and(|name| name.value == "class")
+            {
+                inputs.push(StyleInput::ExternalClass(
+                    self.source_span(property.value.span()),
+                ));
+                continue;
+            }
             let PropertyKey::StringLiteral(name) = &property.key else {
                 self.diagnostics.push(Diagnostic::error(
                     "SHJS003",
-                    "style() attribute keys must be quoted aria-* or data-* names",
+                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or `&` selectors",
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -910,7 +919,7 @@ impl<'a> MacroExtractor<'a> {
             if !name.value.starts_with('&') {
                 self.diagnostics.push(Diagnostic::error(
                     "SHJS003",
-                    "style() object keys must be quoted aria-*/data-* attributes or `&` selectors",
+                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or `&` selectors",
                     name.span,
                 ));
                 continue;

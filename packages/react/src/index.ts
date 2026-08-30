@@ -29,6 +29,17 @@ export type StyleProps = {
 
 export type StyleSelector = `&${string}`;
 
+/** Values accepted by the explicit `{ class: … }` external-class entry. */
+export type StillwindClassValue =
+  | string
+  | number
+  | bigint
+  | boolean
+  | null
+  | undefined
+  | readonly StillwindClassValue[]
+  | Readonly<Record<string, unknown>>;
+
 declare const refProjection: unique symbol;
 declare const scopeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
@@ -77,14 +88,18 @@ export type StyleViewTransitionDefinition = {
   new?: string;
 };
 
+type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
+  Partial<Record<StyleSelector, UtilityString | StyleAnimationUse | false | null | undefined>> & {
+    readonly class?: StillwindClassValue;
+  };
+
 export type StyleArgument =
   | UtilityString
   | false
   | null
   | undefined
   | readonly StyleArgument[]
-  | Partial<Record<StyleAttributeName, unknown>>
-  | Partial<Record<StyleSelector, UtilityString | StyleAnimationUse | false | null | undefined>>
+  | StyleObject
   | StyleScope
   | StyleRef
   | StyleRefProjection

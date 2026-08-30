@@ -699,6 +699,63 @@ const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading
 }
 
 #[test]
+fn keeps_external_classes_in_an_explicit_clsx_class_entry() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "stillwind/react";
+declare const loading: boolean;
+const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "&:hover": "bg-muted" });"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "src/styles/stillwind.css",
+        "@theme { --color-accent: red; --color-muted: gray; }",
+    );
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.transforms[0].replacement.contains("stillwindClsx("));
+    assert!(
+        result.transforms[0].replacement.contains("legacy-button"),
+        "{}",
+        result.transforms[0].replacement
+    );
+    assert!(
+        result.transforms[0].replacement.contains("legacy-enabled"),
+        "{}",
+        result.transforms[0].replacement
+    );
+    assert!(
+        result.transforms[0]
+            .replacement
+            .contains("\"aria-busy\":loading")
+    );
+    assert!(result.css.contains(":hover"));
+}
+
+#[test]
+fn rejects_clsx_object_form_outside_the_explicit_class_entry() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "stillwind/react";
+declare const loading: boolean;
+const props = style({ "legacy-loading": loading });"#,
+    );
+    let theme = SourceFile::new(FileId(2), "src/styles/stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(
+        result.diagnostics.iter().any(|item| item.code == "SHJS003"),
+        "{:#?}",
+        result.diagnostics
+    );
+}
+
+#[test]
 fn emits_tailwind_shaped_layers_theme_variables_and_variants() {
     let component = SourceFile::new(
         FileId(1),
