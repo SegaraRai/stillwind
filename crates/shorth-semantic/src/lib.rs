@@ -315,7 +315,9 @@ impl ModuleGraph {
     ///
     /// # Errors
     ///
-    /// Returns an error if an edge or requested export cannot be resolved.
+    /// Ordinary JavaScript imports are ignored when their target or export is
+    /// not part of the Stillwind graph. Errors are reserved for symbolic graph
+    /// edges that were found but cannot be combined soundly.
     pub fn imported_values(
         &self,
         module_path: &str,
@@ -330,11 +332,16 @@ impl ModuleGraph {
             if import.imported == "*" {
                 continue;
             }
-            let target = self.resolve_specifier(&module_path, &import.source)?;
-            values.insert(
-                import.local.clone(),
-                self.resolve_export(&target, &import.imported)?,
-            );
+            let Ok(target) = self.resolve_specifier(&module_path, &import.source) else {
+                continue;
+            };
+            match self.resolve_export(&target, &import.imported) {
+                Ok(value) => {
+                    values.insert(import.local.clone(), value);
+                }
+                Err(ModuleGraphError::MissingExport { .. }) => {}
+                Err(error) => return Err(error),
+            }
         }
         Ok(values)
     }
@@ -517,6 +524,30 @@ mod tests {
             Some(&ExportedValue::Refs(vec![
                 RefAlternative::new(reference, None).unwrap()
             ]))
+        );
+    }
+
+    #[test]
+    fn ignores_ordinary_javascript_imports_outside_the_symbolic_graph() {
+        let mut component = ModuleSummary::new("src/Component.tsx");
+        component.imports.push(ImportBinding {
+            local: "React".to_owned(),
+            source: "react".to_owned(),
+            imported: "default".to_owned(),
+        });
+        component.imports.push(ImportBinding {
+            local: "helper".to_owned(),
+            source: "./helper".to_owned(),
+            imported: "helper".to_owned(),
+        });
+        let helper = ModuleSummary::new("src/helper.ts");
+        let graph = ModuleGraph::new([component, helper]).unwrap();
+
+        assert!(
+            graph
+                .imported_values("src/Component.tsx")
+                .unwrap()
+                .is_empty()
         );
     }
 

@@ -3,7 +3,12 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, relative } from "node:path";
 import { build } from "esbuild";
-import { compileReact, generateReactTypes } from "@stillwind/native";
+import {
+  compileReact,
+  compileReactProject,
+  generateReactTypes,
+  summarizeReact,
+} from "@stillwind/native";
 import type { Plugin, ViteDevServer } from "vite";
 
 export interface StillwindOptions {
@@ -47,12 +52,36 @@ interface PlayOutput extends CompilerOutput {
   previewUrl: string | null;
 }
 
+interface ModuleSummary {
+  imports: Array<{ source: string }>;
+  re_exports: Array<{ source: string }>;
+}
+
+interface ProjectSource {
+  id: string;
+  path: string;
+  source: string;
+}
+
+interface ProjectCompilerOutput {
+  modules: Array<CompilerOutput & { path: string }>;
+}
+
 const virtualCssId = "virtual:stillwind.css";
 const resolvedVirtualCssId = `\0${virtualCssId}`;
 const maximumPlayPayloadBytes = 1_000_000;
 
 function compile(source: string, path: string, theme: string): CompilerOutput {
   return JSON.parse(compileReact(source, path, theme)) as CompilerOutput;
+}
+
+function compileProject(sources: readonly ProjectSource[], theme: string): ProjectCompilerOutput {
+  return JSON.parse(
+    compileReactProject(
+      JSON.stringify(sources.map(({ path, source }) => ({ path, source }))),
+      theme,
+    ),
+  ) as ProjectCompilerOutput;
 }
 
 function compilePlay(source: string, theme: string): CompilerOutput {
@@ -63,6 +92,20 @@ function compilePlay(source: string, theme: string): CompilerOutput {
 
 function compilerModulePath(root: string, id: string): string {
   return relative(root, id).replaceAll("\\", "/");
+}
+
+function cleanModuleId(id: string): string {
+  return id.replace(/[?#].*$/, "");
+}
+
+function localDependencies(source: string, path: string): string[] {
+  const summary = JSON.parse(summarizeReact(source, path)) as ModuleSummary;
+  return [
+    ...summary.imports.map((entry) => entry.source),
+    ...summary.re_exports.map((entry) => entry.source),
+  ].filter(
+    (specifier, index, all) => specifier.startsWith(".") && all.indexOf(specifier) === index,
+  );
 }
 
 function findSymbolCollision(
@@ -230,34 +273,64 @@ export function stillwind(options: StillwindOptions): Plugin {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, types);
     },
-    transform(code, id) {
+    async transform(code, id) {
       if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined;
       if (!code.includes("stillwind/react")) {
         cssByModule.delete(id);
         symbolsByModule.delete(id);
         return undefined;
       }
-      const output = compile(
-        code,
-        compilerModulePath(projectRoot, id),
-        readFileSync(options.theme, "utf8"),
+      const entryId = cleanModuleId(id);
+      const sourcesById = new Map<string, ProjectSource>();
+      const pending: ProjectSource[] = [
+        { id: entryId, path: compilerModulePath(projectRoot, entryId), source: code },
+      ];
+      while (pending.length > 0) {
+        const source = pending.pop()!;
+        if (sourcesById.has(source.id)) continue;
+        sourcesById.set(source.id, source);
+        for (const specifier of localDependencies(source.source, source.path)) {
+          const resolved = await this.resolve(specifier, source.id, { skipSelf: true });
+          if (!resolved || resolved.external) continue;
+          const dependencyId = cleanModuleId(resolved.id);
+          if (!/\.[cm]?[jt]sx?$/.test(dependencyId) || sourcesById.has(dependencyId)) continue;
+          this.addWatchFile(dependencyId);
+          pending.push({
+            id: dependencyId,
+            path: compilerModulePath(projectRoot, dependencyId),
+            source: readFileSync(dependencyId, "utf8"),
+          });
+        }
+      }
+
+      const sources = [...sourcesById.values()];
+      const projectOutput = compileProject(sources, readFileSync(options.theme, "utf8"));
+      const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
+      for (const output of projectOutput.modules) {
+        const moduleId = idsByPath.get(output.path);
+        if (!moduleId) this.error(`Stillwind returned an unknown module: ${output.path}`);
+        if (output.diagnostics.length > 0) {
+          const diagnostic = output.diagnostics[0];
+          this.error(
+            `${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`,
+          );
+        }
+        const collision = findSymbolCollision(symbolsByModule, moduleId, output.symbols);
+        if (collision) {
+          const [first, second] = collision;
+          this.error(
+            `Stillwind generated identifier collision: ${second.name}\n` +
+              `  ${first.kind} at ${first.source_path}:${first.start}\n` +
+              `  ${second.kind} at ${second.source_path}:${second.start}`,
+          );
+        }
+        symbolsByModule.set(moduleId, output.symbols);
+        cssByModule.set(moduleId, output.css);
+      }
+      const output = projectOutput.modules.find(
+        (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
       );
-      if (output.diagnostics.length > 0) {
-        const diagnostic = output.diagnostics[0];
-        this.error(`${diagnostic.code}: ${diagnostic.message} (${id}:${diagnostic.start})`);
-      }
-      if (!output.code) return undefined;
-      const collision = findSymbolCollision(symbolsByModule, id, output.symbols);
-      if (collision) {
-        const [first, second] = collision;
-        this.error(
-          `Stillwind generated identifier collision: ${second.name}\n` +
-            `  ${first.kind} at ${first.source_path}:${first.start}\n` +
-            `  ${second.kind} at ${second.source_path}:${second.start}`,
-        );
-      }
-      symbolsByModule.set(id, output.symbols);
-      cssByModule.set(id, output.css);
+      if (!output?.code) return undefined;
       const runtimeImport = output.code.includes("stillwindClsx(")
         ? 'import { stillwindClsx } from "stillwind/react/runtime";\n'
         : "";

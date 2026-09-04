@@ -1,6 +1,8 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { style } from "stillwind/react";
+import { MenuItem } from "./MenuItem";
+import { MenuScope } from "./MenuScope";
 import "./screen.css";
 
 function SaveButton() {
@@ -27,6 +29,9 @@ function App() {
       <h1>Static macro, native CSS.</h1>
       <p>Click the button to exercise a compile-time conditional branch.</p>
       <SaveButton />
+      <MenuScope>
+        <MenuItem />
+      </MenuScope>
     </main>
   );
 }
