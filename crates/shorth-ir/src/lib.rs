@@ -47,6 +47,7 @@ pub struct AttributeEntry {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct HandleDefinition {
+    pub module_path: String,
     pub name: Spanned<String>,
     pub label: Option<Spanned<String>>,
     pub scope: Option<ScopeDefinition>,
@@ -55,6 +56,7 @@ pub struct HandleDefinition {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ScopeDefinition {
+    pub module_path: String,
     pub name: Spanned<String>,
     pub label: Option<Spanned<String>>,
     pub call_span: Span,

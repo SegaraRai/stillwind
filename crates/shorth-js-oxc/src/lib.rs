@@ -709,6 +709,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         Some(ScopeDefinition {
+            module_path: shorth_source::normalized_module_path(self.source.path()),
             name,
             label,
             call_span: self.source_span(call.span),
@@ -774,6 +775,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         Some(HandleDefinition {
+            module_path: shorth_source::normalized_module_path(self.source.path()),
             name,
             label,
             scope,
