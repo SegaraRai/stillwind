@@ -5,3 +5,4 @@ dist
 packages/native/npm/*/index.d.ts
 *.retired.tmp.*
 **/stillwind.generated.d.ts
+packages/vite/.review-fixtures/

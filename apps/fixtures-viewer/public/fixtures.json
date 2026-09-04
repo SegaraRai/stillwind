@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "projects": [
+    {
+      "schemaVersion": 1,
+      "id": "view-transition-matrix",
+      "title": "View transition lowering matrix",
+      "description": "Static and conditional view-transition identities, each used with and without a key across module boundaries.",
+      "tags": [
+        "view-transition",
+        "keyed",
+        "cross-module",
+        "vt-lowering"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/transitions.ts",
+        "src/Card.ts"
+      ],
+      "files": [
+        {
+          "path": "src/transitions.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/react\";\n\nexport const pageTitle = style.viewTransition({\n  old: \"opacity-0\",\n  new: \"opacity-100\",\n});\nexport const pageCard = style.viewTransition({\n  old: \"opacity-100\",\n  new: \"opacity-0\",\n});\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\nexport const staticTransition = style(pageTitle);\nexport const staticKeyedTransition = style(pageTitle.for(transitionKey));\nexport const conditionalTransition = style(selectedTransition);\nexport const conditionalKeyedTransition = style(selectedTransition.for(transitionKey));\n",
+          "after": "import { stillwindViewTransition, stillwindViewTransitionStyle } from \"stillwind/react/runtime\";\nexport const pageTitle = stillwindViewTransition(\"--sw-v-7e58d129\");\nexport const pageCard = stillwindViewTransition(\"--sw-v-5ce18560\");\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\nexport const staticTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(pageTitle,undefined,[\"--sw-v-7e58d129\"],\"--sw-vt-name\",\"--sw-vt-class\")};\nexport const staticKeyedTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(\"--sw-v-7e58d129\",transitionKey,[\"--sw-v-7e58d129\"],\"--sw-vt-name\",\"--sw-vt-class\")};\nexport const conditionalTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(selectedTransition,undefined,[\"--sw-v-7e58d129\",\"--sw-v-5ce18560\"],\"--sw-vt-name\",\"--sw-vt-class\")};\nexport const conditionalKeyedTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(selectedTransition,transitionKey,[\"--sw-v-7e58d129\",\"--sw-v-5ce18560\"],\"--sw-vt-name\",\"--sw-vt-class\")};\n",
+          "css": "::view-transition-old(.--sw-v-7e58d129){ opacity:0;}::view-transition-new(.--sw-v-7e58d129){ opacity:1;}::view-transition-old(.--sw-v-5ce18560){ opacity:1;}::view-transition-new(.--sw-v-5ce18560){ opacity:0;}._s_9ea3eea9{--sw-vt-name:none;--sw-vt-class:none;view-transition-name:var(--sw-vt-name);view-transition-class:var(--sw-vt-class);}\n"
+        },
+        {
+          "path": "src/Card.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/react\";\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = style(pageTitle);\nexport const selectedCardTransition = style(selectedTransition);\n",
+          "after": "import { stillwindViewTransitionStyle } from \"stillwind/react/runtime\";\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(pageTitle,undefined,[\"--sw-v-7e58d129\"],\"--sw-vt-name\",\"--sw-vt-class\")};\nexport const selectedCardTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(selectedTransition,undefined,[\"--sw-v-7e58d129\",\"--sw-v-5ce18560\"],\"--sw-vt-name\",\"--sw-vt-class\")};\n",
+          "css": "\n"
+        }
+      ]
+    }
+  ]
+}

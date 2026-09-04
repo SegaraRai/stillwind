@@ -183,13 +183,19 @@ function readJson(request: IncomingMessage): Promise<{ source: string; theme: st
 }
 
 function previewSource(code: string): string {
+  const withRuntime = finalizeReactModule(code, false);
+  return withRuntime.replace(/\bexport\s+App\s*;/g, "export { App };");
+}
+
+/** Adds the runtime helpers (and optionally virtual CSS) required by compiled output. */
+export function finalizeReactModule(code: string, includeStylesheet = true): string {
   const withoutMacroImport = code.replace(
     /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm,
     "",
   );
   const runtimeImport = renderRuntimeImport(withoutMacroImport);
-  const withRuntime = runtimeImport + withoutMacroImport;
-  return withRuntime.replace(/\bexport\s+App\s*;/g, "export { App };");
+  const stylesheetImport = includeStylesheet ? `import "${virtualCssId}";\n` : "";
+  return runtimeImport + stylesheetImport + withoutMacroImport.trimStart();
 }
 
 function renderRuntimeImport(code: string): string {
@@ -400,8 +406,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
       );
       if (!output?.code) return undefined;
-      const runtimeImport = renderRuntimeImport(output.code);
-      return { code: `${runtimeImport}import "${virtualCssId}";\n${output.code}`, map: null };
+      return { code: finalizeReactModule(output.code), map: null };
     },
     configureServer(server: ViteDevServer) {
       server.httpServer?.once("close", closeTypeFacts);

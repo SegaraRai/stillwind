@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { compileReactProject, summarizeReact } from "@stillwind/native";
+import { finalizeReactModule } from "../src/index.ts";
 import { TypeScriptFactsService, type AssetRecord } from "../src/type-facts.ts";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -86,4 +87,14 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.equal(consumer.css.match(/animation-name:--sw-a-/g)?.length, 2);
   assert.match(consumer.css, /view-transition-name:var\(--sw-vt-name\)/);
   assert.match(consumer.css, /view-transition-class:var\(--sw-vt-class\)/);
+
+  const runnable = finalizeReactModule(consumer.code, false);
+  assert.doesNotMatch(runnable, /from "stillwind\/react"/);
+  assert.match(
+    runnable,
+    /^import \{ stillwindAssetClass, stillwindHandleClass, stillwindViewTransitionStyle \} from "stillwind\/react\/runtime";/,
+  );
+  for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
+    assert.match(runnable, new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));
+  }
 });

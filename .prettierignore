@@ -1,3 +1,5 @@
 pnpm-lock.yaml
 fixtures/tailwind-v4/cases/*.md
 fixtures/tailwind-v4/catalog/*.md
+fixtures/projects/*/expected/**
+apps/fixtures-viewer/public/fixtures.json

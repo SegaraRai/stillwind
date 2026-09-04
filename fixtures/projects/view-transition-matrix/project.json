@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "view-transition-matrix",
+  "title": "View transition lowering matrix",
+  "description": "Static and conditional view-transition identities, each used with and without a key across module boundaries.",
+  "tags": ["view-transition", "keyed", "cross-module", "vt-lowering"],
+  "theme": "stillwind.css",
+  "sources": ["src/transitions.ts", "src/Card.ts"]
+}

@@ -61,6 +61,26 @@ The preview response applies a CSP that blocks network connections, forms,
 navigation, external images, and popups; user code never executes in the host
 Play page.
 
+Compiler changes can be reviewed as durable before/after examples in the
+internal [`apps/fixtures-viewer`](./apps/fixtures-viewer) app. Its static catalog
+is generated from schema-versioned projects under [`fixtures/projects`](./fixtures/projects),
+including multi-module cases. See the [review fixture workflow](./docs/review-fixtures.md)
+for permalink format, snapshot refresh commands, and the rule for linking a
+representative transform from PRs and issues.
+
+Stillwind-owned CSS identifiers and Tailwind-compatible internal properties use
+separate configurable namespaces:
+
+```ts
+stillwind({
+  theme: "./src/stillwind.css",
+  prefix: "--sw-",
+  tailwindPrefix: "--tw-",
+});
+```
+
+Both prefixes must start with `--`, end with `-`, and differ from each other.
+
 `@stillwind/native` is a thin loader. Production installs select exactly one
 optional package for the host, such as `@stillwind/native-win32-x64-msvc` or
 `@stillwind/native-linux-x64-gnu`; generated target packages contain the
