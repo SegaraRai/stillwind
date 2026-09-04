@@ -8,6 +8,45 @@ export interface StillwindRuntimeHandle {
   readonly className: string;
 }
 
+interface StillwindRuntimeAsset {
+  readonly kind: "animation" | "view-transition" | "animation-use";
+  readonly identity: string;
+}
+
+/** Creates a callable animation identity for TypeScript-selected runtime branches. */
+export function stillwindAnimation(identity: string) {
+  return Object.assign(
+    (_options: string): StillwindRuntimeAsset => ({ kind: "animation-use", identity }),
+    { kind: "animation" as const, identity },
+  );
+}
+
+/** Creates a view-transition identity for TypeScript-selected runtime branches. */
+export function stillwindViewTransition(identity: string): StillwindRuntimeAsset & {
+  for(key: string | number): StillwindRuntimeAsset & { readonly key: string | number };
+} {
+  return {
+    kind: "view-transition",
+    identity,
+    for: (key) => ({ kind: "view-transition", identity, key }),
+  };
+}
+
+/** Resolves a generated class without accepting arbitrary objects as compiler assets. */
+export function stillwindAssetClass(
+  value: unknown,
+  classes: Readonly<Record<string, string>>,
+): string {
+  if (!value || (typeof value !== "object" && typeof value !== "function")) {
+    throw new TypeError("Stillwind expected a compiled animation or view transition value.");
+  }
+  const identity = "identity" in value ? value.identity : undefined;
+  if (typeof identity !== "string" || !Object.hasOwn(classes, identity)) {
+    throw new TypeError("Stillwind received an unknown animation or view transition identity.");
+  }
+  return classes[identity];
+}
+
 /** Creates the minimal runtime value needed when a ref crosses static data flow. */
 export function stillwindRef(className: string): StillwindRuntimeHandle & {
   readonly anchor: StillwindRuntimeHandle;

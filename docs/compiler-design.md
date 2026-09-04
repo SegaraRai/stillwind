@@ -282,7 +282,8 @@ Each module emits a small extraction summary containing producer identities,
 metadata, exact call spans, and dependency specifiers. It does not contain a
 Rust-computed cross-module value graph. The Vite adapter injects private phantom
 identity arguments into an in-memory shadow source, asks TypeScript 7 for types,
-and converts `StyleRef<RefId, ScopeId>` unions into `TypeFact` records.
+and converts branded ref, scope, animation, and view-transition unions into
+`TypeFact` records.
 
 Source modules in the active build graph can be summarized directly. Published
 packages expose the same versioned Stillwind manifest alongside their JS and
@@ -582,8 +583,14 @@ pure and testable without Vite.
    language-neutral `TypeFact` representation.
 4. Treat missing, widened, forged, or failed checker results conservatively;
    never restore a parallel Rust abstract interpreter as a fallback.
-5. Extend the branded type channel from refs/scopes to animation and view
-   transition assets, then package manifests whose sources are unavailable.
+5. Extend the same manifest-backed identity channel to packages whose sources
+   are unavailable.
+
+Conditional animations and unkeyed view transitions lower to candidate CSS
+classes plus a runtime identity lookup. Conditional keyed view transitions are
+currently rejected with `SHVIEW003`: supporting them requires a combined
+class/style runtime lowering so the selected `.for(key)` expression is evaluated
+exactly once.
 
 Every phase retains the invariants that CSS is fully generated before runtime,
 source locations remain exact, generated identities are collision-checked, and

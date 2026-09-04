@@ -43,6 +43,8 @@ export type StillwindClassValue =
 declare const refProjection: unique symbol;
 declare const scopeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
+declare const animationIdentity: unique symbol;
+declare const viewTransitionIdentity: unique symbol;
 
 export type StillwindDeclarationIdentity<Id extends string> = {
   readonly __stillwindDeclarationIdentity: Id;
@@ -72,20 +74,25 @@ export type StyleRefSelector<RefId extends string = string, ScopeId extends stri
   readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
 };
 
-export type StyleAnimationUse = {
+export type StyleAnimationUse<Id extends string = string> = {
   readonly [refProjection]: true;
+  readonly [animationIdentity]: Id;
 };
 
-export type StyleAnimation = (options: string) => StyleAnimationUse;
+export type StyleAnimation<Id extends string = string> = {
+  (options: string): StyleAnimationUse<Id>;
+  readonly [animationIdentity]: Id;
+};
 
 export type StyleAnimationDefinition = Readonly<Record<string, string>>;
 
-export type StyleViewTransitionUse = {
+export type StyleViewTransitionUse<Id extends string = string> = {
   readonly [refProjection]: true;
+  readonly [viewTransitionIdentity]: Id;
 };
 
-export type StyleViewTransition = StyleViewTransitionUse & {
-  for(key: string | number): StyleViewTransitionUse;
+export type StyleViewTransition<Id extends string = string> = StyleViewTransitionUse<Id> & {
+  for(key: string | number): StyleViewTransitionUse<Id>;
 };
 
 export type StyleViewTransitionDefinition = {
@@ -141,7 +148,15 @@ export type StyleMacro = {
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, ScopeId>;
   animation(definition: StyleAnimationDefinition): StyleAnimation;
+  animation<const Id extends string>(
+    definition: StyleAnimationDefinition,
+    identity: StillwindDeclarationIdentity<Id>,
+  ): StyleAnimation<Id>;
   viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition;
+  viewTransition<const Id extends string>(
+    definition: StyleViewTransitionDefinition,
+    identity: StillwindDeclarationIdentity<Id>,
+  ): StyleViewTransition<Id>;
 };
 
 export const style = Object.assign(

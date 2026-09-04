@@ -21,8 +21,8 @@ use oxc::{
     syntax::operator::LogicalOperator,
 };
 use shorth_ir::{
-    AnimationDefinition, AnimationFrame, AttributeEntry, HandleDefinition, HandleProjection,
-    ModuleIr, ScopeDefinition, StyleCall, StyleInput, ViewTransitionDefinition,
+    AnimationDefinition, AnimationFrame, AssetReference, AttributeEntry, HandleDefinition,
+    HandleProjection, ModuleIr, ScopeDefinition, StyleCall, StyleInput, ViewTransitionDefinition,
 };
 use shorth_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
@@ -399,30 +399,77 @@ impl<'a> MacroExtractor<'a> {
         )
     }
 
-    fn animation_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
-        let Expression::Identifier(identifier) = expression else {
-            return None;
-        };
-        let reference_id = identifier.reference_id.get()?;
-        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        self.animation_symbols.get(&symbol_id).cloned()
+    fn asset_reference(&self, identity: &IdentityId) -> AssetReference {
+        AssetReference {
+            module_path: identity.module_path.clone(),
+            name: Spanned::new(
+                identity.binding_name.clone(),
+                Span::new(self.source.id(), identity.start, identity.end),
+            ),
+        }
     }
 
-    fn view_transition_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
+    fn animation_references(&self, expression: &Expression<'a>) -> Option<Vec<AssetReference>> {
+        let span = expression.span();
+        if let Some(ExportedValue::Animations(value)) = self.type_facts.get(&(span.start, span.end))
+        {
+            return value
+                .finite_candidates()?
+                .iter()
+                .map(|identity| Some(self.asset_reference(identity)))
+                .collect();
+        }
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        self.view_transition_symbols.get(&symbol_id).cloned()
+        let animation = self.animation_symbols.get(&symbol_id)?;
+        Some(vec![AssetReference {
+            module_path: self.source.path().to_owned(),
+            name: animation.clone(),
+        }])
+    }
+
+    fn view_transition_references(
+        &self,
+        expression: &Expression<'a>,
+    ) -> Option<Vec<AssetReference>> {
+        let span = expression.span();
+        if let Some(ExportedValue::ViewTransitions(value)) =
+            self.type_facts.get(&(span.start, span.end))
+        {
+            return value
+                .finite_candidates()?
+                .iter()
+                .map(|identity| Some(self.asset_reference(identity)))
+                .collect();
+        }
+        let Expression::Identifier(identifier) = expression else {
+            return None;
+        };
+        let reference_id = identifier.reference_id.get()?;
+        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        let transition = self.view_transition_symbols.get(&symbol_id)?;
+        Some(vec![AssetReference {
+            module_path: self.source.path().to_owned(),
+            name: transition.clone(),
+        }])
     }
 
     fn view_transition_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
-        if let Some(transition) = self.view_transition_reference(expression) {
-            return Some(StyleInput::ViewTransitionUse {
-                transition,
-                key: None,
-            });
+        if let Some(transitions) = self.view_transition_references(expression) {
+            return match transitions.as_slice() {
+                [transition] => Some(StyleInput::ViewTransitionUse {
+                    transition: transition.clone(),
+                    key: None,
+                }),
+                [] => None,
+                _ => Some(StyleInput::DynamicViewTransitionUse {
+                    value: self.source_span(expression.span()),
+                    transitions,
+                }),
+            };
         }
         let Expression::CallExpression(call) = expression else {
             return None;
@@ -433,7 +480,7 @@ impl<'a> MacroExtractor<'a> {
         if member.property.name.as_str() != "for" {
             return None;
         }
-        let transition = self.view_transition_reference(&member.object)?;
+        let transitions = self.view_transition_references(&member.object)?;
         if call.arguments.len() != 1 {
             self.diagnostics.push(Diagnostic::error(
                 "SHVIEW002",
@@ -442,8 +489,16 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         }
+        if transitions.len() != 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHVIEW003",
+                "conditional viewTransition.for() is not supported yet; choose the transition before style() and use it without a key",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
         Some(StyleInput::ViewTransitionUse {
-            transition,
+            transition: transitions.into_iter().next()?,
             key: Some(self.source_span(call.arguments[0].span())),
         })
     }
@@ -452,7 +507,7 @@ impl<'a> MacroExtractor<'a> {
         let Expression::CallExpression(call) = expression else {
             return None;
         };
-        let animation = self.animation_reference(&call.callee)?;
+        let animations = self.animation_references(&call.callee)?;
         if call.arguments.len() != 1 {
             self.diagnostics.push(Diagnostic::error(
                 "SHANIMATION002",
@@ -469,10 +524,19 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
-        Some(StyleInput::AnimationUse {
-            animation,
-            options: self.string_literal(options),
-        })
+        let options = self.string_literal(options);
+        match animations.as_slice() {
+            [animation] => Some(StyleInput::AnimationUse {
+                animation: animation.clone(),
+                options,
+            }),
+            [] => None,
+            _ => Some(StyleInput::DynamicAnimationUse {
+                value: self.source_span(call.span),
+                animations,
+                options,
+            }),
+        }
     }
 
     fn property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<String>> {
@@ -1207,9 +1271,7 @@ impl<'a> MacroExtractor<'a> {
             }
             match &property.value {
                 Expression::CallExpression(_) => {
-                    let Some(StyleInput::AnimationUse { animation, options }) =
-                        self.animation_use(&property.value)
-                    else {
+                    let Some(animation) = self.animation_use(&property.value) else {
                         self.diagnostics.push(Diagnostic::error(
                             "SHJS004",
                             "a `&` selector must map to a literal utility string, animation use, or `condition && \"…\"`",
@@ -1217,11 +1279,26 @@ impl<'a> MacroExtractor<'a> {
                         ));
                         continue;
                     };
-                    inputs.push(StyleInput::SelectorAnimationUse {
-                        selector: name,
-                        animation,
-                        options,
-                    });
+                    match animation {
+                        StyleInput::AnimationUse { animation, options } => {
+                            inputs.push(StyleInput::SelectorAnimationUse {
+                                selector: name,
+                                animation,
+                                options,
+                            });
+                        }
+                        StyleInput::DynamicAnimationUse {
+                            value,
+                            animations,
+                            options,
+                        } => inputs.push(StyleInput::DynamicSelectorAnimationUse {
+                            selector: name,
+                            value,
+                            animations,
+                            options,
+                        }),
+                        _ => unreachable!("animation_use returns an animation input"),
+                    }
                 }
                 Expression::StringLiteral(value) => {
                     inputs.push(StyleInput::SelectorUtilityString {

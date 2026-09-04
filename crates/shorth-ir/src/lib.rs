@@ -85,6 +85,12 @@ pub struct ViewTransitionDefinition {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AssetReference {
+    pub module_path: String,
+    pub name: Spanned<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HandleProjection {
     Anchor,
     Position,
@@ -153,16 +159,31 @@ pub enum StyleInput {
     /// surrounding object syntax remains unambiguous for attributes/selectors.
     ExternalClass(Span),
     AnimationUse {
-        animation: Spanned<String>,
+        animation: AssetReference,
+        options: Spanned<String>,
+    },
+    DynamicAnimationUse {
+        value: Span,
+        animations: Vec<AssetReference>,
         options: Spanned<String>,
     },
     SelectorAnimationUse {
         selector: Spanned<String>,
-        animation: Spanned<String>,
+        animation: AssetReference,
+        options: Spanned<String>,
+    },
+    DynamicSelectorAnimationUse {
+        selector: Spanned<String>,
+        value: Span,
+        animations: Vec<AssetReference>,
         options: Spanned<String>,
     },
     ViewTransitionUse {
-        transition: Spanned<String>,
+        transition: AssetReference,
         key: Option<Span>,
+    },
+    DynamicViewTransitionUse {
+        value: Span,
+        transitions: Vec<AssetReference>,
     },
 }

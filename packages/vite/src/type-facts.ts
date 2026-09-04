@@ -59,7 +59,6 @@ function identityKey(identity: IdentityId): string {
 function shadowSource(source: TypeFactSource, assets: readonly AssetRecord[]) {
   const identities = new Map<string, IdentityId>();
   const insertions = assets
-    .filter((asset) => asset.identity.kind === "scope" || asset.identity.kind === "ref")
     .map((asset): Insertion => {
       const key = identityKey(asset.identity);
       identities.set(key, asset.identity);
@@ -132,6 +131,8 @@ function typeFactValue(
   const constituents = type.isUnionType() ? type.getTypes() : [type];
   const refs = [];
   const scopes: IdentityId[] = [];
+  const animations: IdentityId[] = [];
+  const viewTransitions: IdentityId[] = [];
 
   for (const constituent of constituents) {
     const symbol = constituent.getAliasSymbol() ?? constituent.getSymbol();
@@ -158,12 +159,34 @@ function typeFactValue(
       }
       continue;
     }
+    if (symbol?.name === "StyleAnimation" || symbol?.name === "StyleAnimationUse") {
+      const candidates = knownIdentities(args[0], identities, "animation");
+      if (!candidates) return null;
+      animations.push(...candidates);
+      continue;
+    }
+    if (symbol?.name === "StyleViewTransition" || symbol?.name === "StyleViewTransitionUse") {
+      const candidates = knownIdentities(args[0], identities, "view-transition");
+      if (!candidates) return null;
+      viewTransitions.push(...candidates);
+      continue;
+    }
     return null;
   }
 
-  if (refs.length > 0 && scopes.length === 0) return { kind: "refs", value: refs };
-  if (scopes.length > 0 && refs.length === 0)
-    return { kind: "scopes", value: symbolic("scope", scopes) };
+  const populated = [refs, scopes, animations, viewTransitions].filter(
+    (values) => values.length > 0,
+  );
+  if (populated.length !== 1) return null;
+  if (refs.length > 0) return { kind: "refs", value: refs };
+  if (scopes.length > 0) return { kind: "scopes", value: symbolic("scope", scopes) };
+  if (animations.length > 0)
+    return { kind: "animations", value: symbolic("animation", animations) };
+  if (viewTransitions.length > 0)
+    return {
+      kind: "view-transitions",
+      value: symbolic("view-transition", viewTransitions),
+    };
   return null;
 }
 

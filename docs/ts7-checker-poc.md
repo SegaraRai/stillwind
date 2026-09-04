@@ -71,9 +71,9 @@ not retain opaque checker objects across snapshots.
 
 Replace the current per-compilation sidecar lifetime with one long-lived checker per Vite project.
 Batch queried spans per snapshot and record cold start, warm update, request count, bytes, and
-failure frequency. Extend the same branded identity channel to animation and view-transition
-assets. A checker failure must produce a conservative diagnostic; it must never activate a second
-Rust implementation of TypeScript data flow.
+failure frequency. The branded identity channel now covers refs, scopes, animations, and view
+transitions. A checker failure must produce a conservative diagnostic; it must never activate a
+second Rust implementation of TypeScript data flow.
 
 ## Primary sources
 

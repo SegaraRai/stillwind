@@ -63,5 +63,9 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert(consumer);
   assert.deepEqual(consumer.diagnostics, []);
   assert.match(consumer.code, /stillwindHandleClass\(selected\)/);
+  assert.match(consumer.code, /stillwindAssetClass\(selectedAnimation\("infinite"\)/);
+  assert.match(consumer.code, /stillwindAssetClass\(selectedTransition/);
   assert.equal(consumer.css.match(/anchor-name:--sw-r-/g)?.length, 2);
+  assert.equal(consumer.css.match(/animation-name:--sw-a-/g)?.length, 2);
+  assert.equal(consumer.css.match(/view-transition-name:--sw-v-/g)?.length, 2);
 });

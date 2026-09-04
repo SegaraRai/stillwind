@@ -171,9 +171,15 @@ function previewSource(code: string): string {
 }
 
 function renderRuntimeImport(code: string): string {
-  const names = ["stillwindClsx", "stillwindHandleClass", "stillwindRef", "stillwindScope"].filter(
-    (name) => code.includes(`${name}(`),
-  );
+  const names = [
+    "stillwindAnimation",
+    "stillwindAssetClass",
+    "stillwindClsx",
+    "stillwindHandleClass",
+    "stillwindRef",
+    "stillwindScope",
+    "stillwindViewTransition",
+  ].filter((name) => code.includes(`${name}(`));
   return names.length > 0 ? `import { ${names.join(", ")} } from "stillwind/react/runtime";\n` : "";
 }
 

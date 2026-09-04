@@ -8,7 +8,8 @@ use std::{
 use serde::Serialize;
 use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
-    AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
+    AnimationDefinition, AssetReference, AttributeEntry, HandleProjection, StyleInput,
+    ViewTransitionDefinition,
 };
 use shorth_semantic::{AssetKind, AssetMetadata, Candidates, ExportedValue, IdentityId, TypeFact};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned, normalized_module_path};
@@ -43,6 +44,23 @@ struct DynamicStyleEntry {
     property: String,
     key: Span,
     prefix: String,
+}
+
+#[derive(Clone, Debug)]
+struct DynamicAssetClassEntry {
+    value: Span,
+    classes: Vec<(String, String)>,
+}
+
+#[derive(Clone, Copy)]
+struct ReactPropsParts<'a> {
+    classes: &'a [GeneratedClass],
+    attributes: &'a [AttributeEntry],
+    handle_markers: &'a [String],
+    external_classes: &'a [Span],
+    dynamic_handle_classes: &'a [Span],
+    dynamic_asset_classes: &'a [DynamicAssetClassEntry],
+    dynamic_styles: &'a [DynamicStyleEntry],
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -231,13 +249,18 @@ impl Compiler {
             let mut handle_markers = Vec::new();
             let mut external_classes = Vec::new();
             let mut dynamic_handle_classes = Vec::new();
+            let mut dynamic_asset_classes = Vec::new();
             let mut dynamic_styles = Vec::new();
             for input in call.inputs {
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
-                    let name = symbol_name(source, "view-transition", &transition);
+                    let name = asset_symbol_name(
+                        &transition.module_path,
+                        "view-transition",
+                        &transition.name,
+                    );
                     let branch = &mut branches[0];
                     branch.2.push_str("view-transition:");
-                    branch.2.push_str(&transition.value);
+                    branch.2.push_str(&transition.name.value);
                     if let Some(key) = key {
                         branch.2.push_str(":keyed");
                         dynamic_styles.push(DynamicStyleEntry {
@@ -264,20 +287,100 @@ impl Compiler {
                     branch.2.push('\0');
                     continue;
                 }
+                if let StyleInput::DynamicViewTransitionUse { value, transitions } = input {
+                    let mut classes = Vec::new();
+                    for transition in transitions {
+                        runtime_assets.insert(IdentityId::new(
+                            AssetKind::ViewTransition,
+                            &transition.module_path,
+                            transition.name.span.start.0,
+                            transition.name.span.end.0,
+                            transition.name.value.clone(),
+                        ));
+                        let name = asset_symbol_name(
+                            &transition.module_path,
+                            "view-transition",
+                            &transition.name,
+                        );
+                        let canonical = format!("dynamic-view-transition:{name}");
+                        let class_name = class_name(&canonical);
+                        emit_utility_rules(
+                            &mut utility_css,
+                            &class_name,
+                            &[CompiledUtility {
+                                variants: Vec::new(),
+                                declaration: format!("view-transition-name:{name};"),
+                                selector: None,
+                                container: None,
+                                nested: Vec::new(),
+                            }],
+                            &theme,
+                        );
+                        result.symbols.push(generated_class_symbol(
+                            source,
+                            &class_name,
+                            &canonical,
+                            call.span,
+                        ));
+                        classes.push((name, class_name));
+                    }
+                    dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
+                    continue;
+                }
                 if let StyleInput::AnimationUse { animation, options } = input {
                     let branch = &mut branches[0];
                     branch.2.push_str("animation:");
-                    branch.2.push_str(&animation.value);
+                    branch.2.push_str(&animation.name.value);
                     branch.2.push(':');
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
                     branch.3.push(resolve_animation_use(
-                        source,
                         &animation,
                         &options,
                         &theme,
                         &mut result.diagnostics,
                     ));
+                    continue;
+                }
+                if let StyleInput::DynamicAnimationUse {
+                    value,
+                    animations,
+                    options,
+                } = input
+                {
+                    let mut classes = Vec::new();
+                    for animation in animations {
+                        runtime_assets.insert(IdentityId::new(
+                            AssetKind::Animation,
+                            &animation.module_path,
+                            animation.name.span.start.0,
+                            animation.name.span.end.0,
+                            animation.name.value.clone(),
+                        ));
+                        let identity =
+                            asset_symbol_name(&animation.module_path, "animation", &animation.name);
+                        let canonical = format!("dynamic-animation:{identity}:{}", options.value);
+                        let class_name = class_name(&canonical);
+                        emit_utility_rules(
+                            &mut utility_css,
+                            &class_name,
+                            &[resolve_animation_use(
+                                &animation,
+                                &options,
+                                &theme,
+                                &mut result.diagnostics,
+                            )],
+                            &theme,
+                        );
+                        result.symbols.push(generated_class_symbol(
+                            source,
+                            &class_name,
+                            &canonical,
+                            call.span,
+                        ));
+                        classes.push((identity, class_name));
+                    }
+                    dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
                     continue;
                 }
                 if let StyleInput::SelectorAnimationUse {
@@ -290,12 +393,11 @@ impl Compiler {
                     branch.2.push_str(&selector.value);
                     branch.2.push('\0');
                     branch.2.push_str("animation:");
-                    branch.2.push_str(&animation.value);
+                    branch.2.push_str(&animation.name.value);
                     branch.2.push(':');
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
                     let mut utility = resolve_animation_use(
-                        source,
                         &animation,
                         &options,
                         &theme,
@@ -303,6 +405,48 @@ impl Compiler {
                     );
                     utility.selector = Some(selector.value);
                     branch.3.push(utility);
+                    continue;
+                }
+                if let StyleInput::DynamicSelectorAnimationUse {
+                    selector,
+                    value,
+                    animations,
+                    options,
+                } = input
+                {
+                    let mut classes = Vec::new();
+                    for animation in animations {
+                        runtime_assets.insert(IdentityId::new(
+                            AssetKind::Animation,
+                            &animation.module_path,
+                            animation.name.span.start.0,
+                            animation.name.span.end.0,
+                            animation.name.value.clone(),
+                        ));
+                        let identity =
+                            asset_symbol_name(&animation.module_path, "animation", &animation.name);
+                        let canonical = format!(
+                            "{}\0dynamic-animation:{identity}:{}",
+                            selector.value, options.value
+                        );
+                        let class_name = class_name(&canonical);
+                        let mut utility = resolve_animation_use(
+                            &animation,
+                            &options,
+                            &theme,
+                            &mut result.diagnostics,
+                        );
+                        utility.selector = Some(selector.value.clone());
+                        emit_utility_rules(&mut utility_css, &class_name, &[utility], &theme);
+                        result.symbols.push(generated_class_symbol(
+                            source,
+                            &class_name,
+                            &canonical,
+                            call.span,
+                        ));
+                        classes.push((identity, class_name));
+                    }
+                    dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
                     continue;
                 }
                 if let StyleInput::ContainerQuery {
@@ -483,8 +627,11 @@ impl Compiler {
                     | StyleInput::ExternalClass(_)
                     | StyleInput::ContainerQuery { .. }
                     | StyleInput::AnimationUse { .. }
+                    | StyleInput::DynamicAnimationUse { .. }
                     | StyleInput::SelectorAnimationUse { .. }
-                    | StyleInput::ViewTransitionUse { .. } => {
+                    | StyleInput::DynamicSelectorAnimationUse { .. }
+                    | StyleInput::ViewTransitionUse { .. }
+                    | StyleInput::DynamicViewTransitionUse { .. } => {
                         unreachable!("handled above")
                     }
                 };
@@ -548,12 +695,15 @@ impl Compiler {
             }
             if let Some(replacement) = render_react_props(
                 source,
-                &call_classes,
-                &attributes,
-                &handle_markers,
-                &external_classes,
-                &dynamic_handle_classes,
-                &dynamic_styles,
+                &ReactPropsParts {
+                    classes: &call_classes,
+                    attributes: &attributes,
+                    handle_markers: &handle_markers,
+                    external_classes: &external_classes,
+                    dynamic_handle_classes: &dynamic_handle_classes,
+                    dynamic_asset_classes: &dynamic_asset_classes,
+                    dynamic_styles: &dynamic_styles,
+                },
             ) {
                 result.transforms.push(PropsTransform {
                     call_span: call.span,
@@ -590,13 +740,35 @@ impl Compiler {
         for animation in module.animation_declarations {
             result.transforms.push(PropsTransform {
                 call_span: animation.call_span,
-                replacement: "undefined".to_owned(),
+                replacement: if runtime_assets.contains(&named_identity(
+                    source,
+                    AssetKind::Animation,
+                    &animation.name,
+                )) {
+                    format!(
+                        "stillwindAnimation(\"{}\")",
+                        symbol_name(source, "animation", &animation.name)
+                    )
+                } else {
+                    "undefined".to_owned()
+                },
             });
         }
         for transition in module.view_transition_declarations {
             result.transforms.push(PropsTransform {
                 call_span: transition.call_span,
-                replacement: "undefined".to_owned(),
+                replacement: if runtime_assets.contains(&named_identity(
+                    source,
+                    AssetKind::ViewTransition,
+                    &transition.name,
+                )) {
+                    format!(
+                        "stillwindViewTransition(\"{}\")",
+                        symbol_name(source, "view-transition", &transition.name)
+                    )
+                } else {
+                    "undefined".to_owned()
+                },
             });
         }
 
@@ -668,6 +840,10 @@ fn ref_symbol_name(definition: &shorth_ir::HandleDefinition) -> String {
 }
 
 fn symbol_name(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {
+    asset_symbol_name(source.path(), kind, definition)
+}
+
+fn asset_symbol_name(module_path: &str, kind: &str, definition: &Spanned<String>) -> String {
     let prefix = match kind {
         "ref" => "--sw-r-",
         "scope" => "--sw-s-",
@@ -675,7 +851,7 @@ fn symbol_name(source: &SourceFile, kind: &str, definition: &Spanned<String>) ->
         "view-transition" => "--sw-v-",
         _ => unreachable!("only named Stillwind asset kinds are allocated"),
     };
-    let identity = symbol_identity(source, kind, definition);
+    let identity = asset_identity(module_path, kind, definition);
     let hash = blake3::hash(identity.as_bytes());
     format!("{prefix}{}", &hash.to_hex()[..8])
 }
@@ -798,15 +974,14 @@ fn emit_animation_definition(
 }
 
 fn resolve_animation_use(
-    source: &SourceFile,
-    animation: &Spanned<String>,
+    animation: &AssetReference,
     options: &Spanned<String>,
     theme: &shorth_css::ThemeIndex,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        symbol_name(source, "animation", animation)
+        asset_symbol_name(&animation.module_path, "animation", &animation.name)
     );
     declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
     CompiledUtility {
@@ -994,6 +1169,16 @@ fn scope_identity(scope: &shorth_ir::ScopeDefinition) -> IdentityId {
     )
 }
 
+fn named_identity(source: &SourceFile, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
+    IdentityId::new(
+        kind,
+        source.path(),
+        name.span.start.0,
+        name.span.end.0,
+        name.value.clone(),
+    )
+}
+
 fn summary_runtime_assets(summary: &shorth_semantic::ModuleSummary) -> BTreeSet<IdentityId> {
     let mut identities = BTreeSet::new();
     for value in summary.exports.values() {
@@ -1020,20 +1205,22 @@ fn summary_runtime_assets(summary: &shorth_semantic::ModuleSummary) -> BTreeSet<
     identities
 }
 
-fn render_react_props(
-    source: &SourceFile,
-    classes: &[GeneratedClass],
-    attributes: &[AttributeEntry],
-    handle_markers: &[String],
-    external_classes: &[Span],
-    dynamic_handle_classes: &[Span],
-    dynamic_styles: &[DynamicStyleEntry],
-) -> Option<String> {
+fn render_react_props(source: &SourceFile, parts: &ReactPropsParts<'_>) -> Option<String> {
+    let ReactPropsParts {
+        classes,
+        attributes,
+        handle_markers,
+        external_classes,
+        dynamic_handle_classes,
+        dynamic_asset_classes,
+        dynamic_styles,
+    } = *parts;
     let mut entries = Vec::new();
     if !classes.is_empty()
         || !handle_markers.is_empty()
         || !external_classes.is_empty()
         || !dynamic_handle_classes.is_empty()
+        || !dynamic_asset_classes.is_empty()
     {
         let mut class_names = handle_markers
             .iter()
@@ -1069,6 +1256,21 @@ fn render_react_props(
                         .slice(*value)
                         .ok()
                         .map(|value| format!("stillwindHandleClass({value})"))
+                })
+                .collect::<Option<Vec<_>>>()?,
+        );
+        class_names.extend(
+            dynamic_asset_classes
+                .iter()
+                .map(|entry| {
+                    let value = source.slice(entry.value).ok()?;
+                    let classes = entry
+                        .classes
+                        .iter()
+                        .map(|(identity, class_name)| format!("\"{identity}\":\"{class_name}\""))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    Some(format!("stillwindAssetClass({value},{{{classes}}})"))
                 })
                 .collect::<Option<Vec<_>>>()?,
         );
