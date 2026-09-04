@@ -87,6 +87,49 @@ export const child = style({ [menu`&:hover`]: "text-white" });"#
 }
 
 #[test]
+fn assembles_project_fragments_under_one_shared_stylesheet() {
+    let sources = serde_json::json!([
+        {
+            "path": "src/One.tsx",
+            "source": r#"import { style } from "stillwind/react";
+    export const one = style("text-white");"#
+        },
+        {
+            "path": "src/Two.tsx",
+            "source": r#"import { style } from "stillwind/react";
+    export const two = style("bg-white");"#
+        }
+    ]);
+    let theme = r#"@import "tailwindcss";
+@theme { --color-white: white; }"#;
+    let output = shorth_napi::compile_react_project_json(&sources.to_string(), theme).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let fragments = value["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["css"].as_str().unwrap())
+        .collect::<Vec<_>>();
+
+    assert!(
+        fragments
+            .iter()
+            .all(|fragment| !fragment.contains("@layer"))
+    );
+    let stylesheet =
+        shorth_napi::render_react_stylesheet(fragments.join("\n"), theme.to_owned(), None).unwrap();
+    assert_eq!(
+        stylesheet
+            .matches("@layer theme, base, components, utilities;")
+            .count(),
+        1
+    );
+    assert_eq!(stylesheet.matches("@layer base{").count(), 1);
+    assert!(stylesheet.contains("color:var(--color-white)"));
+    assert!(stylesheet.contains("background-color:var(--color-white)"));
+}
+
+#[test]
 fn serializes_editor_positions_for_diagnostics() {
     let output = shorth_napi::compile_react_json(
         "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",

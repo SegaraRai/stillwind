@@ -1224,7 +1224,9 @@ declare const product: { id: string };
 const title = style.viewTransition({ group: "duration-normal ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
 const card = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 const heading = style("text-accent", title);
-const item = style("rounded-md", card.for(product.id));"#,
+const item = style("rounded-md", card.for(product.id));
+const image = style(title);
+const detail = style(title);"#,
     );
     let theme = SourceFile::new(
         FileId(2),
@@ -1248,11 +1250,20 @@ const item = style("rounded-md", card.for(product.id));"#,
             .css
             .contains("view-transition-class:var(--sw-vt-class);")
     );
+    let repeated_class = result.classes[result.classes.len() - 1].class_name.as_str();
+    assert_eq!(
+        result
+            .module_css
+            .matches(&format!(".{repeated_class}"))
+            .count(),
+        1,
+        "an identical view-transition utility class should only be emitted once"
+    );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.viewTransition"));
     assert_eq!(
         transformed.matches("stillwindViewTransitionStyle(").count(),
-        2
+        4
     );
     assert_eq!(transformed.matches("product.id").count(), 1);
     assert!(transformed.contains("const title = undefined;"));

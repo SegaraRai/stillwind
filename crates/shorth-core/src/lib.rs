@@ -67,6 +67,9 @@ struct ReactPropsParts<'a> {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CompileResult {
     pub css: String,
+    /// Unwrapped utility rules used to assemble one stylesheet for a module graph.
+    #[serde(skip)]
+    pub module_css: String,
     pub classes: Vec<GeneratedClass>,
     pub symbols: Vec<GeneratedSymbol>,
     pub transforms: Vec<PropsTransform>,
@@ -187,6 +190,20 @@ impl Compiler {
         Ok(render_react_types(&theme))
     }
 
+    /// Wraps compiled module CSS fragments in the project's shared stylesheet layers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the CSS theme cannot be parsed.
+    pub fn render_react_stylesheet(
+        theme_source: &SourceFile,
+        module_css: &str,
+        options: &CompilerOptions,
+    ) -> Result<String, shorth_css::ThemeError> {
+        let theme = Self::read_theme(theme_source)?;
+        Ok(render_stylesheet(&theme, module_css, options))
+    }
+
     /// Compiles the first static React subset into CSS.
     ///
     /// This temporary API deliberately supports only literal utility-string
@@ -268,6 +285,7 @@ impl Compiler {
         }
 
         let mut utility_css = String::new();
+        let mut emitted_utility_classes = BTreeSet::new();
         let module = parsed.module;
         result
             .symbols
@@ -428,23 +446,25 @@ impl Compiler {
                             asset_symbol_name(&animation.module_path, "animation", &animation.name);
                         let canonical = format!("dynamic-animation:{identity}:{}", options.value);
                         let class_name = class_name(&canonical);
-                        emit_utility_rules(
-                            &mut utility_css,
-                            &class_name,
-                            &[resolve_animation_use(
-                                &animation,
-                                &options,
+                        if emitted_utility_classes.insert((class_name.clone(), canonical.clone())) {
+                            emit_utility_rules(
+                                &mut utility_css,
+                                &class_name,
+                                &[resolve_animation_use(
+                                    &animation,
+                                    &options,
+                                    &theme,
+                                    &mut result.diagnostics,
+                                )],
                                 &theme,
-                                &mut result.diagnostics,
-                            )],
-                            &theme,
-                        );
-                        result.symbols.push(generated_class_symbol(
-                            source,
-                            &class_name,
-                            &canonical,
-                            call.span,
-                        ));
+                            );
+                            result.symbols.push(generated_class_symbol(
+                                source,
+                                &class_name,
+                                &canonical,
+                                call.span,
+                            ));
+                        }
                         classes.push((identity, class_name));
                     }
                     dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
@@ -504,13 +524,15 @@ impl Compiler {
                             &mut result.diagnostics,
                         );
                         utility.selector = Some(selector.value.clone());
-                        emit_utility_rules(&mut utility_css, &class_name, &[utility], &theme);
-                        result.symbols.push(generated_class_symbol(
-                            source,
-                            &class_name,
-                            &canonical,
-                            call.span,
-                        ));
+                        if emitted_utility_classes.insert((class_name.clone(), canonical.clone())) {
+                            emit_utility_rules(&mut utility_css, &class_name, &[utility], &theme);
+                            result.symbols.push(generated_class_symbol(
+                                source,
+                                &class_name,
+                                &canonical,
+                                call.span,
+                            ));
+                        }
                         classes.push((identity, class_name));
                     }
                     dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
@@ -586,24 +608,26 @@ impl Compiler {
                             ref_symbol_name(&handle),
                             handle_projection_name(&projection)
                         );
-                        emit_utility_rules(
-                            &mut utility_css,
-                            &class_name,
-                            &[CompiledUtility {
-                                variants: Vec::new(),
-                                declaration: render_handle_projection(&handle, &projection),
-                                selector: None,
-                                container: None,
-                                nested: Vec::new(),
-                            }],
-                            &theme,
-                        );
-                        result.symbols.push(generated_class_symbol(
-                            source,
-                            &class_name,
-                            &canonical,
-                            call.span,
-                        ));
+                        if emitted_utility_classes.insert((class_name.clone(), canonical.clone())) {
+                            emit_utility_rules(
+                                &mut utility_css,
+                                &class_name,
+                                &[CompiledUtility {
+                                    variants: Vec::new(),
+                                    declaration: render_handle_projection(&handle, &projection),
+                                    selector: None,
+                                    container: None,
+                                    nested: Vec::new(),
+                                }],
+                                &theme,
+                            );
+                            result.symbols.push(generated_class_symbol(
+                                source,
+                                &class_name,
+                                &canonical,
+                                call.span,
+                            ));
+                        }
                     }
                     continue;
                 }
@@ -744,13 +768,15 @@ impl Compiler {
                     continue;
                 }
                 let class_name = class_name(&canonical_input);
-                emit_utility_rules(&mut utility_css, &class_name, &utilities, &theme);
-                result.symbols.push(generated_class_symbol(
-                    source,
-                    &class_name,
-                    &canonical_input,
-                    call.span,
-                ));
+                if emitted_utility_classes.insert((class_name.clone(), canonical_input.clone())) {
+                    emit_utility_rules(&mut utility_css, &class_name, &utilities, &theme);
+                    result.symbols.push(generated_class_symbol(
+                        source,
+                        &class_name,
+                        &canonical_input,
+                        call.span,
+                    ));
+                }
                 let generated_class = GeneratedClass {
                     class_name,
                     call_span: call.span,
@@ -850,7 +876,8 @@ impl Compiler {
             result.transforms.clear();
         } else if !utility_css.is_empty() {
             let utility_css = options.rewrite_generated(&utility_css);
-            result.css = render_stylesheet(&theme, &utility_css, options);
+            result.module_css.clone_from(&utility_css);
+            result.css = render_stylesheet(&theme, &result.module_css, options);
         }
 
         for transform in &mut result.transforms {

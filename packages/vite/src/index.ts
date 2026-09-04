@@ -7,6 +7,7 @@ import {
   compileReact,
   compileReactProject,
   generateReactTypes,
+  renderReactStylesheet,
   summarizeReact,
 } from "@stillwind/native";
 import type { Plugin, ViteDevServer } from "vite";
@@ -296,7 +297,12 @@ export function stillwind(options: StillwindOptions): Plugin {
       return id === virtualCssId ? resolvedVirtualCssId : undefined;
     },
     load(id) {
-      if (id === resolvedVirtualCssId) return [...cssByModule.values()].join("\n");
+      if (id === resolvedVirtualCssId)
+        return renderReactStylesheet(
+          [...cssByModule.values()].join("\n"),
+          readFileSync(options.theme, "utf8"),
+          compilerOptions(options),
+        );
       return undefined;
     },
     configResolved(config) {

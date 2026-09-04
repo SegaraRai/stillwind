@@ -186,9 +186,14 @@ pub fn compile_react_project_json_with_options(
     let modules = sources
         .iter()
         .zip(results)
-        .map(|((source, _), result)| ProjectModuleOutput {
-            path: source.path().to_owned(),
-            output: binding_output(result, source, &theme),
+        .map(|((source, _), mut result)| {
+            // Project consumers assemble one shared stylesheet from these
+            // fragments instead of repeating theme/base layers per module.
+            result.css.clone_from(&result.module_css);
+            ProjectModuleOutput {
+                path: source.path().to_owned(),
+                output: binding_output(result, source, &theme),
+            }
         })
         .collect();
     serde_json::to_string(&ProjectBindingOutput { modules }).map_err(|error| error.to_string())
@@ -246,6 +251,23 @@ pub fn compile_react_project(
     let options = parse_options(options_json.as_deref())?;
     compile_react_project_json_with_options(&sources_json, &theme, &options)
         .map_err(Error::from_reason)
+}
+
+/// Wraps project module CSS fragments in one shared theme/base stylesheet.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when the theme or compiler options are invalid.
+#[napi(js_name = "renderReactStylesheet")]
+pub fn render_react_stylesheet(
+    module_css: String,
+    theme: String,
+    options_json: Option<String>,
+) -> Result<String> {
+    let options = parse_options(options_json.as_deref())?;
+    let theme = SourceFile::new(FileId(1), "stillwind.css", theme);
+    Compiler::render_react_stylesheet(&theme, &module_css, &options)
+        .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 fn parse_options(options_json: Option<&str>) -> Result<CompilerOptions> {

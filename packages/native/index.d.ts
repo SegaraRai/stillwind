@@ -22,6 +22,12 @@ export declare function compileReactProject(
   theme: string,
   optionsJson?: string | null,
 ): string;
+/** Wraps project module CSS fragments in one shared theme/base stylesheet. */
+export declare function renderReactStylesheet(
+  moduleCss: string,
+  theme: string,
+  optionsJson?: string | null,
+): string;
 /** Returns the versioned Stillwind module summary used for cross-module values. */
 export declare function summarizeReact(
   source: string,
