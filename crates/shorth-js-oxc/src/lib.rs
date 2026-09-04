@@ -8,8 +8,9 @@ use std::{
 use oxc::{
     allocator::Allocator,
     ast::ast::{
-        Argument, ArrayExpressionElement, BindingPattern, CallExpression, Expression,
-        ImportDeclaration, ImportDeclarationSpecifier, JSXElement, ModuleExportName,
+        Argument, ArrayExpressionElement, BindingPattern, CallExpression, Declaration,
+        ExportAllDeclaration, ExportDeclaration, ExportFromDeclaration, ExportNamedDeclaration,
+        Expression, ImportDeclaration, ImportDeclarationSpecifier, JSXElement, ModuleExportName,
         ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind, StringLiteral,
         VariableDeclarator,
     },
@@ -23,12 +24,17 @@ use shorth_ir::{
     AnimationDefinition, AnimationFrame, AttributeEntry, HandleDefinition, HandleProjection,
     ModuleIr, ScopeDefinition, StyleCall, StyleInput, ViewTransitionDefinition,
 };
+use shorth_semantic::{
+    AssetKind, AssetMetadata, ExportedValue, IdentityId, ImportBinding, ModuleSummary, ReExport,
+    RefAlternative, SymbolicValue,
+};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
 #[derive(Debug)]
 pub struct ParsedJavaScript {
     pub diagnostics: Vec<Diagnostic>,
     pub module: ModuleIr,
+    pub summary: ModuleSummary,
 }
 
 pub fn parse(source: &SourceFile) -> ParsedJavaScript {
@@ -46,10 +52,12 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
     let mut extractor = MacroExtractor::new(source, semantic.scoping());
     extractor.visit_program(&result.program);
     extractor.validate_handles();
+    let summary = extractor.module_summary();
     diagnostics.extend(extractor.diagnostics);
 
     ParsedJavaScript {
         diagnostics,
+        summary,
         module: ModuleIr {
             adapter: shorth_ir::AdapterKind::React,
             style_calls: extractor.style_calls,
@@ -79,6 +87,9 @@ struct MacroExtractor<'a> {
     diagnostics: Vec<Diagnostic>,
     jsx_path: Vec<usize>,
     next_jsx_element: usize,
+    imports: Vec<ImportBinding>,
+    re_exports: Vec<ReExport>,
+    export_symbols: Vec<(SymbolId, String)>,
 }
 
 #[derive(Clone, Debug)]
@@ -115,6 +126,102 @@ impl<'a> MacroExtractor<'a> {
             diagnostics: Vec::new(),
             jsx_path: Vec::new(),
             next_jsx_element: 0,
+            imports: Vec::new(),
+            re_exports: Vec::new(),
+            export_symbols: Vec::new(),
+        }
+    }
+
+    fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
+        IdentityId::new(
+            kind,
+            self.source.path(),
+            name.span.start.0,
+            name.span.end.0,
+            name.value.clone(),
+        )
+    }
+
+    fn module_summary(&self) -> ModuleSummary {
+        let mut summary = ModuleSummary::new(self.source.path());
+        summary.imports.clone_from(&self.imports);
+        summary.re_exports.clone_from(&self.re_exports);
+
+        for definition in &self.scope_definitions {
+            summary.assets.insert(
+                self.identity(AssetKind::Scope, &definition.name),
+                AssetMetadata {
+                    label: definition.label.as_ref().map(|label| label.value.clone()),
+                },
+            );
+        }
+        for definition in &self.handle_definitions {
+            summary.assets.insert(
+                self.identity(AssetKind::Ref, &definition.name),
+                AssetMetadata {
+                    label: definition.label.as_ref().map(|label| label.value.clone()),
+                },
+            );
+        }
+        for definition in &self.animation_declarations {
+            summary.assets.insert(
+                self.identity(AssetKind::Animation, &definition.name),
+                AssetMetadata { label: None },
+            );
+        }
+        for definition in &self.view_transition_declarations {
+            summary.assets.insert(
+                self.identity(AssetKind::ViewTransition, &definition.name),
+                AssetMetadata { label: None },
+            );
+        }
+
+        for (symbol, exported) in &self.export_symbols {
+            if let Some(definition) = self.scope_symbols.get(symbol) {
+                summary.exports.insert(
+                    exported.clone(),
+                    ExportedValue::Scopes(SymbolicValue::exact(
+                        self.identity(AssetKind::Scope, &definition.name),
+                    )),
+                );
+            } else if let Some(definition) = self.handle_symbols.get(symbol) {
+                let scopes = definition.scope.as_ref().map(|scope| {
+                    SymbolicValue::exact(self.identity(AssetKind::Scope, &scope.name))
+                });
+                summary.exports.insert(
+                    exported.clone(),
+                    ExportedValue::Refs(vec![
+                        RefAlternative::new(
+                            self.identity(AssetKind::Ref, &definition.name),
+                            scopes,
+                        )
+                        .expect("extractor creates correctly typed ref relations"),
+                    ]),
+                );
+            } else if let Some(name) = self.animation_symbols.get(symbol) {
+                summary.exports.insert(
+                    exported.clone(),
+                    ExportedValue::Animations(SymbolicValue::exact(
+                        self.identity(AssetKind::Animation, name),
+                    )),
+                );
+            } else if let Some(name) = self.view_transition_symbols.get(symbol) {
+                summary.exports.insert(
+                    exported.clone(),
+                    ExportedValue::ViewTransitions(SymbolicValue::exact(
+                        self.identity(AssetKind::ViewTransition, name),
+                    )),
+                );
+            }
+        }
+        summary
+    }
+
+    fn module_export_name(name: &ModuleExportName<'a>) -> String {
+        match name {
+            ModuleExportName::IdentifierName(name) => name.name.to_string(),
+            ModuleExportName::IdentifierReference(name) => name.name.to_string(),
+            ModuleExportName::StringLiteral(name) => name.value.to_string(),
         }
     }
 
@@ -1168,7 +1275,84 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 }
             }
         }
+        if !Self::is_style_import(declaration)
+            && let Some(specifiers) = &declaration.specifiers
+        {
+            for specifier in specifiers {
+                let (local, imported) = match specifier {
+                    ImportDeclarationSpecifier::ImportSpecifier(specifier) => (
+                        specifier.local.name.to_string(),
+                        Self::module_export_name(&specifier.imported),
+                    ),
+                    ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
+                        (specifier.local.name.to_string(), "default".to_owned())
+                    }
+                    ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => {
+                        (specifier.local.name.to_string(), "*".to_owned())
+                    }
+                };
+                self.imports.push(ImportBinding {
+                    local,
+                    source: declaration.source.value.to_string(),
+                    imported,
+                });
+            }
+        }
         walk::walk_import_declaration(self, declaration);
+    }
+
+    fn visit_export_declaration(&mut self, declaration: &ExportDeclaration<'a>) {
+        if let Declaration::VariableDeclaration(variables) = &declaration.declaration {
+            for declarator in &variables.declarations {
+                if let BindingPattern::BindingIdentifier(identifier) = &declarator.id
+                    && let Some(symbol) = identifier.symbol_id.get()
+                {
+                    self.export_symbols
+                        .push((symbol, identifier.name.to_string()));
+                }
+            }
+        }
+        walk::walk_export_declaration(self, declaration);
+    }
+
+    fn visit_export_named_declaration(&mut self, declaration: &ExportNamedDeclaration<'a>) {
+        for specifier in &declaration.specifiers {
+            let ModuleExportName::IdentifierReference(local) = &specifier.local else {
+                continue;
+            };
+            let Some(reference) = local.reference_id.get() else {
+                continue;
+            };
+            let Some(symbol) = self.scoping.get_reference(reference).symbol_id() else {
+                continue;
+            };
+            self.export_symbols
+                .push((symbol, Self::module_export_name(&specifier.exported)));
+        }
+        walk::walk_export_named_declaration(self, declaration);
+    }
+
+    fn visit_export_from_declaration(&mut self, declaration: &ExportFromDeclaration<'a>) {
+        for specifier in &declaration.specifiers {
+            self.re_exports.push(ReExport {
+                exported: Self::module_export_name(&specifier.exported),
+                source: declaration.source.value.to_string(),
+                imported: Self::module_export_name(&specifier.local),
+            });
+        }
+        walk::walk_export_from_declaration(self, declaration);
+    }
+
+    fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
+        self.re_exports.push(ReExport {
+            exported: declaration
+                .exported
+                .as_ref()
+                .map_or_else(|| "*".to_owned(), Self::module_export_name),
+            source: declaration.source.value.to_string(),
+            imported: "*".to_owned(),
+        });
+        walk::walk_export_all_declaration(self, declaration);
     }
 
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
@@ -1377,6 +1561,40 @@ export const Menu = () => <div {...style(menu)}><button {...style(scoped)} /></d
                 .map(|label| label.value.as_str()),
             Some("item")
         );
+    }
+
+    #[test]
+    fn summarizes_exported_assets_and_module_edges() {
+        let source = SourceFile::new(
+            FileId(1),
+            r"src\Parent.tsx",
+            r#"import { style } from "stillwind/react";
+import { external as importedExternal } from "./external";
+export const menu = style.scope("menu");
+const trigger = style.ref(menu, "trigger");
+export { trigger as menuTrigger };
+export { sharedTransition as transition } from "./shared";
+export const Parent = () => <div {...style(menu)}><button {...style(trigger)} /></div>;"#,
+        );
+
+        let parsed = parse(&source);
+
+        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        assert_eq!(parsed.summary.module_path, "src/Parent.tsx");
+        assert_eq!(parsed.summary.imports.len(), 1);
+        assert_eq!(parsed.summary.imports[0].local, "importedExternal");
+        assert!(matches!(
+            parsed.summary.exports.get("menu"),
+            Some(ExportedValue::Scopes(_))
+        ));
+        let Some(ExportedValue::Refs(alternatives)) = parsed.summary.exports.get("menuTrigger")
+        else {
+            panic!("menuTrigger should be an exported ref");
+        };
+        assert_eq!(alternatives.len(), 1);
+        assert!(alternatives[0].permitted_scopes.is_some());
+        assert_eq!(parsed.summary.re_exports[0].exported, "transition");
+        assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");
     }
 
     #[test]

@@ -23,15 +23,23 @@ pub struct IdentityId {
     pub module_path: String,
     pub start: u32,
     pub end: u32,
+    pub binding_name: String,
 }
 
 impl IdentityId {
-    pub fn new(kind: AssetKind, module_path: &str, start: u32, end: u32) -> Self {
+    pub fn new(
+        kind: AssetKind,
+        module_path: &str,
+        start: u32,
+        end: u32,
+        binding_name: impl Into<String>,
+    ) -> Self {
         Self {
             kind,
             module_path: normalized_module_path(module_path),
             start,
             end,
+            binding_name: binding_name.into(),
         }
     }
 }
@@ -185,7 +193,13 @@ pub struct ModuleSummary {
     pub module_path: String,
     pub imports: Vec<ImportBinding>,
     pub re_exports: Vec<ReExport>,
+    pub assets: BTreeMap<IdentityId, AssetMetadata>,
     pub exports: BTreeMap<String, ExportedValue>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AssetMetadata {
+    pub label: Option<String>,
 }
 
 impl ModuleSummary {
@@ -197,6 +211,7 @@ impl ModuleSummary {
             module_path: normalized_module_path(module_path),
             imports: Vec::new(),
             re_exports: Vec::new(),
+            assets: BTreeMap::new(),
             exports: BTreeMap::new(),
         }
     }
@@ -218,14 +233,14 @@ mod tests {
     use super::*;
 
     fn identity(kind: AssetKind, start: u32) -> IdentityId {
-        IdentityId::new(kind, r"src\Menu.tsx", start, start + 1)
+        IdentityId::new(kind, r"src\Menu.tsx", start, start + 1, "asset")
     }
 
     #[test]
     fn identities_are_path_stable_across_operating_systems() {
         assert_eq!(
-            IdentityId::new(AssetKind::Ref, r"src\Menu.tsx", 4, 8),
-            IdentityId::new(AssetKind::Ref, "src/Menu.tsx", 4, 8)
+            IdentityId::new(AssetKind::Ref, r"src\Menu.tsx", 4, 8, "menu"),
+            IdentityId::new(AssetKind::Ref, "src/Menu.tsx", 4, 8, "menu")
         );
     }
 
