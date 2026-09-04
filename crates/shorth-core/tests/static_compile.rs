@@ -1371,88 +1371,7 @@ const props = style(trigger.anchor);"#;
 }
 
 #[test]
-fn compiles_an_exported_ref_across_a_module_boundary() {
-    let parent = SourceFile::new(
-        FileId(1),
-        "src/Parent.tsx",
-        r#"import { style } from "stillwind/react";
-export const trigger = style.ref("trigger");
-export const Parent = ({ children }) => <div {...style(trigger)}>{children}</div>;"#,
-    );
-    let child = SourceFile::new(
-        FileId(2),
-        "src/Child.tsx",
-        r#"import { style } from "stillwind/react";
-import { trigger } from "./Parent";
-export const Child = () => <span {...style({ [trigger`&:hover`]: "text-accent" })}>Child</span>;"#,
-    );
-    let theme = SourceFile::new(
-        FileId(3),
-        "stillwind.css",
-        "@theme { --color-accent: red; }",
-    );
-
-    let results = Compiler::compile_react_project(&[parent.clone(), child], &theme).unwrap();
-
-    assert!(
-        results[0].diagnostics.is_empty(),
-        "{:#?}",
-        results[0].diagnostics
-    );
-    assert!(
-        results[1].diagnostics.is_empty(),
-        "{:#?}",
-        results[1].diagnostics
-    );
-    let parent_code = results[0].apply_to_source(&parent).unwrap();
-    let marker = parent_code
-        .split('"')
-        .find(|part| part.starts_with("s_trigger_"))
-        .expect("parent should attach the exported ref marker");
-    assert!(results[1].css.contains(&format!(".{marker}:where(:hover)")));
-}
-
-#[test]
-fn preserves_imported_conditional_ref_candidates_through_a_barrel() {
-    let parent = SourceFile::new(
-        FileId(1),
-        "src/Parent.tsx",
-        r#"import { style } from "stillwind/react";
-export const first = style.ref("first");
-export const second = style.ref("second");"#,
-    );
-    let chooser = SourceFile::new(
-        FileId(2),
-        "src/chooser.ts",
-        r#"import { first, second } from "./Parent";
-export const selected = enabled ? first : second;"#,
-    );
-    let child = SourceFile::new(
-        FileId(3),
-        "src/Child.tsx",
-        r#"import { style } from "stillwind/react";
-import { selected } from "./chooser";
-export const child = style({ [selected`&:hover`]: "text-accent" });"#,
-    );
-    let theme = SourceFile::new(
-        FileId(4),
-        "stillwind.css",
-        "@theme { --color-accent: red; }",
-    );
-
-    let results = Compiler::compile_react_project(&[parent, chooser, child], &theme).unwrap();
-
-    assert!(
-        results[2].diagnostics.is_empty(),
-        "{:#?}",
-        results[2].diagnostics
-    );
-    assert!(results[2].css.contains(".s_first_"), "{}", results[2].css);
-    assert!(results[2].css.contains(".s_second_"), "{}", results[2].css);
-}
-
-#[test]
-fn lowers_dynamic_ref_attachments_to_small_runtime_descriptors() {
+fn rejects_conditional_ref_attachments_without_typescript_facts() {
     let component = SourceFile::new(
         FileId(1),
         "src/Dynamic.tsx",
@@ -1465,13 +1384,23 @@ export const props = style(selected);"#,
     let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
 
     let result = Compiler::compile_react(&component, &theme);
-    let code = result.apply_to_source(&component).unwrap();
+    assert_eq!(result.diagnostics[0].code, "SHTS001");
+}
 
-    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(code.contains("stillwindRef(\"s_first_"), "{code}");
-    assert!(code.contains("stillwindRef(\"s_second_"), "{code}");
-    assert!(
-        code.contains("className:stillwindHandleClass(selected)"),
-        "{code}"
+#[test]
+fn rejects_conditional_ref_projections_without_typescript_facts() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/DynamicProjection.tsx",
+        r#"import { style } from "stillwind/react";
+const first = style.ref("first");
+const second = style.ref("second");
+const selected = enabled ? first : second;
+export const anchor = style(selected.anchor);
+export const container = style(selected.container("inline-size"));"#,
     );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+    assert_eq!(result.diagnostics[0].code, "SHTS001");
 }

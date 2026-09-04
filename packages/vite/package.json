@@ -11,7 +11,8 @@
   "dependencies": {
     "@stillwind/native": "workspace:*",
     "esbuild": "^0.28.2",
-    "stillwind": "workspace:*"
+    "stillwind": "workspace:*",
+    "typescript": "7.0.2"
   },
   "peerDependencies": {
     "vite": "^7.0.0"

@@ -1290,6 +1290,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shorth-core",
+ "shorth-semantic",
  "shorth-source",
 ]
 

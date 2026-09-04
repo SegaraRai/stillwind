@@ -4,13 +4,29 @@ export function stillwindClsx(...values: readonly unknown[]): string {
 }
 
 export interface StillwindRuntimeHandle {
-  readonly kind: "ref" | "scope";
+  readonly kind: "ref" | "scope" | "projection";
   readonly className: string;
 }
 
 /** Creates the minimal runtime value needed when a ref crosses static data flow. */
-export function stillwindRef(className: string): StillwindRuntimeHandle {
-  return { kind: "ref", className };
+export function stillwindRef(className: string): StillwindRuntimeHandle & {
+  readonly anchor: StillwindRuntimeHandle;
+  readonly position: StillwindRuntimeHandle;
+  readonly anchorScope: StillwindRuntimeHandle;
+  container(type: "size" | "inline-size"): StillwindRuntimeHandle;
+} {
+  const projection = (name: string): StillwindRuntimeHandle => ({
+    kind: "projection",
+    className: `_swp_${className}_${name}`,
+  });
+  return {
+    kind: "ref",
+    className,
+    anchor: projection("anchor"),
+    position: projection("position"),
+    anchorScope: projection("scope"),
+    container: projection,
+  };
 }
 
 /** Creates the minimal runtime value needed when a scope crosses static data flow. */
@@ -24,7 +40,7 @@ export function stillwindHandleClass(value: unknown): string {
     !value ||
     typeof value !== "object" ||
     !("kind" in value) ||
-    (value.kind !== "ref" && value.kind !== "scope") ||
+    (value.kind !== "ref" && value.kind !== "scope" && value.kind !== "projection") ||
     !("className" in value) ||
     typeof value.className !== "string"
   ) {

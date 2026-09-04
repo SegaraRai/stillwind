@@ -60,7 +60,7 @@ export const trigger = style.ref("trigger");"#,
 }
 
 #[test]
-fn compiles_a_cross_module_ref_graph_for_node_consumers() {
+fn requires_typescript_facts_for_cross_module_refs() {
     let sources = serde_json::json!([
         {
             "path": "src/Parent.tsx",
@@ -83,18 +83,7 @@ export const child = style({ [menu`&:hover`]: "text-white" });"#
 
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
     assert_eq!(value["modules"].as_array().unwrap().len(), 2);
-    let parent_code = value["modules"][0]["code"].as_str().unwrap();
-    let child_css = value["modules"][1]["css"].as_str().unwrap();
-    let marker = value["modules"][0]["symbols"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|symbol| symbol["kind"] == "ref-marker")
-        .unwrap()["name"]
-        .as_str()
-        .unwrap();
-    assert!(parent_code.contains(marker));
-    assert!(child_css.contains(marker));
+    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SHTS001");
 }
 
 #[test]

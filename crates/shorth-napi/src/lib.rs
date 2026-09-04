@@ -1,9 +1,12 @@
 //! Node-API surface for running the Shorth compiler inside Vite.
 
+use std::collections::BTreeMap;
+
 use napi::{Error, Result};
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use shorth_core::{CompileResult, Compiler, GeneratedClass, GeneratedSymbol};
+use shorth_semantic::{AssetMetadata, IdentityId, TypeFact};
 use shorth_source::{FileId, SourceFile};
 
 #[derive(Serialize)]
@@ -19,6 +22,8 @@ struct BindingOutput {
 struct ProjectSource {
     path: String,
     source: String,
+    #[serde(default)]
+    type_facts: Vec<TypeFact>,
 }
 
 #[derive(Serialize)]
@@ -131,10 +136,15 @@ pub fn compile_react_project_json(
         .into_iter()
         .enumerate()
         .map(|(index, source)| {
-            SourceFile::new(
-                FileId(u32::try_from(index + 1).expect("source graph is smaller than u32::MAX")),
-                source.path,
-                source.source,
+            (
+                SourceFile::new(
+                    FileId(
+                        u32::try_from(index + 1).expect("source graph is smaller than u32::MAX"),
+                    ),
+                    source.path,
+                    source.source,
+                ),
+                source.type_facts,
             )
         })
         .collect::<Vec<_>>();
@@ -143,12 +153,21 @@ pub fn compile_react_project_json(
         "stillwind.css",
         theme,
     );
-    let results =
-        Compiler::compile_react_project(&sources, &theme).map_err(|error| error.to_string())?;
+    let assets = sources
+        .iter()
+        .flat_map(|(source, _)| Compiler::analyze_javascript(source).summary.assets)
+        .map(|asset| (asset.identity, asset.metadata))
+        .collect::<BTreeMap<IdentityId, AssetMetadata>>();
+    let results = sources
+        .iter()
+        .map(|(source, type_facts)| {
+            Compiler::compile_react_with_type_facts(source, &theme, type_facts, &assets)
+        })
+        .collect::<Vec<_>>();
     let modules = sources
         .iter()
         .zip(results)
-        .map(|(source, result)| ProjectModuleOutput {
+        .map(|((source, _), result)| ProjectModuleOutput {
             path: source.path().to_owned(),
             output: binding_output(result, source, &theme),
         })

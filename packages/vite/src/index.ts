@@ -10,6 +10,7 @@ import {
   summarizeReact,
 } from "@stillwind/native";
 import type { Plugin, ViteDevServer } from "vite";
+import { collectTypeScriptFacts, type AssetRecord, type TypeFact } from "./type-facts.ts";
 
 export interface StillwindOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
@@ -55,12 +56,14 @@ interface PlayOutput extends CompilerOutput {
 interface ModuleSummary {
   imports: Array<{ source: string }>;
   re_exports: Array<{ source: string }>;
+  assets: AssetRecord[];
 }
 
 interface ProjectSource {
   id: string;
   path: string;
   source: string;
+  type_facts?: TypeFact[];
 }
 
 interface ProjectCompilerOutput {
@@ -78,7 +81,7 @@ function compile(source: string, path: string, theme: string): CompilerOutput {
 function compileProject(sources: readonly ProjectSource[], theme: string): ProjectCompilerOutput {
   return JSON.parse(
     compileReactProject(
-      JSON.stringify(sources.map(({ path, source }) => ({ path, source }))),
+      JSON.stringify(sources.map(({ path, source, type_facts }) => ({ path, source, type_facts }))),
       theme,
     ),
   ) as ProjectCompilerOutput;
@@ -310,7 +313,22 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
 
       const sources = [...sourcesById.values()];
-      const projectOutput = compileProject(sources, readFileSync(options.theme, "utf8"));
+      const summaries = new Map(
+        sources.map((source) => [
+          source.path,
+          JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
+        ]),
+      );
+      const typeFacts = collectTypeScriptFacts(
+        sources,
+        new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
+        projectRoot,
+      );
+      const typedSources = sources.map((source) => ({
+        ...source,
+        type_facts: typeFacts.get(source.path) ?? [],
+      }));
+      const projectOutput = compileProject(typedSources, readFileSync(options.theme, "utf8"));
       const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
       for (const output of projectOutput.modules) {
         const moduleId = idsByPath.get(output.path);

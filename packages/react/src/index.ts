@@ -44,26 +44,32 @@ declare const refProjection: unique symbol;
 declare const scopeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
 
-export type StyleRefProjection = {
+export type StillwindDeclarationIdentity<Id extends string> = {
+  readonly __stillwindDeclarationIdentity: Id;
+};
+
+export type StyleRefProjection<RefId extends string = string, ScopeId extends string = never> = {
   readonly [refProjection]: true;
+  readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
 };
 
-export type StyleScope = {
-  readonly [scopeIdentity]: true;
+export type StyleScope<Id extends string = string> = {
+  readonly [scopeIdentity]: Id;
 };
 
-export type StyleRef = {
-  readonly [refIdentity]: true;
-  readonly anchor: StyleRefProjection;
-  readonly position: StyleRefProjection;
-  readonly anchorScope: StyleRefProjection;
-  container(type: "size" | "inline-size"): StyleRefProjection;
-  at(query: string, utilities: string): StyleRefProjection;
-  (strings: TemplateStringsArray): StyleRefSelector;
+export type StyleRef<RefId extends string = string, ScopeId extends string = never> = {
+  readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
+  readonly anchor: StyleRefProjection<RefId, ScopeId>;
+  readonly position: StyleRefProjection<RefId, ScopeId>;
+  readonly anchorScope: StyleRefProjection<RefId, ScopeId>;
+  container(type: "size" | "inline-size"): StyleRefProjection<RefId, ScopeId>;
+  at(query: string, utilities: string): StyleRefProjection<RefId, ScopeId>;
+  (strings: TemplateStringsArray): StyleRefSelector<RefId, ScopeId>;
 };
 
-export type StyleRefSelector = {
+export type StyleRefSelector<RefId extends string = string, ScopeId extends string = never> = {
   readonly [refProjection]: true;
+  readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
 };
 
 export type StyleAnimationUse = {
@@ -111,10 +117,29 @@ export type StyleMacro = {
   (...inputs: readonly StyleArgument[]): StyleProps;
   scope(): StyleScope;
   scope(name: string): StyleScope;
+  scope<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleScope<Id>;
+  scope<const Id extends string>(
+    name: string,
+    identity: StillwindDeclarationIdentity<Id>,
+  ): StyleScope<Id>;
   ref(): StyleRef;
   ref(name: string): StyleRef;
   ref(scope: StyleScope): StyleRef;
   ref(scope: StyleScope, name: string): StyleRef;
+  ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
+  ref<const Id extends string>(
+    name: string,
+    identity: StillwindDeclarationIdentity<Id>,
+  ): StyleRef<Id>;
+  ref<const ScopeId extends string, const Id extends string>(
+    scope: StyleScope<ScopeId>,
+    identity: StillwindDeclarationIdentity<Id>,
+  ): StyleRef<Id, ScopeId>;
+  ref<const ScopeId extends string, const Id extends string>(
+    scope: StyleScope<ScopeId>,
+    name: string,
+    identity: StillwindDeclarationIdentity<Id>,
+  ): StyleRef<Id, ScopeId>;
   animation(definition: StyleAnimationDefinition): StyleAnimation;
   viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition;
 };

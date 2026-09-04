@@ -19,8 +19,9 @@ linting, quick-fixes, and a future formatter.
 6. Formatter and linter consume the same parsed Stillwind IR. They do not recover
    intent from generated CSS.
 7. Handle-producing APIs create declaration-site identities, while their values
-   remain ordinary JavaScript values across module boundaries. Compilation uses
-   finite symbolic candidate analysis rather than imposing local-binding rules.
+   remain ordinary JavaScript values across module boundaries. TypeScript 7 is
+   the primary propagation engine for aliases, conditionals, and module edges;
+   Rust consumes typed facts and does not reimplement TypeScript data flow.
 
 Oxc is a strong fit for the first frontend: it parses JS, TS, JSX and TSX,
 exposes a span on every AST node, and provides semantic analysis for binding
@@ -44,11 +45,11 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
  source files + stillwind.css + dependency manifests
           │
           ▼
- language frontend + module graph (Oxc first; framework extractors later)
+ Oxc extraction + declaration-site identity assignment
           │  ModuleIR: calls, static expressions, markup facts, exact spans
           ▼
- symbolic value propagation
-          │  module summaries, identities, finite candidate sets, relations
+ TypeScript 7 shadow project + checker sidecar
+          │  span-keyed finite candidates and correlated ref/scope relations
           ▼
  semantic analysis
           │  theme lookup, selector grammar, ref/scope graph, lint diagnostics
@@ -223,19 +224,15 @@ const enter = style.animation({ from: "opacity-0", to: "opacity-100" });
 const title = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 ```
 
-That is not a language rule. The target semantics allow these values to flow
-through normal JavaScript; the symbolic-value architecture below replaces this
-temporary extraction limitation.
-
-Today, reassignments, captures through arbitrary functions, dynamic property
-access, and cross-module re-exports are diagnosed as unsupported rather than
-guessed. The symbolic-value plan below replaces this with conservative, sound
-candidate propagation and a runtime descriptor where a dynamic choice remains.
+That is not a typed-language rule. In TypeScript, these values may flow through
+ordinary aliases, functions, properties, conditionals, imports, and re-exports;
+the TS7 checker provides the resulting candidates. JavaScript without checker
+facts deliberately remains limited to direct local declarations.
 
 ### Finite symbolic handle values
 
 Handle producers are declaration-site assets, not local compiler variables.
-The module graph assigns each producer a globally stable `IdentityId` from the
+The extractor assigns each producer a globally stable `IdentityId` from the
 normalized module path, callsite span, kind, and compiler namespace. The same
 identity is denoted if a producer call is evaluated repeatedly; this keeps the
 CSS identity universe finite without restricting the resulting JavaScript value
@@ -253,11 +250,12 @@ enum SymbolicValue {
 }
 ```
 
-`Set` is a value-domain abstraction, not a request to eagerly generate every
-combination. It is propagated through imports, exports, re-exports, aliases,
-conditional expressions, arrays, and supported function summaries. TypeScript
-may describe the public objects for ergonomics, but `.d.ts` files are never the
-source of truth for this analysis and JavaScript remains supported.
+`Set` is a value-domain representation at the Rust lowering boundary, not a
+second propagation engine. TypeScript propagates branded declaration-site
+identities through imports, exports, re-exports, aliases, conditionals, arrays,
+objects, functions, and control flow. Rust receives the resulting facts keyed
+by original source spans. JavaScript keeps direct, single-module support; typed
+cross-module or conditional handles require TypeScript.
 
 Refs carry a relationship table rather than a flattened `scope × ref` product:
 
@@ -280,10 +278,11 @@ refer to a producer set, while CSS names remain declaration-site stable.
 
 ### Module summaries and package manifests
 
-Each module emits a cacheable `ModuleSummary` containing exported producers,
-exported symbolic values, imports/re-exports, relation metadata, exact spans,
-and a content/version hash. The graph resolver merges summaries to a fixed
-point; it does not execute JavaScript or use TypeScript's type checker.
+Each module emits a small extraction summary containing producer identities,
+metadata, exact call spans, and dependency specifiers. It does not contain a
+Rust-computed cross-module value graph. The Vite adapter injects private phantom
+identity arguments into an in-memory shadow source, asks TypeScript 7 for types,
+and converts `StyleRef<RefId, ScopeId>` unions into `TypeFact` records.
 
 Source modules in the active build graph can be summarized directly. Published
 packages expose the same versioned Stillwind manifest alongside their JS and
@@ -565,61 +564,26 @@ Cache per-file `ModuleIr`, lowered `StyleIR`, diagnostics, and CSS fragments.
 A source edit recompiles only that module. A theme edit invalidates semantic
 resolution and CSS fragments that depend on it, and regenerates `.d.ts`.
 
-Module summaries are additionally content-addressed. Changing an exported
-identity invalidates its importers; changing a non-exported style call does not.
-The resolver retains symbolic values and relation tables in the cache, not just
-their rendered CSS, so a downstream conditional can be re-planned without
-reparsing its dependency.
+Shadow inputs and extracted producer records are additionally content-addressed.
+Changing an exported identity invalidates TypeScript dependants; changing an
+unrelated style call does not. Checker objects are snapshot-local and never
+stored in the Rust cache.
 
 The Vite plugin owns watch registration and HMR invalidation; the Rust core is
 pure and testable without Vite.
 
-## Cross-module symbolic-value implementation plan
+## TypeScript-backed propagation plan
 
-This work changes the compiler architecture; it should not be added as special
-cases to the current single-module `HashMap<SymbolId, …>` extractor.
-
-1. **Freeze semantics and fixtures.** Add multi-file golden fixtures for
-   export/import, re-export, aliases, conditionals, function argument/return,
-   and repeated evaluation of one declaration site. Cover `scope`, `ref`, ref
-   projections, `animation`, and `viewTransition`. A fixture records source
-   transforms, CSS, runtime descriptor output when needed, and diagnostics.
-   Acceptance gate: an exact imported ref emits the same identity as a local
-   ref on Windows, macOS, and Linux.
-2. **Introduce identity-first IR.** Replace local binding-name matching in
-   relationship data with `IdentityId`, `SymbolicValue`, and correlated
-   `RefAlternative` records. Keep the current single-file lowering as an
-   adapter over this IR. Acceptance gate: union normalization is deterministic,
-   duplicate-free, and cannot lose scope/ref correlation.
-3. **Build graph summaries.** Add a resolver-facing Rust API that accepts
-   module source plus resolved import edges and returns `ModuleSummary`. Support
-   named exports/imports and re-exports first; cache by source and dependency
-   summary hash. Acceptance gate: a three-module fixture resolves an imported
-   scope/ref without a source-text scan or TypeScript checker.
-4. **Propagate symbolic values.** Implement a small abstract interpreter for
-   aliases, destructuring where sound, conditional/logical selection, arrays,
-   object fields, parameters, and returns. Use function summaries with a
-   fixed-point worklist; when precision is lost, retain `Universe(kind)` or a
-   descriptor requirement rather than rejecting valid source. Acceptance gate:
-   candidate unions are rendered with `:is(...)`, while correlated ref/scope
-   fixtures prove that no false cross-pair selector is emitted.
-5. **Lower exact and dynamic uses.** Keep existing no-runtime transforms for
-   `Exact`. Define one private, versioned descriptor format for non-exact
-   handles and emit only precomputed class/declaration selection code. Extend
-   the React adapter before Vue/Svelte. Acceptance gate: a value conditionally
-   chosen in one module and attached in another has correct DOM markers,
-   anchor/container declarations, and no runtime CSS injection.
-6. **Make lint graph-aware.** Feed candidate and JSX/template facts from all
-   reachable modules to the scope/ref checks. Error only on a proven invalid
-   relation; warn or stay silent when component boundaries, portals, or an
-   unresolved universe prevent proof. Acceptance gate: diagnostics include a
-   declaration span and a use span across modules.
-7. **Publish manifests and harden incremental behavior.** Version the manifest
-   schema, emit it for packages, teach the Vite resolver to load it, and add
-   malformed/stale-manifest diagnostics. Add graph invalidation and performance
-   fixtures. Acceptance gate: a dependency package can export a ref or
-   transition without bundling its source, and a manifest mismatch cannot
-   silently generate incorrect CSS.
+1. Keep producer recognition, original spans, CSS semantics, and code generation
+   in Rust/Oxc.
+2. Maintain one long-lived TypeScript 7 checker sidecar per Vite project and
+   update its virtual shadow files incrementally.
+3. Batch candidate queries and immediately convert checker objects into the
+   language-neutral `TypeFact` representation.
+4. Treat missing, widened, forged, or failed checker results conservatively;
+   never restore a parallel Rust abstract interpreter as a fallback.
+5. Extend the branded type channel from refs/scopes to animation and view
+   transition assets, then package manifests whose sources are unavailable.
 
 Every phase retains the invariants that CSS is fully generated before runtime,
 source locations remain exact, generated identities are collision-checked, and
@@ -638,11 +602,10 @@ candidate relation.
    language-neutral IR for equivalent author intent.
 6. Browser integration tests later: generated CSS behavior for anchors,
    container queries, animations, and view transitions.
-7. Module-graph fixtures: exported values, re-exports, conditionals, correlation
-   preservation, manifests, and exact/dynamic descriptor erasure.
-8. Property tests: candidate-set union is idempotent/commutative, relation
-   factoring never adds a ref/scope pair, and module-summary invalidation is
-   deterministic across normalized paths.
+7. TypeScript-fact fixtures: exported values, re-exports, conditionals,
+   correlation preservation, and exact/dynamic descriptor erasure.
+8. Property tests: shadow/original span mapping is stable, relation factoring
+   never adds a ref/scope pair, and invalid facts fail conservatively.
 
 ## Implementation order
 

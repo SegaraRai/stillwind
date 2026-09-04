@@ -11,8 +11,8 @@ use oxc::{
         Argument, ArrayExpressionElement, BindingPattern, CallExpression, Declaration,
         ExportAllDeclaration, ExportDeclaration, ExportFromDeclaration, ExportNamedDeclaration,
         Expression, ImportDeclaration, ImportDeclarationSpecifier, JSXElement, ModuleExportName,
-        ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind, StringLiteral,
-        VariableDeclarator,
+        ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind, StaticMemberExpression,
+        StringLiteral, VariableDeclarator,
     },
     ast_visit::{Visit, walk},
     parser::Parser,
@@ -26,7 +26,7 @@ use shorth_ir::{
 };
 use shorth_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
-    ReExport, RefAlternative, SymbolicValue,
+    ReExport, RefAlternative, SymbolicValue, TypeFact,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -38,13 +38,13 @@ pub struct ParsedJavaScript {
 }
 
 pub fn parse(source: &SourceFile) -> ParsedJavaScript {
-    parse_with_imports(source, &BTreeMap::new(), &BTreeMap::new())
+    parse_with_type_facts(source, &[], &BTreeMap::new())
 }
 
-/// Parses a module with symbolic values resolved from its import graph.
-pub fn parse_with_imports(
+/// Parses a module using expression facts produced by the TypeScript checker.
+pub fn parse_with_type_facts(
     source: &SourceFile,
-    imported: &BTreeMap<String, ExportedValue>,
+    type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
 ) -> ParsedJavaScript {
     let allocator = Allocator::default();
@@ -58,7 +58,7 @@ pub fn parse_with_imports(
         .collect();
 
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
-    let mut extractor = MacroExtractor::new(source, semantic.scoping(), imported, assets);
+    let mut extractor = MacroExtractor::new(source, semantic.scoping(), type_facts, assets);
     extractor.visit_program(&result.program);
     extractor.validate_handles();
     let summary = extractor.module_summary();
@@ -100,7 +100,7 @@ struct MacroExtractor<'a> {
     imports: Vec<ImportBinding>,
     re_exports: Vec<ReExport>,
     export_symbols: Vec<(SymbolId, String)>,
-    imported: &'a BTreeMap<String, ExportedValue>,
+    type_facts: HashMap<(u32, u32), ExportedValue>,
     imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }
 
@@ -122,7 +122,7 @@ impl<'a> MacroExtractor<'a> {
     fn new(
         source: &'a SourceFile,
         scoping: &'a Scoping,
-        imported: &'a BTreeMap<String, ExportedValue>,
+        type_facts: &[TypeFact],
         imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
     ) -> Self {
         Self {
@@ -147,7 +147,10 @@ impl<'a> MacroExtractor<'a> {
             imports: Vec::new(),
             re_exports: Vec::new(),
             export_symbols: Vec::new(),
-            imported,
+            type_facts: type_facts
+                .iter()
+                .map(|fact| ((fact.start, fact.end), fact.value.clone()))
+                .collect(),
             imported_assets,
         }
     }
@@ -228,6 +231,8 @@ impl<'a> MacroExtractor<'a> {
                 metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
+                call_start: definition.call_span.start.0,
+                call_end: definition.call_span.end.0,
             });
         }
         for definition in &self.handle_definitions {
@@ -236,18 +241,24 @@ impl<'a> MacroExtractor<'a> {
                 metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
+                call_start: definition.call_span.start.0,
+                call_end: definition.call_span.end.0,
             });
         }
         for definition in &self.animation_declarations {
             summary.assets.push(AssetRecord {
                 identity: self.identity(AssetKind::Animation, &definition.name),
                 metadata: AssetMetadata { label: None },
+                call_start: definition.call_span.start.0,
+                call_end: definition.call_span.end.0,
             });
         }
         for definition in &self.view_transition_declarations {
             summary.assets.push(AssetRecord {
                 identity: self.identity(AssetKind::ViewTransition, &definition.name),
                 metadata: AssetMetadata { label: None },
+                call_start: definition.call_span.start.0,
+                call_end: definition.call_span.end.0,
             });
         }
 
@@ -314,6 +325,12 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn handle_references(&self, expression: &Expression<'a>) -> Option<Vec<HandleDefinition>> {
+        let span = expression.span();
+        if let Some(ExportedValue::Refs(alternatives)) =
+            self.type_facts.get(&(span.start, span.end))
+        {
+            return self.handles_from_alternatives(alternatives);
+        }
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
@@ -325,6 +342,13 @@ impl<'a> MacroExtractor<'a> {
         let ExportedValue::Refs(alternatives) = self.local_values.get(&symbol_id)? else {
             return None;
         };
+        self.handles_from_alternatives(alternatives)
+    }
+
+    fn handles_from_alternatives(
+        &self,
+        alternatives: &[RefAlternative],
+    ) -> Option<Vec<HandleDefinition>> {
         let mut handles = Vec::new();
         for alternative in alternatives {
             match &alternative.permitted_scopes {
@@ -341,55 +365,20 @@ impl<'a> MacroExtractor<'a> {
         Some(handles)
     }
 
-    fn abstract_value(&self, expression: &Expression<'a>) -> Option<ExportedValue> {
-        match expression {
-            Expression::Identifier(identifier) => {
-                let reference = identifier.reference_id.get()?;
-                let symbol = self.scoping.get_reference(reference).symbol_id()?;
-                self.local_values.get(&symbol).cloned()
-            }
-            Expression::ConditionalExpression(expression) => self
-                .abstract_value(&expression.consequent)
-                .and_then(|left| {
-                    self.abstract_value(&expression.alternate)
-                        .and_then(|right| left.union(&right).ok())
-                }),
-            Expression::ParenthesizedExpression(expression) => {
-                self.abstract_value(&expression.expression)
-            }
-            Expression::TSAsExpression(expression) => self.abstract_value(&expression.expression),
-            Expression::TSSatisfiesExpression(expression) => {
-                self.abstract_value(&expression.expression)
-            }
-            Expression::TSNonNullExpression(expression) => {
-                self.abstract_value(&expression.expression)
-            }
-            _ => None,
-        }
-    }
-
-    fn collect_abstract_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
-        let (BindingPattern::BindingIdentifier(identifier), Some(initializer)) =
-            (&declarator.id, &declarator.init)
-        else {
-            return;
-        };
-        let Some(symbol) = identifier.symbol_id.get() else {
-            return;
-        };
-        if !self.local_values.contains_key(&symbol)
-            && let Some(value) = self.abstract_value(initializer)
-        {
-            self.local_values.insert(symbol, value);
-        }
-    }
-
     fn scope_reference(&self, expression: &Expression<'a>) -> Option<ScopeDefinition> {
         let scopes = self.scope_references(expression)?;
         (scopes.len() == 1).then(|| scopes[0].clone())
     }
 
     fn scope_references(&self, expression: &Expression<'a>) -> Option<Vec<ScopeDefinition>> {
+        let span = expression.span();
+        if let Some(ExportedValue::Scopes(value)) = self.type_facts.get(&(span.start, span.end)) {
+            return value
+                .finite_candidates()?
+                .iter()
+                .map(|identity| Some(self.imported_scope(identity)))
+                .collect();
+        }
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
@@ -671,39 +660,7 @@ impl<'a> MacroExtractor<'a> {
             && let Expression::StaticMemberExpression(member) = &call.callee
             && member.property.name.as_str() == "at"
         {
-            if call.arguments.len() != 2 {
-                self.diagnostics.push(Diagnostic::error(
-                    "SHREF004",
-                    "ref.at() requires a literal query and a literal utility string",
-                    self.source_span(call.span),
-                ));
-                return None;
-            }
-            let Some(handle) = self.handle_reference(&member.object) else {
-                self.diagnostics.push(Diagnostic::error(
-                    "SHREF001",
-                    "ref projections must use an identity returned by style.ref()",
-                    self.source_span(expression.span()),
-                ));
-                return None;
-            };
-            let (Expression::StringLiteral(query), Expression::StringLiteral(value)) = (
-                call.arguments[0].to_expression(),
-                call.arguments[1].to_expression(),
-            ) else {
-                self.diagnostics.push(Diagnostic::error(
-                    "SHREF004",
-                    "ref.at() requires a literal query and a literal utility string",
-                    self.source_span(call.span),
-                ));
-                return None;
-            };
-            self.record_handle_use(&handle, "container-query", self.source_span(call.span));
-            return Some(StyleInput::ContainerQuery {
-                handle,
-                query: self.string_literal(query),
-                value: self.string_literal(value),
-            });
+            return self.collect_container_query_projection(call, member);
         }
         let (handle_expression, projection) = match expression {
             Expression::StaticMemberExpression(member) => {
@@ -745,10 +702,10 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => return None,
         };
-        let Some(handle) = self.handle_reference(handle_expression) else {
+        let Some(handles) = self.handle_references(handle_expression) else {
             self.diagnostics.push(Diagnostic::error(
-                "SHREF001",
-                "ref projections must use an identity returned by style.ref()",
+                "SHTS001",
+                "non-local or conditional ref projections require TypeScript checker facts",
                 self.source_span(expression.span()),
             ));
             return None;
@@ -759,12 +716,61 @@ impl<'a> MacroExtractor<'a> {
             HandleProjection::Scope => "scope",
             HandleProjection::Container(_) => "container",
         };
-        self.record_handle_use(
-            &handle,
-            projection_name,
-            self.source_span(expression.span()),
-        );
-        Some(StyleInput::HandleProjection { handle, projection })
+        for handle in &handles {
+            self.record_handle_use(handle, projection_name, self.source_span(expression.span()));
+        }
+        if handles.len() == 1 {
+            Some(StyleInput::HandleProjection {
+                handle: handles[0].clone(),
+                projection,
+            })
+        } else {
+            Some(StyleInput::DynamicHandleProjection {
+                value: self.source_span(expression.span()),
+                handles,
+                projection,
+            })
+        }
+    }
+
+    fn collect_container_query_projection(
+        &mut self,
+        call: &CallExpression<'a>,
+        member: &StaticMemberExpression<'a>,
+    ) -> Option<StyleInput> {
+        if call.arguments.len() != 2 {
+            self.diagnostics.push(Diagnostic::error(
+                "SHREF004",
+                "ref.at() requires a literal query and a literal utility string",
+                self.source_span(call.span),
+            ));
+            return None;
+        }
+        let Some(handle) = self.handle_reference(&member.object) else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHREF001",
+                "ref projections must use an identity returned by style.ref()",
+                self.source_span(call.span),
+            ));
+            return None;
+        };
+        let (Expression::StringLiteral(query), Expression::StringLiteral(value)) = (
+            call.arguments[0].to_expression(),
+            call.arguments[1].to_expression(),
+        ) else {
+            self.diagnostics.push(Diagnostic::error(
+                "SHREF004",
+                "ref.at() requires a literal query and a literal utility string",
+                self.source_span(call.span),
+            ));
+            return None;
+        };
+        self.record_handle_use(&handle, "container-query", self.source_span(call.span));
+        Some(StyleInput::ContainerQuery {
+            handle,
+            query: self.string_literal(query),
+            value: self.string_literal(value),
+        })
     }
 
     fn record_handle_use(
@@ -918,8 +924,8 @@ impl<'a> MacroExtractor<'a> {
         };
         let Some(handles) = self.handle_references(&tagged.tag) else {
             self.diagnostics.push(Diagnostic::error(
-                "SHREF001",
-                "ref selectors must be tagged by an identity returned by style.ref()",
+                "SHTS001",
+                "non-local or conditional ref selectors require TypeScript checker facts",
                 self.source_span(tagged.tag.span()),
             ));
             return None;
@@ -1085,6 +1091,11 @@ impl<'a> MacroExtractor<'a> {
                 }
             }
             Expression::ObjectExpression(object) => self.collect_object(object, inputs),
+            Expression::Identifier(_) => self.diagnostics.push(Diagnostic::error(
+                "SHTS001",
+                "non-local or conditional handles require TypeScript checker facts",
+                self.source_span(expression.span()),
+            )),
             _ => self.diagnostics.push(Diagnostic::error(
                 "SHJS002",
                 "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and `&` selectors",
@@ -1442,50 +1453,23 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             && let Some(specifiers) = &declaration.specifiers
         {
             for specifier in specifiers {
-                let (local, imported, symbol) = match specifier {
+                let (local, imported) = match specifier {
                     ImportDeclarationSpecifier::ImportSpecifier(specifier) => (
                         specifier.local.name.to_string(),
                         Self::module_export_name(&specifier.imported),
-                        specifier.local.symbol_id.get(),
                     ),
-                    ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => (
-                        specifier.local.name.to_string(),
-                        "default".to_owned(),
-                        specifier.local.symbol_id.get(),
-                    ),
-                    ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => (
-                        specifier.local.name.to_string(),
-                        "*".to_owned(),
-                        specifier.local.symbol_id.get(),
-                    ),
+                    ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
+                        (specifier.local.name.to_string(), "default".to_owned())
+                    }
+                    ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => {
+                        (specifier.local.name.to_string(), "*".to_owned())
+                    }
                 };
                 self.imports.push(ImportBinding {
                     local: local.clone(),
                     source: declaration.source.value.to_string(),
                     imported,
                 });
-                if let (Some(symbol), Some(value)) = (symbol, self.imported.get(&local).cloned()) {
-                    self.local_values.insert(symbol, value.clone());
-                    match value {
-                        ExportedValue::Scopes(value) => {
-                            if let Some(candidates) = value.finite_candidates()
-                                && candidates.len() == 1
-                                && let Some(identity) = candidates.first()
-                            {
-                                self.scope_symbols
-                                    .insert(symbol, self.imported_scope(identity));
-                            }
-                        }
-                        ExportedValue::Refs(alternatives) if alternatives.len() == 1 => {
-                            if let Some(reference) = self.imported_ref(&alternatives[0]) {
-                                self.handle_symbols.insert(symbol, reference);
-                            }
-                        }
-                        ExportedValue::Refs(_)
-                        | ExportedValue::Animations(_)
-                        | ExportedValue::ViewTransitions(_) => {}
-                    }
-                }
             }
         }
         walk::walk_import_declaration(self, declaration);
@@ -1679,7 +1663,6 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 self.view_transition_declarations.push(definition);
             }
         }
-        self.collect_abstract_declarator(declarator);
         walk::walk_variable_declarator(self, declarator);
     }
 }
@@ -1820,7 +1803,7 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
     }
 
     #[test]
-    fn summarizes_aliases_and_conditional_handle_candidate_sets() {
+    fn leaves_conditional_handle_propagation_to_typescript() {
         let source = SourceFile::new(
             FileId(1),
             "src/choices.tsx",
@@ -1832,12 +1815,7 @@ export const selected = enabled ? alias : second;"#,
         );
 
         let parsed = parse(&source);
-        let ExportedValue::Refs(candidates) = &parsed.summary.exports["selected"] else {
-            panic!("selected should be summarized as refs");
-        };
-        assert_eq!(candidates.len(), 2);
-        assert_eq!(candidates[0].reference.binding_name, "first");
-        assert_eq!(candidates[1].reference.binding_name, "second");
+        assert!(!parsed.summary.exports.contains_key("selected"));
     }
 
     #[test]

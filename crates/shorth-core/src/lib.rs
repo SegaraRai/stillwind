@@ -10,9 +10,7 @@ use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
     AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
 };
-use shorth_semantic::{
-    AssetKind, AssetMetadata, Candidates, ExportedValue, IdentityId, ModuleGraph, ModuleGraphError,
-};
+use shorth_semantic::{AssetKind, AssetMetadata, Candidates, ExportedValue, IdentityId, TypeFact};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned, normalized_module_path};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -100,60 +98,6 @@ impl Compiler {
         shorth_js_oxc::parse(source)
     }
 
-    /// Compiles a resolved source graph so imported Stillwind values retain
-    /// their declaration-site identity.
-    ///
-    /// The output order matches `sources`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when an import/re-export edge or summary schema cannot
-    /// be resolved soundly.
-    pub fn compile_react_project(
-        sources: &[SourceFile],
-        theme_source: &SourceFile,
-    ) -> Result<Vec<CompileResult>, ModuleGraphError> {
-        let mut summaries = sources
-            .iter()
-            .map(|source| Self::analyze_javascript(source).summary)
-            .collect::<Vec<_>>();
-        let iterations = sources.len().saturating_add(1);
-        let mut converged = false;
-        for _ in 0..iterations {
-            let graph = ModuleGraph::new(summaries.clone())?;
-            let assets = graph.all_assets();
-            let next = sources
-                .iter()
-                .map(|source| {
-                    let imported = graph.imported_values(source.path())?;
-                    Ok(shorth_js_oxc::parse_with_imports(source, &imported, &assets).summary)
-                })
-                .collect::<Result<Vec<_>, ModuleGraphError>>()?;
-            if next == summaries {
-                converged = true;
-                break;
-            }
-            summaries = next;
-        }
-        if !converged {
-            return Err(ModuleGraphError::DidNotConverge { iterations });
-        }
-        let graph = ModuleGraph::new(summaries)?;
-        let assets = graph.all_assets();
-        sources
-            .iter()
-            .map(|source| {
-                let imported = graph.imported_values(source.path())?;
-                Ok(Self::compile_react_with_imports(
-                    source,
-                    theme_source,
-                    &imported,
-                    &assets,
-                ))
-            })
-            .collect()
-    }
-
     /// Reads the project's CSS-first theme surface.
     ///
     /// # Errors
@@ -190,13 +134,13 @@ impl Compiler {
     }
 
     #[must_use]
-    pub fn compile_react_with_imports(
+    pub fn compile_react_with_type_facts(
         source: &SourceFile,
         theme_source: &SourceFile,
-        imported: &BTreeMap<String, ExportedValue>,
+        type_facts: &[TypeFact],
         assets: &BTreeMap<IdentityId, AssetMetadata>,
     ) -> CompileResult {
-        let parsed = shorth_js_oxc::parse_with_imports(source, imported, assets);
+        let parsed = shorth_js_oxc::parse_with_type_facts(source, type_facts, assets);
         Self::compile_react_parsed(source, theme_source, parsed)
     }
 
@@ -369,7 +313,7 @@ impl Compiler {
                 {
                     let branch = &mut branches[0];
                     branch.2.push_str("container:");
-                    branch.2.push_str(&handle.name.value);
+                    branch.2.push_str(&ref_symbol_name(&handle));
                     branch.2.push(':');
                     branch.2.push_str(&query.value);
                     branch.2.push('\0');
@@ -403,7 +347,7 @@ impl Compiler {
                         handle_markers.push(marker);
                     }
                     branch.2.push_str("handle:");
-                    branch.2.push_str(&handle.name.value);
+                    branch.2.push_str(&ref_symbol_name(&handle));
                     branch.2.push(':');
                     branch.2.push_str(handle_projection_name(&projection));
                     branch.2.push('\0');
@@ -414,6 +358,42 @@ impl Compiler {
                         container: None,
                         nested: Vec::new(),
                     });
+                    continue;
+                }
+                if let StyleInput::DynamicHandleProjection {
+                    value,
+                    handles,
+                    projection,
+                } = input
+                {
+                    dynamic_handle_classes.push(value);
+                    for handle in handles {
+                        runtime_assets.insert(ref_identity(&handle));
+                        let class_name = runtime_projection_class(&handle, &projection);
+                        let canonical = format!(
+                            "dynamic-handle:{}:{}",
+                            ref_symbol_name(&handle),
+                            handle_projection_name(&projection)
+                        );
+                        emit_utility_rules(
+                            &mut utility_css,
+                            &class_name,
+                            &[CompiledUtility {
+                                variants: Vec::new(),
+                                declaration: render_handle_projection(&handle, &projection),
+                                selector: None,
+                                container: None,
+                                nested: Vec::new(),
+                            }],
+                            &theme,
+                        );
+                        result.symbols.push(generated_class_symbol(
+                            source,
+                            &class_name,
+                            &canonical,
+                            call.span,
+                        ));
+                    }
                     continue;
                 }
                 if let StyleInput::ScopeAttachment(scope) = input {
@@ -495,6 +475,7 @@ impl Compiler {
                         value,
                     ),
                     StyleInput::HandleProjection { .. }
+                    | StyleInput::DynamicHandleProjection { .. }
                     | StyleInput::ScopeAttachment(_)
                     | StyleInput::HandleAttachment(_)
                     | StyleInput::DynamicScopeAttachment { .. }
@@ -628,7 +609,7 @@ impl Compiler {
             result.classes.clear();
             result.symbols.clear();
             result.transforms.clear();
-        } else if !result.classes.is_empty() {
+        } else if !utility_css.is_empty() {
             result.css = render_stylesheet(&theme, &utility_css);
         }
 
@@ -643,6 +624,19 @@ fn handle_projection_name(projection: &HandleProjection) -> &'static str {
         HandleProjection::Scope => "scope",
         HandleProjection::Container(_) => "container",
     }
+}
+
+fn runtime_projection_class(
+    handle: &shorth_ir::HandleDefinition,
+    projection: &HandleProjection,
+) -> String {
+    let suffix = match projection {
+        HandleProjection::Anchor => "anchor",
+        HandleProjection::Position => "position",
+        HandleProjection::Scope => "scope",
+        HandleProjection::Container(kind) => kind.value.as_str(),
+    };
+    format!("_swp_{}_{suffix}", handle_marker_class(handle))
 }
 
 fn symbol_identity(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {

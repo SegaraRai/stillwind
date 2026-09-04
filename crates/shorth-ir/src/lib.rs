@@ -127,6 +127,11 @@ pub enum StyleInput {
         handle: HandleDefinition,
         projection: HandleProjection,
     },
+    DynamicHandleProjection {
+        value: Span,
+        handles: Vec<HandleDefinition>,
+        projection: HandleProjection,
+    },
     ContainerQuery {
         handle: HandleDefinition,
         query: Spanned<String>,

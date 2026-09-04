@@ -8,6 +8,11 @@ void test("selects the marker carried by a dynamic compiled handle", () => {
   const selected = process.argv.includes("--select-first") ? first : second;
 
   assert.equal(stillwindHandleClass(selected), "s_second_89abcdef");
+  assert.equal(stillwindHandleClass(selected.anchor), "_swp_s_second_89abcdef_anchor");
+  assert.equal(
+    stillwindHandleClass(selected.container("inline-size")),
+    "_swp_s_second_89abcdef_inline-size",
+  );
   assert.equal(stillwindHandleClass(stillwindScope("s_menu_76543210")), "s_menu_76543210");
   assert.throws(() => stillwindHandleClass({ className: "user-owned" }), TypeError);
 });
