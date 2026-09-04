@@ -98,6 +98,11 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
             "path": "src/Two.tsx",
             "source": r#"import { style } from "stillwind/react";
     export const two = style("bg-white");"#
+        },
+        {
+            "path": "src/Duplicate.tsx",
+            "source": r#"import { style } from "stillwind/react";
+    export const duplicate = style("text-white");"#
         }
     ]);
     let theme = r#"@import "tailwindcss";
@@ -115,6 +120,13 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
         fragments
             .iter()
             .all(|fragment| !fragment.contains("@layer"))
+    );
+    assert_eq!(
+        fragments
+            .iter()
+            .map(|fragment| fragment.matches("{color:var(--color-white)").count())
+            .sum::<usize>(),
+        1
     );
     let stylesheet =
         shorth_napi::render_react_stylesheet(fragments.join("\n"), theme.to_owned(), None).unwrap();
