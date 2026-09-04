@@ -5,10 +5,58 @@ product contract, not yet an implementation specification: the syntax may gain
 small ergonomic refinements, but the principles below should not be weakened.
 
 Implementation status: the React compiler implements the examples in this
-document except the repeat-render/unstable-key warning for view transitions.
-Where JSX placement is visible in one file it validates handle ancestry;
-component boundaries, portals, and arbitrary `children` are intentionally not
-inferred.
+document except cross-module symbolic handle propagation and the
+repeat-render/unstable-key warning for view transitions. Today's JSX placement
+lint uses facts visible in one file; that is an implementation limitation, not
+a source-language restriction.
+
+## Core principles
+
+### Handle values are JavaScript values
+
+Objects created by `style.ref()`, `style.scope()`, `style.animation()`, and
+`style.viewTransition()` are ordinary JavaScript values. They may be exported,
+imported, re-exported, passed to and returned from functions, stored in data
+structures, and conditionally selected across module boundaries. Stillwind must
+not narrow this valid composition merely because a compiler pass cannot yet
+resolve a value locally.
+
+The boundary is identity creation, not value flow. A handle-producing call has
+a declaration-site identity. Re-evaluating that call denotes the same
+Stillwind identity rather than allocating an unbounded sequence of CSS names.
+An API restriction is justified only by invalid CSS semantics, a genuine API
+invariant, or an attempt to create an unbounded universe of _distinct_
+identities.
+
+### Compile ahead of time; do not define the language around the compiler
+
+Static compilation realizes Stillwind semantics ahead of time; it is not a
+reason to reject otherwise meaningful JavaScript. The compiler reasons about a
+finite symbolic candidate set, not necessarily one exact local value:
+
+```ts
+const group = condition ? groupScope1 : groupScope2;
+// group ∈ { groupScope1, groupScope2 }
+```
+
+Where safe, CSS retains the set symbolically instead of expanding a Cartesian
+product:
+
+```css
+:is(.s_group-one, .s_group-two):hover .s_target {
+  /* … */
+}
+```
+
+Correlated choices must remain correlated. For example, a ref whose permitted
+scope differs by alternative must not be lowered to a scope/ref cross-product
+that could match a DOM relationship the source never denoted. The compiler
+factors only proven-independent candidate sets.
+
+Stillwind never generates CSS at runtime. Exact values may erase completely;
+dynamic handle selection can retain a small opaque runtime descriptor solely to
+select already-generated classes or declarations. This is bounded value
+selection, not runtime CSS generation.
 
 ## One static macro at the element
 

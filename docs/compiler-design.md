@@ -18,6 +18,9 @@ linting, quick-fixes, and a future formatter.
    source code and host build-tool lifecycles.
 6. Formatter and linter consume the same parsed Stillwind IR. They do not recover
    intent from generated CSS.
+7. Handle-producing APIs create declaration-site identities, while their values
+   remain ordinary JavaScript values across module boundaries. Compilation uses
+   finite symbolic candidate analysis rather than imposing local-binding rules.
 
 Oxc is a strong fit for the first frontend: it parses JS, TS, JSX and TSX,
 exposes a span on every AST node, and provides semantic analysis for binding
@@ -38,14 +41,14 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
 ## System overview
 
 ```text
- source files + stillwind.css
+ source files + stillwind.css + dependency manifests
           │
           ▼
- language frontend (Oxc first; framework extractors later)
+ language frontend + module graph (Oxc first; framework extractors later)
           │  ModuleIR: calls, static expressions, markup facts, exact spans
           ▼
- Stillwind expression lowering
-          │  StyleIR: utility groups, guards, attrs, selectors, projections
+ symbolic value propagation
+          │  module summaries, identities, finite candidate sets, relations
           ▼
  semantic analysis
           │  theme lookup, selector grammar, ref/scope graph, lint diagnostics
@@ -210,8 +213,8 @@ function example(style: (x: string) => unknown) {
 }
 ```
 
-For v1, macro declarations must be stable `const` bindings in the current
-module. The compiler recognizes:
+The current implementation recognizes stable `const` declarations in one
+module:
 
 ```ts
 const menu = style.scope("menu");
@@ -220,10 +223,94 @@ const enter = style.animation({ from: "opacity-0", to: "opacity-100" });
 const title = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 ```
 
-Reassignments, captures through arbitrary functions, dynamic property access,
-and cross-module re-exports are diagnosed as unsupported rather than guessed.
-Support for safe exported contracts can be added after the module graph API is
-designed.
+That is not a language rule. The target semantics allow these values to flow
+through normal JavaScript; the symbolic-value architecture below replaces this
+temporary extraction limitation.
+
+Today, reassignments, captures through arbitrary functions, dynamic property
+access, and cross-module re-exports are diagnosed as unsupported rather than
+guessed. The symbolic-value plan below replaces this with conservative, sound
+candidate propagation and a runtime descriptor where a dynamic choice remains.
+
+### Finite symbolic handle values
+
+Handle producers are declaration-site assets, not local compiler variables.
+The module graph assigns each producer a globally stable `IdentityId` from the
+normalized module path, callsite span, kind, and compiler namespace. The same
+identity is denoted if a producer call is evaluated repeatedly; this keeps the
+CSS identity universe finite without restricting the resulting JavaScript value
+from flowing normally.
+
+```rust
+enum AssetKind { Scope, Ref, Animation, ViewTransition }
+
+struct IdentityId { kind: AssetKind, stable_key: StableKey }
+
+enum SymbolicValue {
+    Exact(IdentityId),
+    Set(BTreeSet<IdentityId>),
+    Universe(AssetKind), // a sound symbolic fallback, never a guessed value
+}
+```
+
+`Set` is a value-domain abstraction, not a request to eagerly generate every
+combination. It is propagated through imports, exports, re-exports, aliases,
+conditional expressions, arrays, and supported function summaries. TypeScript
+may describe the public objects for ergonomics, but `.d.ts` files are never the
+source of truth for this analysis and JavaScript remains supported.
+
+Refs carry a relationship table rather than a flattened `scope × ref` product:
+
+```rust
+struct RefAlternative {
+    reference: IdentityId,
+    permitted_scopes: SymbolicValue,
+}
+```
+
+The planner may lower independent alternatives as `:is(...)`, but it must keep
+the table when a scope/ref correlation matters. For example, it may emit a
+selector list grouped by identical scope sets; it must not turn
+`{ (scope_a, ref_a), (scope_b, ref_b) }` into four possible pairs.
+
+Projections inherit their ref candidate set. `anchor`, `position`,
+`anchorScope`, `container`, and `at()` therefore never need a separate identity
+analysis. The same rule applies to animation and view-transition uses: they
+refer to a producer set, while CSS names remain declaration-site stable.
+
+### Module summaries and package manifests
+
+Each module emits a cacheable `ModuleSummary` containing exported producers,
+exported symbolic values, imports/re-exports, relation metadata, exact spans,
+and a content/version hash. The graph resolver merges summaries to a fixed
+point; it does not execute JavaScript or use TypeScript's type checker.
+
+Source modules in the active build graph can be summarized directly. Published
+packages expose the same versioned Stillwind manifest alongside their JS and
+types. A missing manifest becomes a diagnostic only when Stillwind semantics
+are required from that package; it never silently invents an identity.
+
+When a value cannot be reduced to an exact local choice, generated code may use
+an opaque runtime descriptor containing already-known identity metadata. The
+descriptor selects pre-emitted marker classes or declaration classes at runtime
+and is erased for exact values. It cannot parse, hash, allocate, or inject CSS.
+`Universe(kind)` is the sound final fallback for the reachable build/package
+closure; the CSS planner preserves it symbolically where possible and reports a
+cost diagnostic rather than becoming unsound.
+
+### Producer audit
+
+| Producer / derivative | Identity and candidate rule                                                           | Runtime/CSS consequence                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `scope()`             | declaration-site scope identity                                                       | descriptor selects an attached `.s_*` marker when dynamic                                 |
+| `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                              | selector planner preserves relation pairs; attachment selects `.s_*`                      |
+| ref projections       | derived from the ref candidate set                                                    | exact uses erase; dynamic `position-anchor` / container uses select prebuilt declarations |
+| `animation()`         | declaration-site keyframe asset                                                       | candidate use selects prebuilt `animation-name` declarations                              |
+| `viewTransition()`    | declaration-site transition asset; `.for(key)` keeps its existing user key expression | static name is pre-emitted; keyed use retains only the dynamic custom-property value      |
+
+The audit is part of adding any future named CSS API: it must specify its
+identity source, exported summary form, candidate algebra, correlation needs,
+and exact-versus-descriptor code generation.
 
 ### Allowed static expression language
 
@@ -478,8 +565,66 @@ Cache per-file `ModuleIr`, lowered `StyleIR`, diagnostics, and CSS fragments.
 A source edit recompiles only that module. A theme edit invalidates semantic
 resolution and CSS fragments that depend on it, and regenerates `.d.ts`.
 
+Module summaries are additionally content-addressed. Changing an exported
+identity invalidates its importers; changing a non-exported style call does not.
+The resolver retains symbolic values and relation tables in the cache, not just
+their rendered CSS, so a downstream conditional can be re-planned without
+reparsing its dependency.
+
 The Vite plugin owns watch registration and HMR invalidation; the Rust core is
 pure and testable without Vite.
+
+## Cross-module symbolic-value implementation plan
+
+This work changes the compiler architecture; it should not be added as special
+cases to the current single-module `HashMap<SymbolId, …>` extractor.
+
+1. **Freeze semantics and fixtures.** Add multi-file golden fixtures for
+   export/import, re-export, aliases, conditionals, function argument/return,
+   and repeated evaluation of one declaration site. Cover `scope`, `ref`, ref
+   projections, `animation`, and `viewTransition`. A fixture records source
+   transforms, CSS, runtime descriptor output when needed, and diagnostics.
+   Acceptance gate: an exact imported ref emits the same identity as a local
+   ref on Windows, macOS, and Linux.
+2. **Introduce identity-first IR.** Replace local binding-name matching in
+   relationship data with `IdentityId`, `SymbolicValue`, and correlated
+   `RefAlternative` records. Keep the current single-file lowering as an
+   adapter over this IR. Acceptance gate: union normalization is deterministic,
+   duplicate-free, and cannot lose scope/ref correlation.
+3. **Build graph summaries.** Add a resolver-facing Rust API that accepts
+   module source plus resolved import edges and returns `ModuleSummary`. Support
+   named exports/imports and re-exports first; cache by source and dependency
+   summary hash. Acceptance gate: a three-module fixture resolves an imported
+   scope/ref without a source-text scan or TypeScript checker.
+4. **Propagate symbolic values.** Implement a small abstract interpreter for
+   aliases, destructuring where sound, conditional/logical selection, arrays,
+   object fields, parameters, and returns. Use function summaries with a
+   fixed-point worklist; when precision is lost, retain `Universe(kind)` or a
+   descriptor requirement rather than rejecting valid source. Acceptance gate:
+   candidate unions are rendered with `:is(...)`, while correlated ref/scope
+   fixtures prove that no false cross-pair selector is emitted.
+5. **Lower exact and dynamic uses.** Keep existing no-runtime transforms for
+   `Exact`. Define one private, versioned descriptor format for non-exact
+   handles and emit only precomputed class/declaration selection code. Extend
+   the React adapter before Vue/Svelte. Acceptance gate: a value conditionally
+   chosen in one module and attached in another has correct DOM markers,
+   anchor/container declarations, and no runtime CSS injection.
+6. **Make lint graph-aware.** Feed candidate and JSX/template facts from all
+   reachable modules to the scope/ref checks. Error only on a proven invalid
+   relation; warn or stay silent when component boundaries, portals, or an
+   unresolved universe prevent proof. Acceptance gate: diagnostics include a
+   declaration span and a use span across modules.
+7. **Publish manifests and harden incremental behavior.** Version the manifest
+   schema, emit it for packages, teach the Vite resolver to load it, and add
+   malformed/stale-manifest diagnostics. Add graph invalidation and performance
+   fixtures. Acceptance gate: a dependency package can export a ref or
+   transition without bundling its source, and a manifest mismatch cannot
+   silently generate incorrect CSS.
+
+Every phase retains the invariants that CSS is fully generated before runtime,
+source locations remain exact, generated identities are collision-checked, and
+the final selector/declaration plan is semantically equivalent to the symbolic
+candidate relation.
 
 ## Test strategy
 
@@ -493,6 +638,11 @@ pure and testable without Vite.
    language-neutral IR for equivalent author intent.
 6. Browser integration tests later: generated CSS behavior for anchors,
    container queries, animations, and view transitions.
+7. Module-graph fixtures: exported values, re-exports, conditionals, correlation
+   preservation, manifests, and exact/dynamic descriptor erasure.
+8. Property tests: candidate-set union is idempotent/commutative, relation
+   factoring never adds a ref/scope pair, and module-summary invalidation is
+   deterministic across normalized paths.
 
 ## Implementation order
 
