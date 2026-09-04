@@ -173,6 +173,46 @@ pub enum ExportedValue {
     ViewTransitions(SymbolicValue),
 }
 
+impl ExportedValue {
+    /// # Errors
+    ///
+    /// Returns an error when alternatives have different asset kinds.
+    pub fn union(&self, other: &Self) -> Result<Self, SymbolicError> {
+        match (self, other) {
+            (Self::Scopes(left), Self::Scopes(right)) => Ok(Self::Scopes(left.union(right)?)),
+            (Self::Animations(left), Self::Animations(right)) => {
+                Ok(Self::Animations(left.union(right)?))
+            }
+            (Self::ViewTransitions(left), Self::ViewTransitions(right)) => {
+                Ok(Self::ViewTransitions(left.union(right)?))
+            }
+            (Self::Refs(left), Self::Refs(right)) => {
+                let mut alternatives = left.clone();
+                for alternative in right {
+                    if !alternatives.contains(alternative) {
+                        alternatives.push(alternative.clone());
+                    }
+                }
+                alternatives.sort_by(|left, right| left.reference.cmp(&right.reference));
+                Ok(Self::Refs(alternatives))
+            }
+            (left, right) => Err(SymbolicError::KindMismatch {
+                expected: left.kind(),
+                actual: right.kind(),
+            }),
+        }
+    }
+
+    pub const fn kind(&self) -> AssetKind {
+        match self {
+            Self::Scopes(_) => AssetKind::Scope,
+            Self::Refs(_) => AssetKind::Ref,
+            Self::Animations(_) => AssetKind::Animation,
+            Self::ViewTransitions(_) => AssetKind::ViewTransition,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ImportBinding {
     pub local: String,
@@ -217,6 +257,168 @@ impl ModuleSummary {
     }
 }
 
+/// A resolved graph of source summaries or package manifests.
+#[derive(Clone, Debug, Default)]
+pub struct ModuleGraph {
+    modules: BTreeMap<String, ModuleSummary>,
+}
+
+impl ModuleGraph {
+    /// # Errors
+    ///
+    /// Returns an error for unsupported manifest schema versions.
+    pub fn new(modules: impl IntoIterator<Item = ModuleSummary>) -> Result<Self, ModuleGraphError> {
+        let mut by_path = BTreeMap::new();
+        for mut module in modules {
+            if module.schema != ModuleSummary::SCHEMA {
+                return Err(ModuleGraphError::Schema {
+                    module: module.module_path,
+                    expected: ModuleSummary::SCHEMA,
+                    actual: module.schema,
+                });
+            }
+            module.module_path = normalized_module_path(&module.module_path);
+            by_path.insert(module.module_path.clone(), module);
+        }
+        Ok(Self { modules: by_path })
+    }
+
+    pub fn module(&self, module_path: &str) -> Option<&ModuleSummary> {
+        self.modules.get(&normalized_module_path(module_path))
+    }
+
+    /// Resolves one exported symbolic value through named and star re-exports.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for missing modules/exports, cycles, or incompatible
+    /// alternatives merged under one export name.
+    pub fn resolve_export(
+        &self,
+        module_path: &str,
+        exported: &str,
+    ) -> Result<ExportedValue, ModuleGraphError> {
+        self.resolve_export_inner(
+            &normalized_module_path(module_path),
+            exported,
+            &mut BTreeSet::new(),
+        )
+    }
+
+    /// Resolves all named imports of a module into local symbolic values.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an edge or requested export cannot be resolved.
+    pub fn imported_values(
+        &self,
+        module_path: &str,
+    ) -> Result<BTreeMap<String, ExportedValue>, ModuleGraphError> {
+        let module_path = normalized_module_path(module_path);
+        let module = self
+            .modules
+            .get(&module_path)
+            .ok_or_else(|| ModuleGraphError::MissingModule(module_path.clone()))?;
+        let mut values = BTreeMap::new();
+        for import in &module.imports {
+            if import.imported == "*" {
+                continue;
+            }
+            let target = self.resolve_specifier(&module_path, &import.source)?;
+            values.insert(
+                import.local.clone(),
+                self.resolve_export(&target, &import.imported)?,
+            );
+        }
+        Ok(values)
+    }
+
+    pub fn all_assets(&self) -> BTreeMap<IdentityId, AssetMetadata> {
+        self.modules
+            .values()
+            .flat_map(|module| module.assets.clone())
+            .collect()
+    }
+
+    fn resolve_export_inner(
+        &self,
+        module_path: &str,
+        exported: &str,
+        visiting: &mut BTreeSet<(String, String)>,
+    ) -> Result<ExportedValue, ModuleGraphError> {
+        let key = (module_path.to_owned(), exported.to_owned());
+        if !visiting.insert(key.clone()) {
+            return Err(ModuleGraphError::Cycle {
+                module: module_path.to_owned(),
+                exported: exported.to_owned(),
+            });
+        }
+        let module = self
+            .modules
+            .get(module_path)
+            .ok_or_else(|| ModuleGraphError::MissingModule(module_path.to_owned()))?;
+        let mut value = module.exports.get(exported).cloned();
+        for re_export in &module.re_exports {
+            let imported = if re_export.exported == exported {
+                Some(re_export.imported.as_str())
+            } else if re_export.exported == "*" {
+                Some(exported)
+            } else {
+                None
+            };
+            let Some(imported) = imported else { continue };
+            let target = self.resolve_specifier(module_path, &re_export.source)?;
+            let alternative = self.resolve_export_inner(&target, imported, visiting)?;
+            value = Some(match value {
+                Some(value) => value.union(&alternative)?,
+                None => alternative,
+            });
+        }
+        visiting.remove(&key);
+        value.ok_or_else(|| ModuleGraphError::MissingExport {
+            module: module_path.to_owned(),
+            exported: exported.to_owned(),
+        })
+    }
+
+    fn resolve_specifier(&self, from: &str, specifier: &str) -> Result<String, ModuleGraphError> {
+        let unresolved = if specifier.starts_with('.') {
+            let mut segments = from.split('/').collect::<Vec<_>>();
+            segments.pop();
+            for segment in specifier.split('/') {
+                match segment {
+                    "." | "" => {}
+                    ".." => {
+                        segments.pop();
+                    }
+                    segment => segments.push(segment),
+                }
+            }
+            segments.join("/")
+        } else {
+            normalized_module_path(specifier)
+        };
+        let candidates = [
+            unresolved.clone(),
+            format!("{unresolved}.ts"),
+            format!("{unresolved}.tsx"),
+            format!("{unresolved}.js"),
+            format!("{unresolved}.jsx"),
+            format!("{unresolved}/index.ts"),
+            format!("{unresolved}/index.tsx"),
+            format!("{unresolved}/index.js"),
+            format!("{unresolved}/index.jsx"),
+        ];
+        candidates
+            .into_iter()
+            .find(|candidate| self.modules.contains_key(candidate))
+            .ok_or(ModuleGraphError::UnresolvedSpecifier {
+                from: from.to_owned(),
+                specifier: specifier.to_owned(),
+            })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 pub enum SymbolicError {
     #[error("symbolic handle kind mismatch: expected {expected:?}, got {actual:?}")]
@@ -224,6 +426,26 @@ pub enum SymbolicError {
         expected: AssetKind,
         actual: AssetKind,
     },
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ModuleGraphError {
+    #[error("unsupported summary schema {actual} for `{module}`; expected {expected}")]
+    Schema {
+        module: String,
+        expected: u32,
+        actual: u32,
+    },
+    #[error("module `{0}` is not present in the Stillwind summary graph")]
+    MissingModule(String),
+    #[error("cannot resolve `{specifier}` imported by `{from}`")]
+    UnresolvedSpecifier { from: String, specifier: String },
+    #[error("module `{module}` does not export `{exported}`")]
+    MissingExport { module: String, exported: String },
+    #[error("cyclic re-export of `{exported}` from `{module}`")]
+    Cycle { module: String, exported: String },
+    #[error(transparent)]
+    Symbolic(#[from] SymbolicError),
 }
 
 #[cfg(test)]
@@ -256,6 +478,38 @@ mod tests {
         assert_ne!(
             alternatives[0].permitted_scopes,
             alternatives[1].permitted_scopes
+        );
+    }
+
+    #[test]
+    fn resolves_imports_through_a_re_export_module() {
+        let reference = identity(AssetKind::Ref, 8);
+        let mut parent = ModuleSummary::new("src/Parent.tsx");
+        parent.exports.insert(
+            "trigger".to_owned(),
+            ExportedValue::Refs(vec![RefAlternative::new(reference.clone(), None).unwrap()]),
+        );
+        let mut public = ModuleSummary::new("src/public.ts");
+        public.re_exports.push(ReExport {
+            exported: "menuTrigger".to_owned(),
+            source: "./Parent".to_owned(),
+            imported: "trigger".to_owned(),
+        });
+        let mut child = ModuleSummary::new("src/Child.tsx");
+        child.imports.push(ImportBinding {
+            local: "group".to_owned(),
+            source: "./public".to_owned(),
+            imported: "menuTrigger".to_owned(),
+        });
+        let graph = ModuleGraph::new([parent, public, child]).unwrap();
+
+        let imported = graph.imported_values("src/Child.tsx").unwrap();
+
+        assert_eq!(
+            imported.get("group"),
+            Some(&ExportedValue::Refs(vec![
+                RefAlternative::new(reference, None).unwrap()
+            ]))
         );
     }
 
