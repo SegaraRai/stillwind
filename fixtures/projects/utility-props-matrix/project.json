@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "utility-props-matrix",
+  "title": "Utility and props lowering matrix",
+  "description": "Static utilities, nested arrays, runtime conditions, ternaries, selectors, attributes, and explicit external classes in one component.",
+  "tags": ["utility", "conditional", "attributes", "selector", "external-class"],
+  "theme": "stillwind.css",
+  "sources": ["src/SaveButton.tsx"]
+}

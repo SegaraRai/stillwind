@@ -29,6 +29,11 @@ vp run --filter @stillwind/fixtures-viewer build
 fact propagation as the Vite integration. `fixtures:check` fails when checked-in
 expected output or the viewer's static catalog is stale.
 
+Keep each project centered on one review narrative. Prefer a small matrix of
+related transformations over one catch-all project, and use multiple source
+files whenever import, re-export, alias, or conditional identity propagation is
+part of the behavior under review.
+
 The older `fixtures/tailwind-v4` Markdown suite remains authoritative for CSS
 compatibility coverage, and package-local `test/fixtures` remain test harness
 inputs. Do not duplicate all of them here. Promote a small, representative case

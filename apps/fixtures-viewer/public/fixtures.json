@@ -3,6 +3,143 @@
   "projects": [
     {
       "schemaVersion": 1,
+      "id": "animation-matrix",
+      "title": "Animation lowering matrix",
+      "description": "Animation declarations and selector uses combined with a TypeScript-propagated conditional identity across modules.",
+      "tags": [
+        "animation",
+        "conditional",
+        "selector",
+        "cross-module",
+        "typescript"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/animations.ts",
+        "src/Dialog.tsx"
+      ],
+      "files": [
+        {
+          "path": "src/animations.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/react\";\n\nexport const enter = style.animation({\n  from: \"opacity-0 translate-y-2 scale-98\",\n  to: \"opacity-100 translate-y-0 scale-100\",\n});\nexport const exit = style.animation({\n  from: \"opacity-100\",\n  to: \"opacity-0 scale-98\",\n});\n\nexport const motionEnabled = Date.now() % 2 === 0;\nexport const selectedAnimation = motionEnabled ? enter : exit;\n",
+          "after": "import { stillwindAnimation } from \"stillwind/react/runtime\";\nexport const enter = stillwindAnimation(\"--sw-a-5bc60e1e\");\nexport const exit = stillwindAnimation(\"--sw-a-59b85d3d\");\n\nexport const motionEnabled = Date.now() % 2 === 0;\nexport const selectedAnimation = motionEnabled ? enter : exit;\n",
+          "css": "@keyframes --sw-a-5bc60e1e{from{opacity:0;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:calc(98*1%);--tw-scale-y:calc(98*1%);--tw-scale-z:calc(98*1%);scale:var(--tw-scale-x) var(--tw-scale-y);}to{opacity:1;--tw-translate-y:calc(var(--spacing) * 0);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:calc(100*1%);--tw-scale-y:calc(100*1%);--tw-scale-z:calc(100*1%);scale:var(--tw-scale-x) var(--tw-scale-y);transform:translateY(0);}}@keyframes --sw-a-59b85d3d{from{opacity:1;}to{opacity:0;--tw-scale-x:calc(98*1%);--tw-scale-y:calc(98*1%);--tw-scale-z:calc(98*1%);scale:var(--tw-scale-x) var(--tw-scale-y);}}\n"
+        },
+        {
+          "path": "src/Dialog.tsx",
+          "language": "tsx",
+          "before": "import { style } from \"stillwind/react\";\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = style(\n  \"rounded-md\",\n  selectedAnimation(\"duration-normal ease-standard both\"),\n  { \"&[data-state=closed]\": exit(\"duration-fast ease-standard both\") },\n);\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
+          "after": "import { stillwindAssetClass, stillwindClsx } from \"stillwind/react/runtime\";\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = {className:stillwindClsx(\"_s_4c5285b6\",stillwindAssetClass(selectedAnimation(\"duration-normal ease-standard both\"),{\"--sw-a-5bc60e1e\":\"_s_0075b133\",\"--sw-a-59b85d3d\":\"_s_f89b7213\"}))};\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
+          "css": "._s_0075b133{animation-name:--sw-a-5bc60e1e;animation-duration:var(--duration-normal);animation-timing-function:var(--ease-standard);animation-fill-mode:both;}._s_f89b7213{animation-name:--sw-a-59b85d3d;animation-duration:var(--duration-normal);animation-timing-function:var(--ease-standard);animation-fill-mode:both;}._s_4c5285b6{border-radius:var(--radius-md);}._s_4c5285b6[data-state=closed]{animation-name:--sw-a-59b85d3d;animation-duration:var(--duration-fast);animation-timing-function:var(--ease-standard);animation-fill-mode:both;}\n"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "scoped-ref-layout",
+      "title": "Scoped ref and layout projections",
+      "description": "Named scope/ref markers lowered into anchor, position, anchor-scope, container, container-query, and tagged-selector CSS.",
+      "tags": [
+        "scope",
+        "ref",
+        "anchor",
+        "container",
+        "selector"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/Popover.tsx"
+      ],
+      "files": [
+        {
+          "path": "src/Popover.tsx",
+          "language": "tsx",
+          "before": "import { style } from \"stillwind/react\";\n\nconst menu = style.scope(\"menu\");\nconst trigger = style.ref(menu, \"trigger\");\n\nexport function Popover() {\n  return (\n    <section {...style(menu)}>\n      <div {...style(trigger.anchorScope, trigger.container(\"inline-size\"))}>\n        <button {...style(trigger, trigger.anchor, \"relative inline-flex\")}>Open</button>\n        <div\n          {...style(\n            trigger.position,\n            trigger.at(\"width >= 40rem\", \"grid-cols-2\"),\n            { [trigger`&:hover`]: \"text-accent\" },\n            \"absolute\",\n          )}\n        />\n      </div>\n    </section>\n  );\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\nconst menu = undefined;\nconst trigger = undefined;\n\nexport function Popover() {\n  return (\n    <section {...{className:\"s_menu_3523e441\"}}>\n      <div {...{className:stillwindClsx(\"s_trigger_5c7d76f9\",\"_s_51aa2253\")}}>\n        <button {...{className:stillwindClsx(\"s_trigger_5c7d76f9\",\"_s_bfdfd0b1\")}}>Open</button>\n        <div\n          {...{className:stillwindClsx(\"s_trigger_5c7d76f9\",\"_s_883b452e\")}}\n        />\n      </div>\n    </section>\n  );\n}\n",
+          "css": "._s_51aa2253{anchor-scope:--sw-r-5c7d76f9;container-name:--sw-r-5c7d76f9;container-type:inline-size;}._s_bfdfd0b1{anchor-name:--sw-r-5c7d76f9;position:relative;display:inline-flex;}._s_883b452e{position-anchor:--sw-r-5c7d76f9;position:absolute;}@container --sw-r-5c7d76f9 (width >= 40rem){._s_883b452e{grid-template-columns:repeat(2,minmax(0,1fr));}}.s_menu_3523e441:has(.s_trigger_5c7d76f9:where(:hover)) ._s_883b452e{color:var(--color-accent);}\n"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "typed-handle-graph",
+      "title": "TypeScript-propagated handle graph",
+      "description": "Conditional ref and scope identities flow through imports and a barrel re-export before runtime attachment and projection lowering.",
+      "tags": [
+        "typescript",
+        "ref",
+        "scope",
+        "conditional",
+        "cross-module",
+        "re-export"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/handles.ts",
+        "src/chooser.ts",
+        "src/barrel.ts",
+        "src/consumer.ts"
+      ],
+      "files": [
+        {
+          "path": "src/handles.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/react\";\n\nexport const primary = style.ref(\"primary\");\nexport const secondary = style.ref(\"secondary\");\nexport const compactScope = style.scope(\"compact\");\nexport const spaciousScope = style.scope(\"spacious\");\n",
+          "after": "import { stillwindRef, stillwindScope } from \"stillwind/react/runtime\";\nexport const primary = stillwindRef(\"s_primary_047d522c\");\nexport const secondary = stillwindRef(\"s_secondary_994d70ad\");\nexport const compactScope = stillwindScope(\"s_compact_b5909584\");\nexport const spaciousScope = stillwindScope(\"s_spacious_16453289\");\n",
+          "css": "\n"
+        },
+        {
+          "path": "src/chooser.ts",
+          "language": "typescript",
+          "before": "import { compactScope, primary, secondary, spaciousScope } from \"./handles\";\n\nexport const compact = Date.now() % 2 === 0;\nexport const selectedRef = compact ? primary : secondary;\nexport const selectedScope = compact ? compactScope : spaciousScope;\n",
+          "after": "import { compactScope, primary, secondary, spaciousScope } from \"./handles\";\n\nexport const compact = Date.now() % 2 === 0;\nexport const selectedRef = compact ? primary : secondary;\nexport const selectedScope = compact ? compactScope : spaciousScope;\n",
+          "css": "\n"
+        },
+        {
+          "path": "src/barrel.ts",
+          "language": "typescript",
+          "before": "export { selectedRef, selectedScope } from \"./chooser\";\n",
+          "after": "export { selectedRef, selectedScope } from \"./chooser\";\n",
+          "css": "\n"
+        },
+        {
+          "path": "src/consumer.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/react\";\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\nexport const anchorProvider = style(selectedRef.anchor);\nexport const attachedScope = style(selectedScope);\n",
+          "after": "import { stillwindHandleClass } from \"stillwind/react/runtime\";\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = {className:stillwindHandleClass(selectedRef)};\nexport const anchorProvider = {className:stillwindHandleClass(selectedRef.anchor)};\nexport const attachedScope = {className:stillwindHandleClass(selectedScope)};\n",
+          "css": "._swp_s_primary_047d522c_anchor{anchor-name:--sw-r-047d522c;}._swp_s_secondary_994d70ad_anchor{anchor-name:--sw-r-994d70ad;}\n"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "utility-props-matrix",
+      "title": "Utility and props lowering matrix",
+      "description": "Static utilities, nested arrays, runtime conditions, ternaries, selectors, attributes, and explicit external classes in one component.",
+      "tags": [
+        "utility",
+        "conditional",
+        "attributes",
+        "selector",
+        "external-class"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/SaveButton.tsx"
+      ],
+      "files": [
+        {
+          "path": "src/SaveButton.tsx",
+          "language": "tsx",
+          "before": "import { style } from \"stillwind/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = style(\n  [\"inline-flex items-center rounded-md px-4\", loading && \"opacity-60\"],\n  emphasized ? \"bg-accent\" : \"bg-muted\",\n  {\n    class: [\"legacy-button\", loading && \"is-loading\"],\n    \"aria-busy\": loading,\n    \"data-emphasis\": emphasized ? \"high\" : \"normal\",\n    \"&:hover\": \"bg-accent/90\",\n  },\n);\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"_s_9406efc8\",loading&&\"_s_a0bab6c2\",emphasized&&\"_s_2240a763\",!emphasized&&\"_s_03dde9b3\",[\"legacy-button\", loading && \"is-loading\"]),\"aria-busy\":loading,\"data-emphasis\":emphasized ? \"high\" : \"normal\"};\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
+          "css": "._s_9406efc8{display:inline-flex;align-items:center;border-radius:var(--radius-md);padding-inline:var(--spacing-4);}._s_9406efc8:hover{background-color:color-mix(in srgb,oklch(0.62 0.18 252) 90%,transparent);}@supports (color:color-mix(in lab,red,red)){._s_9406efc8:hover{background-color:color-mix(in oklab,var(--color-accent) 90%,transparent);}}._s_a0bab6c2{opacity:0.6;}._s_2240a763{background-color:var(--color-accent);}._s_03dde9b3{background-color:var(--color-muted);}\n"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
       "id": "view-transition-matrix",
       "title": "View transition lowering matrix",
       "description": "Static and conditional view-transition identities, each used with and without a key across module boundaries.",

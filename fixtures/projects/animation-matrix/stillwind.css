@@ -1,0 +1,7 @@
+@theme {
+  --radius-md: 0.375rem;
+  --spacing-2: 0.5rem;
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --ease-standard: ease-out;
+}

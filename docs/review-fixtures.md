@@ -41,6 +41,18 @@ catalog consumed by the viewer. The check task regenerates in memory and fails
 when a manifest, source, expected file, or catalog is stale. The production
 viewer is static and read-only; its host needs no compiler or API route.
 
+## Current review narratives
+
+- `utility-props-matrix`: utilities, arrays, conditions, ternaries, attributes,
+  local selectors, and external classes.
+- `scoped-ref-layout`: scope/ref markers, anchor positioning, containers,
+  container queries, and ref-tagged selectors.
+- `typed-handle-graph`: conditional refs/scopes propagated through imports and
+  a barrel re-export by TypeScript.
+- `animation-matrix`: static and conditional animations across modules.
+- `view-transition-matrix`: static, keyed, and conditional view transitions
+  across modules.
+
 ## URLs and search
 
 Viewer links use a hash route so they survive deployment on any static host and

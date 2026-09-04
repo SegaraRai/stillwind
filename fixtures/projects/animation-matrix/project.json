@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "animation-matrix",
+  "title": "Animation lowering matrix",
+  "description": "Animation declarations and selector uses combined with a TypeScript-propagated conditional identity across modules.",
+  "tags": ["animation", "conditional", "selector", "cross-module", "typescript"],
+  "theme": "stillwind.css",
+  "sources": ["src/animations.ts", "src/Dialog.tsx"]
+}
