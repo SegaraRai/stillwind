@@ -578,7 +578,8 @@ pure and testable without Vite.
 1. Keep producer recognition, original spans, CSS semantics, and code generation
    in Rust/Oxc.
 2. Maintain one long-lived TypeScript 7 checker sidecar per Vite project and
-   update its virtual shadow files incrementally.
+   update its virtual shadow files incrementally. The Vite plugin now owns this
+   lifecycle; it closes the service with the dev server or build bundle.
 3. Batch candidate queries and immediately convert checker objects into the
    language-neutral `TypeFact` representation.
 4. Treat missing, widened, forged, or failed checker results conservatively;
@@ -596,6 +597,13 @@ Every phase retains the invariants that CSS is fully generated before runtime,
 source locations remain exact, generated identities are collision-checked, and
 the final selector/declaration plan is semantically equivalent to the symbolic
 candidate relation.
+
+The synchronous TS7 API serializes requests, so a snapshot cannot race another
+generation inside one plugin instance. Each update replaces the virtual file
+set, reports changed/created/deleted paths, creates the next snapshot, and only
+then disposes the previous snapshot. If the checker fails, the service closes
+the process and retries once from a cold snapshot; a second failure is surfaced
+as a compiler integration error rather than falling back to Rust propagation.
 
 ## Test strategy
 

@@ -3,7 +3,7 @@ import path from "node:path";
 import { API } from "typescript/unstable/sync";
 import { isExpression } from "typescript/unstable/ast/is";
 import type { Node, SourceFile } from "typescript/unstable/ast";
-import type { Checker, Type } from "typescript/unstable/sync";
+import type { Checker, Snapshot, Type } from "typescript/unstable/sync";
 
 export interface TypeFactSource {
   id: string;
@@ -190,12 +190,27 @@ function typeFactValue(
   return null;
 }
 
-/** Uses TS7 as the sole provider for non-direct handle propagation facts. */
-export function collectTypeScriptFacts(
+interface PreparedProject {
+  virtualFiles: Map<string, string>;
+  mappings: Map<
+    string,
+    { source: TypeFactSource; insertions: Insertion[]; identities: Map<string, IdentityId> }
+  >;
+  identities: Map<string, IdentityId>;
+}
+
+export interface TypeScriptFactsStats {
+  starts: number;
+  snapshots: number;
+  incrementalSnapshots: number;
+  restarts: number;
+}
+
+function prepareProject(
   sources: readonly TypeFactSource[],
   assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
-  projectRoot: string,
-): Map<string, TypeFact[]> {
+  configFile: string,
+): PreparedProject {
   const virtualFiles = new Map<string, string>();
   const mappings = new Map<
     string,
@@ -210,7 +225,6 @@ export function collectTypeScriptFacts(
     for (const [key, identity] of shadow.identities) allIdentities.set(key, identity);
   }
 
-  const configFile = path.join(projectRoot, ".stillwind-tsconfig.json");
   virtualFiles.set(
     normalize(configFile),
     JSON.stringify({
@@ -228,39 +242,129 @@ export function collectTypeScriptFacts(
       files: sources.map((source) => source.id),
     }),
   );
+  return { virtualFiles, mappings, identities: allIdentities };
+}
 
-  const api = new API({
-    cwd: projectRoot,
-    fs: {
-      fileExists(fileName) {
-        return virtualFiles.has(normalize(fileName)) ? true : undefined;
-      },
-      readFile(fileName) {
-        return virtualFiles.get(normalize(fileName));
-      },
-    },
-  });
+/** Owns one TS7 process and a chain of incremental snapshots for a Vite project. */
+export class TypeScriptFactsService {
+  readonly stats: TypeScriptFactsStats = {
+    starts: 0,
+    snapshots: 0,
+    incrementalSnapshots: 0,
+    restarts: 0,
+  };
 
-  try {
-    const snapshot = api.updateSnapshot({ openProjects: [configFile] });
+  readonly #configFile: string;
+  readonly #projectRoot: string;
+  #api: API;
+  #closed = false;
+  #snapshot: Snapshot | undefined;
+  #virtualFiles = new Map<string, string>();
+
+  constructor(projectRoot: string) {
+    this.#projectRoot = projectRoot;
+    this.#configFile = path.join(projectRoot, ".stillwind-tsconfig.json");
+    this.#api = this.#startApi();
+  }
+
+  collect(
+    sources: readonly TypeFactSource[],
+    assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
+  ): Map<string, TypeFact[]> {
+    if (this.#closed) throw new Error("TypeScript facts service is closed");
+    const prepared = prepareProject(sources, assetsByPath, this.#configFile);
     try {
-      const project = snapshot.getProject(configFile);
+      return this.#collectPrepared(prepared);
+    } catch (firstError) {
+      this.stats.restarts += 1;
+      this.#restartApi();
+      try {
+        return this.#collectPrepared(prepared);
+      } catch (retryError) {
+        throw new AggregateError(
+          [firstError, retryError],
+          "TypeScript 7 checker failed before and after a clean restart",
+        );
+      }
+    }
+  }
+
+  close(): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    this.#snapshot?.dispose();
+    this.#snapshot = undefined;
+    this.#api.close();
+  }
+
+  #startApi(): API {
+    this.stats.starts += 1;
+    return new API({
+      cwd: this.#projectRoot,
+      collectTiming: true,
+      fs: {
+        fileExists: (fileName) => (this.#virtualFiles.has(normalize(fileName)) ? true : undefined),
+        readFile: (fileName) => this.#virtualFiles.get(normalize(fileName)),
+      },
+    });
+  }
+
+  #restartApi(): void {
+    this.#snapshot?.dispose();
+    this.#snapshot = undefined;
+    this.#api.close();
+    this.#api = this.#startApi();
+  }
+
+  #collectPrepared(prepared: PreparedProject): Map<string, TypeFact[]> {
+    const changed: string[] = [];
+    const created: string[] = [];
+    const deleted: string[] = [];
+    for (const [fileName, contents] of prepared.virtualFiles) {
+      if (!this.#virtualFiles.has(fileName)) created.push(fileName);
+      else if (this.#virtualFiles.get(fileName) !== contents) changed.push(fileName);
+    }
+    for (const fileName of this.#virtualFiles.keys()) {
+      if (!prepared.virtualFiles.has(fileName)) deleted.push(fileName);
+    }
+    this.#virtualFiles = prepared.virtualFiles;
+
+    const next = this.#snapshot
+      ? this.#api.updateSnapshot({ fileChanges: { changed, created, deleted } })
+      : this.#api.updateSnapshot({ openProjects: [this.#configFile] });
+    this.stats.snapshots += 1;
+    if (this.#snapshot) this.stats.incrementalSnapshots += 1;
+    try {
+      const project = next.getProject(this.#configFile);
       if (!project) throw new Error("TypeScript 7 could not open the Stillwind shadow project");
       const result = new Map<string, TypeFact[]>();
-      for (const mapping of mappings.values()) {
+      for (const mapping of prepared.mappings.values()) {
         const sourceFile = project.program.getSourceFile(mapping.source.id);
         if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.source.id}`);
         result.set(
           mapping.source.path,
-          factsForSource(project.checker, sourceFile, mapping, allIdentities),
+          factsForSource(project.checker, sourceFile, mapping, prepared.identities),
         );
       }
       return result;
     } finally {
-      snapshot.dispose();
+      this.#snapshot?.dispose();
+      this.#snapshot = next;
     }
+  }
+}
+
+/** One-shot convenience API for tests and non-Vite callers. */
+export function collectTypeScriptFacts(
+  sources: readonly TypeFactSource[],
+  assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
+  projectRoot: string,
+): Map<string, TypeFact[]> {
+  const service = new TypeScriptFactsService(projectRoot);
+  try {
+    return service.collect(sources, assetsByPath);
   } finally {
-    api.close();
+    service.close();
   }
 }
 

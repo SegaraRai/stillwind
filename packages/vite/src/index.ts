@@ -10,7 +10,7 @@ import {
   summarizeReact,
 } from "@stillwind/native";
 import type { Plugin, ViteDevServer } from "vite";
-import { collectTypeScriptFacts, type AssetRecord, type TypeFact } from "./type-facts.ts";
+import { TypeScriptFactsService, type AssetRecord, type TypeFact } from "./type-facts.ts";
 
 export interface StillwindOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
@@ -260,6 +260,12 @@ export function stillwind(options: StillwindOptions): Plugin {
   const symbolsByModule = new Map<string, GeneratedSymbol[]>();
   const previewBundles = new Map<string, string>();
   let projectRoot = "";
+  let typeFactsService: TypeScriptFactsService | undefined;
+
+  const closeTypeFacts = () => {
+    typeFactsService?.close();
+    typeFactsService = undefined;
+  };
 
   return {
     name: "stillwind",
@@ -273,6 +279,8 @@ export function stillwind(options: StillwindOptions): Plugin {
     },
     configResolved(config) {
       projectRoot = config.root;
+      closeTypeFacts();
+      typeFactsService = new TypeScriptFactsService(projectRoot);
       if (options.types === false) return;
       const output = options.types ?? join(config.root, "src", "stillwind.generated.d.ts");
       const path =
@@ -325,10 +333,9 @@ export function stillwind(options: StillwindOptions): Plugin {
           JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
         ]),
       );
-      const typeFacts = collectTypeScriptFacts(
+      const typeFacts = (typeFactsService ??= new TypeScriptFactsService(projectRoot)).collect(
         sources,
         new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
-        projectRoot,
       );
       const typedSources = sources.map((source) => ({
         ...source,
@@ -365,6 +372,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       return { code: `${runtimeImport}import "${virtualCssId}";\n${output.code}`, map: null };
     },
     configureServer(server: ViteDevServer) {
+      server.httpServer?.once("close", closeTypeFacts);
       server.middlewares.use("/__stillwind/compile", (request, response) => {
         if (request.method !== "POST")
           return sendJson(response, { error: "POST is required" }, 405);
@@ -428,5 +436,6 @@ export function stillwind(options: StillwindOptions): Plugin {
         response.end(bundle);
       });
     },
+    closeBundle: closeTypeFacts,
   };
 }

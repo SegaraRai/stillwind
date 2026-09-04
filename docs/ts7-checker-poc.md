@@ -37,8 +37,8 @@ internals and is not recommended.
 
 The boundary is visibly still maturing. Recent upstream reports include a checker API panic on a
 valid empty-tuple query and poor process-start error reporting in the synchronous client. Stillwind
-must isolate sidecar failure and fall back to its conservative symbolic domain instead of letting a
-checker process failure abort compilation.
+therefore isolates and retries a failed sidecar once, then reports the integration failure. It does
+not silently switch to a second, less capable propagation implementation.
 
 ## Proposed integration boundary
 
@@ -67,13 +67,22 @@ not retain opaque checker objects across snapshots.
 5. Keep package manifests for dependencies whose source is unavailable; the checker is not a
    substitute for Stillwind asset metadata.
 
-## Next hardening step
+## Implemented lifecycle
 
-Replace the current per-compilation sidecar lifetime with one long-lived checker per Vite project.
-Batch queried spans per snapshot and record cold start, warm update, request count, bytes, and
-failure frequency. The branded identity channel now covers refs, scopes, animations, and view
-transitions. A checker failure must produce a conservative diagnostic; it must never activate a
-second Rust implementation of TypeScript data flow.
+The Vite adapter owns one `TypeScriptFactsService` for its server/build lifetime. Its first request
+opens the in-memory shadow project; later requests use `fileChanges` to create incremental
+snapshots while retaining the same TS7 API process. The service tracks process starts, snapshots,
+incremental snapshots, and restarts. A fixture updates one virtual source and verifies two
+snapshots with one process start and one incremental update.
+
+Snapshots remain request-scoped: checker objects are converted immediately to serializable facts,
+the previous snapshot is disposed after its successor is ready, and no checker object crosses the
+Rust boundary. A checker failure causes one cold-process retry. A second failure is surfaced; it
+never activates a Rust implementation of TypeScript data flow.
+
+The branded identity channel now covers refs, scopes, animations, and view transitions. Follow-up
+hardening should export the TS7 timing counters (round trips, transferred bytes, and server time)
+to Vite debug telemetry and add package-manifest inputs for dependencies without source.
 
 ## Primary sources
 

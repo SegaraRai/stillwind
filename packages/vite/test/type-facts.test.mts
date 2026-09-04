@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { compileReactProject, summarizeReact } from "@stillwind/native";
-import { collectTypeScriptFacts, type AssetRecord } from "../src/type-facts.ts";
+import { TypeScriptFactsService, type AssetRecord } from "../src/type-facts.ts";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/type-facts");
@@ -35,11 +35,24 @@ void test("TypeScript is required for cross-module conditional handle propagatio
     "native compilation must not implement cross-module propagation on its own",
   );
 
-  const facts = collectTypeScriptFacts(
-    sources,
-    new Map([...summaries].map(([sourcePath, summary]) => [sourcePath, summary.assets])),
-    repositoryRoot,
+  const service = new TypeScriptFactsService(repositoryRoot);
+  const assets = new Map(
+    [...summaries].map(([sourcePath, summary]) => [sourcePath, summary.assets] as const),
   );
+  service.collect(sources, assets);
+  const facts = service.collect(
+    sources.map((source) =>
+      source.path === "src/consumer.ts" ? { ...source, source: `${source.source}\n` } : source,
+    ),
+    assets,
+  );
+  assert.deepEqual(service.stats, {
+    starts: 1,
+    snapshots: 2,
+    incrementalSnapshots: 1,
+    restarts: 0,
+  });
+  service.close();
   const withFacts = JSON.parse(
     compileReactProject(
       JSON.stringify(
