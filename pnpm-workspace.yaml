@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - examples/*
+  - experiments/*
   - packages/*
   - packages/native/npm/*
   - tools

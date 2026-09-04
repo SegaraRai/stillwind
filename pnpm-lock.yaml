@@ -277,6 +277,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/react
 
+  experiments/ts7-shadow-checker: {}
+
   packages/native:
     optionalDependencies:
       '@stillwind/native-darwin-arm64':

@@ -26,6 +26,9 @@ export default {
       check: {
         command: "vp check",
       },
+      "ts7-shadow:poc": {
+        command: "node experiments/ts7-shadow-checker/src/index.mjs",
+      },
     },
   },
 };
