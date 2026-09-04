@@ -12,6 +12,7 @@ fixtures/projects/<project-id>/
   input/<module path>       # authored source
   expected/<module path>    # compiler output, generated and reviewed
   expected/<module>.css     # module utility fragment; shared layers emit once
+  expected/project.css      # complete formatted project stylesheet
 ```
 
 `project.json` is schema-versioned. Project IDs and source paths are URL keys:

@@ -1,4 +1,5 @@
 import { stillwindViewTransition, stillwindViewTransitionStyle } from "stillwind/react/runtime";
+
 export const pageTitle = stillwindViewTransition("--sw-v-7e58d129");
 export const pageCard = stillwindViewTransition("--sw-v-5ce18560");
 

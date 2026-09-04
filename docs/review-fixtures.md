@@ -41,6 +41,13 @@ catalog consumed by the viewer. The check task regenerates in memory and fails
 when a manifest, source, expected file, or catalog is stale. The production
 viewer is static and read-only; its host needs no compiler or API route.
 
+The viewer's transform comparison is anchored to the compiler's UTF-16 source
+span mappings, including the final macro-import removal and runtime-import
+insertion. It only falls back to textual diffing for catalogs generated before
+mapping metadata was introduced. Generated CSS is formatted during snapshot
+generation. The lower panel can switch between the selected module's unique CSS
+fragment and the complete project stylesheet in `expected/project.css`.
+
 ## Current review narratives
 
 - `utility-props-matrix`: utilities, arrays, conditions, ternaries, attributes,

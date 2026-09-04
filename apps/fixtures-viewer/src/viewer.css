@@ -179,7 +179,7 @@ main {
   min-width: 0;
   overflow: hidden;
   display: grid;
-  grid-template-rows: auto 43px minmax(0, 1fr);
+  grid-template-rows: auto 43px minmax(240px, 1fr) 43px minmax(180px, 0.75fr);
   background: radial-gradient(circle at 60% 0, #102535 0, transparent 34%), #071019;
 }
 .context {
@@ -255,15 +255,38 @@ h1 {
   background: var(--cyan);
   box-shadow: 0 0 8px #48d9c566;
 }
-.compare-head nav {
+.css-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-block: 1px solid var(--line);
+  padding: 0 15px;
+  background: #091520;
+  color: #b6c4d5;
+  font: 11px var(--mono);
+}
+.css-head > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.css-head small {
+  overflow: hidden;
+  color: #5f7086;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.css-head nav {
   display: flex;
   gap: 2px;
-  margin-left: auto;
+  flex: none;
   background: #071019;
   padding: 2px;
   border-radius: 5px;
 }
-.compare-head nav button {
+.css-head nav button {
   border: 0;
   border-radius: 4px;
   padding: 4px 8px;
@@ -272,14 +295,54 @@ h1 {
   font: 9px var(--mono);
   cursor: pointer;
 }
-.compare-head nav button.selected {
+.css-head nav button.selected {
   color: #d6e4f5;
   background: #172638;
 }
 .compare {
   min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  background: #08131ecb;
+}
+.diff,
+.diff > .cm-mergeView,
+.diff .cm-mergeViewEditors {
+  width: 100%;
+  height: 100%;
+}
+.diff > .cm-mergeView {
+  overflow: hidden;
+}
+.diff .cm-mergeViewEditor {
+  min-width: 0;
+  overflow: hidden;
+}
+.diff .cm-mergeViewEditor:first-child {
+  border-right: 1px solid var(--line);
+}
+.diff .cm-changedLine {
+  background: #422c203d;
+}
+.diff .cm-merge-b .cm-changedLine {
+  background: #123b363d;
+}
+.diff .cm-changedText {
+  border-radius: 2px;
+  background: #b66b344f;
+}
+.diff .cm-merge-b .cm-changedText {
+  background: #38bda554;
+}
+.diff .cm-changedLineGutter {
+  background: #e7aa57;
+}
+.diff .cm-merge-b .cm-changedLineGutter {
+  background: var(--cyan);
+}
+.css-panel {
+  min-height: 0;
+  overflow: hidden;
+  background: #07131d;
 }
 .code {
   min-width: 0;
@@ -287,8 +350,9 @@ h1 {
   background: #08131ecb;
   color: #c7d5e7;
 }
-.code:first-child {
-  border-right: 1px solid var(--line);
+.status.css {
+  background: #8da7ff;
+  box-shadow: 0 0 8px #8da7ff66;
 }
 .code-skeleton {
   padding: 18px;

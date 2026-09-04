@@ -8,17 +8,20 @@ type FixtureFile = {
   before: string;
   after: string;
   css: string;
+  diff?: Array<{ fromA: number; toA: number; fromB: number; toB: number }>;
 };
 type FixtureProject = {
   id: string;
   title: string;
   description: string;
   tags: string[];
+  css: string;
   files: FixtureFile[];
 };
 type Catalog = { schemaVersion: 1; projects: FixtureProject[] };
 
 const Code = lazy(() => import("./CodeView"));
+const Diff = lazy(() => import("./DiffView"));
 
 function parseRoute(catalog: Catalog) {
   const match = location.hash.match(/^#\/projects\/([^/]+)\/files\/(.+)$/);
@@ -47,7 +50,7 @@ function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [routeVersion, setRouteVersion] = useState(0);
   const [query, setQuery] = useState("");
-  const [output, setOutput] = useState<"transform" | "css">("transform");
+  const [cssScope, setCssScope] = useState<"module" | "project">("module");
   const [copied, setCopied] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const search = useRef<HTMLInputElement>(null);
@@ -112,7 +115,10 @@ function App() {
   if (!catalog || !route?.project || !route.file)
     return <main className="loading">Loading fixture catalog…</main>;
   const { project, file } = route;
-  const after = output === "transform" ? file.after : file.css;
+  const cssOutput =
+    cssScope === "module"
+      ? file.css.trim() || "/* This module does not own any unique generated CSS. */\n"
+      : project.css;
 
   return (
     <div className="shell">
@@ -197,26 +203,44 @@ function App() {
           <div>
             <span className="status after" />
             After
-            <nav aria-label="Output type">
-              <button
-                className={output === "transform" ? "selected" : ""}
-                onClick={() => setOutput("transform")}
-              >
-                Transform
-              </button>
-              <button
-                className={output === "css" ? "selected" : ""}
-                onClick={() => setOutput("css")}
-              >
-                CSS
-              </button>
-            </nav>
           </div>
         </div>
         <div className="compare">
+          <Suspense fallback={<div className="code-skeleton">Computing diff…</div>}>
+            <Diff
+              before={file.before}
+              after={file.after}
+              language={file.language}
+              changes={file.diff}
+            />
+          </Suspense>
+        </div>
+        <div className="css-head">
+          <div>
+            <span className="status css" />
+            Generated CSS
+            <small>{cssScope === "module" ? file.path : project.id}</small>
+          </div>
+          <nav aria-label="CSS scope">
+            <button
+              className={cssScope === "module" ? "selected" : ""}
+              aria-pressed={cssScope === "module"}
+              onClick={() => setCssScope("module")}
+            >
+              Module CSS
+            </button>
+            <button
+              className={cssScope === "project" ? "selected" : ""}
+              aria-pressed={cssScope === "project"}
+              onClick={() => setCssScope("project")}
+            >
+              Project CSS
+            </button>
+          </nav>
+        </div>
+        <div className="css-panel">
           <Suspense fallback={<div className="code-skeleton">Loading source…</div>}>
-            <Code value={file.before} language={file.language} />
-            <Code value={after} language={output === "css" ? "css" : file.language} />
+            <Code value={cssOutput} language="css" />
           </Suspense>
         </div>
       </main>
@@ -224,4 +248,6 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+const root = import.meta.hot?.data.root ?? createRoot(document.getElementById("root")!);
+if (import.meta.hot) import.meta.hot.data.root = root;
+root.render(<App />);
