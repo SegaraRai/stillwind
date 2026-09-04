@@ -7,7 +7,7 @@ use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
     AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
 };
-use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
+use shorth_source::{Diagnostic, SourceFile, Span, Spanned, normalized_module_path};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
@@ -541,10 +541,6 @@ fn handle_projection_name(projection: &HandleProjection) -> &'static str {
         HandleProjection::Scope => "scope",
         HandleProjection::Container(_) => "container",
     }
-}
-
-fn normalized_module_path(path: &str) -> String {
-    path.replace('\\', "/").trim_start_matches("./").to_owned()
 }
 
 fn symbol_identity(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {

@@ -5,6 +5,11 @@ use std::{ops::Range, sync::Arc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Canonical project-relative module path used by generated identities and caches.
+pub fn normalized_module_path(path: &str) -> String {
+    path.replace('\\', "/").trim_start_matches("./").to_owned()
+}
+
 fn offset(value: usize) -> u32 {
     u32::try_from(value).expect("shorth source files must be smaller than 4 GiB")
 }
@@ -247,5 +252,17 @@ mod tests {
             }
         );
         assert_eq!(source.utf16_offset(BytePos(6)).unwrap(), 4);
+    }
+
+    #[test]
+    fn normalizes_module_paths_across_platforms() {
+        assert_eq!(
+            normalized_module_path(r".\src\components\Menu.tsx"),
+            "src/components/Menu.tsx"
+        );
+        assert_eq!(
+            normalized_module_path("./src/components/Menu.tsx"),
+            "src/components/Menu.tsx"
+        );
     }
 }

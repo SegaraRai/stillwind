@@ -1292,6 +1292,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "shorth-semantic"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "shorth-source",
+ "thiserror",
+]
+
+[[package]]
 name = "shorth-source"
 version = "0.0.0"
 dependencies = [
