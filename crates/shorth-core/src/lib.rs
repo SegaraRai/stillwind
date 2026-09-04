@@ -1,13 +1,18 @@
 //! Public orchestration API for the first compiler slice.
 
-use std::{collections::BTreeMap, fmt::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write,
+};
 
 use serde::Serialize;
 use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
     AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
 };
-use shorth_semantic::{AssetMetadata, ExportedValue, IdentityId, ModuleGraph, ModuleGraphError};
+use shorth_semantic::{
+    AssetKind, AssetMetadata, Candidates, ExportedValue, IdentityId, ModuleGraph, ModuleGraphError,
+};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned, normalized_module_path};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -201,6 +206,7 @@ impl Compiler {
         theme_source: &SourceFile,
         parsed: shorth_js_oxc::ParsedJavaScript,
     ) -> CompileResult {
+        let mut runtime_assets = summary_runtime_assets(&parsed.summary);
         let mut result = CompileResult {
             diagnostics: parsed.diagnostics,
             ..CompileResult::default()
@@ -280,6 +286,7 @@ impl Compiler {
             let mut attributes = Vec::new();
             let mut handle_markers = Vec::new();
             let mut external_classes = Vec::new();
+            let mut dynamic_handle_classes = Vec::new();
             let mut dynamic_styles = Vec::new();
             for input in call.inputs {
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
@@ -431,6 +438,16 @@ impl Compiler {
                     branches[0].2.push('\0');
                     continue;
                 }
+                if let StyleInput::DynamicScopeAttachment { value, scopes } = input {
+                    dynamic_handle_classes.push(value);
+                    runtime_assets.extend(scopes.iter().map(scope_identity));
+                    continue;
+                }
+                if let StyleInput::DynamicHandleAttachment { value, handles } = input {
+                    dynamic_handle_classes.push(value);
+                    runtime_assets.extend(handles.iter().map(ref_identity));
+                    continue;
+                }
                 if let StyleInput::ExternalClass(value) = input {
                     external_classes.push(value);
                     continue;
@@ -480,6 +497,8 @@ impl Compiler {
                     StyleInput::HandleProjection { .. }
                     | StyleInput::ScopeAttachment(_)
                     | StyleInput::HandleAttachment(_)
+                    | StyleInput::DynamicScopeAttachment { .. }
+                    | StyleInput::DynamicHandleAttachment { .. }
                     | StyleInput::ExternalClass(_)
                     | StyleInput::ContainerQuery { .. }
                     | StyleInput::AnimationUse { .. }
@@ -552,6 +571,7 @@ impl Compiler {
                 &attributes,
                 &handle_markers,
                 &external_classes,
+                &dynamic_handle_classes,
                 &dynamic_styles,
             ) {
                 result.transforms.push(PropsTransform {
@@ -563,13 +583,27 @@ impl Compiler {
         for handle_definition in module.handle_definitions {
             result.transforms.push(PropsTransform {
                 call_span: handle_definition.call_span,
-                replacement: "undefined".to_owned(),
+                replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
+                    format!(
+                        "stillwindRef(\"{}\")",
+                        handle_marker_class(&handle_definition)
+                    )
+                } else {
+                    "undefined".to_owned()
+                },
             });
         }
         for scope_definition in module.scope_definitions {
             result.transforms.push(PropsTransform {
                 call_span: scope_definition.call_span,
-                replacement: "undefined".to_owned(),
+                replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
+                    format!(
+                        "stillwindScope(\"{}\")",
+                        scope_marker_class(&scope_definition).trim_start_matches('.')
+                    )
+                } else {
+                    "undefined".to_owned()
+                },
             });
         }
         for animation in module.animation_declarations {
@@ -946,16 +980,67 @@ fn scope_marker_class(scope: &shorth_ir::ScopeDefinition) -> String {
     }
 }
 
+fn ref_identity(handle: &shorth_ir::HandleDefinition) -> IdentityId {
+    IdentityId::new(
+        AssetKind::Ref,
+        &handle.module_path,
+        handle.name.span.start.0,
+        handle.name.span.end.0,
+        handle.name.value.clone(),
+    )
+}
+
+fn scope_identity(scope: &shorth_ir::ScopeDefinition) -> IdentityId {
+    IdentityId::new(
+        AssetKind::Scope,
+        &scope.module_path,
+        scope.name.span.start.0,
+        scope.name.span.end.0,
+        scope.name.value.clone(),
+    )
+}
+
+fn summary_runtime_assets(summary: &shorth_semantic::ModuleSummary) -> BTreeSet<IdentityId> {
+    let mut identities = BTreeSet::new();
+    for value in summary.exports.values() {
+        match value {
+            ExportedValue::Refs(alternatives) => {
+                for alternative in alternatives {
+                    identities.insert(alternative.reference.clone());
+                    if let Some(scopes) = &alternative.permitted_scopes
+                        && let Candidates::Finite(scopes) = &scopes.candidates
+                    {
+                        identities.extend(scopes.iter().cloned());
+                    }
+                }
+            }
+            ExportedValue::Scopes(value)
+            | ExportedValue::Animations(value)
+            | ExportedValue::ViewTransitions(value) => {
+                if let Candidates::Finite(candidates) = &value.candidates {
+                    identities.extend(candidates.iter().cloned());
+                }
+            }
+        }
+    }
+    identities
+}
+
 fn render_react_props(
     source: &SourceFile,
     classes: &[GeneratedClass],
     attributes: &[AttributeEntry],
     handle_markers: &[String],
     external_classes: &[Span],
+    dynamic_handle_classes: &[Span],
     dynamic_styles: &[DynamicStyleEntry],
 ) -> Option<String> {
     let mut entries = Vec::new();
-    if !classes.is_empty() || !handle_markers.is_empty() || !external_classes.is_empty() {
+    if !classes.is_empty()
+        || !handle_markers.is_empty()
+        || !external_classes.is_empty()
+        || !dynamic_handle_classes.is_empty()
+    {
         let mut class_names = handle_markers
             .iter()
             .map(|marker| format!("\"{marker}\""))
@@ -980,6 +1065,17 @@ fn render_react_props(
             external_classes
                 .iter()
                 .map(|value| source.slice(*value).ok().map(str::to_owned))
+                .collect::<Option<Vec<_>>>()?,
+        );
+        class_names.extend(
+            dynamic_handle_classes
+                .iter()
+                .map(|value| {
+                    source
+                        .slice(*value)
+                        .ok()
+                        .map(|value| format!("stillwindHandleClass({value})"))
+                })
                 .collect::<Option<Vec<_>>>()?,
         );
         let class_value = if external_classes.is_empty() && class_names.len() == 1 {

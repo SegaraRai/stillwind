@@ -162,10 +162,16 @@ function previewSource(code: string): string {
     /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm,
     "",
   );
-  const withRuntime = withoutMacroImport.includes("stillwindClsx(")
-    ? 'import { stillwindClsx } from "stillwind/react/runtime";\n' + withoutMacroImport
-    : withoutMacroImport;
+  const runtimeImport = renderRuntimeImport(withoutMacroImport);
+  const withRuntime = runtimeImport + withoutMacroImport;
   return withRuntime.replace(/\bexport\s+App\s*;/g, "export { App };");
+}
+
+function renderRuntimeImport(code: string): string {
+  const names = ["stillwindClsx", "stillwindHandleClass", "stillwindRef", "stillwindScope"].filter(
+    (name) => code.includes(`${name}(`),
+  );
+  return names.length > 0 ? `import { ${names.join(", ")} } from "stillwind/react/runtime";\n` : "";
 }
 
 async function bundlePreview(source: string, css: string, server: ViteDevServer): Promise<string> {
@@ -331,9 +337,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
       );
       if (!output?.code) return undefined;
-      const runtimeImport = output.code.includes("stillwindClsx(")
-        ? 'import { stillwindClsx } from "stillwind/react/runtime";\n'
-        : "";
+      const runtimeImport = renderRuntimeImport(output.code);
       return { code: `${runtimeImport}import "${virtualCssId}";\n${output.code}`, map: null };
     },
     configureServer(server: ViteDevServer) {

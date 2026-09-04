@@ -134,6 +134,14 @@ pub enum StyleInput {
     },
     ScopeAttachment(ScopeDefinition),
     HandleAttachment(HandleDefinition),
+    DynamicScopeAttachment {
+        value: Span,
+        scopes: Vec<ScopeDefinition>,
+    },
+    DynamicHandleAttachment {
+        value: Span,
+        handles: Vec<HandleDefinition>,
+    },
     /// A user-owned class value evaluated by the runtime `stillwindClsx` helper.
     ///
     /// This is intentionally available only through `{ class: … }`, so the

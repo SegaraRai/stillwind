@@ -1,14 +1,15 @@
 import { style } from "stillwind/react";
-import { menuTrigger } from "./MenuScope";
+import { alternateTrigger, menuTrigger } from "./MenuScope";
 
-export function MenuItem() {
+export function MenuItem({ alternate = false }: { alternate?: boolean }) {
+  const selected = alternate ? alternateTrigger : menuTrigger;
   return (
     <span
       {...style("inline-flex rounded-md bg-accent px-4 py-2", {
-        [menuTrigger`&:hover`]: "text-white",
+        [selected`&:hover`]: "text-white",
       })}
     >
-      Cross-module ref
+      Cross-module symbolic ref
     </span>
   );
 }

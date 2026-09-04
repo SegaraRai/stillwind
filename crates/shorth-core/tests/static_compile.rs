@@ -1450,3 +1450,28 @@ export const child = style({ [selected`&:hover`]: "text-accent" });"#,
     assert!(results[2].css.contains(".s_first_"), "{}", results[2].css);
     assert!(results[2].css.contains(".s_second_"), "{}", results[2].css);
 }
+
+#[test]
+fn lowers_dynamic_ref_attachments_to_small_runtime_descriptors() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Dynamic.tsx",
+        r#"import { style } from "stillwind/react";
+const first = style.ref("first");
+const second = style.ref("second");
+const selected = enabled ? first : second;
+export const props = style(selected);"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+    let code = result.apply_to_source(&component).unwrap();
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(code.contains("stillwindRef(\"s_first_"), "{code}");
+    assert!(code.contains("stillwindRef(\"s_second_"), "{code}");
+    assert!(
+        code.contains("className:stillwindHandleClass(selected)"),
+        "{code}"
+    );
+}

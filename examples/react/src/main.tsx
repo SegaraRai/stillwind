@@ -29,8 +29,8 @@ function App() {
       <h1>Static macro, native CSS.</h1>
       <p>Click the button to exercise a compile-time conditional branch.</p>
       <SaveButton />
-      <MenuScope>
-        <MenuItem />
+      <MenuScope alternate>
+        <MenuItem alternate />
       </MenuScope>
     </main>
   );

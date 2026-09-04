@@ -385,12 +385,29 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn scope_reference(&self, expression: &Expression<'a>) -> Option<ScopeDefinition> {
+        let scopes = self.scope_references(expression)?;
+        (scopes.len() == 1).then(|| scopes[0].clone())
+    }
+
+    fn scope_references(&self, expression: &Expression<'a>) -> Option<Vec<ScopeDefinition>> {
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        self.scope_symbols.get(&symbol_id).cloned()
+        if let Some(scope) = self.scope_symbols.get(&symbol_id) {
+            return Some(vec![scope.clone()]);
+        }
+        let ExportedValue::Scopes(value) = self.local_values.get(&symbol_id)? else {
+            return None;
+        };
+        Some(
+            value
+                .finite_candidates()?
+                .iter()
+                .map(|identity| self.imported_scope(identity))
+                .collect(),
+        )
     }
 
     fn animation_reference(&self, expression: &Expression<'a>) -> Option<Spanned<String>> {
@@ -946,19 +963,48 @@ impl<'a> MacroExtractor<'a> {
         Some((handles, selector))
     }
 
+    fn collect_dynamic_handle_attachment(
+        &mut self,
+        expression: &Expression<'a>,
+        inputs: &mut Vec<StyleInput>,
+    ) -> bool {
+        if let Some(scopes) = self.scope_references(expression) {
+            for scope in &scopes {
+                self.record_scope_use(scope);
+            }
+            if scopes.len() == 1 {
+                inputs.push(StyleInput::ScopeAttachment(scopes[0].clone()));
+            } else {
+                inputs.push(StyleInput::DynamicScopeAttachment {
+                    value: self.source_span(expression.span()),
+                    scopes,
+                });
+            }
+            return true;
+        }
+        if let Some(handles) = self.handle_references(expression) {
+            for handle in &handles {
+                self.record_handle_use(handle, "ref", self.source_span(expression.span()));
+            }
+            if handles.len() == 1 {
+                inputs.push(StyleInput::HandleAttachment(handles[0].clone()));
+            } else {
+                inputs.push(StyleInput::DynamicHandleAttachment {
+                    value: self.source_span(expression.span()),
+                    handles,
+                });
+            }
+            return true;
+        }
+        false
+    }
+
     fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) {
-        if let Some(scope) = self.scope_reference(expression) {
-            self.record_scope_use(&scope);
-            inputs.push(StyleInput::ScopeAttachment(scope));
-            return;
-        }
-        if let Some(handle) = self.handle_reference(expression) {
-            self.record_handle_use(&handle, "ref", self.source_span(expression.span()));
-            inputs.push(StyleInput::HandleAttachment(handle));
+        if self.collect_dynamic_handle_attachment(expression, inputs) {
             return;
         }
         if let Some(projection) = self.collect_handle_projection(expression) {
