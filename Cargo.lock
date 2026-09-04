@@ -1241,6 +1241,7 @@ dependencies = [
  "shorth-grammar",
  "shorth-ir",
  "shorth-js-oxc",
+ "shorth-semantic",
  "shorth-source",
  "shorth-tailwind",
 ]

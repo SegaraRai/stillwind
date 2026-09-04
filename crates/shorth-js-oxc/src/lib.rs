@@ -1,7 +1,7 @@
 //! Oxc-backed JS/TS/JSX parsing and the first import-bound `style()` extractor.
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     path::Path,
 };
 
@@ -38,6 +38,15 @@ pub struct ParsedJavaScript {
 }
 
 pub fn parse(source: &SourceFile) -> ParsedJavaScript {
+    parse_with_imports(source, &BTreeMap::new(), &BTreeMap::new())
+}
+
+/// Parses a module with symbolic values resolved from its import graph.
+pub fn parse_with_imports(
+    source: &SourceFile,
+    imported: &BTreeMap<String, ExportedValue>,
+    assets: &BTreeMap<IdentityId, AssetMetadata>,
+) -> ParsedJavaScript {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(Path::new(source.path())).unwrap_or_default();
     let result = Parser::new(&allocator, source.text(), source_type).parse();
@@ -49,7 +58,7 @@ pub fn parse(source: &SourceFile) -> ParsedJavaScript {
         .collect();
 
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
-    let mut extractor = MacroExtractor::new(source, semantic.scoping());
+    let mut extractor = MacroExtractor::new(source, semantic.scoping(), imported, assets);
     extractor.visit_program(&result.program);
     extractor.validate_handles();
     let summary = extractor.module_summary();
@@ -90,6 +99,8 @@ struct MacroExtractor<'a> {
     imports: Vec<ImportBinding>,
     re_exports: Vec<ReExport>,
     export_symbols: Vec<(SymbolId, String)>,
+    imported: &'a BTreeMap<String, ExportedValue>,
+    imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }
 
 #[derive(Clone, Debug)]
@@ -107,7 +118,12 @@ struct ScopeUse {
 }
 
 impl<'a> MacroExtractor<'a> {
-    fn new(source: &'a SourceFile, scoping: &'a Scoping) -> Self {
+    fn new(
+        source: &'a SourceFile,
+        scoping: &'a Scoping,
+        imported: &'a BTreeMap<String, ExportedValue>,
+        imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
+    ) -> Self {
         Self {
             source,
             scoping,
@@ -129,7 +145,50 @@ impl<'a> MacroExtractor<'a> {
             imports: Vec::new(),
             re_exports: Vec::new(),
             export_symbols: Vec::new(),
+            imported,
+            imported_assets,
         }
+    }
+
+    fn imported_scope(&self, identity: &IdentityId) -> ScopeDefinition {
+        let span = Span::new(self.source.id(), identity.start, identity.end);
+        let metadata = self.imported_assets.get(identity);
+        ScopeDefinition {
+            module_path: identity.module_path.clone(),
+            name: Spanned::new(identity.binding_name.clone(), span),
+            label: metadata
+                .and_then(|metadata| metadata.label.clone())
+                .map(|label| Spanned::new(label, span)),
+            call_span: span,
+        }
+    }
+
+    fn imported_ref(&self, alternative: &RefAlternative) -> Option<HandleDefinition> {
+        let span = Span::new(
+            self.source.id(),
+            alternative.reference.start,
+            alternative.reference.end,
+        );
+        let metadata = self.imported_assets.get(&alternative.reference);
+        let scope = match &alternative.permitted_scopes {
+            None => None,
+            Some(scopes) => {
+                let candidates = scopes.finite_candidates()?;
+                if candidates.len() != 1 {
+                    return None;
+                }
+                Some(self.imported_scope(candidates.first()?))
+            }
+        };
+        Some(HandleDefinition {
+            module_path: alternative.reference.module_path.clone(),
+            name: Spanned::new(alternative.reference.binding_name.clone(), span),
+            label: metadata
+                .and_then(|metadata| metadata.label.clone())
+                .map(|label| Spanned::new(label, span)),
+            scope,
+            call_span: span,
+        })
     }
 
     fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
@@ -1281,23 +1340,49 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             && let Some(specifiers) = &declaration.specifiers
         {
             for specifier in specifiers {
-                let (local, imported) = match specifier {
+                let (local, imported, symbol) = match specifier {
                     ImportDeclarationSpecifier::ImportSpecifier(specifier) => (
                         specifier.local.name.to_string(),
                         Self::module_export_name(&specifier.imported),
+                        specifier.local.symbol_id.get(),
                     ),
-                    ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
-                        (specifier.local.name.to_string(), "default".to_owned())
-                    }
-                    ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => {
-                        (specifier.local.name.to_string(), "*".to_owned())
-                    }
+                    ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => (
+                        specifier.local.name.to_string(),
+                        "default".to_owned(),
+                        specifier.local.symbol_id.get(),
+                    ),
+                    ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => (
+                        specifier.local.name.to_string(),
+                        "*".to_owned(),
+                        specifier.local.symbol_id.get(),
+                    ),
                 };
                 self.imports.push(ImportBinding {
-                    local,
+                    local: local.clone(),
                     source: declaration.source.value.to_string(),
                     imported,
                 });
+                if let (Some(symbol), Some(value)) = (symbol, self.imported.get(&local).cloned()) {
+                    match value {
+                        ExportedValue::Scopes(value) => {
+                            if let Some(candidates) = value.finite_candidates()
+                                && candidates.len() == 1
+                                && let Some(identity) = candidates.first()
+                            {
+                                self.scope_symbols
+                                    .insert(symbol, self.imported_scope(identity));
+                            }
+                        }
+                        ExportedValue::Refs(alternatives) if alternatives.len() == 1 => {
+                            if let Some(reference) = self.imported_ref(&alternatives[0]) {
+                                self.handle_symbols.insert(symbol, reference);
+                            }
+                        }
+                        ExportedValue::Refs(_)
+                        | ExportedValue::Animations(_)
+                        | ExportedValue::ViewTransitions(_) => {}
+                    }
+                }
             }
         }
         walk::walk_import_declaration(self, declaration);

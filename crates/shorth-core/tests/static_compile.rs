@@ -1369,3 +1369,45 @@ const props = style(trigger.anchor);"#;
     assert_ne!(windows_result.symbols[0].name, other_result.symbols[0].name);
     assert!(windows_result.symbols[0].identity.contains("src/Menu.tsx"));
 }
+
+#[test]
+fn compiles_an_exported_ref_across_a_module_boundary() {
+    let parent = SourceFile::new(
+        FileId(1),
+        "src/Parent.tsx",
+        r#"import { style } from "stillwind/react";
+export const trigger = style.ref("trigger");
+export const Parent = ({ children }) => <div {...style(trigger)}>{children}</div>;"#,
+    );
+    let child = SourceFile::new(
+        FileId(2),
+        "src/Child.tsx",
+        r#"import { style } from "stillwind/react";
+import { trigger } from "./Parent";
+export const Child = () => <span {...style({ [trigger`&:hover`]: "text-accent" })}>Child</span>;"#,
+    );
+    let theme = SourceFile::new(
+        FileId(3),
+        "stillwind.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let results = Compiler::compile_react_project(&[parent.clone(), child], &theme).unwrap();
+
+    assert!(
+        results[0].diagnostics.is_empty(),
+        "{:#?}",
+        results[0].diagnostics
+    );
+    assert!(
+        results[1].diagnostics.is_empty(),
+        "{:#?}",
+        results[1].diagnostics
+    );
+    let parent_code = results[0].apply_to_source(&parent).unwrap();
+    let marker = parent_code
+        .split('"')
+        .find(|part| part.starts_with("s_trigger_"))
+        .expect("parent should attach the exported ref marker");
+    assert!(results[1].css.contains(&format!(".{marker}:where(:hover)")));
+}

@@ -1,12 +1,13 @@
 //! Public orchestration API for the first compiler slice.
 
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 
 use serde::Serialize;
 use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
     AnimationDefinition, AttributeEntry, HandleProjection, StyleInput, ViewTransitionDefinition,
 };
+use shorth_semantic::{AssetMetadata, ExportedValue, IdentityId, ModuleGraph, ModuleGraphError};
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned, normalized_module_path};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -94,6 +95,39 @@ impl Compiler {
         shorth_js_oxc::parse(source)
     }
 
+    /// Compiles a resolved source graph so imported Stillwind values retain
+    /// their declaration-site identity.
+    ///
+    /// The output order matches `sources`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an import/re-export edge or summary schema cannot
+    /// be resolved soundly.
+    pub fn compile_react_project(
+        sources: &[SourceFile],
+        theme_source: &SourceFile,
+    ) -> Result<Vec<CompileResult>, ModuleGraphError> {
+        let summaries = sources
+            .iter()
+            .map(|source| Self::analyze_javascript(source).summary)
+            .collect::<Vec<_>>();
+        let graph = ModuleGraph::new(summaries)?;
+        let assets = graph.all_assets();
+        sources
+            .iter()
+            .map(|source| {
+                let imported = graph.imported_values(source.path())?;
+                Ok(Self::compile_react_with_imports(
+                    source,
+                    theme_source,
+                    &imported,
+                    &assets,
+                ))
+            })
+            .collect()
+    }
+
     /// Reads the project's CSS-first theme surface.
     ///
     /// # Errors
@@ -124,9 +158,28 @@ impl Compiler {
     /// arguments. Conditions, attributes, selectors, and transforms are added
     /// in successive compiler slices.
     #[must_use]
-    #[allow(clippy::too_many_lines)] // Coordinates source transforms with CSS emission.
     pub fn compile_react(source: &SourceFile, theme_source: &SourceFile) -> CompileResult {
         let parsed = Self::analyze_javascript(source);
+        Self::compile_react_parsed(source, theme_source, parsed)
+    }
+
+    #[must_use]
+    pub fn compile_react_with_imports(
+        source: &SourceFile,
+        theme_source: &SourceFile,
+        imported: &BTreeMap<String, ExportedValue>,
+        assets: &BTreeMap<IdentityId, AssetMetadata>,
+    ) -> CompileResult {
+        let parsed = shorth_js_oxc::parse_with_imports(source, imported, assets);
+        Self::compile_react_parsed(source, theme_source, parsed)
+    }
+
+    #[allow(clippy::too_many_lines)] // Coordinates source transforms with CSS emission.
+    fn compile_react_parsed(
+        source: &SourceFile,
+        theme_source: &SourceFile,
+        parsed: shorth_js_oxc::ParsedJavaScript,
+    ) -> CompileResult {
         let mut result = CompileResult {
             diagnostics: parsed.diagnostics,
             ..CompileResult::default()
