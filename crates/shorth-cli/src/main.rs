@@ -3,7 +3,7 @@
 use std::{env, fs};
 
 use serde::Serialize;
-use shorth_core::{Compiler, GeneratedClass};
+use shorth_core::{Compiler, CompilerOptions, GeneratedClass};
 use shorth_source::{FileId, SourceFile};
 
 #[derive(Serialize)]
@@ -67,7 +67,13 @@ fn run() -> Result<(), String> {
     } else {
         read_source(&argument("--theme")?, 2)?
     };
-    let result = Compiler::compile_react(&source, &theme);
+    let options = CompilerOptions {
+        prefix: optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned()),
+        tailwind_prefix: optional_argument("--tailwind-prefix")
+            .unwrap_or_else(|| "--tw-".to_owned()),
+    };
+    options.validate()?;
+    let result = Compiler::compile_react_with_options(&source, &theme, &options);
     let diagnostics = result
         .diagnostics
         .iter()
@@ -101,7 +107,9 @@ fn run() -> Result<(), String> {
 fn main() {
     if let Err(error) = run() {
         eprintln!("stillwind: {error}");
-        eprintln!("usage: stillwind compile --source <component.tsx> --theme <stillwind.css>");
+        eprintln!(
+            "usage: stillwind compile --source <component.tsx> --theme <stillwind.css> [--prefix <--sw->] [--tailwind-prefix <--tw->]"
+        );
         std::process::exit(2);
     }
 }

@@ -458,49 +458,57 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn view_transition_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
-        if let Some(transitions) = self.view_transition_references(expression) {
-            return match transitions.as_slice() {
-                [transition] => Some(StyleInput::ViewTransitionUse {
-                    transition: transition.clone(),
-                    key: None,
-                }),
-                [] => None,
-                _ => Some(StyleInput::DynamicViewTransitionUse {
-                    value: self.source_span(expression.span()),
+        let expression_has_type_fact = self
+            .type_facts
+            .contains_key(&(expression.span().start, expression.span().end));
+        let (value, transitions, key) = match expression {
+            Expression::CallExpression(call) => {
+                let Expression::StaticMemberExpression(member) = &call.callee else {
+                    return None;
+                };
+                if member.property.name.as_str() != "for" {
+                    return None;
+                }
+                let transitions = self.view_transition_references(&member.object)?;
+                if call.arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::error(
+                        "SHVIEW002",
+                        "viewTransition.for() requires one stable key expression",
+                        self.source_span(call.span),
+                    ));
+                    return None;
+                }
+                (
+                    self.source_span(member.object.span()),
                     transitions,
-                }),
-            };
-        }
-        let Expression::CallExpression(call) = expression else {
-            return None;
+                    Some(self.source_span(call.arguments[0].span())),
+                )
+            }
+            _ => (
+                self.source_span(expression.span()),
+                self.view_transition_references(expression)?,
+                None,
+            ),
         };
-        let Expression::StaticMemberExpression(member) = &call.callee else {
-            return None;
-        };
-        if member.property.name.as_str() != "for" {
-            return None;
+        if expression_has_type_fact && key.is_none() {
+            return (!transitions.is_empty()).then_some(StyleInput::DynamicViewTransitionUse {
+                value,
+                transitions,
+                key: None,
+            });
         }
-        let transitions = self.view_transition_references(&member.object)?;
-        if call.arguments.len() != 1 {
-            self.diagnostics.push(Diagnostic::error(
-                "SHVIEW002",
-                "viewTransition.for() requires one stable key expression",
-                self.source_span(call.span),
-            ));
-            return None;
+        match transitions.as_slice() {
+            [transition] => Some(StyleInput::ViewTransitionUse {
+                transition: transition.clone(),
+                key,
+            }),
+            [] => None,
+            _ => Some(StyleInput::DynamicViewTransitionUse {
+                value,
+                transitions,
+                key,
+            }),
         }
-        if transitions.len() != 1 {
-            self.diagnostics.push(Diagnostic::error(
-                "SHVIEW003",
-                "conditional viewTransition.for() is not supported yet; choose the transition before style() and use it without a key",
-                self.source_span(call.span),
-            ));
-            return None;
-        }
-        Some(StyleInput::ViewTransitionUse {
-            transition: transitions.into_iter().next()?,
-            key: Some(self.source_span(call.arguments[0].span())),
-        })
     }
 
     fn animation_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {

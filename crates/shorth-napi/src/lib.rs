@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use napi::{Error, Result};
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
-use shorth_core::{CompileResult, Compiler, GeneratedClass, GeneratedSymbol};
+use shorth_core::{CompileResult, Compiler, CompilerOptions, GeneratedClass, GeneratedSymbol};
 use shorth_semantic::{AssetMetadata, IdentityId, TypeFact};
 use shorth_source::{FileId, SourceFile};
 
@@ -67,9 +67,18 @@ pub fn compile_react_json(
     source_path: &str,
     theme: &str,
 ) -> std::result::Result<String, serde_json::Error> {
+    compile_react_json_with_options(source, source_path, theme, &CompilerOptions::default())
+}
+
+pub fn compile_react_json_with_options(
+    source: &str,
+    source_path: &str,
+    theme: &str,
+    options: &CompilerOptions,
+) -> std::result::Result<String, serde_json::Error> {
     let source = SourceFile::new(FileId(1), source_path, source);
     let theme = SourceFile::new(FileId(2), "stillwind.css", theme);
-    let result = Compiler::compile_react(&source, &theme);
+    let result = Compiler::compile_react_with_options(&source, &theme, options);
     serde_json::to_string(&binding_output(result, &source, &theme))
 }
 
@@ -130,6 +139,14 @@ pub fn compile_react_project_json(
     sources_json: &str,
     theme: &str,
 ) -> std::result::Result<String, String> {
+    compile_react_project_json_with_options(sources_json, theme, &CompilerOptions::default())
+}
+
+pub fn compile_react_project_json_with_options(
+    sources_json: &str,
+    theme: &str,
+    options: &CompilerOptions,
+) -> std::result::Result<String, String> {
     let input: Vec<ProjectSource> =
         serde_json::from_str(sources_json).map_err(|error| error.to_string())?;
     let sources = input
@@ -161,7 +178,9 @@ pub fn compile_react_project_json(
     let results = sources
         .iter()
         .map(|(source, type_facts)| {
-            Compiler::compile_react_with_type_facts(source, &theme, type_facts, &assets)
+            Compiler::compile_react_with_type_facts_and_options(
+                source, &theme, type_facts, &assets, options,
+            )
         })
         .collect::<Vec<_>>();
     let modules = sources
@@ -197,11 +216,18 @@ pub fn summarize_react_json(
 ///
 /// Returns a JavaScript error if the compiler result cannot be serialized.
 #[napi(js_name = "compileReact")]
-pub fn compile_react(source: String, source_path: Option<String>, theme: String) -> Result<String> {
-    compile_react_json(
+pub fn compile_react(
+    source: String,
+    source_path: Option<String>,
+    theme: String,
+    options_json: Option<String>,
+) -> Result<String> {
+    let options = parse_options(options_json.as_deref())?;
+    compile_react_json_with_options(
         &source,
         source_path.as_deref().unwrap_or("Component.tsx"),
         &theme,
+        &options,
     )
     .map_err(|error| Error::from_reason(error.to_string()))
 }
@@ -212,8 +238,23 @@ pub fn compile_react(source: String, source_path: Option<String>, theme: String)
 ///
 /// Returns a JavaScript error for invalid input or an unresolved graph edge.
 #[napi(js_name = "compileReactProject")]
-pub fn compile_react_project(sources_json: String, theme: String) -> Result<String> {
-    compile_react_project_json(&sources_json, &theme).map_err(Error::from_reason)
+pub fn compile_react_project(
+    sources_json: String,
+    theme: String,
+    options_json: Option<String>,
+) -> Result<String> {
+    let options = parse_options(options_json.as_deref())?;
+    compile_react_project_json_with_options(&sources_json, &theme, &options)
+        .map_err(Error::from_reason)
+}
+
+fn parse_options(options_json: Option<&str>) -> Result<CompilerOptions> {
+    let options = options_json.map_or_else(
+        || Ok(CompilerOptions::default()),
+        |value| serde_json::from_str(value).map_err(|error| Error::from_reason(error.to_string())),
+    )?;
+    options.validate().map_err(Error::from_reason)?;
+    Ok(options)
 }
 
 /// Returns the versioned Stillwind module summary used for cross-module values.

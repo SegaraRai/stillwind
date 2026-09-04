@@ -1235,15 +1235,81 @@ const item = style("rounded-md", card.for(product.id));"#,
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("::view-transition-group(--sw-v-"));
-    assert!(result.css.contains("::view-transition-old(--sw-v-"));
-    assert!(result.css.contains("::view-transition-new(--sw-v-"));
-    assert!(result.css.contains("view-transition-name:--sw-v-"));
-    assert!(result.css.contains("view-transition-name:var(--sw-v-"));
+    assert!(result.css.contains("::view-transition-group(.--sw-v-"));
+    assert!(result.css.contains("::view-transition-old(.--sw-v-"));
+    assert!(result.css.contains("::view-transition-new(.--sw-v-"));
+    assert!(
+        result
+            .css
+            .contains("view-transition-name:var(--sw-vt-name);")
+    );
+    assert!(
+        result
+            .css
+            .contains("view-transition-class:var(--sw-vt-class);")
+    );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.viewTransition"));
-    assert!(transformed.contains("style:{\"--sw-v-"));
+    assert_eq!(
+        transformed.matches("stillwindViewTransitionStyle(").count(),
+        2
+    );
+    assert_eq!(transformed.matches("product.id").count(), 1);
     assert!(transformed.contains("const title = undefined;"));
+}
+
+#[test]
+fn configures_stillwind_and_tailwind_compatibility_prefixes_independently() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Prefix.tsx",
+        r#"import { style } from "stillwind/react";
+const card = style.viewTransition({ old: "opacity-0" });
+export const item = style("translate-x-1", card);"#,
+    );
+    let theme = SourceFile::new(
+        FileId(2),
+        "stillwind.css",
+        "@theme { --spacing-1: .25rem; }",
+    );
+    let options = shorth_core::CompilerOptions {
+        prefix: "--app-".to_owned(),
+        tailwind_prefix: "--compat-".to_owned(),
+    };
+
+    let result = Compiler::compile_react_with_options(&component, &theme, &options);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("::view-transition-old(.--app-v-"));
+    assert!(result.css.contains("var(--app-vt-name)"));
+    assert!(result.css.contains("--compat-translate-x"));
+    assert!(!result.css.contains("--sw-"));
+    assert!(!result.css.contains("--tw-"));
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("\"--app-vt-name\""));
+    assert!(!transformed.contains("--sw-"));
+}
+
+#[test]
+fn rejects_multiple_view_transitions_on_one_element() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/MultipleTransitions.tsx",
+        r#"import { style } from "stillwind/react";
+const card = style.viewTransition({ old: "opacity-0" });
+const image = style.viewTransition({ new: "opacity-100" });
+export const item = style(card, image);"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SHVIEW004")
+    );
 }
 
 #[test]

@@ -32,6 +32,45 @@ export function stillwindViewTransition(identity: string): StillwindRuntimeAsset
   };
 }
 
+/** Builds the shared custom-property payload for every view-transition use. */
+export function stillwindViewTransitionStyle(
+  value: unknown,
+  key: string | number | undefined,
+  candidates: readonly string[],
+  nameProperty: string,
+  classProperty: string,
+): Record<string, string> {
+  const runtimeValue =
+    typeof value === "string"
+      ? undefined
+      : value &&
+          typeof value === "object" &&
+          "kind" in value &&
+          value.kind === "view-transition" &&
+          "identity" in value &&
+          typeof value.identity === "string"
+        ? value
+        : undefined;
+  const identity = typeof value === "string" ? value : runtimeValue?.identity;
+  if (typeof identity !== "string" || !candidates.includes(identity)) {
+    throw new TypeError("Stillwind received an unknown view transition identity.");
+  }
+  const runtimeKey =
+    key ??
+    (runtimeValue &&
+    "key" in runtimeValue &&
+    (typeof runtimeValue.key === "string" || typeof runtimeValue.key === "number")
+      ? runtimeValue.key
+      : undefined);
+  const name =
+    runtimeKey === undefined
+      ? identity
+      : `${identity}-k-${Array.from(String(runtimeKey), (character) =>
+          character.codePointAt(0)!.toString(16),
+        ).join("-")}`;
+  return { [nameProperty]: name, [classProperty]: identity };
+}
+
 /** Resolves a generated class without accepting arbitrary objects as compiler assets. */
 export function stillwindAssetClass(
   value: unknown,

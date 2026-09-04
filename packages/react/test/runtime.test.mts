@@ -7,6 +7,7 @@ import {
   stillwindRef,
   stillwindScope,
   stillwindViewTransition,
+  stillwindViewTransitionStyle,
 } from "../src/runtime.ts";
 
 void test("selects the marker carried by a dynamic compiled handle", () => {
@@ -22,6 +23,29 @@ void test("selects the marker carried by a dynamic compiled handle", () => {
   );
   assert.equal(stillwindHandleClass(stillwindScope("s_menu_76543210")), "s_menu_76543210");
   assert.throws(() => stillwindHandleClass({ className: "user-owned" }), TypeError);
+});
+
+void test("view-transition styles share properties and encode keyed instance names", () => {
+  const card = stillwindViewTransition("--sw-v-card");
+  const candidates = ["--sw-v-card"];
+  assert.deepEqual(
+    stillwindViewTransitionStyle(card, undefined, candidates, "--sw-vt-name", "--sw-vt-class"),
+    { "--sw-vt-name": "--sw-v-card", "--sw-vt-class": "--sw-v-card" },
+  );
+  assert.deepEqual(
+    stillwindViewTransitionStyle(card, "item 1", candidates, "--sw-vt-name", "--sw-vt-class"),
+    { "--sw-vt-name": "--sw-v-card-k-69-74-65-6d-20-31", "--sw-vt-class": "--sw-v-card" },
+  );
+  assert.deepEqual(
+    stillwindViewTransitionStyle(
+      card.for("item 1"),
+      undefined,
+      candidates,
+      "--sw-vt-name",
+      "--sw-vt-class",
+    ),
+    { "--sw-vt-name": "--sw-v-card-k-69-74-65-6d-20-31", "--sw-vt-class": "--sw-v-card" },
+  );
 });
 
 void test("selects classes carried by dynamic animation and view transition values", () => {

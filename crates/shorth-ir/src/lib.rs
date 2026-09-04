@@ -185,5 +185,6 @@ pub enum StyleInput {
     DynamicViewTransitionUse {
         value: Span,
         transitions: Vec<AssetReference>,
+        key: Option<Span>,
     },
 }

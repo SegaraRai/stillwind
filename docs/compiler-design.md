@@ -306,7 +306,7 @@ cost diagnostic rather than becoming unsound.
 | `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                              | selector planner preserves relation pairs; attachment selects `.s_*`                      |
 | ref projections       | derived from the ref candidate set                                                    | exact uses erase; dynamic `position-anchor` / container uses select prebuilt declarations |
 | `animation()`         | declaration-site keyframe asset                                                       | candidate use selects prebuilt `animation-name` declarations                              |
-| `viewTransition()`    | declaration-site transition asset; `.for(key)` keeps its existing user key expression | static name is pre-emitted; keyed use retains only the dynamic custom-property value      |
+| `viewTransition()`    | declaration-site transition asset; `.for(key)` keeps its existing user key expression | every use shares one class; runtime identity/key populate the name and family properties  |
 
 The audit is part of adding any future named CSS API: it must specify its
 identity source, exported summary form, candidate algebra, correlation needs,
@@ -529,6 +529,10 @@ Names are deterministic and private:
 The naming module is the sole owner of hashes, identifier escaping, collision
 handling, and CSS namespace prefixes.
 
+Stillwind-owned identifiers use the configurable `--sw-` prefix. Internal
+custom properties retained for Tailwind compatibility use the separately
+configurable `--tw-` prefix; the two namespaces must remain distinct.
+
 Every generated CSS declaration carries an `Origin`; the CSS emitter writes a
 source map back to the style call and, where useful, to the exact utility token.
 
@@ -587,11 +591,11 @@ pure and testable without Vite.
 5. Extend the same manifest-backed identity channel to packages whose sources
    are unavailable.
 
-Conditional animations and unkeyed view transitions lower to candidate CSS
-classes plus a runtime identity lookup. Conditional keyed view transitions are
-currently rejected with `SHVIEW003`: supporting them requires a combined
-class/style runtime lowering so the selected `.for(key)` expression is evaluated
-exactly once.
+Conditional animations lower to candidate CSS classes plus a runtime identity
+lookup. Static and conditional view transitions, whether keyed or unkeyed, share
+one generated class. Their identity and optional key are evaluated once by the
+runtime style helper, which populates the configured view-transition name and
+family custom properties.
 
 Every phase retains the invariants that CSS is fully generated before runtime,
 source locations remain exact, generated identities are collision-checked, and

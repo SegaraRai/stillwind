@@ -299,7 +299,9 @@ const productCard = style.viewTransition({
 <article {...style("rounded-xl border p-4", productCard.for(product.id))} />;
 ```
 
-`for(product.id)` emits a static class plus the minimal dynamic custom property
-needed for a unique transition name. Lint warns when a static transition is used
-inside a repeated render, or when an unstable key such as an array index is
-used.
+All view-transition uses share one generated class. The declaration identity
+populates the family property; `for(product.id)` additionally encodes the key
+into the instance-name property. This same lowering covers static and
+conditional, keyed and unkeyed values. Lint warns when a static transition is
+used inside a repeated render, or when an unstable key such as an array index
+is used.

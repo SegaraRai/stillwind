@@ -5,7 +5,7 @@ use std::{
     fmt::Write,
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use shorth_grammar::{Variant, lex_utilities};
 use shorth_ir::{
     AnimationDefinition, AssetReference, AttributeEntry, HandleProjection, StyleInput,
@@ -40,10 +40,11 @@ pub struct GeneratedSymbol {
 }
 
 #[derive(Clone, Debug)]
-struct DynamicStyleEntry {
-    property: String,
-    key: Span,
-    prefix: String,
+struct ViewTransitionStyleEntry {
+    value: Option<Span>,
+    identity: Option<String>,
+    candidates: Vec<String>,
+    key: Option<Span>,
 }
 
 #[derive(Clone, Debug)]
@@ -60,7 +61,7 @@ struct ReactPropsParts<'a> {
     external_classes: &'a [Span],
     dynamic_handle_classes: &'a [Span],
     dynamic_asset_classes: &'a [DynamicAssetClassEntry],
-    dynamic_styles: &'a [DynamicStyleEntry],
+    view_transition_style: Option<&'a ViewTransitionStyleEntry>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -70,6 +71,52 @@ pub struct CompileResult {
     pub symbols: Vec<GeneratedSymbol>,
     pub transforms: Vec<PropsTransform>,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CompilerOptions {
+    pub prefix: String,
+    pub tailwind_prefix: String,
+}
+
+impl Default for CompilerOptions {
+    fn default() -> Self {
+        Self {
+            prefix: "--sw-".to_owned(),
+            tailwind_prefix: "--tw-".to_owned(),
+        }
+    }
+}
+
+impl CompilerOptions {
+    /// Validates that generated and Tailwind-compatible namespaces are distinct CSS prefixes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a prefix is malformed or both namespaces are identical.
+    pub fn validate(&self) -> Result<(), String> {
+        for (name, value) in [
+            ("prefix", self.prefix.as_str()),
+            ("tailwindPrefix", self.tailwind_prefix.as_str()),
+        ] {
+            if !value.starts_with("--") || !value.ends_with('-') || value.len() < 4 {
+                return Err(format!("{name} must start with `--` and end with `-`"));
+            }
+        }
+        if self.prefix == self.tailwind_prefix {
+            return Err("prefix and tailwindPrefix must be different".to_owned());
+        }
+        Ok(())
+    }
+
+    fn rewrite_generated(&self, value: &str) -> String {
+        value
+            .replace("--sw-", "\u{e000}stillwind-prefix\u{e001}")
+            .replace("--tw-", "\u{e000}tailwind-prefix\u{e001}")
+            .replace("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
+            .replace("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
+    }
 }
 
 impl CompileResult {
@@ -147,8 +194,17 @@ impl Compiler {
     /// in successive compiler slices.
     #[must_use]
     pub fn compile_react(source: &SourceFile, theme_source: &SourceFile) -> CompileResult {
+        Self::compile_react_with_options(source, theme_source, &CompilerOptions::default())
+    }
+
+    #[must_use]
+    pub fn compile_react_with_options(
+        source: &SourceFile,
+        theme_source: &SourceFile,
+        options: &CompilerOptions,
+    ) -> CompileResult {
         let parsed = Self::analyze_javascript(source);
-        Self::compile_react_parsed(source, theme_source, parsed)
+        Self::compile_react_parsed(source, theme_source, parsed, options)
     }
 
     #[must_use]
@@ -158,8 +214,25 @@ impl Compiler {
         type_facts: &[TypeFact],
         assets: &BTreeMap<IdentityId, AssetMetadata>,
     ) -> CompileResult {
+        Self::compile_react_with_type_facts_and_options(
+            source,
+            theme_source,
+            type_facts,
+            assets,
+            &CompilerOptions::default(),
+        )
+    }
+
+    #[must_use]
+    pub fn compile_react_with_type_facts_and_options(
+        source: &SourceFile,
+        theme_source: &SourceFile,
+        type_facts: &[TypeFact],
+        assets: &BTreeMap<IdentityId, AssetMetadata>,
+        options: &CompilerOptions,
+    ) -> CompileResult {
         let parsed = shorth_js_oxc::parse_with_type_facts(source, type_facts, assets);
-        Self::compile_react_parsed(source, theme_source, parsed)
+        Self::compile_react_parsed(source, theme_source, parsed, options)
     }
 
     #[allow(clippy::too_many_lines)] // Coordinates source transforms with CSS emission.
@@ -167,6 +240,7 @@ impl Compiler {
         source: &SourceFile,
         theme_source: &SourceFile,
         parsed: shorth_js_oxc::ParsedJavaScript,
+        options: &CompilerOptions,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
         let mut result = CompileResult {
@@ -250,45 +324,49 @@ impl Compiler {
             let mut external_classes = Vec::new();
             let mut dynamic_handle_classes = Vec::new();
             let mut dynamic_asset_classes = Vec::new();
-            let mut dynamic_styles = Vec::new();
+            let mut view_transition_style = None;
             for input in call.inputs {
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
+                    if view_transition_style.is_some() {
+                        result.diagnostics.push(Diagnostic::error(
+                            "SHVIEW004",
+                            "style() accepts at most one view transition",
+                            call.span,
+                        ));
+                        continue;
+                    }
                     let name = asset_symbol_name(
                         &transition.module_path,
                         "view-transition",
                         &transition.name,
                     );
                     let branch = &mut branches[0];
-                    branch.2.push_str("view-transition:");
-                    branch.2.push_str(&transition.name.value);
-                    if let Some(key) = key {
-                        branch.2.push_str(":keyed");
-                        dynamic_styles.push(DynamicStyleEntry {
-                            property: name.clone(),
-                            key,
-                            prefix: format!("{name}-"),
-                        });
-                        branch.3.push(CompiledUtility {
-                            variants: Vec::new(),
-                            declaration: format!("view-transition-name:var({name});"),
-                            selector: None,
-                            container: None,
-                            nested: Vec::new(),
-                        });
-                    } else {
-                        branch.3.push(CompiledUtility {
-                            variants: Vec::new(),
-                            declaration: format!("view-transition-name:{name};"),
-                            selector: None,
-                            container: None,
-                            nested: Vec::new(),
-                        });
-                    }
+                    branch.2.push_str("view-transition");
+                    branch.3.push(view_transition_utility());
                     branch.2.push('\0');
+                    view_transition_style = Some(ViewTransitionStyleEntry {
+                        value: None,
+                        identity: Some(name.clone()),
+                        candidates: vec![name],
+                        key,
+                    });
                     continue;
                 }
-                if let StyleInput::DynamicViewTransitionUse { value, transitions } = input {
-                    let mut classes = Vec::new();
+                if let StyleInput::DynamicViewTransitionUse {
+                    value,
+                    transitions,
+                    key,
+                } = input
+                {
+                    if view_transition_style.is_some() {
+                        result.diagnostics.push(Diagnostic::error(
+                            "SHVIEW004",
+                            "style() accepts at most one view transition",
+                            call.span,
+                        ));
+                        continue;
+                    }
+                    let mut candidates = Vec::new();
                     for transition in transitions {
                         runtime_assets.insert(IdentityId::new(
                             AssetKind::ViewTransition,
@@ -302,29 +380,18 @@ impl Compiler {
                             "view-transition",
                             &transition.name,
                         );
-                        let canonical = format!("dynamic-view-transition:{name}");
-                        let class_name = class_name(&canonical);
-                        emit_utility_rules(
-                            &mut utility_css,
-                            &class_name,
-                            &[CompiledUtility {
-                                variants: Vec::new(),
-                                declaration: format!("view-transition-name:{name};"),
-                                selector: None,
-                                container: None,
-                                nested: Vec::new(),
-                            }],
-                            &theme,
-                        );
-                        result.symbols.push(generated_class_symbol(
-                            source,
-                            &class_name,
-                            &canonical,
-                            call.span,
-                        ));
-                        classes.push((name, class_name));
+                        candidates.push(name);
                     }
-                    dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
+                    let branch = &mut branches[0];
+                    branch.2.push_str("view-transition");
+                    branch.2.push('\0');
+                    branch.3.push(view_transition_utility());
+                    view_transition_style = Some(ViewTransitionStyleEntry {
+                        value: Some(value),
+                        identity: None,
+                        candidates,
+                        key,
+                    });
                     continue;
                 }
                 if let StyleInput::AnimationUse { animation, options } = input {
@@ -702,7 +769,7 @@ impl Compiler {
                     external_classes: &external_classes,
                     dynamic_handle_classes: &dynamic_handle_classes,
                     dynamic_asset_classes: &dynamic_asset_classes,
-                    dynamic_styles: &dynamic_styles,
+                    view_transition_style: view_transition_style.as_ref(),
                 },
             ) {
                 result.transforms.push(PropsTransform {
@@ -782,7 +849,15 @@ impl Compiler {
             result.symbols.clear();
             result.transforms.clear();
         } else if !utility_css.is_empty() {
-            result.css = render_stylesheet(&theme, &utility_css);
+            let utility_css = options.rewrite_generated(&utility_css);
+            result.css = render_stylesheet(&theme, &utility_css, options);
+        }
+
+        for transform in &mut result.transforms {
+            transform.replacement = options.rewrite_generated(&transform.replacement);
+        }
+        for symbol in &mut result.symbols {
+            symbol.name = options.rewrite_generated(&symbol.name);
         }
 
         result
@@ -1057,6 +1132,7 @@ fn emit_view_transition_definition(
     let name = symbol_name(source, "view-transition", &transition.name);
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
+        output.push('.');
         output.push_str(&name);
         output.push_str("){ ");
         output.push_str(&resolve_motion_options(group, theme, diagnostics));
@@ -1072,6 +1148,7 @@ fn emit_view_transition_definition(
         output.push_str("::view-transition-");
         output.push_str(pseudo);
         output.push('(');
+        output.push('.');
         output.push_str(&name);
         output.push_str("){ ");
         output.push_str(&resolve_static_utility_list(utilities, theme, diagnostics));
@@ -1213,7 +1290,7 @@ fn render_react_props(source: &SourceFile, parts: &ReactPropsParts<'_>) -> Optio
         external_classes,
         dynamic_handle_classes,
         dynamic_asset_classes,
-        dynamic_styles,
+        view_transition_style,
     } = *parts;
     let mut entries = Vec::new();
     if !classes.is_empty()
@@ -1285,19 +1362,37 @@ fn render_react_props(source: &SourceFile, parts: &ReactPropsParts<'_>) -> Optio
         let value = source.slice(attribute.value).ok()?;
         entries.push(format!("\"{}\":{value}", attribute.name.value));
     }
-    if !dynamic_styles.is_empty() {
-        let styles = dynamic_styles
+    if let Some(entry) = view_transition_style {
+        let value = match (entry.value, &entry.identity) {
+            (Some(value), None) => source.slice(value).ok()?.to_owned(),
+            (None, Some(identity)) => format!("\"{identity}\""),
+            _ => return None,
+        };
+        let key = match entry.key {
+            Some(key) => source.slice(key).ok()?.to_owned(),
+            None => "undefined".to_owned(),
+        };
+        let candidates = entry
+            .candidates
             .iter()
-            .map(|entry| {
-                source
-                    .slice(entry.key)
-                    .ok()
-                    .map(|key| format!("\"{}\":`{}${{{key}}}`", entry.property, entry.prefix))
-            })
-            .collect::<Option<Vec<_>>>()?;
-        entries.push(format!("style:{{{}}}", styles.join(",")));
+            .map(|candidate| format!("\"{candidate}\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        entries.push(format!(
+            "style:stillwindViewTransitionStyle({value},{key},[{candidates}],\"--sw-vt-name\",\"--sw-vt-class\")"
+        ));
     }
     Some(format!("{{{}}}", entries.join(",")))
+}
+
+fn view_transition_utility() -> CompiledUtility {
+    CompiledUtility {
+        variants: Vec::new(),
+        declaration: "--sw-vt-name:none;--sw-vt-class:none;view-transition-name:var(--sw-vt-name);view-transition-class:var(--sw-vt-class);".to_owned(),
+        selector: None,
+        container: None,
+        nested: Vec::new(),
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1478,12 +1573,17 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     declarations
 }
 
-fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> String {
+fn render_stylesheet(
+    theme: &shorth_css::ThemeIndex,
+    utility_css: &str,
+    options: &CompilerOptions,
+) -> String {
     let imports = &theme.imports;
     // Tailwind only emits typed custom-property registrations when a generated
     // utility actually participates in one of those protocols. An import is
     // permission to use the layer, not a request to eagerly dump it.
-    let properties = imports.properties || (imports.has_any() && utility_css.contains("--tw-"));
+    let properties =
+        imports.properties || (imports.has_any() && utility_css.contains(&options.tailwind_prefix));
     let mut css = String::new();
     if properties {
         css.push_str("@layer properties;\n");
@@ -1521,14 +1621,16 @@ fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> Strin
                 _ => None,
             })
             .collect::<Vec<_>>();
-        css.push_str(&shorth_css::tailwind_v4_keyframes_for(&animations));
+        css.push_str(
+            &options.rewrite_generated(&shorth_css::tailwind_v4_keyframes_for(&animations)),
+        );
         css.push_str("}\n");
     }
     if let Some(layer) = &imports.base_layer {
         css.push_str("@layer ");
         css.push_str(layer);
         css.push('{');
-        css.push_str(&shorth_css::tailwind_v4_preflight());
+        css.push_str(&options.rewrite_generated(&shorth_css::tailwind_v4_preflight()));
         css.push('}');
     }
     if !theme.custom_css().trim().is_empty() {
@@ -1544,7 +1646,7 @@ fn render_stylesheet(theme: &shorth_css::ThemeIndex, utility_css: &str) -> Strin
         css.push_str("}\n");
     }
     if properties {
-        css.push_str(shorth_css::tailwind_v4_properties());
+        css.push_str(&options.rewrite_generated(shorth_css::tailwind_v4_properties()));
     }
     css
 }

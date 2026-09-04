@@ -17,6 +17,10 @@ export interface StillwindOptions {
   theme: string;
   /** Emits a module augmentation with the CSS theme's utility vocabulary. */
   types?: false | string;
+  /** Namespace for Stillwind-owned CSS identifiers. */
+  prefix?: string;
+  /** Namespace for Tailwind-compatible internal custom properties. */
+  tailwindPrefix?: string;
 }
 
 interface CompilerOutput {
@@ -74,23 +78,40 @@ const virtualCssId = "virtual:stillwind.css";
 const resolvedVirtualCssId = `\0${virtualCssId}`;
 const maximumPlayPayloadBytes = 1_000_000;
 
-function compile(source: string, path: string, theme: string): CompilerOutput {
-  return JSON.parse(compileReact(source, path, theme)) as CompilerOutput;
+function compilerOptions(options: StillwindOptions): string {
+  return JSON.stringify({
+    prefix: options.prefix ?? "--sw-",
+    tailwindPrefix: options.tailwindPrefix ?? "--tw-",
+  });
 }
 
-function compileProject(sources: readonly ProjectSource[], theme: string): ProjectCompilerOutput {
+function compile(
+  source: string,
+  path: string,
+  theme: string,
+  options: StillwindOptions,
+): CompilerOutput {
+  return JSON.parse(compileReact(source, path, theme, compilerOptions(options))) as CompilerOutput;
+}
+
+function compileProject(
+  sources: readonly ProjectSource[],
+  theme: string,
+  options: StillwindOptions,
+): ProjectCompilerOutput {
   return JSON.parse(
     compileReactProject(
       JSON.stringify(sources.map(({ path, source, type_facts }) => ({ path, source, type_facts }))),
       theme,
+      compilerOptions(options),
     ),
   ) as ProjectCompilerOutput;
 }
 
-function compilePlay(source: string, theme: string): CompilerOutput {
+function compilePlay(source: string, theme: string, options: StillwindOptions): CompilerOutput {
   // Play accepts the pleasant `export App;` shorthand in addition to regular
   // TypeScript exports. This replacement preserves byte length for source spans.
-  return compile(source.replace(/\bexport App;/g, "export{App}"), "Play.tsx", theme);
+  return compile(source.replace(/\bexport App;/g, "export{App}"), "Play.tsx", theme, options);
 }
 
 function compilerModulePath(root: string, id: string): string {
@@ -179,6 +200,7 @@ function renderRuntimeImport(code: string): string {
     "stillwindRef",
     "stillwindScope",
     "stillwindViewTransition",
+    "stillwindViewTransitionStyle",
   ].filter((name) => code.includes(`${name}(`));
   return names.length > 0 ? `import { ${names.join(", ")} } from "stillwind/react/runtime";\n` : "";
 }
@@ -341,7 +363,11 @@ export function stillwind(options: StillwindOptions): Plugin {
         ...source,
         type_facts: typeFacts.get(source.path) ?? [],
       }));
-      const projectOutput = compileProject(typedSources, readFileSync(options.theme, "utf8"));
+      const projectOutput = compileProject(
+        typedSources,
+        readFileSync(options.theme, "utf8"),
+        options,
+      );
       const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
       for (const output of projectOutput.modules) {
         const moduleId = idsByPath.get(output.path);
@@ -378,7 +404,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           return sendJson(response, { error: "POST is required" }, 405);
         void readJson(request)
           .then(async ({ source, theme }) => {
-            const output = compilePlay(source, theme);
+            const output = compilePlay(source, theme, options);
             let previewUrl: string | null = null;
             if (output.diagnostics.length === 0 && output.code) {
               try {
