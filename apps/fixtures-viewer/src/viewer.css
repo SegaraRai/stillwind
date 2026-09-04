@@ -305,13 +305,12 @@ h1 {
   background: #08131ecb;
 }
 .diff,
-.diff > .cm-mergeView,
-.diff .cm-mergeViewEditors {
+.diff > .cm-mergeView {
   width: 100%;
   height: 100%;
 }
 .diff > .cm-mergeView {
-  overflow: hidden;
+  overflow: auto;
 }
 .diff .cm-mergeViewEditor {
   min-width: 0;
@@ -346,7 +345,8 @@ h1 {
 }
 .code {
   min-width: 0;
-  overflow: auto;
+  height: 100%;
+  overflow: hidden;
   background: #08131ecb;
   color: #c7d5e7;
 }
