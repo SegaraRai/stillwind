@@ -444,6 +444,8 @@ pub enum SymbolicError {
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum ModuleGraphError {
+    #[error("Stillwind module value analysis did not converge after {iterations} iterations")]
+    DidNotConverge { iterations: usize },
     #[error("unsupported summary schema {actual} for `{module}`; expected {expected}")]
     Schema {
         module: String,

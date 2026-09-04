@@ -1411,3 +1411,42 @@ export const Child = () => <span {...style({ [trigger`&:hover`]: "text-accent" }
         .expect("parent should attach the exported ref marker");
     assert!(results[1].css.contains(&format!(".{marker}:where(:hover)")));
 }
+
+#[test]
+fn preserves_imported_conditional_ref_candidates_through_a_barrel() {
+    let parent = SourceFile::new(
+        FileId(1),
+        "src/Parent.tsx",
+        r#"import { style } from "stillwind/react";
+export const first = style.ref("first");
+export const second = style.ref("second");"#,
+    );
+    let chooser = SourceFile::new(
+        FileId(2),
+        "src/chooser.ts",
+        r#"import { first, second } from "./Parent";
+export const selected = enabled ? first : second;"#,
+    );
+    let child = SourceFile::new(
+        FileId(3),
+        "src/Child.tsx",
+        r#"import { style } from "stillwind/react";
+import { selected } from "./chooser";
+export const child = style({ [selected`&:hover`]: "text-accent" });"#,
+    );
+    let theme = SourceFile::new(
+        FileId(4),
+        "stillwind.css",
+        "@theme { --color-accent: red; }",
+    );
+
+    let results = Compiler::compile_react_project(&[parent, chooser, child], &theme).unwrap();
+
+    assert!(
+        results[2].diagnostics.is_empty(),
+        "{:#?}",
+        results[2].diagnostics
+    );
+    assert!(results[2].css.contains(".s_first_"), "{}", results[2].css);
+    assert!(results[2].css.contains(".s_second_"), "{}", results[2].css);
+}

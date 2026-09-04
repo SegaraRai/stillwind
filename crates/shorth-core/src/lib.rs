@@ -108,10 +108,31 @@ impl Compiler {
         sources: &[SourceFile],
         theme_source: &SourceFile,
     ) -> Result<Vec<CompileResult>, ModuleGraphError> {
-        let summaries = sources
+        let mut summaries = sources
             .iter()
             .map(|source| Self::analyze_javascript(source).summary)
             .collect::<Vec<_>>();
+        let iterations = sources.len().saturating_add(1);
+        let mut converged = false;
+        for _ in 0..iterations {
+            let graph = ModuleGraph::new(summaries.clone())?;
+            let assets = graph.all_assets();
+            let next = sources
+                .iter()
+                .map(|source| {
+                    let imported = graph.imported_values(source.path())?;
+                    Ok(shorth_js_oxc::parse_with_imports(source, &imported, &assets).summary)
+                })
+                .collect::<Result<Vec<_>, ModuleGraphError>>()?;
+            if next == summaries {
+                converged = true;
+                break;
+            }
+            summaries = next;
+        }
+        if !converged {
+            return Err(ModuleGraphError::DidNotConverge { iterations });
+        }
         let graph = ModuleGraph::new(summaries)?;
         let assets = graph.all_assets();
         sources

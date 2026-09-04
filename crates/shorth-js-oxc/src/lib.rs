@@ -92,6 +92,7 @@ struct MacroExtractor<'a> {
     animation_declarations: Vec<AnimationDefinition>,
     view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
     view_transition_declarations: Vec<ViewTransitionDefinition>,
+    local_values: HashMap<SymbolId, ExportedValue>,
     style_calls: Vec<StyleCall>,
     diagnostics: Vec<Diagnostic>,
     jsx_path: Vec<usize>,
@@ -138,6 +139,7 @@ impl<'a> MacroExtractor<'a> {
             animation_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
+            local_values: HashMap::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
             jsx_path: Vec::new(),
@@ -151,6 +153,13 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn imported_scope(&self, identity: &IdentityId) -> ScopeDefinition {
+        if let Some(scope) = self
+            .scope_definitions
+            .iter()
+            .find(|scope| self.identity(AssetKind::Scope, &scope.name) == *identity)
+        {
+            return scope.clone();
+        }
         let span = Span::new(self.source.id(), identity.start, identity.end);
         let metadata = self.imported_assets.get(identity);
         ScopeDefinition {
@@ -180,15 +189,22 @@ impl<'a> MacroExtractor<'a> {
                 Some(self.imported_scope(candidates.first()?))
             }
         };
-        Some(HandleDefinition {
-            module_path: alternative.reference.module_path.clone(),
-            name: Spanned::new(alternative.reference.binding_name.clone(), span),
-            label: metadata
-                .and_then(|metadata| metadata.label.clone())
-                .map(|label| Spanned::new(label, span)),
-            scope,
-            call_span: span,
-        })
+        let mut definition = self
+            .handle_definitions
+            .iter()
+            .find(|handle| self.identity(AssetKind::Ref, &handle.name) == alternative.reference)
+            .cloned()
+            .unwrap_or_else(|| HandleDefinition {
+                module_path: alternative.reference.module_path.clone(),
+                name: Spanned::new(alternative.reference.binding_name.clone(), span),
+                label: metadata
+                    .and_then(|metadata| metadata.label.clone())
+                    .map(|label| Spanned::new(label, span)),
+                scope: None,
+                call_span: span,
+            });
+        definition.scope = scope;
+        Some(definition)
     }
 
     fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
@@ -236,41 +252,8 @@ impl<'a> MacroExtractor<'a> {
         }
 
         for (symbol, exported) in &self.export_symbols {
-            if let Some(definition) = self.scope_symbols.get(symbol) {
-                summary.exports.insert(
-                    exported.clone(),
-                    ExportedValue::Scopes(SymbolicValue::exact(
-                        self.identity(AssetKind::Scope, &definition.name),
-                    )),
-                );
-            } else if let Some(definition) = self.handle_symbols.get(symbol) {
-                let scopes = definition.scope.as_ref().map(|scope| {
-                    SymbolicValue::exact(self.identity(AssetKind::Scope, &scope.name))
-                });
-                summary.exports.insert(
-                    exported.clone(),
-                    ExportedValue::Refs(vec![
-                        RefAlternative::new(
-                            self.identity(AssetKind::Ref, &definition.name),
-                            scopes,
-                        )
-                        .expect("extractor creates correctly typed ref relations"),
-                    ]),
-                );
-            } else if let Some(name) = self.animation_symbols.get(symbol) {
-                summary.exports.insert(
-                    exported.clone(),
-                    ExportedValue::Animations(SymbolicValue::exact(
-                        self.identity(AssetKind::Animation, name),
-                    )),
-                );
-            } else if let Some(name) = self.view_transition_symbols.get(symbol) {
-                summary.exports.insert(
-                    exported.clone(),
-                    ExportedValue::ViewTransitions(SymbolicValue::exact(
-                        self.identity(AssetKind::ViewTransition, name),
-                    )),
-                );
+            if let Some(value) = self.local_values.get(symbol) {
+                summary.exports.insert(exported.clone(), value.clone());
             }
         }
         summary
@@ -326,12 +309,79 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn handle_reference(&self, expression: &Expression<'a>) -> Option<HandleDefinition> {
+        let handles = self.handle_references(expression)?;
+        (handles.len() == 1).then(|| handles[0].clone())
+    }
+
+    fn handle_references(&self, expression: &Expression<'a>) -> Option<Vec<HandleDefinition>> {
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        self.handle_symbols.get(&symbol_id).cloned()
+        if let Some(handle) = self.handle_symbols.get(&symbol_id) {
+            return Some(vec![handle.clone()]);
+        }
+        let ExportedValue::Refs(alternatives) = self.local_values.get(&symbol_id)? else {
+            return None;
+        };
+        let mut handles = Vec::new();
+        for alternative in alternatives {
+            match &alternative.permitted_scopes {
+                None => handles.push(self.imported_ref(alternative)?),
+                Some(scopes) => {
+                    for scope in scopes.finite_candidates()? {
+                        let mut alternative = alternative.clone();
+                        alternative.permitted_scopes = Some(SymbolicValue::exact(scope.clone()));
+                        handles.push(self.imported_ref(&alternative)?);
+                    }
+                }
+            }
+        }
+        Some(handles)
+    }
+
+    fn abstract_value(&self, expression: &Expression<'a>) -> Option<ExportedValue> {
+        match expression {
+            Expression::Identifier(identifier) => {
+                let reference = identifier.reference_id.get()?;
+                let symbol = self.scoping.get_reference(reference).symbol_id()?;
+                self.local_values.get(&symbol).cloned()
+            }
+            Expression::ConditionalExpression(expression) => self
+                .abstract_value(&expression.consequent)
+                .and_then(|left| {
+                    self.abstract_value(&expression.alternate)
+                        .and_then(|right| left.union(&right).ok())
+                }),
+            Expression::ParenthesizedExpression(expression) => {
+                self.abstract_value(&expression.expression)
+            }
+            Expression::TSAsExpression(expression) => self.abstract_value(&expression.expression),
+            Expression::TSSatisfiesExpression(expression) => {
+                self.abstract_value(&expression.expression)
+            }
+            Expression::TSNonNullExpression(expression) => {
+                self.abstract_value(&expression.expression)
+            }
+            _ => None,
+        }
+    }
+
+    fn collect_abstract_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+        let (BindingPattern::BindingIdentifier(identifier), Some(initializer)) =
+            (&declarator.id, &declarator.init)
+        else {
+            return;
+        };
+        let Some(symbol) = identifier.symbol_id.get() else {
+            return;
+        };
+        if !self.local_values.contains_key(&symbol)
+            && let Some(value) = self.abstract_value(initializer)
+        {
+            self.local_values.insert(symbol, value);
+        }
     }
 
     fn scope_reference(&self, expression: &Expression<'a>) -> Option<ScopeDefinition> {
@@ -845,11 +895,11 @@ impl<'a> MacroExtractor<'a> {
     fn handle_tagged_selector(
         &mut self,
         key: &PropertyKey<'a>,
-    ) -> Option<(HandleDefinition, Spanned<String>)> {
+    ) -> Option<(Vec<HandleDefinition>, Spanned<String>)> {
         let PropertyKey::TaggedTemplateExpression(tagged) = key else {
             return None;
         };
-        let Some(handle) = self.handle_reference(&tagged.tag) else {
+        let Some(handles) = self.handle_references(&tagged.tag) else {
             self.diagnostics.push(Diagnostic::error(
                 "SHREF001",
                 "ref selectors must be tagged by an identity returned by style.ref()",
@@ -890,8 +940,10 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         }
-        self.record_handle_use(&handle, "selector", self.source_span(tagged.span));
-        Some((handle, selector))
+        for handle in &handles {
+            self.record_handle_use(handle, "selector", self.source_span(tagged.span));
+        }
+        Some((handles, selector))
     }
 
     fn collect_style_expression(
@@ -1016,7 +1068,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             if property.computed {
-                let Some((handle, selector)) = self.handle_tagged_selector(&property.key) else {
+                let Some((handles, selector)) = self.handle_tagged_selector(&property.key) else {
                     self.diagnostics.push(Diagnostic::error(
                         "SHJS003",
                         "computed style() keys must be static selectors tagged by style.ref()",
@@ -1026,11 +1078,13 @@ impl<'a> MacroExtractor<'a> {
                 };
                 match &property.value {
                     Expression::StringLiteral(value) => {
-                        inputs.push(StyleInput::HandleSelectorUtilityString {
-                            handle,
-                            selector,
-                            value: self.string_literal(value),
-                        });
+                        for handle in handles {
+                            inputs.push(StyleInput::HandleSelectorUtilityString {
+                                handle,
+                                selector: selector.clone(),
+                                value: self.string_literal(value),
+                            });
+                        }
                     }
                     Expression::LogicalExpression(expression)
                         if expression.operator == LogicalOperator::And =>
@@ -1043,13 +1097,15 @@ impl<'a> MacroExtractor<'a> {
                             ));
                             continue;
                         };
-                        inputs.push(StyleInput::ConditionalHandleSelectorUtilityString {
-                            handle,
-                            selector,
-                            guard: self.source_span(expression.left.span()),
-                            when_true: true,
-                            value: self.string_literal(value),
-                        });
+                        for handle in handles {
+                            inputs.push(StyleInput::ConditionalHandleSelectorUtilityString {
+                                handle,
+                                selector: selector.clone(),
+                                guard: self.source_span(expression.left.span()),
+                                when_true: true,
+                                value: self.string_literal(value),
+                            });
+                        }
                     }
                     _ => self.diagnostics.push(Diagnostic::error(
                         "SHJS004",
@@ -1363,6 +1419,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     imported,
                 });
                 if let (Some(symbol), Some(value)) = (symbol, self.imported.get(&local).cloned()) {
+                    self.local_values.insert(symbol, value.clone());
                     match value {
                         ExportedValue::Scopes(value) => {
                             if let Some(candidates) = value.finite_candidates()
@@ -1494,6 +1551,19 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_ref_definition(name, call) {
                 self.handle_symbols.insert(symbol_id, definition.clone());
+                let scopes = definition.scope.as_ref().map(|scope| {
+                    SymbolicValue::exact(self.identity(AssetKind::Scope, &scope.name))
+                });
+                self.local_values.insert(
+                    symbol_id,
+                    ExportedValue::Refs(vec![
+                        RefAlternative::new(
+                            self.identity(AssetKind::Ref, &definition.name),
+                            scopes,
+                        )
+                        .expect("extractor creates correctly typed ref relations"),
+                    ]),
+                );
                 self.handle_definitions.push(definition);
             }
         }
@@ -1510,6 +1580,12 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_scope_definition(name, call) {
                 self.scope_symbols.insert(symbol_id, definition.clone());
+                self.local_values.insert(
+                    symbol_id,
+                    ExportedValue::Scopes(SymbolicValue::exact(
+                        self.identity(AssetKind::Scope, &definition.name),
+                    )),
+                );
                 self.scope_definitions.push(definition);
             }
         }
@@ -1526,6 +1602,12 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_animation_definition(name.clone(), call) {
                 self.animation_symbols.insert(symbol_id, name);
+                self.local_values.insert(
+                    symbol_id,
+                    ExportedValue::Animations(SymbolicValue::exact(
+                        self.identity(AssetKind::Animation, &definition.name),
+                    )),
+                );
                 self.animation_declarations.push(definition);
             }
         }
@@ -1542,9 +1624,16 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_view_transition_definition(name.clone(), call) {
                 self.view_transition_symbols.insert(symbol_id, name);
+                self.local_values.insert(
+                    symbol_id,
+                    ExportedValue::ViewTransitions(SymbolicValue::exact(
+                        self.identity(AssetKind::ViewTransition, &definition.name),
+                    )),
+                );
                 self.view_transition_declarations.push(definition);
             }
         }
+        self.collect_abstract_declarator(declarator);
         walk::walk_variable_declarator(self, declarator);
     }
 }
@@ -1682,6 +1771,27 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
         assert!(alternatives[0].permitted_scopes.is_some());
         assert_eq!(parsed.summary.re_exports[0].exported, "transition");
         assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");
+    }
+
+    #[test]
+    fn summarizes_aliases_and_conditional_handle_candidate_sets() {
+        let source = SourceFile::new(
+            FileId(1),
+            "src/choices.tsx",
+            r#"import { style } from "stillwind/react";
+const first = style.ref("first");
+const second = style.ref("second");
+const alias = first;
+export const selected = enabled ? alias : second;"#,
+        );
+
+        let parsed = parse(&source);
+        let ExportedValue::Refs(candidates) = &parsed.summary.exports["selected"] else {
+            panic!("selected should be summarized as refs");
+        };
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].reference.binding_name, "first");
+        assert_eq!(candidates[1].reference.binding_name, "second");
     }
 
     #[test]
