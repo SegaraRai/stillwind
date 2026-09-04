@@ -15,6 +15,8 @@ export declare function compileReact(
   sourcePath: string | undefined | null,
   theme: string,
 ): string;
+/** Compiles a complete React module graph in one native invocation. */
+export declare function compileReactProject(sourcesJson: string, theme: string): string;
 /** Returns the versioned Stillwind module summary used for cross-module values. */
 export declare function summarizeReact(
   source: string,

@@ -2,8 +2,8 @@
 
 use napi::{Error, Result};
 use napi_derive::napi;
-use serde::Serialize;
-use shorth_core::{Compiler, GeneratedClass, GeneratedSymbol};
+use serde::{Deserialize, Serialize};
+use shorth_core::{CompileResult, Compiler, GeneratedClass, GeneratedSymbol};
 use shorth_source::{FileId, SourceFile};
 
 #[derive(Serialize)]
@@ -13,6 +13,24 @@ struct BindingOutput {
     classes: Vec<GeneratedClass>,
     symbols: Vec<GeneratedSymbol>,
     diagnostics: Vec<BindingDiagnostic>,
+}
+
+#[derive(Deserialize)]
+struct ProjectSource {
+    path: String,
+    source: String,
+}
+
+#[derive(Serialize)]
+struct ProjectBindingOutput {
+    modules: Vec<ProjectModuleOutput>,
+}
+
+#[derive(Serialize)]
+struct ProjectModuleOutput {
+    path: String,
+    #[serde(flatten)]
+    output: BindingOutput,
 }
 
 #[derive(Serialize)]
@@ -47,7 +65,11 @@ pub fn compile_react_json(
     let source = SourceFile::new(FileId(1), source_path, source);
     let theme = SourceFile::new(FileId(2), "stillwind.css", theme);
     let result = Compiler::compile_react(&source, &theme);
-    let code = result.apply_to_source(&source).ok();
+    serde_json::to_string(&binding_output(result, &source, &theme))
+}
+
+fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile) -> BindingOutput {
+    let code = result.apply_to_source(source).ok();
     let diagnostics = result
         .diagnostics
         .iter()
@@ -81,13 +103,57 @@ pub fn compile_react_json(
             }
         })
         .collect();
-    serde_json::to_string(&BindingOutput {
+    BindingOutput {
         css: result.css,
         code,
         classes: result.classes,
         symbols: result.symbols,
         diagnostics,
-    })
+    }
+}
+
+/// Compiles a complete source graph and returns one output per input module.
+///
+/// The source graph is encoded as a JSON array of `{ path, source }` records so
+/// the native ABI can remain stable while bundler adapters evolve.
+///
+/// # Errors
+///
+/// Returns an error when the input JSON is invalid, module edges cannot be
+/// resolved, or the compiler output cannot be serialized.
+pub fn compile_react_project_json(
+    sources_json: &str,
+    theme: &str,
+) -> std::result::Result<String, String> {
+    let input: Vec<ProjectSource> =
+        serde_json::from_str(sources_json).map_err(|error| error.to_string())?;
+    let sources = input
+        .into_iter()
+        .enumerate()
+        .map(|(index, source)| {
+            SourceFile::new(
+                FileId(u32::try_from(index + 1).expect("source graph is smaller than u32::MAX")),
+                source.path,
+                source.source,
+            )
+        })
+        .collect::<Vec<_>>();
+    let theme = SourceFile::new(
+        FileId(u32::try_from(sources.len() + 1).expect("source graph is smaller than u32::MAX")),
+        "stillwind.css",
+        theme,
+    );
+    let results =
+        Compiler::compile_react_project(&sources, &theme).map_err(|error| error.to_string())?;
+    let modules = sources
+        .iter()
+        .zip(results)
+        .map(|(source, result)| ProjectModuleOutput {
+            path: source.path().to_owned(),
+            output: binding_output(result, source, &theme),
+        })
+        .collect();
+    serde_json::to_string(&ProjectBindingOutput { modules }).map_err(|error| error.to_string())
 }
 
 /// Extracts the versioned cross-module summary for a React source module.
@@ -119,6 +185,16 @@ pub fn compile_react(source: String, source_path: Option<String>, theme: String)
         &theme,
     )
     .map_err(|error| Error::from_reason(error.to_string()))
+}
+
+/// Compiles a resolved React module graph in one native invocation.
+///
+/// # Errors
+///
+/// Returns a JavaScript error for invalid input or an unresolved graph edge.
+#[napi(js_name = "compileReactProject")]
+pub fn compile_react_project(sources_json: String, theme: String) -> Result<String> {
+    compile_react_project_json(&sources_json, &theme).map_err(Error::from_reason)
 }
 
 /// Returns the versioned Stillwind module summary used for cross-module values.

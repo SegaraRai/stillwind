@@ -60,6 +60,44 @@ export const trigger = style.ref("trigger");"#,
 }
 
 #[test]
+fn compiles_a_cross_module_ref_graph_for_node_consumers() {
+    let sources = serde_json::json!([
+        {
+            "path": "src/Parent.tsx",
+            "source": r#"import { style } from "stillwind/react";
+export const menu = style.ref("menu");
+export const parent = style(menu);"#
+        },
+        {
+            "path": "src/Child.tsx",
+            "source": r#"import { style } from "stillwind/react";
+import { menu } from "./Parent";
+export const child = style({ [menu`&:hover`]: "text-white" });"#
+        }
+    ]);
+    let output = shorth_napi::compile_react_project_json(
+        &sources.to_string(),
+        "@theme { --color-white: white; }",
+    )
+    .unwrap();
+
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    assert_eq!(value["modules"].as_array().unwrap().len(), 2);
+    let parent_code = value["modules"][0]["code"].as_str().unwrap();
+    let child_css = value["modules"][1]["css"].as_str().unwrap();
+    let marker = value["modules"][0]["symbols"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|symbol| symbol["kind"] == "ref-marker")
+        .unwrap()["name"]
+        .as_str()
+        .unwrap();
+    assert!(parent_code.contains(marker));
+    assert!(child_css.contains(marker));
+}
+
+#[test]
 fn serializes_editor_positions_for_diagnostics() {
     let output = shorth_napi::compile_react_json(
         "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
