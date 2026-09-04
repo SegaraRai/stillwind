@@ -189,13 +189,23 @@ function previewSource(code: string): string {
 
 /** Adds the runtime helpers (and optionally virtual CSS) required by compiled output. */
 export function finalizeReactModule(code: string, includeStylesheet = true): string {
-  const withoutMacroImport = code.replace(
-    /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm,
-    "",
-  );
+  return finalizeReactModuleWithMap(code, includeStylesheet).code;
+}
+
+export type FinalizedModuleEdit = { from: number; to: number };
+
+/** Finalizes compiled output while retaining edits needed to remap source spans. */
+export function finalizeReactModuleWithMap(code: string, includeStylesheet = true) {
+  const macroImportPattern = /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm;
+  const removed = [...code.matchAll(macroImportPattern)].map((match) => ({
+    from: match.index,
+    to: match.index + match[0].length,
+  }));
+  const withoutMacroImport = code.replace(macroImportPattern, "");
   const runtimeImport = renderRuntimeImport(withoutMacroImport);
   const stylesheetImport = includeStylesheet ? `import "${virtualCssId}";\n` : "";
-  return runtimeImport + stylesheetImport + withoutMacroImport.trimStart();
+  const prefix = runtimeImport + stylesheetImport;
+  return { code: prefix + withoutMacroImport, prefix, removed };
 }
 
 function renderRuntimeImport(code: string): string {

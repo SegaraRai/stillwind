@@ -13,9 +13,18 @@ use shorth_source::{FileId, SourceFile};
 struct BindingOutput {
     css: String,
     code: Option<String>,
+    mappings: Vec<BindingMapping>,
     classes: Vec<GeneratedClass>,
     symbols: Vec<GeneratedSymbol>,
     diagnostics: Vec<BindingDiagnostic>,
+}
+
+#[derive(Serialize)]
+struct BindingMapping {
+    original_start: u32,
+    original_end: u32,
+    generated_start: u32,
+    generated_end: u32,
 }
 
 #[derive(Deserialize)]
@@ -84,6 +93,28 @@ pub fn compile_react_json_with_options(
 
 fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile) -> BindingOutput {
     let code = result.apply_to_source(source).ok();
+    let mut transforms = result.transforms.iter().collect::<Vec<_>>();
+    transforms.sort_by_key(|transform| transform.call_span.start.0);
+    let mut generated_delta = 0_i64;
+    let mappings = transforms
+        .into_iter()
+        .filter_map(|transform| {
+            let original_start = source.utf16_offset(transform.call_span.start).ok()?;
+            let original_end = source.utf16_offset(transform.call_span.end).ok()?;
+            let generated_start = i64::from(original_start) + generated_delta;
+            let replacement_length =
+                u32::try_from(transform.replacement.encode_utf16().count()).ok()?;
+            let generated_end = generated_start + i64::from(replacement_length);
+            generated_delta +=
+                i64::from(replacement_length) - i64::from(original_end - original_start);
+            Some(BindingMapping {
+                original_start,
+                original_end,
+                generated_start: u32::try_from(generated_start).ok()?,
+                generated_end: u32::try_from(generated_end).ok()?,
+            })
+        })
+        .collect();
     let diagnostics = result
         .diagnostics
         .iter()
@@ -120,6 +151,7 @@ fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile
     BindingOutput {
         css: result.css,
         code,
+        mappings,
         classes: result.classes,
         symbols: result.symbols,
         diagnostics,

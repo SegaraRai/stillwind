@@ -1,8 +1,9 @@
 #[test]
 fn serializes_a_layered_compile_result_for_node_consumers() {
+    let source = r#"import { style } from "stillwind/react";
+const props = style("bg-accent hover:bg-accent/90");"#;
     let output = shorth_napi::compile_react_json(
-        r#"import { style } from "stillwind/react";
-const props = style("bg-accent hover:bg-accent/90");"#,
+        source,
         "Button.tsx",
         "@theme { --color-accent: oklch(.6 .2 250); }",
     )
@@ -12,6 +13,15 @@ const props = style("bg-accent hover:bg-accent/90");"#,
     assert!(value["css"].as_str().unwrap().contains("@layer utilities{"));
     assert!(value["css"].as_str().unwrap().contains(":hover{"));
     assert!(value["code"].as_str().unwrap().contains("className"));
+    assert_eq!(value["mappings"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        value["mappings"][0]["original_start"],
+        u64::try_from(source.find("style(\"").unwrap()).unwrap()
+    );
+    assert!(
+        value["mappings"][0]["generated_end"].as_u64().unwrap()
+            > value["mappings"][0]["generated_start"].as_u64().unwrap()
+    );
     assert_eq!(value["symbols"][0]["kind"], "class");
     assert!(
         value["symbols"][0]["name"]
