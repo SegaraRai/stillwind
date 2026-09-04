@@ -233,13 +233,19 @@ pub struct ModuleSummary {
     pub module_path: String,
     pub imports: Vec<ImportBinding>,
     pub re_exports: Vec<ReExport>,
-    pub assets: BTreeMap<IdentityId, AssetMetadata>,
+    pub assets: Vec<AssetRecord>,
     pub exports: BTreeMap<String, ExportedValue>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetMetadata {
     pub label: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AssetRecord {
+    pub identity: IdentityId,
+    pub metadata: AssetMetadata,
 }
 
 impl ModuleSummary {
@@ -251,7 +257,7 @@ impl ModuleSummary {
             module_path: normalized_module_path(module_path),
             imports: Vec::new(),
             re_exports: Vec::new(),
-            assets: BTreeMap::new(),
+            assets: Vec::new(),
             exports: BTreeMap::new(),
         }
     }
@@ -336,7 +342,8 @@ impl ModuleGraph {
     pub fn all_assets(&self) -> BTreeMap<IdentityId, AssetMetadata> {
         self.modules
             .values()
-            .flat_map(|module| module.assets.clone())
+            .flat_map(|module| module.assets.iter())
+            .map(|asset| (asset.identity.clone(), asset.metadata.clone()))
             .collect()
     }
 

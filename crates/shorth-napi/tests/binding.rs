@@ -43,6 +43,23 @@ const props = style(menu.anchor);"#,
 }
 
 #[test]
+fn serializes_cross_module_handle_summaries() {
+    let output = shorth_napi::summarize_react_json(
+        r#"import { style } from "stillwind/react";
+export const menu = style.scope("menu");
+export const trigger = style.ref("trigger");"#,
+        r"src\Parent.tsx",
+    )
+    .unwrap();
+
+    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    assert_eq!(value["schema"], 1);
+    assert_eq!(value["module_path"], "src/Parent.tsx");
+    assert_eq!(value["exports"]["menu"]["kind"], "scopes");
+    assert_eq!(value["exports"]["trigger"]["kind"], "refs");
+}
+
+#[test]
 fn serializes_editor_positions_for_diagnostics() {
     let output = shorth_napi::compile_react_json(
         "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",

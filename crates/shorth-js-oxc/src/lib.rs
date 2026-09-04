@@ -25,8 +25,8 @@ use shorth_ir::{
     ModuleIr, ScopeDefinition, StyleCall, StyleInput, ViewTransitionDefinition,
 };
 use shorth_semantic::{
-    AssetKind, AssetMetadata, ExportedValue, IdentityId, ImportBinding, ModuleSummary, ReExport,
-    RefAlternative, SymbolicValue,
+    AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
+    ReExport, RefAlternative, SymbolicValue,
 };
 use shorth_source::{Diagnostic, SourceFile, Span, Spanned};
 
@@ -148,32 +148,32 @@ impl<'a> MacroExtractor<'a> {
         summary.re_exports.clone_from(&self.re_exports);
 
         for definition in &self.scope_definitions {
-            summary.assets.insert(
-                self.identity(AssetKind::Scope, &definition.name),
-                AssetMetadata {
+            summary.assets.push(AssetRecord {
+                identity: self.identity(AssetKind::Scope, &definition.name),
+                metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
-            );
+            });
         }
         for definition in &self.handle_definitions {
-            summary.assets.insert(
-                self.identity(AssetKind::Ref, &definition.name),
-                AssetMetadata {
+            summary.assets.push(AssetRecord {
+                identity: self.identity(AssetKind::Ref, &definition.name),
+                metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
-            );
+            });
         }
         for definition in &self.animation_declarations {
-            summary.assets.insert(
-                self.identity(AssetKind::Animation, &definition.name),
-                AssetMetadata { label: None },
-            );
+            summary.assets.push(AssetRecord {
+                identity: self.identity(AssetKind::Animation, &definition.name),
+                metadata: AssetMetadata { label: None },
+            });
         }
         for definition in &self.view_transition_declarations {
-            summary.assets.insert(
-                self.identity(AssetKind::ViewTransition, &definition.name),
-                AssetMetadata { label: None },
-            );
+            summary.assets.push(AssetRecord {
+                identity: self.identity(AssetKind::ViewTransition, &definition.name),
+                metadata: AssetMetadata { label: None },
+            });
         }
 
         for (symbol, exported) in &self.export_symbols {

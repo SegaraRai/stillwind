@@ -27,4 +27,5 @@ try {
 }
 
 export const compileReact = binding.compileReact;
+export const summarizeReact = binding.summarizeReact;
 export const generateReactTypes = binding.generateReactTypes;

@@ -15,4 +15,9 @@ export declare function compileReact(
   sourcePath: string | undefined | null,
   theme: string,
 ): string;
+/** Returns the versioned Stillwind module summary used for cross-module values. */
+export declare function summarizeReact(
+  source: string,
+  sourcePath: string | undefined | null,
+): string;
 export declare function generateReactTypes(theme: string): string;

@@ -90,6 +90,19 @@ pub fn compile_react_json(
     })
 }
 
+/// Extracts the versioned cross-module summary for a React source module.
+///
+/// # Errors
+///
+/// Returns an error only when serializing the summary fails.
+pub fn summarize_react_json(
+    source: &str,
+    source_path: &str,
+) -> std::result::Result<String, serde_json::Error> {
+    let source = SourceFile::new(FileId(1), source_path, source);
+    serde_json::to_string(&Compiler::analyze_javascript(&source).summary)
+}
+
 /// Native Node entrypoint used by `@stillwind/vite`.
 ///
 /// The result is JSON to keep the N-API surface stable and exactly aligned with
@@ -106,6 +119,17 @@ pub fn compile_react(source: String, source_path: Option<String>, theme: String)
         &theme,
     )
     .map_err(|error| Error::from_reason(error.to_string()))
+}
+
+/// Returns the versioned Stillwind module summary used for cross-module values.
+///
+/// # Errors
+///
+/// Returns a JavaScript error if the summary cannot be serialized.
+#[napi(js_name = "summarizeReact")]
+pub fn summarize_react(source: String, source_path: Option<String>) -> Result<String> {
+    summarize_react_json(&source, source_path.as_deref().unwrap_or("Component.tsx"))
+        .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
