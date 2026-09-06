@@ -2000,9 +2000,10 @@ fn render_stylesheet(
         css.push_str(&options.rewrite_generated(&stillwind_css::tailwind_v4_preflight()));
         css.push('}');
     }
-    if !theme.custom_css().trim().is_empty() {
+    let authored_css = without_keyframes(theme.custom_css());
+    if !authored_css.trim().is_empty() {
         css.push('\n');
-        css.push_str(theme.custom_css());
+        css.push_str(&authored_css);
         css.push('\n');
     }
     if let Some(layer) = &imports.utilities_layer {
@@ -2058,6 +2059,38 @@ fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
             output.push_str(&css[start..=close]);
         }
     }
+    output
+}
+
+fn without_keyframes(css: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find("@keyframes ") {
+        let start = cursor + relative;
+        output.push_str(&css[cursor..start]);
+        let Some(open_rel) = css[start..].find('{') else {
+            break;
+        };
+        let open = start + open_rel;
+        let mut depth = 0_u32;
+        let mut close = None;
+        for (offset, ch) in css[open..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        close = Some(open + offset);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close) = close else { break };
+        cursor = close + 1;
+    }
+    output.push_str(&css[cursor..]);
     output
 }
 
