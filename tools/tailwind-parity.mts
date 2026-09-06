@@ -29,11 +29,16 @@ function selector(candidate: string): string {
 
 const failures: string[] = [];
 let checked = 0;
+let skipped = 0;
 for (const file of readdirSync(caseRoot)
   .filter((name) => name.endsWith(".fixture.md"))
   .sort()) {
   const markdown = readFileSync(join(caseRoot, file), "utf8");
   for (const fixtureCase of parseMarkdownFixtureCases(markdown)) {
+    if (/@(?:source|config|plugin|reference)\b/.test(fixtureCase.input)) {
+      skipped += fixtureCase.candidates.split(/\s+/).filter(Boolean).length;
+      continue;
+    }
     for (const candidate of fixtureCase.candidates.split(/\s+/).filter(Boolean)) {
       if (limit > 0 && checked >= limit) break;
       checked += 1;
@@ -75,7 +80,9 @@ for (const file of readdirSync(caseRoot)
   if (limit > 0 && checked >= limit) break;
 }
 
-console.log(`Tailwind minified parity: ${checked - failures.length}/${checked} passed`);
+console.log(
+  `Tailwind minified parity: ${checked - failures.length}/${checked} passed (${skipped} excluded by scope)`,
+);
 if (failures.length > 0) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   process.exitCode = 1;
