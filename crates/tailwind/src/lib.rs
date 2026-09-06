@@ -458,6 +458,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(
                 &format!("skewX(calc({number}*1deg))"),
                 &format!("skewX({number}deg)"),
+            )
+            .replace(
+                &format!("rotateX(calc({number}*-1deg))"),
+                &format!("rotateX(calc({number}deg * -1))"),
+            )
+            .replace(
+                &format!("rotateY(calc({number}*-1deg))"),
+                &format!("rotateY(calc({number}deg * -1))"),
+            )
+            .replace(
+                &format!("rotateZ(calc({number}*-1deg))"),
+                &format!("rotateZ(calc({number}deg * -1))"),
             );
     }
     declaration = declaration
