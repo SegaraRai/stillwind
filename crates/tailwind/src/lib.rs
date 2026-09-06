@@ -400,6 +400,26 @@ fn normalize_positive_space_order(mut declaration: String, axis: &str) -> String
 #[allow(clippy::too_many_lines)]
 pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
     let candidate = parse_candidate(raw)?;
+    if let Utility::Named {
+        name,
+        modifier: Some(modifier),
+    } = &candidate.utility
+        && matches!(modifier, Value::Named(value) if value.parse::<f64>().is_ok())
+        && matches!(
+            name.as_str(),
+            "border"
+                | "border-x"
+                | "border-y"
+                | "border-s"
+                | "border-e"
+                | "border-t"
+                | "border-r"
+                | "border-b"
+                | "border-l"
+        )
+    {
+        return None;
+    }
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
