@@ -30,6 +30,7 @@ function selector(candidate: string): string {
 const failures: string[] = [];
 let checked = 0;
 let skipped = 0;
+let unresolvedShown = 0;
 for (const file of readdirSync(caseRoot)
   .filter((name) => name.endsWith(".fixture.md"))
   .sort()) {
@@ -50,6 +51,8 @@ for (const file of readdirSync(caseRoot)
         base: fixtureRoot,
         from: themePath,
       });
+      const expected = minify(tailwind);
+      const tailwindIsEmpty = expected === "" || expected === "@layer utilities;";
       let native: { css: string; classes: Array<{ class_name: string }>; diagnostics: unknown[] };
       try {
         native = JSON.parse(
@@ -60,16 +63,17 @@ for (const file of readdirSync(caseRoot)
         continue;
       }
       if (native.diagnostics.length !== 0 || native.classes.length === 0) {
+        if (tailwindIsEmpty) {
+          continue;
+        }
         failures.push(`${file} ${candidate}: unresolved by Stillwind`);
-        if (failures.length <= 20) {
-          console.error(
-            `\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${minify(tailwind)}`,
-          );
+        if (unresolvedShown < 20) {
+          unresolvedShown += 1;
+          console.error(`\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${expected}`);
         }
         continue;
       }
       const actual = native.css.replaceAll(native.classes[0].class_name, selector(candidate));
-      const expected = minify(tailwind);
       const received = minify(actual);
       if (expected !== received) {
         failures.push(`${file} ${candidate}`);
