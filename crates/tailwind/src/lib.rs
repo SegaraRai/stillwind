@@ -570,6 +570,29 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
+    // Linear-gradient angle utilities provide a legacy fallback and put the
+    // color-space-qualified position behind the Images 4 feature query.
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name.contains("bg-linear-")
+        && let Some(position) = declaration
+            .strip_prefix("--tw-gradient-position:")
+            .and_then(|value| value.split_once(';'))
+        && let Some((angle, color_space)) = position.0.split_once(" in ")
+    {
+        let angle = angle.to_owned();
+        let color_space = color_space.to_owned();
+        let full_position = position.0.to_owned();
+        declaration = declaration.replacen(
+            &format!("--tw-gradient-position:{full_position};"),
+            &format!("--tw-gradient-position:{angle};"),
+            1,
+        );
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
+            declaration: format!("--tw-gradient-position:{angle} in {color_space};"),
+        });
+    }
     // Tailwind emits an sRGB fallback for shadow opacity modifiers, then
     // upgrades to the relative-color form behind a color-mix feature query.
     if let Utility::Named { name, modifier: Some(Value::Named(alpha_value)) } = &candidate.utility
