@@ -336,6 +336,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if declaration == "grid-column:span initial/span initial;" {
         declaration = "grid-column:span initial / span initial;".to_owned();
     }
+    if declaration == "transition-timing-function:initial;"
+        && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
+    {
+        declaration = "--tw-ease:initial;transition-timing-function:initial;".to_owned();
+    }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.starts_with("line-clamp-")
         && declaration.starts_with("-webkit-line-clamp:")
