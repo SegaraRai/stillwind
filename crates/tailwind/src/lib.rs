@@ -333,6 +333,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if declaration == "--tw-drop-shadow:;" {
         declaration = "--tw-drop-shadow: ;".to_owned();
     }
+    if declaration == "grid-column:span initial/span initial;" {
+        declaration = "grid-column:span initial / span initial;".to_owned();
+    }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.starts_with("line-clamp-")
         && declaration.starts_with("-webkit-line-clamp:")
