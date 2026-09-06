@@ -368,6 +368,7 @@ fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
             .find_map(|(name, kind)| rest.strip_prefix(name).map(|rest| (kind, rest)))?;
             let rules = rest
                 .split(|character: char| character.is_whitespace() || character == ',')
+                .take_while(|rule| *rule != "--")
                 .filter(|rule| !rule.is_empty())
                 .map(str::to_owned)
                 .collect();
