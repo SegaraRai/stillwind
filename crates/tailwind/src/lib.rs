@@ -1361,6 +1361,40 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: upgraded,
         });
     }
+    // `current` shadow colors use a color-mix fallback even though there is
+    // no theme color literal to resolve. Preserve Tailwind's two-stage
+    // declaration: the plain currentcolor value is emitted first, then the
+    // alpha-aware relative-color form is enabled behind the feature query.
+    if let Utility::Named { name, modifier } = &candidate.utility
+        && name == "shadow-current"
+    {
+        let alpha = modifier
+            .as_ref()
+            .and_then(|value| match value {
+                Value::Named(value) => alpha(value),
+                _ => None,
+            });
+        let nested_declaration = match alpha.as_deref() {
+            Some("100%") | None => {
+                "--tw-shadow-color:color-mix(in oklab, currentcolor var(--tw-shadow-alpha), transparent);".to_owned()
+            }
+            Some(alpha) => format!(
+                "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, currentcolor {alpha}, transparent) var(--tw-shadow-alpha), transparent);"
+            ),
+        };
+        if alpha.is_some_and(|value| value != "100%") {
+            if let Some(start) = declaration.find("--tw-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-shadow-color:currentcolor;");
+            }
+        }
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: nested_declaration,
+        });
+    }
     let additional = resolution
         .additional
         .into_iter()
