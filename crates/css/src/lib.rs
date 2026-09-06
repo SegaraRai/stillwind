@@ -428,7 +428,10 @@ pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
     let serialized = color.to_css_string(PrinterOptions::default()).ok()?;
     if let (Some(hex), Some(percent)) = (
         serialized.strip_prefix('#'),
-        alpha.trim().strip_suffix('%').and_then(|value| value.parse::<f64>().ok()),
+        alpha
+            .trim()
+            .strip_suffix('%')
+            .and_then(|value| value.parse::<f64>().ok()),
     ) && hex.len() == 6
         && hex.chars().all(|character| character.is_ascii_hexdigit())
     {
@@ -1325,8 +1328,11 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
     // the directive-stripped view so Tailwind's optional `prefix(...)` import
     // modifier (and other entrypoint modifiers) does not become a CSS syntax
     // error before we extract the semantic registries below.
-    StyleSheet::parse(&strip_framework_directives(source.text()), ParserOptions::default())
-        .map_err(|error| ThemeError::Parse(error.to_string()))?;
+    StyleSheet::parse(
+        &strip_framework_directives(source.text()),
+        ParserOptions::default(),
+    )
+    .map_err(|error| ThemeError::Parse(error.to_string()))?;
     let imports = framework_imports(source.text());
     let mut tokens = if imports.theme_layer.is_some() {
         extract_theme_tokens(FileId(0), TAILWIND_V4_THEME)?.tokens
