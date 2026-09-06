@@ -1,0 +1,163 @@
+/* Gradient interpolation follows the CSS Images 4 color-space spelling.
+ * `--modifier-map` is registry syntax, so user-defined utilities get the
+ * same checked modifier behaviour without a JavaScript-side special case. */
+@utility bg-conic {
+  --stillwind-modifier-guard: --modifier-none();
+  --tw-gradient-position: in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic {
+  --tw-gradient-position: --modifier-map(
+    oklab: in oklab,
+    oklch: in oklch,
+    srgb: in srgb,
+    hsl: in hsl,
+    longer: in oklch longer hue,
+    shorter: in oklch shorter hue,
+    increasing: in oklch increasing hue,
+    decreasing: in oklch decreasing hue
+  );
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic-* {
+  --stillwind-modifier-guard: --modifier-none();
+  --tw-gradient-position: from calc(1deg * --value(integer)) in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility bg-conic-* {
+  --tw-gradient-position: from calc(1deg * --value(integer))
+    --modifier-map(
+      oklab: in oklab,
+      oklch: in oklch,
+      srgb: in srgb,
+      hsl: in hsl,
+      longer: in oklch longer hue,
+      shorter: in oklch shorter hue,
+      increasing: in oklch increasing hue,
+      decreasing: in oklch decreasing hue
+    );
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility -bg-conic-* {
+  --stillwind-modifier-guard: --modifier-none();
+  --tw-gradient-position: from calc(1deg * -1 * --value(integer)) in oklab;
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility -bg-conic-* {
+  --tw-gradient-position: from calc(1deg * -1 * --value(integer))
+    --modifier-map(
+      oklab: in oklab,
+      oklch: in oklch,
+      srgb: in srgb,
+      hsl: in hsl,
+      longer: in oklch longer hue,
+      shorter: in oklch shorter hue,
+      increasing: in oklch increasing hue,
+      decreasing: in oklch decreasing hue
+    );
+  background-image: conic-gradient(var(--tw-gradient-stops));
+}
+@utility divide-* {
+  & > :not(:last-child) {
+    border-color: --value(--color-*, current, transparent);
+  }
+}
+@utility divide-* {
+  & > :not(:last-child) {
+    border-color: color-mix(
+      in oklab,
+      --value(--color-*, current, transparent) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
+@utility ring-* {
+  --tw-ring-color: --value(--color-*, current, transparent);
+}
+@utility ring-* {
+  --tw-ring-color: color-mix(
+    in oklab,
+    --value(--color-*, current, transparent) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility shadow-* {
+  --tw-shadow-color: --value(--color-*, current, transparent);
+}
+@utility shadow-* {
+  --tw-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, transparent) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: --value(--color-*, current, transparent);
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, transparent) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: --value(--color-*, current, transparent);
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, transparent) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: --value(--color-*, current, transparent);
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, transparent) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-position: --value(--spacing());
+}
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-position: --value(--spacing());
+}
+@utility break-words {
+  overflow-wrap: break-word;
+}
+@utility blur-* {
+  --tw-blur: blur(--value(--blur-*));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+@utility backdrop-blur-* {
+  --tw-backdrop-blur: blur(--value(--blur-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}

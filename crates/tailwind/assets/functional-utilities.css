@@ -1,0 +1,595 @@
+/* Functional registrations. Several entries intentionally share a root: a
+ * value domain decides which expression accepts each candidate. */
+/*
+ * `@utility-family` is Stillwind's compact registry syntax. Each entry
+ * declares a wildcard utility root and its CSS property, not the 30+ default
+ * spacing values it accepts. The `negative` flag produces the paired negative
+ * utility with the same typed value grammar.
+ */
+@utility-family inset negative {
+  inset: inset;
+  inset-x: inset-inline;
+  inset-y: inset-block;
+  inset-s: inset-inline-start;
+  inset-e: inset-inline-end;
+  inset-bs: inset-block-start;
+  inset-be: inset-block-end;
+  top: top;
+  right: right;
+  bottom: bottom;
+  left: left;
+  start: inset-inline-start;
+  end: inset-inline-end;
+  indent: text-indent;
+  scroll-m: scroll-margin;
+  scroll-mx: scroll-margin-inline;
+  scroll-my: scroll-margin-block;
+  scroll-ms: scroll-margin-inline-start;
+  scroll-me: scroll-margin-inline-end;
+  scroll-mt: scroll-margin-top;
+  scroll-mr: scroll-margin-right;
+  scroll-mb: scroll-margin-bottom;
+  scroll-ml: scroll-margin-left;
+  scroll-mbs: scroll-margin-block-start;
+  scroll-mbe: scroll-margin-block-end;
+}
+@utility-family spacing {
+  pbs: padding-block-start;
+  pbe: padding-block-end;
+  ps: padding-inline-start;
+  pe: padding-inline-end;
+  gap-x: column-gap;
+  gap-y: row-gap;
+  scroll-p: scroll-padding;
+  scroll-px: scroll-padding-inline;
+  scroll-py: scroll-padding-block;
+  scroll-ps: scroll-padding-inline-start;
+  scroll-pe: scroll-padding-inline-end;
+  scroll-pt: scroll-padding-top;
+  scroll-pr: scroll-padding-right;
+  scroll-pb: scroll-padding-bottom;
+  scroll-pl: scroll-padding-left;
+  scroll-pbs: scroll-padding-block-start;
+  scroll-pbe: scroll-padding-block-end;
+}
+@utility-family spacing negative {
+  mbs: margin-block-start;
+  mbe: margin-block-end;
+  ms: margin-inline-start;
+  me: margin-inline-end;
+  outline-offset: outline-offset;
+  underline-offset: text-underline-offset;
+}
+@utility-family width {
+  w: width;
+  min-w: min-width;
+  max-w: max-width;
+  inline: inline-size;
+  min-inline: min-inline-size;
+  max-inline: max-inline-size;
+  basis: flex-basis;
+}
+@utility-family height {
+  h: height;
+  min-h: min-height;
+  max-h: max-height;
+  block: block-size;
+  min-block: min-block-size;
+  max-block: max-block-size;
+}
+@utility-family color {
+  border-x: border-inline-color;
+  border-y: border-block-color;
+  border-s: border-inline-start-color;
+  border-e: border-inline-end-color;
+  border-bs: border-block-start-color;
+  border-be: border-block-end-color;
+  border-t: border-top-color;
+  border-r: border-right-color;
+  border-b: border-bottom-color;
+  border-l: border-left-color;
+}
+@utility-family color-alpha {
+  text: color;
+  border: border-color;
+  outline: outline-color;
+  fill: fill;
+  stroke: stroke;
+  caret: caret-color;
+  accent: accent-color;
+  border-x: border-inline-color;
+  border-y: border-block-color;
+  border-s: border-inline-start-color;
+  border-e: border-inline-end-color;
+  border-bs: border-block-start-color;
+  border-be: border-block-end-color;
+  border-t: border-top-color;
+  border-r: border-right-color;
+  border-b: border-bottom-color;
+  border-l: border-left-color;
+}
+@utility-family color-alpha-default {
+  border: border-color;
+  border-x: border-inline-color;
+  border-y: border-block-color;
+  border-s: border-inline-start-color;
+  border-e: border-inline-end-color;
+  border-bs: border-block-start-color;
+  border-be: border-block-end-color;
+  border-t: border-top-color;
+  border-r: border-right-color;
+  border-b: border-bottom-color;
+  border-l: border-left-color;
+  outline: outline-color;
+}
+@utility-family integer {
+  col-start: grid-column-start;
+  col-end: grid-column-end;
+  row-start: grid-row-start;
+  row-end: grid-row-end;
+  tab: tab-size;
+}
+@utility-family mask-stop {
+  mask-x-from: left, right;
+  mask-x-to: left, right;
+  mask-y-from: top, bottom;
+  mask-y-to: top, bottom;
+  mask-t-from: top;
+  mask-t-to: top;
+  mask-r-from: right;
+  mask-r-to: right;
+  mask-b-from: bottom;
+  mask-b-to: bottom;
+  mask-l-from: left;
+  mask-l-to: left;
+}
+@utility-family mask-radial-stop {
+  mask-radial-from: radial;
+  mask-radial-to: radial;
+}
+@utility border-spacing-* {
+  --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
+  --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility border-x-* {
+  border-inline-width: calc(--value(integer) * 1px);
+}
+@utility border-y-* {
+  border-block-width: calc(--value(integer) * 1px);
+}
+@utility border-s-* {
+  border-inline-start-width: calc(--value(integer) * 1px);
+}
+@utility border-e-* {
+  border-inline-end-width: calc(--value(integer) * 1px);
+}
+@utility border-bs-* {
+  border-block-start-width: calc(--value(integer) * 1px);
+}
+@utility border-be-* {
+  border-block-end-width: calc(--value(integer) * 1px);
+}
+@utility border-t-* {
+  border-top-width: calc(--value(integer) * 1px);
+}
+@utility border-r-* {
+  border-right-width: calc(--value(integer) * 1px);
+}
+@utility border-b-* {
+  border-bottom-width: calc(--value(integer) * 1px);
+}
+@utility border-l-* {
+  border-left-width: calc(--value(integer) * 1px);
+}
+@utility border-spacing-x-* {
+  --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility border-spacing-y-* {
+  --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+@utility inset-ring {
+  box-shadow: inset 0 0 0 1px var(--tw-inset-ring-color, currentColor);
+}
+@utility inset-ring-* {
+  box-shadow: inset 0 0 0 calc(--value(integer) * 1px) var(--tw-inset-ring-color, currentColor);
+}
+@utility inset-ring-* {
+  --tw-inset-ring-color: --value(--color-*, current, inherit, transparent, [color]);
+  box-shadow: inset 0 0 0 var(--tw-inset-ring-width, 1px) var(--tw-inset-ring-color);
+}
+@utility inset-ring-* {
+  --tw-inset-ring-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  box-shadow: inset 0 0 0 var(--tw-inset-ring-width, 1px) var(--tw-inset-ring-color);
+}
+@utility ring-offset-* {
+  --tw-ring-offset-width: calc(--value(integer) * 1px);
+}
+@utility ring-offset-* {
+  --tw-ring-offset-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+@utility ring-offset-* {
+  --tw-ring-offset-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+}
+@utility scrollbar-track-* {
+  &::-webkit-scrollbar-track {
+    background-color: --value(--color-*, current, inherit, transparent, [color]);
+  }
+}
+@utility scrollbar-track-* {
+  &::-webkit-scrollbar-track {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
+@utility scrollbar-thumb-* {
+  &::-webkit-scrollbar-thumb {
+    background-color: --value(--color-*, current, inherit, transparent, [color]);
+  }
+}
+@utility scrollbar-thumb-* {
+  &::-webkit-scrollbar-thumb {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow: --value(--inset-shadow-*, none, [shadow]);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+/* A token shadow with a slash opacity modifier needs its authored colour,
+ * rather than a `var()` reference. `--shadow-color` is the narrow registry
+ * extension for this CSS Color 5 relative-colour operation. */
+@utility inset-shadow-* {
+  --tw-inset-shadow-alpha: --alpha(--modifier());
+  --tw-inset-shadow: --shadow-color(
+    --inset-shadow-*,
+    --tw-inset-shadow-color,
+    --alpha(--modifier())
+  );
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
+}
+@utility text-shadow-* {
+  --tw-text-shadow: --value(--text-shadow-*, none, [shadow]);
+  text-shadow: var(--tw-text-shadow);
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
+  text-shadow: var(--tw-text-shadow, 0 0 #0000) var(--tw-text-shadow-color);
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  text-shadow: var(--tw-text-shadow, 0 0 #0000) var(--tw-text-shadow-color);
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow: --value(--drop-shadow-*, [shadow]);
+  filter: drop-shadow(var(--tw-drop-shadow));
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
+  filter: drop-shadow(var(--tw-drop-shadow, 0 0 #0000) var(--tw-drop-shadow-color));
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: color-mix(
+    in oklab,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
+  filter: drop-shadow(var(--tw-drop-shadow, 0 0 #0000) var(--tw-drop-shadow-color));
+}
+@utility space-x-* {
+  & > :not(:last-child) {
+    --tw-space-x-reverse: 0;
+    margin-inline-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-x-reverse))
+    );
+    margin-inline-end: calc(
+      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-x-reverse)
+    );
+  }
+}
+@utility -space-x-* {
+  & > :not(:last-child) {
+    --tw-space-x-reverse: 0;
+    margin-inline-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-x-reverse))
+    );
+    margin-inline-end: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * var(--tw-space-x-reverse)
+    );
+  }
+}
+@utility space-y-* {
+  & > :not(:last-child) {
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-y-reverse))
+    );
+    margin-block-end: calc(--value(--spacing-*, --spacing(), [length]) * var(--tw-space-y-reverse));
+  }
+}
+@utility -space-y-* {
+  & > :not(:last-child) {
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-y-reverse))
+    );
+    margin-block-end: calc(
+      --value(--spacing-*, --spacing(), [length]) * -1 * var(--tw-space-y-reverse)
+    );
+  }
+}
+@utility bg-* {
+  background-color: --value(--color-*, [color]);
+}
+@utility bg-* {
+  background-color: color-mix(
+    in srgb,
+    --value-literal(--color-*, [color]) --alpha(--modifier()),
+    transparent
+  );
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-*, [color]) --alpha(--modifier()),
+      transparent
+    );
+  }
+}
+@utility bg-* {
+  background-image: --value([image], [url]);
+}
+@utility bg-* {
+  background-position: --value([position]);
+}
+@utility bg-* {
+  background-size: --value([bg-size], [length]);
+}
+@utility text-* {
+  font-size: --value(--text-*);
+}
+@utility text-* {
+  font-size: --value(--text-*);
+  line-height: var(--tw-leading, --text-line-height());
+}
+@utility text-* {
+  font-size: --value(--text-*);
+  line-height: --modifier(--leading-*, --spacing(), [length]);
+}
+@utility text-* {
+  color: --value(--color-*);
+}
+@utility border-* {
+  border-color: --value(--color-*);
+}
+@utility border-* {
+  border-width: calc(--value(integer) * 1px);
+}
+@utility border-* {
+  border-width: --value([line-width]);
+}
+@utility border-x-* {
+  border-inline-width: calc(--value(integer) * 1px);
+}
+@utility border-x-* {
+  border-inline-width: --value([line-width]);
+}
+@utility border-y-* {
+  border-block-width: calc(--value(integer) * 1px);
+}
+@utility border-y-* {
+  border-block-width: --value([line-width]);
+}
+@utility border-s-* {
+  border-inline-start-width: calc(--value(integer) * 1px);
+}
+@utility border-s-* {
+  border-inline-start-width: --value([line-width]);
+}
+@utility border-e-* {
+  border-inline-end-width: calc(--value(integer) * 1px);
+}
+@utility border-e-* {
+  border-inline-end-width: --value([line-width]);
+}
+@utility border-bs-* {
+  border-block-start-width: calc(--value(integer) * 1px);
+}
+@utility border-bs-* {
+  border-block-start-width: --value([line-width]);
+}
+@utility border-be-* {
+  border-block-end-width: calc(--value(integer) * 1px);
+}
+@utility border-be-* {
+  border-block-end-width: --value([line-width]);
+}
+@utility border-t-* {
+  border-top-width: calc(--value(integer) * 1px);
+}
+@utility border-t-* {
+  border-top-width: --value([line-width]);
+}
+@utility border-r-* {
+  border-right-width: calc(--value(integer) * 1px);
+}
+@utility border-r-* {
+  border-right-width: --value([line-width]);
+}
+@utility border-b-* {
+  border-bottom-width: calc(--value(integer) * 1px);
+}
+@utility border-b-* {
+  border-bottom-width: --value([line-width]);
+}
+@utility border-l-* {
+  border-left-width: calc(--value(integer) * 1px);
+}
+@utility border-l-* {
+  border-left-width: --value([line-width]);
+}
+@utility outline-* {
+  outline-color: --value(--color-*);
+}
+@utility p-* {
+  padding: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility px-* {
+  padding-inline: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility py-* {
+  padding-block: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility pt-* {
+  padding-top: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility pr-* {
+  padding-right: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility pb-* {
+  padding-bottom: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility pl-* {
+  padding-left: --value(--spacing-*, --spacing(), [length-percentage]);
+}
+@utility m-* {
+  margin: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mx-* {
+  margin-inline: --value(--spacing-*, --spacing(), [length]);
+}
+@utility my-* {
+  margin-block: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mt-* {
+  margin-top: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mr-* {
+  margin-right: --value(--spacing-*, --spacing(), [length]);
+}
+@utility mb-* {
+  margin-bottom: --value(--spacing-*, --spacing(), [length]);
+}
+@utility ml-* {
+  margin-left: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -m-* {
+  margin: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mx-* {
+  margin-inline: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -my-* {
+  margin-block: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mt-* {
+  margin-top: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mr-* {
+  margin-right: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -mb-* {
+  margin-bottom: --value(--spacing-*, --spacing(), [length]);
+}
+@utility -ml-* {
+  margin-left: --value(--spacing-*, --spacing(), [length]);
+}
+@utility gap-* {
+  gap: --value(--spacing-*, --spacing(), [length]);
+}
+@utility w-* {
+  width: --value(--spacing-*, --spacing(), [length]);
+}
+@utility h-* {
+  height: --value(--spacing-*, --spacing(), [length]);
+}
+@utility min-w-* {
+  min-width: --value(--spacing-*, --spacing(), [length]);
+}
+@utility min-h-* {
+  min-height: --value(--spacing-*, --spacing(), [length]);
+}
+@utility max-w-* {
+  max-width: --value(--spacing-*, --spacing(), [length]);
+}
+@utility max-h-* {
+  max-height: --value(--spacing-*, --spacing(), [length]);
+}
+@utility basis-* {
+  flex-basis: --value(--spacing-*, --spacing(), [length]);
+}
+@utility rounded-* {
+  border-radius: --value(--radius-*);
+}
+@utility shadow-* {
+  box-shadow: --value(--shadow-*);
+}
+@utility font-* {
+  font-family: --value(--font-*);
+}
+@utility leading-* {
+  line-height: --value(--leading-*);
+}
+@utility leading-* {
+  line-height: --value(--leading-*, --spacing(), number, [length]);
+}
+@utility tracking-* {
+  letter-spacing: --value(--tracking-*);
+}
+@utility z-* {
+  z-index: --value(--z-index-*);
+}
+@utility z-* {
+  z-index: --value(--z-index-*, integer, [z-index]);
+}
+@utility -z-* {
+  z-index: calc(--value(--z-index-*, integer, [z-index]) * -1);
+}
+@utility duration-* {
+  transition-duration: --value(--duration-*);
+}
+@utility duration-* {
+  transition-duration: calc(--value(integer) * 1ms);
+}
+@utility delay-* {
+  transition-delay: calc(--value(integer) * 1ms);
+}
+@utility ease-* {
+  transition-timing-function: --value(--ease-*);
+}

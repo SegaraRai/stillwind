@@ -1,0 +1,259 @@
+/* Variant registrations use the same `@variant` block syntax available to
+ * application CSS. The `@slot` marks the utility selector's insertion point. */
+@variant hover {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+@variant focus {
+  &:focus {
+    @slot;
+  }
+}
+@variant focus-visible {
+  &:focus-visible {
+    @slot;
+  }
+}
+@variant focus-within {
+  &:focus-within {
+    @slot;
+  }
+}
+@variant active {
+  &:active {
+    @slot;
+  }
+}
+@variant disabled {
+  &:disabled {
+    @slot;
+  }
+}
+@variant enabled {
+  &:enabled {
+    @slot;
+  }
+}
+@variant checked {
+  &:checked {
+    @slot;
+  }
+}
+@variant indeterminate {
+  &:indeterminate {
+    @slot;
+  }
+}
+@variant default {
+  &:default {
+    @slot;
+  }
+}
+@variant invalid {
+  &:invalid {
+    @slot;
+  }
+}
+@variant valid {
+  &:valid {
+    @slot;
+  }
+}
+@variant required {
+  &:required {
+    @slot;
+  }
+}
+@variant optional {
+  &:optional {
+    @slot;
+  }
+}
+@variant read-only {
+  &:read-only {
+    @slot;
+  }
+}
+@variant placeholder-shown {
+  &:placeholder-shown {
+    @slot;
+  }
+}
+@variant first {
+  &:first-child {
+    @slot;
+  }
+}
+@variant last {
+  &:last-child {
+    @slot;
+  }
+}
+@variant only {
+  &:only-child {
+    @slot;
+  }
+}
+@variant odd {
+  &:nth-child(odd) {
+    @slot;
+  }
+}
+@variant even {
+  &:nth-child(even) {
+    @slot;
+  }
+}
+@variant first-of-type {
+  &:first-of-type {
+    @slot;
+  }
+}
+@variant last-of-type {
+  &:last-of-type {
+    @slot;
+  }
+}
+@variant only-of-type {
+  &:only-of-type {
+    @slot;
+  }
+}
+@variant empty {
+  &:empty {
+    @slot;
+  }
+}
+@variant open {
+  &:open {
+    @slot;
+  }
+}
+@variant target {
+  &:target {
+    @slot;
+  }
+}
+@variant before {
+  &::before {
+    @slot;
+  }
+}
+@variant after {
+  &::after {
+    @slot;
+  }
+}
+@variant first-letter {
+  &::first-letter {
+    @slot;
+  }
+}
+@variant first-line {
+  &::first-line {
+    @slot;
+  }
+}
+@variant placeholder {
+  &::placeholder {
+    @slot;
+  }
+}
+@variant selection {
+  &::selection {
+    @slot;
+  }
+}
+@variant marker {
+  &::marker {
+    @slot;
+  }
+}
+@variant file {
+  &::file-selector-button {
+    @slot;
+  }
+}
+@variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+@variant motion-safe {
+  @media (prefers-reduced-motion: no-preference) {
+    @slot;
+  }
+}
+@variant motion-reduce {
+  @media (prefers-reduced-motion: reduce) {
+    @slot;
+  }
+}
+@variant contrast-more {
+  @media (prefers-contrast: more) {
+    @slot;
+  }
+}
+@variant contrast-less {
+  @media (prefers-contrast: less) {
+    @slot;
+  }
+}
+@variant portrait {
+  @media (orientation: portrait) {
+    @slot;
+  }
+}
+@variant landscape {
+  @media (orientation: landscape) {
+    @slot;
+  }
+}
+@variant print {
+  @media print {
+    @slot;
+  }
+}
+@variant forced-colors {
+  @media (forced-colors: active) {
+    @slot;
+  }
+}
+@variant inverted-colors {
+  @media (inverted-colors: inverted) {
+    @slot;
+  }
+}
+@variant pointer-fine {
+  @media (pointer: fine) {
+    @slot;
+  }
+}
+@variant pointer-coarse {
+  @media (pointer: coarse) {
+    @slot;
+  }
+}
+@variant pointer-none {
+  @media (pointer: none) {
+    @slot;
+  }
+}
+@variant any-pointer-fine {
+  @media (any-pointer: fine) {
+    @slot;
+  }
+}
+@variant any-pointer-coarse {
+  @media (any-pointer: coarse) {
+    @slot;
+  }
+}
+@variant any-pointer-none {
+  @media (any-pointer: none) {
+    @slot;
+  }
+}

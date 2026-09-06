@@ -1,0 +1,181 @@
+/* Functional arbitrary-value utilities. Theme-token overloads live above;
+ * these definitions provide the common arbitrary-value grammar. */
+@utility align-* {
+  vertical-align: --value([vertical-align]);
+}
+@utility animate-* {
+  animation: --value(--animate-*, [animation]);
+}
+@utility aspect-* {
+  aspect-ratio: --value([ratio]);
+}
+@utility auto-cols-* {
+  grid-auto-columns: --value([grid-track-size]);
+}
+@utility auto-rows-* {
+  grid-auto-rows: --value([grid-track-size]);
+}
+@utility backdrop-blur-* {
+  backdrop-filter: blur(--value([length]));
+}
+@utility backdrop-brightness-* {
+  backdrop-filter: brightness(--value([number-percentage]));
+}
+@utility backdrop-contrast-* {
+  backdrop-filter: contrast(--value([number-percentage]));
+}
+@utility backdrop-grayscale-* {
+  backdrop-filter: grayscale(--value([number-percentage]));
+}
+@utility backdrop-hue-rotate-* {
+  backdrop-filter: hue-rotate(--value([angle]));
+}
+@utility backdrop-invert-* {
+  backdrop-filter: invert(--value([number-percentage]));
+}
+@utility backdrop-opacity-* {
+  backdrop-filter: opacity(--value([number-percentage]));
+}
+@utility backdrop-saturate-* {
+  backdrop-filter: saturate(--value([number-percentage]));
+}
+@utility backdrop-sepia-* {
+  backdrop-filter: sepia(--value([number-percentage]));
+}
+@utility bg-position-* {
+  background-position: --value([position]);
+}
+@utility bg-size-* {
+  background-size: --value([bg-size]);
+}
+@utility blur-* {
+  filter: blur(--value([length]));
+}
+@utility brightness-* {
+  filter: brightness(--value([number-percentage]));
+}
+@utility col-* {
+  grid-column: --value([grid-line]);
+}
+@utility col-end-* {
+  grid-column-end: --value([grid-line]);
+}
+@utility col-span-* {
+  grid-column: span --value([integer]) / span --value([integer]);
+}
+@utility col-start-* {
+  grid-column-start: --value([grid-line]);
+}
+@utility columns-* {
+  columns: --value([columns]);
+}
+@utility contain-* {
+  contain: --value([contain]);
+}
+@utility content-* {
+  --tw-content: --value([content]);
+  content: var(--tw-content);
+}
+@utility contrast-* {
+  filter: contrast(--value([number-percentage]));
+}
+@utility cursor-* {
+  cursor: --value([cursor]);
+}
+@utility delay-* {
+  transition-delay: --value([time]);
+}
+@utility divide-x-* {
+  & > :not(:last-child) {
+    border-inline-end-width: --value([line-width]);
+  }
+}
+@utility divide-y-* {
+  & > :not(:last-child) {
+    border-bottom-width: --value([line-width]);
+  }
+}
+@utility font-features-* {
+  font-feature-settings: --value([font-feature-settings]);
+}
+@utility font-stretch-* {
+  font-stretch: --value([font-stretch]);
+}
+@utility grayscale-* {
+  filter: grayscale(--value([number-percentage]));
+}
+@utility grid-cols-* {
+  grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
+}
+@utility grid-cols-* {
+  grid-template-columns: --value([grid-track-list]);
+}
+@utility grid-rows-* {
+  grid-template-rows: --value([grid-track-list]);
+}
+@utility grid-rows-* {
+  grid-template-rows: repeat(--value(integer), minmax(0, 1fr));
+}
+@utility grid-rows-none {
+  grid-template-rows: none;
+}
+@utility grid-rows-subgrid {
+  grid-template-rows: subgrid;
+}
+@utility grow-* {
+  flex-grow: --value([number]);
+}
+@utility hue-rotate-* {
+  filter: hue-rotate(--value([angle]));
+}
+@utility invert-* {
+  filter: invert(--value([number-percentage]));
+}
+@utility line-clamp-* {
+  -webkit-line-clamp: --value([integer]);
+}
+@utility list-* {
+  list-style-type: --value([list-style-type]);
+}
+@utility list-image-* {
+  list-style-image: --value([list-style-image]);
+}
+@utility mask-conic-* {
+  mask-image: conic-gradient(--value([conic-gradient-arguments]));
+}
+@utility mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: calc(1deg * --value(integer));
+}
+@utility -mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: calc(1deg * -1 * --value(integer));
+}
+@utility mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(
+    in --modifier(),
+    var(--tw-mask-conic-stops, var(--tw-mask-conic-position))
+  );
+  --tw-mask-conic-position: calc(1deg * --value(integer));
+}
+@utility mask-linear-* {
+  mask-image: linear-gradient(--value([linear-gradient-arguments]));
+}
+@utility mask-linear-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: calc(1deg * --value(integer));
+}
+@utility -mask-linear-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: calc(1deg * -1 * --value(integer));
+}

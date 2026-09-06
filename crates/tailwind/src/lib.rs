@@ -78,7 +78,17 @@ pub enum VariantApplication {
     StartingStyle,
 }
 
-const BUILTIN_REGISTRY_CSS: &str = include_str!("../assets/builtins.css");
+const BUILTIN_REGISTRY_CSS: &str = concat!(
+    include_str!("../assets/core-utilities.css"),
+    include_str!("../assets/discrete-utilities.css"),
+    include_str!("../assets/functional-utilities.css"),
+    include_str!("../assets/interaction-variants.css"),
+    include_str!("../assets/static-utilities.css"),
+    include_str!("../assets/arbitrary-utilities.css"),
+    include_str!("../assets/mask-utilities.css"),
+    include_str!("../assets/effect-utilities.css"),
+    include_str!("../assets/selector-variants.css"),
+);
 
 /// Tailwind spellings intentionally owned by Stillwind's relationship-handle
 /// API rather than its Tailwind-compatibility registry.
