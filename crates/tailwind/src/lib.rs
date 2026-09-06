@@ -1670,6 +1670,34 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-drop-shadow-color:color-mix(in oklab, currentcolor var(--tw-drop-shadow-alpha), transparent);".to_owned(),
         });
     }
+    if raw == "drop-shadow-transparent" {
+        declaration = declaration.replace(
+            "--tw-drop-shadow-color:oklab(0% none none/0);",
+            "--tw-drop-shadow-color:transparent;",
+        );
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-drop-shadow-color:color-mix(in oklab, transparent var(--tw-drop-shadow-alpha), transparent);".to_owned(),
+        });
+    }
+    if let Some(alpha) = raw.strip_prefix("drop-shadow-transparent/") {
+        let alpha = alpha.trim_end_matches('%');
+        if !alpha.is_empty() && alpha != "100" {
+            if let Some(start) = declaration.find("--tw-drop-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-drop-shadow-color:#0000;");
+            }
+            nested.push(NestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: "color:color-mix(in lab, red, red)".to_owned(),
+                declaration: format!(
+                    "--tw-drop-shadow-color:color-mix(in oklab, oklab(0% none none/0) var(--tw-drop-shadow-alpha), transparent);"
+                ),
+            });
+        }
+    }
     if let Some(alpha) = raw.strip_prefix("drop-shadow-inherit/") {
         let alpha = alpha.trim_end_matches('%');
         if !alpha.is_empty() {
