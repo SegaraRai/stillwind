@@ -281,6 +281,7 @@ fn is_word_character(character: char) -> bool {
 
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
     let candidate = parse_candidate(raw)?;
     let resolution = match &candidate.utility {
@@ -300,10 +301,25 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         declaration = declaration.replace("calc(var(--spacing) * 0)", "0px");
     }
+    if let Utility::Named { name, .. } = &candidate.utility {
+        if name == "divide-y" && declaration.contains("border-bottom-width:") {
+            "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut declaration);
+        } else if name == "divide-x" && declaration.contains("border-inline-end-width:") {
+            "--tw-divide-x-reverse:0;border-inline-end-style:var(--tw-border-style);border-inline-start-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut declaration);
+        }
+    }
     // Tailwind's width utilities also establish the border style through the
     // built-in --tw-border-style property. Keep the declaration explicit so
     // the generated rule has the same computed behavior and registration set.
     let border_candidate = matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("border") || name.starts_with("divide"));
+    let outline_candidate =
+        matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("outline"));
+    if outline_candidate
+        && declaration.contains("outline-width:")
+        && !declaration.contains("outline-style:")
+    {
+        declaration = format!("outline-style:var(--tw-outline-style);{declaration}");
+    }
     if border_candidate
         && declaration.split(';').any(|part| {
             part.starts_with("border-width:")
@@ -318,7 +334,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 || part.starts_with("border-bottom-width:")
                 || part.starts_with("border-left-width:")
         })
-        && !declaration.contains("border-style:")
+        && !declaration.contains("style:var(--tw-border-style)")
     {
         let style = if declaration.contains("border-inline-width:") {
             "border-inline-style"
@@ -2620,7 +2636,7 @@ mod tests {
         for (candidate, declaration, selector) in [
             (
                 "divide-y",
-                "border-bottom-width:1px;",
+                "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));",
                 Some("&>:not(:last-child)"),
             ),
             (
