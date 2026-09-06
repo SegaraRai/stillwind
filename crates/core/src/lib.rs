@@ -1754,7 +1754,7 @@ fn render_utility_rule(
         .iter()
         .any(|variant| variant.raw == "not-hover");
     let base_rule = if not_hover {
-        format!("{}{{{declaration}}}", selector.replace(":not(:hover)", ""))
+        format!("{selector}{{{declaration}}}")
     } else {
         rule.clone()
     };
@@ -1784,6 +1784,7 @@ fn render_utility_rule(
         rule = format!("@container {container}{{{rule}}}");
     }
     if not_hover {
+        rule = rule.replace(":not(:hover)", "");
         rule = format!("{base_rule}{rule}");
     }
     rule
