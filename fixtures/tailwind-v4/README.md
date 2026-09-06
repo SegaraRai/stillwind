@@ -66,7 +66,7 @@ registration catalog and its corresponding fixture from the pinned upstream
 checkout. It does not add a dependency to this workspace.
 
 ```powershell
-node tools/extract-tailwind-v4-registrations.ts --upstream C:\path\to\tailwindcss --write
+vp run --filter @stillwind/tools tailwind:extract --upstream C:\path\to\tailwindcss --write
 vp run --filter @stillwind/tools fixtures:write
 ```
 

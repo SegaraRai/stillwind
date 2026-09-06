@@ -22,10 +22,12 @@ export default defineConfig({
         command: "vp fmt",
       },
       "webref:generate": {
-        command: "node tools/generate-webref-css-domains.mts",
+        command: "",
+        dependsOn: ["@stillwind/tools#webref:generate"],
       },
       "webref:check": {
-        command: "node tools/generate-webref-css-domains.mts --check",
+        command: "",
+        dependsOn: ["@stillwind/tools#webref:check"],
       },
       lint: {
         command: "vp lint",
@@ -37,12 +39,12 @@ export default defineConfig({
         command: "node experiments/ts7-shadow-checker/src/index.mjs",
       },
       "fixtures:refresh": {
-        command: "node tools/review-fixtures.mts",
-        dependsOn: ["@stillwind/native#build"],
+        command: "",
+        dependsOn: ["@stillwind/tools#review:refresh"],
       },
       "fixtures:check": {
-        command: "node tools/review-fixtures.mts --check",
-        dependsOn: ["@stillwind/native#build"],
+        command: "",
+        dependsOn: ["@stillwind/tools#review:check"],
       },
     },
   },

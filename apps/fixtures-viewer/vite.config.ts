@@ -7,12 +7,12 @@ export default defineConfig({
   run: {
     tasks: {
       "data:refresh": {
-        command: "node ../../tools/review-fixtures.mts",
-        dependsOn: ["@stillwind/native#build"],
+        command: "",
+        dependsOn: ["@stillwind/tools#review:refresh"],
       },
       "data:check": {
-        command: "node ../../tools/review-fixtures.mts --check",
-        dependsOn: ["@stillwind/native#build"],
+        command: "",
+        dependsOn: ["@stillwind/tools#review:check"],
       },
       dev: { command: "vp dev", dependsOn: ["data:refresh"] },
       build: { command: "vp build", dependsOn: ["data:check"] },
