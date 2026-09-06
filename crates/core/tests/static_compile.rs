@@ -614,9 +614,10 @@ const props = style("divide-x-[2px]");"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
-        result
-            .css
-            .contains(">:not(:last-child){border-inline-end-width:2px;"),
+        result.css.contains(":where(.")
+            && result.css.contains(
+                "border-inline-end-style:var(--tw-border-style);border-inline-end-width:2px;"
+            ),
         "{}",
         result.css
     );

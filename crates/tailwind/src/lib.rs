@@ -276,15 +276,63 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    let declaration = if candidate.important {
+    let mut declaration = if candidate.important {
         important(&resolution.declaration)
     } else {
         resolution.declaration
     };
+    // Tailwind's width utilities also establish the border style through the
+    // built-in --tw-border-style property. Keep the declaration explicit so
+    // the generated rule has the same computed behavior and registration set.
+    let border_candidate = matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("border") || name.starts_with("divide"));
+    if border_candidate
+        && declaration.split(';').any(|part| {
+            part.starts_with("border-width:")
+                || part.starts_with("border-inline-width:")
+                || part.starts_with("border-block-width:")
+                || part.starts_with("border-inline-start-width:")
+                || part.starts_with("border-inline-end-width:")
+                || part.starts_with("border-block-start-width:")
+                || part.starts_with("border-block-end-width:")
+                || part.starts_with("border-top-width:")
+                || part.starts_with("border-right-width:")
+                || part.starts_with("border-bottom-width:")
+                || part.starts_with("border-left-width:")
+        })
+        && !declaration.contains("border-style:")
+    {
+        let style = if declaration.contains("border-inline-width:") {
+            "border-inline-style"
+        } else if declaration.contains("border-inline-start-width:") {
+            "border-inline-start-style"
+        } else if declaration.contains("border-inline-end-width:") {
+            "border-inline-end-style"
+        } else if declaration.contains("border-block-width:") {
+            "border-block-style"
+        } else if declaration.contains("border-top-width:") {
+            "border-top-style"
+        } else if declaration.contains("border-bottom-width:") {
+            "border-bottom-style"
+        } else if declaration.contains("border-left-width:") {
+            "border-left-style"
+        } else if declaration.contains("border-right-width:") {
+            "border-right-style"
+        } else {
+            "border-style"
+        };
+        declaration = format!("{style}:var(--tw-border-style);{declaration}");
+    }
     let nested = resolution
         .nested
         .into_iter()
         .map(|mut nested| {
+            if let Utility::Named { name, .. } = &candidate.utility {
+                if name == "divide-y" && nested.declaration == "border-bottom-width:1px;" {
+                    "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut nested.declaration);
+                } else if name == "divide-x" && nested.declaration == "border-inline-end-width:1px;" {
+                    "--tw-divide-x-reverse:0;border-inline-end-style:var(--tw-border-style);border-inline-start-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut nested.declaration);
+                }
+            }
             if candidate.important {
                 nested.declaration = important(&nested.declaration);
             }
@@ -1944,7 +1992,10 @@ mod tests {
     fn preserves_a_nested_selector_from_a_css_utility() {
         let resolved = resolve_utility("divide-x-[2px]", &theme()).unwrap();
 
-        assert_eq!(resolved.declaration, "border-inline-end-width:2px;");
+        assert_eq!(
+            resolved.declaration,
+            "border-inline-end-style:var(--tw-border-style);border-inline-end-width:2px;"
+        );
         assert_eq!(resolved.selector.as_deref(), Some("&>:not(:last-child)"));
     }
 

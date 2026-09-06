@@ -1639,6 +1639,9 @@ fn render_utility_rule(
         || class_selector.clone(),
         |selector| selector.replace('&', &class_selector),
     );
+    if selector.contains(">:not(:last-child)") {
+        selector = format!(":where({selector})");
+    }
     let mut media = Vec::new();
     let mut containers = Vec::new();
     let mut supports = Vec::new();
