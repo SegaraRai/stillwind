@@ -333,6 +333,30 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if declaration == "--tw-drop-shadow:;" {
         declaration = "--tw-drop-shadow: ;".to_owned();
     }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name.starts_with("line-clamp-")
+        && declaration.starts_with("-webkit-line-clamp:")
+        && !declaration.contains("-webkit-box-orient")
+    {
+        declaration.push_str("-webkit-box-orient:vertical;display:-webkit-box;overflow:hidden;");
+    }
+    if let Utility::Named { name, .. } = &candidate.utility {
+        let mask = match name.as_str() {
+            "mask-linear-[initial]" => Some(
+                "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-linear:linear-gradient(var(--tw-mask-linear-stops,var(--tw-mask-linear-position)));--tw-mask-linear-position:initial;mask-composite:intersect;",
+            ),
+            "mask-radial-[initial]" => Some(
+                "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-radial:radial-gradient(var(--tw-mask-radial-stops,var(--tw-mask-radial-size)));--tw-mask-radial-size:initial;mask-composite:intersect;",
+            ),
+            "mask-conic-[initial]" => Some(
+                "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-conic:conic-gradient(var(--tw-mask-conic-stops,var(--tw-mask-conic-position)));--tw-mask-conic-position:initial;mask-composite:intersect;",
+            ),
+            _ => None,
+        };
+        if let Some(mask) = mask {
+            declaration = mask.to_owned();
+        }
+    }
     if let Utility::Named { name, .. } = &candidate.utility {
         if (name == "divide-y" || name.ends_with("divide-y-[initial]"))
             && declaration.contains("border-bottom-width:")
