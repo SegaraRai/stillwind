@@ -1654,15 +1654,42 @@ fn render_utility_rule(
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     let mut declarations = String::new();
     let mut transforms = Vec::new();
+    let mut ordered = Vec::new();
     for utility in utilities {
         for declaration in utility.declaration.split_terminator(';') {
             if let Some(transform) = declaration.strip_prefix("transform:") {
                 transforms.push(transform);
             } else if !declaration.is_empty() {
-                declarations.push_str(declaration);
-                declarations.push(';');
+                ordered.push(declaration.to_owned());
             }
         }
+    }
+    // Tailwind's generated utility order is independent of the order in which
+    // candidates appear in the source. Reorder only declarations belonging to
+    // the same competing family; unrelated declarations keep their original
+    // slots and source order.
+    for family in ["margin", "padding", "inset", "border"] {
+        let mut positions = ordered
+            .iter()
+            .enumerate()
+            .filter_map(|(index, declaration)| {
+                (declaration_order(declaration).is_some_and(|(name, _)| name == family))
+                    .then_some(index)
+            })
+            .collect::<Vec<_>>();
+        let mut declarations_for_family = positions
+            .iter()
+            .map(|index| ordered[*index].clone())
+            .collect::<Vec<_>>();
+        declarations_for_family
+            .sort_by_key(|declaration| declaration_order(declaration).unwrap().1);
+        for (index, declaration) in positions.drain(..).zip(declarations_for_family) {
+            ordered[index] = declaration;
+        }
+    }
+    for declaration in ordered {
+        declarations.push_str(&declaration);
+        declarations.push(';');
     }
     if !transforms.is_empty() {
         declarations.push_str("transform:");
@@ -1670,6 +1697,62 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
         declarations.push(';');
     }
     declarations
+}
+
+fn declaration_order(declaration: &str) -> Option<(&'static str, u16)> {
+    let property = declaration.split_once(':').map(|(property, _)| property)?;
+
+    // CSS cascade order used by Tailwind for shorthand, axis and side forms.
+    // Keep the table deliberately focused on competing longhands; unrelated
+    // properties retain their source order via the stable sequence tie-breaker.
+    for (base, shorthand, axis, side) in [
+        ("margin", "margin", "margin-inline", "margin-left"),
+        ("padding", "padding", "padding-inline", "padding-left"),
+        ("inset", "inset", "inset-inline", "left"),
+    ] {
+        if property == shorthand || property.starts_with(&format!("{shorthand}-")) {
+            if property == shorthand {
+                return Some((base, 100));
+            }
+            if property == axis || property == format!("{base}-block") {
+                return Some((base, 110));
+            }
+            if property.contains("inline-start")
+                || property.contains("inline-end")
+                || property.contains("block-start")
+                || property.contains("block-end")
+            {
+                return Some((base, 120));
+            }
+            if property.ends_with("-top")
+                || property.ends_with("-right")
+                || property.ends_with("-bottom")
+                || property.ends_with("-left")
+            {
+                return Some((base, 130));
+            }
+        } else if property == side || property.starts_with(&format!("{side}-")) {
+            return Some((base, 130));
+        }
+    }
+
+    if property == "border" || property.starts_with("border-") {
+        if property == "border" || property == "border-width" || property == "border-style" {
+            return Some(("border", 200));
+        }
+        if property.starts_with("border-inline-") || property.starts_with("border-block-") {
+            return Some(("border", 210));
+        }
+        if property.contains("-top-")
+            || property.contains("-right-")
+            || property.contains("-bottom-")
+            || property.contains("-left-")
+        {
+            return Some(("border", 230));
+        }
+    }
+
+    None
 }
 
 fn render_stylesheet(
@@ -2001,5 +2084,81 @@ mod tests {
         assert!(css.contains("@property --internal-translate-x"));
         assert!(!css.contains("@property --internal-translate-y"));
         assert!(!css.contains("@property --internal-gradient-from"));
+    }
+
+    #[test]
+    fn orders_conflicting_shorthands_like_tailwind() {
+        let declarations = [
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "margin-left:0.5rem;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "margin-inline:0.75rem;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "margin:1rem;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+            },
+        ];
+
+        let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
+        assert_eq!(
+            actual,
+            "margin:1rem;margin-inline:0.75rem;margin-left:0.5rem;"
+        );
+    }
+
+    #[test]
+    fn keeps_unrelated_declarations_stable() {
+        let declarations = [
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "color:red;display:block;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "opacity:0.5;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+            },
+        ];
+
+        let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
+        assert_eq!(actual, "color:red;display:block;opacity:0.5;");
+    }
+
+    #[test]
+    fn makes_margin_utility_order_independent() {
+        let source = SourceFile::new(
+            FileId(1),
+            "App.tsx",
+            r#"import { style } from "stillwind/react"; export const props = style("ml-2 mx-3 m-4");"#,
+        );
+        let theme = SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
+        );
+        let result = Compiler::compile_react(&source, &theme);
+        assert!(result.diagnostics.is_empty(), "{result:?}");
+        let margin = result.css.find("margin:").expect("margin shorthand");
+        let inline = result.css.find("margin-inline:").expect("margin axis");
+        let left = result.css.find("margin-left:").expect("margin side");
+        assert!(margin < inline && inline < left, "{0}", result.css);
     }
 }
