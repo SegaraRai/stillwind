@@ -431,6 +431,15 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         return None;
     }
+    if let Utility::Named {
+        name,
+        modifier: Some(Value::Named(value)),
+    } = &candidate.utility
+        && name == "shadow-inherit"
+        && value.parse::<f64>().is_ok()
+    {
+        return None;
+    }
     let mut resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
@@ -1618,6 +1627,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 declaration: format!("--tw-drop-shadow-color:color-mix(in oklab, color-mix(in oklab, inherit {alpha}%, transparent) var(--tw-drop-shadow-alpha), transparent);"),
             });
         }
+    }
+    if raw == "drop-shadow-inherit/100" {
+        declaration = declaration.replace(
+            "--tw-drop-shadow-color:color-mix(in srgb, inherit 100%, transparent);",
+            "--tw-drop-shadow-color:inherit;",
+        );
+        nested.clear();
     }
     if raw.starts_with("decoration-current/")
         && declaration.contains("text-decoration-color:color-mix(in oklab, currentcolor")
