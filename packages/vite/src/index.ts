@@ -26,6 +26,8 @@ export interface StillwindOptions {
   tailwindPrefix?: string;
   /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
   forbidTailwindRelationships?: boolean;
+  /** Receives lint findings without affecting compilation. */
+  lint?: false | { rules?: Record<string, "warn" | "deny"> };
 }
 
 interface CompilerOutput {
@@ -45,6 +47,14 @@ interface CompilerOutput {
     start_column: number;
     end_line: number;
     end_column: number;
+    notes: string[];
+  }>;
+  lint_findings: Array<{
+    rule: string;
+    message: string;
+    file: string;
+    start: number;
+    end: number;
     notes: string[];
   }>;
 }
@@ -404,6 +414,12 @@ export function stillwind(options: StillwindOptions): Plugin {
           this.error(
             `${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`,
           );
+        }
+        for (const finding of output.lint_findings ?? []) {
+          const level = options.lint?.rules?.[finding.rule] ?? "warn";
+          if (level !== "deny") {
+            this.warn(`${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`);
+          }
         }
         const collision = findSymbolCollision(symbolsByModule, moduleId, output.symbols);
         if (collision) {

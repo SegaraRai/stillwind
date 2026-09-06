@@ -28,11 +28,12 @@ use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
     ReExport, RefAlternative, SymbolicValue, TypeFact,
 };
-use stillwind_source::{Diagnostic, SourceFile, Span, Spanned};
+use stillwind_source::{CompileError, LintFinding, SourceFile, Span, Spanned};
 
 #[derive(Debug)]
 pub struct ParsedJavaScript {
-    pub diagnostics: Vec<Diagnostic>,
+    pub diagnostics: Vec<CompileError>,
+    pub lint_findings: Vec<LintFinding>,
     pub module: ModuleIr,
     pub summary: ModuleSummary,
 }
@@ -54,7 +55,7 @@ pub fn parse_with_type_facts(
     let mut diagnostics: Vec<_> = result
         .diagnostics
         .into_iter()
-        .map(|diagnostic| Diagnostic::error("SHJS001", diagnostic.to_string(), source.full_span()))
+        .map(|diagnostic| CompileError::new("SHJS001", diagnostic.to_string(), source.full_span()))
         .collect();
 
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
@@ -62,10 +63,28 @@ pub fn parse_with_type_facts(
     extractor.visit_program(&result.program);
     extractor.validate_handles();
     let summary = extractor.module_summary();
-    diagnostics.extend(extractor.diagnostics);
+    let mut lint_findings = Vec::new();
+    for diagnostic in extractor.diagnostics {
+        if let Some(rule) = lint_rule_for_code(diagnostic.code) {
+            let mut finding = LintFinding::new(
+                rule,
+                diagnostic.message,
+                diagnostic
+                    .labels
+                    .first()
+                    .map_or(source.full_span(), |label| label.span),
+            );
+            finding.labels = diagnostic.labels;
+            finding.notes = diagnostic.notes;
+            lint_findings.push(finding);
+        } else {
+            diagnostics.push(diagnostic);
+        }
+    }
 
     ParsedJavaScript {
         diagnostics,
+        lint_findings,
         summary,
         module: ModuleIr {
             adapter: stillwind_ir::AdapterKind::React,
@@ -76,6 +95,18 @@ pub fn parse_with_type_facts(
             view_transition_declarations: extractor.view_transition_declarations,
         },
     }
+}
+
+fn lint_rule_for_code(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "SHREF003" => "require-anchor-provider",
+        "SHREF006" => "require-container-provider",
+        "SHREF007" => "valid-ref-ancestry",
+        "SHSCOPE002" => "require-scope-provider",
+        "SHSCOPE003" => "valid-scope-ancestry",
+        "SHSCOPE004" => "scoped-selector-in-scope",
+        _ => return None,
+    })
 }
 
 struct MacroExtractor<'a> {
@@ -94,7 +125,7 @@ struct MacroExtractor<'a> {
     view_transition_declarations: Vec<ViewTransitionDefinition>,
     local_values: HashMap<SymbolId, ExportedValue>,
     style_calls: Vec<StyleCall>,
-    diagnostics: Vec<Diagnostic>,
+    diagnostics: Vec<CompileError>,
     jsx_path: Vec<usize>,
     next_jsx_element: usize,
     imports: Vec<ImportBinding>,
@@ -471,7 +502,7 @@ impl<'a> MacroExtractor<'a> {
                 }
                 let transitions = self.view_transition_references(&member.object)?;
                 if call.arguments.len() != 1 {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHVIEW002",
                         "viewTransition.for() requires one stable key expression",
                         self.source_span(call.span),
@@ -517,7 +548,7 @@ impl<'a> MacroExtractor<'a> {
         };
         let animations = self.animation_references(&call.callee)?;
         if call.arguments.len() != 1 {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHANIMATION002",
                 "an animation use requires one literal options string",
                 self.source_span(call.span),
@@ -525,7 +556,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         let Expression::StringLiteral(options) = call.arguments[0].to_expression() else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHANIMATION002",
                 "an animation use requires one literal options string",
                 self.source_span(call.arguments[0].span()),
@@ -564,7 +595,7 @@ impl<'a> MacroExtractor<'a> {
         call: &CallExpression<'a>,
     ) -> Option<AnimationDefinition> {
         if call.arguments.len() != 1 {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHANIMATION001",
                 "style.animation() requires one object of static keyframe utility strings",
                 self.source_span(call.span),
@@ -572,7 +603,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHANIMATION001",
                 "style.animation() requires one object of static keyframe utility strings",
                 self.source_span(call.arguments[0].span()),
@@ -582,7 +613,7 @@ impl<'a> MacroExtractor<'a> {
         let mut frames = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHANIMATION001",
                     "animation keyframes cannot use object spreads",
                     self.source_span(property.span()),
@@ -590,7 +621,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             if property.computed || property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHANIMATION001",
                     "animation keyframes must be plain static properties",
                     self.source_span(property.span),
@@ -598,7 +629,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let Some(selector) = self.property_name(&property.key) else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHANIMATION001",
                     "animation frames must be `from`, `to`, or percentage keys",
                     self.source_span(property.key.span()),
@@ -606,7 +637,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             if !is_animation_frame(&selector.value) {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHANIMATION001",
                     "animation frames must be `from`, `to`, or comma-separated percentages",
                     selector.span,
@@ -614,7 +645,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let Expression::StringLiteral(utilities) = &property.value else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHANIMATION001",
                     "animation frame values must be literal utility strings",
                     self.source_span(property.value.span()),
@@ -627,7 +658,7 @@ impl<'a> MacroExtractor<'a> {
             });
         }
         if frames.is_empty() {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHANIMATION001",
                 "style.animation() requires at least one valid keyframe",
                 self.source_span(call.span),
@@ -647,7 +678,7 @@ impl<'a> MacroExtractor<'a> {
         call: &CallExpression<'a>,
     ) -> Option<ViewTransitionDefinition> {
         if call.arguments.len() != 1 {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHVIEW001",
                 "style.viewTransition() requires one object of static utility strings",
                 self.source_span(call.span),
@@ -655,7 +686,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHVIEW001",
                 "style.viewTransition() requires one object of static utility strings",
                 self.source_span(call.arguments[0].span()),
@@ -667,7 +698,7 @@ impl<'a> MacroExtractor<'a> {
         let mut new = None;
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHVIEW001",
                     "view transition definitions cannot use object spreads",
                     self.source_span(property.span()),
@@ -675,7 +706,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             if property.computed || property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHVIEW001",
                     "view transition definitions must be plain static properties",
                     self.source_span(property.span),
@@ -683,7 +714,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let Some(property_name) = self.property_name(&property.key) else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHVIEW001",
                     "view transition keys must be `group`, `old`, or `new`",
                     self.source_span(property.key.span()),
@@ -691,7 +722,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             let Expression::StringLiteral(value) = &property.value else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHVIEW001",
                     "view transition values must be literal utility strings",
                     self.source_span(property.value.span()),
@@ -703,7 +734,7 @@ impl<'a> MacroExtractor<'a> {
                 "group" => group = Some(value),
                 "old" => old = Some(value),
                 "new" => new = Some(value),
-                _ => self.diagnostics.push(Diagnostic::error(
+                _ => self.diagnostics.push(CompileError::new(
                     "SHVIEW001",
                     "view transition keys must be `group`, `old`, or `new`",
                     property_name.span,
@@ -711,7 +742,7 @@ impl<'a> MacroExtractor<'a> {
             }
         }
         if group.is_none() && old.is_none() && new.is_none() {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHVIEW001",
                 "style.viewTransition() requires at least one of group, old, or new",
                 self.source_span(call.span),
@@ -752,7 +783,7 @@ impl<'a> MacroExtractor<'a> {
                     return None;
                 }
                 let Some(argument) = call.arguments.first() else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHREF002",
                         "ref.container() requires a literal container type",
                         self.source_span(call.span),
@@ -760,7 +791,7 @@ impl<'a> MacroExtractor<'a> {
                     return None;
                 };
                 let Expression::StringLiteral(value) = argument.to_expression() else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHREF002",
                         "ref.container() requires a literal container type",
                         self.source_span(argument.span()),
@@ -775,7 +806,7 @@ impl<'a> MacroExtractor<'a> {
             _ => return None,
         };
         let Some(handles) = self.handle_references(handle_expression) else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHTS001",
                 "non-local or conditional ref projections require TypeScript checker facts",
                 self.source_span(expression.span()),
@@ -811,7 +842,7 @@ impl<'a> MacroExtractor<'a> {
         member: &StaticMemberExpression<'a>,
     ) -> Option<StyleInput> {
         if call.arguments.len() != 2 {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF004",
                 "ref.at() requires a literal query and a literal utility string",
                 self.source_span(call.span),
@@ -819,7 +850,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         let Some(handle) = self.handle_reference(&member.object) else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF001",
                 "ref projections must use an identity returned by style.ref()",
                 self.source_span(call.span),
@@ -830,7 +861,7 @@ impl<'a> MacroExtractor<'a> {
             call.arguments[0].to_expression(),
             call.arguments[1].to_expression(),
         ) else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF004",
                 "ref.at() requires a literal query and a literal utility string",
                 self.source_span(call.span),
@@ -887,7 +918,7 @@ impl<'a> MacroExtractor<'a> {
                 if let Expression::StringLiteral(label) = argument.to_expression() {
                     Some(self.string_literal(label))
                 } else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHSCOPE001",
                         "style.scope() accepts an optional literal name",
                         self.source_span(argument.span()),
@@ -896,7 +927,7 @@ impl<'a> MacroExtractor<'a> {
                 }
             }
             _ => {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHSCOPE001",
                     "style.scope() accepts at most one literal name",
                     self.source_span(call.span),
@@ -905,7 +936,7 @@ impl<'a> MacroExtractor<'a> {
             }
         };
         if label.as_ref().is_some_and(|label| !is_marker_label(label)) {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHSCOPE001",
                 "style.scope() names may contain only ASCII letters, digits, `_`, and `-`",
                 label.expect("checked above").span,
@@ -933,7 +964,7 @@ impl<'a> MacroExtractor<'a> {
                     if let Some(scope) = self.scope_reference(expression) {
                         (Some(scope), None)
                     } else {
-                        self.diagnostics.push(Diagnostic::error(
+                        self.diagnostics.push(CompileError::new(
                             "SHREF001",
                             "style.ref() accepts an optional literal name or a scope identity",
                             self.source_span(argument.span()),
@@ -944,7 +975,7 @@ impl<'a> MacroExtractor<'a> {
             },
             [scope, label] => {
                 let Some(scope) = self.scope_reference(scope.to_expression()) else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHREF001",
                         "the first style.ref() argument must be an identity returned by style.scope()",
                         self.source_span(scope.span()),
@@ -952,7 +983,7 @@ impl<'a> MacroExtractor<'a> {
                     return None;
                 };
                 let Expression::StringLiteral(label) = label.to_expression() else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHREF001",
                         "the second style.ref() argument must be a literal name",
                         self.source_span(label.span()),
@@ -962,7 +993,7 @@ impl<'a> MacroExtractor<'a> {
                 (Some(scope), Some(self.string_literal(label)))
             }
             _ => {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHREF001",
                     "style.ref() accepts (), (name), (scope), or (scope, name)",
                     self.source_span(call.span),
@@ -971,7 +1002,7 @@ impl<'a> MacroExtractor<'a> {
             }
         };
         if label.as_ref().is_some_and(|label| !is_marker_label(label)) {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF001",
                 "style.ref() names may contain only ASCII letters, digits, `_`, and `-`",
                 label.expect("checked above").span,
@@ -995,7 +1026,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         };
         let Some(handles) = self.handle_references(&tagged.tag) else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHTS001",
                 "non-local or conditional ref selectors require TypeScript checker facts",
                 self.source_span(tagged.tag.span()),
@@ -1003,7 +1034,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         };
         if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF005",
                 "a ref selector must be a template literal without substitutions",
                 self.source_span(tagged.quasi.span),
@@ -1011,7 +1042,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         let Some(cooked) = tagged.quasi.quasis[0].value.cooked.as_ref() else {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF005",
                 "a ref selector must be a valid static template literal",
                 self.source_span(tagged.quasi.span),
@@ -1028,7 +1059,7 @@ impl<'a> MacroExtractor<'a> {
             ),
         );
         if !selector.value.starts_with('&') {
-            self.diagnostics.push(Diagnostic::error(
+            self.diagnostics.push(CompileError::new(
                 "SHREF005",
                 "a ref selector must start with `&`",
                 selector.span,
@@ -1105,7 +1136,7 @@ impl<'a> MacroExtractor<'a> {
                 if expression.operator == LogicalOperator::And =>
             {
                 let Expression::StringLiteral(literal) = &expression.right else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHJS002",
                         "a style() conditional must have a literal utility string on its right side",
                         self.source_span(expression.right.span()),
@@ -1122,7 +1153,7 @@ impl<'a> MacroExtractor<'a> {
                 let (Expression::StringLiteral(consequent), Expression::StringLiteral(alternate)) =
                     (&expression.consequent, &expression.alternate)
                 else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHJS002",
                         "a style() ternary must contain literal utility strings on both sides",
                         self.source_span(expression.span),
@@ -1145,14 +1176,14 @@ impl<'a> MacroExtractor<'a> {
                 for element in &array.elements {
                     match element {
                         ArrayExpressionElement::SpreadElement(spread) => self.diagnostics.push(
-                            Diagnostic::error(
+                            CompileError::new(
                                 "SHJS002",
                                 "style() arrays do not support spread elements",
                                 self.source_span(spread.span),
                             ),
                         ),
                         ArrayExpressionElement::Elision(elision) => self.diagnostics.push(
-                            Diagnostic::error(
+                            CompileError::new(
                                 "SHJS002",
                                 "style() arrays cannot contain empty slots",
                                 self.source_span(elision.span),
@@ -1163,12 +1194,12 @@ impl<'a> MacroExtractor<'a> {
                 }
             }
             Expression::ObjectExpression(object) => self.collect_object(object, inputs),
-            Expression::Identifier(_) => self.diagnostics.push(Diagnostic::error(
+            Expression::Identifier(_) => self.diagnostics.push(CompileError::new(
                 "SHTS001",
                 "non-local or conditional handles require TypeScript checker facts",
                 self.source_span(expression.span()),
             )),
-            _ => self.diagnostics.push(Diagnostic::error(
+            _ => self.diagnostics.push(CompileError::new(
                 "SHJS002",
                 "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and `&` selectors",
                 self.source_span(expression.span()),
@@ -1181,7 +1212,7 @@ impl<'a> MacroExtractor<'a> {
         let mut entries = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHJS003",
                     "style() attribute objects do not support spread properties",
                     self.source_span(property.span()),
@@ -1189,7 +1220,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             if property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHJS003",
                     "style() attributes must be plain key-value properties",
                     self.source_span(property.span),
@@ -1198,7 +1229,7 @@ impl<'a> MacroExtractor<'a> {
             }
             if property.computed {
                 let Some((handles, selector)) = self.handle_tagged_selector(&property.key) else {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHJS003",
                         "computed style() keys must be static selectors tagged by style.ref()",
                         self.source_span(property.key.span()),
@@ -1219,7 +1250,7 @@ impl<'a> MacroExtractor<'a> {
                         if expression.operator == LogicalOperator::And =>
                     {
                         let Expression::StringLiteral(value) = &expression.right else {
-                            self.diagnostics.push(Diagnostic::error(
+                            self.diagnostics.push(CompileError::new(
                                 "SHJS004",
                                 "a ref selector conditional must have a literal utility string on its right side",
                                 self.source_span(expression.right.span()),
@@ -1236,7 +1267,7 @@ impl<'a> MacroExtractor<'a> {
                             });
                         }
                     }
-                    _ => self.diagnostics.push(Diagnostic::error(
+                    _ => self.diagnostics.push(CompileError::new(
                         "SHJS004",
                         "a ref selector must map to a literal utility string or `condition && \"…\"`",
                         self.source_span(property.value.span()),
@@ -1254,7 +1285,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let PropertyKey::StringLiteral(name) = &property.key else {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHJS003",
                     "style() object keys must be `class`, quoted aria-*/data-* attributes, or `&` selectors",
                     self.source_span(property.key.span()),
@@ -1270,7 +1301,7 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             if !name.value.starts_with('&') {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHJS003",
                     "style() object keys must be `class`, quoted aria-*/data-* attributes, or `&` selectors",
                     name.span,
@@ -1280,7 +1311,7 @@ impl<'a> MacroExtractor<'a> {
             match &property.value {
                 Expression::CallExpression(_) => {
                     let Some(animation) = self.animation_use(&property.value) else {
-                        self.diagnostics.push(Diagnostic::error(
+                        self.diagnostics.push(CompileError::new(
                             "SHJS004",
                             "a `&` selector must map to a literal utility string, animation use, or `condition && \"…\"`",
                             self.source_span(property.value.span()),
@@ -1318,7 +1349,7 @@ impl<'a> MacroExtractor<'a> {
                     if expression.operator == LogicalOperator::And =>
                 {
                     let Expression::StringLiteral(value) = &expression.right else {
-                        self.diagnostics.push(Diagnostic::error(
+                        self.diagnostics.push(CompileError::new(
                             "SHJS004",
                             "a selector conditional must have a literal utility string on its right side",
                             self.source_span(expression.right.span()),
@@ -1332,7 +1363,7 @@ impl<'a> MacroExtractor<'a> {
                         value: self.string_literal(value),
                     });
                 }
-                _ => self.diagnostics.push(Diagnostic::error(
+                _ => self.diagnostics.push(CompileError::new(
                     "SHJS004",
                     "a `&` selector must map to a literal utility string or `condition && \"…\"`",
                     self.source_span(property.value.span()),
@@ -1368,7 +1399,7 @@ impl<'a> MacroExtractor<'a> {
                     .iter()
                     .filter(|handle_use| handle_use.projection == "position")
                 {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHREF003",
                         format!("ref `{name}` uses position without an anchor projection"),
                         handle_use.span,
@@ -1382,7 +1413,7 @@ impl<'a> MacroExtractor<'a> {
                 .iter()
                 .filter(|handle_use| handle_use.projection == "container-query" && !has_container)
             {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHREF006",
                     format!("ref `{name}` uses a container query without a container projection"),
                     handle_use.span,
@@ -1409,7 +1440,7 @@ impl<'a> MacroExtractor<'a> {
                         .iter()
                         .any(|anchor_path| is_strict_ancestor(anchor_path, path))
                 {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHREF007",
                         format!("ref `{name}` selector has no known ancestor ref in this JSX tree"),
                         handle_use.span,
@@ -1434,7 +1465,7 @@ impl<'a> MacroExtractor<'a> {
                 .filter(|use_| use_.name == scope.name.value)
                 .collect::<Vec<_>>();
             if providers.is_empty() {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHSCOPE002",
                     format!(
                         "ref `{}` is bound to scope `{}`, but that scope is not attached to a JSX element",
@@ -1457,7 +1488,7 @@ impl<'a> MacroExtractor<'a> {
                         .as_ref()
                         .is_some_and(|path| is_strict_ancestor(path, reference_path))
                 }) {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHSCOPE003",
                         format!(
                             "scope `{}` must be attached to an ancestor of ref `{}`",
@@ -1481,7 +1512,7 @@ impl<'a> MacroExtractor<'a> {
                         .as_ref()
                         .is_some_and(|path| is_strict_ancestor(path, target_path))
                 }) {
-                    self.diagnostics.push(Diagnostic::error(
+                    self.diagnostics.push(CompileError::new(
                         "SHSCOPE004",
                         format!(
                             "a selector using scoped ref `{}` must target an element inside scope `{}`",
@@ -1635,7 +1666,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         let mut inputs = Vec::new();
         for argument in &call.arguments {
             if let Argument::SpreadElement(spread) = argument {
-                self.diagnostics.push(Diagnostic::error(
+                self.diagnostics.push(CompileError::new(
                     "SHJS002",
                     "style() does not support spread arguments",
                     self.source_span(spread.span),

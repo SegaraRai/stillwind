@@ -12,11 +12,20 @@ struct CliOutput {
     code: Option<String>,
     classes: Vec<GeneratedClass>,
     diagnostics: Vec<DiagnosticOutput>,
+    lint_findings: Vec<LintFindingOutput>,
 }
 
 #[derive(Serialize)]
 struct DiagnosticOutput {
     code: String,
+    message: String,
+    start: u32,
+    end: u32,
+}
+
+#[derive(Serialize)]
+struct LintFindingOutput {
+    rule: String,
     message: String,
     start: u32,
     end: u32,
@@ -96,11 +105,28 @@ fn run() -> Result<(), String> {
         })
         .collect();
     let code = result.apply_to_source(&source).ok();
+    let lint_findings = result
+        .lint_findings
+        .iter()
+        .map(|finding| {
+            let span = finding
+                .labels
+                .first()
+                .map_or(source.full_span(), |label| label.span);
+            LintFindingOutput {
+                rule: finding.rule.to_owned(),
+                message: finding.message.clone(),
+                start: span.start.0,
+                end: span.end.0,
+            }
+        })
+        .collect();
     let output = CliOutput {
         css: result.css,
         code,
         classes: result.classes,
         diagnostics,
+        lint_findings,
     };
     println!(
         "{}",

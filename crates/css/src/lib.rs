@@ -951,6 +951,23 @@ pub struct ThemeIndex {
     /// Stillwind baseline. Once an official Tailwind import is present, its
     /// selected entry points are authoritative.
     pub imports: FrameworkImports,
+    pub config: StillwindConfig,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StillwindConfig {
+    pub prefix: Option<String>,
+    pub tailwind_prefix: Option<String>,
+    pub lint_rules: BTreeMap<String, String>,
+}
+
+impl StillwindConfig {
+    #[must_use]
+    pub fn lint_enabled(&self, rule: &str) -> bool {
+        self.lint_rules
+            .get(rule)
+            .is_some_and(|level| matches!(level.as_str(), "warn" | "deny"))
+    }
 }
 
 /// The Tailwind entry points selected by an authored `@import` directive.
@@ -1233,6 +1250,7 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
+    theme.config = extract_stillwind_config(source.text());
     Ok(theme)
 }
 
@@ -1263,6 +1281,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         properties: extract_property_definitions(source.text()),
         authored_properties: extract_authored_property_names(source.text()),
         imports,
+        config: extract_stillwind_config(source.text()),
     })
 }
 
@@ -1301,6 +1320,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         properties: Vec::new(),
         authored_properties: BTreeSet::new(),
         imports: FrameworkImports::default(),
+        config: StillwindConfig::default(),
     })
 }
 
@@ -1532,10 +1552,35 @@ fn strip_framework_directives(css: &str) -> String {
     let css = strip_blocks(&css, "@utility");
     let css = strip_blocks(&css, "@variant");
     let css = strip_blocks(&css, "@stillwind-property");
+    let css = strip_blocks(&css, "@stillwind");
     css.lines()
         .filter(|line| !line.trim_start().starts_with("@custom-variant"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn extract_stillwind_config(css: &str) -> StillwindConfig {
+    let mut config = StillwindConfig::default();
+    for (_, body) in extract_named_blocks(&strip_css_comments(css), "@stillwind") {
+        for declaration in body.split(';') {
+            let declaration = declaration.trim();
+            let Some((key, value)) = declaration.split_once(':') else {
+                continue;
+            };
+            let key = key
+                .rsplit_once('{')
+                .map_or(key.trim(), |(_, nested)| nested.trim());
+            let value = value.trim().trim_matches(['"', '\'']);
+            if key == "prefix" {
+                config.prefix = Some(value.to_owned());
+            } else if key == "tailwind-prefix" {
+                config.tailwind_prefix = Some(value.to_owned());
+            } else if matches!(value, "warn" | "deny" | "off") {
+                config.lint_rules.insert(key.to_owned(), value.to_owned());
+            }
+        }
+    }
+    config
 }
 
 fn strip_framework_imports(css: &str) -> String {
@@ -2280,6 +2325,23 @@ mod tests {
         assert_eq!(source.slice(theme.tokens[1].value.span).unwrap(), "1rem");
         assert_eq!(theme.value("color", "accent"), Some("oklch(.6 .2 250)"));
         assert!(theme.token("spacing", "missing").is_none());
+    }
+
+    #[test]
+    fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
+        let source = SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            r#"@stillwind { prefix: "--app-"; lint { prefer-typed-relationships: warn; } }
+.card { color: red; }"#,
+        );
+
+        let theme = parse_theme(&source).unwrap();
+
+        assert_eq!(theme.config.prefix.as_deref(), Some("--app-"));
+        assert!(theme.config.lint_enabled("prefer-typed-relationships"));
+        assert!(!theme.custom_css().contains("@stillwind"));
+        assert!(theme.custom_css().contains(".card"));
     }
 
     #[test]

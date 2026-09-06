@@ -14,7 +14,9 @@ use stillwind_ir::{
 use stillwind_semantic::{
     AssetKind, AssetMetadata, Candidates, ExportedValue, IdentityId, TypeFact,
 };
-use stillwind_source::{Diagnostic, SourceFile, Span, Spanned, normalized_module_path};
+use stillwind_source::{
+    CompileError, LintFinding, SourceFile, Span, Spanned, normalized_module_path,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
@@ -75,7 +77,8 @@ pub struct CompileResult {
     pub classes: Vec<GeneratedClass>,
     pub symbols: Vec<GeneratedSymbol>,
     pub transforms: Vec<PropsTransform>,
-    pub diagnostics: Vec<Diagnostic>,
+    pub diagnostics: Vec<CompileError>,
+    pub lint_findings: Vec<LintFinding>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -162,7 +165,7 @@ impl CompileResult {
 pub struct Compiler;
 
 impl Compiler {
-    pub fn check_javascript(source: &SourceFile) -> Vec<Diagnostic> {
+    pub fn check_javascript(source: &SourceFile) -> Vec<CompileError> {
         stillwind_js_oxc::parse(source).diagnostics
     }
 
@@ -205,7 +208,14 @@ impl Compiler {
         options: &CompilerOptions,
     ) -> Result<String, stillwind_css::ThemeError> {
         let theme = Self::read_theme(theme_source)?;
-        Ok(render_stylesheet(&theme, module_css, options))
+        let mut options = options.clone();
+        if let Some(prefix) = &theme.config.prefix {
+            options.prefix.clone_from(prefix);
+        }
+        if let Some(prefix) = &theme.config.tailwind_prefix {
+            options.tailwind_prefix.clone_from(prefix);
+        }
+        Ok(render_stylesheet(&theme, module_css, &options))
     }
 
     /// Compiles the first static React subset into CSS.
@@ -266,12 +276,13 @@ impl Compiler {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
         let mut result = CompileResult {
             diagnostics: parsed.diagnostics,
+            lint_findings: parsed.lint_findings,
             ..CompileResult::default()
         };
         let theme = match Self::read_theme(theme_source) {
             Ok(theme) => theme,
             Err(error) => {
-                result.diagnostics.push(Diagnostic::error(
+                result.diagnostics.push(CompileError::new(
                     "SHCSS001",
                     error.to_string(),
                     theme_source.full_span(),
@@ -279,12 +290,15 @@ impl Compiler {
                 return result;
             }
         };
+        let mut options = options.clone();
+        if let Some(prefix) = &theme.config.prefix {
+            options.prefix.clone_from(prefix);
+        }
+        if let Some(prefix) = &theme.config.tailwind_prefix {
+            options.tailwind_prefix.clone_from(prefix);
+        }
 
-        if result
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.severity == stillwind_source::Severity::Error)
-        {
+        if !result.diagnostics.is_empty() {
             return result;
         }
 
@@ -351,7 +365,7 @@ impl Compiler {
             for input in call.inputs {
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
                     if view_transition_style.is_some() {
-                        result.diagnostics.push(Diagnostic::error(
+                        result.diagnostics.push(CompileError::new(
                             "SHVIEW004",
                             "style() accepts at most one view transition",
                             call.span,
@@ -382,7 +396,7 @@ impl Compiler {
                 } = input
                 {
                     if view_transition_style.is_some() {
-                        result.diagnostics.push(Diagnostic::error(
+                        result.diagnostics.push(CompileError::new(
                             "SHVIEW004",
                             "style() accepts at most one view transition",
                             call.span,
@@ -569,7 +583,7 @@ impl Compiler {
                                 }
                                 branch.3.append(&mut utilities);
                             }
-                            None => result.diagnostics.push(Diagnostic::error(
+                            None => result.diagnostics.push(CompileError::new(
                                 "SH001",
                                 format!("unknown or unavailable utility `{}`", utility.value.raw),
                                 utility.span,
@@ -739,13 +753,14 @@ impl Compiler {
                 };
                 let branch = &mut branches[branch_index];
                 for utility in lex_utilities(&input) {
-                    if options.forbid_tailwind_relationships
+                    if (options.forbid_tailwind_relationships
+                        || theme.config.lint_enabled("prefer-typed-relationships"))
                         && stillwind_tailwind::is_tailwind_relationship_candidate(
                             &utility.value.raw,
                         )
                     {
-                        result.diagnostics.push(Diagnostic::error(
-                            "SHLINT001",
+                        result.lint_findings.push(LintFinding::new(
+                            "prefer-typed-relationships",
                             format!(
                                 "Tailwind relationship utility `{}` is forbidden; use style.ref() or style.scope()",
                                 utility.value.raw
@@ -787,7 +802,7 @@ impl Compiler {
                             }
                             branch.3.append(&mut utilities);
                         }
-                        None => result.diagnostics.push(Diagnostic::error(
+                        None => result.diagnostics.push(CompileError::new(
                             "SH001",
                             format!("unknown or unavailable utility `{}`", utility.value.raw),
                             utility.span,
@@ -903,11 +918,7 @@ impl Compiler {
             });
         }
 
-        if result
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.severity == stillwind_source::Severity::Error)
-        {
+        if !result.diagnostics.is_empty() {
             result.css.clear();
             result.classes.clear();
             result.symbols.clear();
@@ -915,7 +926,7 @@ impl Compiler {
         } else if !utility_css.is_empty() {
             let utility_css = options.rewrite_generated(&utility_css);
             result.module_css.clone_from(&utility_css);
-            result.css = render_stylesheet(&theme, &result.module_css, options);
+            result.css = render_stylesheet(&theme, &result.module_css, &options);
         }
 
         for transform in &mut result.transforms {
@@ -1083,7 +1094,7 @@ fn emit_animation_definition(
     source: &SourceFile,
     animation: &AnimationDefinition,
     theme: &stillwind_css::ThemeIndex,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<CompileError>,
 ) {
     output.push_str("@keyframes ");
     output.push_str(&symbol_name(source, "animation", &animation.name));
@@ -1093,12 +1104,12 @@ fn emit_animation_definition(
         for utility in lex_utilities(&frame.utilities) {
             match resolve_utility(&utility.value.raw, theme) {
                 Some(utility) if utility.variants.is_empty() => utilities.push(utility),
-                Some(_) => diagnostics.push(Diagnostic::error(
+                Some(_) => diagnostics.push(CompileError::new(
                     "SHANIMATION003",
                     "animation keyframes cannot contain variants",
                     utility.span,
                 )),
-                None => diagnostics.push(Diagnostic::error(
+                None => diagnostics.push(CompileError::new(
                     "SH001",
                     format!("unknown or unavailable utility `{}`", utility.value.raw),
                     utility.span,
@@ -1117,7 +1128,7 @@ fn resolve_animation_use(
     animation: &AssetReference,
     options: &Spanned<String>,
     theme: &stillwind_css::ThemeIndex,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<CompileError>,
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
@@ -1136,7 +1147,7 @@ fn resolve_animation_use(
 fn resolve_motion_options(
     options: &Spanned<String>,
     theme: &stillwind_css::ThemeIndex,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<CompileError>,
 ) -> String {
     let mut declaration = String::new();
     for option in lex_utilities(options) {
@@ -1176,7 +1187,7 @@ fn resolve_motion_options(
                 {
                     declaration.push_str(&utility.declaration.replace("transition-", "animation-"));
                 }
-                _ => diagnostics.push(Diagnostic::error(
+                _ => diagnostics.push(CompileError::new(
                     "SHANIMATION002",
                     format!("unknown animation option `{value}`"),
                     option.span,
@@ -1192,7 +1203,7 @@ fn emit_view_transition_definition(
     source: &SourceFile,
     transition: &ViewTransitionDefinition,
     theme: &stillwind_css::ThemeIndex,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<CompileError>,
 ) {
     let name = symbol_name(source, "view-transition", &transition.name);
     if let Some(group) = &transition.group {
@@ -1224,18 +1235,18 @@ fn emit_view_transition_definition(
 fn resolve_static_utility_list(
     input: &Spanned<String>,
     theme: &stillwind_css::ThemeIndex,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<CompileError>,
 ) -> String {
     let mut utilities = Vec::new();
     for utility in lex_utilities(input) {
         match resolve_utility(&utility.value.raw, theme) {
             Some(utility) if utility.variants.is_empty() => utilities.push(utility),
-            Some(_) => diagnostics.push(Diagnostic::error(
+            Some(_) => diagnostics.push(CompileError::new(
                 "SHMOTION001",
                 "motion definition utilities cannot contain variants",
                 utility.span,
             )),
-            None => diagnostics.push(Diagnostic::error(
+            None => diagnostics.push(CompileError::new(
                 "SH001",
                 format!("unknown or unavailable utility `{}`", utility.value.raw),
                 utility.span,

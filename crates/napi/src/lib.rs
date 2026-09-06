@@ -17,6 +17,7 @@ struct BindingOutput {
     classes: Vec<GeneratedClass>,
     symbols: Vec<GeneratedSymbol>,
     diagnostics: Vec<BindingDiagnostic>,
+    lint_findings: Vec<BindingLintFinding>,
 }
 
 #[derive(Serialize)]
@@ -60,6 +61,16 @@ struct BindingDiagnostic {
     start_column: u32,
     end_line: u32,
     end_column: u32,
+    notes: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct BindingLintFinding {
+    rule: String,
+    message: String,
+    file: String,
+    start: u32,
+    end: u32,
     notes: Vec<String>,
 }
 
@@ -148,6 +159,29 @@ fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile
             }
         })
         .collect();
+    let lint_findings = result
+        .lint_findings
+        .iter()
+        .map(|finding| {
+            let span = finding
+                .labels
+                .first()
+                .map_or(source.full_span(), |label| label.span);
+            let finding_source = if span.file == theme.id() {
+                theme
+            } else {
+                source
+            };
+            BindingLintFinding {
+                rule: finding.rule.to_owned(),
+                message: finding.message.clone(),
+                file: finding_source.path().to_owned(),
+                start: span.start.0,
+                end: span.end.0,
+                notes: finding.notes.clone(),
+            }
+        })
+        .collect();
     BindingOutput {
         css: result.css,
         code,
@@ -155,6 +189,7 @@ fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile
         classes: result.classes,
         symbols: result.symbols,
         diagnostics,
+        lint_findings,
     }
 }
 
