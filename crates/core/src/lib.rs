@@ -15,7 +15,8 @@ use stillwind_semantic::{
     AssetKind, AssetMetadata, Candidates, ExportedValue, IdentityId, TypeFact,
 };
 use stillwind_source::{
-    CompileError, LintFinding, SourceFile, Span, Spanned, normalized_module_path,
+    CompileError, LintFinding, SourceFile, Span, Spanned, filter_lint_findings,
+    normalized_module_path,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -299,6 +300,7 @@ impl Compiler {
             options.tailwind_prefix.clone_from(prefix);
         }
         result.lint_policy.clone_from(&theme.config.lint_rules);
+        filter_lint_findings(source, &mut result.lint_findings);
 
         if !result.diagnostics.is_empty() {
             return result;
@@ -946,6 +948,8 @@ impl Compiler {
         for symbol in &mut result.symbols {
             symbol.name = options.rewrite_generated(&symbol.name);
         }
+
+        filter_lint_findings(source, &mut result.lint_findings);
 
         result
     }

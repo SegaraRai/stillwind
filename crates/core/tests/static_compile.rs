@@ -712,6 +712,32 @@ const props = style("bg-[color:red");"#,
 }
 
 #[test]
+fn honors_swlint_disable_directives_by_source_location() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "stillwind/react";
+// swlint-disable-next-line unknown-utility
+const first = style("bg-accnet");
+const second = style("text-accnet"); // swlint-disable-line unknown-utility
+/* swlint-disable unknown-utility */
+const third = style("p-accnet");
+/* swlint-enable unknown-utility */
+const fourth = style("m-accnet");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+
+    let result = Compiler::compile_react(&component, &theme);
+    assert_eq!(result.lint_findings.len(), 1);
+    assert_eq!(result.lint_findings[0].rule, "unknown-utility");
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("bg-accnet"));
+    assert!(transformed.contains("text-accnet"));
+    assert!(transformed.contains("p-accnet"));
+    assert!(transformed.contains("m-accnet"));
+}
+
+#[test]
 fn emits_css_for_a_runtime_conditional_branch_without_evaluating_it() {
     let component = SourceFile::new(
         FileId(1),
