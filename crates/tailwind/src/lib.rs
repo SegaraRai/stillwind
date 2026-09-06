@@ -1488,6 +1488,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
         nested.clear();
     }
+    if raw == "ring-transparent/100" {
+        if let Some(start) = declaration.find("--tw-ring-color:")
+            && let Some(end) = declaration[start..].find(';')
+        {
+            declaration.replace_range(start..start + end + 1, "--tw-ring-color:transparent;");
+        }
+        nested.clear();
+    }
     let additional = resolution
         .additional
         .into_iter()
