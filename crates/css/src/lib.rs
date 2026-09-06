@@ -1317,7 +1317,11 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
 /// Returns an error when the project stylesheet is invalid or contains an
 /// unterminated `@theme` block.
 pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
-    StyleSheet::parse(source.text(), ParserOptions::default())
+    // Framework imports are compiler directives rather than browser CSS. Parse
+    // the directive-stripped view so Tailwind's optional `prefix(...)` import
+    // modifier (and other entrypoint modifiers) does not become a CSS syntax
+    // error before we extract the semantic registries below.
+    StyleSheet::parse(&strip_framework_directives(source.text()), ParserOptions::default())
         .map_err(|error| ThemeError::Parse(error.to_string()))?;
     let imports = framework_imports(source.text());
     let mut tokens = if imports.theme_layer.is_some() {
