@@ -437,6 +437,19 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration.push_str("-webkit-box-orient:vertical;display:-webkit-box;overflow:hidden;");
     }
     if let Utility::Named { name, .. } = &candidate.utility {
+        if name.starts_with("duration-")
+            && declaration.starts_with("transition-duration:")
+            && let Some(value) = declaration
+                .strip_prefix("transition-duration:")
+                .and_then(|value| value.strip_suffix(';'))
+        {
+            declaration = format!("--tw-duration:{value};{declaration}");
+        } else if name.starts_with("ease-")
+            && declaration.starts_with("transition-timing-function:")
+            && let Some(value) = name.strip_prefix("ease-")
+        {
+            declaration = format!("--tw-ease:var(--ease-{value});{declaration}");
+        }
         let mask = match name.as_str() {
             "mask-linear-[initial]" => Some(
                 "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-linear:linear-gradient(var(--tw-mask-linear-stops,var(--tw-mask-linear-position)));--tw-mask-linear-position:initial;mask-composite:intersect;",

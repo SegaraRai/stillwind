@@ -1218,12 +1218,19 @@ fn resolve_motion_options(
             value => match resolve_utility(value, theme) {
                 Some(utility)
                     if utility.variants.is_empty()
-                        && (utility.declaration.starts_with("transition-duration:")
-                            || utility
-                                .declaration
-                                .starts_with("transition-timing-function:")) =>
+                        && (utility.declaration.contains("transition-duration:")
+                            || utility.declaration.contains("transition-timing-function:")) =>
                 {
-                    declaration.push_str(&utility.declaration.replace("transition-", "animation-"));
+                    let animation = utility
+                        .declaration
+                        .split(';')
+                        .filter(|part| {
+                            !part.starts_with("--tw-duration:") && !part.starts_with("--tw-ease:")
+                        })
+                        .collect::<Vec<_>>()
+                        .join(";");
+                    declaration.push_str(&animation.replace("transition-", "animation-"));
+                    declaration.push(';');
                 }
                 _ => diagnostics.push(CompileError::new(
                     "SHANIMATION002",
@@ -1950,6 +1957,7 @@ fn render_stylesheet(
     if imports.layer_order {
         css.push_str("@layer theme, base, components, utilities;\n");
     }
+    let mut keyframes_css = String::new();
     if let Some(layer) = &imports.theme_layer {
         let required_tokens = theme.tokens_required_by(utility_css, imports.base_layer.is_some());
         let animations = required_tokens
@@ -1978,17 +1986,13 @@ fn render_stylesheet(
                 css.push(';');
             }
             css.push_str("}}");
-            let keyframes =
+            keyframes_css =
                 options.rewrite_generated(&stillwind_css::tailwind_v4_keyframes_for(&animations));
-            if !keyframes.is_empty() {
-                css.push_str("@layer ");
-                css.push_str(layer);
-                css.push('{');
-                css.push_str(&keyframes);
-                css.push('}');
-            }
             css.push('\n');
         }
+    }
+    if !keyframes_css.is_empty() {
+        css.push_str(&keyframes_css);
     }
     if let Some(layer) = &imports.base_layer {
         css.push_str("@layer ");
