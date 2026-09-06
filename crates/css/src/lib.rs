@@ -1160,8 +1160,8 @@ impl ThemeIndex {
         }
         for token in &tokens {
             if matches!(token.mode, ThemeTokenMode::Static)
-                || (token.name.span.file != FileId(0)
-                    && !matches!(token.mode, ThemeTokenMode::Inline))
+                || (!matches!(token.mode, ThemeTokenMode::Inline)
+                    && (css.contains(&token.name.value) || css.contains(&token.value.value)))
             {
                 required.insert(token.name.value.clone());
             }
