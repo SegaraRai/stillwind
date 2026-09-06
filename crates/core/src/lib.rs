@@ -1788,6 +1788,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                     |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
                     )
                 };
+                let declaration = declaration.replace(" deg", "deg");
                 let declaration = if let Some(value) = declaration.strip_prefix("mask-image:") {
                     format!("mask-image:{}", value.replace(",var(", ", var("))
                 } else {
