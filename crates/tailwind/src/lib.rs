@@ -1325,6 +1325,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(", transparent)", ")")
             .replace(", 0%)", ")")
             .replace(", 100%)", ")");
+        for side in ["left", "right", "top", "bottom"] {
+            declaration = declaration.replace(
+                &format!("--tw-mask-{side}-from-position:0;"),
+                &format!("--tw-mask-{side}-from-position:0px;"),
+            );
+        }
     }
     if raw.starts_with("backdrop-") {
         for property in [
@@ -1358,6 +1364,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(", transparent)", ")")
             .replace(", 0%)", ")")
             .replace(", 100%)", ")");
+    }
+    if raw.starts_with("mask-") {
+        for side in ["left", "right", "top", "bottom"] {
+            declaration = declaration.replace(
+                &format!("--tw-mask-{side}-from-position:0;"),
+                &format!("--tw-mask-{side}-from-position:0px;"),
+            );
+        }
     }
     Some(ResolvedUtility {
         declaration,
