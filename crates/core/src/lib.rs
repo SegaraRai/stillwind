@@ -1685,7 +1685,9 @@ fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
-    let declaration = declaration.replace(" deg", "deg");
+    let declaration = declaration
+        .replace(" deg", "deg")
+        .replace("deg*-1", "deg * -1");
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
@@ -1790,7 +1792,9 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                     |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
                     )
                 };
-                let declaration = declaration.replace(" deg", "deg");
+                let declaration = declaration
+                    .replace(" deg", "deg")
+                    .replace("deg*-1", "deg * -1");
                 let declaration = if let Some(value) = declaration.strip_prefix("mask-image:") {
                     format!("mask-image:{}", value.replace(",var(", ", var("))
                 } else {
