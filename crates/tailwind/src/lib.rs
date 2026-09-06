@@ -381,7 +381,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
     // registry's unit multiplier expression.
-    declaration = declaration.replace("calc(1 deg*-1*", "calc(1deg*-1*");
+    declaration = declaration
+        .replace("calc(1 deg*-1*", "calc(1deg*-1*")
+        .replace("calc(1 deg * -1 *", "calc(1deg*-1*")
+        .replace("calc(1deg * -1 *", "calc(1deg*-1*");
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     if declaration == "transition-timing-function:initial;"
