@@ -2355,6 +2355,38 @@ mod tests {
     }
 
     #[test]
+    fn matches_tailwind_theme_token_emission_modes() {
+        let source = SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); }",
+        );
+        let theme = parse_theme(&source).unwrap();
+        let required = theme.tokens_required_by("color:var(--color-used);", false);
+        assert!(
+            required
+                .iter()
+                .any(|token| token.name.value == "--color-used")
+        );
+        assert!(
+            required
+                .iter()
+                .any(|token| token.name.value == "--spacing-static")
+        );
+        assert!(
+            !required
+                .iter()
+                .any(|token| token.name.value == "--color-unused")
+        );
+        assert!(
+            !required
+                .iter()
+                .any(|token| token.name.value == "--color-alias")
+        );
+        assert_eq!(theme.value("color", "alias"), Some("var(--brand)"));
+    }
+
+    #[test]
     fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
         let source = SourceFile::new(
             FileId(7),
