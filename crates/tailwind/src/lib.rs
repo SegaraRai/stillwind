@@ -594,6 +594,32 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: format!("--tw-gradient-position:{angle} in {color_space};"),
         });
     }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name.contains("bg-linear-")
+        && !nested
+            .iter()
+            .any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
+        && let Some(position) = declaration
+            .strip_prefix("--tw-gradient-position:")
+            .and_then(|value| value.split_once(';'))
+        && position.0.starts_with("calc(")
+    {
+        let color_space = match &candidate.utility {
+            Utility::Named { modifier: Some(Value::Named(modifier)), .. } => match modifier.as_str() {
+                "longer" => "oklch longer hue",
+                "shorter" => "oklch shorter hue",
+                "increasing" => "oklch increasing hue",
+                "decreasing" => "oklch decreasing hue",
+                value => value,
+            },
+            _ => "oklab",
+        };
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
+            declaration: format!("--tw-gradient-position:{} in {color_space};", position.0),
+        });
+    }
     // Tailwind emits an sRGB fallback for shadow opacity modifiers, then
     // upgrades to the relative-color form behind a color-mix feature query.
     if let Utility::Named { name, modifier: Some(Value::Named(alpha_value)) } = &candidate.utility
