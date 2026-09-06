@@ -1190,7 +1190,7 @@ impl ThemeIndex {
             required.extend(custom_property_references(&tailwind_v4_preflight()));
         }
         for token in &tokens {
-            let referenced_by_value = !self.imports.builtins
+            let referenced_by_value = token.name.span.file != FileId(0)
                 && matches!(
                     token.kind,
                     ThemeTokenKind::Scale(ThemeNamespace::Breakpoint)
