@@ -1964,7 +1964,9 @@ fn render_stylesheet(
     let mut keyframes_css = String::new();
     let mut animation_names = Vec::new();
     if let Some(layer) = &imports.theme_layer {
-        let required_tokens = theme.tokens_required_by(utility_css, imports.base_layer.is_some());
+        let mut required_tokens =
+            theme.tokens_required_by(utility_css, imports.base_layer.is_some());
+        required_tokens.sort_by_key(|token| theme_token_order(&token.name.value));
         let animations = required_tokens
             .iter()
             .filter_map(|token| match &token.kind {
@@ -2031,6 +2033,19 @@ fn render_stylesheet(
         css.push_str(&properties);
     }
     css
+}
+
+fn theme_token_order(name: &str) -> (u8, &str) {
+    let rank = if name == "--spacing" || name.starts_with("--default-transition-") {
+        0
+    } else if name.starts_with("--animate-") {
+        1
+    } else if name.starts_with("--color-") {
+        2
+    } else {
+        3
+    };
+    (rank, name)
 }
 
 fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
