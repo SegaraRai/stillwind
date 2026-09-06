@@ -1599,6 +1599,7 @@ fn emit_utility_rules(
     let base = combine_declarations(&base);
     if !base.is_empty() {
         let mut nested_in_rule_css = String::new();
+        let mut mask_nested = Vec::<(String, String)>::new();
         output.push('.');
         output.push_str(class_name);
         output.push('{');
@@ -1644,6 +1645,12 @@ fn emit_utility_rules(
                         nested_css.push('}');
                     }
                 }
+                if nested.declaration.starts_with("--tw-mask-")
+                    && nested.declaration.contains("color-mix")
+                    && let Some((property, _)) = nested.declaration.split_once(':')
+                {
+                    mask_nested.push((property.to_owned(), nested_css.clone()));
+                }
                 nested_in_rule_css.push_str(&nested_css);
             }
         }
@@ -1674,6 +1681,17 @@ fn emit_utility_rules(
                 output.push_str(&base);
                 output.push_str(&nested_in_rule_css);
             }
+        } else if !mask_nested.is_empty() {
+            let mut inlined = base.clone();
+            for (property, nested_css) in mask_nested {
+                let marker = format!("{property}:");
+                if let Some(start) = inlined.find(&marker)
+                    && let Some(end) = inlined[start..].find(';')
+                {
+                    inlined.insert_str(start + end + 1, &nested_css);
+                }
+            }
+            output.push_str(&inlined);
         } else {
             output.push_str(&base);
             output.push_str(&nested_in_rule_css);
