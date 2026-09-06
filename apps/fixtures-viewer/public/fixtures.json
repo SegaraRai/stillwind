@@ -50,19 +50,19 @@
         {
           "path": "src/Dialog.tsx",
           "language": "tsx",
-          "before": "import { style } from \"stillwind/react\";\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = style(\n  \"rounded-md\",\n  selectedAnimation(\"duration-normal ease-standard both\"),\n  { \"&[data-state=closed]\": exit(\"duration-fast ease-standard both\") },\n);\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
+          "before": "import { style } from \"stillwind/react\";\n\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = style(\n  \"rounded-md\",\n  selectedAnimation(\"duration-normal ease-standard both\"),\n  { \"&[data-state=closed]\": exit(\"duration-fast ease-standard both\") },\n);\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
           "after": "import { stillwindAssetClass, stillwindClsx } from \"stillwind/react/runtime\";\n\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = {className:stillwindClsx(\"_s_4c5285b6\",stillwindAssetClass(selectedAnimation(\"duration-normal ease-standard both\"),{\"--sw-a-5bc60e1e\":\"_s_0075b133\",\"--sw-a-59b85d3d\":\"_s_f89b7213\"}))};\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
           "css": "._s_0075b133 {\n  animation-name: --sw-a-5bc60e1e;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n._s_f89b7213 {\n  animation-name: --sw-a-59b85d3d;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n._s_4c5285b6 {\n  border-radius: var(--radius-md);\n}\n._s_4c5285b6[data-state=\"closed\"] {\n  animation-name: --sw-a-59b85d3d;\n  animation-duration: var(--duration-fast);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n",
           "diff": [
             {
               "fromA": 0,
-              "toA": 40,
+              "toA": 41,
               "fromB": 0,
               "toB": 78
             },
             {
-              "fromA": 124,
-              "toA": 279,
+              "fromA": 125,
+              "toA": 280,
               "fromB": 162,
               "toB": 345
             }
@@ -221,31 +221,31 @@
         {
           "path": "src/consumer.ts",
           "language": "typescript",
-          "before": "import { style } from \"stillwind/react\";\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\nexport const anchorProvider = style(selectedRef.anchor);\nexport const attachedScope = style(selectedScope);\n",
+          "before": "import { style } from \"stillwind/react\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\nexport const anchorProvider = style(selectedRef.anchor);\nexport const attachedScope = style(selectedScope);\n",
           "after": "import { stillwindHandleClass } from \"stillwind/react/runtime\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = {className:stillwindHandleClass(selectedRef)};\nexport const anchorProvider = {className:stillwindHandleClass(selectedRef.anchor)};\nexport const attachedScope = {className:stillwindHandleClass(selectedScope)};\n",
           "css": "._swp_s_primary_047d522c_anchor {\n  anchor-name: --sw-r-047d522c;\n}\n._swp_s_secondary_994d70ad_anchor {\n  anchor-name: --sw-r-994d70ad;\n}\n",
           "diff": [
             {
               "fromA": 0,
-              "toA": 40,
+              "toA": 41,
               "fromB": 0,
               "toB": 64
             },
             {
-              "fromA": 124,
-              "toA": 142,
+              "fromA": 125,
+              "toA": 143,
               "fromB": 148,
               "toB": 193
             },
             {
-              "fromA": 174,
-              "toA": 199,
+              "fromA": 175,
+              "toA": 200,
               "fromB": 225,
               "toB": 277
             },
             {
-              "fromA": 230,
-              "toA": 250,
+              "fromA": 231,
+              "toA": 251,
               "fromB": 308,
               "toB": 355
             }
@@ -366,25 +366,25 @@
         {
           "path": "src/Card.ts",
           "language": "typescript",
-          "before": "import { style } from \"stillwind/react\";\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = style(pageTitle);\nexport const selectedCardTransition = style(selectedTransition);\n",
+          "before": "import { style } from \"stillwind/react\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = style(pageTitle);\nexport const selectedCardTransition = style(selectedTransition);\n",
           "after": "import { stillwindViewTransitionStyle } from \"stillwind/react/runtime\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(pageTitle,undefined,[\"--sw-v-7e58d129\"],\"--sw-vt-name\",\"--sw-vt-class\")};\nexport const selectedCardTransition = {className:\"_s_9ea3eea9\",style:stillwindViewTransitionStyle(selectedTransition,undefined,[\"--sw-v-7e58d129\",\"--sw-v-5ce18560\"],\"--sw-vt-name\",\"--sw-vt-class\")};\n",
           "css": "\n",
           "diff": [
             {
               "fromA": 0,
-              "toA": 40,
+              "toA": 41,
               "fromB": 0,
               "toB": 72
             },
             {
-              "fromA": 242,
-              "toA": 258,
+              "fromA": 243,
+              "toA": 259,
               "fromB": 274,
               "toB": 406
             },
             {
-              "fromA": 298,
-              "toA": 323,
+              "fromA": 299,
+              "toA": 324,
               "fromB": 446,
               "toB": 605
             }

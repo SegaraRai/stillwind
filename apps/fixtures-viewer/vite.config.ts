@@ -1,7 +1,5 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig, type UserConfig } from "vite";
-
-type VitePlusConfig = UserConfig & { run: { tasks: Record<string, unknown> } };
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   plugins: [react()],
@@ -16,9 +14,9 @@ export default defineConfig({
         command: "node ../../tools/review-fixtures.mts --check",
         dependsOn: ["@stillwind/native#build"],
       },
-      dev: { command: "vite", dependsOn: ["data:refresh"] },
-      build: { command: "vite build", dependsOn: ["data:check"] },
+      dev: { command: "vp dev", dependsOn: ["data:refresh"] },
+      build: { command: "vp build", dependsOn: ["data:check"] },
       check: { command: "tsc --noEmit", dependsOn: ["build"] },
     },
   },
-} as VitePlusConfig);
+});

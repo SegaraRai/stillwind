@@ -1,3 +1,5 @@
+import { defineConfig } from "vite-plus";
+
 /** Vite+ task configuration for the local Node-API addon. */
 const currentTarget = {
   "win32-x64": "win32-x64-msvc",
@@ -8,10 +10,11 @@ const currentTarget = {
   "linux-arm64": "linux-arm64-gnu",
 }[`${process.platform}-${process.arch}`];
 
-if (!currentTarget)
+if (!currentTarget) {
   throw new Error(`No Stillwind native target for ${process.platform}-${process.arch}`);
+}
 
-export default {
+export default defineConfig({
   run: {
     tasks: {
       "sync-platform-packages": {
@@ -30,4 +33,4 @@ export default {
       },
     },
   },
-};
+});

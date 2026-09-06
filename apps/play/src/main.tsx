@@ -1,10 +1,11 @@
-import { EditorSelection, EditorState, type Extension } from "@codemirror/state";
 import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
+import { EditorSelection, EditorState, type Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+
 import "./play.css";
 
 const initialSource = `import { useState } from "react";

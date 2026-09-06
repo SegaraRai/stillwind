@@ -1,4 +1,6 @@
-export default {
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
   run: {
     tasks: {
       test: {
@@ -7,4 +9,4 @@ export default {
       },
     },
   },
-};
+});

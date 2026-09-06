@@ -1,4 +1,5 @@
 import { style } from "stillwind/react";
+
 import { alternateTrigger, menuTrigger } from "./MenuScope";
 
 export function MenuItem({ alternate = false }: { alternate?: boolean }) {

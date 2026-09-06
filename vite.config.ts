@@ -1,5 +1,6 @@
-/** Vite+ task configuration shared by the Stillwind workspace. */
-export default {
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
   lint: {
     ignorePatterns: [
       "fixtures/projects/*/expected/**",
@@ -9,6 +10,8 @@ export default {
   },
   fmt: {
     ignorePatterns: [],
+    sortImports: true,
+    sortPackageJson: true,
   },
   run: {
     tasks: {
@@ -43,4 +46,4 @@ export default {
       },
     },
   },
-};
+});

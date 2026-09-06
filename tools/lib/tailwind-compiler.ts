@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
 import { compile } from "tailwindcss";
 
 const toolRoot = resolve(import.meta.dirname, "..");

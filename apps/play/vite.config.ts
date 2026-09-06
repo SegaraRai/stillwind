@@ -1,9 +1,8 @@
 import { fileURLToPath, URL } from "node:url";
-import react from "@vitejs/plugin-react";
-import { defineConfig, type UserConfig } from "vite";
-import { stillwind } from "@stillwind/vite";
 
-type VitePlusConfig = UserConfig & { run: { tasks: Record<string, unknown> } };
+import { stillwind } from "@stillwind/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   plugins: [
@@ -14,9 +13,9 @@ export default defineConfig({
   ],
   run: {
     tasks: {
-      dev: { command: "vite" },
-      build: { command: "vite build" },
+      dev: { command: "vp dev" },
+      build: { command: "vp build" },
       check: { command: "tsc --noEmit", dependsOn: ["build"] },
     },
   },
-} as VitePlusConfig);
+});

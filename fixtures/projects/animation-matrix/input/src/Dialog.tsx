@@ -1,4 +1,5 @@
 import { style } from "stillwind/react";
+
 import { exit, selectedAnimation } from "./animations";
 
 export const panelProps = style(

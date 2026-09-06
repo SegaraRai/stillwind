@@ -1,8 +1,8 @@
 import path from "node:path";
 
-import { API } from "typescript/unstable/sync";
-import { isExpression } from "typescript/unstable/ast/is";
 import type { Node, SourceFile } from "typescript/unstable/ast";
+import { isExpression } from "typescript/unstable/ast/is";
+import { API } from "typescript/unstable/sync";
 import type { Checker, Snapshot, Type } from "typescript/unstable/sync";
 
 export interface TypeFactSource {

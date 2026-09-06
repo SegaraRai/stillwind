@@ -13,6 +13,12 @@
   "publishConfig": {
     "access": "public"
   },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
   "optionalDependencies": {
     "@stillwind/native-darwin-arm64": "workspace:*",
     "@stillwind/native-darwin-x64": "workspace:*",

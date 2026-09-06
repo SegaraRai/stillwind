@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, relative } from "node:path";
-import { build } from "esbuild";
+
 import {
   compileReact,
   compileReactProject,
@@ -10,7 +10,9 @@ import {
   renderReactStylesheet,
   summarizeReact,
 } from "@stillwind/native";
-import type { Plugin, ViteDevServer } from "vite";
+import { build } from "esbuild";
+import type { Plugin, ViteDevServer } from "vite-plus";
+
 import { TypeScriptFactsService, type AssetRecord, type TypeFact } from "./type-facts.ts";
 
 export interface StillwindOptions {

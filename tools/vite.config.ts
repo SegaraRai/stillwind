@@ -1,5 +1,6 @@
-/** Vite+ task configuration for the compatibility fixture toolchain. */
-export default {
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
   run: {
     tasks: {
       "fixtures:write": {
@@ -13,4 +14,4 @@ export default {
       },
     },
   },
-};
+});

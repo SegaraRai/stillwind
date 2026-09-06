@@ -3,13 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { API } from "typescript/unstable/sync";
 import {
   isCallExpression,
   isIdentifier,
   isPropertyAccessExpression,
   isVariableDeclaration,
 } from "typescript/unstable/ast/is";
+import { API } from "typescript/unstable/sync";
 
 const experimentDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const fixtureDir = path.join(experimentDir, "fixture");

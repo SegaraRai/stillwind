@@ -1,5 +1,6 @@
 import { Change, MergeView } from "@codemirror/merge";
 import { useEffect, useRef } from "react";
+
 import { codeExtensions, type CodeLanguage } from "./CodeView";
 
 export default function DiffView({

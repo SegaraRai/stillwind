@@ -8,3 +8,20 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+catalogs:
+  default:
+    "@types/node": ^26.4.0
+    typescript: ^6.0.3
+    vite: npm:@voidzero-dev/vite-plus-core@latest
+    vite-plus: ^0.3.0
+
+overrides:
+  vite: npm:@voidzero-dev/vite-plus-core@latest
+  vitest: 4.1.11 # `vp toolchain vitest`
+
+peerDependencyRules:
+  allowAny:
+    - vite
+  allowedVersions:
+    vite: "*"

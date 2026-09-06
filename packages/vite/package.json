@@ -14,15 +14,12 @@
     "stillwind": "workspace:*",
     "typescript": "7.0.2"
   },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
   "peerDependencies": {
-    "vite": "^7.0.0"
-  },
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "11.24.0",
-      "onFail": "download"
-    }
-  },
-  "packageManager": "pnpm@11.24.0"
+    "vite": "^7.0.0 || ^8.0.0"
+  }
 }
