@@ -372,6 +372,24 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         if let Some(mask) = mask {
             declaration = mask.to_owned();
         }
+        match name.as_str() {
+            "mask-radial-at-[initial]" if declaration == "mask-position:initial;" => {
+                declaration = "--tw-mask-radial-position:initial;".to_owned();
+            }
+            "skew-[initial]" => {
+                declaration = "--tw-skew-x:skewX(initial);--tw-skew-y:skewY(initial);transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);".to_owned();
+            }
+            "skew-x-[initial]" => {
+                declaration = "--tw-skew-x:skewX(initial);transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);".to_owned();
+            }
+            "skew-y-[initial]" => {
+                declaration = "--tw-skew-y:skewY(initial);transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);".to_owned();
+            }
+            "transition-[initial]" => {
+                declaration = "transition-property:initial;transition-timing-function:var(--tw-ease,var(--default-transition-timing-function));transition-duration:var(--tw-duration,var(--default-transition-duration));".to_owned();
+            }
+            _ => {}
+        }
     }
     if let Utility::Named { name, .. } = &candidate.utility {
         if (name == "divide-y" || name.ends_with("divide-y-[initial]"))
