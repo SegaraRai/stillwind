@@ -310,6 +310,21 @@ fn normalize_conic_angles(mut declaration: &str) -> String {
     output
 }
 
+fn normalize_spaced_negative_angles(value: &str) -> String {
+    let mut output = value.to_owned();
+    while let Some(end) = output.find(" deg*-1)") {
+        let number_end = end;
+        let Some(space) = output[..number_end].rfind(' ') else { break };
+        let number_start = space + 1;
+        let calc_start = output[..number_start].rfind("calc(");
+        let Some(calc_start) = calc_start else { break };
+        let number = &output[number_start..number_end];
+        let replacement = format!("calc({number}deg * -1)");
+        output.replace_range(calc_start..end + " deg*-1)".len(), &replacement);
+    }
+    output
+}
+
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]
 #[allow(clippy::too_many_lines)]
@@ -387,6 +402,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("calc(1deg * -1 *", "calc(1deg*-1*");
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
+    declaration = normalize_spaced_negative_angles(&declaration);
     if declaration == "transition-timing-function:initial;"
         && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
     {
