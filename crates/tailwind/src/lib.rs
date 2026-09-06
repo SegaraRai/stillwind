@@ -2041,7 +2041,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw.starts_with("mask-") && raw.contains("-current/") {
         for alpha in 0..=100 {
             let value = format!("color-mix(in oklab, currentcolor {alpha}%, transparent)");
-            if let Some(pos) = declaration.find(&value) {
+            while let Some(pos) = declaration.find(&value) {
                 let property_start = declaration[..pos]
                     .rfind(';')
                     .map_or(0, |index| index + 1);
