@@ -1607,19 +1607,20 @@ fn emit_utility_rules(
                     continue;
                 }
                 let mut nested_css = String::new();
+                let nested_declaration = nested.declaration.replace(" deg", "deg");
                 match nested.at_rule {
                     stillwind_tailwind::NestedUtilityAtRule::Media => {
                         nested_css.push_str("@media ");
                         nested_css.push_str(&nested.condition);
                         nested_css.push('{');
-                        nested_css.push_str(&nested.declaration);
+                        nested_css.push_str(&nested_declaration);
                         nested_css.push('}');
                     }
                     stillwind_tailwind::NestedUtilityAtRule::Supports => {
                         nested_css.push_str("@supports (");
                         nested_css.push_str(&nested.condition);
                         nested_css.push_str("){\n");
-                        nested_css.push_str(&nested.declaration);
+                        nested_css.push_str(&nested_declaration);
                         nested_css.push('}');
                     }
                 }
