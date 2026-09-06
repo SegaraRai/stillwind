@@ -816,7 +816,7 @@ impl Compiler {
                                     )
                                 });
                                 if pseudo_content
-                                    && !resolved_utility.declaration.starts_with("content:")
+                                    && !resolved_utility.declaration.contains("content:")
                                 {
                                     resolved_utility.declaration = format!(
                                         "content:var(--tw-content);{}",
@@ -1547,7 +1547,11 @@ fn resolve_utility_targets(
     });
     let mut targets = vec![stillwind_tailwind::ResolvedUtilityTarget {
         declaration: if pseudo_content {
-            format!("content:var(--tw-content);{}", resolved.declaration)
+            if resolved.declaration.contains("content:") {
+                resolved.declaration.clone()
+            } else {
+                format!("content:var(--tw-content);{}", resolved.declaration)
+            }
         } else {
             resolved.declaration
         },
@@ -2152,6 +2156,9 @@ fn render_used_properties(
     }
     if css.contains("var(--tw-ease") && !css.contains("--tw-ease:") {
         used.remove("--tw-ease");
+    }
+    if css.contains("var(--tw-leading") && !css.contains("--tw-leading:") {
+        used.remove("--tw-leading");
     }
     if css.contains("transition-property:") && !css.contains("var(--tw-gradient-") {
         for name in [
