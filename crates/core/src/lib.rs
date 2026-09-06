@@ -1518,6 +1518,17 @@ fn resolve_utility_targets(
         nested: resolved.nested,
     }];
     targets.extend(resolved.additional);
+    for target in &mut targets {
+        for nested in &mut target.nested {
+            if utility == "divide-y" && nested.declaration.contains("border-bottom-width:") {
+                "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut nested.declaration);
+            } else if utility == "divide-x"
+                && nested.declaration.contains("border-inline-end-width:")
+            {
+                "--tw-divide-x-reverse:0;border-inline-end-style:var(--tw-border-style);border-inline-start-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut nested.declaration);
+            }
+        }
+    }
     Some(
         targets
             .into_iter()
@@ -1721,6 +1732,11 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                     || declaration.to_owned(),
                     |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
                 );
+                let declaration = if let Some(value) = declaration.strip_prefix("mask-image:") {
+                    format!("mask-image:{}", value.replace(",var(", ", var("))
+                } else {
+                    declaration
+                };
                 ordered.push(declaration);
             }
         }

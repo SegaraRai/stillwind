@@ -1544,11 +1544,7 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
             .css
             .contains("--tw-gradient-to:var(--color-blue-500);")
     );
-    assert!(
-        result
-            .css
-            .contains("--tw-mask-linear-from-position:calc(var(--spacing) * 0);")
-    );
+    assert!(result.css.contains("--tw-mask-linear-from-position:0px;"));
     assert!(
         result
             .css

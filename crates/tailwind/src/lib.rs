@@ -150,6 +150,7 @@ pub fn builtin_property_definitions() -> &'static [stillwind_css::CustomProperty
 ///
 /// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
 /// their authored serialization. Quoted values are preserved byte-for-byte.
+#[allow(clippy::too_many_lines)]
 fn canonical_builtin_body(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut quote = None;
@@ -158,6 +159,7 @@ fn canonical_builtin_body(value: &str) -> String {
     let mut functions = Vec::<String>::new();
     let mut gradient_declaration = false;
     let mut shadow_declaration = false;
+    let mut mask_declaration = false;
 
     for character in value.chars() {
         if let Some(current_quote) = quote {
@@ -185,6 +187,7 @@ fn canonical_builtin_body(value: &str) -> String {
                 whitespace = false;
                 gradient_declaration = false;
                 shadow_declaration = false;
+                mask_declaration = false;
                 functions.clear();
                 output.push(character);
             }
@@ -211,7 +214,11 @@ fn canonical_builtin_body(value: &str) -> String {
                 let preserve_function_spacing = functions
                     .iter()
                     .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
-                if gradient_declaration || shadow_declaration || preserve_function_spacing {
+                if gradient_declaration
+                    || shadow_declaration
+                    || mask_declaration
+                    || preserve_function_spacing
+                {
                     output.push(' ');
                 }
                 whitespace = false;
@@ -229,6 +236,14 @@ fn canonical_builtin_body(value: &str) -> String {
                 .is_some_and(|(_, declaration)| declaration.ends_with("box-shadow")) =>
             {
                 shadow_declaration = true;
+                output.push(character);
+            }
+            ':' if output.rsplit_once(';').is_some_and(|(_, declaration)| {
+                declaration.starts_with("mask-image")
+                    || declaration.ends_with("--tw-mask-linear-stops")
+            }) =>
+            {
+                mask_declaration = true;
                 output.push(character);
             }
             character if character.is_whitespace() => whitespace = true,
@@ -281,6 +296,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
+    if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-from-") || name.starts_with("mask-linear-to-"))
+    {
+        declaration = declaration.replace("calc(var(--spacing) * 0)", "0px");
+    }
     // Tailwind's width utilities also establish the border style through the
     // built-in --tw-border-style property. Keep the declaration explicit so
     // the generated rule has the same computed behavior and registration set.
@@ -327,9 +346,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .into_iter()
         .map(|mut nested| {
             if let Utility::Named { name, .. } = &candidate.utility {
-                if name == "divide-y" && nested.declaration == "border-bottom-width:1px;" {
+                if name == "divide-y" && nested.declaration.contains("border-bottom-width:") {
                     "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut nested.declaration);
-                } else if name == "divide-x" && nested.declaration == "border-inline-end-width:1px;" {
+                } else if name == "divide-x"
+                    && nested.declaration.contains("border-inline-end-width:")
+                {
                     "--tw-divide-x-reverse:0;border-inline-end-style:var(--tw-border-style);border-inline-start-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut nested.declaration);
                 }
             }
