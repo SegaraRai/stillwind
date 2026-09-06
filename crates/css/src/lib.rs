@@ -1190,18 +1190,9 @@ impl ThemeIndex {
             required.extend(custom_property_references(&tailwind_v4_preflight()));
         }
         for token in &tokens {
-            let referenced_by_value = matches!(
-                token.kind,
-                ThemeTokenKind::Scale(ThemeNamespace::Breakpoint)
-                    | ThemeTokenKind::Token {
-                        namespace: ThemeNamespace::Breakpoint,
-                        ..
-                    }
-            ) && css.contains(&token.value.value);
             if matches!(token.mode, ThemeTokenMode::Static)
                 || (!matches!(token.mode, ThemeTokenMode::Inline)
-                    && (custom_property_references(css).contains(&token.name.value)
-                        || referenced_by_value))
+                    && custom_property_references(css).contains(&token.name.value))
             {
                 required.insert(token.name.value.clone());
             }

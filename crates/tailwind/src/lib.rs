@@ -1123,10 +1123,9 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
 }
 
 fn selector_from_variant_body(body: &str) -> Option<String> {
-    let start = body.find('&')?;
-    let selector_end = body[start..].find('{')? + start;
-    let selector = body[start..selector_end].trim();
-    (!selector.is_empty()).then(|| selector.to_owned())
+    let selector_end = body.find('{')?;
+    let selector = body[..selector_end].trim();
+    (selector.contains('&') && !selector.is_empty()).then(|| selector.to_owned())
 }
 
 fn resolve_named_utility(

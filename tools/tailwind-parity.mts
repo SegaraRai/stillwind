@@ -11,6 +11,8 @@ const root = resolve(import.meta.dirname, "..");
 const fixtureRoot = join(root, "fixtures", "tailwind-v4");
 const caseRoot = join(fixtureRoot, "cases");
 const limit = Number(process.env.STILLWIND_PARITY_LIMIT ?? "0");
+const fileFilter = process.env.STILLWIND_PARITY_FILE;
+const candidateFilter = process.env.STILLWIND_PARITY_CANDIDATE;
 
 function minify(css: string): string {
   return Buffer.from(
@@ -33,6 +35,7 @@ let skipped = 0;
 let unresolvedShown = 0;
 for (const file of readdirSync(caseRoot)
   .filter((name) => name.endsWith(".fixture.md"))
+  .filter((name) => !fileFilter || name === fileFilter)
   .sort()) {
   const markdown = readFileSync(join(caseRoot, file), "utf8");
   for (const fixtureCase of parseMarkdownFixtureCases(markdown)) {
@@ -40,7 +43,9 @@ for (const file of readdirSync(caseRoot)
       skipped += fixtureCase.candidates.split(/\s+/).filter(Boolean).length;
       continue;
     }
-    for (const candidate of fixtureCase.candidates.split(/\s+/).filter(Boolean)) {
+    for (const candidate of fixtureCase.candidates
+      .split(/\s+/)
+      .filter((value) => !candidateFilter || value === candidateFilter)) {
       if (limit > 0 && checked >= limit) break;
       checked += 1;
       const themePath = join(fixtureRoot, "parity-theme.css");
