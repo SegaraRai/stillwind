@@ -472,6 +472,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("skewX({number}deg)"),
             )
             .replace(
+                &format!("skewX(calc({number}*-1deg))"),
+                &format!("skewX(calc({number}deg * -1))"),
+            )
+            .replace(
+                &format!("skewY(calc({number}*-1deg))"),
+                &format!("skewY(calc({number}deg * -1))"),
+            )
+            .replace(
                 &format!("rotateX(calc({number}*-1deg))"),
                 &format!("rotateX(calc({number}deg * -1))"),
             )
