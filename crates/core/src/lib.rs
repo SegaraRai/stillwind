@@ -797,9 +797,14 @@ impl Compiler {
                     }
                     branch.2.push_str(&utility.value.raw);
                     branch.2.push('\0');
-                    if let Some(mut utilities) = resolve_utility_targets(&utility.value.raw, &theme)
+                    let resolved_input = utility
+                        .value
+                        .raw
+                        .strip_prefix("tw:")
+                        .unwrap_or(&utility.value.raw);
+                    if let Some(mut utilities) = resolve_utility_targets(resolved_input, &theme)
                     {
-                        let candidate_variants = parse_candidate(&utility.value.raw)
+                        let candidate_variants = parse_candidate(resolved_input)
                             .map(|candidate| candidate.variants)
                             .unwrap_or_default();
                         {
