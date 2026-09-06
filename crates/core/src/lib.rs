@@ -959,7 +959,12 @@ impl Compiler {
             result.classes.clear();
             result.symbols.clear();
             result.transforms.clear();
-        } else if !utility_css.is_empty() || !theme.custom_css.is_empty() {
+        } else if !utility_css.is_empty()
+            || !theme.custom_css.is_empty()
+            || theme.imports.theme_layer.is_some()
+            || theme.imports.base_layer.is_some()
+            || theme.imports.utilities_layer.is_some()
+        {
             let utility_css = options.rewrite_generated(&utility_css);
             result.module_css.clone_from(&utility_css);
             result.css = render_stylesheet(&theme, &result.module_css, &options);
@@ -2118,16 +2123,17 @@ fn render_stylesheet(
                 }
                 css.push_str(&token.name.value);
                 css.push(':');
-                let value = token.value.value.replace("--theme(", "var(");
-                css.push_str(
-                    if token.name.value == "--default-font-family"
-                        || token.name.value == "--default-mono-font-family"
-                    {
-                        value.trim_end_matches(", initial")
-                    } else {
-                        &value
-                    },
-                );
+                let mut value = token.value.value.replace("--theme(", "var(");
+                if token.name.value == "--default-font-family"
+                    || token.name.value == "--default-mono-font-family"
+                {
+                    value = value
+                        .trim_end_matches(", initial")
+                        .trim_end_matches(",initial")
+                        .replace(", initial)", ")")
+                        .replace(",initial)", ")");
+                }
+                css.push_str(&value);
                 css.push(';');
             }
             css.push_str("}}");
@@ -2173,12 +2179,20 @@ fn render_stylesheet(
 }
 
 fn theme_token_order(name: &str) -> (u8, &str) {
+    if name == "--font-sans" {
+        return (2, "");
+    }
+    if name == "--font-mono" {
+        return (2, "!");
+    }
     let rank = if name == "--spacing" || name.starts_with("--default-transition-") {
         0
     } else if name.starts_with("--animate-") {
         1
     } else if name.starts_with("--color-") {
         2
+    } else if name.starts_with("--default-") {
+        4
     } else {
         3
     };
