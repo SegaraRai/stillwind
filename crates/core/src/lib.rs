@@ -1958,6 +1958,7 @@ fn render_stylesheet(
         css.push_str("@layer theme, base, components, utilities;\n");
     }
     let mut keyframes_css = String::new();
+    let mut animation_names = Vec::new();
     if let Some(layer) = &imports.theme_layer {
         let required_tokens = theme.tokens_required_by(utility_css, imports.base_layer.is_some());
         let animations = required_tokens
@@ -1975,6 +1976,7 @@ fn render_stylesheet(
                 _ => None,
             })
             .collect::<Vec<_>>();
+        animation_names = animations.clone();
         if !required_tokens.is_empty() || !animations.is_empty() {
             css.push_str("@layer ");
             css.push_str(layer);
@@ -2013,6 +2015,10 @@ fn render_stylesheet(
     if !keyframes_css.is_empty() {
         css.push_str(&keyframes_css);
     }
+    let authored_keyframes = extract_authored_keyframes(theme.custom_css(), &animation_names);
+    if !authored_keyframes.is_empty() {
+        css.push_str(&authored_keyframes);
+    }
     let properties = render_used_properties(theme, &css, options);
     if !properties.is_empty() {
         css.insert_str(0, "@layer properties;\n");
@@ -2020,6 +2026,39 @@ fn render_stylesheet(
         css.push_str(&properties);
     }
     css
+}
+
+fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
+    let mut output = String::new();
+    for name in names {
+        let needle = format!("@keyframes {name}");
+        let Some(start) = css.find(&needle) else {
+            continue;
+        };
+        let Some(open_rel) = css[start..].find('{') else {
+            continue;
+        };
+        let open = start + open_rel;
+        let mut depth = 0_u32;
+        let mut close = None;
+        for (offset, ch) in css[open..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        close = Some(open + offset);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(close) = close {
+            output.push_str(&css[start..=close]);
+        }
+    }
+    output
 }
 
 #[allow(clippy::too_many_lines)]
