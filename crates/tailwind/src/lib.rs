@@ -936,6 +936,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("calc(var(--spacing) * {value})"),
                 &format!("{}px", value.parse::<f64>().unwrap_or_default()),
             );
+            declaration = declaration.replace(
+                "var(--spacing)",
+                &format!("{}px", value.parse::<f64>().unwrap_or_default()),
+            );
         }
         if name.starts_with("leading-")
             && declaration.starts_with("line-height:")
