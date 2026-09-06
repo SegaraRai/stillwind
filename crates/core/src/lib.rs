@@ -1923,6 +1923,15 @@ fn render_used_properties(
     options: &CompilerOptions,
 ) -> String {
     let mut used = stillwind_css::used_custom_properties(css);
+    // A utility that only assigns a custom property does not make Tailwind
+    // register it. Registration is needed when the value participates in a
+    // consuming declaration (`var(--tw-...)`) or an explicitly materialized
+    // family below.
+    for name in ["--tw-border-style", "--tw-content", "--tw-divide-x-reverse", "--tw-divide-y-reverse"] {
+        if css.contains(&format!("{name}:")) && !css.contains(&format!("var({name}")) {
+            used.remove(name);
+        }
+    }
     // Tailwind registers the complete transform axis family when any axis is
     // used, including the z-axis default even when the emitted utility does
     // not reference it directly.
