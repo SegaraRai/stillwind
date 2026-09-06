@@ -98,11 +98,12 @@ and variant/at-rule structure; resolving a candidate is not sufficient.
   and selector variants.
 - `@theme inline`/`static` handling, referenced-token tree shaking, and
   Stillwind-owned property registration are covered by focused tests.
-- The current full-catalog baseline is 11,994/13,229 exact matches (two cases
+- The current full-catalog baseline is 13,121/13,229 exact matches (two cases
   are excluded because they use out-of-scope directives). Recent fixes cover
   authored property precedence, inset-ring and scrollbar fallbacks, mask
-  current-color handling, backdrop property names, decoration/ring fallbacks,
-  and drop-shadow filter-family ordering, plus linear-gradient angle fallbacks.
+  current-color handling, conic angle spelling and axis ordering, backdrop
+  property names, decoration/ring fallbacks, and drop-shadow filter-family
+  ordering, plus linear-gradient angle fallbacks.
   Remaining failures are intentionally visible and are concentrated in unsupported registrations plus transform
   spelling, border/divide selector/property registration, shadow token values,
   and several advanced variant cases. This is an active parity backlog, not an
