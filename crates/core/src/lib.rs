@@ -6,7 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use stillwind_grammar::{Variant, lex_utilities};
+use stillwind_grammar::{Variant, lex_utilities, parse_candidate};
 use stillwind_ir::{
     AnimationDefinition, AssetReference, AttributeEntry, HandleProjection, StyleInput,
     ViewTransitionDefinition,
@@ -574,8 +574,10 @@ impl Compiler {
                     for utility in lex_utilities(&value) {
                         branch.2.push_str(&utility.value.raw);
                         branch.2.push('\0');
-                        match resolve_utility_targets(&utility.value.raw, &theme) {
-                            Some(mut utilities) => {
+                        if let Some(mut utilities) =
+                            resolve_utility_targets(&utility.value.raw, &theme)
+                        {
+                            {
                                 for utility in &mut utilities {
                                     utility.container = Some(format!(
                                         "{} ({})",
@@ -585,11 +587,13 @@ impl Compiler {
                                 }
                                 branch.3.append(&mut utilities);
                             }
-                            None => result.diagnostics.push(CompileError::new(
-                                "SH001",
+                        } else {
+                            result.lint_findings.push(LintFinding::new(
+                                unresolved_utility_rule(&utility.value.raw),
                                 format!("unknown or unavailable utility `{}`", utility.value.raw),
                                 utility.span,
-                            )),
+                            ));
+                            external_classes.push(utility.span);
                         }
                     }
                     continue;
@@ -791,8 +795,9 @@ impl Compiler {
                     }
                     branch.2.push_str(&utility.value.raw);
                     branch.2.push('\0');
-                    match resolve_utility_targets(&utility.value.raw, &theme) {
-                        Some(mut utilities) => {
+                    if let Some(mut utilities) = resolve_utility_targets(&utility.value.raw, &theme)
+                    {
+                        {
                             for utility in &mut utilities {
                                 if let Some(selector) = &selector {
                                     utility.selector =
@@ -804,11 +809,15 @@ impl Compiler {
                             }
                             branch.3.append(&mut utilities);
                         }
-                        None => result.diagnostics.push(CompileError::new(
-                            "SH001",
+                    } else {
+                        result.lint_findings.push(LintFinding::new(
+                            unresolved_utility_rule(&utility.value.raw),
                             format!("unknown or unavailable utility `{}`", utility.value.raw),
                             utility.span,
-                        )),
+                        ));
+                        if selector.is_none() {
+                            external_classes.push(utility.span);
+                        }
                     }
                 }
             }
@@ -1484,6 +1493,14 @@ struct CompiledUtility {
 
 fn resolve_utility(utility: &str, theme: &stillwind_css::ThemeIndex) -> Option<CompiledUtility> {
     resolve_utility_targets(utility, theme)?.into_iter().next()
+}
+
+fn unresolved_utility_rule(raw: &str) -> &'static str {
+    if parse_candidate(raw).is_some() {
+        "unknown-utility"
+    } else {
+        "invalid-utility"
+    }
 }
 
 fn resolve_utility_targets(

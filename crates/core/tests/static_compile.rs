@@ -134,9 +134,9 @@ proptest! {
             "p-[color:rgb({n}_0_0)] border-[time:{n}ms] z-[length:{n}px] z-[number:{n}]"
         ));
         let unknown = result
-            .diagnostics
+            .lint_findings
             .iter()
-            .filter(|diagnostic| diagnostic.code == "SH001")
+            .filter(|finding| finding.rule == "unknown-utility")
             .count();
         prop_assert_eq!(unknown, 4, "{:#?}", result.diagnostics);
     }
@@ -390,9 +390,9 @@ fn framework_imports_gate_baseline_layers() {
     );
     assert!(
         individual_without_builtins
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|diagnostic| diagnostic.code == "SH001")
+            .any(|finding| finding.rule == "unknown-utility")
     );
 
     let utilities_only = compiler(
@@ -680,17 +680,35 @@ const props = style("bg-accnet");"#,
     );
 
     let result = Compiler::compile_react(&component, &theme);
-    let diagnostic = result
-        .diagnostics
+    let finding = result
+        .lint_findings
         .first()
-        .expect("an unknown utility diagnostic");
+        .expect("an unknown utility finding");
 
-    assert_eq!(diagnostic.code, "SH001");
+    assert_eq!(finding.rule, "unknown-utility");
     assert_eq!(
-        component.slice(diagnostic.labels[0].span).unwrap(),
+        component.slice(finding.labels[0].span).unwrap(),
         "bg-accnet"
     );
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("bg-accnet"));
     assert!(result.css.is_empty());
+}
+
+#[test]
+fn preserves_unparseable_tailwind_candidates_as_lint_findings() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/SaveButton.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style("bg-[color:red");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"tailwindcss\";");
+
+    let result = Compiler::compile_react(&component, &theme);
+    assert_eq!(result.lint_findings[0].rule, "invalid-utility");
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("bg-[color:red"));
 }
 
 #[test]
