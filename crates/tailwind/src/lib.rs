@@ -1416,6 +1416,21 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-text-shadow-color:color-mix(in oklab, transparent var(--tw-text-shadow-alpha), transparent);".to_owned(),
         });
     }
+    if let Some(alpha) = raw.strip_prefix("text-shadow-transparent/") {
+        let alpha = alpha.trim_end_matches('%');
+        if !alpha.is_empty() && alpha != "100" {
+            if let Some(start) = declaration.find("--tw-text-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-text-shadow-color:#0000;");
+            }
+            nested.push(NestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: "color:color-mix(in lab, red, red)".to_owned(),
+                declaration: "--tw-text-shadow-color:color-mix(in oklab, oklab(0% none none/0) var(--tw-text-shadow-alpha), transparent);".to_owned(),
+            });
+        }
+    }
     if raw.starts_with("border-spacing") {
         declaration = declaration
             .replace("--tw-border-spacing-x:0;", "--tw-border-spacing-x:0px;")
