@@ -1991,9 +1991,6 @@ fn render_stylesheet(
             css.push('\n');
         }
     }
-    if !keyframes_css.is_empty() {
-        css.push_str(&keyframes_css);
-    }
     if let Some(layer) = &imports.base_layer {
         css.push_str("@layer ");
         css.push_str(layer);
@@ -2012,6 +2009,9 @@ fn render_stylesheet(
         css.push('{');
         css.push_str(utility_css);
         css.push_str("}\n");
+    }
+    if !keyframes_css.is_empty() {
+        css.push_str(&keyframes_css);
     }
     let properties = render_used_properties(theme, &css, options);
     if !properties.is_empty() {
@@ -2073,6 +2073,12 @@ fn render_used_properties(
     }
     if css.contains("transition-property:initial") {
         used.remove("--tw-duration");
+        used.remove("--tw-ease");
+    }
+    if css.contains("var(--tw-duration") && !css.contains("--tw-duration:") {
+        used.remove("--tw-duration");
+    }
+    if css.contains("var(--tw-ease") && !css.contains("--tw-ease:") {
         used.remove("--tw-ease");
     }
     if css.contains("transition-property:") && !css.contains("var(--tw-gradient-") {

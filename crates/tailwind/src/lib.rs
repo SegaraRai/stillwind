@@ -448,6 +448,15 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 .strip_prefix("transition-duration:")
                 .and_then(|value| value.strip_suffix(';'))
         {
+            let value = if let Some(number) = value
+                .strip_prefix("calc(")
+                .and_then(|value| value.strip_suffix("*1ms)"))
+                .and_then(|value| value.parse::<f64>().ok())
+            {
+                format!("{}s", number / 1000.0)
+            } else {
+                value.to_owned()
+            };
             declaration = format!("--tw-duration:{value};{declaration}");
         } else if name.starts_with("ease-")
             && declaration.starts_with("transition-timing-function:")
