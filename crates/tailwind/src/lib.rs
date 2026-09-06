@@ -596,13 +596,20 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             },
         );
     }
-    if raw.starts_with("via-current/")
-        && declaration.starts_with("--tw-gradient-via:color-mix(in oklab, currentcolor")
+    if (raw.starts_with("from-current/")
+        || raw.starts_with("via-current/")
+        || raw.starts_with("to-current/"))
+        && let Some(property) = ["from", "via", "to"].into_iter().find(|property| {
+            declaration.starts_with(&format!(
+                "--tw-gradient-{property}:color-mix(in oklab, currentcolor"
+            ))
+        })
     {
-        let value = declaration.trim_start_matches("--tw-gradient-via:");
+        let prefix = format!("--tw-gradient-{property}:");
+        let value = declaration.trim_start_matches(&prefix);
         if let Some((color, rest)) = value.split_once(';') {
             declaration = format!(
-                "--tw-gradient-via:currentcolor;@supports (color:color-mix(in lab, red, red)){{--tw-gradient-via:{color}}}{rest}"
+                "{prefix}currentcolor;@supports (color:color-mix(in lab, red, red)){{--tw-gradient-{property}:{color}}}{rest}"
             );
         }
     }
