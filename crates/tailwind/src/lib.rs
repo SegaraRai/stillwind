@@ -606,6 +606,20 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
+    if raw == "translate-x-0"
+        || raw == "translate-y-0"
+        || raw == "translate-z-0"
+        || raw == "translate-0"
+    {
+        declaration = declaration
+            .replace("transform:translateX(0);", "")
+            .replace("transform:translateY(0);", "")
+            .replace("transform:translateZ(0);", "")
+            .replace("transform:translate(0);", "");
+    }
+    if raw == "underline-offset-0" {
+        declaration = declaration.replace("text-underline-offset:0;", "text-underline-offset:0px;");
+    }
     if declaration.contains("--tw-translate-") {
         declaration = declaration
             .replace("calc(var(--spacing) * 0)", "0px")
