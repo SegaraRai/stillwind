@@ -3825,7 +3825,7 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg * 45);"),
+                .contains("--tw-mask-conic-position:45deg;"),
             "{resolved:?}"
         );
         assert!(
@@ -3970,11 +3970,9 @@ mod tests {
         let theme = theme();
         let outline = resolve_utility("outline-hidden", &theme).unwrap();
 
-        assert!(outline.nested.iter().any(|rule| {
-            rule.at_rule == NestedUtilityAtRule::Media
-                && rule.condition == "(forced-colors:active)"
-                && rule.declaration == "outline:2px solid transparent;outline-offset:2px;"
-        }));
+        assert!(outline
+            .declaration
+            .contains("@media (forced-colors:active){outline-offset:2px;outline:2px solid #0000;}"));
     }
 
     #[test]
@@ -4373,8 +4371,8 @@ mod tests {
             ("m-auto", "margin:auto;", None),
             ("mix-blend-color-dodge", "mix-blend-mode:color-dodge;", None),
             ("object-bottom-left", "object-position:left bottom;", None),
-            ("outline", "outline-style:solid;outline-width:1px;", None),
-            ("ring", "--tw-ring-shadow:0 0 0 1px", None),
+            ("outline", "outline-style:var(--tw-outline-style);outline-width:1px;", None),
+            ("ring", "--tw-ring-shadow:var(--tw-ring-inset,)", None),
             (
                 "rounded-se-full",
                 "border-start-end-radius:calc(infinity*1px);",
@@ -4593,7 +4591,7 @@ mod tests {
             resolve_utility("perspective-dramatic", &theme)
                 .unwrap()
                 .declaration,
-            "perspective:100px;"
+            "perspective:var(--perspective-dramatic);"
         );
         assert_eq!(
             resolve_utility("perspective-origin-top-left", &theme)
