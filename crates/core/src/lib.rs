@@ -1742,7 +1742,11 @@ fn render_utility_rule(
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
         .replace("*-1)", "* -1)");
-    let declaration = normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)));
+    let declaration = if declaration.starts_with("outline-offset:") {
+        normalize_angle_calc(&normalize_negative_calc(&declaration))
+    } else {
+        normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
+    };
     let declaration = declaration
         .replace("calc(var(--spacing) * 0)", "0")
         .replace("calc(var(--spacing)*0)", "0");
@@ -1887,7 +1891,11 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 } else {
                     declaration
                 };
-                let declaration = normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)));
+                let declaration = if declaration.starts_with("outline-offset:") {
+                    normalize_angle_calc(&normalize_negative_calc(&declaration))
+                } else {
+                    normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
+                };
                 ordered.push(declaration);
             }
         }
