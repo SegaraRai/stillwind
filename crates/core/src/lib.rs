@@ -2246,6 +2246,7 @@ fn render_used_properties(
         "--tw-outline-style",
         "--tw-text-shadow-color",
         "--tw-gradient-via-stops",
+        "--tw-ring-offset-color",
     ] {
         if css.contains(&format!("{name}:"))
             && !css.contains(&format!("var({name}"))

@@ -1525,6 +1525,24 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration.replace_range(start..start + end + 1, "border-color:#0000;");
         }
     }
+    if let Some(alpha) = raw.strip_prefix("ring-offset-current/") {
+        let alpha = alpha.trim_end_matches('%');
+        if alpha != "100" {
+            if let Some(start) = declaration.find("--tw-ring-offset-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-ring-offset-color:currentcolor;");
+            }
+            nested.push(NestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: "color:color-mix(in lab, red, red)".to_owned(),
+                declaration: format!("--tw-ring-offset-color:color-mix(in oklab, currentcolor {alpha}%, transparent);"),
+            });
+        }
+    }
+    if raw == "ring-offset-current" {
+        declaration = declaration.replace("--tw-ring-offset-color:color-mix(in oklab, currentcolor 100%, transparent);", "--tw-ring-offset-color:currentcolor;");
+    }
     // Color-only inset-shadow utilities only set the color slot. The
     // functional CSS definitions also contain the token-shadow plumbing, but
     // Tailwind does not emit that plumbing for `current`/`transparent`/
