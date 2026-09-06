@@ -424,11 +424,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_spaced_negative_angles(&declaration);
     if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-") || name.starts_with("mask-conic-"))
     {
-        for number in 0..=360 {
-            declaration =
-                declaration.replace(&format!("calc({number}deg * -1)"), &format!("-{number}deg"));
-        }
-        declaration = declaration.replace("-0deg", "0deg");
+        declaration = declaration
+            .replace("calc(1deg * -1)", "-1deg")
+            .replace("calc(0deg * -1)", "0deg");
     }
     declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     if declaration == "transition-timing-function:initial;"
