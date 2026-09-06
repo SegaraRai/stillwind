@@ -441,6 +441,17 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
+    if raw.contains("-current/") {
+        let mut cursor = 0;
+        while let Some(relative) = declaration[cursor..].find(":color-mix(in srgb, currentcolor") {
+            let start = cursor + relative;
+            let Some(end_relative) = declaration[start..].find(';') else {
+                break;
+            };
+            declaration.replace_range(start..start + end_relative, ":currentColor");
+            cursor = start + ":currentColor".len();
+        }
+    }
     if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-from-") || name.starts_with("mask-linear-to-"))
     {
         declaration = declaration
