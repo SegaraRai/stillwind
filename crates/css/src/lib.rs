@@ -1329,15 +1329,30 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
                 output.builtins = true;
             }
-            "tailwindcss/theme" | "stillwind/theme.css" => {
+            "tailwindcss/theme" => {
+                found = true;
+                output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
+                output.builtins = true;
+            }
+            "tailwindcss/preflight" => {
+                found = true;
+                output.base_layer = Some(layer.unwrap_or_else(|| "base".to_owned()));
+                output.builtins = true;
+            }
+            "tailwindcss/utilities" => {
+                found = true;
+                output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
+                output.builtins = true;
+            }
+            "stillwind/theme.css" => {
                 found = true;
                 output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
             }
-            "tailwindcss/preflight" | "stillwind/preflight.css" => {
+            "stillwind/preflight.css" => {
                 found = true;
                 output.base_layer = Some(layer.unwrap_or_else(|| "base".to_owned()));
             }
-            "tailwindcss/utilities" | "stillwind/utilities.css" => {
+            "stillwind/utilities.css" => {
                 found = true;
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
             }
@@ -2292,7 +2307,7 @@ mod tests {
         let individual = parse_tailwind_theme(&SourceFile::new(
             FileId(7),
             "stillwind.css",
-            "@import \"tailwindcss/utilities\" layer(utilities);",
+            "@import \"stillwind/utilities.css\" layer(utilities);",
         ))
         .unwrap();
         assert!(!individual.imports.builtins);
@@ -2301,7 +2316,7 @@ mod tests {
         let with_builtins = parse_tailwind_theme(&SourceFile::new(
             FileId(7),
             "stillwind.css",
-            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities); @import \"stillwind/builtins.css\";",
+            "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ))
         .unwrap();
         assert!(with_builtins.imports.builtins);
@@ -2323,6 +2338,15 @@ mod tests {
         assert!(aggregate.imports.theme_layer.is_some());
         assert!(aggregate.imports.base_layer.is_some());
         assert!(aggregate.imports.utilities_layer.is_some());
+
+        let tailwind_compat = parse_tailwind_theme(&SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"tailwindcss/utilities\" layer(utilities);",
+        ))
+        .unwrap();
+        assert!(tailwind_compat.imports.builtins);
+        assert!(tailwind_compat.imports.utilities_layer.is_some());
     }
 
     #[test]

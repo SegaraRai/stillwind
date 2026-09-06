@@ -211,9 +211,8 @@ fn supports_at_least_ninety_eight_percent_of_tailwind_emitted_fixture_candidates
             if candidates.is_empty() {
                 continue;
             }
-            let mut input_css = fixture_code_block(section, "Input CSS", "css")
+            let input_css = fixture_code_block(section, "Input CSS", "css")
                 .unwrap_or_else(|| "@theme {}".to_owned());
-            input_css.insert_str(0, "@import \"stillwind/builtins.css\";\n");
             let component = SourceFile::new(
                 FileId(1),
                 "src/Fixture.tsx",
@@ -315,9 +314,8 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         let section = fixture_case_for_candidate(&fixture, candidate);
         let expected_css = fixture_code_block(section, "Expected CSS", "css")
             .expect("fixture must provide expected CSS");
-        let mut input_css = fixture_code_block(section, "Input CSS", "css")
+        let input_css = fixture_code_block(section, "Input CSS", "css")
             .expect("fixture must provide input CSS");
-        input_css.insert_str(0, "@import \"stillwind/builtins.css\";\n");
         let component = SourceFile::new(
             FileId(1),
             "src/Fixture.tsx",
@@ -358,8 +356,7 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
         .split("## `")
         .find(|section| section.starts_with("theme.namespace-reset-and-negative-token`"))
         .expect("theme reset fixture must exist");
-    let mut input_css = fixture_code_block(section, "Input CSS", "css").unwrap();
-    input_css.insert_str(0, "@import \"stillwind/builtins.css\";\n");
+    let input_css = fixture_code_block(section, "Input CSS", "css").unwrap();
     let component = SourceFile::new(
         FileId(1),
         "src/Fixture.tsx",
@@ -391,7 +388,7 @@ fn framework_imports_gate_baseline_layers() {
     };
 
     let individual_without_builtins = compiler(
-        "@import \"tailwindcss/theme\" layer(theme);\n@import \"tailwindcss/utilities\" layer(utilities);",
+        "@import \"stillwind/theme.css\" layer(theme);\n@import \"stillwind/utilities.css\" layer(utilities);",
     );
     assert!(
         individual_without_builtins
@@ -401,7 +398,7 @@ fn framework_imports_gate_baseline_layers() {
     );
 
     let utilities_only = compiler(
-        "@import \"tailwindcss/theme\" layer(theme);\n@import \"tailwindcss/utilities\" layer(utilities);\n@import \"stillwind/builtins.css\";",
+        "@import \"stillwind/theme.css\" layer(theme);\n@import \"stillwind/utilities.css\" layer(utilities);\n@import \"stillwind/builtins.css\";",
     );
     assert!(utilities_only.diagnostics.is_empty());
     assert!(!utilities_only.css.contains("box-sizing:border-box"));
@@ -414,6 +411,12 @@ fn framework_imports_gate_baseline_layers() {
     assert!(full.css.contains("box-sizing: border-box"));
     assert!(!full.css.contains("@property --tw-"));
 
+    let tailwind_individual = compiler(
+        "@import \"tailwindcss/theme\" layer(theme);\n@import \"tailwindcss/utilities\" layer(utilities);",
+    );
+    assert!(tailwind_individual.diagnostics.is_empty());
+    assert!(tailwind_individual.css.contains("@layer utilities{"));
+
     let content = Compiler::compile_react(
         &SourceFile::new(
             FileId(3),
@@ -423,7 +426,7 @@ fn framework_imports_gate_baseline_layers() {
         &SourceFile::new(
             FileId(4),
             "stillwind.css",
-            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities); @import \"stillwind/builtins.css\";",
+            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities);",
         ),
     );
     assert!(content.diagnostics.is_empty());
@@ -442,7 +445,7 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
         &SourceFile::new(
             FileId(2),
             "stillwind.css",
-            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities); @import \"stillwind/builtins.css\";",
+            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities);",
         ),
     );
 

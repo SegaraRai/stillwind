@@ -99,6 +99,8 @@ imports all four. Individual entry points are independent: `builtins.css` must
 be present for the compiler-owned utility, variant, and custom-property registry
 to participate. The Rust crates embed these same CSS sources instead of
 maintaining a second internal copy.
+Recognized `tailwindcss` aggregate and individual entry points enable that
+registry implicitly as a migration-compatibility rule.
 
 ## Source model: locations are a first-class invariant
 

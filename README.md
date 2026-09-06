@@ -145,6 +145,8 @@ their tree-shakeable custom-property registrations. Authored `@theme`,
 `@utility`, `@variant`, and `@stillwind-property` definitions remain available.
 All four entry points are ordinary package CSS files; the compiler consumes the
 recognized imports while preserving unrelated CSS imports.
+For Tailwind migration compatibility, any recognized `tailwindcss` import also
+enables Stillwind's built-in registry automatically.
 
 ### Extending the same registry
 
