@@ -1161,6 +1161,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         "--tw-shadow:0 10px 15px -3px var(--tw-shadow-color,#0000001a), 0 4px 6px -4px var(--tw-shadow-color,#0000001a);box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".clone_into(&mut declaration);
     }
+    if let Utility::Named { name, modifier: None } = &candidate.utility
+        && name == "inset-shadow-sm"
+    {
+        // Tailwind emits this built-in shadow inline rather than referencing
+        // the `--inset-shadow-sm` theme token.
+        declaration = "--tw-inset-shadow:inset 0 2px 4px var(--tw-inset-shadow-color,#0000000d);box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
+    }
     if let Utility::Named { name, .. } = &candidate.utility
         && let Some(value) = name.strip_prefix("ring-")
         && let Ok(px) = value.parse::<u32>()
