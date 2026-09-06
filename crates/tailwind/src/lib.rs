@@ -479,6 +479,30 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration.push_str("-webkit-box-orient:vertical;display:-webkit-box;overflow:hidden;");
     }
     if let Utility::Named { name, .. } = &candidate.utility {
+        if name.starts_with("underline-offset-")
+            && let Some(value) = name.strip_prefix("underline-offset-")
+            && value.parse::<f64>().is_ok()
+        {
+            declaration = declaration.replace(
+                &format!("calc(var(--spacing) * {value})"),
+                &format!("{}px", value.parse::<f64>().unwrap_or_default()),
+            );
+        }
+        if name.starts_with("leading-")
+            && declaration.starts_with("line-height:")
+            && let Some(value) = declaration
+                .strip_prefix("line-height:")
+                .and_then(|v| v.strip_suffix(';'))
+        {
+            declaration = format!("--tw-leading:{value};{declaration}");
+        } else if name.starts_with("tracking-")
+            && declaration.starts_with("letter-spacing:")
+            && let Some(value) = declaration
+                .strip_prefix("letter-spacing:")
+                .and_then(|v| v.strip_suffix(';'))
+        {
+            declaration = format!("--tw-tracking:{value};{declaration}");
+        }
         if name.starts_with("duration-")
             && declaration.starts_with("transition-duration:")
             && let Some(value) = declaration
