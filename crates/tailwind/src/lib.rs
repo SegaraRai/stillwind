@@ -439,8 +439,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
-    if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-") || name.starts_with("mask-conic-"))
-    {
+    if raw.starts_with("-mask-linear-") || raw.starts_with("-mask-conic-") {
+        for number in 2..=1000 {
+            declaration = declaration.replace(
+                &format!("calc({number}deg * -1)"),
+                &format!("calc(1deg * -{number})"),
+            );
+        }
         declaration = declaration
             .replace("calc(1deg * -1)", "-1deg")
             .replace("calc(0deg * -1)", "0deg");
@@ -2582,7 +2587,7 @@ mod tests {
             resolve_utility("-mask-conic-45", &theme())
                 .expect("negative mask conic angle")
                 .declaration
-                .contains("--tw-mask-conic-position:calc(45deg * -1);")
+                .contains("--tw-mask-conic-position:calc(1deg * -45);")
         );
     }
 

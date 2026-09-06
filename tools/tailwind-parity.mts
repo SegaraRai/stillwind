@@ -13,6 +13,7 @@ const caseRoot = join(fixtureRoot, "cases");
 const limit = Number(process.env.STILLWIND_PARITY_LIMIT ?? "0");
 const fileFilter = process.env.STILLWIND_PARITY_FILE;
 const candidateFilter = process.env.STILLWIND_PARITY_CANDIDATE;
+const debugRaw = process.env.STILLWIND_PARITY_DEBUG_RAW === "1";
 
 function minify(css: string): string {
   return Buffer.from(
@@ -46,9 +47,11 @@ for (const file of readdirSync(caseRoot)
       skipped += fixtureCase.candidates.split(/\s+/).filter(Boolean).length;
       continue;
     }
-    for (const candidate of fixtureCase.candidates
-      .split(/\s+/)
-      .filter((value) => !candidateFilter || value === candidateFilter)) {
+    const candidates = fixtureCase.candidates.split(/\s+/).filter(Boolean);
+    if (candidates.length === 0) candidates.push("");
+    for (const candidate of candidates.filter(
+      (value) => !candidateFilter || value === candidateFilter,
+    )) {
       if (limit > 0 && checked >= limit) break;
       checked += 1;
       const themePath = join(fixtureRoot, "parity-theme.css");
@@ -84,6 +87,7 @@ for (const file of readdirSync(caseRoot)
         if (unresolvedShown < 20) {
           unresolvedShown += 1;
           console.error(`\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${expected}`);
+          if (debugRaw) console.error(`Native diagnostics: ${JSON.stringify(native.diagnostics)}\nRaw: ${native.css}`);
         }
         continue;
       }
@@ -96,7 +100,7 @@ for (const file of readdirSync(caseRoot)
         failures.push(`${file} ${candidate}`);
         if (failures.length <= 20) {
           console.error(
-            `\n--- ${file} ${candidate} ---\nTailwind: ${expected}\nStillwind: ${received}`,
+            `\n--- ${file} ${candidate} ---\nTailwind: ${expected}\nStillwind: ${received}${debugRaw ? `\nRaw: ${actual}` : ""}`,
           );
         }
       }

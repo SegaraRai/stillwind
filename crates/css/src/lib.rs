@@ -1694,6 +1694,7 @@ fn strip_framework_directives(css: &str) -> String {
     let css = strip_blocks(&css, "@theme");
     let css = strip_blocks(&css, "@utility");
     let css = strip_blocks(&css, "@variant");
+    let css = strip_blocks(&css, "@custom-variant");
     let css = strip_blocks(&css, "@stillwind-property");
     let css = strip_blocks(&css, "@stillwind");
     css.lines()
@@ -2178,6 +2179,9 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
         .lines()
         .filter_map(|line| {
             let line = line.trim();
+            if line.contains('{') {
+                return None;
+            }
             let value = line.strip_prefix("@custom-variant ")?.trim_end_matches(';');
             let (name, selector) = value.split_once(' ')?;
             Some(CustomVariant {
@@ -2191,6 +2195,18 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
             })
         })
         .collect::<Vec<_>>();
+    variants.extend(
+        extract_named_blocks(&css, "@custom-variant")
+            .into_iter()
+            .filter_map(|(header, body)| {
+                let name = header.split_whitespace().next()?.to_owned();
+                (!name.is_empty()).then_some(CustomVariant {
+                    name,
+                    selector: String::new(),
+                    body,
+                })
+            }),
+    );
     variants.extend(
         extract_named_blocks(&css, "@variant")
             .into_iter()
@@ -2295,6 +2311,23 @@ mod tests {
         assert!(!ValueType::ZIndex.accepts_hint(ValueType::Number));
         assert!(ValueType::LineWidth.accepts_hint(ValueType::Length));
         assert!(ValueType::NumberPercentage.accepts_hint(ValueType::Percentage));
+    }
+
+    #[test]
+    fn extracts_block_custom_variant() {
+        let source = SourceFile::new(
+            FileId(1),
+            "fixture.css",
+            "@custom-variant theme-dark { &:where([data-theme=dark] *) { @slot; } }",
+        );
+        let theme = parse_tailwind_theme(&source).expect("theme");
+        assert_eq!(theme.variants.len(), 1);
+        assert_eq!(theme.variants[0].name, "theme-dark");
+        assert!(
+            theme.variants[0].body.contains("@slot"),
+            "{:?}",
+            theme.variants[0].body
+        );
     }
 
     #[test]
