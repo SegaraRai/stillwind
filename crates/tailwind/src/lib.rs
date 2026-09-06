@@ -649,6 +649,20 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("var(--tw-mask-bottom-to-color, transparent)", "var(--tw-mask-bottom-to-color)")
             .replace("var(--tw-mask-bottom-to-position,100%)", "var(--tw-mask-bottom-to-position)")
             .replace("var(--tw-mask-bottom-to-position, 100%)", "var(--tw-mask-bottom-to-position)")
+            .replace("var(--tw-mask-radial-shape,ellipse)", "var(--tw-mask-radial-shape)")
+            .replace("var(--tw-mask-radial-size,farthest-corner)", "var(--tw-mask-radial-size)")
+            .replace("var(--tw-mask-radial-position,center)", "var(--tw-mask-radial-position)")
+            .replace("var(--tw-mask-radial-from-color,black)", "var(--tw-mask-radial-from-color)")
+            .replace("var(--tw-mask-radial-from-position,0%)", "var(--tw-mask-radial-from-position)")
+            .replace("var(--tw-mask-radial-to-color,transparent)", "var(--tw-mask-radial-to-color)")
+            .replace("var(--tw-mask-radial-to-position,100%)", "var(--tw-mask-radial-to-position)")
+            .replace("var(--tw-mask-radial-shape,ellipse)", "var(--tw-mask-radial-shape)")
+            .replace("var(--tw-mask-radial-size,farthest-corner)", "var(--tw-mask-radial-size)")
+            .replace("var(--tw-mask-radial-position,center)", "var(--tw-mask-radial-position)")
+            .replace("var(--tw-mask-radial-from-color,black)", "var(--tw-mask-radial-from-color)")
+            .replace("var(--tw-mask-radial-from-position,0%)", "var(--tw-mask-radial-from-position)")
+            .replace("var(--tw-mask-radial-to-color,transparent)", "var(--tw-mask-radial-to-color)")
+            .replace("var(--tw-mask-radial-to-position,100%)", "var(--tw-mask-radial-to-position)")
             .replace("),var(--tw-mask", "), var(--tw-mask");
     }
     if raw.starts_with("bg-conic-") {
