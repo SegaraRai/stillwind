@@ -639,6 +639,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw.starts_with("mask-linear-") || raw.starts_with("mask-conic-") {
         declaration = declaration.replace("calc(1deg*", "calc(1deg * ");
     }
+    if raw.starts_with("mask-") {
+        declaration = declaration
+            .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
+            .replace("var(--tw-mask-bottom-from-color, black)", "var(--tw-mask-bottom-from-color)")
+            .replace("var(--tw-mask-bottom-from-position,0%)", "var(--tw-mask-bottom-from-position)")
+            .replace("var(--tw-mask-bottom-from-position, 0%)", "var(--tw-mask-bottom-from-position)")
+            .replace("var(--tw-mask-bottom-to-color,transparent)", "var(--tw-mask-bottom-to-color)")
+            .replace("var(--tw-mask-bottom-to-color, transparent)", "var(--tw-mask-bottom-to-color)")
+            .replace("var(--tw-mask-bottom-to-position,100%)", "var(--tw-mask-bottom-to-position)")
+            .replace("var(--tw-mask-bottom-to-position, 100%)", "var(--tw-mask-bottom-to-position)")
+            .replace("),var(--tw-mask", "), var(--tw-mask");
+    }
     if raw.starts_with("bg-conic-") {
         declaration = declaration.replace("calc(1deg*0)", "0deg");
         for amount in 1..=1000 {
@@ -1225,6 +1237,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     });
     if raw.ends_with("/100") && declaration.contains(":#0000;") {
         nested.clear();
+    }
+    if raw.starts_with("mask-") {
+        declaration = declaration
+            .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
+            .replace("var(--tw-mask-bottom-from-position,0%)", "var(--tw-mask-bottom-from-position)")
+            .replace("var(--tw-mask-bottom-to-color,transparent)", "var(--tw-mask-bottom-to-color)")
+            .replace("var(--tw-mask-bottom-to-position,100%)", "var(--tw-mask-bottom-to-position)")
+            .replace("),var(--tw-mask", "), var(--tw-mask");
     }
     Some(ResolvedUtility {
         declaration,
