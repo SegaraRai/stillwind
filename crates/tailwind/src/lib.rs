@@ -381,7 +381,19 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .strip_prefix("filter:")
             .and_then(|value| value.strip_suffix(';'))
         && !declaration.contains("var(--tw-brightness")
-        && let Some(property) = name.split("-[").next()
+        && let Some(property) = [
+            "blur",
+            "brightness",
+            "contrast",
+            "grayscale",
+            "hue-rotate",
+            "invert",
+            "opacity",
+            "saturate",
+            "sepia",
+        ]
+        .into_iter()
+        .find(|property| !name.contains('[') && name.starts_with(&format!("{property}-")))
         && matches!(
             property,
             "blur"
@@ -429,6 +441,21 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("calc(0deg * -1)", "0deg");
     }
     declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
+    for number in 0..=1000 {
+        declaration = declaration
+            .replace(&format!("calc({number}*1%)"), &format!("{number}%"))
+            .replace(&format!("calc({number}* -1%)"), &format!("-{number}%"))
+            .replace(
+                &format!("skewX(calc({number}*1deg))"),
+                &format!("skewX({number}deg)"),
+            );
+    }
+    declaration = declaration
+        .replace("var(--tw-rotate-x)", "var(--tw-rotate-x,)")
+        .replace("var(--tw-rotate-y)", "var(--tw-rotate-y,)")
+        .replace("var(--tw-rotate-z)", "var(--tw-rotate-z,)")
+        .replace("var(--tw-skew-x)", "var(--tw-skew-x,)")
+        .replace("var(--tw-skew-y)", "var(--tw-skew-y,)");
     if declaration == "transition-timing-function:initial;"
         && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
     {
