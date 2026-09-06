@@ -14,6 +14,7 @@ const limit = Number(process.env.STILLWIND_PARITY_LIMIT ?? "0");
 const fileFilter = process.env.STILLWIND_PARITY_FILE;
 const candidateFilter = process.env.STILLWIND_PARITY_CANDIDATE;
 const debugRaw = process.env.STILLWIND_PARITY_DEBUG_RAW === "1";
+const quiet = process.env.STILLWIND_PARITY_QUIET === "1";
 
 function minify(css: string): string {
   return Buffer.from(
@@ -84,7 +85,7 @@ for (const file of readdirSync(caseRoot)
           continue;
         }
         failures.push(`${file} ${candidate}: unresolved by Stillwind`);
-        if (unresolvedShown < 20) {
+        if (!quiet && unresolvedShown < 20) {
           unresolvedShown += 1;
           console.error(`\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${expected}`);
           if (debugRaw) console.error(`Native diagnostics: ${JSON.stringify(native.diagnostics)}\nRaw: ${native.css}`);
@@ -98,7 +99,7 @@ for (const file of readdirSync(caseRoot)
       }
       if (expected !== received) {
         failures.push(`${file} ${candidate}`);
-        if (failures.length <= 20) {
+        if (!quiet && failures.length <= 20) {
           console.error(
             `\n--- ${file} ${candidate} ---\nTailwind: ${expected}\nStillwind: ${received}${debugRaw ? `\nRaw: ${actual}` : ""}`,
           );

@@ -508,6 +508,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration.push_str("-webkit-box-orient:vertical;display:-webkit-box;overflow:hidden;");
     }
     if let Utility::Named { name, .. } = &candidate.utility {
+        if name.starts_with("scale-")
+            && !name.starts_with("scale-x-")
+            && !name.starts_with("scale-y-")
+            && !declaration.contains("--tw-scale-z:")
+            && let Some(start) = declaration.find("--tw-scale-y:")
+        {
+            let value_start = start + "--tw-scale-y:".len();
+            if let Some(end) = declaration[value_start..].find(';') {
+                let value = declaration[value_start..value_start + end].to_owned();
+                declaration.insert_str(value_start + end + 1, &format!("--tw-scale-z:{value};"));
+            }
+        }
         if name.starts_with("underline-offset-")
             && let Some(value) = name.strip_prefix("underline-offset-")
             && value.parse::<f64>().is_ok()
