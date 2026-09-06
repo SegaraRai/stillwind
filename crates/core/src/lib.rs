@@ -1910,6 +1910,7 @@ fn render_stylesheet(
     css
 }
 
+#[allow(clippy::too_many_lines)]
 fn render_used_properties(
     theme: &stillwind_css::ThemeIndex,
     css: &str,
@@ -1947,6 +1948,9 @@ fn render_used_properties(
     let gradient_stops_used = css.contains("--tw-gradient-from:")
         || css.contains("--tw-gradient-via:")
         || css.contains("--tw-gradient-to:");
+    let shadow_family_used = css.contains("--tw-shadow:")
+        || css.contains("--tw-shadow-color:")
+        || css.contains("--tw-ring-shadow:");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
@@ -1965,11 +1969,17 @@ fn render_used_properties(
             {
                 return None;
             }
-            if name == "--tw-ring-color" && !css.contains("--tw-ring-shadow:") {
+            if name == "--tw-ring-color" && !shadow_family_used {
                 return None;
             }
-            let property_used =
-                gradient_stops_used && name.starts_with("--tw-gradient-") || used.contains(&name);
+            let shadow_family_property = shadow_family_used
+                && (name.starts_with("--tw-shadow")
+                    || name.starts_with("--tw-inset-shadow")
+                    || name.starts_with("--tw-ring")
+                    || name.starts_with("--tw-inset-ring"));
+            let property_used = (gradient_stops_used && name.starts_with("--tw-gradient-"))
+                || shadow_family_property
+                || used.contains(&name);
             let builtin = builtin_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
