@@ -2233,6 +2233,7 @@ fn render_used_properties(
     options: &CompilerOptions,
 ) -> String {
     let mut used = stillwind_css::used_custom_properties(css);
+    let transform_cpu = css.contains("stillwind-transform-cpu");
     // A utility that only assigns a custom property does not make Tailwind
     // register it. Registration is needed when the value participates in a
     // consuming declaration (`var(--tw-...)`) or an explicitly materialized
@@ -2277,11 +2278,13 @@ fn render_used_properties(
         }
     }
     if css.contains("transform:var(--tw-rotate-x")
+        && !transform_cpu
         && (css.contains("--tw-rotate-x:")
             || css.contains("--tw-rotate-y:")
             || css.contains("--tw-rotate-z:")
             || css.contains("--tw-skew-x:")
-            || css.contains("--tw-skew-y:"))
+            || css.contains("--tw-skew-y:")
+            || !css.contains(".transform-cpu"))
     {
         for name in [
             "--tw-rotate-x",
