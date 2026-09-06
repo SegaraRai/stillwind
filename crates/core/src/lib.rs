@@ -1988,6 +1988,16 @@ fn render_used_properties(
         ] {
             used.insert(name.to_owned());
         }
+        if css.contains("--tw-mask-conic-position:initial") {
+            used.retain(|name| {
+                !name.starts_with("--tw-mask-linear-")
+                    && !name.starts_with("--tw-mask-radial-")
+            });
+        } else if css.contains("--tw-mask-linear-position:initial") {
+            used.retain(|name| !name.starts_with("--tw-mask-radial-"));
+        } else if css.contains("--tw-mask-radial-size:initial") {
+            used.retain(|name| !name.starts_with("--tw-mask-linear-"));
+        }
     }
     if css.contains("--tw-drop-shadow:")
         || (css.contains("filter:") && css.contains("var(--tw-drop-shadow"))
