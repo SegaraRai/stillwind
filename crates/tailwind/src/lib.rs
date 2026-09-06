@@ -1940,6 +1940,9 @@ fn theme_value(
         (ThemeNamespace::Color, "inherit" | "transparent") => value.to_owned(),
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
         _ if let Some(value) = css_variable(value) => format!("var({value})"),
+        // Tailwind's candidate grammar accepts ASCII identifier tokens only;
+        // Unicode theme names remain valid CSS but are not utility candidates.
+        _ if value.chars().any(|character| !character.is_ascii()) => return None,
         _ if let Some(token) = theme.token_in(namespace, value) => {
             if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
                 token.value.value.clone()
