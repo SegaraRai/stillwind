@@ -590,6 +590,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
     if raw.starts_with("bg-conic-") {
+        declaration = declaration.replace("calc(1deg*0)", "0deg");
         for amount in 1..=1000 {
             declaration = declaration.replace(
                 &format!("calc(1deg*{amount})"),
