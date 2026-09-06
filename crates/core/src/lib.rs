@@ -2273,7 +2273,13 @@ fn render_used_properties(
             used.remove(name);
         }
     }
-    if css.contains("transform:var(--tw-rotate-x") {
+    if css.contains("transform:var(--tw-rotate-x")
+        && (css.contains("--tw-rotate-x:")
+            || css.contains("--tw-rotate-y:")
+            || css.contains("--tw-rotate-z:")
+            || css.contains("--tw-skew-x:")
+            || css.contains("--tw-skew-y:"))
+    {
         for name in [
             "--tw-rotate-x",
             "--tw-rotate-y",
