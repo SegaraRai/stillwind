@@ -1697,7 +1697,10 @@ fn strip_framework_directives(css: &str) -> String {
     let css = strip_blocks(&css, "@stillwind-property");
     let css = strip_blocks(&css, "@stillwind");
     css.lines()
-        .filter(|line| !line.trim_start().starts_with("@custom-variant"))
+        .filter(|line| {
+            let line = line.trim_start();
+            !line.starts_with("@custom-variant") && !line.starts_with("@tailwind")
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }

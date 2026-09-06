@@ -1988,9 +1988,27 @@ fn render_stylesheet(
             css.push_str(layer);
             css.push_str("{:root,:host{");
             for token in &required_tokens {
+                if matches!(
+                    token.name.value.as_str(),
+                    "--default-font-feature-settings"
+                        | "--default-font-variation-settings"
+                        | "--default-mono-font-feature-settings"
+                        | "--default-mono-font-variation-settings"
+                ) {
+                    continue;
+                }
                 css.push_str(&token.name.value);
                 css.push(':');
-                css.push_str(&token.value.value.replace("--theme(", "var("));
+                let value = token.value.value.replace("--theme(", "var(");
+                css.push_str(
+                    if token.name.value == "--default-font-family"
+                        || token.name.value == "--default-mono-font-family"
+                    {
+                        value.trim_end_matches(", initial")
+                    } else {
+                        &value
+                    },
+                );
                 css.push(';');
             }
             css.push_str("}}");
