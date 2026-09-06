@@ -613,6 +613,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     }
+    declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
     if raw == "translate-z-0" || raw == "translate-x-0" || raw == "translate-y-0" {
         declaration = declaration
             .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
