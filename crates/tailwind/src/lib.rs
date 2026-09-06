@@ -397,7 +397,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             let Some(suffix) = name.strip_prefix(&format!("{property}-")) else {
                 return false;
             };
-            !name.contains('[') && suffix.parse::<f64>().is_ok()
+            (!name.contains('[') && suffix.parse::<f64>().is_ok()) || name.ends_with("-[initial]")
         })
         && matches!(
             property,
