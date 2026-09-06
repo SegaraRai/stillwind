@@ -13,6 +13,7 @@ struct CliOutput {
     classes: Vec<GeneratedClass>,
     diagnostics: Vec<DiagnosticOutput>,
     lint_findings: Vec<LintFindingOutput>,
+    lint_policy: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Serialize)]
@@ -127,6 +128,7 @@ fn run() -> Result<(), String> {
         classes: result.classes,
         diagnostics,
         lint_findings,
+        lint_policy: result.lint_policy,
     };
     println!(
         "{}",

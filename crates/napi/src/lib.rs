@@ -18,6 +18,7 @@ struct BindingOutput {
     symbols: Vec<GeneratedSymbol>,
     diagnostics: Vec<BindingDiagnostic>,
     lint_findings: Vec<BindingLintFinding>,
+    lint_policy: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Serialize)]
@@ -190,6 +191,7 @@ fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile
         symbols: result.symbols,
         diagnostics,
         lint_findings,
+        lint_policy: result.lint_policy,
     }
 }
 
