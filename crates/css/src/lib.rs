@@ -32,10 +32,9 @@ use stillwind_source::{FileId, SourceFile, Span, Spanned};
 use thiserror::Error;
 
 /// Tailwind CSS v4.3.3 Preflight, vendored under its MIT license.
-pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../assets/tailwind-v4-preflight.css");
+pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../packages/react/css/preflight.css");
 
-const TAILWIND_V4_THEME: &str = include_str!("../assets/tailwind-v4-theme.css");
-const STILLWIND_PROPERTIES: &str = include_str!("../assets/properties.css");
+const TAILWIND_V4_THEME: &str = include_str!("../../../packages/react/css/theme.css");
 
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for
@@ -962,6 +961,7 @@ pub struct FrameworkImports {
     pub theme_layer: Option<String>,
     pub base_layer: Option<String>,
     pub utilities_layer: Option<String>,
+    pub builtins: bool,
 }
 
 impl Default for FrameworkImports {
@@ -970,6 +970,7 @@ impl Default for FrameworkImports {
             theme_layer: Some("theme".to_owned()),
             base_layer: Some("base".to_owned()),
             utilities_layer: Some("utilities".to_owned()),
+            builtins: true,
         }
     }
 }
@@ -980,6 +981,7 @@ impl FrameworkImports {
             theme_layer: None,
             base_layer: None,
             utilities_layer: None,
+            builtins: false,
         }
     }
 
@@ -1246,18 +1248,21 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
 pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     StyleSheet::parse(source.text(), ParserOptions::default())
         .map_err(|error| ThemeError::Parse(error.to_string()))?;
-    let mut tokens = extract_theme_tokens(FileId(0), TAILWIND_V4_THEME)?.tokens;
+    let imports = framework_imports(source.text());
+    let mut tokens = if imports.theme_layer.is_some() {
+        extract_theme_tokens(FileId(0), TAILWIND_V4_THEME)?.tokens
+    } else {
+        Vec::new()
+    };
     tokens.extend(extract_theme_tokens(source.id(), source.text())?.tokens);
-    let mut properties = extract_property_definitions(STILLWIND_PROPERTIES);
-    properties.extend(extract_property_definitions(source.text()));
     Ok(ThemeIndex {
         tokens,
         custom_css: strip_framework_directives(source.text()),
         utilities: extract_custom_utilities(source.text()),
         variants: extract_custom_variants(source.text()),
-        properties,
+        properties: extract_property_definitions(source.text()),
         authored_properties: extract_authored_property_names(source.text()),
-        imports: framework_imports(source.text()),
+        imports,
     })
 }
 
@@ -1317,23 +1322,28 @@ fn framework_imports(css: &str) -> FrameworkImports {
         };
         let layer = import_layer(tail);
         match path {
-            "tailwindcss" => {
+            "tailwindcss" | "stillwind" => {
                 found = true;
                 output.theme_layer = Some(layer.clone().unwrap_or_else(|| "theme".to_owned()));
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
+                output.builtins = true;
             }
-            "tailwindcss/theme" => {
+            "tailwindcss/theme" | "stillwind/theme.css" => {
                 found = true;
                 output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
             }
-            "tailwindcss/preflight" => {
+            "tailwindcss/preflight" | "stillwind/preflight.css" => {
                 found = true;
                 output.base_layer = Some(layer.unwrap_or_else(|| "base".to_owned()));
             }
-            "tailwindcss/utilities" => {
+            "tailwindcss/utilities" | "stillwind/utilities.css" => {
                 found = true;
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
+            }
+            "stillwind/builtins.css" => {
+                found = true;
+                output.builtins = true;
             }
             _ => {}
         }
@@ -1502,7 +1512,8 @@ fn classify_theme_token(name: &str) -> ThemeTokenKind {
 }
 
 fn strip_framework_directives(css: &str) -> String {
-    let css = strip_blocks(css, "@theme");
+    let css = strip_framework_imports(css);
+    let css = strip_blocks(&css, "@theme");
     let css = strip_blocks(&css, "@utility");
     let css = strip_blocks(&css, "@variant");
     let css = strip_blocks(&css, "@stillwind-property");
@@ -1510,6 +1521,43 @@ fn strip_framework_directives(css: &str) -> String {
         .filter(|line| !line.trim_start().starts_with("@custom-variant"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn strip_framework_imports(css: &str) -> String {
+    let mut output = String::with_capacity(css.len());
+    let mut cursor = 0;
+
+    while let Some(relative_start) = css[cursor..].find("@import") {
+        let start = cursor + relative_start;
+        output.push_str(&css[cursor..start]);
+        let Some(relative_end) = css[start..].find(';') else {
+            output.push_str(&css[start..]);
+            return output;
+        };
+        let end = start + relative_end + 1;
+        let rule = css[start + "@import".len()..end - 1].trim();
+        let is_framework = parse_import_path(rule).is_some_and(|(path, _)| {
+            matches!(
+                path,
+                "tailwindcss"
+                    | "tailwindcss/theme"
+                    | "tailwindcss/preflight"
+                    | "tailwindcss/utilities"
+                    | "stillwind"
+                    | "stillwind/theme.css"
+                    | "stillwind/preflight.css"
+                    | "stillwind/utilities.css"
+                    | "stillwind/builtins.css"
+            )
+        });
+        if !is_framework {
+            output.push_str(&css[start..end]);
+        }
+        cursor = end;
+    }
+
+    output.push_str(&css[cursor..]);
+    output
 }
 
 fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
@@ -2237,6 +2285,58 @@ mod tests {
                 .iter()
                 .any(|token| token.name.value == "--spacing")
         );
+    }
+
+    #[test]
+    fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
+        let individual = parse_tailwind_theme(&SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"tailwindcss/utilities\" layer(utilities);",
+        ))
+        .unwrap();
+        assert!(!individual.imports.builtins);
+        assert!(individual.scale(ThemeNamespace::Spacing).is_none());
+
+        let with_builtins = parse_tailwind_theme(&SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities); @import \"stillwind/builtins.css\";",
+        ))
+        .unwrap();
+        assert!(with_builtins.imports.builtins);
+        assert_eq!(
+            with_builtins
+                .scale(ThemeNamespace::Spacing)
+                .map(|token| token.value.value.as_str()),
+            Some("0.25rem")
+        );
+        assert!(!with_builtins.custom_css().contains("@import"));
+
+        let aggregate = parse_tailwind_theme(&SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"stillwind\";",
+        ))
+        .unwrap();
+        assert!(aggregate.imports.builtins);
+        assert!(aggregate.imports.theme_layer.is_some());
+        assert!(aggregate.imports.base_layer.is_some());
+        assert!(aggregate.imports.utilities_layer.is_some());
+    }
+
+    #[test]
+    fn consumes_framework_imports_but_preserves_other_css_imports() {
+        let theme = parse_tailwind_theme(&SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"./fonts.css\"; @import \"stillwind/builtins.css\"; .card { color: red; }",
+        ))
+        .unwrap();
+
+        assert!(theme.custom_css().contains("@import \"./fonts.css\";"));
+        assert!(!theme.custom_css().contains("stillwind/builtins.css"));
+        assert!(theme.custom_css().contains(".card"));
     }
 
     #[test]

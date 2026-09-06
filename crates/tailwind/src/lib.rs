@@ -79,15 +79,17 @@ pub enum VariantApplication {
 }
 
 const BUILTIN_REGISTRY_CSS: &str = concat!(
-    include_str!("../assets/core-utilities.css"),
-    include_str!("../assets/discrete-utilities.css"),
-    include_str!("../assets/functional-utilities.css"),
-    include_str!("../assets/interaction-variants.css"),
-    include_str!("../assets/static-utilities.css"),
-    include_str!("../assets/arbitrary-utilities.css"),
-    include_str!("../assets/mask-utilities.css"),
-    include_str!("../assets/effect-utilities.css"),
-    include_str!("../assets/selector-variants.css"),
+    include_str!("../../../packages/react/css/builtins.css"),
+    include_str!("../../../packages/react/css/core-utilities.css"),
+    include_str!("../../../packages/react/css/discrete-utilities.css"),
+    include_str!("../../../packages/react/css/functional-utilities.css"),
+    include_str!("../../../packages/react/css/interaction-variants.css"),
+    include_str!("../../../packages/react/css/static-utilities.css"),
+    include_str!("../../../packages/react/css/arbitrary-utilities.css"),
+    include_str!("../../../packages/react/css/mask-utilities.css"),
+    include_str!("../../../packages/react/css/effect-utilities.css"),
+    include_str!("../../../packages/react/css/selector-variants.css"),
+    include_str!("../../../packages/react/css/properties.css"),
 );
 
 /// Tailwind spellings intentionally owned by Stillwind's relationship-handle
@@ -145,6 +147,15 @@ fn builtin_variants() -> &'static [CustomVariant] {
     static VARIANTS: OnceLock<Vec<CustomVariant>> = OnceLock::new();
     VARIANTS
         .get_or_init(|| stillwind_css::parse_variant_definitions(BUILTIN_REGISTRY_CSS))
+        .as_slice()
+}
+
+/// Compiler-owned property definitions exposed by the built-in CSS entrypoint.
+#[must_use]
+pub fn builtin_property_definitions() -> &'static [stillwind_css::CustomPropertyDefinition] {
+    static PROPERTIES: OnceLock<Vec<stillwind_css::CustomPropertyDefinition>> = OnceLock::new();
+    PROPERTIES
+        .get_or_init(|| stillwind_css::parse_property_definitions(BUILTIN_REGISTRY_CSS))
         .as_slice()
 }
 
@@ -382,8 +393,13 @@ fn is_stillwind_owned_variant(variant: &Variant) -> bool {
 }
 
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
-    let (custom, capture) = find_registered_variant(&theme.variants, value)
-        .or_else(|| find_registered_variant(builtin_variants(), value))?;
+    let (custom, capture) = find_registered_variant(&theme.variants, value).or_else(|| {
+        theme
+            .imports
+            .builtins
+            .then(|| find_registered_variant(builtin_variants(), value))
+            .flatten()
+    })?;
     let body = substitute_variant_capture(&custom.body, capture)?;
     let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
     resolve_variant_body(&body).or_else(|| {
@@ -583,6 +599,9 @@ fn resolve_builtin_css_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<UtilityResolution> {
+    if !theme.imports.builtins {
+        return None;
+    }
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(

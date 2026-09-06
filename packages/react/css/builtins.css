@@ -1,0 +1,12 @@
+/* Stillwind's CSS registry entrypoint. Keep these imports ordered: later
+ * definitions intentionally override earlier compatibility fallbacks. */
+@import "./core-utilities.css";
+@import "./discrete-utilities.css";
+@import "./functional-utilities.css";
+@import "./interaction-variants.css";
+@import "./static-utilities.css";
+@import "./arbitrary-utilities.css";
+@import "./mask-utilities.css";
+@import "./effect-utilities.css";
+@import "./selector-variants.css";
+@import "./properties.css";

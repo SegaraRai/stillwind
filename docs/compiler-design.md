@@ -83,7 +83,7 @@ crates/
   cli/           # check, build, format and diagnostics rendering
 
 packages/
-  react/                # types plus minimal runtime helpers
+  react/                # package CSS, types, and minimal runtime helpers
   vite/                 # thin Vite integration over the Node binding
   vue/                  # later: adapter contract only
   svelte/               # later: adapter contract only
@@ -92,6 +92,13 @@ packages/
 `stillwind-core` accepts source buffers and compiler options and returns a pure
 `CompileResult`. The Node binding and Vite plugin are replaceable transports;
 they must not duplicate parsing or diagnostics logic.
+
+The `stillwind` package exposes an aggregate CSS entry point plus `theme.css`,
+`preflight.css`, `utilities.css`, and `builtins.css`. The aggregate entry point
+imports all four. Individual entry points are independent: `builtins.css` must
+be present for the compiler-owned utility, variant, and custom-property registry
+to participate. The Rust crates embed these same CSS sources instead of
+maintaining a second internal copy.
 
 ## Source model: locations are a first-class invariant
 

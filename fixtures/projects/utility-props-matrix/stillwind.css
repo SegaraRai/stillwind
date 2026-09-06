@@ -1,3 +1,8 @@
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/preflight.css" layer(base);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+
 @theme {
   --color-accent: oklch(0.62 0.18 252);
   --color-muted: oklch(0.45 0.03 252);

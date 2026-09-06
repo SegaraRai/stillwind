@@ -120,6 +120,32 @@ relationships across component boundaries, `children`, or portals. Vue, Svelte,
 Astro, a full formatter, and full Tailwind candidate compatibility remain
 separate frontend/grammar work.
 
+### CSS entry points
+
+The default entry point preserves the usual one-import setup. It includes the
+built-in theme, preflight, generated-utility layer, and Stillwind's built-in
+utility, variant, and custom-property registry:
+
+```css
+@import "stillwind";
+```
+
+Applications that assemble those pieces individually must opt into the registry
+explicitly:
+
+```css
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/preflight.css" layer(base);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+```
+
+Omitting `stillwind/builtins.css` disables built-in utilities, variants, and
+their tree-shakeable custom-property registrations. Authored `@theme`,
+`@utility`, `@variant`, and `@stillwind-property` definitions remain available.
+All four entry points are ordinary package CSS files; the compiler consumes the
+recognized imports while preserving unrelated CSS imports.
+
 ### Extending the same registry
 
 Built-ins and application extensions use the same CSS registry. `@utility`

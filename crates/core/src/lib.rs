@@ -1682,9 +1682,14 @@ fn render_used_properties(
 ) -> String {
     let used = stillwind_css::used_custom_properties(css);
     let mut seen = BTreeSet::new();
-    let mut properties = theme
-        .properties
+    let builtin_properties = theme
+        .imports
+        .builtins
+        .then(stillwind_tailwind::builtin_property_definitions)
+        .unwrap_or_default();
+    let mut properties = builtin_properties
         .iter()
+        .chain(&theme.properties)
         .rev()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
@@ -1714,58 +1719,62 @@ fn render_used_properties(
 }
 
 fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
-    let mut utilities = vec![
-        "absolute",
-        "block",
-        "cursor-pointer",
-        "cursor-wait",
-        "flex",
-        "grid",
-        "hidden",
-        "inline-block",
-        "inline-flex",
-        "items-center",
-        "items-end",
-        "items-start",
-        "justify-between",
-        "justify-center",
-        "opacity-0",
-        "opacity-60",
-        "opacity-100",
-        "overflow-hidden",
-        "relative",
-        "text-center",
-        "text-left",
-        "transition",
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect::<Vec<_>>();
-    for token in &theme.tokens {
-        let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
-        else {
-            continue;
-        };
-        for (prefix, expected_namespace) in [
-            ("bg", "color"),
-            ("text", "color"),
-            ("border", "color"),
-            ("p", "spacing"),
-            ("px", "spacing"),
-            ("py", "spacing"),
-            ("m", "spacing"),
-            ("mx", "spacing"),
-            ("my", "spacing"),
-            ("gap", "spacing"),
-            ("w", "spacing"),
-            ("h", "spacing"),
-            ("rounded", "radius"),
-            ("shadow", "shadow"),
-            ("duration", "duration"),
-            ("ease", "ease"),
-        ] {
-            if namespace == expected_namespace {
-                utilities.push(format!("{prefix}-{name}"));
+    let mut utilities = Vec::new();
+    if theme.imports.builtins {
+        utilities.extend(
+            [
+                "absolute",
+                "block",
+                "cursor-pointer",
+                "cursor-wait",
+                "flex",
+                "grid",
+                "hidden",
+                "inline-block",
+                "inline-flex",
+                "items-center",
+                "items-end",
+                "items-start",
+                "justify-between",
+                "justify-center",
+                "opacity-0",
+                "opacity-60",
+                "opacity-100",
+                "overflow-hidden",
+                "relative",
+                "text-center",
+                "text-left",
+                "transition",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        );
+        for token in &theme.tokens {
+            let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
+            else {
+                continue;
+            };
+            for (prefix, expected_namespace) in [
+                ("bg", "color"),
+                ("text", "color"),
+                ("border", "color"),
+                ("p", "spacing"),
+                ("px", "spacing"),
+                ("py", "spacing"),
+                ("m", "spacing"),
+                ("mx", "spacing"),
+                ("my", "spacing"),
+                ("gap", "spacing"),
+                ("w", "spacing"),
+                ("h", "spacing"),
+                ("rounded", "radius"),
+                ("shadow", "shadow"),
+                ("duration", "duration"),
+                ("ease", "ease"),
+            ] {
+                if namespace == expected_namespace {
+                    utilities.push(format!("{prefix}-{name}"));
+                }
             }
         }
     }
@@ -1776,20 +1785,23 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
         .map(|utility| format!("    \"{utility}\": true;"))
         .collect::<Vec<_>>()
         .join("\n");
-    let mut variants = vec![
-        "active",
-        "dark",
-        "disabled",
-        "focus",
-        "focus-visible",
-        "hover",
-    ];
-    variants.extend(
-        theme
-            .tokens
-            .iter()
-            .filter_map(|token| token.name.value.strip_prefix("--breakpoint-")),
-    );
+    let mut variants = Vec::new();
+    if theme.imports.builtins {
+        variants.extend([
+            "active",
+            "dark",
+            "disabled",
+            "focus",
+            "focus-visible",
+            "hover",
+        ]);
+        variants.extend(
+            theme
+                .tokens
+                .iter()
+                .filter_map(|token| token.name.value.strip_prefix("--breakpoint-")),
+        );
+    }
     variants.sort_unstable();
     variants.dedup();
     let variants = variants

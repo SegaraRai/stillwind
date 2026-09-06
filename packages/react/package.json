@@ -5,8 +5,13 @@
   "license": "MIT",
   "type": "module",
   "exports": {
+    ".": "./index.css",
+    "./builtins.css": "./css/builtins.css",
+    "./preflight.css": "./css/preflight.css",
     "./react": "./src/index.ts",
-    "./react/runtime": "./src/runtime.ts"
+    "./react/runtime": "./src/runtime.ts",
+    "./theme.css": "./css/theme.css",
+    "./utilities.css": "./css/utilities.css"
   },
   "devDependencies": {
     "@types/node": "catalog:",
