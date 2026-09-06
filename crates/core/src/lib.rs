@@ -1639,7 +1639,16 @@ fn emit_utility_rules(
                 nested_in_rule_css.push_str(&nested_css);
             }
         }
-        if base.contains("background-image:") && !nested_in_rule_css.is_empty() {
+        if base.contains("scrollbar-color:") && !nested_in_rule_css.is_empty() {
+            if let Some(position) = base.find("scrollbar-color:") {
+                output.push_str(&base[..position]);
+                output.push_str(&nested_in_rule_css);
+                output.push_str(&base[position..]);
+            } else {
+                output.push_str(&base);
+                output.push_str(&nested_in_rule_css);
+            }
+        } else if base.contains("background-image:") && !nested_in_rule_css.is_empty() {
             if let Some(position) = base.find("background-image:") {
                 output.push_str(&base[..position]);
                 output.push_str(&nested_in_rule_css);
