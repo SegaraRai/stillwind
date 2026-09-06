@@ -327,6 +327,40 @@ fn normalize_spaced_negative_angles(value: &str) -> String {
     output
 }
 
+fn normalize_negative_space_order(mut declaration: String, axis: &str) -> String {
+    let (start_property, end_property) = if axis == "x" {
+        ("margin-inline-start:", "margin-inline-end:")
+    } else {
+        ("margin-block-start:", "margin-block-end:")
+    };
+    let reverse = format!("--tw-space-{axis}-reverse");
+    let (Some(start), Some(end)) = (
+        declaration.find(start_property),
+        declaration.find(end_property),
+    ) else {
+        return declaration;
+    };
+    let start_value = start + start_property.len();
+    let end_value = end + end_property.len();
+    let (Some(start_end), Some(end_end)) = (
+        declaration[start_value..].find(';'),
+        declaration[end_value..].find(';'),
+    ) else {
+        return declaration;
+    };
+    let first = declaration[start_value..start_value + start_end].to_owned();
+    let second = declaration[end_value..end_value + end_end].to_owned();
+    if first.contains(&format!("calc(1 - var({reverse}))"))
+        && second.contains(&format!("var({reverse})"))
+    {
+        declaration.replace_range(start_value..start_value + start_end, &second);
+        let adjusted_end =
+            (end_value as isize + second.len() as isize - first.len() as isize) as usize;
+        declaration.replace_range(adjusted_end..adjusted_end + end_end, &first);
+    }
+    declaration
+}
+
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]
 #[allow(clippy::too_many_lines)]
@@ -457,6 +491,45 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("calc({number}px * -1)"),
             );
         }
+    }
+    if raw.starts_with("-space-x-") || raw.starts_with("-space-y-") {
+        declaration = declaration
+            .replace(
+                "* -1*calc(1 - var(--tw-space-x-reverse))",
+                " * calc(1 - var(--tw-space-x-reverse))",
+            )
+            .replace(
+                ")*-1*calc(1 - var(--tw-space-x-reverse))",
+                ") * calc(1 - var(--tw-space-x-reverse))",
+            )
+            .replace(
+                "* -1*var(--tw-space-x-reverse)",
+                " * var(--tw-space-x-reverse)",
+            )
+            .replace(
+                ")*-1*var(--tw-space-x-reverse)",
+                ") * var(--tw-space-x-reverse)",
+            )
+            .replace(
+                "* -1*calc(1 - var(--tw-space-y-reverse))",
+                " * calc(1 - var(--tw-space-y-reverse))",
+            )
+            .replace(
+                ")*-1*calc(1 - var(--tw-space-y-reverse))",
+                ") * calc(1 - var(--tw-space-y-reverse))",
+            )
+            .replace(
+                "* -1*var(--tw-space-y-reverse)",
+                " * var(--tw-space-y-reverse)",
+            );
+        declaration = normalize_negative_space_order(
+            declaration,
+            if raw.starts_with("-space-x-") {
+                "x"
+            } else {
+                "y"
+            },
+        );
     }
     declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     for number in 0..=1000 {
