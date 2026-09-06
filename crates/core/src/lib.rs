@@ -2338,7 +2338,25 @@ fn render_used_properties(
     }
     let gradient_stops_used = css.contains("--tw-gradient-from:")
         || css.contains("--tw-gradient-via:")
-        || css.contains("--tw-gradient-to:");
+        || css.contains("--tw-gradient-to:")
+        || css.contains("--tw-gradient-from-position:")
+        || css.contains("--tw-gradient-via-position:")
+        || css.contains("--tw-gradient-to-position:");
+    if gradient_stops_used {
+        for name in [
+            "--tw-gradient-position",
+            "--tw-gradient-from",
+            "--tw-gradient-via",
+            "--tw-gradient-to",
+            "--tw-gradient-stops",
+            "--tw-gradient-via-stops",
+            "--tw-gradient-from-position",
+            "--tw-gradient-via-position",
+            "--tw-gradient-to-position",
+        ] {
+            used.insert(name.to_owned());
+        }
+    }
     let shadow_family_used = css.contains("--tw-shadow:")
         || css.contains("--tw-shadow-color:")
         || css.contains("--tw-ring-shadow:")
