@@ -1159,7 +1159,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             "--tw-scrollbar-track"
         };
         let prefix = format!("{property}:color-mix(in oklab, ");
-        if let Some(start) = declaration.find(&prefix)
+        if declaration.contains("color-mix(in oklab, currentcolor")
+            && let Some(start) = declaration.find(&prefix)
             && let Some(end) = declaration[start..].find(';')
         {
             let modern = declaration[start..start + end + 1].to_owned();
