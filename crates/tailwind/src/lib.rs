@@ -531,6 +531,16 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             },
         );
     }
+    if raw.starts_with("via-current/")
+        && declaration.starts_with("--tw-gradient-via:color-mix(in oklab, currentcolor")
+    {
+        let value = declaration.trim_start_matches("--tw-gradient-via:");
+        if let Some((color, rest)) = value.split_once(';') {
+            declaration = format!(
+                "--tw-gradient-via:currentcolor;@supports (color:color-mix(in lab, red, red)){{--tw-gradient-via:{color}}}{rest}"
+            );
+        }
+    }
     declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     for number in 0..=1000 {
         declaration = declaration
