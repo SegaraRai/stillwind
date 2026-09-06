@@ -843,7 +843,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
         .or_else(|| {
-            let value = match value {
+            let value = match value.as_str() {
                 "sm" => "40rem",
                 "md" => "48rem",
                 "lg" => "64rem",
