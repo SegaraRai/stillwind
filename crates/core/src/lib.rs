@@ -1550,6 +1550,33 @@ fn emit_utility_rules(
         output.push_str(class_name);
         output.push('{');
         output.push_str(&base);
+        for utility in utilities.iter().filter(|utility| {
+            utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
+        }) {
+            for nested in &utility.nested {
+                let nested_in_rule = nested.declaration.starts_with("--tw-gradient-")
+                    || nested.declaration.starts_with("background-color:color-mix");
+                if !nested_in_rule {
+                    continue;
+                }
+                match nested.at_rule {
+                    stillwind_tailwind::NestedUtilityAtRule::Media => {
+                        output.push_str("@media ");
+                        output.push_str(&nested.condition);
+                        output.push('{');
+                        output.push_str(&nested.declaration);
+                        output.push('}');
+                    }
+                    stillwind_tailwind::NestedUtilityAtRule::Supports => {
+                        output.push_str("@supports (");
+                        output.push_str(&nested.condition);
+                        output.push_str("){\n");
+                        output.push_str(&nested.declaration);
+                        output.push('}');
+                    }
+                }
+            }
+        }
         output.push('}');
     }
     for utility in utilities.iter().filter(|utility| {
@@ -1565,6 +1592,15 @@ fn emit_utility_rules(
     }
     for utility in utilities {
         for nested in &utility.nested {
+            let nested_in_rule = nested.declaration.starts_with("--tw-gradient-")
+                || nested.declaration.starts_with("background-color:color-mix");
+            if nested_in_rule
+                && utility.variants.is_empty()
+                && utility.selector.is_none()
+                && utility.container.is_none()
+            {
+                continue;
+            }
             output.push_str(&render_utility_rule(
                 class_name,
                 utility,
@@ -1769,24 +1805,11 @@ fn render_stylesheet(
 ) -> String {
     let imports = &theme.imports;
     let mut css = String::new();
-    if imports.has_any() {
+    if imports.layer_order {
         css.push_str("@layer theme, base, components, utilities;\n");
     }
     if let Some(layer) = &imports.theme_layer {
-        css.push_str("@layer ");
-        css.push_str(layer);
-        css.push_str("{:root,:host{");
         let required_tokens = theme.tokens_required_by(utility_css, imports.base_layer.is_some());
-        for token in &required_tokens {
-            css.push_str(&token.name.value);
-            css.push(':');
-            css.push_str(&token.value.value.replace("--theme(", "var("));
-            css.push(';');
-        }
-        css.push_str("}}\n");
-        css.push_str("@layer ");
-        css.push_str(layer);
-        css.push('{');
         let animations = required_tokens
             .iter()
             .filter_map(|token| match &token.kind {
@@ -1802,10 +1825,28 @@ fn render_stylesheet(
                 _ => None,
             })
             .collect::<Vec<_>>();
-        css.push_str(
-            &options.rewrite_generated(&stillwind_css::tailwind_v4_keyframes_for(&animations)),
-        );
-        css.push_str("}\n");
+        if !required_tokens.is_empty() || !animations.is_empty() {
+            css.push_str("@layer ");
+            css.push_str(layer);
+            css.push_str("{:root,:host{");
+            for token in &required_tokens {
+                css.push_str(&token.name.value);
+                css.push(':');
+                css.push_str(&token.value.value.replace("--theme(", "var("));
+                css.push(';');
+            }
+            css.push_str("}}");
+            let keyframes =
+                options.rewrite_generated(&stillwind_css::tailwind_v4_keyframes_for(&animations));
+            if !keyframes.is_empty() {
+                css.push_str("@layer ");
+                css.push_str(layer);
+                css.push('{');
+                css.push_str(&keyframes);
+                css.push('}');
+            }
+            css.push('\n');
+        }
     }
     if let Some(layer) = &imports.base_layer {
         css.push_str("@layer ");
@@ -1859,13 +1900,33 @@ fn render_used_properties(
             {
                 return None;
             }
-            Some((name, property.body.as_str()))
+            let builtin = builtin_properties
+                .iter()
+                .any(|candidate| candidate.name == property.name);
+            Some((name, property.body.as_str(), builtin))
         })
         .collect::<Vec<_>>();
     properties.reverse();
 
     let mut output = String::new();
-    for (name, body) in properties {
+    let mut builtin_initials = Vec::new();
+    for (name, body, builtin) in &properties {
+        if *builtin {
+            let initial = body
+                .lines()
+                .find_map(|line| line.trim().strip_prefix("initial-value:"))
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or("initial");
+            builtin_initials.push(format!("{name}:{initial};"));
+        }
+    }
+    if !builtin_initials.is_empty() {
+        output.push_str("@layer properties{@supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))){*,:before,:after,::backdrop{");
+        output.push_str(&builtin_initials.concat());
+        output.push_str("}}}\n");
+    }
+    for (name, body, _) in properties {
         if !output.is_empty() {
             output.push('\n');
         }

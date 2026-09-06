@@ -987,6 +987,9 @@ pub struct FrameworkImports {
     pub base_layer: Option<String>,
     pub utilities_layer: Option<String>,
     pub builtins: bool,
+    /// Whether the canonical single full-framework import was authored.
+    /// Tailwind emits the global layer-order prelude only for that entrypoint.
+    pub layer_order: bool,
 }
 
 impl Default for FrameworkImports {
@@ -996,6 +999,7 @@ impl Default for FrameworkImports {
             base_layer: Some("base".to_owned()),
             utilities_layer: Some("utilities".to_owned()),
             builtins: true,
+            layer_order: true,
         }
     }
 }
@@ -1007,6 +1011,7 @@ impl FrameworkImports {
             base_layer: None,
             utilities_layer: None,
             builtins: false,
+            layer_order: false,
         }
     }
 
@@ -1159,9 +1164,18 @@ impl ThemeIndex {
             required.extend(custom_property_references(&tailwind_v4_preflight()));
         }
         for token in &tokens {
+            let referenced_by_value = matches!(
+                token.kind,
+                ThemeTokenKind::Scale(ThemeNamespace::Breakpoint)
+                    | ThemeTokenKind::Token {
+                        namespace: ThemeNamespace::Breakpoint,
+                        ..
+                    }
+            ) && css.contains(&token.value.value);
             if matches!(token.mode, ThemeTokenMode::Static)
                 || (!matches!(token.mode, ThemeTokenMode::Inline)
-                    && (css.contains(&token.name.value) || css.contains(&token.value.value)))
+                    && (custom_property_references(css).contains(&token.name.value)
+                        || referenced_by_value))
             {
                 required.insert(token.name.value.clone());
             }
@@ -1365,6 +1379,7 @@ fn framework_imports(css: &str) -> FrameworkImports {
         match path {
             "tailwindcss" | "stillwind" => {
                 found = true;
+                output.layer_order = true;
                 output.theme_layer = Some(layer.clone().unwrap_or_else(|| "theme".to_owned()));
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));

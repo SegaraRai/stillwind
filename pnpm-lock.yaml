@@ -394,6 +394,9 @@ importers:
       '@webref/css':
         specifier: 8.7.3
         version: 8.7.3(css-tree@3.2.1)
+      lightningcss:
+        specifier: 1.33.0
+        version: 1.33.0
       prettier:
         specifier: ^3.9.6
         version: 3.9.6

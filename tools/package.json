@@ -10,6 +10,7 @@
     "@stillwind/vite": "workspace:*",
     "@types/node": "catalog:",
     "@webref/css": "8.7.3",
+    "lightningcss": "1.33.0",
     "prettier": "^3.9.6",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:",

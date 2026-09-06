@@ -569,7 +569,12 @@ const props = style("bg-linear-to-r");"#,
     assert!(
         result
             .css
-            .contains("@supports (background-image:linear-gradient(in lab,red,red)){._s_")
+            .contains("@supports (background-image:linear-gradient")
+    );
+    assert!(
+        result
+            .css
+            .contains("--tw-gradient-position:to right in oklab;")
     );
     assert!(
         result
