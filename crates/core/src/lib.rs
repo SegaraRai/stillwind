@@ -2091,6 +2091,22 @@ fn render_used_properties(
             if name == "--tw-ring-color" && !shadow_family_used {
                 return None;
             }
+            if css.contains("--tw-mask-conic-position:initial")
+                && (name.starts_with("--tw-mask-linear-")
+                    || name.starts_with("--tw-mask-radial-"))
+            {
+                return None;
+            }
+            if css.contains("--tw-mask-linear-position:initial")
+                && name.starts_with("--tw-mask-radial-")
+            {
+                return None;
+            }
+            if css.contains("--tw-mask-radial-size:initial")
+                && name.starts_with("--tw-mask-linear-")
+            {
+                return None;
+            }
             let shadow_family_property = shadow_family_used
                 && (name.starts_with("--tw-shadow")
                     || name.starts_with("--tw-inset-shadow")
