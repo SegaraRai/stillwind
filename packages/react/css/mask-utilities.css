@@ -421,13 +421,20 @@
   );
 }
 @utility divide-x-* {
+  --tw-divide-x-reverse: 0;
   & > :not(:last-child) {
-    border-inline-end-width: calc(--value(integer) * 1px);
+    border-inline-style: var(--tw-border-style);
+    border-inline-start-width: calc(--value(integer) * 1px * var(--tw-divide-x-reverse));
+    border-inline-end-width: calc(--value(integer) * 1px * calc(1 - var(--tw-divide-x-reverse)));
   }
 }
 @utility divide-y-* {
+  --tw-divide-y-reverse: 0;
   & > :not(:last-child) {
-    border-bottom-width: calc(--value(integer) * 1px);
+    border-bottom-style: var(--tw-border-style);
+    border-top-style: var(--tw-border-style);
+    border-top-width: calc(--value(integer) * 1px * var(--tw-divide-y-reverse));
+    border-bottom-width: calc(--value(integer) * 1px * calc(1 - var(--tw-divide-y-reverse)));
   }
 }
 @utility rotate-x-* {

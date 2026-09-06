@@ -1727,6 +1727,17 @@ fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
+    let mut declaration = declaration.to_owned();
+    if declaration.contains("border-inline-end-width:")
+        && !declaration.contains("--tw-divide-x-reverse:")
+    {
+        declaration.insert_str(0, "--tw-divide-x-reverse:0;");
+    }
+    if declaration.contains("border-bottom-width:")
+        && !declaration.contains("--tw-divide-y-reverse:")
+    {
+        declaration.insert_str(0, "--tw-divide-y-reverse:0;");
+    }
     let declaration = declaration
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
@@ -1922,6 +1933,12 @@ fn normalize_negative_calc(value: &str) -> String {
         let compact = format!("calc({number}* -1)");
         let spaced = format!("calc({number} * -1)");
         normalized = normalized.replace(&compact, &spaced);
+        for suffix in ["var(--tw-divide-x-reverse)", "var(--tw-divide-y-reverse)", "calc(1 - var(--tw-divide-x-reverse))", "calc(1 - var(--tw-divide-y-reverse))"] {
+            normalized = normalized.replace(
+                &format!("calc({number}*1px*{suffix}"),
+                &format!("calc({number}px * {suffix}"),
+            );
+        }
     }
     normalized
 }
