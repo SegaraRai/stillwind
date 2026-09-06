@@ -1192,6 +1192,12 @@ impl ThemeIndex {
                 }
             }
         }
+        // Built-in shadow utilities materialize their token into the
+        // --tw-shadow state variable. Once that declaration is present, the
+        // intermediate --shadow-* theme alias is not emitted by Tailwind.
+        if css.contains("--tw-shadow:") {
+            required.retain(|name| !name.starts_with("--shadow-"));
+        }
         tokens
             .into_iter()
             .filter(|token| {
