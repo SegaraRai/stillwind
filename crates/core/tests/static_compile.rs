@@ -287,6 +287,15 @@ fn matches_tailwind_fixture_rules_after_minification() {
         ("media-preference-variants.fixture.md", "dark:bg-slate-950"),
         ("responsive-container.fixture.md", "max-md:hidden"),
         ("responsive-container.fixture.md", "@sm:grid"),
+        ("candidate-syntax.fixture.md", "!flex"),
+        ("candidate-syntax.fixture.md", "flex!"),
+        ("candidate-syntax.fixture.md", "-mt-4"),
+        ("candidate-syntax.fixture.md", "w-(--sidebar)"),
+        ("candidate-syntax.fixture.md", "[color:rebeccapurple]"),
+        (
+            "candidate-syntax.fixture.md",
+            "supports-[display:grid]:grid",
+        ),
         ("candidate-syntax.fixture.md", "content-['hello']"),
         ("default-completions.fixture.md", "inset-shadow-sm/50"),
     ];
