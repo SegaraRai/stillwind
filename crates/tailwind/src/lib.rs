@@ -412,6 +412,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 | "border-y"
                 | "border-s"
                 | "border-e"
+                | "border-bs"
+                | "border-be"
                 | "border-t"
                 | "border-r"
                 | "border-b"
@@ -1105,6 +1107,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             "border-inline-start-style"
         } else if declaration.contains("border-inline-end-width:") {
             "border-inline-end-style"
+        } else if declaration.contains("border-block-start-width:") {
+            "border-block-start-style"
+        } else if declaration.contains("border-block-end-width:") {
+            "border-block-end-style"
         } else if declaration.contains("border-block-width:") {
             "border-block-style"
         } else if declaration.contains("border-top-width:") {
