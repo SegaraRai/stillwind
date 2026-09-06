@@ -667,6 +667,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         declaration = "transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,--tw-gradient-from,--tw-gradient-via,--tw-gradient-to,opacity,box-shadow,transform,translate,scale,rotate,filter,-webkit-backdrop-filter,backdrop-filter,display,content-visibility,overlay,pointer-events;transition-timing-function:var(--tw-ease,var(--default-transition-timing-function));transition-duration:var(--tw-duration,var(--default-transition-duration));".to_owned();
     }
+    if raw == "ease-initial" {
+        declaration = "--tw-ease:initial;".to_owned();
+    } else if raw == "ease-linear" {
+        declaration = declaration.replace("--tw-ease:var(--ease-linear);", "--tw-ease:linear;");
+    }
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
     // registry's unit multiplier expression.
     declaration = declaration
@@ -1394,6 +1399,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             condition: "color:color-mix(in lab, red, red)".to_owned(),
             declaration: nested_declaration,
         });
+    }
+    if raw == "ease-linear" {
+        declaration = declaration.replace("--tw-ease:var(--ease-linear);", "--tw-ease:linear;");
     }
     let additional = resolution
         .additional
