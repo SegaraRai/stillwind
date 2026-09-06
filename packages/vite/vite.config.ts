@@ -7,7 +7,7 @@ export default defineConfig({
         command: "tsc --noEmit",
       },
       test: {
-        command: "node --test test/type-facts.test.mts",
+        command: "node --test test/*.test.mts",
         dependsOn: ["@stillwind/native#build", "typecheck"],
       },
     },

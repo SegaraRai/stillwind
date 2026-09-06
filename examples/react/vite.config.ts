@@ -4,7 +4,10 @@ import { stillwind } from "@stillwind/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 
+const projectRoot = fileURLToPath(new URL(".", import.meta.url));
+
 export default defineConfig({
+  root: projectRoot,
   plugins: [
     react(),
     stillwind({

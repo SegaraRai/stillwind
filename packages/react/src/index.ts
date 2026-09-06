@@ -4,7 +4,7 @@
  */
 export type StyleAttributeName = `aria-${string}` | `data-${string}`;
 
-/** Augmented by the generated `.stillwind/stillwind.generated.d.ts` file. */
+/** Augmented by the generated `src/stillwind.generated.d.ts` file. */
 export interface StillwindUtilityVocabulary {}
 export interface StillwindVariantVocabulary {}
 
