@@ -1746,6 +1746,7 @@ fn render_utility_rule(
         .replace("border-color:oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0);", "border-color:#0000;")
         .replace("text-decoration-color:oklab(0% none none/0);", "text-decoration-color:#0000;");
     let declaration = if declaration.starts_with("outline-offset:")
+        || declaration.starts_with("text-underline-offset:")
         || declaration.starts_with("--tw-scale-")
     {
         normalize_angle_calc(&normalize_negative_calc(&declaration))
@@ -1897,6 +1898,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                     declaration
                 };
                 let declaration = if declaration.starts_with("outline-offset:")
+                    || declaration.starts_with("text-underline-offset:")
                     || declaration.starts_with("--tw-scale-")
                 {
                     normalize_angle_calc(&normalize_negative_calc(&declaration))
