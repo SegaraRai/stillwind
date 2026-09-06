@@ -1371,6 +1371,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "backdrop-blur-none" {
         declaration = declaration.replace("--tw-backdrop-blur:blur(0);", "--tw-backdrop-blur: ;");
     }
+    if raw == "blur-none" {
+        declaration = declaration.replace("--tw-blur:;", "--tw-blur: ;");
+    }
     if raw.starts_with("backdrop-hue-rotate-") {
         for angle in [0, 15, 30, 45, 60, 90, 180, 270, 360] {
             declaration = declaration.replace(
