@@ -1751,8 +1751,12 @@ fn theme_value(
         (ThemeNamespace::Color, "inherit" | "transparent") => value.to_owned(),
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
         _ if let Some(value) = css_variable(value) => format!("var({value})"),
-        _ if theme.token_in(namespace, value).is_some() => {
-            format!("var(--{}-{value})", namespace.css_name())
+        _ if let Some(token) = theme.token_in(namespace, value) => {
+            if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
+                token.value.value.clone()
+            } else {
+                format!("var(--{}-{value})", namespace.css_name())
+            }
         }
         _ if namespace == ThemeNamespace::Spacing
             && theme.scale(ThemeNamespace::Spacing).is_some() =>
