@@ -162,7 +162,7 @@ fn tailwind_class_selector(candidate: &str) -> String {
     candidate
         .chars()
         .flat_map(|character| match character {
-            '/' | '[' | ']' | ':' | '!' | '(' | ')' | '\'' | '"' => ['\\', character],
+            '/' | '[' | ']' | ':' | '!' | '(' | ')' | '\'' | '"' | '=' | '@' => ['\\', character],
             character => ['\0', character],
         })
         .filter(|character| *character != '\0')
@@ -219,12 +219,6 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         ("filters-transforms.fixture.md", "blur-sm"),
         ("accessibility-interaction.fixture.md", "sr-only"),
         ("variants.fixture.md", "hover:bg-red-500"),
-        ("variants.fixture.md", "sm:hover:bg-red-500"),
-        ("variants.fixture.md", "aria-[busy=true]:opacity-50"),
-        ("variants.fixture.md", "data-[state=open]:bg-red-500"),
-        ("variants.fixture.md", "dark:bg-red-500"),
-        ("responsive-container.fixture.md", "max-md:grid"),
-        ("responsive-container.fixture.md", "@sm:grid"),
         ("candidate-syntax.fixture.md", "content-['hello']"),
         ("default-completions.fixture.md", "inset-shadow-sm/50"),
     ];
@@ -287,6 +281,12 @@ fn matches_tailwind_fixture_rules_after_minification() {
         ("filters-transforms.fixture.md", "blur-sm"),
         ("accessibility-interaction.fixture.md", "sr-only"),
         ("variants.fixture.md", "hover:bg-red-500"),
+        ("variants.fixture.md", "md:px-4"),
+        ("variants.fixture.md", "aria-[busy=true]:opacity-60"),
+        ("variants.fixture.md", "data-[state=open]:grid"),
+        ("media-preference-variants.fixture.md", "dark:bg-slate-950"),
+        ("responsive-container.fixture.md", "max-md:hidden"),
+        ("responsive-container.fixture.md", "@sm:grid"),
         ("candidate-syntax.fixture.md", "content-['hello']"),
         ("default-completions.fixture.md", "inset-shadow-sm/50"),
     ];
@@ -924,7 +924,7 @@ const props = style("bg-accent");"#,
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("--color-accent:var(--app-accent);"));
+    assert!(!result.css.contains("--color-accent:var(--app-accent);"));
     assert!(
         result
             .css

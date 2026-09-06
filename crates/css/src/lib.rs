@@ -930,11 +930,19 @@ pub fn tailwind_v4_keyframes_for(names: &[String]) -> String {
     output
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ThemeTokenMode {
+    Default,
+    Inline,
+    Static,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeToken {
     pub name: Spanned<String>,
     pub value: Spanned<String>,
     pub kind: ThemeTokenKind,
+    pub mode: ThemeTokenMode,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -1151,7 +1159,10 @@ impl ThemeIndex {
             required.extend(custom_property_references(&tailwind_v4_preflight()));
         }
         for token in &tokens {
-            if token.name.span.file != FileId(0) {
+            if matches!(token.mode, ThemeTokenMode::Static)
+                || (token.name.span.file != FileId(0)
+                    && !matches!(token.mode, ThemeTokenMode::Inline))
+            {
                 required.insert(token.name.value.clone());
             }
         }
@@ -1169,7 +1180,10 @@ impl ThemeIndex {
         }
         tokens
             .into_iter()
-            .filter(|token| required.contains(&token.name.value))
+            .filter(|token| {
+                required.contains(&token.name.value)
+                    && !matches!(token.mode, ThemeTokenMode::Inline)
+            })
             .collect()
     }
 
@@ -1303,10 +1317,17 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
             return Err(ThemeError::UnterminatedTheme);
         };
 
+        let modifier = css[theme_start + "@theme".len()..open].trim();
+        let mode = match modifier {
+            "inline" => ThemeTokenMode::Inline,
+            "static" => ThemeTokenMode::Static,
+            _ => ThemeTokenMode::Default,
+        };
         tokens.extend(extract_theme_declarations(
             file,
             &css[open + 1..close],
             open + 1,
+            mode,
         ));
 
         cursor = close + 1;
@@ -1407,7 +1428,12 @@ fn import_layer(tail: &str) -> Option<String> {
     (!layer.is_empty()).then(|| layer.to_owned())
 }
 
-fn extract_theme_declarations(file: FileId, body: &str, body_start: usize) -> Vec<ThemeToken> {
+fn extract_theme_declarations(
+    file: FileId,
+    body: &str,
+    body_start: usize,
+    mode: ThemeTokenMode,
+) -> Vec<ThemeToken> {
     let mut tokens = Vec::new();
     let mut cursor = 0;
     while cursor < body.len() {
@@ -1469,6 +1495,7 @@ fn extract_theme_declarations(file: FileId, body: &str, body_start: usize) -> Ve
                 Span::new(file, offset(value_start), offset(value_start + value.len())),
             ),
             kind: classify_theme_token(name),
+            mode,
         });
     }
     tokens
