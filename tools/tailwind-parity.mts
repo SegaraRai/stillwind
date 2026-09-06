@@ -61,6 +61,11 @@ for (const file of readdirSync(caseRoot)
       }
       if (native.diagnostics.length !== 0 || native.classes.length === 0) {
         failures.push(`${file} ${candidate}: unresolved by Stillwind`);
+        if (failures.length <= 20) {
+          console.error(
+            `\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${minify(tailwind)}`,
+          );
+        }
         continue;
       }
       const actual = native.css.replaceAll(native.classes[0].class_name, selector(candidate));
