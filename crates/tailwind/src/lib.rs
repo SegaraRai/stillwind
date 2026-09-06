@@ -613,6 +613,21 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
+    if (raw.ends_with("-inherit/100") || raw.ends_with("-transparent/100"))
+        && let Some(property) = ["from", "via", "to"]
+            .into_iter()
+            .find(|property| declaration.starts_with(&format!("--tw-gradient-{property}:")))
+    {
+        let prefix = format!("--tw-gradient-{property}:");
+        let value = if raw.ends_with("-inherit/100") {
+            "inherit"
+        } else {
+            "transparent"
+        };
+        if let Some((_, rest)) = declaration.trim_start_matches(&prefix).split_once(';') {
+            declaration = format!("{prefix}{value};{rest}");
+        }
+    }
     if raw == "translate-x-0"
         || raw == "translate-y-0"
         || raw == "translate-z-0"
