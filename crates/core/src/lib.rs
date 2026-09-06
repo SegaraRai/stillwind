@@ -1607,7 +1607,10 @@ fn emit_utility_rules(
                     continue;
                 }
                 let mut nested_css = String::new();
-                let nested_declaration = nested.declaration.replace(" deg", "deg");
+                let nested_declaration = nested
+                    .declaration
+                    .replace(" deg", "deg")
+                    .replace("deg*-1", "deg * -1");
                 match nested.at_rule {
                     stillwind_tailwind::NestedUtilityAtRule::Media => {
                         nested_css.push_str("@media ");
