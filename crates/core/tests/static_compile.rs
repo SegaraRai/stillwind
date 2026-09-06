@@ -219,6 +219,12 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         ("filters-transforms.fixture.md", "blur-sm"),
         ("accessibility-interaction.fixture.md", "sr-only"),
         ("variants.fixture.md", "hover:bg-red-500"),
+        ("variants.fixture.md", "sm:hover:bg-red-500"),
+        ("variants.fixture.md", "aria-[busy=true]:opacity-50"),
+        ("variants.fixture.md", "data-[state=open]:bg-red-500"),
+        ("variants.fixture.md", "dark:bg-red-500"),
+        ("responsive-container.fixture.md", "max-md:grid"),
+        ("responsive-container.fixture.md", "@sm:grid"),
         ("candidate-syntax.fixture.md", "content-['hello']"),
         ("default-completions.fixture.md", "inset-shadow-sm/50"),
     ];
