@@ -672,6 +672,20 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(",100%)", ")")
             .replace("),var(--tw-mask", "), var(--tw-mask");
     }
+    declaration = declaration
+        .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
+        .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
+    declaration = declaration
+        .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
+        .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
+    if raw.starts_with("inset-ring-") {
+        for width in 0..=64 {
+            declaration = declaration.replace(
+                &format!("calc({width}*1px)"),
+                &format!("{width}px"),
+            );
+        }
+    }
     if raw.starts_with("bg-conic-") {
         declaration = declaration.replace("calc(1deg*0)", "0deg");
         for amount in 1..=1000 {
@@ -1138,6 +1152,30 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
+    if raw.starts_with("scrollbar-thumb-") || raw.starts_with("scrollbar-track-") {
+        let property = if raw.starts_with("scrollbar-thumb-") {
+            "--tw-scrollbar-thumb"
+        } else {
+            "--tw-scrollbar-track"
+        };
+        let prefix = format!("{property}:color-mix(in oklab, ");
+        if let Some(start) = declaration.find(&prefix)
+            && let Some(end) = declaration[start..].find(';')
+        {
+            let modern = declaration[start..start + end + 1].to_owned();
+            if let Some((color, _)) = modern
+                .replace("color-mix(in oklab, ", "")
+                .split_once(' ')
+            {
+                declaration.replace_range(start..start + end + 1, &format!("{property}:{color};"));
+                nested.push(NestedUtilityRule {
+                    at_rule: NestedUtilityAtRule::Supports,
+                    condition: "color:color-mix(in lab, red, red)".to_owned(),
+                    declaration: modern,
+                });
+            }
+        }
+    }
     if raw.ends_with("/100")
         && (declaration.contains(":#0000;") || declaration.contains(":inherit;"))
     {
@@ -1277,6 +1315,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("var(--tw-mask-bottom-to-position,100%)", "var(--tw-mask-bottom-to-position)")
             .replace("),var(--tw-mask", "), var(--tw-mask");
     }
+    declaration = declaration
+        .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
+        .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
     Some(ResolvedUtility {
         declaration,
         selector,
