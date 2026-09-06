@@ -473,6 +473,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
     }
     if raw.contains("transparent/")
+        && !raw.ends_with("/100")
         && (resolution.declaration.contains(":#0000;")
             || resolution.declaration.contains(":transparent;")
             || resolution
@@ -488,10 +489,25 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         resolution.nested.clear();
     }
     if raw.ends_with("/100") {
+        if resolution.declaration.contains(":#0000;")
+            || resolution.declaration.contains(":transparent;")
+        {
+            resolution.nested.clear();
+        }
         if resolution.declaration.contains("color-mix(in srgb, currentcolor 100%") {
             resolution.declaration = resolution
                 .declaration
                 .replace("color-mix(in srgb, currentcolor 100%, transparent)", "currentColor");
+            resolution.nested.clear();
+        } else if resolution.declaration.contains("color-mix(in oklab, inherit 100%, transparent)") {
+            resolution.declaration = resolution
+                .declaration
+                .replace("color-mix(in oklab, inherit 100%, transparent)", "inherit");
+            resolution.nested.clear();
+        } else if resolution.declaration.contains("color-mix(in oklab,inherit 100%,transparent)") {
+            resolution.declaration = resolution
+                .declaration
+                .replace("color-mix(in oklab,inherit 100%,transparent)", "inherit");
             resolution.nested.clear();
         } else if resolution.declaration.contains("color-mix(in srgb, inherit")
             && let Some(modern) = resolution
@@ -518,6 +534,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
+    if raw.ends_with("/100") {
+        declaration = declaration
+            .replace("color-mix(in oklab, inherit 100%, transparent)", "inherit")
+            .replace("color-mix(in oklab,inherit 100%,transparent)", "inherit");
+    }
     if raw.contains("-current/") {
         let mut cursor = 0;
         while let Some(relative) = declaration[cursor..].find(":color-mix(in srgb, currentcolor") {
@@ -1081,6 +1102,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
+    if raw.ends_with("/100")
+        && (declaration.contains(":#0000;") || declaration.contains(":inherit;"))
+    {
+        nested.clear();
+    }
     // Linear-gradient angle utilities provide a legacy fallback and put the
     // color-space-qualified position behind the Images 4 feature query.
     if let Utility::Named { name, .. } = &candidate.utility
@@ -1194,6 +1220,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         )
         .then_some("&>:not(:last-child)".to_owned())
     });
+    if raw.ends_with("/100") && declaration.contains(":#0000;") {
+        nested.clear();
+    }
     Some(ResolvedUtility {
         declaration,
         selector,
