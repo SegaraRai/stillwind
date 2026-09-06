@@ -419,6 +419,25 @@ pub fn shadow_with_color_fallback(
     ))
 }
 
+/// Serializes a theme color as an sRGB fallback with the requested alpha.
+/// Tailwind emits the legacy fallback before its Color 5 `color-mix` upgrade;
+/// LightningCSS provides the color-space conversion we need here.
+#[must_use]
+pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
+    let color = CssColor::parse_string(value).ok()?.to_rgb().ok()?;
+    let serialized = color.to_css_string(PrinterOptions::default()).ok()?;
+    if let (Some(hex), Some(percent)) = (
+        serialized.strip_prefix('#'),
+        alpha.trim().strip_suffix('%').and_then(|value| value.parse::<f64>().ok()),
+    ) && hex.len() == 6
+        && hex.chars().all(|character| character.is_ascii_hexdigit())
+    {
+        let byte = (percent.clamp(0.0, 100.0) * 255.0 / 100.0).round() as u8;
+        return Some(format!("#{hex}{byte:02x}"));
+    }
+    Some(format!("{serialized} / {alpha}"))
+}
+
 fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
     let mut depth = 0_u32;
     let mut boundary = None;

@@ -7,8 +7,8 @@
 use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
 use stillwind_css::{
-    CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
-    shadow_with_color_fallback,
+    color_with_alpha_fallback, CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace,
+    ValueDomain, ValueType, shadow_with_color_fallback,
 };
 use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -387,7 +387,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         };
         declaration = format!("{style}:var(--tw-border-style);{declaration}");
     }
-    let nested = resolution
+    let mut nested: Vec<NestedUtilityRule> = resolution
         .nested
         .into_iter()
         .map(|mut nested| {
@@ -406,6 +406,31 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
+    // Tailwind emits an sRGB fallback for shadow opacity modifiers, then
+    // upgrades to the relative-color form behind a color-mix feature query.
+    if let Utility::Named { name, modifier: Some(Value::Named(alpha_value)) } = &candidate.utility
+        && let Some(color_name) = name.strip_prefix("shadow-")
+        && let Some(alpha_value) = alpha(alpha_value)
+        && let Some(theme_color) = theme_value_literal(ThemeNamespace::Color, color_name, false, theme)
+        && let Some(fallback) = color_with_alpha_fallback(&theme_color, &alpha_value)
+        && let Some(color_mix) = declaration
+            .strip_prefix("--tw-shadow-color:")
+            .and_then(|value| value.strip_suffix(';'))
+    {
+        let upgraded = format!(
+            "--tw-shadow-color:color-mix(in oklab, {color_mix} var(--tw-shadow-alpha), transparent);"
+        );
+        declaration = declaration.replacen(
+            &format!("--tw-shadow-color:{color_mix};"),
+            &format!("--tw-shadow-color:{fallback};"),
+            1,
+        );
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: upgraded,
+        });
+    }
     let additional = resolution
         .additional
         .into_iter()
@@ -2629,6 +2654,19 @@ mod tests {
                     == "color:color-mix(in oklab, var(--color-brand) 50%, transparent);"
         }));
         assert!(resolve_utility("text-brand/[length:12px]", &theme()).is_none());
+    }
+
+    #[test]
+    fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
+        let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
+        assert!(resolved.declaration.contains("--tw-shadow-color:#fb2c3680;"));
+        assert!(resolved.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Supports
+                && rule.condition == "color:color-mix(in lab, red, red)"
+                && rule.declaration.contains(
+                    "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha), transparent);",
+                )
+        }));
     }
 
     #[test]

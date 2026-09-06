@@ -1566,7 +1566,10 @@ fn emit_utility_rules(
         }) {
             for nested in &utility.nested {
                 let nested_in_rule = nested.declaration.starts_with("--tw-gradient-")
-                    || nested.declaration.starts_with("background-color:color-mix");
+                    || nested.declaration.starts_with("background-color:color-mix")
+                    || nested
+                        .declaration
+                        .starts_with("--tw-shadow-color:color-mix");
                 if !nested_in_rule {
                     continue;
                 }
@@ -1619,7 +1622,10 @@ fn emit_utility_rules(
     for utility in utilities {
         for nested in &utility.nested {
             let nested_in_rule = nested.declaration.starts_with("--tw-gradient-")
-                || nested.declaration.starts_with("background-color:color-mix");
+                || nested.declaration.starts_with("background-color:color-mix")
+                || nested
+                    .declaration
+                    .starts_with("--tw-shadow-color:color-mix");
             if nested_in_rule
                 && utility.variants.is_empty()
                 && utility.selector.is_none()
