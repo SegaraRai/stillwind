@@ -418,6 +418,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 | "border-r"
                 | "border-b"
                 | "border-l"
+                | "outline"
         )
     {
         return None;
@@ -1453,6 +1454,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             condition: "color:color-mix(in lab, red, red)".to_owned(),
             declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
         });
+    }
+    if raw == "outline" {
+        declaration = "outline-style:var(--tw-outline-style);outline-width:1px;".to_owned();
+    }
+    if raw == "leading-0" {
+        declaration = declaration.replace("--tw-leading:0;", "--tw-leading:0px;");
     }
     if raw == "transform-cpu" {
         declaration.push_str("/*stillwind-transform-cpu*/");
