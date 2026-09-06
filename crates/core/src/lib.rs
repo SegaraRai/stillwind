@@ -2300,6 +2300,12 @@ fn render_used_properties(
         used.remove("--tw-duration");
         used.remove("--tw-ease");
     }
+    if css.contains("--tw-ring-offset-shadow:") && !css.contains("--tw-ring-shadow:") {
+        used.remove("--tw-ring-offset-width");
+        used.remove("--tw-ring-inset");
+        used.remove("--tw-ring-offset-color");
+        used.remove("--tw-ring-offset-shadow");
+    }
     if css.contains("var(--tw-duration") && !css.contains("--tw-duration:") {
         used.remove("--tw-duration");
     }

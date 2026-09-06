@@ -1496,6 +1496,15 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
         nested.clear();
     }
+    if let Some(value) = raw.strip_prefix("ring-offset-")
+        && !value.is_empty()
+        && value.chars().all(|character| character.is_ascii_digit())
+    {
+        declaration = format!(
+            "--tw-ring-offset-width:{value}px;--tw-ring-offset-shadow:var(--tw-ring-inset,) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);"
+        );
+        nested.clear();
+    }
     let additional = resolution
         .additional
         .into_iter()
