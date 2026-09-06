@@ -2075,6 +2075,17 @@ fn render_used_properties(
         used.remove("--tw-duration");
         used.remove("--tw-ease");
     }
+    if css.contains("transition-property:") && !css.contains("var(--tw-gradient-") {
+        for name in [
+            "--tw-gradient-from",
+            "--tw-gradient-via",
+            "--tw-gradient-to",
+            "--tw-gradient-stops",
+            "--tw-gradient-via-stops",
+        ] {
+            used.remove(name);
+        }
+    }
     // Tailwind registers the complete transform axis family when any axis is
     // used, including the z-axis default even when the emitted utility does
     // not reference it directly.

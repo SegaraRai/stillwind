@@ -408,6 +408,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if declaration == "grid-row:span initial/span initial;" {
         declaration = "grid-row:span initial / span initial;".to_owned();
     }
+    if matches!(&candidate.utility, Utility::Named { name, .. } if name == "transition")
+        && declaration.starts_with("transition-property:")
+    {
+        declaration = "transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,--tw-gradient-from,--tw-gradient-via,--tw-gradient-to,opacity,box-shadow,transform,translate,scale,rotate,filter,-webkit-backdrop-filter,backdrop-filter,display,content-visibility,overlay,pointer-events;transition-timing-function:var(--tw-ease,var(--default-transition-timing-function));transition-duration:var(--tw-duration,var(--default-transition-duration));".to_owned();
+    }
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
     // registry's unit multiplier expression.
     declaration = declaration
