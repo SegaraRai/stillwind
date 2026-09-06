@@ -103,3 +103,6 @@ and variant/at-rule structure; resolving a candidate is not sufficient.
   registrations plus mask, border/divide selector/property registration,
   ring/shadow, and several advanced variant cases. This is an active parity
   backlog, not an acceptance claim.
+- The focused 50-case gate is currently 49/50. The remaining representative
+  case is `shadow-red-500/50`, which requires Tailwind's two-stage hex fallback
+  and nested relative-color emission.
