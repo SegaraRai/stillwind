@@ -435,7 +435,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         name,
         modifier: Some(Value::Named(value)),
     } = &candidate.utility
-        && name == "shadow-inherit"
+        && matches!(name.as_str(), "shadow-inherit" | "inset-shadow-inherit")
         && value.parse::<f64>().is_ok()
     {
         return None;
