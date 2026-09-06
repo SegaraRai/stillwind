@@ -1382,7 +1382,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, currentcolor {alpha}, transparent) var(--tw-shadow-alpha), transparent);"
             ),
         };
-        if alpha.is_some_and(|value| value != "100%") {
+        if alpha.as_ref().is_some_and(|value| value != "100%") {
             if let Some(start) = declaration.find("--tw-shadow-color:")
                 && let Some(end) = declaration[start..].find(';')
             {
@@ -1525,6 +1525,28 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration.replace_range(start..start + end + 1, "border-color:#0000;");
         }
     }
+    // Color-only inset-shadow utilities only set the color slot. The
+    // functional CSS definitions also contain the token-shadow plumbing, but
+    // Tailwind does not emit that plumbing for `current`/`transparent`/
+    // `inherit` colors.
+    if raw.starts_with("inset-shadow-")
+        && (raw == "inset-shadow-current"
+            || raw.starts_with("inset-shadow-current/")
+            || raw == "inset-shadow-transparent"
+            || raw.starts_with("inset-shadow-transparent/")
+            || raw == "inset-shadow-inherit"
+            || raw.starts_with("inset-shadow-inherit/"))
+    {
+        if let Some(start) = declaration.find("box-shadow:")
+            && let Some(end) = declaration[start..].find(';')
+        {
+            declaration.replace_range(start..start + end + 1, "");
+        }
+        while let Some(start) = declaration.find("--tw-inset-shadow-alpha:") {
+            let Some(end) = declaration[start..].find(';') else { break };
+            declaration.replace_range(start..start + end + 1, "");
+        }
+    }
     if let Some(alpha) = raw.strip_prefix("text-shadow-transparent/") {
         let alpha = alpha.trim_end_matches('%');
         if !alpha.is_empty() && alpha != "100" {
@@ -1561,6 +1583,55 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "color:color-mix(in lab, red, red)".to_owned(),
             declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
+        });
+    }
+    if raw == "inset-shadow-transparent" {
+        declaration = declaration.replace(
+            "--tw-inset-shadow-color:oklab(0% none none/0);",
+            "--tw-inset-shadow-color:transparent;",
+        );
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-inset-shadow-color:color-mix(in oklab, transparent var(--tw-inset-shadow-alpha), transparent);".to_owned(),
+        });
+    }
+    if let Some(alpha) = raw.strip_prefix("inset-shadow-transparent/") {
+        let alpha = alpha.trim_end_matches('%');
+        if !alpha.is_empty() && alpha != "100" {
+            if let Some(start) = declaration.find("--tw-inset-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-inset-shadow-color:#0000;");
+            }
+            nested.push(NestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: "color:color-mix(in lab, red, red)".to_owned(),
+                declaration: "--tw-inset-shadow-color:color-mix(in oklab, oklab(0% none none/0) var(--tw-inset-shadow-alpha), transparent);".to_owned(),
+            });
+        }
+    }
+    if let Utility::Named { name, modifier } = &candidate.utility
+        && name == "inset-shadow-current"
+    {
+        let alpha = modifier.as_ref().and_then(|value| match value {
+            Value::Named(value) => alpha(value),
+            _ => None,
+        });
+        if alpha.as_ref().is_some_and(|value| value != "100%") {
+            if let Some(start) = declaration.find("--tw-inset-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-inset-shadow-color:currentcolor;");
+            }
+        }
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: match alpha.as_deref() {
+                Some(value) if value != "100%" => format!("--tw-inset-shadow-color:color-mix(in oklab, color-mix(in oklab, currentcolor {value}, transparent) var(--tw-inset-shadow-alpha), transparent);"),
+                _ => "--tw-inset-shadow-color:color-mix(in oklab, currentcolor var(--tw-inset-shadow-alpha), transparent);".to_owned(),
+            },
         });
     }
     if let Some(alpha) = raw.strip_prefix("shadow-transparent/") {
