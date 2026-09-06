@@ -517,6 +517,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 .declaration
                 .replace("color-mix(in srgb, currentcolor 100%, transparent)", "currentColor");
             resolution.nested.clear();
+        } else if resolution
+            .declaration
+            .contains("color-mix(in srgb, inherit 100%, transparent)")
+        {
+            resolution.declaration = resolution
+                .declaration
+                .replace("color-mix(in srgb, inherit 100%, transparent)", "inherit");
+            resolution.nested.clear();
         } else if resolution.declaration.contains("color-mix(in oklab, inherit 100%, transparent)") {
             resolution.declaration = resolution
                 .declaration
@@ -556,6 +564,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration = declaration
             .replace("color-mix(in oklab, inherit 100%, transparent)", "inherit")
             .replace("color-mix(in oklab,inherit 100%,transparent)", "inherit");
+        if raw.contains("-current/100") {
+            declaration = declaration
+                .replace("color-mix(in oklab, currentcolor 100%, transparent)", "currentcolor")
+                .replace("color-mix(in oklab,currentcolor 100%,transparent)", "currentcolor");
+        }
     }
     if raw.contains("-current/") {
         let mut cursor = 0;
@@ -805,6 +818,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if (raw.starts_with("from-current/")
         || raw.starts_with("via-current/")
         || raw.starts_with("to-current/"))
+        && !raw.ends_with("/100")
         && let Some(property) = ["from", "via", "to"].into_iter().find(|property| {
             declaration.starts_with(&format!(
                 "--tw-gradient-{property}:color-mix(in oklab, currentcolor"
