@@ -11,10 +11,12 @@ const root = resolve(import.meta.dirname, "..");
 const fixtureRoot = join(root, "fixtures", "tailwind-v4");
 const caseRoot = join(fixtureRoot, "cases");
 const limit = Number(process.env.STILLWIND_PARITY_LIMIT ?? "0");
+const offset = Number(process.env.STILLWIND_PARITY_OFFSET ?? "0");
 const fileFilter = process.env.STILLWIND_PARITY_FILE;
 const candidateFilter = process.env.STILLWIND_PARITY_CANDIDATE;
 const debugRaw = process.env.STILLWIND_PARITY_DEBUG_RAW === "1";
 const quiet = process.env.STILLWIND_PARITY_QUIET === "1";
+const summaryOnly = process.env.STILLWIND_PARITY_SUMMARY_ONLY === "1";
 
 function minify(css: string): string {
   return Buffer.from(
@@ -53,6 +55,10 @@ for (const file of readdirSync(caseRoot)
     for (const candidate of candidates.filter(
       (value) => !candidateFilter || value === candidateFilter,
     )) {
+      if (checked < offset) {
+        checked += 1;
+        continue;
+      }
       if (limit > 0 && checked >= limit) break;
       checked += 1;
       const themePath = join(fixtureRoot, "parity-theme.css");
@@ -115,6 +121,8 @@ console.log(
   `Tailwind minified parity: ${checked - failures.length}/${checked} passed (${skipped} excluded by scope)`,
 );
 if (failures.length > 0) {
-  console.error(failures.map((failure) => `- ${failure}`).join("\n"));
+  if (!summaryOnly) {
+    console.error(failures.map((failure) => `- ${failure}`).join("\n"));
+  }
   process.exitCode = 1;
 }

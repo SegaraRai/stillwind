@@ -436,7 +436,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    if ["/longer", "/shorter", "/increasing", "/decreasing"]
+    if raw.starts_with("bg-linear-")
+        && ["/longer", "/shorter", "/increasing", "/decreasing"]
         .iter()
         .any(|suffix| raw.ends_with(suffix))
         && let Some(value) = resolution
@@ -588,6 +589,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
+    if raw.starts_with("bg-conic-") {
+        for amount in 1..=1000 {
+            declaration = declaration.replace(
+                &format!("calc(1deg*{amount})"),
+                &format!("{amount}deg"),
+            );
+        }
+    }
     if raw.starts_with("-mask-linear-") || raw.starts_with("-mask-conic-") {
         for number in 2..=1000 {
             declaration = declaration.replace(
@@ -733,10 +742,19 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     }
     declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
+    if raw.contains("translate-px") {
+        declaration = declaration
+            .replace("calc(var(--spacing) * -1)", "-1px")
+            .replace("calc(var(--spacing)*-1)", "-1px");
+    }
     if raw == "translate-0"
         || raw == "translate-z-0"
         || raw == "translate-x-0"
         || raw == "translate-y-0"
+        || raw == "-translate-0"
+        || raw == "-translate-z-0"
+        || raw == "-translate-x-0"
+        || raw == "-translate-y-0"
     {
         declaration = declaration
             .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
@@ -1010,6 +1028,15 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .nested
         .into_iter()
         .map(|mut nested| {
+            if raw.starts_with("translate") || raw.starts_with("-translate") {
+                nested.declaration = nested
+                    .declaration
+                    .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
+                    .replace("--tw-translate-y:0;", "--tw-translate-y:0px;")
+                    .replace("--tw-translate-z:0;", "--tw-translate-z:0px;")
+                    .replace("calc(var(--spacing) * -1)", "-1px")
+                    .replace("calc(var(--spacing)*-1)", "-1px");
+            }
             if let Utility::Named { name, .. } = &candidate.utility {
                 if (name == "divide-y" || name.ends_with("divide-y-[initial]"))
                     && nested.declaration.contains("border-bottom-width:")
