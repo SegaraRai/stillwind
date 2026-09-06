@@ -1767,7 +1767,13 @@ fn theme_value(
             if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
                 token.value.value.clone()
             } else {
-                format!("var(--{}-{value})", namespace.css_name())
+                let prefix = theme
+                    .imports
+                    .prefix
+                    .as_deref()
+                    .map(|prefix| format!("{}-", prefix.trim_end_matches('-')))
+                    .unwrap_or_default();
+                format!("var(--{prefix}{}-{value})", namespace.css_name())
             }
         }
         _ if namespace == ThemeNamespace::Spacing

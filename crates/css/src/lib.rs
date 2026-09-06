@@ -1009,6 +1009,8 @@ pub struct FrameworkImports {
     /// Whether the canonical single full-framework import was authored.
     /// Tailwind emits the global layer-order prelude only for that entrypoint.
     pub layer_order: bool,
+    /// Tailwind's class/theme namespace from `prefix(name)` import modifiers.
+    pub prefix: Option<String>,
 }
 
 impl Default for FrameworkImports {
@@ -1019,6 +1021,7 @@ impl Default for FrameworkImports {
             utilities_layer: Some("utilities".to_owned()),
             builtins: true,
             layer_order: true,
+            prefix: None,
         }
     }
 }
@@ -1031,6 +1034,7 @@ impl FrameworkImports {
             utilities_layer: None,
             builtins: false,
             layer_order: false,
+            prefix: None,
         }
     }
 
@@ -1330,6 +1334,14 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         Vec::new()
     };
     tokens.extend(extract_theme_tokens(source.id(), source.text())?.tokens);
+    if let Some(prefix) = imports.prefix.as_deref() {
+        let prefix = prefix.trim_end_matches('-');
+        for token in &mut tokens {
+            if let Some(name) = token.name.value.strip_prefix("--") {
+                token.name.value = format!("--{prefix}-{name}");
+            }
+        }
+    }
     Ok(ThemeIndex {
         tokens,
         custom_css: strip_framework_directives(source.text()),
@@ -1405,6 +1417,7 @@ fn framework_imports(css: &str) -> FrameworkImports {
             continue;
         };
         let layer = import_layer(tail);
+        let prefix = import_prefix(tail);
         match path {
             "tailwindcss" | "stillwind" => {
                 found = true;
@@ -1413,11 +1426,13 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
                 output.builtins = true;
+                output.prefix = prefix.clone();
             }
             "tailwindcss/theme" => {
                 found = true;
                 output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
                 output.builtins = true;
+                output.prefix = prefix.clone();
             }
             "tailwindcss/preflight" => {
                 found = true;
@@ -1428,6 +1443,7 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 found = true;
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
                 output.builtins = true;
+                output.prefix = prefix.clone();
             }
             "stillwind/theme.css" => {
                 found = true;
@@ -1470,6 +1486,13 @@ fn import_layer(tail: &str) -> Option<String> {
     let end = tail[start..].find(')')? + start;
     let layer = tail[start..end].trim();
     (!layer.is_empty()).then(|| layer.to_owned())
+}
+
+fn import_prefix(tail: &str) -> Option<String> {
+    let start = tail.find("prefix(")? + "prefix(".len();
+    let end = tail[start..].find(')')? + start;
+    let prefix = tail[start..end].trim();
+    (!prefix.is_empty()).then(|| prefix.to_owned())
 }
 
 fn extract_theme_declarations(
