@@ -308,6 +308,16 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             "--tw-divide-x-reverse:0;border-inline-end-style:var(--tw-border-style);border-inline-start-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut declaration);
         }
     }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name.starts_with("shadow-")
+        && let Some(token) = declaration
+            .strip_prefix("box-shadow:var(--shadow-")
+            .and_then(|value| value.strip_suffix(");"))
+    {
+        declaration = format!(
+            "--tw-shadow:var(--shadow-{token});box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);"
+        );
+    }
     // Tailwind's width utilities also establish the border style through the
     // built-in --tw-border-style property. Keep the declaration explicit so
     // the generated rule has the same computed behavior and registration set.

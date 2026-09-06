@@ -1922,6 +1922,25 @@ fn render_used_properties(
     if used.contains("--tw-translate-x") || used.contains("--tw-translate-y") {
         used.insert("--tw-translate-z".to_owned());
     }
+    if used.contains("--tw-ring-shadow") {
+        for name in [
+            "--tw-shadow",
+            "--tw-shadow-color",
+            "--tw-shadow-alpha",
+            "--tw-inset-shadow",
+            "--tw-inset-shadow-color",
+            "--tw-inset-shadow-alpha",
+            "--tw-ring-color",
+            "--tw-inset-ring-color",
+            "--tw-inset-ring-shadow",
+            "--tw-ring-inset",
+            "--tw-ring-offset-width",
+            "--tw-ring-offset-color",
+            "--tw-ring-offset-shadow",
+        ] {
+            used.insert(name.to_owned());
+        }
+    }
     let gradient_stops_used = css.contains("--tw-gradient-from:")
         || css.contains("--tw-gradient-via:")
         || css.contains("--tw-gradient-to:");
