@@ -1373,21 +1373,22 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-drop-shadow-color:color-mix(in oklab, currentcolor var(--tw-drop-shadow-alpha), transparent);".to_owned(),
         });
     }
-    if raw.starts_with("drop-shadow-current/")
-        && let Some(start) = declaration.find("--tw-drop-shadow-color:color-mix(in oklab, currentcolor ")
-        && let Some(end) = declaration[start..].find(';')
-    {
-        let modern_value = declaration[start..start + end + 1].to_owned();
-        let modern = modern_value.replace(
-            ";",
-            " var(--tw-drop-shadow-alpha), transparent);",
-        );
-        declaration.replace_range(start..start + end + 1, "--tw-drop-shadow-color:currentcolor;");
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: modern,
-        });
+    if let Some(alpha) = raw.strip_prefix("drop-shadow-current/") {
+        let alpha = alpha.trim_end_matches('%');
+        if !alpha.is_empty() {
+            if let Some(start) = declaration.find("--tw-drop-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "--tw-drop-shadow-color:currentcolor;");
+            }
+            nested.push(NestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: "color:color-mix(in lab, red, red)".to_owned(),
+                declaration: format!(
+                    "--tw-drop-shadow-color:color-mix(in oklab, color-mix(in oklab, currentcolor {alpha}%, transparent) var(--tw-drop-shadow-alpha), transparent);"
+                ),
+            });
+        }
     }
     if raw.starts_with("decoration-current/")
         && declaration.contains("text-decoration-color:color-mix(in oklab, currentcolor")
