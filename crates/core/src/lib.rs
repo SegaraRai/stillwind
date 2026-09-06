@@ -2011,8 +2011,7 @@ fn render_used_properties(
         || css.contains("--tw-ring-shadow:")
         || css.contains("--tw-ring-inset:")
         || css.contains("--tw-inset-shadow-color:")
-        || css.contains("--tw-inset-shadow-alpha:")
-        || css.contains("--tw-text-shadow-color:");
+        || css.contains("--tw-inset-shadow-alpha:");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
