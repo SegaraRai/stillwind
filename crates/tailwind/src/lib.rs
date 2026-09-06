@@ -390,6 +390,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
             _ => {}
         }
+        if candidate.negative
+            && name.starts_with("translate-")
+            && let Some(value) = declaration
+                .strip_prefix("--tw-translate-x:")
+                .and_then(|value| {
+                    value.strip_suffix(";translate:var(--tw-translate-x) var(--tw-translate-y);")
+                })
+        {
+            declaration = format!(
+                "--tw-translate-x:calc({value} * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
+            );
+        }
     }
     if let Utility::Named { name, .. } = &candidate.utility {
         if (name == "divide-y" || name.ends_with("divide-y-[initial]"))
