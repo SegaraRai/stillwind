@@ -116,6 +116,9 @@
 @utility text-shadow-* {
   --tw-text-shadow-color: --value(--color-*, current, transparent);
 }
+@utility text-shadow-none {
+  text-shadow: none;
+}
 @utility text-shadow-* {
   --tw-text-shadow-color: color-mix(
     in oklab,

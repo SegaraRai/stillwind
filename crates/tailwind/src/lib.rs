@@ -1381,6 +1381,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "blur-none" {
         declaration = declaration.replace("--tw-blur:;", "--tw-blur: ;");
     }
+    if raw == "text-shadow-none" {
+        declaration = declaration.replace("--tw-text-shadow:none;", "");
+    }
+    if raw == "text-shadow-transparent"
+        && declaration.contains("--tw-text-shadow-color:transparent;")
+    {
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-text-shadow-color:color-mix(in oklab, transparent var(--tw-text-shadow-alpha), transparent);".to_owned(),
+        });
+    }
     if raw.starts_with("backdrop-hue-rotate-") {
         for angle in [0, 15, 30, 45, 60, 90, 180, 270, 360] {
             declaration = declaration.replace(

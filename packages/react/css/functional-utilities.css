@@ -287,7 +287,6 @@
 }
 @utility text-shadow-* {
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
-  text-shadow: var(--tw-text-shadow, 0 0 #0000) var(--tw-text-shadow-color);
 }
 @utility text-shadow-* {
   --tw-text-shadow-color: color-mix(
@@ -295,7 +294,6 @@
     --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
-  text-shadow: var(--tw-text-shadow, 0 0 #0000) var(--tw-text-shadow-color);
 }
 @utility drop-shadow-* {
   --tw-drop-shadow: --value(--drop-shadow-*, [shadow]);
