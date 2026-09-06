@@ -2372,7 +2372,7 @@ mod tests {
             resolve_utility("-mask-conic-45", &theme())
                 .expect("negative mask conic angle")
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg*-1*45);")
+                .contains("--tw-mask-conic-position:calc(45deg * -1);")
         );
     }
 
