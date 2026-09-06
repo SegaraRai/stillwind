@@ -1798,6 +1798,13 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 let declaration = declaration
                     .replace(" deg", "deg")
                     .replace("deg*-1", "deg * -1");
+                let declaration = if declaration.starts_with("grid-column-")
+                    || declaration.starts_with("grid-row-")
+                {
+                    declaration.replace("*-1", " * -1")
+                } else {
+                    declaration
+                };
                 let declaration = if let Some(value) = declaration.strip_prefix("mask-image:") {
                     format!("mask-image:{}", value.replace(",var(", ", var("))
                 } else {
