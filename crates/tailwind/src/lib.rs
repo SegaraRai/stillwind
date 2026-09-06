@@ -3028,7 +3028,7 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg*45);"),
+                .contains("--tw-mask-conic-position:calc(1deg * 45);"),
             "{resolved:?}"
         );
         assert!(
@@ -3045,17 +3045,14 @@ mod tests {
         assert!(
             default
                 .declaration
-                .contains("--tw-gradient-position:from calc(1deg*45) in oklab;"),
+                .contains("--tw-gradient-position:from 45deg in oklab;"),
             "{default:?}"
         );
         let interpolated =
             resolve_utility("bg-conic-45/increasing", &theme()).expect("interpolated conic");
-        assert!(
-            interpolated
-                .nested
-                .iter()
-                .any(|nested| nested.declaration.contains("oklch increasing hue"))
-        );
+        assert!(interpolated
+            .declaration
+            .contains("from 45deg in oklch increasing hue"));
     }
 
     #[test]
@@ -3763,8 +3760,9 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("--tw-gradient-position:to right in oklch;")
+                .contains("--tw-gradient-position:to right;")
         );
+        assert!(resolved.nested.iter().any(|nested| nested.declaration.contains("to right in oklch")));
         let radial = resolve_utility("bg-radial/hsl", &theme()).unwrap();
         assert!(
             radial
