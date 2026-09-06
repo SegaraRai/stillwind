@@ -382,6 +382,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
     // registry's unit multiplier expression.
     declaration = normalize_conic_angles(&declaration);
+    declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     if declaration == "transition-timing-function:initial;"
         && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
     {
