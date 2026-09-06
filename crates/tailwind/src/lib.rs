@@ -740,6 +740,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
+    if raw == "mask-conic-1" {
+        declaration = declaration.replace(
+            "--tw-mask-conic-position:calc(1deg * 1);",
+            "--tw-mask-conic-position:1deg;",
+        );
+    }
     if raw.starts_with("bg-conic-") {
         declaration = declaration.replace("calc(1deg*0)", "0deg");
         for amount in 1..=1000 {
@@ -1613,16 +1619,16 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("--tw-mask-{side}-from-position:0;"),
                 &format!("--tw-mask-{side}-from-position:0px;"),
             );
+            declaration = declaration
+                .replace(
+                    &format!("var(--tw-mask-{side}-to-color,transparent)"),
+                    &format!("var(--tw-mask-{side}-to-color)"),
+                )
+                .replace(
+                    &format!("var(--tw-mask-{side}-to-color, transparent)"),
+                    &format!("var(--tw-mask-{side}-to-color)"),
+                );
         }
-    }
-    if let Some(value) = raw.strip_prefix("mask-conic-")
-        && !value.is_empty()
-        && value.parse::<f64>().is_ok()
-    {
-        declaration = declaration.replace(
-            &format!("--tw-mask-conic-position:calc(1deg * {value});"),
-            &format!("--tw-mask-conic-position:{value}deg;"),
-        );
     }
     if raw.starts_with("backdrop-") {
         for property in [
@@ -2057,6 +2063,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
         nested.clear();
     }
+    if raw.starts_with("mask-x-") {
+        declaration = reorder_mask_axis_segments(&declaration, &["right", "left"]);
+    } else if raw.starts_with("mask-y-") {
+        declaration = reorder_mask_axis_segments(&declaration, &["top", "bottom"]);
+    }
     Some(ResolvedUtility {
         declaration,
         selector,
@@ -2064,6 +2075,35 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         additional,
         candidate,
     })
+}
+
+fn reorder_mask_axis_segments(value: &str, sides: &[&str]) -> String {
+    let mut segments: Vec<&str> = value.split_inclusive(';').collect();
+    let is_axis = |segment: &str| {
+        sides.iter().any(|side| {
+            segment.starts_with(&format!("--tw-mask-{side}:"))
+                || segment.starts_with(&format!("--tw-mask-{side}-"))
+        })
+    };
+    let Some(first) = segments.iter().position(|segment| is_axis(segment)) else {
+        return value.to_owned();
+    };
+    let Some(last) = segments.iter().rposition(|segment| is_axis(segment)) else {
+        return value.to_owned();
+    };
+    let axis: Vec<&str> = segments[first..=last].to_vec();
+    let mut ordered = Vec::with_capacity(axis.len());
+    for side in sides {
+        ordered.extend(axis.iter().copied().filter(|segment| {
+            segment.starts_with(&format!("--tw-mask-{side}:"))
+                || segment.starts_with(&format!("--tw-mask-{side}-"))
+        }));
+    }
+    if ordered.len() != axis.len() {
+        return value.to_owned();
+    }
+    segments.splice(first..=last, ordered);
+    segments.concat()
 }
 
 #[must_use]
@@ -3825,7 +3865,7 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("--tw-mask-conic-position:45deg;"),
+                .contains("--tw-mask-conic-position:calc(1deg * 45);"),
             "{resolved:?}"
         );
         assert!(
