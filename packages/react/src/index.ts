@@ -69,7 +69,10 @@ export type StyleRef<RefId extends string = string, ScopeId extends string = nev
   (strings: TemplateStringsArray): StyleRefSelector<RefId, ScopeId>;
 };
 
-export type StyleRefSelector<RefId extends string = string, ScopeId extends string = never> = {
+export type StyleRefSelector<
+  RefId extends string = string,
+  ScopeId extends string = never,
+> = StyleSelector & {
   readonly [refProjection]: true;
   readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
 };
