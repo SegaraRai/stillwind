@@ -1742,7 +1742,7 @@ fn render_utility_rule(
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
         .replace("*-1)", "* -1)");
-    let declaration = normalize_negative_calc(&declaration);
+    let declaration = normalize_negative_calc(&normalize_signed_length_calc(&declaration));
     let declaration = declaration
         .replace("calc(var(--spacing) * 0)", "0")
         .replace("calc(var(--spacing)*0)", "0");
@@ -1887,7 +1887,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 } else {
                     declaration
                 };
-                let declaration = normalize_negative_calc(&declaration);
+                let declaration = normalize_negative_calc(&normalize_signed_length_calc(&declaration));
                 ordered.push(declaration);
             }
         }
@@ -1937,6 +1937,23 @@ fn normalize_negative_calc(value: &str) -> String {
             normalized = normalized.replace(
                 &format!("calc({number}*1px*{suffix}"),
                 &format!("calc({number}px * {suffix}"),
+            );
+        }
+    }
+    normalized
+}
+
+fn normalize_signed_length_calc(value: &str) -> String {
+    let mut normalized = value.to_owned();
+    for unit in ["px", "rem", "em", "%", "vh", "vw"] {
+        for number in 0..=1000 {
+            normalized = normalized.replace(
+                &format!("calc({number}{unit} * -1)"),
+                &if number == 0 {
+                    format!("0{unit}")
+                } else {
+                    format!("-{number}{unit}")
+                },
             );
         }
     }
