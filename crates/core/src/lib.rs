@@ -1734,10 +1734,14 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 // Tailwind's minifier retains a separating space in
                 // comma-separated shadow fallback lists. Keep that spelling so
                 // parity comparisons are made against the same serialized CSS.
-                let declaration = declaration.strip_prefix("box-shadow:").map_or_else(
+                let declaration = if declaration == "--tw-drop-shadow:" {
+                    "--tw-drop-shadow: ".to_owned()
+                } else {
+                    declaration.strip_prefix("box-shadow:").map_or_else(
                     || declaration.to_owned(),
                     |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
-                );
+                    )
+                };
                 let declaration = if let Some(value) = declaration.strip_prefix("mask-image:") {
                     format!("mask-image:{}", value.replace(",var(", ", var("))
                 } else {
@@ -2026,8 +2030,11 @@ fn render_used_properties(
         used.insert("--tw-text-shadow-alpha".to_owned());
     }
     if css.contains("--tw-mask-linear-position:initial")
+        || css.contains("--tw-mask-linear-position: initial")
         || css.contains("--tw-mask-radial-size:initial")
+        || css.contains("--tw-mask-radial-size: initial")
         || css.contains("--tw-mask-conic-position:initial")
+        || css.contains("--tw-mask-conic-position: initial")
     {
         for name in [
             "--tw-mask-linear",
