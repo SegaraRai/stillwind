@@ -2018,6 +2018,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
+    if raw == "outline-hidden" {
+        declaration.push_str("@media (forced-colors:active){outline-offset:2px;outline:2px solid #0000;}");
+        nested.clear();
+    }
+    if raw == "outline-offset-0" {
+        declaration = declaration.replace("outline-offset:0;", "outline-offset:0px;");
+    }
     Some(ResolvedUtility {
         declaration,
         selector,
