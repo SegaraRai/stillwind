@@ -1611,7 +1611,15 @@ fn emit_utility_rules(
                     || nested.declaration.contains("color-mix")
                     || nested
                         .declaration
-                        .starts_with("--tw-shadow-color:color-mix");
+                        .starts_with("--tw-shadow-color:color-mix")
+                    // Tailwind keeps the responsive max-width clauses inside
+                    // the `.container` rule instead of emitting duplicate
+                    // selector rules. The width:100% base uniquely
+                    // identifies this built-in shape.
+                    || (base == "width:100%;"
+                        && nested.at_rule
+                            == stillwind_tailwind::NestedUtilityAtRule::Media
+                        && nested.declaration.starts_with("max-width:"));
                 if !nested_in_rule {
                     continue;
                 }
@@ -1690,7 +1698,10 @@ fn emit_utility_rules(
                 || nested.declaration.contains("color-mix")
                 || nested
                     .declaration
-                    .starts_with("--tw-shadow-color:color-mix");
+                    .starts_with("--tw-shadow-color:color-mix")
+                || (base == "width:100%;"
+                    && nested.at_rule == stillwind_tailwind::NestedUtilityAtRule::Media
+                    && nested.declaration.starts_with("max-width:"));
             if nested_in_rule
                 && utility.variants.is_empty()
                 && utility.selector.is_none()
