@@ -1986,6 +1986,16 @@ fn render_used_properties(
             used.insert(name.to_owned());
         }
     }
+    if css.contains("--tw-drop-shadow:") {
+        for name in [
+            "--tw-drop-shadow",
+            "--tw-drop-shadow-color",
+            "--tw-drop-shadow-alpha",
+            "--tw-drop-shadow-size",
+        ] {
+            used.insert(name.to_owned());
+        }
+    }
     let gradient_stops_used = css.contains("--tw-gradient-from:")
         || css.contains("--tw-gradient-via:")
         || css.contains("--tw-gradient-to:");
