@@ -1922,7 +1922,7 @@ fn render_used_properties(
     if used.contains("--tw-translate-x") || used.contains("--tw-translate-y") {
         used.insert("--tw-translate-z".to_owned());
     }
-    if used.contains("--tw-ring-shadow") {
+    if css.contains("--tw-ring-shadow:") || css.contains("--tw-shadow-color:") {
         for name in [
             "--tw-shadow",
             "--tw-shadow-color",
@@ -1960,6 +1960,9 @@ fn render_used_properties(
                 && (name == "--tw-gradient-position" || name == "--tw-gradient-stops")
                 && !gradient_stops_used
             {
+                return None;
+            }
+            if name == "--tw-ring-color" && !css.contains("--tw-ring-shadow:") {
                 return None;
             }
             let property_used =

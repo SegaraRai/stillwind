@@ -318,6 +318,26 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             "--tw-shadow:var(--shadow-{token});box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);"
         );
     }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name == "shadow-lg"
+        && declaration.contains("--tw-shadow:var(--shadow-lg)")
+    {
+        "--tw-shadow:0 10px 15px -3px var(--tw-shadow-color,#0000001a), 0 4px 6px -4px var(--tw-shadow-color,#0000001a);box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".clone_into(&mut declaration);
+    }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && let Some(value) = name.strip_prefix("ring-")
+        && let Ok(px) = value.parse::<u32>()
+        && declaration.contains("--tw-ring-shadow:")
+    {
+        let replacement = format!(
+            "--tw-ring-shadow:var(--tw-ring-inset,) 0 0 0 calc({px}px + var(--tw-ring-offset-width)) var(--tw-ring-color,currentcolor)"
+        );
+        if let Some((_, suffix)) = declaration.split_once(";box-shadow:") {
+            declaration = format!("{replacement};box-shadow:{suffix}");
+        } else {
+            declaration = format!("{replacement};");
+        }
+    }
     // Tailwind's width utilities also establish the border style through the
     // built-in --tw-border-style property. Keep the declaration explicit so
     // the generated rule has the same computed behavior and registration set.
