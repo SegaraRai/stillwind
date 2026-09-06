@@ -753,6 +753,12 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             "& ::marker,&::marker,& ::-webkit-details-marker,&::-webkit-details-marker".to_owned(),
         ));
     }
+    if value == "not-hover" {
+        return Some(VariantApplication::SelectorMedia {
+            selector: "&:not(:hover)".to_owned(),
+            condition: "not (hover: hover)".to_owned(),
+        });
+    }
     if let Some(application) = resolve_relationship_variant(value, theme) {
         return Some(application);
     }
@@ -836,6 +842,17 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
+        .or_else(|| {
+            let value = match value {
+                "sm" => "40rem",
+                "md" => "48rem",
+                "lg" => "64rem",
+                "xl" => "80rem",
+                "2xl" => "96rem",
+                _ => return None,
+            };
+            Some(VariantApplication::Media(format!("(width >= {value})")))
+        })
 }
 
 /// Whether a Tailwind candidate uses a relationship primitive for which
