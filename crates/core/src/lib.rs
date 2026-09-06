@@ -799,11 +799,30 @@ impl Compiler {
                     branch.2.push('\0');
                     if let Some(mut utilities) = resolve_utility_targets(&utility.value.raw, &theme)
                     {
+                        let candidate_variants = parse_candidate(&utility.value.raw)
+                            .map(|candidate| candidate.variants)
+                            .unwrap_or_default();
                         {
-                            for utility in &mut utilities {
+                            for resolved_utility in &mut utilities {
+                                let pseudo_content = candidate_variants
+                                    .iter()
+                                    .any(|variant| {
+                                        matches!(
+                                            &variant.kind,
+                                            stillwind_grammar::VariantKind::Named(name)
+                                                if name == "before" || name == "after"
+                                        )
+                                    });
+                                if pseudo_content {
+                                    resolved_utility.declaration = format!(
+                                        "content:var(--tw-content);{}",
+                                        resolved_utility.declaration
+                                    );
+                                }
+                                resolved_utility.variants = candidate_variants.clone();
                                 if let Some(selector) = &selector {
-                                    utility.selector =
-                                        Some(utility.selector.as_deref().map_or_else(
+                                    resolved_utility.selector =
+                                        Some(resolved_utility.selector.as_deref().map_or_else(
                                             || selector.clone(),
                                             |nested| nested.replace('&', selector),
                                         ));
@@ -1512,8 +1531,15 @@ fn resolve_utility_targets(
     theme: &stillwind_css::ThemeIndex,
 ) -> Option<Vec<CompiledUtility>> {
     let resolved = stillwind_tailwind::resolve_utility(utility, theme)?;
+    let pseudo_content = resolved.candidate.variants.iter().any(|variant| {
+        matches!(&variant.kind, stillwind_grammar::VariantKind::Named(name) if name == "before" || name == "after")
+    });
     let mut targets = vec![stillwind_tailwind::ResolvedUtilityTarget {
-        declaration: resolved.declaration,
+        declaration: if pseudo_content {
+            format!("content:var(--tw-content);{}", resolved.declaration)
+        } else {
+            resolved.declaration
+        },
         selector: resolved.selector,
         nested: resolved.nested,
     }];
