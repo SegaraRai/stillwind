@@ -85,3 +85,21 @@ and variant/at-rule structure; resolving a candidate is not sufficient.
 4. The old 98% acceptance test no longer serves as the compatibility gate.
 5. Any remaining mismatch is surfaced with a reproducible fixture and a
    candidate-level diff.
+
+## Current implementation status (2026-09-07)
+
+- The Rust representative gate now compares minified declarations and variant
+  structure; the former unresolved-count acceptance test is removed.
+- `tools/tailwind-parity.mts` provides the full candidate-level differential
+  oracle and is available as `vp run tailwind:parity:all`. It uses the pinned
+  Tailwind compiler and Lightning CSS minifier and reports every mismatch.
+- Candidate grammar coverage includes arbitrary values/properties, important,
+  negative, fractions, responsive/container, `aria`, `data`, `supports`, dark,
+  and selector variants.
+- `@theme inline`/`static` handling, referenced-token tree shaking, and
+  Stillwind-owned property registration are covered by focused tests.
+- The current full-catalog baseline is 6,647/13,229 exact matches. Remaining
+  failures are intentionally visible and are concentrated in unsupported
+  registrations plus mask, border/divide selector/property registration,
+  ring/shadow, and several advanced variant cases. This is an active parity
+  backlog, not an acceptance claim.
