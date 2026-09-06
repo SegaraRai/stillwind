@@ -2452,6 +2452,9 @@ fn render_used_properties(
     let inset_ring_color_only = css.contains("--tw-inset-ring-color:")
         && !css.contains("--tw-inset-ring-shadow:");
     let text_shadow_none = css.contains("text-shadow:none");
+    let transform_cpu_only = css.contains(
+        "transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,)",
+    );
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
@@ -2465,6 +2468,11 @@ fn render_used_properties(
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
             if inset_ring_color_only {
+                return None;
+            }
+            if transform_cpu_only
+                && (name.starts_with("--tw-rotate-") || name.starts_with("--tw-skew-"))
+            {
                 return None;
             }
             if name.starts_with("--tw-gradient-")
