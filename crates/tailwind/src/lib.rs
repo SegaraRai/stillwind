@@ -1437,6 +1437,40 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
         });
     }
+    if raw == "drop-shadow-transparent/100" {
+        if let Some(start) = declaration.find("--tw-drop-shadow-color:")
+            && let Some(end) = declaration[start..].find(';')
+        {
+            declaration.replace_range(start..start + end + 1, "--tw-drop-shadow-color:transparent;");
+        }
+        nested.clear();
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-drop-shadow-color:color-mix(in oklab, transparent var(--tw-drop-shadow-alpha), transparent);".to_owned(),
+        });
+    }
+    if raw == "inset-shadow-transparent/100" {
+        if let Some(start) = declaration.find("--tw-inset-shadow-color:")
+            && let Some(end) = declaration[start..].find(';')
+        {
+            declaration.replace_range(start..start + end + 1, "--tw-inset-shadow-color:transparent;");
+        }
+        nested.clear();
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-inset-shadow-color:color-mix(in oklab, transparent var(--tw-inset-shadow-alpha), transparent);".to_owned(),
+        });
+    }
+    if raw == "inset-ring-transparent/100" {
+        if let Some(start) = declaration.find("--tw-inset-ring-color:")
+            && let Some(end) = declaration[start..].find(';')
+        {
+            declaration.replace_range(start..start + end + 1, "--tw-inset-ring-color:transparent;");
+        }
+        nested.clear();
+    }
     let additional = resolution
         .additional
         .into_iter()
