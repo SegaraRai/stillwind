@@ -399,6 +399,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
             _ => {}
         }
+        if name.starts_with("w-[calc(")
+            || name.starts_with("h-[calc(")
+            || name.starts_with("size-[calc(")
+        {
+            declaration = declaration.replace('*', " * ");
+        }
         if candidate.negative
             && name.starts_with("translate-x-[")
             && let Some(value) = declaration
