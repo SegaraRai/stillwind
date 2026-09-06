@@ -288,6 +288,15 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
         }
+        Utility::Named { name, modifier }
+            if name.starts_with("text-(") && name.ends_with(')') => {
+                let body = &name[6..name.len() - 1];
+                let (hint, value) = body.split_once(':')?;
+                if hint != "length" || !value.starts_with("--") {
+                    return None;
+                }
+                UtilityResolution::plain(format!("font-size:var({value});"))
+            }
         Utility::Named { name, modifier } => {
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
