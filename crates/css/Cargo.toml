@@ -1,0 +1,15 @@
+[package]
+name = "stillwind-css"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lightningcss.workspace = true
+stillwind-source = { path = "../source" }
+thiserror.workspace = true
+
+[lints]
+workspace = true

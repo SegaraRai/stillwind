@@ -1,0 +1,24 @@
+[package]
+name = "stillwind-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+blake3.workspace = true
+serde.workspace = true
+stillwind-css = { path = "../css" }
+stillwind-grammar = { path = "../grammar" }
+stillwind-tailwind = { path = "../tailwind" }
+stillwind-ir = { path = "../ir" }
+stillwind-js-oxc = { path = "../js-oxc" }
+stillwind-semantic = { path = "../semantic" }
+stillwind-source = { path = "../source" }
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

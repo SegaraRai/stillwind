@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     react(),
     stillwind({
-      theme: fileURLToPath(new URL("./styles/shorth.css", import.meta.url)),
+      theme: fileURLToPath(new URL("./styles/stillwind.css", import.meta.url)),
     }),
   ],
   run: {

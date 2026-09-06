@@ -26,7 +26,7 @@ linting, quick-fixes, and a future formatter.
 Oxc is a strong fit for the first frontend: it parses JS, TS, JSX and TSX,
 exposes a span on every AST node, and provides semantic analysis for binding
 resolution. Its AST is intentionally an efficient semantic representation, not
-a lossless formatting tree; shorth must retain original source text and its own
+a lossless formatting tree; stillwind must retain original source text and its own
 token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
 [Oxc AST](https://oxc.rs/docs/contribute/parser/ast) describe these properties.
 
@@ -71,16 +71,16 @@ watcher, or framework renderer.
 
 ```text
 crates/
-  shorth-core/          # compilation orchestration and public Rust API
-  shorth-source/        # SourceDb, spans, line indexes, diagnostics, edits
-  shorth-js-oxc/        # JS/TS/JSX extraction using Oxc
-  shorth-css/           # @theme extraction and CSS plan/source-map emission
-  shorth-ir/            # language-neutral ModuleIR and StyleIR
-  shorth-grammar/       # utility, selector-fragment, animation grammars
-  shorth-semantic/      # theme resolution, ref/scope graph, lint rules
-  shorth-codegen/       # deterministic class/symbol allocation, transform plan
-  shorth-node/          # napi-rs binding; no compiler logic
-  shorth-cli/           # check, build, format and diagnostics rendering
+  core/          # compilation orchestration and public Rust API
+  source/        # SourceDb, spans, line indexes, diagnostics, edits
+  js-oxc/        # JS/TS/JSX extraction using Oxc
+  css/           # @theme extraction and CSS plan/source-map emission
+  ir/            # language-neutral ModuleIR and StyleIR
+  grammar/       # utility, selector-fragment, animation grammars
+  semantic/      # theme resolution, ref/scope graph, lint rules
+  codegen/       # deterministic class/symbol allocation, transform plan
+  napi/          # napi-rs binding; no compiler logic
+  cli/           # check, build, format and diagnostics rendering
 
 packages/
   react/                # types plus minimal runtime helpers
@@ -89,7 +89,7 @@ packages/
   svelte/               # later: adapter contract only
 ```
 
-`shorth-core` accepts source buffers and compiler options and returns a pure
+`stillwind-core` accepts source buffers and compiler options and returns a pure
 `CompileResult`. The Node binding and Vite plugin are replaceable transports;
 they must not duplicate parsing or diagnostics logic.
 
@@ -185,7 +185,7 @@ This is the boundary that keeps future framework support sane:
 | `.astro`                     | Astro parser adapter        | frontmatter calls plus template placement facts |
 
 The framework parser owns host syntax and produces source spans in the original
-single-file component. The shorth core owns all styling semantics. No adapter
+single-file component. The stillwind core owns all styling semantics. No adapter
 may turn calls into unspanned strings.
 
 ## Oxc frontend
@@ -210,7 +210,7 @@ Shadowed variables are ordinary JavaScript and are not transformed.
 ```ts
 import { style } from "stillwind/react";
 function example(style: (x: string) => unknown) {
-  style("p-4"); // not a shorth call
+  style("p-4"); // not a stillwind call
 }
 ```
 
@@ -339,7 +339,7 @@ unchanged to the clsx-compatible runtime helper.
 The error is attached to the smallest unsupported expression and includes a
 suggestion when a finite conditional form exists.
 
-## Shorth IR
+## Stillwind IR
 
 The lowered IR deliberately distinguishes author intent from generated CSS.
 
@@ -386,11 +386,11 @@ may target any descendant of that scope.
 
 Do not copy Tailwind's full candidate grammar. Its candidate parser is a useful
 reference for separating variants, modifiers, arbitrary forms, and candidates,
-but shorth should accept only its own typed vocabulary. Tailwind's implementation
+but stillwind should accept only its own typed vocabulary. Tailwind's implementation
 also shows the value of retaining structured candidate/variant data rather than
 handling utilities as undifferentiated strings. [Tailwind candidate parser](https://github.com/tailwindlabs/tailwindcss/blob/main/packages/tailwindcss/src/candidate.ts)
 
-`shorth-grammar` takes `DecodedText` and returns `Vec<Spanned<Utility>>`. Each
+`stillwind-grammar` takes `DecodedText` and returns `Vec<Spanned<Utility>>`. Each
 utility records variants, token family, token reference, modifiers, and exact
 spans. A utility registry maps this representation to CSS declarations and the
 theme namespace it may reference.
@@ -408,7 +408,7 @@ formatting.
 
 ## Theme CSS frontend
 
-`shorth.css` is parsed into a `ThemeIndex` with spans on every token declaration
+`stillwind.css` is parsed into a `ThemeIndex` with spans on every token declaration
 and selector block. The CSS parser is isolated behind `CssFrontend`; no
 positionless CSS AST is allowed into the core.
 
@@ -425,11 +425,11 @@ The theme index provides namespaces such as `color`, `spacing`, `breakpoint`,
 Unknown token `accentt` in `bg-accentt`
   --> src/Button.tsx:14:17
   = did you mean `accent`?
-  = `--color-accent` is declared at src/styles/shorth.css:3:3
+  = `--color-accent` is declared at src/styles/stillwind.css:3:3
 ```
 
 Tailwind v4 is useful reference material for CSS-first theme tokens and for its
-separation of a scanner from utility/candidate parsing. shorth differs by using
+separation of a scanner from utility/candidate parsing. stillwind differs by using
 AST-backed macro extraction, because correctness and diagnostics matter more
 than accepting class-like text anywhere in a project. [Tailwind repository](https://github.com/tailwindlabs/tailwindcss)
 
@@ -628,7 +628,7 @@ as a compiler integration error rather than falling back to Rust propagation.
 
 ## Implementation order
 
-1. `shorth-source`, diagnostics renderer, test-fixture harness, and span/source
+1. `stillwind-source`, diagnostics renderer, test-fixture harness, and span/source
    map invariants.
 2. Oxc import/binding resolution and `style("...")` extraction with exact token
    spans.

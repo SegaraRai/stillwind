@@ -1,0 +1,16 @@
+[package]
+name = "stillwind-js-oxc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+oxc.workspace = true
+stillwind-ir = { path = "../ir" }
+stillwind-semantic = { path = "../semantic" }
+stillwind-source = { path = "../source" }
+
+[lints]
+workspace = true

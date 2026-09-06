@@ -1221,107 +1221,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
-name = "shorth-cli"
-version = "0.0.0"
-dependencies = [
- "serde",
- "serde_json",
- "shorth-core",
- "shorth-source",
-]
-
-[[package]]
-name = "shorth-core"
-version = "0.0.0"
-dependencies = [
- "blake3",
- "proptest",
- "serde",
- "shorth-css",
- "shorth-grammar",
- "shorth-ir",
- "shorth-js-oxc",
- "shorth-semantic",
- "shorth-source",
- "shorth-tailwind",
-]
-
-[[package]]
-name = "shorth-css"
-version = "0.0.0"
-dependencies = [
- "lightningcss",
- "shorth-source",
- "thiserror",
-]
-
-[[package]]
-name = "shorth-grammar"
-version = "0.0.0"
-dependencies = [
- "shorth-source",
-]
-
-[[package]]
-name = "shorth-ir"
-version = "0.0.0"
-dependencies = [
- "serde",
- "shorth-source",
-]
-
-[[package]]
-name = "shorth-js-oxc"
-version = "0.0.0"
-dependencies = [
- "oxc",
- "shorth-ir",
- "shorth-semantic",
- "shorth-source",
-]
-
-[[package]]
-name = "shorth-napi"
-version = "0.0.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "serde",
- "serde_json",
- "shorth-core",
- "shorth-semantic",
- "shorth-source",
-]
-
-[[package]]
-name = "shorth-semantic"
-version = "0.0.0"
-dependencies = [
- "proptest",
- "serde",
- "shorth-source",
- "thiserror",
-]
-
-[[package]]
-name = "shorth-source"
-version = "0.0.0"
-dependencies = [
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "shorth-tailwind"
-version = "0.0.0"
-dependencies = [
- "shorth-css",
- "shorth-grammar",
- "shorth-source",
-]
-
-[[package]]
 name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1353,6 +1252,107 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stillwind-cli"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "stillwind-core",
+ "stillwind-source",
+]
+
+[[package]]
+name = "stillwind-core"
+version = "0.0.0"
+dependencies = [
+ "blake3",
+ "proptest",
+ "serde",
+ "stillwind-css",
+ "stillwind-grammar",
+ "stillwind-ir",
+ "stillwind-js-oxc",
+ "stillwind-semantic",
+ "stillwind-source",
+ "stillwind-tailwind",
+]
+
+[[package]]
+name = "stillwind-css"
+version = "0.0.0"
+dependencies = [
+ "lightningcss",
+ "stillwind-source",
+ "thiserror",
+]
+
+[[package]]
+name = "stillwind-grammar"
+version = "0.0.0"
+dependencies = [
+ "stillwind-source",
+]
+
+[[package]]
+name = "stillwind-ir"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "stillwind-source",
+]
+
+[[package]]
+name = "stillwind-js-oxc"
+version = "0.0.0"
+dependencies = [
+ "oxc",
+ "stillwind-ir",
+ "stillwind-semantic",
+ "stillwind-source",
+]
+
+[[package]]
+name = "stillwind-napi"
+version = "0.0.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "serde",
+ "serde_json",
+ "stillwind-core",
+ "stillwind-semantic",
+ "stillwind-source",
+]
+
+[[package]]
+name = "stillwind-semantic"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "stillwind-source",
+ "thiserror",
+]
+
+[[package]]
+name = "stillwind-source"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "stillwind-tailwind"
+version = "0.0.0"
+dependencies = [
+ "stillwind-css",
+ "stillwind-grammar",
+ "stillwind-source",
+]
 
 [[package]]
 name = "syn"

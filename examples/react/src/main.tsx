@@ -25,7 +25,7 @@ function SaveButton() {
 function App() {
   return (
     <main>
-      <p className="eyebrow">Shorth × Vite</p>
+      <p className="eyebrow">Stillwind × Vite</p>
       <h1>Static macro, native CSS.</h1>
       <p>Click the button to exercise a compile-time conditional branch.</p>
       <SaveButton />

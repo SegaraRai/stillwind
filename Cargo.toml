@@ -1,15 +1,15 @@
 [workspace]
 members = [
-  "crates/shorth-source",
-  "crates/shorth-ir",
-  "crates/shorth-semantic",
-  "crates/shorth-grammar",
-  "crates/shorth-css",
-  "crates/shorth-tailwind",
-  "crates/shorth-js-oxc",
-  "crates/shorth-core",
-  "crates/shorth-cli",
-  "crates/shorth-napi",
+  "crates/source",
+  "crates/ir",
+  "crates/semantic",
+  "crates/grammar",
+  "crates/css",
+  "crates/tailwind",
+  "crates/js-oxc",
+  "crates/core",
+  "crates/cli",
+  "crates/napi",
 ]
 resolver = "3"
 
@@ -17,7 +17,7 @@ resolver = "3"
 edition = "2024"
 rust-version = "1.96"
 license = "MIT"
-repository = "https://github.com/izual/shorth"
+repository = "https://github.com/izual/stillwind"
 version = "0.0.0"
 
 [workspace.dependencies]

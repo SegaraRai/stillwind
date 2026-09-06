@@ -248,7 +248,7 @@ async function bundlePreview(source: string, css: string, server: ViteDevServer)
     stdin: {
       contents: entry,
       resolveDir: server.config.root,
-      sourcefile: "ShorthPlayEntry.tsx",
+      sourcefile: "StillwindPlayEntry.tsx",
       loader: "tsx",
     },
     bundle: true,

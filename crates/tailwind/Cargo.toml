@@ -1,0 +1,17 @@
+[package]
+name = "stillwind-tailwind"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+stillwind-css = { path = "../css" }
+stillwind-grammar = { path = "../grammar" }
+
+[dev-dependencies]
+stillwind-source = { path = "../source" }
+
+[lints]
+workspace = true

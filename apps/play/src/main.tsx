@@ -19,7 +19,7 @@ export function App() {
   });
   return (
     <main {...style("bg-surface p-4 rounded-md", enter("duration-normal ease-standard both"))}>
-      <p>Shorth Play</p>
+      <p>Stillwind Play</p>
       <h1>React, compiled as you type.</h1>
       <div {...style(trigger.anchor, "inline-flex")}>
         <button
@@ -350,7 +350,7 @@ function Play() {
               <iframe
                 key={result.previewUrl}
                 ref={frame}
-                title="Shorth Play preview"
+                title="Stillwind Play preview"
                 sandbox="allow-scripts"
                 src={result.previewUrl}
               />

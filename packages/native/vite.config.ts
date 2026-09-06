@@ -18,7 +18,7 @@ export default {
         command: "napi create-npm-dirs --package-json-path package.json --npm-dir npm",
       },
       build: {
-        command: `napi build --release --platform --no-js --manifest-path ../../crates/shorth-napi/Cargo.toml --output-dir npm/${currentTarget} --package-json-path package.json`,
+        command: `napi build --release --platform --no-js --manifest-path ../../crates/napi/Cargo.toml --output-dir npm/${currentTarget} --package-json-path package.json`,
       },
       check: {
         command: "node --test test/loader.test.mjs",

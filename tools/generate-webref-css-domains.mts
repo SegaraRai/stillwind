@@ -11,7 +11,7 @@ type WebrefCss = {
 };
 
 const source = new URL("./node_modules/@webref/css/css.json", import.meta.url);
-const destination = new URL("../crates/shorth-css/assets/webref-properties.rs", import.meta.url);
+const destination = new URL("../crates/css/assets/webref-properties.rs", import.meta.url);
 
 function rustString(value: string): string {
   return JSON.stringify(value);
