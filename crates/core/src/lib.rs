@@ -2017,6 +2017,9 @@ fn render_used_properties(
         ] {
             used.insert(name.to_owned());
         }
+        // Tailwind keeps the opacity slot registered for the complete filter
+        // family even when the serialized filter chain omits it.
+        used.insert("--tw-opacity".to_owned());
     }
     if css.contains("--tw-text-shadow-color:") {
         used.insert("--tw-text-shadow-color".to_owned());
