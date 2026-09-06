@@ -663,6 +663,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("var(--tw-mask-radial-from-position,0%)", "var(--tw-mask-radial-from-position)")
             .replace("var(--tw-mask-radial-to-color,transparent)", "var(--tw-mask-radial-to-color)")
             .replace("var(--tw-mask-radial-to-position,100%)", "var(--tw-mask-radial-to-position)")
+            .replace(",black)", ")")
+            .replace(", transparent)", ")")
+            .replace(",transparent)", ")")
+            .replace(", 0%)", ")")
+            .replace(",0%)", ")")
+            .replace(", 100%)", ")")
+            .replace(",100%)", ")")
             .replace("),var(--tw-mask", "), var(--tw-mask");
     }
     if raw.starts_with("bg-conic-") {
@@ -1251,6 +1258,16 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     });
     if raw.ends_with("/100") && declaration.contains(":#0000;") {
         nested.clear();
+    }
+    if raw.starts_with("mask-") {
+        declaration = declaration
+            .replace(",black)", ")")
+            .replace(", transparent)", ")")
+            .replace(",transparent)", ")")
+            .replace(", 0%)", ")")
+            .replace(",0%)", ")")
+            .replace(", 100%)", ")")
+            .replace(",100%)", ")");
     }
     if raw.starts_with("mask-") {
         declaration = declaration
