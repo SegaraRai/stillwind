@@ -485,6 +485,17 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("calc(0deg * -1)", "0deg");
     }
     if raw.starts_with("-outline-offset-") {
+        if let Some(number) = raw
+            .strip_prefix("-outline-offset-")
+            .and_then(|value| value.parse::<f64>().ok())
+        {
+            let value = if number.fract() == 0.0 {
+                format!("{}px", number as i64)
+            } else {
+                format!("{number}px")
+            };
+            declaration = format!("outline-offset:calc({value} * -1);");
+        }
         for number in 0..=1000 {
             declaration = declaration.replace(
                 &format!("calc(var(--spacing) * -{number})"),
