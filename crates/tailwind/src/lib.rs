@@ -664,8 +664,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("var(--tw-mask-radial-to-color,transparent)", "var(--tw-mask-radial-to-color)")
             .replace("var(--tw-mask-radial-to-position,100%)", "var(--tw-mask-radial-to-position)")
             .replace(",black)", ")")
-            .replace(", transparent)", ")")
-            .replace(",transparent)", ")")
             .replace(", 0%)", ")")
             .replace(",0%)", ")")
             .replace(", 100%)", ")")
@@ -1301,8 +1299,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw.starts_with("mask-") {
         declaration = declaration
             .replace(",black)", ")")
-            .replace(", transparent)", ")")
-            .replace(",transparent)", ")")
             .replace(", 0%)", ")")
             .replace(",0%)", ")")
             .replace(", 100%)", ")")
@@ -1322,7 +1318,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw.starts_with("mask-") {
         declaration = declaration
             .replace(", black)", ")")
-            .replace(", transparent)", ")")
             .replace(", 0%)", ")")
             .replace(", 100%)", ")");
         for side in ["left", "right", "top", "bottom"] {
@@ -1361,7 +1356,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw.starts_with("mask-") {
         declaration = declaration
             .replace(", black)", ")")
-            .replace(", transparent)", ")")
             .replace(", 0%)", ")")
             .replace(", 100%)", ")");
     }
@@ -1371,6 +1365,24 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("--tw-mask-{side}-from-position:0;"),
                 &format!("--tw-mask-{side}-from-position:0px;"),
             );
+        }
+    }
+    if raw.starts_with("mask-") && raw.contains("-current/") {
+        for alpha in 0..=100 {
+            let value = format!("color-mix(in oklab, currentcolor {alpha}%, transparent)");
+            if let Some(pos) = declaration.find(&value) {
+                let property_start = declaration[..pos]
+                    .rfind(';')
+                    .map_or(0, |index| index + 1);
+                let property = declaration[property_start..pos].to_owned();
+                let modern = format!("{property}{value};");
+                declaration.replace_range(pos..pos + value.len(), "currentcolor");
+                nested.push(NestedUtilityRule {
+                    at_rule: NestedUtilityAtRule::Supports,
+                    condition: "color:color-mix(in lab, red, red)".to_owned(),
+                    declaration: modern,
+                });
+            }
         }
     }
     Some(ResolvedUtility {
