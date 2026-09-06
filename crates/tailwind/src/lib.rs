@@ -1548,9 +1548,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             {
                 declaration.replace_range(start..start + end + 1, "border-color:currentColor;");
             }
-            declaration.push_str(&format!(
-                "@supports (color:color-mix(in lab, red, red)){{border-color:color-mix(in oklab, currentcolor {alpha}%, transparent);}}"
-            ));
+            if alpha != "100" {
+                declaration.push_str(&format!(
+                    "@supports (color:color-mix(in lab, red, red)){{border-color:color-mix(in oklab, currentcolor {alpha}%, transparent);}}"
+                ));
+            }
         }
     }
     if raw == "shadow-transparent" {
