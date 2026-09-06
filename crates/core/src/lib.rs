@@ -1733,7 +1733,7 @@ fn render_utility_rule(
             let selectors = selector.split(',').collect::<Vec<_>>();
             (selectors.len() == 4).then(|| {
                 format!(
-                    "{},{}{{{declaration}}}{},{}{{{declaration}}}",
+                    "{},{}{{{declaration}}}{}{{{declaration}}}{}{{{declaration}}}",
                     selectors[0], selectors[1], selectors[2], selectors[3]
                 )
             })
