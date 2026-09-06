@@ -480,13 +480,13 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
 
     assert_eq!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .filter(|diagnostic| diagnostic.code == "SHLINT001")
+            .filter(|finding| finding.rule == "prefer-typed-relationships")
             .count(),
         2
     );
-    assert!(result.css.is_empty());
+    assert!(!result.css.is_empty());
 }
 
 #[test]
@@ -1104,11 +1104,11 @@ const panel = style(popover.position);"#,
 
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|item| item.code == "SHREF003")
+            .any(|item| item.rule == "require-anchor-provider")
     );
-    assert!(result.css.is_empty());
+    assert!(!result.css.is_empty());
 }
 
 #[test]
@@ -1219,11 +1219,11 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
 
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|item| item.code == "SHSCOPE004"),
+            .any(|item| item.rule == "scoped-selector-in-scope"),
         "{:#?}",
-        result.diagnostics
+        result.lint_findings
     );
 }
 
@@ -1243,11 +1243,11 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
 
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|item| item.code == "SHSCOPE003"),
+            .any(|item| item.rule == "valid-scope-ancestry"),
         "{:#?}",
-        result.diagnostics
+        result.lint_findings
     );
 }
 
@@ -1422,9 +1422,9 @@ export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [
 
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|item| item.code == "SHREF007")
+            .any(|item| item.rule == "valid-ref-ancestry")
     );
 }
 
