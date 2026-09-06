@@ -1922,7 +1922,10 @@ fn render_used_properties(
     if used.contains("--tw-translate-x") || used.contains("--tw-translate-y") {
         used.insert("--tw-translate-z".to_owned());
     }
-    if css.contains("--tw-ring-shadow:") || css.contains("--tw-shadow-color:") {
+    if css.contains("--tw-ring-shadow:")
+        || css.contains("--tw-shadow-color:")
+        || css.contains("--tw-shadow:")
+    {
         for name in [
             "--tw-shadow",
             "--tw-shadow-color",
