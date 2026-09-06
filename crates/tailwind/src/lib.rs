@@ -603,6 +603,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 "* -1*var(--tw-space-y-reverse)",
                 " * var(--tw-space-y-reverse)",
             )
+            .replace(")*-1*", ") * ")
             .replace("calc(calc(1px * -1) * ", "calc(-1px * ");
         declaration = normalize_negative_space_order(
             declaration,
