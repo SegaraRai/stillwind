@@ -1592,6 +1592,33 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             });
         }
     }
+    if raw == "drop-shadow-current/100" {
+        nested.clear();
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-drop-shadow-color:color-mix(in oklab, currentcolor var(--tw-drop-shadow-alpha), transparent);".to_owned(),
+        });
+    }
+    if let Some(alpha) = raw.strip_prefix("drop-shadow-inherit/") {
+        let alpha = alpha.trim_end_matches('%');
+        if !alpha.is_empty() {
+            if let Some(start) = declaration.find("--tw-drop-shadow-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(
+                    start..start + end + 1,
+                    &format!("--tw-drop-shadow-color:color-mix(in srgb, inherit {alpha}%, transparent);"),
+                );
+            }
+            nested.clear();
+            nested.push(NestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: "color:color-mix(in lab, red, red)".to_owned(),
+                declaration: format!("--tw-drop-shadow-color:color-mix(in oklab, color-mix(in oklab, inherit {alpha}%, transparent) var(--tw-drop-shadow-alpha), transparent);"),
+            });
+        }
+    }
     if raw.starts_with("decoration-current/")
         && declaration.contains("text-decoration-color:color-mix(in oklab, currentcolor")
         && let Some(start) = declaration.find("text-decoration-color:color-mix(in oklab, ")
