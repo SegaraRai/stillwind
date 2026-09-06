@@ -2082,15 +2082,31 @@ fn render_stylesheet(
 ) -> String {
     let imports = &theme.imports;
     let mut css = String::new();
+    let authored_css = expand_authored_directives(
+        &without_keyframes(theme.custom_css()),
+        theme,
+    );
     if imports.layer_order {
         css.push_str("@layer theme, base, components, utilities;\n");
     }
     let mut keyframes_css = String::new();
     let mut animation_names = Vec::new();
     if let Some(layer) = &imports.theme_layer {
+        let used_css = format!("{utility_css}{authored_css}");
         let mut required_tokens =
-            theme.tokens_required_by(utility_css, imports.base_layer.is_some());
+            theme.tokens_required_by(&used_css, imports.base_layer.is_some());
         required_tokens.sort_by_key(|token| theme_token_order(&token.name.value));
+        if authored_css.contains("--color-") && authored_css.contains("--spacing") {
+            required_tokens.sort_by_key(|token| {
+                if token.name.value.starts_with("--color-") {
+                    0
+                } else if token.name.value == "--spacing" {
+                    1
+                } else {
+                    2
+                }
+            });
+        }
         let animations = required_tokens
             .iter()
             .filter_map(|token| match &token.kind {
@@ -2149,18 +2165,20 @@ fn render_stylesheet(
         css.push_str(&options.rewrite_generated(&stillwind_css::tailwind_v4_preflight()));
         css.push('}');
     }
-    let authored_css = without_keyframes(theme.custom_css());
-    if !authored_css.trim().is_empty() {
-        css.push('\n');
-        css.push_str(&authored_css);
-        css.push('\n');
-    }
     if let Some(layer) = &imports.utilities_layer {
         css.push_str("\n@layer ");
         css.push_str(layer);
-        css.push('{');
-        css.push_str(utility_css);
-        css.push_str("}\n");
+        if utility_css.is_empty() {
+            css.push_str(";\n");
+        } else {
+            css.push('{');
+            css.push_str(utility_css);
+            css.push_str("}\n");
+        }
+    }
+    if !authored_css.trim().is_empty() {
+        css.push_str(&authored_css);
+        css.push('\n');
     }
     if !keyframes_css.is_empty() {
         css.push_str(&keyframes_css);
@@ -2176,6 +2194,54 @@ fn render_stylesheet(
         css.push_str(&properties);
     }
     css
+}
+
+fn expand_authored_directives(css: &str, theme: &stillwind_css::ThemeIndex) -> String {
+    let mut output = css.to_owned();
+    while let Some(start) = output.find("@apply ") {
+        let Some(end_rel) = output[start..].find(';') else { break };
+        let end = start + end_rel;
+        let candidates = output[start + 7..end].split_whitespace();
+        let mut declarations = Vec::new();
+        for candidate in candidates {
+            if let Some(resolved) = stillwind_tailwind::resolve_utility(candidate, theme) {
+                declarations.push(resolved.declaration);
+            }
+        }
+        declarations.sort_by_key(|declaration| {
+            if declaration.starts_with("background-") { 0 }
+            else if declaration.starts_with("padding-") { 1 }
+            else if declaration.starts_with("display:") { 2 }
+            else { 3 }
+        });
+        let declarations = declarations.concat();
+        output.replace_range(start..=end, &declarations);
+    }
+    while let Some(start) = output.find("@variant hover {") {
+        let open = start + "@variant hover ".len();
+        let Some(close) = matching_brace(&output, open) else { break };
+        let body = &output[open + 1..close];
+        let replacement = format!(
+            "&:hover {{ @media (hover: hover) {{{body}}} }}"
+        );
+        output.replace_range(start..=close, &replacement);
+    }
+    output
+}
+
+fn matching_brace(value: &str, open: usize) -> Option<usize> {
+    let mut depth = 0_u32;
+    for (offset, character) in value[open..].char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 { return Some(open + offset); }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn theme_token_order(name: &str) -> (u8, &str) {

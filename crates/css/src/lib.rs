@@ -1693,7 +1693,7 @@ fn strip_framework_directives(css: &str) -> String {
     let css = strip_framework_imports(css);
     let css = strip_blocks(&css, "@theme");
     let css = strip_blocks(&css, "@utility");
-    let css = strip_blocks(&css, "@variant");
+    let css = strip_top_level_blocks(&css, "@variant");
     let css = strip_blocks(&css, "@custom-variant");
     let css = strip_blocks(&css, "@stillwind-property");
     let css = strip_blocks(&css, "@stillwind");
@@ -1821,6 +1821,39 @@ fn strip_blocks(css: &str, directive: &str) -> String {
     if cursor < css.len() {
         output.push_str(&css[cursor..]);
     }
+    output
+}
+
+fn strip_top_level_blocks(css: &str, directive: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    let mut depth = 0_u32;
+    while cursor < css.len() {
+        if depth == 0 && css[cursor..].starts_with(directive) {
+            let Some(open_rel) = css[cursor..].find('{') else { break };
+            let open = cursor + open_rel;
+            let mut inner = 1_u32;
+            let mut end = open + 1;
+            for (offset, ch) in css[open + 1..].char_indices() {
+                match ch {
+                    '{' => inner += 1,
+                    '}' => {
+                        inner = inner.saturating_sub(1);
+                        if inner == 0 { end = open + 1 + offset + 1; break; }
+                    }
+                    _ => {}
+                }
+            }
+            cursor = end;
+            continue;
+        }
+        let Some(ch) = css[cursor..].chars().next() else { break };
+        if ch == '{' { depth += 1; }
+        if ch == '}' { depth = depth.saturating_sub(1); }
+        output.push(ch);
+        cursor += ch.len_utf8();
+    }
+    output.push_str(&css[cursor..]);
     output
 }
 
