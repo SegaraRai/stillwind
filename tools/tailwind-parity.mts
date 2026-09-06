@@ -71,6 +71,12 @@ for (const file of readdirSync(caseRoot)
         continue;
       }
       if (native.diagnostics.length !== 0 || native.classes.length === 0) {
+        if (candidate === "" && native.diagnostics.length === 0) {
+          const received = minify(native.css);
+          if (expected === received || (expected === "@layer utilities;" && received === "")) {
+            continue;
+          }
+        }
         if (tailwindIsEmpty) {
           continue;
         }
