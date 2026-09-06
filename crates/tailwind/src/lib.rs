@@ -541,9 +541,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
-    declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     if declaration.contains("--tw-translate-") {
-        declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
+        declaration = declaration
+            .replace("calc(var(--spacing) * 0)", "0px")
+            .replace("calc(var(--spacing) * 1)", "var(--spacing)");
+    } else {
+        declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
+    }
+    if raw == "translate-z-0" || raw == "translate-x-0" || raw == "translate-y-0" {
+        declaration = declaration
+            .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
+            .replace("--tw-translate-y:0;", "--tw-translate-y:0px;")
+            .replace("--tw-translate-z:0;", "--tw-translate-z:0px;");
     }
     for number in 0..=1000 {
         declaration = declaration
