@@ -450,11 +450,23 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("calc(1deg * -1)", "-1deg")
             .replace("calc(0deg * -1)", "0deg");
     }
+    if raw.starts_with("-outline-offset-") {
+        for number in 0..=1000 {
+            declaration = declaration.replace(
+                &format!("calc(var(--spacing) * -{number})"),
+                &format!("calc({number}px * -1)"),
+            );
+        }
+    }
     declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     for number in 0..=1000 {
         declaration = declaration
             .replace(&format!("calc({number}*1%)"), &format!("{number}%"))
             .replace(&format!("calc({number}* -1%)"), &format!("-{number}%"))
+            .replace(
+                &format!("calc({number}*-1%)"),
+                &format!("calc({number}% * -1)"),
+            )
             .replace(
                 &format!("skewX(calc({number}*1deg))"),
                 &format!("skewX({number}deg)"),
