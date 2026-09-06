@@ -1915,7 +1915,13 @@ fn render_used_properties(
     css: &str,
     options: &CompilerOptions,
 ) -> String {
-    let used = stillwind_css::used_custom_properties(css);
+    let mut used = stillwind_css::used_custom_properties(css);
+    // Tailwind registers the complete transform axis family when any axis is
+    // used, including the z-axis default even when the emitted utility does
+    // not reference it directly.
+    if used.contains("--tw-translate-x") || used.contains("--tw-translate-y") {
+        used.insert("--tw-translate-z".to_owned());
+    }
     let gradient_stops_used = css.contains("--tw-gradient-from:")
         || css.contains("--tw-gradient-via:")
         || css.contains("--tw-gradient-to:");
