@@ -2180,6 +2180,17 @@ fn render_used_properties(
             used.remove(name);
         }
     }
+    if css.contains("transform:var(--tw-rotate-x") {
+        for name in [
+            "--tw-rotate-x",
+            "--tw-rotate-y",
+            "--tw-rotate-z",
+            "--tw-skew-x",
+            "--tw-skew-y",
+        ] {
+            used.insert(name.to_owned());
+        }
+    }
     if css.contains("transition-property:initial") {
         used.remove("--tw-duration");
         used.remove("--tw-ease");
