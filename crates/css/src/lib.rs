@@ -1199,7 +1199,15 @@ impl ThemeIndex {
                             ..
                         }
                 )
-                && css.contains(&token.value.value);
+                && css.contains(&token.value.value)
+                && matches!(
+                    token.name.value.as_str(),
+                    "--breakpoint-sm"
+                        | "--breakpoint-md"
+                        | "--breakpoint-lg"
+                        | "--breakpoint-xl"
+                        | "--breakpoint-2xl"
+                );
             if matches!(token.mode, ThemeTokenMode::Static)
                 || (!matches!(token.mode, ThemeTokenMode::Inline)
                     && (custom_property_references(css).contains(&token.name.value)

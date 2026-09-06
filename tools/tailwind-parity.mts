@@ -26,7 +26,9 @@ function minify(css: string): string {
 }
 
 function selector(candidate: string): string {
-  const escaped = candidate.replaceAll(/[^a-zA-Z0-9_-]/g, (value) => `\\${value}`);
+  const escaped = candidate.replaceAll(/[^a-zA-Z0-9_-]/g, (value) =>
+    value.codePointAt(0)! >= 0x80 ? value : `\\${value}`,
+  );
   return /^\d/.test(candidate) ? `\\3${candidate[0]} ${escaped.slice(1)}` : escaped;
 }
 
