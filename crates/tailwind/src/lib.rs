@@ -301,6 +301,21 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         declaration = declaration.replace("calc(var(--spacing) * 0)", "0px");
     }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name.starts_with("backdrop-")
+        && let Some(value) = declaration
+            .strip_prefix("backdrop-filter:")
+            .and_then(|value| value.strip_suffix(';'))
+        && !declaration.contains("var(--tw-backdrop-brightness")
+    {
+        let property = name.strip_prefix("backdrop-").unwrap_or_default();
+        declaration = format!(
+            "--tw-backdrop-{property}:{value};backdrop-filter:var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);"
+        );
+    }
+    if declaration == "--tw-drop-shadow:;" {
+        declaration = "--tw-drop-shadow: ;".to_owned();
+    }
     if let Utility::Named { name, .. } = &candidate.utility {
         if name == "divide-y" && declaration.contains("border-bottom-width:") {
             "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut declaration);
