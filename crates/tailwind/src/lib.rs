@@ -348,6 +348,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if declaration == "grid-row:span initial/span initial;" {
         declaration = "grid-row:span initial / span initial;".to_owned();
     }
+    // Tailwind canonicalizes zero-angle conic values instead of retaining the
+    // registry's unit multiplier expression.
+    declaration = declaration
+        .replace("calc(1deg*-1*0)", "calc(0deg * -1)")
+        .replace("calc(1deg*0)", "calc(0deg)");
     if declaration == "transition-timing-function:initial;"
         && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
     {
