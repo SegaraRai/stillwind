@@ -279,6 +279,37 @@ fn is_word_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
 }
 
+fn normalize_conic_angles(mut declaration: &str) -> String {
+    let mut output = String::with_capacity(declaration.len());
+    while let Some(start) = declaration.find("calc(1deg*") {
+        output.push_str(&declaration[..start]);
+        let rest = &declaration[start + 10..];
+        let (negative, digits) = if let Some(rest) = rest.strip_prefix("-1*") {
+            (true, rest)
+        } else {
+            (false, rest)
+        };
+        let Some(end) = digits.find(')') else {
+            output.push_str(&declaration[start..]);
+            return output;
+        };
+        let amount = &digits[..end];
+        if amount.is_empty() || !amount.chars().all(|character| character.is_ascii_digit()) {
+            output.push_str(&declaration[start..start + 10]);
+            declaration = rest;
+            continue;
+        }
+        if negative {
+            output.push_str(&format!("calc({amount}deg * -1)"));
+        } else {
+            output.push_str(&format!("calc({amount}deg)"));
+        }
+        declaration = &digits[end + 1..];
+    }
+    output.push_str(declaration);
+    output
+}
+
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]
 #[allow(clippy::too_many_lines)]
@@ -350,9 +381,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
     // registry's unit multiplier expression.
-    declaration = declaration
-        .replace("calc(1deg*-1*0)", "calc(0deg * -1)")
-        .replace("calc(1deg*0)", "calc(0deg)");
+    declaration = normalize_conic_angles(&declaration);
     if declaration == "transition-timing-function:initial;"
         && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
     {
