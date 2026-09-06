@@ -1211,6 +1211,24 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: format!("--tw-gradient-position:{angle} in {color_space};"),
         });
     }
+    // Bare linear-gradient angles also receive the Images 4 color-space
+    // upgrade in Tailwind (the unqualified angle remains the fallback).
+    if let Utility::Named { name, .. } = &candidate.utility
+        && name.starts_with("bg-linear-")
+        && !nested
+            .iter()
+            .any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
+        && let Some(position) = declaration
+            .strip_prefix("--tw-gradient-position:")
+            .and_then(|value| value.split_once(';'))
+        && position.0.ends_with("deg")
+    {
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
+            declaration: format!("--tw-gradient-position:{} in oklab;", position.0),
+        });
+    }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.contains("bg-linear-")
         && !nested
