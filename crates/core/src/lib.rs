@@ -1970,15 +1970,15 @@ fn render_used_properties(
             }
             let property_used =
                 gradient_stops_used && name.starts_with("--tw-gradient-") || used.contains(&name);
-            if !seen.insert(name.clone())
-                || !property_used
-                || theme.authored_properties.contains(&name)
-            {
-                return None;
-            }
             let builtin = builtin_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
+            if !seen.insert(name.clone())
+                || !property_used
+                || (!builtin && theme.authored_properties.contains(&name))
+            {
+                return None;
+            }
             Some((name, property.body.as_str(), builtin))
         })
         .collect::<Vec<_>>();
