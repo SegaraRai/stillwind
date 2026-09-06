@@ -98,11 +98,11 @@ and variant/at-rule structure; resolving a candidate is not sufficient.
   and selector variants.
 - `@theme inline`/`static` handling, referenced-token tree shaking, and
   Stillwind-owned property registration are covered by focused tests.
-- The current full-catalog baseline is 6,647/13,229 exact matches. Remaining
+- The current full-catalog baseline is 7,358/13,227 exact matches (two cases
+  are excluded because they use out-of-scope directives). Remaining
   failures are intentionally visible and are concentrated in unsupported
   registrations plus mask, border/divide selector/property registration,
   ring/shadow, and several advanced variant cases. This is an active parity
   backlog, not an acceptance claim.
-- The focused 50-case gate is currently 49/50. The remaining representative
-  case is `shadow-red-500/50`, which requires Tailwind's two-stage hex fallback
-  and nested relative-color emission.
+- The focused 50-case gate is currently 50/50. Shadow opacity now emits
+  Tailwind's two-stage hex fallback and nested relative-color emission.
