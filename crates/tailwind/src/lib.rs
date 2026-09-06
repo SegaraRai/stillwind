@@ -575,6 +575,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration = declaration
             .replace("color-mix(in oklab, inherit 100%, transparent)", "inherit")
             .replace("color-mix(in oklab,inherit 100%,transparent)", "inherit");
+        if raw.contains("-transparent/100") {
+            declaration = declaration
+                .replace("color-mix(in oklab, transparent 100%, transparent)", "transparent")
+                .replace("color-mix(in srgb, transparent 100%, transparent)", "transparent");
+        }
         if raw.contains("-current/100") {
             declaration = declaration
                 .replace("color-mix(in oklab, currentcolor 100%, transparent)", "currentcolor")
