@@ -1939,7 +1939,10 @@ fn render_used_properties(
         "--tw-text-shadow-color",
         "--tw-gradient-via-stops",
     ] {
-        if css.contains(&format!("{name}:")) && !css.contains(&format!("var({name}")) {
+        if css.contains(&format!("{name}:"))
+            && !css.contains(&format!("var({name}"))
+            && !(name.starts_with("--tw-divide-") && css.contains(":not(:last-child)"))
+        {
             used.remove(name);
         }
     }
@@ -1996,12 +1999,20 @@ fn render_used_properties(
             used.insert(name.to_owned());
         }
     }
+    if css.contains("--tw-text-shadow-color:") {
+        used.insert("--tw-text-shadow-color".to_owned());
+        used.insert("--tw-text-shadow-alpha".to_owned());
+    }
     let gradient_stops_used = css.contains("--tw-gradient-from:")
         || css.contains("--tw-gradient-via:")
         || css.contains("--tw-gradient-to:");
     let shadow_family_used = css.contains("--tw-shadow:")
         || css.contains("--tw-shadow-color:")
-        || css.contains("--tw-ring-shadow:");
+        || css.contains("--tw-ring-shadow:")
+        || css.contains("--tw-ring-inset:")
+        || css.contains("--tw-inset-shadow-color:")
+        || css.contains("--tw-inset-shadow-alpha:")
+        || css.contains("--tw-text-shadow-color:");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
