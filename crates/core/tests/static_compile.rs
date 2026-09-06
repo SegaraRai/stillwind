@@ -1,3 +1,7 @@
+use lightningcss::{
+    printer::PrinterOptions,
+    stylesheet::{ParserOptions, StyleSheet},
+};
 use proptest::prelude::*;
 use std::{fs, path::Path};
 use stillwind_core::Compiler;
@@ -345,6 +349,74 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
             "Tailwind semantic utility mismatch for {candidate}"
         );
     }
+}
+
+/// The compatibility gate compares minified CSS, not merely whether a
+/// candidate was resolved. Generated class names are the only permitted
+/// difference between the two outputs.
+#[test]
+fn matches_tailwind_fixture_rules_after_minification() {
+    let cases = [
+        ("foundations.fixture.md", "p-4"),
+        ("transitions-animation.fixture.md", "transition-colors"),
+        ("layout-positioning.fixture.md", "aspect-video"),
+        ("layout.fixture.md", "grid-cols-3"),
+        ("backgrounds-gradients.fixture.md", "bg-cover"),
+        ("borders-effects.fixture.md", "border"),
+        ("typography.fixture.md", "text-3xl"),
+        ("filters-transforms.fixture.md", "blur-sm"),
+        ("accessibility-interaction.fixture.md", "sr-only"),
+        ("variants.fixture.md", "hover:bg-red-500"),
+        ("candidate-syntax.fixture.md", "content-['hello']"),
+        ("default-completions.fixture.md", "inset-shadow-sm/50"),
+    ];
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
+
+    for (fixture_name, candidate) in cases {
+        let fixture =
+            fs::read_to_string(root.join(fixture_name)).expect("fixture must be readable");
+        let section = fixture_case_for_candidate(&fixture, candidate);
+        let expected_css = fixture_code_block(section, "Expected CSS", "css")
+            .expect("fixture must provide expected CSS");
+        let input_css = fixture_code_block(section, "Input CSS", "css")
+            .expect("fixture must provide input CSS");
+        let component = SourceFile::new(
+            FileId(1),
+            "src/Fixture.tsx",
+            format!(
+                "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidate}\");"
+            ),
+        );
+        let result = Compiler::compile_react(
+            &component,
+            &SourceFile::new(FileId(2), "stillwind.css", input_css),
+        );
+        assert!(
+            result.diagnostics.is_empty(),
+            "{candidate}: {:#?}",
+            result.diagnostics
+        );
+        let class_name = &result.classes[0].class_name;
+        let selector = tailwind_class_selector(candidate);
+        let actual = css_rule(&result.css, class_name).replace(class_name, &selector);
+        let expected = css_rule(&expected_css, &selector);
+        assert_eq!(
+            minify_css(&actual),
+            minify_css(&expected),
+            "{fixture_name}: {candidate}"
+        );
+    }
+}
+
+fn minify_css(css: &str) -> String {
+    let sheet = StyleSheet::parse(css, ParserOptions::default()).expect("CSS must parse");
+    sheet
+        .to_css(PrinterOptions {
+            minify: true,
+            ..PrinterOptions::default()
+        })
+        .expect("CSS must serialize")
+        .code
 }
 
 #[test]

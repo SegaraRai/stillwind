@@ -18,6 +18,7 @@ stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 
 [dev-dependencies]
+lightningcss.workspace = true
 proptest.workspace = true
 
 [lints]

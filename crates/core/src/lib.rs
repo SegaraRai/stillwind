@@ -1660,7 +1660,14 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
             if let Some(transform) = declaration.strip_prefix("transform:") {
                 transforms.push(transform);
             } else if !declaration.is_empty() {
-                ordered.push(declaration.to_owned());
+                // Tailwind's minifier retains a separating space in
+                // comma-separated shadow fallback lists. Keep that spelling so
+                // parity comparisons are made against the same serialized CSS.
+                let declaration = declaration.strip_prefix("box-shadow:").map_or_else(
+                    || declaration.to_owned(),
+                    |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
+                );
+                ordered.push(declaration);
             }
         }
     }

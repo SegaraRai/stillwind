@@ -2226,7 +2226,7 @@ mod tests {
             shadow.declaration
         );
         assert!(shadow.declaration.contains(
-            "box-shadow:var(--tw-inset-shadow),var(--tw-inset-ring-shadow),var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow);"
+            "box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);"
         ));
         assert!(resolve_utility("inset-shadow-sm/not-an-opacity", &theme()).is_none());
     }
