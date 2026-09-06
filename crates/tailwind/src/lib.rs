@@ -1319,6 +1319,19 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
+    if raw.starts_with("backdrop-") {
+        for property in [
+            "blur", "brightness", "contrast", "grayscale", "hue-rotate", "invert",
+            "opacity", "saturate", "sepia",
+        ] {
+            let marker = format!("--tw-backdrop-{property}-");
+            if let Some(start) = declaration.find(&marker)
+                && let Some(colon) = declaration[start..].find(':')
+            {
+                declaration.replace_range(start..start + colon, &format!("--tw-backdrop-{property}"));
+            }
+        }
+    }
     Some(ResolvedUtility {
         declaration,
         selector,
