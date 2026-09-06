@@ -1684,6 +1684,7 @@ fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
+    let declaration = declaration.replace(" deg", "deg");
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
