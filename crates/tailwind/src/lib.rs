@@ -1467,6 +1467,19 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             });
         }
     }
+    if let Some(alpha) = raw.strip_prefix("divide-current/") {
+        let alpha = alpha.trim_end_matches('%');
+        if !alpha.is_empty() {
+            if let Some(start) = declaration.find("border-color:")
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, "border-color:currentColor;");
+            }
+            declaration.push_str(&format!(
+                "@supports (color:color-mix(in lab, red, red)){{border-color:color-mix(in oklab, currentcolor {alpha}%, transparent);}}"
+            ));
+        }
+    }
     if raw.starts_with("border-spacing") {
         declaration = declaration
             .replace("--tw-border-spacing-x:0;", "--tw-border-spacing-x:0px;")
