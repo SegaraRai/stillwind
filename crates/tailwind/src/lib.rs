@@ -607,6 +607,12 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if value == "**" {
         return Some(VariantApplication::SelectorTemplate(":is(& *)".to_owned()));
     }
+    if value == "marker" {
+        return Some(VariantApplication::SelectorTemplate(
+            "& ::marker,&::marker,& ::-webkit-details-marker,&::-webkit-details-marker"
+                .to_owned(),
+        ));
+    }
     if let Some(application) = resolve_relationship_variant(value, theme) {
         return Some(application);
     }
