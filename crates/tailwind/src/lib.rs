@@ -7,8 +7,8 @@
 use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
 use stillwind_css::{
-    color_with_alpha_fallback, CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace,
-    ValueDomain, ValueType, shadow_with_color_fallback,
+    CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
+    color_with_alpha_fallback, shadow_with_color_fallback,
 };
 use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -314,7 +314,9 @@ fn normalize_spaced_negative_angles(value: &str) -> String {
     let mut output = value.to_owned();
     while let Some(end) = output.find(" deg*-1)") {
         let number_end = end;
-        let Some(space) = output[..number_end].rfind(' ') else { break };
+        let Some(space) = output[..number_end].rfind(' ') else {
+            break;
+        };
         let number_start = space + 1;
         let calc_start = output[..number_start].rfind("calc(");
         let Some(calc_start) = calc_start else { break };
@@ -334,15 +336,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
         }
-        Utility::Named { name, modifier }
-            if name.starts_with("text-(") && name.ends_with(')') => {
-                let body = &name[6..name.len() - 1];
-                let (hint, value) = body.split_once(':')?;
-                if hint != "length" || !value.starts_with("--") {
-                    return None;
-                }
-                UtilityResolution::plain(format!("font-size:var({value});"))
+        Utility::Named { name, modifier } if name.starts_with("text-(") && name.ends_with(')') => {
+            let body = &name[6..name.len() - 1];
+            let (hint, value) = body.split_once(':')?;
+            if hint != "length" || !value.starts_with("--") {
+                return None;
             }
+            UtilityResolution::plain(format!("font-size:var({value});"))
+        }
         Utility::Named { name, modifier } => {
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
@@ -381,7 +382,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .and_then(|value| value.strip_suffix(';'))
         && !declaration.contains("var(--tw-brightness")
         && let Some(property) = name.split("-[").next()
-        && matches!(property, "blur" | "brightness" | "contrast" | "grayscale" | "hue-rotate" | "invert" | "opacity" | "saturate" | "sepia")
+        && matches!(
+            property,
+            "blur"
+                | "brightness"
+                | "contrast"
+                | "grayscale"
+                | "hue-rotate"
+                | "invert"
+                | "opacity"
+                | "saturate"
+                | "sepia"
+        )
     {
         declaration = format!(
             "--tw-{property}:{value};filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
@@ -635,7 +647,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         && position.0.starts_with("calc(")
     {
         let color_space = match &candidate.utility {
-            Utility::Named { modifier: Some(Value::Named(modifier)), .. } => match modifier.as_str() {
+            Utility::Named {
+                modifier: Some(Value::Named(modifier)),
+                ..
+            } => match modifier.as_str() {
                 "longer" => "oklch longer hue",
                 "shorter" => "oklch shorter hue",
                 "increasing" => "oklch increasing hue",
@@ -652,10 +667,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     // Tailwind emits an sRGB fallback for shadow opacity modifiers, then
     // upgrades to the relative-color form behind a color-mix feature query.
-    if let Utility::Named { name, modifier: Some(Value::Named(alpha_value)) } = &candidate.utility
+    if let Utility::Named {
+        name,
+        modifier: Some(Value::Named(alpha_value)),
+    } = &candidate.utility
         && let Some(color_name) = name.strip_prefix("shadow-")
         && let Some(alpha_value) = alpha(alpha_value)
-        && let Some(theme_color) = theme_value_literal(ThemeNamespace::Color, color_name, false, theme)
+        && let Some(theme_color) =
+            theme_value_literal(ThemeNamespace::Color, color_name, false, theme)
         && let Some(fallback) = color_with_alpha_fallback(&theme_color, &alpha_value)
         && let Some(color_mix) = declaration
             .strip_prefix("--tw-shadow-color:")
@@ -730,8 +749,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     }
     if value == "marker" {
         return Some(VariantApplication::SelectorTemplate(
-            "& ::marker,&::marker,& ::-webkit-details-marker,&::-webkit-details-marker"
-                .to_owned(),
+            "& ::marker,&::marker,& ::-webkit-details-marker,&::-webkit-details-marker".to_owned(),
         ));
     }
     if let Some(application) = resolve_relationship_variant(value, theme) {
@@ -2939,7 +2957,11 @@ mod tests {
     #[test]
     fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
         let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
-        assert!(resolved.declaration.contains("--tw-shadow-color:#fb2c3680;"));
+        assert!(
+            resolved
+                .declaration
+                .contains("--tw-shadow-color:#fb2c3680;")
+        );
         assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.condition == "color:color-mix(in lab, red, red)"

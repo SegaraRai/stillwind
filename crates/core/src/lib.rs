@@ -802,22 +802,19 @@ impl Compiler {
                         .raw
                         .strip_prefix("tw:")
                         .unwrap_or(&utility.value.raw);
-                    if let Some(mut utilities) = resolve_utility_targets(resolved_input, &theme)
-                    {
+                    if let Some(mut utilities) = resolve_utility_targets(resolved_input, &theme) {
                         let candidate_variants = parse_candidate(resolved_input)
                             .map(|candidate| candidate.variants)
                             .unwrap_or_default();
                         {
                             for resolved_utility in &mut utilities {
-                                let pseudo_content = candidate_variants
-                                    .iter()
-                                    .any(|variant| {
-                                        matches!(
-                                            &variant.kind,
-                                            stillwind_grammar::VariantKind::Named(name)
-                                                if name == "before" || name == "after"
-                                        )
-                                    });
+                                let pseudo_content = candidate_variants.iter().any(|variant| {
+                                    matches!(
+                                        &variant.kind,
+                                        stillwind_grammar::VariantKind::Named(name)
+                                            if name == "before" || name == "after"
+                                    )
+                                });
                                 if pseudo_content
                                     && !resolved_utility.declaration.starts_with("content:")
                                 {
@@ -1692,6 +1689,7 @@ fn render_utility_rule(
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
         .replace("*-1)", "* -1)");
+    let declaration = normalize_negative_calc(&declaration);
     let declaration = declaration
         .replace("calc(var(--spacing) * 0)", "0")
         .replace("calc(var(--spacing)*0)", "0");
@@ -1740,16 +1738,16 @@ fn render_utility_rule(
     let marker_selectors = (nested_rule.is_none()
         && selector.contains("::marker")
         && selector.contains("::-webkit-details-marker"))
-        .then(|| {
-            let selectors = selector.split(',').collect::<Vec<_>>();
-            (selectors.len() == 4).then(|| {
-                format!(
-                    "{},{}{{{declaration}}}{}{{{declaration}}}{}{{{declaration}}}",
-                    selectors[0], selectors[1], selectors[2], selectors[3]
-                )
-            })
+    .then(|| {
+        let selectors = selector.split(',').collect::<Vec<_>>();
+        (selectors.len() == 4).then(|| {
+            format!(
+                "{},{}{{{declaration}}}{}{{{declaration}}}{}{{{declaration}}}",
+                selectors[0], selectors[1], selectors[2], selectors[3]
+            )
         })
-        .flatten();
+    })
+    .flatten();
     let mut rule = marker_selectors.unwrap_or_else(|| format!("{selector}{{{declaration}}}"));
     if let Some(nested) = nested_rule {
         rule = match nested.at_rule {
@@ -1795,15 +1793,19 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                     "--tw-drop-shadow: ".to_owned()
                 } else {
                     declaration.strip_prefix("box-shadow:").map_or_else(
-                    || declaration.to_owned(),
-                    |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
+                        || declaration.to_owned(),
+                        |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
                     )
                 };
                 let declaration = declaration
                     .replace(" deg", "deg")
                     .replace("deg*-1", "deg * -1")
                     .replace("*-1)", "* -1)");
-                let zero = if declaration.starts_with("--tw-mask-") { "0px" } else { "0" };
+                let zero = if declaration.starts_with("--tw-mask-") {
+                    "0px"
+                } else {
+                    "0"
+                };
                 let declaration = declaration
                     .replace("calc(var(--spacing) * 0)", zero)
                     .replace("calc(var(--spacing)*0)", zero);
@@ -1819,6 +1821,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 } else {
                     declaration
                 };
+                let declaration = normalize_negative_calc(&declaration);
                 ordered.push(declaration);
             }
         }
@@ -1856,6 +1859,16 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
         declarations.push(';');
     }
     declarations
+}
+
+fn normalize_negative_calc(value: &str) -> String {
+    let mut normalized = value.to_owned();
+    for number in 0..=1000 {
+        let compact = format!("calc({number}* -1)");
+        let spaced = format!("calc({number} * -1)");
+        normalized = normalized.replace(&compact, &spaced);
+    }
+    normalized
 }
 
 fn declaration_order(declaration: &str) -> Option<(&'static str, u16)> {
@@ -2077,8 +2090,7 @@ fn render_used_properties(
         }
         if css.contains("--tw-mask-conic-position:initial") {
             used.retain(|name| {
-                !name.starts_with("--tw-mask-linear-")
-                    && !name.starts_with("--tw-mask-radial-")
+                !name.starts_with("--tw-mask-linear-") && !name.starts_with("--tw-mask-radial-")
             });
         } else if css.contains("--tw-mask-linear-position:initial") {
             used.retain(|name| !name.starts_with("--tw-mask-radial-"));
@@ -2168,20 +2180,17 @@ fn render_used_properties(
                 return None;
             }
             if css.contains("--tw-mask-conic-position:initial")
-                && (name.starts_with("--tw-mask-linear-")
-                    || name.starts_with("--tw-mask-radial-"))
+                && (name.starts_with("--tw-mask-linear-") || name.starts_with("--tw-mask-radial-"))
             {
                 return None;
             }
             if css.contains("--tw-mask-linear-position:initial")
-                && (name.starts_with("--tw-mask-radial-")
-                    || name.starts_with("--tw-mask-conic-"))
+                && (name.starts_with("--tw-mask-radial-") || name.starts_with("--tw-mask-conic-"))
             {
                 return None;
             }
             if css.contains("--tw-mask-radial-size:initial")
-                && (name.starts_with("--tw-mask-linear-")
-                    || name.starts_with("--tw-mask-conic-"))
+                && (name.starts_with("--tw-mask-linear-") || name.starts_with("--tw-mask-conic-"))
             {
                 return None;
             }
@@ -2211,7 +2220,9 @@ fn render_used_properties(
     // authored definitions.
     for reverse_name in ["--tw-divide-x-reverse", "--tw-divide-y-reverse"] {
         if let (Some(reverse), Some(border)) = (
-            properties.iter().position(|(name, ..)| name == reverse_name),
+            properties
+                .iter()
+                .position(|(name, ..)| name == reverse_name),
             properties
                 .iter()
                 .position(|(name, ..)| name == "--tw-border-style"),
