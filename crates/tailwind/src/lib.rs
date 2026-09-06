@@ -318,6 +318,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             "--tw-backdrop-{property}:{value};backdrop-filter:var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);"
         );
     }
+    if let Utility::Named { name, .. } = &candidate.utility
+        && let Some(value) = declaration
+            .strip_prefix("filter:")
+            .and_then(|value| value.strip_suffix(';'))
+        && !declaration.contains("var(--tw-brightness")
+        && let Some(property) = name.split("-[").next()
+        && matches!(property, "blur" | "brightness" | "contrast" | "grayscale" | "hue-rotate" | "invert" | "opacity" | "saturate" | "sepia")
+    {
+        declaration = format!(
+            "--tw-{property}:{value};filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
+        );
+    }
     if declaration == "--tw-drop-shadow:;" {
         declaration = "--tw-drop-shadow: ;".to_owned();
     }

@@ -1989,7 +1989,9 @@ fn render_used_properties(
             used.insert(name.to_owned());
         }
     }
-    if css.contains("--tw-drop-shadow:") {
+    if css.contains("--tw-drop-shadow:")
+        || (css.contains("filter:") && css.contains("var(--tw-drop-shadow"))
+    {
         for name in [
             "--tw-drop-shadow",
             "--tw-drop-shadow-color",
