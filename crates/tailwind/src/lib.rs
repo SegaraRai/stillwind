@@ -286,7 +286,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     let candidate = parse_candidate(raw)?;
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
-            UtilityResolution::plain(format!("{property}:{value};"))
+            UtilityResolution::plain(format!(
+                "{property}:{};",
+                value.replace('*', " * ")
+            ))
         }
         Utility::Named { name, modifier } => {
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
@@ -389,6 +392,16 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 declaration = "transition-property:initial;transition-timing-function:var(--tw-ease,var(--default-transition-timing-function));transition-duration:var(--tw-duration,var(--default-transition-duration));".to_owned();
             }
             _ => {}
+        }
+        if candidate.negative
+            && name.starts_with("translate-")
+            && let Some(value) = declaration
+                .strip_prefix("--tw-translate-x:")
+                .and_then(|value| value.strip_suffix(";translate:var(--tw-translate-x) var(--tw-translate-y);"))
+        {
+            declaration = format!(
+                "--tw-translate-x:calc({value} * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
+            );
         }
     }
     if let Utility::Named { name, .. } = &candidate.utility {
