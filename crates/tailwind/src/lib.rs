@@ -302,7 +302,7 @@ fn normalize_conic_angles(mut declaration: &str) -> String {
         if negative {
             output.push_str(&format!("calc({amount}deg * -1)"));
         } else {
-            output.push_str(&format!("calc({amount}deg)"));
+            output.push_str(&declaration[start..start + 10 + end + 1]);
         }
         declaration = &digits[end + 1..];
     }
