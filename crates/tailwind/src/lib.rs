@@ -155,6 +155,9 @@ fn canonical_builtin_body(value: &str) -> String {
     let mut quote = None;
     let mut escaped = false;
     let mut whitespace = false;
+    let mut functions = Vec::<String>::new();
+    let mut gradient_declaration = false;
+    let mut shadow_declaration = false;
 
     for character in value.chars() {
         if let Some(current_quote) = quote {
@@ -178,13 +181,73 @@ fn canonical_builtin_body(value: &str) -> String {
                 quote = Some(character);
                 output.push(character);
             }
+            ';' => {
+                whitespace = false;
+                gradient_declaration = false;
+                shadow_declaration = false;
+                functions.clear();
+                output.push(character);
+            }
+            '(' => {
+                let name = output
+                    .chars()
+                    .rev()
+                    .take_while(|character| {
+                        character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+                    })
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>();
+                functions.push(name);
+                output.push(character);
+            }
+            ')' => {
+                functions.pop();
+                output.push(character);
+            }
+            ',' => {
+                output.push(character);
+                let preserve_function_spacing = functions
+                    .iter()
+                    .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
+                if gradient_declaration || shadow_declaration || preserve_function_spacing {
+                    output.push(' ');
+                }
+                whitespace = false;
+            }
+            ':' if output.rsplit_once(';').is_some_and(|(_, declaration)| {
+                declaration.ends_with("--tw-gradient-stops")
+                    || declaration.ends_with("--tw-gradient-via-stops")
+            }) =>
+            {
+                gradient_declaration = true;
+                output.push(character);
+            }
+            ':' if output
+                .rsplit_once(';')
+                .is_some_and(|(_, declaration)| declaration.ends_with("box-shadow")) =>
+            {
+                shadow_declaration = true;
+                output.push(character);
+            }
             character if character.is_whitespace() => whitespace = true,
             character => {
                 if whitespace && let Some(previous) = output.chars().last() {
                     let adjacent_words =
                         is_word_character(previous) && is_word_character(character);
                     let function_followed_by_word = previous == ')' && is_word_character(character);
-                    if adjacent_words || function_followed_by_word {
+                    // Keep a separator after commas. Tailwind's vendored
+                    // utility serializer retains this spelling in function
+                    // arguments (notably color-mix/gradient stop lists), and
+                    // LightningCSS does not normalize it away in its output.
+                    let preserve_function_spacing = functions
+                        .iter()
+                        .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
+                    if adjacent_words
+                        || function_followed_by_word
+                        || (previous == ',' && (gradient_declaration || preserve_function_spacing))
+                    {
                         output.push(' ');
                     }
                 }
@@ -1899,12 +1962,12 @@ mod tests {
         let background = resolve_utility("bg-brand/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb,red 50%,transparent);"
+            "background-color:color-mix(in srgb, red 50%, transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.declaration
-                    == "background-color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+                    == "background-color:color-mix(in oklab, var(--color-brand) 50%, transparent);"
         }));
         assert_eq!(
             resolve_utility("w-(--sidebar)", &theme)
@@ -1999,11 +2062,11 @@ mod tests {
             resolve_utility("fill-brand/50", &theme)
                 .unwrap()
                 .declaration,
-            "fill:color-mix(in srgb,var(--color-brand) 50%,transparent);"
+            "fill:color-mix(in srgb, var(--color-brand) 50%, transparent);"
         );
         assert_eq!(
             resolve_utility("from-brand", &theme).unwrap().declaration,
-            "--tw-gradient-from:var(--color-brand);--tw-gradient-stops:var(--tw-gradient-via-stops,var(--tw-gradient-position),var(--tw-gradient-from) var(--tw-gradient-from-position),var(--tw-gradient-to) var(--tw-gradient-to-position));"
+            "--tw-gradient-from:var(--color-brand);--tw-gradient-stops:var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));"
         );
         assert_eq!(
             resolve_utility("bg-linear-to-r", &theme)
@@ -2077,12 +2140,12 @@ mod tests {
         let background = resolve_utility("bg-red-500/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb,oklch(63.7% 0.237 25.331) 50%,transparent);"
+            "background-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.declaration
-                    == "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
+                    == "background-color:color-mix(in oklab, var(--color-red-500) 50%, transparent);"
         }));
     }
 
@@ -2439,13 +2502,13 @@ mod tests {
         let resolved = resolve_utility("text-brand/50", &theme()).unwrap();
         assert_eq!(
             resolved.declaration,
-            "color:color-mix(in srgb,var(--color-brand) 50%,transparent);"
+            "color:color-mix(in srgb, var(--color-brand) 50%, transparent);"
         );
         assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
-                && rule.condition == "color:color-mix(in lab,red,red)"
+                && rule.condition == "color:color-mix(in lab, red, red)"
                 && rule.declaration
-                    == "color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+                    == "color:color-mix(in oklab, var(--color-brand) 50%, transparent);"
         }));
         assert!(resolve_utility("text-brand/[length:12px]", &theme()).is_none());
     }
@@ -2668,7 +2731,7 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("color:color-mix(in oklab,currentcolor 50%,transparent);"),
+                .contains("color:color-mix(in oklab, currentcolor 50%, transparent);"),
             "{resolved:#?}"
         );
         assert!(resolve_utility("placeholder-[length:1rem]", &theme()).is_none());

@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import { compileReact } from "@stillwind/native";
 import { transform } from "lightningcss";
@@ -77,6 +77,6 @@ for (const file of readdirSync(caseRoot)
 
 console.log(`Tailwind minified parity: ${checked - failures.length}/${checked} passed`);
 if (failures.length > 0) {
-  console.error(failures.map((failure) => `- ${basename(failure)}`).join("\n"));
+  console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   process.exitCode = 1;
 }

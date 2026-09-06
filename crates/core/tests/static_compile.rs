@@ -910,9 +910,9 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     assert!(result.css.contains("--breakpoint-md:48rem;"));
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(
-        result
-            .css
-            .contains("background-color:color-mix(in oklab,var(--color-accent) 90%,transparent);")
+        result.css.contains(
+            "background-color:color-mix(in oklab, var(--color-accent) 90%, transparent);"
+        )
     );
     assert!(result.css.contains(":hover{"));
     assert!(result.css.contains("[aria-busy=\"true\"]{"));
@@ -1524,12 +1524,12 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains(
-        "background-color:color-mix(in srgb,oklch(63.7% 0.237 25.331) 50%,transparent);"
+        "background-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
     ));
     assert!(
-        result
-            .css
-            .contains("background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);")
+        result.css.contains(
+            "background-color:color-mix(in oklab, var(--color-red-500) 50%, transparent);"
+        )
     );
     assert!(result.css.contains("--tw-gradient-position:to right;"));
     assert!(

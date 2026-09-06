@@ -1546,10 +1546,10 @@ fn emit_utility_rules(
         .collect::<Vec<_>>();
     let base = combine_declarations(&base);
     if !base.is_empty() {
+        let mut nested_in_rule_css = String::new();
         output.push('.');
         output.push_str(class_name);
         output.push('{');
-        output.push_str(&base);
         for utility in utilities.iter().filter(|utility| {
             utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
         }) {
@@ -1559,23 +1559,38 @@ fn emit_utility_rules(
                 if !nested_in_rule {
                     continue;
                 }
+                let mut nested_css = String::new();
                 match nested.at_rule {
                     stillwind_tailwind::NestedUtilityAtRule::Media => {
-                        output.push_str("@media ");
-                        output.push_str(&nested.condition);
-                        output.push('{');
-                        output.push_str(&nested.declaration);
-                        output.push('}');
+                        nested_css.push_str("@media ");
+                        nested_css.push_str(&nested.condition);
+                        nested_css.push('{');
+                        nested_css.push_str(&nested.declaration);
+                        nested_css.push('}');
                     }
                     stillwind_tailwind::NestedUtilityAtRule::Supports => {
-                        output.push_str("@supports (");
-                        output.push_str(&nested.condition);
-                        output.push_str("){\n");
-                        output.push_str(&nested.declaration);
-                        output.push('}');
+                        nested_css.push_str("@supports (");
+                        nested_css.push_str(&nested.condition);
+                        nested_css.push_str("){\n");
+                        nested_css.push_str(&nested.declaration);
+                        nested_css.push('}');
                     }
                 }
+                nested_in_rule_css.push_str(&nested_css);
             }
+        }
+        if base.contains("background-image:") && !nested_in_rule_css.is_empty() {
+            if let Some(position) = base.find("background-image:") {
+                output.push_str(&base[..position]);
+                output.push_str(&nested_in_rule_css);
+                output.push_str(&base[position..]);
+            } else {
+                output.push_str(&base);
+                output.push_str(&nested_in_rule_css);
+            }
+        } else {
+            output.push_str(&base);
+            output.push_str(&nested_in_rule_css);
         }
         output.push('}');
     }

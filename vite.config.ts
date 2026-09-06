@@ -50,6 +50,10 @@ export default defineConfig({
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:parity"],
       },
+      "tailwind:parity:all": {
+        command: "",
+        dependsOn: ["@stillwind/tools#tailwind:parity:all"],
+      },
     },
   },
 });

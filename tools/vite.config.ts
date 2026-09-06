@@ -33,6 +33,10 @@ export default defineConfig({
         command:
           "cargo test -p stillwind-core --test static_compile matches_tailwind_fixture_rules_after_minification",
       },
+      "tailwind:parity:all": {
+        command: "node tailwind-parity.mts",
+        dependsOn: ["@stillwind/native#build"],
+      },
       "tailwind:extract": {
         command: "node extract-tailwind-v4-registrations.ts",
       },
