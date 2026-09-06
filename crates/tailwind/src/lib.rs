@@ -1419,6 +1419,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "drop-shadow-sm" {
         declaration = "--tw-drop-shadow-size:drop-shadow(0 1px 2px var(--tw-drop-shadow-color,#00000026));--tw-drop-shadow:drop-shadow(var(--drop-shadow-sm));filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);".to_owned();
     }
+    if raw == "shadow-none" {
+        declaration = "--tw-shadow:0 0 #0000;box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
+    }
+    if raw == "shadow-transparent/100" {
+        declaration = "--tw-shadow-color:transparent;".to_owned();
+        nested.clear();
+        nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
+        });
+    }
     let additional = resolution
         .additional
         .into_iter()
