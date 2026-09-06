@@ -68,7 +68,7 @@ for (const file of readdirSync(caseRoot)
       const received = minify(actual);
       if (expected !== received) {
         failures.push(`${file} ${candidate}`);
-        if (failures.length <= 5) {
+        if (failures.length <= 20) {
           console.error(
             `\n--- ${file} ${candidate} ---\nTailwind: ${expected}\nStillwind: ${received}`,
           );

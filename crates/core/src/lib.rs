@@ -1927,7 +1927,23 @@ fn render_used_properties(
     // register it. Registration is needed when the value participates in a
     // consuming declaration (`var(--tw-...)`) or an explicitly materialized
     // family below.
-    for name in ["--tw-border-style", "--tw-content", "--tw-divide-x-reverse", "--tw-divide-y-reverse"] {
+    for name in [
+        "--tw-border-style",
+        "--tw-content",
+        "--tw-divide-x-reverse",
+        "--tw-divide-y-reverse",
+        "--tw-mask-radial-shape",
+        "--tw-mask-radial-position",
+        "--tw-mask-radial-size",
+        "--tw-outline-style",
+        "--tw-text-shadow-color",
+        "--tw-gradient-via-stops",
+        "--tw-rotate-x",
+        "--tw-rotate-y",
+        "--tw-rotate-z",
+        "--tw-skew-x",
+        "--tw-skew-y",
+    ] {
         if css.contains(&format!("{name}:")) && !css.contains(&format!("var({name}")) {
             used.remove(name);
         }
@@ -1941,6 +1957,9 @@ fn render_used_properties(
     if css.contains("--tw-ring-shadow:")
         || css.contains("--tw-shadow-color:")
         || css.contains("--tw-shadow:")
+        || css.contains("--tw-inset-shadow-color:")
+        || css.contains("--tw-inset-shadow-alpha:")
+        || css.contains("--tw-ring-inset:")
     {
         for name in [
             "--tw-shadow",
