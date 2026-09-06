@@ -303,7 +303,7 @@
 }
 @utility drop-shadow-* {
   --tw-drop-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
-  filter: drop-shadow(var(--tw-drop-shadow, 0 0 #0000) var(--tw-drop-shadow-color));
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility drop-shadow-* {
   --tw-drop-shadow-color: color-mix(
@@ -311,7 +311,7 @@
     --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
-  filter: drop-shadow(var(--tw-drop-shadow, 0 0 #0000) var(--tw-drop-shadow-color));
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility space-x-* {
   & > :not(:last-child) {

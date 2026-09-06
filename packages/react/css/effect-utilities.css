@@ -103,6 +103,7 @@
 }
 @utility drop-shadow-* {
   --tw-drop-shadow-color: --value(--color-*, current, transparent);
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility drop-shadow-* {
   --tw-drop-shadow-color: color-mix(
@@ -110,6 +111,7 @@
     --value(--color-*, current, transparent) --alpha(--modifier()),
     transparent
   );
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility text-shadow-* {
   --tw-text-shadow-color: --value(--color-*, current, transparent);
