@@ -2387,6 +2387,8 @@ fn render_used_properties(
         || css.contains("--tw-inset-shadow:")
         || css.contains("--tw-inset-shadow-color:")
         || css.contains("--tw-inset-shadow-alpha:");
+    let inset_ring_color_only = css.contains("--tw-inset-ring-color:")
+        && !css.contains("--tw-inset-ring-shadow:");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
@@ -2399,6 +2401,9 @@ fn render_used_properties(
         .rev()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
+            if inset_ring_color_only {
+                return None;
+            }
             if name.starts_with("--tw-gradient-")
                 && (name == "--tw-gradient-position" || name == "--tw-gradient-stops")
                 && !gradient_stops_used
