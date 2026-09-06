@@ -2434,7 +2434,9 @@ fn render_used_properties(
             let builtin = builtin_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
-            if !property_used || (!builtin && theme.authored_properties.contains(&name)) {
+            // Authored @property declarations take precedence over compiler
+            // defaults, including when they intentionally reuse a builtin name.
+            if !property_used || theme.authored_properties.contains(&name) {
                 return None;
             }
             if !seen.insert(name.clone()) {
@@ -2658,7 +2660,6 @@ mod tests {
 
         let css =
             Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
-
         assert!(css.contains("@property --example-used"));
         assert!(!css.contains("--example-unused"));
         assert!(!css.contains("@stillwind-property"));
@@ -2681,7 +2682,6 @@ mod tests {
 
         let css =
             Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
-
         assert_eq!(css.matches("@property --tw-shadow").count(), 1);
         assert!(css.contains("inherits: true"));
         assert!(!css.contains("initial-value: 0 0 #0000"));
