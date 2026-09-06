@@ -336,10 +336,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if declaration == "grid-column:span initial/span initial;" {
         declaration = "grid-column:span initial / span initial;".to_owned();
     }
+    if declaration == "grid-row:span initial/span initial;" {
+        declaration = "grid-row:span initial / span initial;".to_owned();
+    }
     if declaration == "transition-timing-function:initial;"
         && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
     {
         declaration = "--tw-ease:initial;transition-timing-function:initial;".to_owned();
+    }
+    if declaration == "letter-spacing:initial;"
+        && matches!(&candidate.utility, Utility::Named { name, .. } if name == "tracking-[initial]")
+    {
+        declaration = "--tw-tracking:initial;letter-spacing:initial;".to_owned();
     }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.starts_with("line-clamp-")

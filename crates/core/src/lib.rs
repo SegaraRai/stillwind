@@ -1949,14 +1949,21 @@ fn render_used_properties(
     // The CPU/GPU transform shorthands intentionally consume the transform
     // axes without registering them; Tailwind keeps these as unregistered
     // fallback variables.
-    for name in [
-        "--tw-rotate-x",
-        "--tw-rotate-y",
-        "--tw-rotate-z",
-        "--tw-skew-x",
-        "--tw-skew-y",
-    ] {
-        used.remove(name);
+    if !css.contains("--tw-rotate-x:")
+        && !css.contains("--tw-rotate-y:")
+        && !css.contains("--tw-rotate-z:")
+        && !css.contains("--tw-skew-x:")
+        && !css.contains("--tw-skew-y:")
+    {
+        for name in [
+            "--tw-rotate-x",
+            "--tw-rotate-y",
+            "--tw-rotate-z",
+            "--tw-skew-x",
+            "--tw-skew-y",
+        ] {
+            used.remove(name);
+        }
     }
     // Tailwind registers the complete transform axis family when any axis is
     // used, including the z-axis default even when the emitted utility does
