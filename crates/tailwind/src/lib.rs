@@ -581,7 +581,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         && angle.starts_with("calc(")
     {
         let angle = angle.to_owned();
-        let color_space = color_space.to_owned();
+        let color_space = match color_space {
+            "longer" => "oklch longer hue",
+            "shorter" => "oklch shorter hue",
+            "increasing" => "oklch increasing hue",
+            "decreasing" => "oklch decreasing hue",
+            value => value,
+        }
+        .to_owned();
         let full_position = position.0.to_owned();
         declaration = declaration.replacen(
             &format!("--tw-gradient-position:{full_position};"),
