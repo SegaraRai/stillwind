@@ -1506,6 +1506,28 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
         nested.clear();
     }
+    if raw.starts_with("mask-") {
+        declaration = declaration
+            .replace("calc(1deg * 0)", "0deg")
+            .replace("calc(1deg*0)", "0deg");
+        for axis in ["left", "right", "top", "bottom", "x", "y"] {
+            declaration = declaration.replace(
+                &format!("--tw-mask-{axis}-to-position:0;"),
+                &format!("--tw-mask-{axis}-to-position:0px;"),
+            );
+        }
+    }
+    if raw.starts_with("mask-") && raw.ends_with("transparent/100") {
+        for color in ["from-color", "to-color"] {
+            let marker = format!("--tw-mask-{color}:");
+            if let Some(start) = declaration.find(&marker)
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, &format!("{marker}transparent;"));
+            }
+        }
+        nested.clear();
+    }
     if let Some(value) = raw.strip_prefix("ring-offset-")
         && !value.is_empty()
         && value.chars().all(|character| character.is_ascii_digit())
@@ -1975,6 +1997,16 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                     condition: "color:color-mix(in lab, red, red)".to_owned(),
                     declaration: modern,
                 });
+            }
+        }
+    }
+    if raw.starts_with("mask-") && raw.ends_with("transparent/100") {
+        for color in ["from-color", "to-color"] {
+            let marker = format!("--tw-mask-{color}:");
+            if let Some(start) = declaration.find(&marker)
+                && let Some(end) = declaration[start..].find(';')
+            {
+                declaration.replace_range(start..start + end + 1, &format!("{marker}transparent;"));
             }
         }
     }
