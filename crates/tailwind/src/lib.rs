@@ -393,7 +393,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             "sepia",
         ]
         .into_iter()
-        .find(|property| !name.contains('[') && name.starts_with(&format!("{property}-")))
+        .find(|property| {
+            let Some(suffix) = name.strip_prefix(&format!("{property}-")) else {
+                return false;
+            };
+            !name.contains('[') && suffix.parse::<f64>().is_ok()
+        })
         && matches!(
             property,
             "blur"
