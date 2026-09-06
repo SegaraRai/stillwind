@@ -1385,24 +1385,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    if raw.contains("-current/") && !raw.starts_with("mask-") {
-        for alpha in 0..=100 {
-            let value = format!("color-mix(in oklab, currentcolor {alpha}%, transparent)");
-            if let Some(pos) = declaration.find(&value) {
-                let property_start = declaration[..pos]
-                    .rfind(';')
-                    .map_or(0, |index| index + 1);
-                let property = declaration[property_start..pos].to_owned();
-                let modern = format!("{property}{value};");
-                declaration.replace_range(pos..pos + value.len(), "currentColor");
-                nested.push(NestedUtilityRule {
-                    at_rule: NestedUtilityAtRule::Supports,
-                    condition: "color:color-mix(in lab, red, red)".to_owned(),
-                    declaration: modern,
-                });
-            }
-        }
-    }
     Some(ResolvedUtility {
         declaration,
         selector,
