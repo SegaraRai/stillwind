@@ -1691,6 +1691,9 @@ fn render_utility_rule(
     let declaration = declaration
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1");
+    let declaration = declaration
+        .replace("calc(var(--spacing) * 0)", "0")
+        .replace("calc(var(--spacing)*0)", "0");
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
@@ -1798,6 +1801,9 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 let declaration = declaration
                     .replace(" deg", "deg")
                     .replace("deg*-1", "deg * -1");
+                let declaration = declaration
+                    .replace("calc(var(--spacing) * 0)", "0")
+                    .replace("calc(var(--spacing)*0)", "0");
                 let declaration = if declaration.starts_with("grid-column-")
                     || declaration.starts_with("grid-row-")
                 {
