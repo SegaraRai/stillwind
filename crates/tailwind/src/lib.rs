@@ -702,6 +702,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("var(--tw-mask-conic-to-color,transparent)", "var(--tw-mask-conic-to-color)")
             .replace("var(--tw-mask-conic-to-color, transparent)", "var(--tw-mask-conic-to-color)")
             .replace("--tw-mask-conic-stops:var(--tw-mask-conic-position),", "--tw-mask-conic-stops:from var(--tw-mask-conic-position),")
+            .replace("--tw-mask-conic-from-position:0;", "--tw-mask-conic-from-position:0px;")
+            .replace("--tw-mask-conic-to-position:0;", "--tw-mask-conic-to-position:0px;")
             .replace("var(--tw-mask-bottom-to-position, 100%)", "var(--tw-mask-bottom-to-position)")
             .replace("var(--tw-mask-radial-shape,ellipse)", "var(--tw-mask-radial-shape)")
             .replace("var(--tw-mask-radial-size,farthest-corner)", "var(--tw-mask-radial-size)")
