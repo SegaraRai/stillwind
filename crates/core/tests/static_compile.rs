@@ -17,7 +17,6 @@ fn fixture_candidates(fixture: &str, case_name: &str) -> String {
         .expect("fixture candidates must close")
         .0
         .split_whitespace()
-        .filter(|candidate| !stillwind_tailwind::is_stillwind_owned_candidate(candidate))
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -204,7 +203,6 @@ fn supports_at_least_ninety_eight_percent_of_tailwind_emitted_fixture_candidates
                 .expect("every utility fixture section must provide Tailwind output");
             let candidates = candidates
                 .split_whitespace()
-                .filter(|candidate| !stillwind_tailwind::is_stillwind_owned_candidate(candidate))
                 .filter(|candidate| tailwind_emits_candidate(&expected_css, candidate))
                 .collect::<Vec<_>>();
             candidate_count += candidates.len();
@@ -431,6 +429,64 @@ fn framework_imports_gate_baseline_layers() {
     );
     assert!(content.diagnostics.is_empty());
     assert!(content.css.contains("@property --tw-gradient-position"));
+}
+
+#[test]
+fn compiles_tailwind_group_peer_and_container_compatibility() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Relationships.tsx",
+        r#"import { style } from "stillwind/react";
+export const group = style("group/menu flex @container/sidebar");
+export const peer = style("peer/field");
+export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block @sm:grid");"#,
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"tailwindcss\";");
+
+    let result = Compiler::compile_react(&component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("\"group/menu\""));
+    assert!(transformed.contains("\"peer/field\""));
+    assert!(
+        result
+            .css
+            .contains("container-name:sidebar;container-type:inline-size;")
+    );
+    assert!(result.css.contains(":is(:where(.group\\/menu):hover *)"));
+    assert!(
+        result
+            .css
+            .contains(":is(:where(.peer\\/field):checked ~ *)")
+    );
+    assert!(result.css.contains("@container (width >= 24rem)"));
+}
+
+#[test]
+fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Relationships.tsx",
+        "import { style } from \"stillwind/react\"; const child = style(\"group-hover:flex @sm:grid\");",
+    );
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"tailwindcss\";");
+    let options = stillwind_core::CompilerOptions {
+        forbid_tailwind_relationships: true,
+        ..stillwind_core::CompilerOptions::default()
+    };
+
+    let result = Compiler::compile_react_with_options(&component, &theme, &options);
+
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "SHLINT001")
+            .count(),
+        2
+    );
+    assert!(result.css.is_empty());
 }
 
 #[test]
@@ -1308,6 +1364,7 @@ export const item = style("translate-x-1", card);"#,
     let options = stillwind_core::CompilerOptions {
         prefix: "--app-".to_owned(),
         tailwind_prefix: "--compat-".to_owned(),
+        ..stillwind_core::CompilerOptions::default()
     };
 
     let result = Compiler::compile_react_with_options(&component, &theme, &options);

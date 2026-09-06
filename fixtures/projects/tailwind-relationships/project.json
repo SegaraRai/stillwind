@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "tailwind-relationships",
+  "title": "Tailwind relationship compatibility",
+  "description": "Literal group and peer markers, named markers, responsive containers, and named container queries compiled through the Tailwind migration surface.",
+  "tags": ["tailwind", "group", "peer", "container", "migration"],
+  "theme": "stillwind.css",
+  "sources": ["src/RelationshipCard.tsx"]
+}

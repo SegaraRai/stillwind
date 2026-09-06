@@ -109,10 +109,13 @@ assets. The compiler checks all supported utility
 spellings; Vite also writes `src/stillwind.generated.d.ts` with the theme-backed
 token vocabulary for editor completion.
 
-Tailwind's `container` / `@container`, `group`, and `peer` spellings are
-intentionally outside this compatibility surface. Stillwind owns those DOM
-relationships through `style.ref()` and `style.scope()` so their meaning remains
-local and can be linted structurally.
+Tailwind's `container` / `@container`, `group`, and `peer` spellings are accepted
+for migration compatibility, including named markers and responsive container
+variants. Stillwind's `style.ref()` and `style.scope()` remain the safer native
+model because their relationships are local and can be checked structurally.
+Projects that want to enforce that model can set
+`forbidTailwindRelationships: true` in the Vite plugin options; compatibility
+syntax then emits the blocking `SHLINT001` diagnostic.
 
 The JSX linter checks ref selectors, scope ancestry, and container providers whenever
 both sides are visible in the same JSX tree. It deliberately does not infer

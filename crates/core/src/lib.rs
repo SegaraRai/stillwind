@@ -83,6 +83,7 @@ pub struct CompileResult {
 pub struct CompilerOptions {
     pub prefix: String,
     pub tailwind_prefix: String,
+    pub forbid_tailwind_relationships: bool,
 }
 
 impl Default for CompilerOptions {
@@ -90,6 +91,7 @@ impl Default for CompilerOptions {
         Self {
             prefix: "--sw-".to_owned(),
             tailwind_prefix: "--tw-".to_owned(),
+            forbid_tailwind_relationships: false,
         }
     }
 }
@@ -345,6 +347,7 @@ impl Compiler {
             let mut dynamic_handle_classes = Vec::new();
             let mut dynamic_asset_classes = Vec::new();
             let mut view_transition_style = None;
+            let mut compatibility_classes = Vec::new();
             for input in call.inputs {
                 if let StyleInput::ViewTransitionUse { transition, key } = input {
                     if view_transition_style.is_some() {
@@ -736,6 +739,35 @@ impl Compiler {
                 };
                 let branch = &mut branches[branch_index];
                 for utility in lex_utilities(&input) {
+                    if options.forbid_tailwind_relationships
+                        && stillwind_tailwind::is_tailwind_relationship_candidate(
+                            &utility.value.raw,
+                        )
+                    {
+                        result.diagnostics.push(Diagnostic::error(
+                            "SHLINT001",
+                            format!(
+                                "Tailwind relationship utility `{}` is forbidden; use style.ref() or style.scope()",
+                                utility.value.raw
+                            ),
+                            utility.span,
+                        ));
+                    }
+                    if selector.is_none()
+                        && let Some(marker) =
+                            stillwind_tailwind::compatibility_marker_class(&utility.value.raw)
+                    {
+                        let class = GeneratedClass {
+                            class_name: marker,
+                            call_span: call.span,
+                            guard,
+                            guard_when_true,
+                        };
+                        if !compatibility_classes.contains(&class) {
+                            compatibility_classes.push(class);
+                        }
+                        continue;
+                    }
                     if let Some(selector) = &selector {
                         branch.2.push_str(selector);
                         branch.2.push('\0');
@@ -787,6 +819,10 @@ impl Compiler {
                 };
                 call_classes.push(generated_class.clone());
                 result.classes.push(generated_class);
+            }
+            for class in compatibility_classes {
+                call_classes.push(class.clone());
+                result.classes.push(class);
             }
             if let Some(replacement) = render_react_props(
                 source,
@@ -1718,37 +1754,53 @@ fn render_used_properties(
     output
 }
 
+const DEFAULT_REACT_UTILITIES: &[&str] = &[
+    "absolute",
+    "block",
+    "container",
+    "cursor-pointer",
+    "cursor-wait",
+    "flex",
+    "grid",
+    "group",
+    "hidden",
+    "inline-block",
+    "inline-flex",
+    "items-center",
+    "items-end",
+    "items-start",
+    "justify-between",
+    "justify-center",
+    "opacity-0",
+    "opacity-60",
+    "opacity-100",
+    "overflow-hidden",
+    "peer",
+    "relative",
+    "text-center",
+    "text-left",
+    "transition",
+    "@container",
+    "@container-normal",
+];
+
+const DEFAULT_REACT_VARIANTS: &[&str] = &[
+    "active",
+    "dark",
+    "disabled",
+    "focus",
+    "focus-visible",
+    "group-focus-within",
+    "group-hover",
+    "hover",
+    "peer-checked",
+    "peer-hover",
+];
+
 fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
     let mut utilities = Vec::new();
     if theme.imports.builtins {
-        utilities.extend(
-            [
-                "absolute",
-                "block",
-                "cursor-pointer",
-                "cursor-wait",
-                "flex",
-                "grid",
-                "hidden",
-                "inline-block",
-                "inline-flex",
-                "items-center",
-                "items-end",
-                "items-start",
-                "justify-between",
-                "justify-center",
-                "opacity-0",
-                "opacity-60",
-                "opacity-100",
-                "overflow-hidden",
-                "relative",
-                "text-center",
-                "text-left",
-                "transition",
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        );
+        utilities.extend(DEFAULT_REACT_UTILITIES.iter().copied().map(str::to_owned));
         for token in &theme.tokens {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
             else {
@@ -1787,14 +1839,7 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
         .join("\n");
     let mut variants = Vec::new();
     if theme.imports.builtins {
-        variants.extend([
-            "active",
-            "dark",
-            "disabled",
-            "focus",
-            "focus-visible",
-            "hover",
-        ]);
+        variants.extend(DEFAULT_REACT_VARIANTS.iter().copied());
         variants.extend(
             theme
                 .tokens

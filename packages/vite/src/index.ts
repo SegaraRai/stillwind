@@ -24,6 +24,8 @@ export interface StillwindOptions {
   prefix?: string;
   /** Namespace for Tailwind-compatible internal custom properties. */
   tailwindPrefix?: string;
+  /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
+  forbidTailwindRelationships?: boolean;
 }
 
 interface CompilerOutput {
@@ -85,6 +87,7 @@ function compilerOptions(options: StillwindOptions): string {
   return JSON.stringify({
     prefix: options.prefix ?? "--sw-",
     tailwindPrefix: options.tailwindPrefix ?? "--tw-",
+    forbidTailwindRelationships: options.forbidTailwindRelationships ?? false,
   });
 }
 

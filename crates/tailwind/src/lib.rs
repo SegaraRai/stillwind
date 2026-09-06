@@ -92,19 +92,6 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../packages/react/css/properties.css"),
 );
 
-/// Tailwind spellings intentionally owned by Stillwind's relationship-handle
-/// API rather than its Tailwind-compatibility registry.
-///
-/// Keep this list limited to DOM relationship primitives. `--container-*`
-/// theme values and ordinary sizing utilities remain Tailwind-compatible.
-const STILLWIND_OWNED_UTILITIES: &[&str] = &[
-    "container",
-    "@container",
-    "@container-normal",
-    "group",
-    "peer",
-];
-
 struct BuiltinUtilityRegistry {
     builtin_exact: HashMap<String, Vec<CustomUtility>>,
     wildcards: Vec<CustomUtility>,
@@ -218,9 +205,6 @@ fn is_word_character(character: char) -> bool {
 #[must_use]
 pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
     let candidate = parse_candidate(raw)?;
-    if is_stillwind_owned_utility(&candidate) {
-        return None;
-    }
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
@@ -268,9 +252,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
 
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
-    if is_stillwind_owned_variant(variant) {
-        return None;
-    }
     if let VariantKind::Arbitrary(value) = &variant.kind {
         if let Some(condition) = value
             .strip_prefix("@supports(")
@@ -283,6 +264,12 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
+    if let Some(application) = resolve_relationship_variant(value, theme) {
+        return Some(application);
+    }
+    if let Some(application) = resolve_container_variant(value, theme) {
+        return Some(application);
+    }
     if let Some(condition) = value
         .strip_prefix("supports-[")
         .and_then(|value| value.strip_suffix(']'))
@@ -362,34 +349,135 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
 }
 
-/// Whether a Tailwind candidate intentionally belongs to Stillwind's
-/// relationship-handle API instead of the Tailwind compatibility surface.
+/// Whether a Tailwind candidate uses a relationship primitive for which
+/// projects may prefer Stillwind's typed handle API.
 #[must_use]
-pub fn is_stillwind_owned_candidate(raw: &str) -> bool {
+pub fn is_tailwind_relationship_candidate(raw: &str) -> bool {
     let Some(candidate) = parse_candidate(raw) else {
         return false;
     };
-    is_stillwind_owned_utility(&candidate)
-        || candidate.variants.iter().any(is_stillwind_owned_variant)
-}
-
-fn is_stillwind_owned_utility(candidate: &Candidate) -> bool {
     matches!(
         &candidate.utility,
-        Utility::Named { name, .. } if STILLWIND_OWNED_UTILITIES.contains(&name.as_str())
-    )
+        Utility::Named { name, .. }
+            if matches!(name.as_str(), "container" | "@container" | "@container-normal" | "group" | "peer")
+    ) || candidate.variants.iter().any(|variant| {
+        matches!(
+            &variant.kind,
+            VariantKind::Named(name)
+                if name.starts_with('@')
+                    || name == "group"
+                    || name.starts_with("group-")
+                    || name == "peer"
+                    || name.starts_with("peer-")
+        )
+    })
 }
 
-fn is_stillwind_owned_variant(variant: &Variant) -> bool {
-    matches!(
-        &variant.kind,
-        VariantKind::Named(name)
-            if name.starts_with('@')
-                || name == "group"
-                || name.starts_with("group-")
-                || name == "peer"
-                || name.starts_with("peer-")
-    )
+/// Returns the literal marker class carried by Tailwind's declaration-only
+/// `group` and `peer` utilities. These classes intentionally bypass hashing so
+/// relational selectors can find them across independent `style()` calls.
+#[must_use]
+pub fn compatibility_marker_class(raw: &str) -> Option<String> {
+    let candidate = parse_candidate(raw)?;
+    if candidate.negative || candidate.important || !candidate.variants.is_empty() {
+        return None;
+    }
+    let Utility::Named { name, modifier } = candidate.utility else {
+        return None;
+    };
+    if !matches!(name.as_str(), "group" | "peer") {
+        return None;
+    }
+    match modifier {
+        None => Some(name),
+        Some(Value::Named(modifier)) => Some(format!("{name}/{modifier}")),
+        Some(Value::Arbitrary(_) | Value::CssVariable(_)) => None,
+    }
+}
+
+fn resolve_relationship_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
+    let (relation, remainder) = value
+        .strip_prefix("group-")
+        .map(|value| ("group", value))
+        .or_else(|| value.strip_prefix("peer-").map(|value| ("peer", value)))?;
+    let (state, modifier) = remainder
+        .split_once('/')
+        .map_or((remainder, None), |(state, name)| {
+            (state, (!name.is_empty()).then_some(name))
+        });
+    if state.is_empty() {
+        return None;
+    }
+    let marker = modifier.map_or_else(
+        || relation.to_owned(),
+        |modifier| format!(r"{relation}\/{modifier}"),
+    );
+    let inner = Variant {
+        raw: state.to_owned(),
+        kind: state
+            .strip_prefix('[')
+            .and_then(|state| state.strip_suffix(']'))
+            .map_or_else(
+                || VariantKind::Named(state.to_owned()),
+                |state| VariantKind::Arbitrary(state.to_owned()),
+            ),
+    };
+    let relation_selector = |template: String| {
+        let state_selector = template.strip_prefix('&')?;
+        let combinator = if relation == "group" { " *" } else { " ~ *" };
+        Some(format!(
+            "&:is(:where(.{marker}){state_selector}{combinator})"
+        ))
+    };
+    match resolve_variant(&inner, theme)? {
+        VariantApplication::SelectorTemplate(template) => {
+            relation_selector(template).map(VariantApplication::SelectorTemplate)
+        }
+        VariantApplication::SelectorMedia {
+            selector,
+            condition,
+        } => relation_selector(selector).map(|selector| VariantApplication::SelectorMedia {
+            selector,
+            condition,
+        }),
+        _ => None,
+    }
+}
+
+fn resolve_container_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
+    let value = value.strip_prefix('@')?;
+    let (query, name) = value
+        .split_once('/')
+        .map_or((value, None), |(query, name)| {
+            (query, (!name.is_empty()).then_some(name))
+        });
+    let condition = if let Some(value) = query
+        .strip_prefix("min-[")
+        .and_then(|value| value.strip_suffix(']'))
+        .or_else(|| {
+            query
+                .strip_prefix('[')
+                .and_then(|value| value.strip_suffix(']'))
+        }) {
+        format!("(width >= {})", value.replace('_', " "))
+    } else if let Some(value) = query
+        .strip_prefix("max-[")
+        .and_then(|value| value.strip_suffix(']'))
+    {
+        format!("(width < {})", value.replace('_', " "))
+    } else if let Some(token) = query
+        .strip_prefix("max-")
+        .and_then(|name| theme.token_in(ThemeNamespace::Container, name))
+    {
+        format!("(width < {})", token.value.value)
+    } else {
+        let name = query.strip_prefix("min-").unwrap_or(query);
+        let token = theme.token_in(ThemeNamespace::Container, name)?;
+        format!("(width >= {})", token.value.value)
+    };
+    Some(VariantApplication::Container(
+        name.map_or(condition.clone(), |name| format!("{name} {condition}")),
+    ))
 }
 
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
@@ -563,6 +651,27 @@ fn resolve_named_utility(
     if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
+    if theme.imports.builtins && !negative && name == "container" && modifier.is_none() {
+        let mut breakpoints = theme.tokens_in(ThemeNamespace::Breakpoint);
+        breakpoints.sort_by(|left, right| {
+            css_length_sort_key(&left.value.value)
+                .partial_cmp(&css_length_sort_key(&right.value.value))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        return Some(UtilityResolution {
+            declaration: "width:100%;".to_owned(),
+            selector: None,
+            nested: breakpoints
+                .into_iter()
+                .map(|token| NestedUtilityRule {
+                    at_rule: NestedUtilityAtRule::Media,
+                    condition: format!("(width >= {})", token.value.value),
+                    declaration: format!("max-width:{};", token.value.value),
+                })
+                .collect(),
+            additional: Vec::new(),
+        });
+    }
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
@@ -573,6 +682,18 @@ fn resolve_named_utility(
     // handled explicitly by the candidate grammar above; named utilities are
     // defined solely by CSS registry entries.
     None
+}
+
+fn css_length_sort_key(value: &str) -> f64 {
+    let value = value.trim();
+    for (unit, scale) in [("rem", 16.0), ("em", 16.0), ("px", 1.0)] {
+        if let Some(number) = value.strip_suffix(unit)
+            && let Ok(number) = number.trim().parse::<f64>()
+        {
+            return number * scale;
+        }
+    }
+    f64::INFINITY
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored
@@ -1997,7 +2118,7 @@ mod tests {
     }
 
     #[test]
-    fn excludes_tailwind_relationship_primitives_owned_by_stillwind() {
+    fn resolves_tailwind_relationship_compatibility_primitives() {
         let theme = theme();
 
         for candidate in [
@@ -2010,16 +2131,65 @@ mod tests {
             "peer-checked:flex",
             "@sm:flex",
         ] {
-            assert!(is_stillwind_owned_candidate(candidate), "{candidate}");
+            assert!(is_tailwind_relationship_candidate(candidate), "{candidate}");
         }
-        assert!(!is_stillwind_owned_candidate("max-w-lg"));
-        assert_eq!(resolve_utility("container", &theme), None);
+        assert!(!is_tailwind_relationship_candidate("max-w-lg"));
+        assert_eq!(
+            compatibility_marker_class("group").as_deref(),
+            Some("group")
+        );
+        assert_eq!(
+            compatibility_marker_class("peer/field").as_deref(),
+            Some("peer/field")
+        );
+        let container = resolve_utility("container", &theme).unwrap();
+        assert_eq!(container.declaration, "width:100%;");
+        assert!(container.nested.iter().any(|rule| {
+            rule.condition == "(width >= 48rem)" && rule.declaration == "max-width:48rem;"
+        }));
+        assert_eq!(
+            resolve_utility("@container", &theme).unwrap().declaration,
+            "container-type:inline-size;"
+        );
+        assert_eq!(
+            resolve_utility("@container/sidebar", &theme)
+                .unwrap()
+                .declaration,
+            "container-name:sidebar;container-type:inline-size;"
+        );
         assert_eq!(
             resolve_variant(
                 &parse_candidate("group-hover:flex").unwrap().variants[0],
                 &theme
             ),
-            None
+            Some(VariantApplication::SelectorMedia {
+                selector: "&:is(:where(.group):hover *)".to_owned(),
+                condition: "(hover: hover)".to_owned(),
+            })
+        );
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("peer-checked:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorTemplate(
+                "&:is(:where(.peer):checked ~ *)".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("group-[&[data-open]]:flex")
+                    .unwrap()
+                    .variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorTemplate(
+                "&:is(:where(.group)[data-open] *)".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
+            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
         );
     }
 
@@ -2152,7 +2322,10 @@ mod tests {
             resolve("min-[40rem]:flex"),
             Some(VariantApplication::Media("(width >= 40rem)".to_owned()))
         );
-        assert_eq!(resolve("@sm:flex"), None);
+        assert_eq!(
+            resolve("@sm:flex"),
+            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
+        );
         assert_eq!(
             resolve("nth-[3n+1]:flex"),
             Some(VariantApplication::SelectorTemplate(
@@ -2673,7 +2846,7 @@ mod tests {
         );
         assert_eq!(
             resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
-            None
+            Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
         );
         assert_eq!(
             resolve_variant(

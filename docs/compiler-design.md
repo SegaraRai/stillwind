@@ -39,6 +39,12 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
 - Emulating every Tailwind compatibility feature or arbitrary-value escape
   hatch.
 
+Tailwind relationship primitives (`group`, `peer`, `container`, and container
+variants) are nevertheless accepted as a migration layer. The optional
+`forbidTailwindRelationships` lint policy reports `SHLINT001` so teams can move
+to typed `style.ref()` / `style.scope()` relationships without reducing compiler
+compatibility.
+
 ## System overview
 
 ```text

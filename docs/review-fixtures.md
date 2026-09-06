@@ -59,6 +59,8 @@ fragment and the complete project stylesheet in `expected/project.css`.
 - `animation-matrix`: static and conditional animations across modules.
 - `view-transition-matrix`: static, keyed, and conditional view transitions
   across modules.
+- `tailwind-relationships`: migration-compatible group/peer markers, named
+  containers, and responsive container variants.
 
 ## URLs and search
 

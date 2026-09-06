@@ -44,6 +44,10 @@ fn optional_argument(name: &str) -> Option<String> {
     None
 }
 
+fn has_flag(name: &str) -> bool {
+    env::args().skip(1).any(|argument| argument == name)
+}
+
 fn read_source(path: &str, id: u32) -> Result<SourceFile, String> {
     let text = fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))?;
     Ok(SourceFile::new(FileId(id), path, text))
@@ -71,6 +75,7 @@ fn run() -> Result<(), String> {
         prefix: optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned()),
         tailwind_prefix: optional_argument("--tailwind-prefix")
             .unwrap_or_else(|| "--tw-".to_owned()),
+        forbid_tailwind_relationships: has_flag("--forbid-tailwind-relationships"),
     };
     options.validate()?;
     let result = Compiler::compile_react_with_options(&source, &theme, &options);

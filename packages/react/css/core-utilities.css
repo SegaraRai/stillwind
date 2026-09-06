@@ -1,9 +1,14 @@
 /* Vendored Stillwind built-ins. Parsed once into the same registry as @utility. */
-/*
- * Intentionally not provided: Tailwind's `container`, `@container`, `group`,
- * and `peer` utilities/variants. Stillwind owns DOM relationships through
- * `style.ref()` and its anchor/container projections instead.
- */
+@utility @container {
+  container-type: inline-size;
+}
+@utility @container {
+  container-name: --modifier();
+  container-type: inline-size;
+}
+@utility @container-normal {
+  container-type: normal;
+}
 @utility block {
   display: block;
 }
