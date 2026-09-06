@@ -496,6 +496,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         {
             resolution.nested.clear();
         }
+        if resolution
+            .nested
+            .iter()
+            .any(|nested| nested.declaration.contains("transparent") || nested.declaration.contains("/0)"))
+        {
+            resolution.nested.clear();
+        }
         if resolution.declaration.contains("color-mix(in srgb, currentcolor 100%") {
             resolution.declaration = resolution
                 .declaration
@@ -4007,7 +4014,7 @@ mod tests {
         let theme = theme();
         assert_eq!(
             resolve_utility("blur-none", &theme).unwrap().declaration,
-            "filter:blur(0);"
+            "--tw-blur: ;filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
         );
         assert_eq!(
             resolve_utility("perspective-dramatic", &theme)
