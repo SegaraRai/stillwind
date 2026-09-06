@@ -977,7 +977,7 @@ const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)
             .contains("background-color:var(--color-red-500);")
     );
     assert!(result.css.contains("--gutter:1rem;"));
-    assert!(result.css.contains("width:calc(var(--gutter)*2);"));
+    assert!(result.css.contains("width:calc(var(--gutter) * 2);"));
 }
 
 #[test]
