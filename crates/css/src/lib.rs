@@ -1350,9 +1350,11 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
             }
         }
     }
+    let mut custom_css = strip_framework_directives(source.text());
+    custom_css.push_str(&extract_keyframe_blocks(source.text()));
     Ok(ThemeIndex {
         tokens,
-        custom_css: strip_framework_directives(source.text()),
+        custom_css,
         utilities: extract_custom_utilities(source.text()),
         variants: extract_custom_variants(source.text()),
         properties: extract_property_definitions(source.text()),
@@ -1360,6 +1362,37 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         imports,
         config: extract_stillwind_config(source.text()),
     })
+}
+
+fn extract_keyframe_blocks(css: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find("@keyframes ") {
+        let start = cursor + relative;
+        let Some(open_rel) = css[start..].find('{') else {
+            break;
+        };
+        let open = start + open_rel;
+        let mut depth = 0_u32;
+        let mut close = None;
+        for (offset, ch) in css[open..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        close = Some(open + offset);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close) = close else { break };
+        output.push_str(&css[start..=close]);
+        cursor = close + 1;
+    }
+    output
 }
 
 fn offset(value: usize) -> u32 {
