@@ -354,7 +354,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     };
     if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-from-") || name.starts_with("mask-linear-to-"))
     {
-        declaration = declaration.replace("calc(var(--spacing) * 0)", "0px");
+        declaration = declaration
+            .replace("calc(var(--spacing) * 0)", "0px")
+            .replace(":0;", ":0px;");
     }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.starts_with("backdrop-")
@@ -1895,6 +1897,9 @@ fn theme_value(
             if value == "px" {
                 "1px".to_owned()
             } else if value.parse::<f64>().is_ok() {
+                if value.parse::<f64>().is_ok_and(|number| number == 0.0) {
+                    return Some("0".to_owned());
+                }
                 let multiplier = if negative {
                     format!("-{value}")
                 } else {

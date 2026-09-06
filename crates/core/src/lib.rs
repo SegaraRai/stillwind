@@ -1690,7 +1690,8 @@ fn render_utility_rule(
 ) -> String {
     let declaration = declaration
         .replace(" deg", "deg")
-        .replace("deg*-1", "deg * -1");
+        .replace("deg*-1", "deg * -1")
+        .replace("*-1)", "* -1)");
     let declaration = declaration
         .replace("calc(var(--spacing) * 0)", "0")
         .replace("calc(var(--spacing)*0)", "0");
@@ -1800,10 +1801,12 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 };
                 let declaration = declaration
                     .replace(" deg", "deg")
-                    .replace("deg*-1", "deg * -1");
+                    .replace("deg*-1", "deg * -1")
+                    .replace("*-1)", "* -1)");
+                let zero = if declaration.starts_with("--tw-mask-") { "0px" } else { "0" };
                 let declaration = declaration
-                    .replace("calc(var(--spacing) * 0)", "0")
-                    .replace("calc(var(--spacing)*0)", "0");
+                    .replace("calc(var(--spacing) * 0)", zero)
+                    .replace("calc(var(--spacing)*0)", zero);
                 let declaration = if declaration.starts_with("grid-column-")
                     || declaration.starts_with("grid-row-")
                 {
@@ -1853,8 +1856,6 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
         declarations.push(';');
     }
     declarations
-        .replace("calc(var(--spacing) * 0)", "0")
-        .replace("calc(var(--spacing)*0)", "0")
 }
 
 fn declaration_order(declaration: &str) -> Option<(&'static str, u16)> {
