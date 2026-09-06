@@ -2163,7 +2163,7 @@ fn render_used_properties(
         }
     }
     // Mask gradients register the stop family selected by the utility.
-    if !css.contains("position:initial") {
+    if css.contains("mask-image:") && !css.contains("position:initial") {
         let family = if css.contains("--tw-mask-linear-position:") {
             "linear"
         } else if css.contains("--tw-mask-radial-position:") {
