@@ -1853,6 +1853,8 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
         declarations.push(';');
     }
     declarations
+        .replace("calc(var(--spacing) * 0)", "0")
+        .replace("calc(var(--spacing)*0)", "0")
 }
 
 fn declaration_order(declaration: &str) -> Option<(&'static str, u16)> {
