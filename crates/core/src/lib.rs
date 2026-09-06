@@ -1882,6 +1882,9 @@ fn render_used_properties(
     options: &CompilerOptions,
 ) -> String {
     let used = stillwind_css::used_custom_properties(css);
+    let gradient_stops_used = css.contains("--tw-gradient-from:")
+        || css.contains("--tw-gradient-via:")
+        || css.contains("--tw-gradient-to:");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
@@ -1894,8 +1897,16 @@ fn render_used_properties(
         .rev()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
+            if name.starts_with("--tw-gradient-")
+                && (name == "--tw-gradient-position" || name == "--tw-gradient-stops")
+                && !gradient_stops_used
+            {
+                return None;
+            }
+            let property_used =
+                gradient_stops_used && name.starts_with("--tw-gradient-") || used.contains(&name);
             if !seen.insert(name.clone())
-                || !used.contains(&name)
+                || !property_used
                 || theme.authored_properties.contains(&name)
             {
                 return None;

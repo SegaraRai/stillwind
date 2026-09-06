@@ -429,7 +429,7 @@ fn framework_imports_gate_baseline_layers() {
         ),
     );
     assert!(content.diagnostics.is_empty());
-    assert!(content.css.contains("@property --tw-gradient-position"));
+    assert!(!content.css.contains("@property --tw-gradient-position"));
 }
 
 #[test]
