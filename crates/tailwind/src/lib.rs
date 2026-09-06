@@ -554,7 +554,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolution.declaration = modern;
             resolution.nested.clear();
         }
-    } else if resolution.declaration.contains("color-mix(in srgb, inherit")
+    } else if !raw.starts_with("placeholder-")
+        && resolution.declaration.contains("color-mix(in srgb, inherit")
         && let Some(modern) = resolution
             .nested
             .iter()
@@ -1402,6 +1403,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     if raw == "ease-linear" {
         declaration = declaration.replace("--tw-ease:var(--ease-linear);", "--tw-ease:linear;");
+    }
+    if let Some(alpha) = raw.strip_prefix("placeholder-current/") {
+        let alpha = alpha.trim_end_matches('%');
+        if alpha != "100" {
+            declaration = declaration.replace(
+                &format!("color:color-mix(in oklab, currentcolor {alpha}%, transparent);"),
+                "color:currentColor;",
+            );
+            declaration.push_str(&format!(
+                "@supports (color:color-mix(in lab, red, red)){{color:color-mix(in oklab, currentcolor {alpha}%, transparent);}}"
+            ));
+        }
     }
     let additional = resolution
         .additional
