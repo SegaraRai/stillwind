@@ -813,7 +813,9 @@ impl Compiler {
                                                 if name == "before" || name == "after"
                                         )
                                     });
-                                if pseudo_content {
+                                if pseudo_content
+                                    && !resolved_utility.declaration.starts_with("content:")
+                                {
                                     resolved_utility.declaration = format!(
                                         "content:var(--tw-content);{}",
                                         resolved_utility.declaration
