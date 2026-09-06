@@ -471,6 +471,21 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             ));
         }
     }
+    if raw.contains("transparent/")
+        && (resolution.declaration.contains(":#0000;")
+            || resolution.declaration.contains(":transparent;")
+            || resolution
+                .declaration
+                .contains("color-mix(in srgb, transparent"))
+        && let Some(modern) = resolution
+            .nested
+            .iter()
+            .find(|nested| nested.declaration.contains("oklab"))
+            .map(|nested| nested.declaration.clone())
+    {
+        resolution.declaration = modern;
+        resolution.nested.clear();
+    }
     let mut declaration = if candidate.important {
         important(&resolution.declaration)
     } else {
