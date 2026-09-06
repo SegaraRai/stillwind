@@ -542,6 +542,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
     }
     declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
+    if declaration.contains("--tw-translate-") {
+        declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
+    }
     for number in 0..=1000 {
         declaration = declaration
             .replace(&format!("calc({number}*1%)"), &format!("{number}%"))
