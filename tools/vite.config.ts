@@ -3,6 +3,9 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   run: {
     tasks: {
+      typecheck: {
+        command: "tsc --noEmit",
+      },
       "webref:generate": {
         command: "node generate-webref-css-domains.mts",
       },

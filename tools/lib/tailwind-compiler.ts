@@ -7,14 +7,22 @@ import { compile } from "tailwindcss";
 const toolRoot = resolve(import.meta.dirname, "..");
 const tailwindRoot = join(toolRoot, "node_modules", "tailwindcss");
 
-function resolveStylesheet(id, base) {
+function resolveStylesheet(id: string, base: string): string {
   const builtin = new Map([
     ["tailwindcss", "index.css"],
     ["tailwindcss/theme", "theme.css"],
     ["tailwindcss/preflight", "preflight.css"],
     ["tailwindcss/utilities", "utilities.css"],
   ]);
-  return builtin.has(id) ? join(tailwindRoot, builtin.get(id)) : resolve(base, id);
+  const builtinPath = builtin.get(id);
+  return builtinPath ? join(tailwindRoot, builtinPath) : resolve(base, id);
+}
+
+interface CompileTailwindCssOptions {
+  css: string;
+  candidates: string[];
+  base: string;
+  from?: string;
 }
 
 export async function compileTailwindCss({
@@ -22,7 +30,7 @@ export async function compileTailwindCss({
   candidates,
   base,
   from = join(base, "fixture.css"),
-}) {
+}: CompileTailwindCssOptions): Promise<string> {
   const compiler = await compile(css, {
     base,
     from,

@@ -16,7 +16,7 @@ const write = process.argv.includes("--write");
 if (!upstream)
   throw new Error("pass --upstream <tailwindcss-checkout> or set STILLWIND_TAILWIND_UPSTREAM");
 
-function registrations(path, expression) {
+function registrations(path: string, expression: RegExp): string[] {
   const source = readFileSync(path, "utf8");
   return [...source.matchAll(expression)]
     .map((match) => match[1])
@@ -24,7 +24,7 @@ function registrations(path, expression) {
     .sort((a, b) => a.localeCompare(b, "en"));
 }
 
-function lines(values, width = 10) {
+function lines(values: readonly string[], width = 10): string {
   return values.reduce((output, value, index) => {
     output += `${value}${index % width === width - 1 || index === values.length - 1 ? "\n" : " "}`;
     return output;
@@ -86,7 +86,7 @@ const fixtureTemplate = `# Exhaustive direct built-in registrations\n\n${[...can
   .join("\n\n")}\n`;
 const completionFixtureTemplate = `# Exhaustive default-theme built-in completions\n\n## \`builtins.default-theme-completions\`\n\n### Input CSS\n\n\`\`\`css\n${input}\n\`\`\`\n\n### Candidates\n\n\`\`\`text\n${lines(defaultCompletions, 8)}\`\`\`\n\n### Expected CSS\n\n\`\`\`css\n\n\`\`\`\n`;
 
-function synchronizeCandidates(markdown) {
+function synchronizeCandidates(markdown: string): string {
   let next = markdown;
   for (const [name, candidates] of candidateBlocks) {
     const pattern = new RegExp(
@@ -98,7 +98,7 @@ function synchronizeCandidates(markdown) {
   return next;
 }
 
-function synchronizeCompletionCandidates(markdown) {
+function synchronizeCompletionCandidates(markdown: string): string {
   const pattern =
     /(## `builtins\.default-theme-completions`[\s\S]*?### Candidates\n\n```text\n)([\s\S]*?)(\n```)/;
   if (!pattern.test(markdown)) throw new Error("default-completions fixture is missing its case");

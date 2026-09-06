@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 
-export function readValueGrammarCases(path) {
+export interface ValueGrammarCase {
+  candidate: string;
+  accepted: boolean;
+}
+
+export function readValueGrammarCases(path: string): ValueGrammarCase[] {
   const catalog = readFileSync(path, "utf8");
   return [
     ...readSection(catalog, "Padding: accepted without brackets", true),
@@ -12,7 +17,7 @@ export function readValueGrammarCases(path) {
   ];
 }
 
-function readSection(catalog, heading, accepted) {
+function readSection(catalog: string, heading: string, accepted: boolean): ValueGrammarCase[] {
   const marker = `## ${heading}\n\n\`\`\`text\n`;
   const start = catalog.indexOf(marker);
   if (start < 0) {

@@ -1,7 +1,22 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-export function parseMarkdownFixtureCases(markdown) {
+export interface MarkdownFixtureCase {
+  name: string;
+  input: string;
+  candidates: string;
+  expectedStart: number;
+  expectedEnd: number;
+}
+
+interface VerifyMarkdownFixturesOptions {
+  directory: string;
+  write: boolean;
+  compileCase: (fixtureCase: MarkdownFixtureCase) => Promise<string> | string;
+  maxFiles?: number;
+}
+
+export function parseMarkdownFixtureCases(markdown: string): MarkdownFixtureCase[] {
   const pattern =
     /## `([^`]+)`\r?\n\n### Input CSS\r?\n\r?\n```css\r?\n([\s\S]*?)\r?\n```\r?\n\r?\n### Candidates\r?\n\r?\n```text\r?\n([\s\S]*?)\r?\n```\r?\n\r?\n### Expected CSS\r?\n\r?\n```css\r?\n([\s\S]*?)\r?\n```/g;
   return [...markdown.matchAll(pattern)].map((match) => ({
@@ -16,7 +31,12 @@ export function parseMarkdownFixtureCases(markdown) {
   }));
 }
 
-export async function verifyMarkdownFixtures({ directory, write, compileCase, maxFiles = 500 }) {
+export async function verifyMarkdownFixtures({
+  directory,
+  write,
+  compileCase,
+  maxFiles = 500,
+}: VerifyMarkdownFixturesOptions) {
   const files = readdirSync(directory)
     .filter((file) => file.endsWith(".fixture.md"))
     .sort();
