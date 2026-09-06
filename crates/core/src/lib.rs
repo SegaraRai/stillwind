@@ -1742,7 +1742,9 @@ fn render_utility_rule(
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
         .replace("*-1)", "* -1)");
-    let declaration = if declaration.starts_with("outline-offset:") {
+    let declaration = if declaration.starts_with("outline-offset:")
+        || declaration.starts_with("--tw-scale-")
+    {
         normalize_angle_calc(&normalize_negative_calc(&declaration))
     } else {
         normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
@@ -1891,7 +1893,9 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 } else {
                     declaration
                 };
-                let declaration = if declaration.starts_with("outline-offset:") {
+                let declaration = if declaration.starts_with("outline-offset:")
+                    || declaration.starts_with("--tw-scale-")
+                {
                     normalize_angle_calc(&normalize_negative_calc(&declaration))
                 } else {
                     normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
