@@ -1973,10 +1973,10 @@ fn render_used_properties(
             let builtin = builtin_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
-            if !seen.insert(name.clone())
-                || !property_used
-                || (!builtin && theme.authored_properties.contains(&name))
-            {
+            if !property_used || (!builtin && theme.authored_properties.contains(&name)) {
+                return None;
+            }
+            if !seen.insert(name.clone()) {
                 return None;
             }
             Some((name, property.body.as_str(), builtin))
