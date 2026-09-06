@@ -1089,7 +1089,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .strip_prefix("--tw-gradient-position:")
             .and_then(|value| value.split_once(';'))
         && let Some((angle, color_space)) = position.0.split_once(" in ")
-        && angle.starts_with("calc(")
+        && !angle.is_empty()
     {
         let angle = angle.to_owned();
         let color_space = match color_space {
