@@ -1969,6 +1969,10 @@ fn render_used_properties(
             used.remove(name);
         }
     }
+    if css.contains("transition-property:initial") {
+        used.remove("--tw-duration");
+        used.remove("--tw-ease");
+    }
     // Tailwind registers the complete transform axis family when any axis is
     // used, including the z-axis default even when the emitted utility does
     // not reference it directly.
