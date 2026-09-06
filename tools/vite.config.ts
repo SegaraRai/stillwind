@@ -29,6 +29,10 @@ export default defineConfig({
       "tailwind:value-grammar": {
         command: "node verify-tailwind-v4-value-grammar.ts",
       },
+      "tailwind:parity": {
+        command:
+          "cargo test -p stillwind-core --test static_compile matches_tailwind_fixture_rules_after_minification",
+      },
       "tailwind:extract": {
         command: "node extract-tailwind-v4-registrations.ts",
       },
