@@ -1952,6 +1952,9 @@ fn normalize_negative_calc(value: &str) -> String {
             );
         }
     }
+    normalized = normalized
+        .replace(")* var(", ") * var(")
+        .replace(")* calc(", ") * calc(");
     normalized
 }
 
