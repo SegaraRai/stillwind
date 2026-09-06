@@ -1726,9 +1726,9 @@ fn render_utility_rule(
             None => {}
         }
     }
-    let marker_selectors = nested_rule.is_none()
+    let marker_selectors = (nested_rule.is_none()
         && selector.contains("::marker")
-        && selector.contains("::-webkit-details-marker")
+        && selector.contains("::-webkit-details-marker"))
         .then(|| {
             let selectors = selector.split(',').collect::<Vec<_>>();
             (selectors.len() == 4).then(|| {
