@@ -582,8 +582,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         );
     }
     if raw.starts_with("space-x-") || raw.starts_with("space-y-") {
-        declaration =
-            declaration.replace("calc(calc(var(--spacing) * 1)*", "calc(var(--spacing) * ");
+        declaration = declaration
+            .replace("calc(calc(var(--spacing) * 1)*", "calc(var(--spacing) * ")
+            .replace("px*", "px *")
+            .replace("*var(--tw-space", "* var(--tw-space")
+            .replace("*calc(1 - var(--tw-space", "* calc(1 - var(--tw-space");
         declaration = normalize_positive_space_order(
             declaration,
             if raw.starts_with("space-x-") {
