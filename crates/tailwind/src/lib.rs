@@ -1319,6 +1319,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
+    if raw.starts_with("mask-") {
+        declaration = declaration
+            .replace(", black)", ")")
+            .replace(", transparent)", ")")
+            .replace(", 0%)", ")")
+            .replace(", 100%)", ")");
+    }
     if raw.starts_with("backdrop-") {
         for property in [
             "blur", "brightness", "contrast", "grayscale", "hue-rotate", "invert",
@@ -1344,6 +1351,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             condition: "color:color-mix(in lab, red, red)".to_owned(),
             declaration: modern,
         });
+    }
+    if raw.starts_with("mask-") {
+        declaration = declaration
+            .replace(", black)", ")")
+            .replace(", transparent)", ")")
+            .replace(", 0%)", ")")
+            .replace(", 100%)", ")");
     }
     Some(ResolvedUtility {
         declaration,
