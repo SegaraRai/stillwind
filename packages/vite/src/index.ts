@@ -28,8 +28,6 @@ export interface StillwindOptions {
   tailwindPrefix?: string;
   /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
   forbidTailwindRelationships?: boolean;
-  /** Receives lint findings without affecting compilation. */
-  lint?: false | { rules?: Record<string, "warn" | "deny"> };
 }
 
 interface CompilerOutput {
