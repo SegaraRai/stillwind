@@ -34,12 +34,12 @@
   }
 }
 @variant ltr {
-  &:dir(ltr) {
+  &:where(:dir(ltr), [dir="ltr"], [dir="ltr"] *) {
     @slot;
   }
 }
 @variant noscript {
-  noscript & {
+  @media (scripting: none) {
     @slot;
   }
 }
@@ -49,7 +49,7 @@
   }
 }
 @variant rtl {
-  &:dir(rtl) {
+  &:where(:dir(rtl), [dir="rtl"], [dir="rtl"] *) {
     @slot;
   }
 }

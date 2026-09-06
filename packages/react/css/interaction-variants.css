@@ -128,7 +128,7 @@
   }
 }
 @variant open {
-  &:open {
+  &:is([open], :popover-open, :open) {
     @slot;
   }
 }
@@ -163,12 +163,18 @@
   }
 }
 @variant selection {
+  & ::selection,
   &::selection {
     @slot;
   }
 }
 @variant marker {
+  & ::marker,
   &::marker {
+    @slot;
+  }
+  & ::-webkit-details-marker,
+  &::-webkit-details-marker {
     @slot;
   }
 }
