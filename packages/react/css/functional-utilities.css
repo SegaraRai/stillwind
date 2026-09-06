@@ -191,13 +191,13 @@
   border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
 }
 @utility inset-ring {
-  --tw-inset-ring-shadow: inset 0 0 0 1px var(--tw-inset-ring-color, currentColor);
+  --tw-inset-ring-shadow: inset 0 0 0 1px var(--tw-inset-ring-color, currentcolor);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 @utility inset-ring-* {
-  --tw-inset-ring-shadow: inset 0 0 0 calc(--value(integer) * 1px) var(--tw-inset-ring-color, currentColor);
+  --tw-inset-ring-shadow: inset 0 0 0 calc(--value(integer) * 1px) var(--tw-inset-ring-color, currentcolor);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);

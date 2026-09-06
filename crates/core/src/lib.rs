@@ -2374,6 +2374,8 @@ fn render_used_properties(
         || css.contains("--tw-shadow-color:")
         || css.contains("--tw-ring-shadow:")
         || css.contains("--tw-ring-inset:")
+        || css.contains("--tw-inset-ring-shadow:")
+        || css.contains("--tw-inset-shadow:")
         || css.contains("--tw-inset-shadow-color:")
         || css.contains("--tw-inset-shadow-alpha:");
     let mut seen = BTreeSet::new();
