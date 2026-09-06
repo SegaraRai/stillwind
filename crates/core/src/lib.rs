@@ -2098,12 +2098,14 @@ fn render_used_properties(
                 return None;
             }
             if css.contains("--tw-mask-linear-position:initial")
-                && name.starts_with("--tw-mask-radial-")
+                && (name.starts_with("--tw-mask-radial-")
+                    || name.starts_with("--tw-mask-conic-"))
             {
                 return None;
             }
             if css.contains("--tw-mask-radial-size:initial")
-                && name.starts_with("--tw-mask-linear-")
+                && (name.starts_with("--tw-mask-linear-")
+                    || name.starts_with("--tw-mask-conic-"))
             {
                 return None;
             }
