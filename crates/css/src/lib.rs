@@ -1,7 +1,10 @@
 //! CSS-first theme parsing. Lightning CSS validates the stylesheet before stillwind
 //! extracts its small, source-spanned `@theme` surface.
 
-use std::{collections::BTreeMap, fmt::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write,
+};
 
 use lightningcss::{
     printer::PrinterOptions,
@@ -32,7 +35,7 @@ use thiserror::Error;
 pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../assets/tailwind-v4-preflight.css");
 
 const TAILWIND_V4_THEME: &str = include_str!("../assets/tailwind-v4-theme.css");
-const TAILWIND_V4_PROPERTIES: &str = include_str!("../assets/tailwind-v4-properties.css");
+const STILLWIND_PROPERTIES: &str = include_str!("../assets/properties.css");
 
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for
@@ -928,12 +931,6 @@ pub fn tailwind_v4_keyframes_for(names: &[String]) -> String {
     output
 }
 
-/// Typed custom-property registrations used by Tailwind-compatible utilities.
-#[must_use]
-pub const fn tailwind_v4_properties() -> &'static str {
-    TAILWIND_V4_PROPERTIES
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeToken {
     pub name: Spanned<String>,
@@ -947,6 +944,8 @@ pub struct ThemeIndex {
     pub custom_css: String,
     pub utilities: Vec<CustomUtility>,
     pub variants: Vec<CustomVariant>,
+    pub properties: Vec<CustomPropertyDefinition>,
+    pub authored_properties: BTreeSet<String>,
     /// Framework layers requested by the authored Tailwind-compatible imports.
     ///
     /// A stylesheet without a framework import retains the historical full
@@ -963,7 +962,6 @@ pub struct FrameworkImports {
     pub theme_layer: Option<String>,
     pub base_layer: Option<String>,
     pub utilities_layer: Option<String>,
-    pub properties: bool,
 }
 
 impl Default for FrameworkImports {
@@ -972,7 +970,6 @@ impl Default for FrameworkImports {
             theme_layer: Some("theme".to_owned()),
             base_layer: Some("base".to_owned()),
             utilities_layer: Some("utilities".to_owned()),
-            properties: true,
         }
     }
 }
@@ -983,7 +980,6 @@ impl FrameworkImports {
             theme_layer: None,
             base_layer: None,
             utilities_layer: None,
-            properties: false,
         }
     }
 
@@ -1007,6 +1003,15 @@ pub struct CustomVariant {
     pub body: String,
 }
 
+/// One compiler-owned custom-property registration declared with
+/// `@stillwind-property`. Ordinary authored `@property` rules are never added
+/// to this registry and remain untouched in the output stylesheet.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomPropertyDefinition {
+    pub name: String,
+    pub body: String,
+}
+
 /// Parses `@utility` definitions without requiring a complete theme stylesheet.
 /// This is used for vendored built-in registries as well as tooling.
 #[must_use]
@@ -1020,6 +1025,13 @@ pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
 #[must_use]
 pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
     extract_custom_variants(css)
+}
+
+/// Parses compiler-owned custom-property registrations without interpreting
+/// ordinary CSS `@property` rules.
+#[must_use]
+pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
+    extract_property_definitions(css)
 }
 
 impl ThemeIndex {
@@ -1166,8 +1178,8 @@ impl ThemeIndex {
     }
 }
 
-fn custom_property_references(css: &str) -> std::collections::BTreeSet<String> {
-    let mut references = std::collections::BTreeSet::new();
+fn custom_property_references(css: &str) -> BTreeSet<String> {
+    let mut references = BTreeSet::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("--") {
         let start = cursor + relative;
@@ -1186,6 +1198,13 @@ fn custom_property_references(css: &str) -> std::collections::BTreeSet<String> {
         cursor = end.max(start + 2);
     }
     references
+}
+
+/// Returns custom properties used by declarations and values, excluding names
+/// that occur only inside ordinary authored `@property` registration blocks.
+#[must_use]
+pub fn used_custom_properties(css: &str) -> BTreeSet<String> {
+    custom_property_references(&strip_css_comments(&strip_blocks(css, "@property")))
 }
 
 #[derive(Debug, Error)]
@@ -1210,6 +1229,8 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     theme.custom_css = strip_framework_directives(source.text());
     theme.utilities = extract_custom_utilities(source.text());
     theme.variants = extract_custom_variants(source.text());
+    theme.properties = extract_property_definitions(source.text());
+    theme.authored_properties = extract_authored_property_names(source.text());
     Ok(theme)
 }
 
@@ -1227,11 +1248,15 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         .map_err(|error| ThemeError::Parse(error.to_string()))?;
     let mut tokens = extract_theme_tokens(FileId(0), TAILWIND_V4_THEME)?.tokens;
     tokens.extend(extract_theme_tokens(source.id(), source.text())?.tokens);
+    let mut properties = extract_property_definitions(STILLWIND_PROPERTIES);
+    properties.extend(extract_property_definitions(source.text()));
     Ok(ThemeIndex {
         tokens,
         custom_css: strip_framework_directives(source.text()),
         utilities: extract_custom_utilities(source.text()),
         variants: extract_custom_variants(source.text()),
+        properties,
+        authored_properties: extract_authored_property_names(source.text()),
         imports: framework_imports(source.text()),
     })
 }
@@ -1268,6 +1293,8 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         custom_css: String::new(),
         utilities: Vec::new(),
         variants: Vec::new(),
+        properties: Vec::new(),
+        authored_properties: BTreeSet::new(),
         imports: FrameworkImports::default(),
     })
 }
@@ -1295,7 +1322,6 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 output.theme_layer = Some(layer.clone().unwrap_or_else(|| "theme".to_owned()));
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
-                output.properties = false;
             }
             "tailwindcss/theme" => {
                 found = true;
@@ -1479,10 +1505,34 @@ fn strip_framework_directives(css: &str) -> String {
     let css = strip_blocks(css, "@theme");
     let css = strip_blocks(&css, "@utility");
     let css = strip_blocks(&css, "@variant");
+    let css = strip_blocks(&css, "@stillwind-property");
     css.lines()
         .filter(|line| !line.trim_start().starts_with("@custom-variant"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
+    extract_named_blocks(&strip_css_comments(css), "@stillwind-property")
+        .into_iter()
+        .filter_map(|(header, body)| {
+            let name = header.split_whitespace().next()?;
+            name.starts_with("--").then(|| CustomPropertyDefinition {
+                name: name.to_owned(),
+                body,
+            })
+        })
+        .collect()
+}
+
+fn extract_authored_property_names(css: &str) -> BTreeSet<String> {
+    extract_named_blocks(&strip_css_comments(css), "@property")
+        .into_iter()
+        .filter_map(|(header, _)| {
+            let name = header.split_whitespace().next()?;
+            name.starts_with("--").then(|| name.to_owned())
+        })
+        .collect()
 }
 
 fn strip_blocks(css: &str, directive: &str) -> String {
@@ -2250,5 +2300,34 @@ mod tests {
         );
         assert!(theme.custom_css().contains(".card"));
         assert!(!theme.custom_css().contains("@variant"));
+    }
+
+    #[test]
+    fn separates_compiler_property_definitions_from_authored_property_rules() {
+        let source = SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            r#"
+                @stillwind-property --example-value {
+                  syntax: "<number>";
+                  inherits: false;
+                  initial-value: 0;
+                }
+                @property --authored-value {
+                  syntax: "<color>";
+                  inherits: false;
+                  initial-value: red;
+                }
+                .example { color: var(--authored-value); }
+            "#,
+        );
+
+        let theme = parse_theme(&source).unwrap();
+
+        assert_eq!(theme.properties.len(), 1);
+        assert_eq!(theme.properties[0].name, "--example-value");
+        assert!(theme.authored_properties.contains("--authored-value"));
+        assert!(!theme.custom_css().contains("@stillwind-property"));
+        assert!(theme.custom_css().contains("@property --authored-value"));
     }
 }

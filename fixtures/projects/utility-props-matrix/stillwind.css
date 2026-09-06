@@ -4,3 +4,35 @@
   --radius-md: 0.375rem;
   --spacing-4: 1rem;
 }
+
+@stillwind-property --button-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@stillwind-property --unused-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@stillwind-property --authored-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --authored-progress {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+@utility progress-* {
+  --button-progress: --value([number]);
+}
+
+@utility authored-progress {
+  --authored-progress: 1;
+}

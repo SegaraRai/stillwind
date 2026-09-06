@@ -151,6 +151,12 @@ be reduced to one.
     @slot;
   }
 }
+
+@stillwind-property --panel-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
 ```
 
 The examples above compile `surface-brand`, `state-open:bg-accent`, and
@@ -158,6 +164,11 @@ The examples above compile `surface-brand`, `state-open:bg-accent`, and
 substitutes the wildcard suffix; in conditional at-rules, token domains resolve
 to the theme token's concrete value. An attribute-name capture uses CSS's
 escaped-star spelling, for example `[aria-\*="true"]` in `@variant aria-*`.
+`@stillwind-property` declares a tree-shakeable registration: Stillwind emits
+the corresponding standard `@property` only when the custom property is used
+by the combined theme, user, or generated CSS. Ordinary authored `@property`
+rules remain untouched and take precedence over a compiler-owned definition
+with the same name.
 
 Tailwind v4 documents this CSS-first model, its `@theme` namespaces, and its
 layer order in its [theme documentation](https://tailwindcss.com/docs/theme)

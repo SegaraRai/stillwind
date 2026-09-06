@@ -1608,15 +1608,7 @@ fn render_stylesheet(
     options: &CompilerOptions,
 ) -> String {
     let imports = &theme.imports;
-    // Tailwind only emits typed custom-property registrations when a generated
-    // utility actually participates in one of those protocols. An import is
-    // permission to use the layer, not a request to eagerly dump it.
-    let properties =
-        imports.properties || (imports.has_any() && utility_css.contains(&options.tailwind_prefix));
     let mut css = String::new();
-    if properties {
-        css.push_str("@layer properties;\n");
-    }
     if imports.has_any() {
         css.push_str("@layer theme, base, components, utilities;\n");
     }
@@ -1674,10 +1666,51 @@ fn render_stylesheet(
         css.push_str(utility_css);
         css.push_str("}\n");
     }
-    if properties {
-        css.push_str(&options.rewrite_generated(stillwind_css::tailwind_v4_properties()));
+    let properties = render_used_properties(theme, &css, options);
+    if !properties.is_empty() {
+        css.insert_str(0, "@layer properties;\n");
+        css.push('\n');
+        css.push_str(&properties);
     }
     css
+}
+
+fn render_used_properties(
+    theme: &stillwind_css::ThemeIndex,
+    css: &str,
+    options: &CompilerOptions,
+) -> String {
+    let used = stillwind_css::used_custom_properties(css);
+    let mut seen = BTreeSet::new();
+    let mut properties = theme
+        .properties
+        .iter()
+        .rev()
+        .filter_map(|property| {
+            let name = options.rewrite_generated(&property.name);
+            if !seen.insert(name.clone())
+                || !used.contains(&name)
+                || theme.authored_properties.contains(&name)
+            {
+                return None;
+            }
+            Some((name, property.body.as_str()))
+        })
+        .collect::<Vec<_>>();
+    properties.reverse();
+
+    let mut output = String::new();
+    for (name, body) in properties {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        let _ = writeln!(output, "@property {name} {{");
+        for line in body.lines() {
+            let _ = writeln!(output, "  {}", line.trim());
+        }
+        output.push_str("}\n");
+    }
+    output
 }
 
 fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
@@ -1806,5 +1839,76 @@ mod tests {
 
         assert!(types.contains("\"bg-accent\": true"));
         assert!(types.contains("\"px-4\": true"));
+    }
+
+    #[test]
+    fn emits_only_used_compiler_owned_property_registrations() {
+        let theme = SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            r#"
+                @stillwind-property --example-used {
+                  syntax: "<number>";
+                  inherits: false;
+                  initial-value: 0;
+                }
+                @stillwind-property --example-unused {
+                  syntax: "<number>";
+                  inherits: false;
+                  initial-value: 0;
+                }
+                .example { --example-used: 1; }
+            "#,
+        );
+
+        let css =
+            Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
+
+        assert!(css.contains("@property --example-used"));
+        assert!(!css.contains("--example-unused"));
+        assert!(!css.contains("@stillwind-property"));
+    }
+
+    #[test]
+    fn preserves_authored_property_rules_over_compiler_defaults() {
+        let theme = SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            r#"
+                @property --tw-shadow {
+                  syntax: "<color>";
+                  inherits: true;
+                  initial-value: red;
+                }
+                .example { color: var(--tw-shadow); }
+            "#,
+        );
+
+        let css =
+            Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
+
+        assert_eq!(css.matches("@property --tw-shadow").count(), 1);
+        assert!(css.contains("inherits: true"));
+        assert!(!css.contains("initial-value: 0 0 #0000"));
+    }
+
+    #[test]
+    fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
+        let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+        let options = CompilerOptions {
+            tailwind_prefix: "--internal-".to_owned(),
+            ..CompilerOptions::default()
+        };
+
+        let css = Compiler::render_react_stylesheet(
+            &theme,
+            ".example{--internal-translate-x:0;translate:var(--internal-translate-x);}",
+            &options,
+        )
+        .unwrap();
+
+        assert!(css.contains("@property --internal-translate-x"));
+        assert!(!css.contains("@property --internal-translate-y"));
+        assert!(!css.contains("@property --internal-gradient-from"));
     }
 }

@@ -585,8 +585,9 @@ export function SaveButton() {
     assert!(
         result
             .css
-            .starts_with("@layer properties;\n@layer theme, base, components, utilities;")
+            .starts_with("@layer theme, base, components, utilities;")
     );
+    assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("@layer base"));
     assert!(result.css.contains("._s_bc6dda5a{display:inline-flex;align-items:center;border-radius:var(--radius-md);background-color:var(--color-accent);padding-inline:var(--spacing-4);text-align:center;}"));
@@ -779,8 +780,9 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     assert!(
         result
             .css
-            .starts_with("@layer properties;\n@layer theme, base, components, utilities;\n")
+            .starts_with("@layer theme, base, components, utilities;\n")
     );
+    assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("--spacing-4:1rem;"));
     assert!(result.css.contains("--breakpoint-md:48rem;"));

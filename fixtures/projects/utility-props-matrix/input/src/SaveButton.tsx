@@ -4,7 +4,10 @@ const loading = Date.now() % 2 === 0;
 const emphasized = location.hash === "#emphasized";
 
 export const buttonProps = style(
-  ["inline-flex items-center rounded-md px-4", loading && "opacity-60"],
+  [
+    "inline-flex items-center rounded-md px-4 progress-[.5] authored-progress",
+    loading && "opacity-60",
+  ],
   emphasized ? "bg-accent" : "bg-muted",
   {
     class: ["legacy-button", loading && "is-loading"],

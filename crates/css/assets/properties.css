@@ -1,710 +1,711 @@
-/* Tailwind v4-compatible custom-property registrations. */
-@property --tw-pan-x {
+/* Tailwind v4-compatible registrations. The compiler lowers only used
+ * @stillwind-property definitions to standard @property rules. */
+@stillwind-property --tw-pan-x {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-pan-y {
+@stillwind-property --tw-pan-y {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-pinch-zoom {
+@stillwind-property --tw-pinch-zoom {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-scroll-snap-strictness {
+@stillwind-property --tw-scroll-snap-strictness {
   syntax: "*";
   inherits: false;
   initial-value: proximity;
 }
 
-@property --tw-gradient-position {
+@stillwind-property --tw-gradient-position {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-gradient-from {
+@stillwind-property --tw-gradient-from {
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
-@property --tw-gradient-via {
+@stillwind-property --tw-gradient-via {
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
-@property --tw-gradient-to {
+@stillwind-property --tw-gradient-to {
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
-@property --tw-gradient-stops {
+@stillwind-property --tw-gradient-stops {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-gradient-via-stops {
+@stillwind-property --tw-gradient-via-stops {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-gradient-from-position {
+@stillwind-property --tw-gradient-from-position {
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-gradient-via-position {
+@stillwind-property --tw-gradient-via-position {
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 50%;
 }
 
-@property --tw-gradient-to-position {
+@stillwind-property --tw-gradient-to-position {
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-linear {
+@stillwind-property --tw-mask-linear {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-radial {
+@stillwind-property --tw-mask-radial {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-conic {
+@stillwind-property --tw-mask-conic {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-linear-position {
+@stillwind-property --tw-mask-linear-position {
   syntax: "*";
   inherits: false;
   initial-value: 0deg;
 }
 
-@property --tw-mask-linear-from-position {
+@stillwind-property --tw-mask-linear-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-linear-to-position {
+@stillwind-property --tw-mask-linear-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-linear-from-color {
+@stillwind-property --tw-mask-linear-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-linear-to-color {
+@stillwind-property --tw-mask-linear-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-divide-y-reverse {
+@stillwind-property --tw-divide-y-reverse {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-border-style {
+@stillwind-property --tw-border-style {
   syntax: "*";
   inherits: false;
   initial-value: solid;
 }
 
-@property --tw-shadow {
+@stillwind-property --tw-shadow {
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
 }
 
-@property --tw-shadow-color {
+@stillwind-property --tw-shadow-color {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-shadow-alpha {
+@stillwind-property --tw-shadow-alpha {
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-inset-shadow {
+@stillwind-property --tw-inset-shadow {
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
 }
 
-@property --tw-inset-shadow-color {
+@stillwind-property --tw-inset-shadow-color {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-inset-shadow-alpha {
+@stillwind-property --tw-inset-shadow-alpha {
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-ring-color {
+@stillwind-property --tw-ring-color {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-ring-shadow {
-  syntax: "*";
-  inherits: false;
-  initial-value: 0 0 #0000;
-}
-
-@property --tw-inset-ring-color {
-  syntax: "*";
-  inherits: false;
-}
-
-@property --tw-inset-ring-shadow {
+@stillwind-property --tw-ring-shadow {
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
 }
 
-@property --tw-ring-inset {
+@stillwind-property --tw-inset-ring-color {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-ring-offset-width {
+@stillwind-property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+
+@stillwind-property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+
+@stillwind-property --tw-ring-offset-width {
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
 }
 
-@property --tw-ring-offset-color {
+@stillwind-property --tw-ring-offset-color {
   syntax: "*";
   inherits: false;
   initial-value: #fff;
 }
 
-@property --tw-ring-offset-shadow {
+@stillwind-property --tw-ring-offset-shadow {
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
 }
 
-@property --tw-outline-style {
+@stillwind-property --tw-outline-style {
   syntax: "*";
   inherits: false;
   initial-value: solid;
 }
 
-@property --tw-translate-x {
+@stillwind-property --tw-translate-x {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-translate-y {
+@stillwind-property --tw-translate-y {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-translate-z {
+@stillwind-property --tw-translate-z {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-scale-x {
+@stillwind-property --tw-scale-x {
   syntax: "*";
   inherits: false;
   initial-value: 1;
 }
 
-@property --tw-scale-y {
+@stillwind-property --tw-scale-y {
   syntax: "*";
   inherits: false;
   initial-value: 1;
 }
 
-@property --tw-scale-z {
+@stillwind-property --tw-scale-z {
   syntax: "*";
   inherits: false;
   initial-value: 1;
 }
 
-@property --tw-space-y-reverse {
+@stillwind-property --tw-space-y-reverse {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-space-x-reverse {
+@stillwind-property --tw-space-x-reverse {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-ordinal {
+@stillwind-property --tw-ordinal {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-slashed-zero {
+@stillwind-property --tw-slashed-zero {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-numeric-figure {
+@stillwind-property --tw-numeric-figure {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-numeric-spacing {
+@stillwind-property --tw-numeric-spacing {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-numeric-fraction {
+@stillwind-property --tw-numeric-fraction {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-blur {
+@stillwind-property --tw-blur {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-brightness {
+@stillwind-property --tw-brightness {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-contrast {
+@stillwind-property --tw-contrast {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-grayscale {
+@stillwind-property --tw-grayscale {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-hue-rotate {
+@stillwind-property --tw-hue-rotate {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-invert {
+@stillwind-property --tw-invert {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-opacity {
+@stillwind-property --tw-opacity {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-saturate {
+@stillwind-property --tw-saturate {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-sepia {
+@stillwind-property --tw-sepia {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-drop-shadow {
+@stillwind-property --tw-drop-shadow {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-drop-shadow-color {
+@stillwind-property --tw-drop-shadow-color {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-drop-shadow-alpha {
+@stillwind-property --tw-drop-shadow-alpha {
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-drop-shadow-size {
+@stillwind-property --tw-drop-shadow-size {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-contain-size {
+@stillwind-property --tw-contain-size {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-contain-layout {
+@stillwind-property --tw-contain-layout {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-contain-paint {
+@stillwind-property --tw-contain-paint {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-contain-style {
+@stillwind-property --tw-contain-style {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-divide-x-reverse {
+@stillwind-property --tw-divide-x-reverse {
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-duration {
+@stillwind-property --tw-duration {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-text-shadow-color {
+@stillwind-property --tw-text-shadow-color {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-text-shadow-alpha {
+@stillwind-property --tw-text-shadow-alpha {
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-rotate-x {
+@stillwind-property --tw-rotate-x {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-rotate-y {
+@stillwind-property --tw-rotate-y {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-rotate-z {
+@stillwind-property --tw-rotate-z {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-skew-x {
+@stillwind-property --tw-skew-x {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-skew-y {
+@stillwind-property --tw-skew-y {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-mask-radial-from-position {
+@stillwind-property --tw-mask-radial-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-radial-to-position {
+@stillwind-property --tw-mask-radial-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-radial-from-color {
+@stillwind-property --tw-mask-radial-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-radial-to-color {
+@stillwind-property --tw-mask-radial-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-mask-radial-shape {
+@stillwind-property --tw-mask-radial-shape {
   syntax: "*";
   inherits: false;
   initial-value: ellipse;
 }
 
-@property --tw-mask-radial-size {
+@stillwind-property --tw-mask-radial-size {
   syntax: "*";
   inherits: false;
   initial-value: farthest-corner;
 }
 
-@property --tw-mask-radial-position {
+@stillwind-property --tw-mask-radial-position {
   syntax: "*";
   inherits: false;
   initial-value: center;
 }
 
-@property --tw-mask-conic-position {
+@stillwind-property --tw-mask-conic-position {
   syntax: "*";
   inherits: false;
   initial-value: 0deg;
 }
 
-@property --tw-mask-conic-from-position {
+@stillwind-property --tw-mask-conic-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-conic-to-position {
+@stillwind-property --tw-mask-conic-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-conic-from-color {
+@stillwind-property --tw-mask-conic-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-conic-to-color {
+@stillwind-property --tw-mask-conic-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-tracking {
+@stillwind-property --tw-tracking {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-blur {
+@stillwind-property --tw-backdrop-blur {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-brightness {
+@stillwind-property --tw-backdrop-brightness {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-contrast {
+@stillwind-property --tw-backdrop-contrast {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-grayscale {
+@stillwind-property --tw-backdrop-grayscale {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-hue-rotate {
+@stillwind-property --tw-backdrop-hue-rotate {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-invert {
+@stillwind-property --tw-backdrop-invert {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-opacity {
+@stillwind-property --tw-backdrop-opacity {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-saturate {
+@stillwind-property --tw-backdrop-saturate {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-backdrop-sepia {
+@stillwind-property --tw-backdrop-sepia {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-ease {
+@stillwind-property --tw-ease {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-content {
+@stillwind-property --tw-content {
   syntax: "*";
   inherits: false;
   initial-value: "";
 }
 
-@property --tw-border-spacing-x {
+@stillwind-property --tw-border-spacing-x {
   syntax: "<length>";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-border-spacing-y {
+@stillwind-property --tw-border-spacing-y {
   syntax: "<length>";
   inherits: false;
   initial-value: 0;
 }
 
-@property --tw-scrollbar-thumb {
+@stillwind-property --tw-scrollbar-thumb {
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
-@property --tw-scrollbar-track {
+@stillwind-property --tw-scrollbar-track {
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
-@property --tw-mask-left {
+@stillwind-property --tw-mask-left {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-right {
+@stillwind-property --tw-mask-right {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-bottom {
+@stillwind-property --tw-mask-bottom {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-top {
+@stillwind-property --tw-mask-top {
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
-@property --tw-mask-top-from-position {
+@stillwind-property --tw-mask-top-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-top-to-position {
+@stillwind-property --tw-mask-top-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-top-from-color {
+@stillwind-property --tw-mask-top-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-top-to-color {
+@stillwind-property --tw-mask-top-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-mask-bottom-from-position {
+@stillwind-property --tw-mask-bottom-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-bottom-to-position {
+@stillwind-property --tw-mask-bottom-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-bottom-from-color {
+@stillwind-property --tw-mask-bottom-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-bottom-to-color {
+@stillwind-property --tw-mask-bottom-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-mask-right-from-position {
+@stillwind-property --tw-mask-right-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-right-to-position {
+@stillwind-property --tw-mask-right-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-right-from-color {
+@stillwind-property --tw-mask-right-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-right-to-color {
+@stillwind-property --tw-mask-right-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-mask-left-from-position {
+@stillwind-property --tw-mask-left-from-position {
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
-@property --tw-mask-left-to-position {
+@stillwind-property --tw-mask-left-to-position {
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
-@property --tw-mask-left-from-color {
+@stillwind-property --tw-mask-left-from-color {
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
-@property --tw-mask-left-to-color {
+@stillwind-property --tw-mask-left-to-color {
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
-@property --tw-leading {
+@stillwind-property --tw-leading {
   syntax: "*";
   inherits: false;
 }
 
-@property --tw-font-weight {
+@stillwind-property --tw-font-weight {
   syntax: "*";
   inherits: false;
 }

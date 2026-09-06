@@ -1,14 +1,16 @@
-._s_9406efc8 {
+._s_87e7c0ec {
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-md);
   padding-inline: var(--spacing-4);
+  --button-progress: 0.5;
+  --authored-progress: 1;
 }
-._s_9406efc8:hover {
+._s_87e7c0ec:hover {
   background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);
 }
 @supports (color: color-mix(in lab, red, red)) {
-  ._s_9406efc8:hover {
+  ._s_87e7c0ec:hover {
     background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);
   }
 }

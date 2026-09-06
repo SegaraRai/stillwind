@@ -533,6 +533,12 @@ Stillwind-owned identifiers use the configurable `--sw-` prefix. Internal
 custom properties retained for Tailwind compatibility use the separately
 configurable `--tw-` prefix; the two namespaces must remain distinct.
 
+Typed registrations in the CSS registry use `@stillwind-property`. The
+stylesheet emitter resolves these definitions after theme CSS, authored CSS,
+and generated utilities have been combined, then lowers only referenced names
+to standard `@property` rules. Authored standard `@property` rules are retained
+verbatim and suppress a compiler-owned registration with the same final name.
+
 Every generated CSS declaration carries an `Origin`; the CSS emitter writes a
 source map back to the style call and, where useful, to the exact utility token.
 
