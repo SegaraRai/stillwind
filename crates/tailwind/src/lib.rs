@@ -1606,6 +1606,15 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
+    if let Some(value) = raw.strip_prefix("mask-conic-")
+        && !value.is_empty()
+        && value.parse::<f64>().is_ok()
+    {
+        declaration = declaration.replace(
+            &format!("--tw-mask-conic-position:calc(1deg * {value});"),
+            &format!("--tw-mask-conic-position:{value}deg;"),
+        );
+    }
     if raw.starts_with("backdrop-") {
         for property in [
             "blur", "brightness", "contrast", "grayscale", "hue-rotate", "invert",
