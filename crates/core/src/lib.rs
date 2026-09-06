@@ -1753,7 +1753,11 @@ fn render_utility_rule(
         .variants
         .iter()
         .any(|variant| variant.raw == "not-hover");
-    let base_rule = rule.clone();
+    let base_rule = if not_hover {
+        format!("{}{{{declaration}}}", selector.replace(":not(:hover)", ""))
+    } else {
+        rule.clone()
+    };
     if let Some(nested) = nested_rule {
         rule = match nested.at_rule {
             stillwind_tailwind::NestedUtilityAtRule::Media => {
