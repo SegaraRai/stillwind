@@ -17,7 +17,9 @@ import { TypeScriptFactsService, type AssetRecord, type TypeFact } from "./type-
 
 export interface StillwindOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
-  theme: string;
+  theme?: string;
+  /** CSS-first entrypoint. `theme` is retained as a compatibility alias. */
+  css?: string;
   /** Emits a module augmentation with the CSS theme's utility vocabulary. */
   types?: false | string;
   /** Namespace for Stillwind-owned CSS identifiers. */
@@ -57,6 +59,7 @@ interface CompilerOutput {
     end: number;
     notes: string[];
   }>;
+  lint_policy: Record<string, "warn" | "deny" | "off">;
 }
 
 interface GeneratedSymbol {
@@ -92,6 +95,12 @@ interface ProjectCompilerOutput {
 const virtualCssId = "virtual:stillwind.css";
 const resolvedVirtualCssId = `\0${virtualCssId}`;
 const maximumPlayPayloadBytes = 1_000_000;
+
+function cssEntrypoint(options: StillwindOptions): string {
+  const path = options.css ?? options.theme;
+  if (!path) throw new Error("Stillwind requires a CSS-first entrypoint (`css`)");
+  return path;
+}
 
 function compilerOptions(options: StillwindOptions): string {
   return JSON.stringify({
@@ -331,7 +340,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (id === resolvedVirtualCssId)
         return renderReactStylesheet(
           [...cssByModule.values()].join("\n"),
-          readFileSync(options.theme, "utf8"),
+          readFileSync(cssEntrypoint(options), "utf8"),
           compilerOptions(options),
         );
       return undefined;
@@ -346,7 +355,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         output.startsWith("/") || /^[A-Za-z]:[\\/]/.test(output)
           ? output
           : join(config.root, output);
-      const types = generateReactTypes(readFileSync(options.theme, "utf8"));
+      const types = generateReactTypes(readFileSync(cssEntrypoint(options), "utf8"));
       try {
         if (readFileSync(path, "utf8") === types) return;
       } catch {
@@ -402,7 +411,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       }));
       const projectOutput = compileProject(
         typedSources,
-        readFileSync(options.theme, "utf8"),
+        readFileSync(cssEntrypoint(options), "utf8"),
         options,
       );
       const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
@@ -415,12 +424,18 @@ export function stillwind(options: StillwindOptions): Plugin {
             `${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`,
           );
         }
+        const deniedFindings: string[] = [];
         for (const finding of output.lint_findings ?? []) {
-          const level = options.lint?.rules?.[finding.rule] ?? "warn";
+          const level = output.lint_policy?.[finding.rule] ?? "warn";
           if (level !== "deny") {
             this.warn(`${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`);
+          } else {
+            deniedFindings.push(
+              `${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`,
+            );
           }
         }
+        if (deniedFindings.length > 0) this.error(deniedFindings.join("\n"));
         const collision = findSymbolCollision(symbolsByModule, moduleId, output.symbols);
         if (collision) {
           const [first, second] = collision;

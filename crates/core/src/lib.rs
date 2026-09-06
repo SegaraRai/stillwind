@@ -79,6 +79,7 @@ pub struct CompileResult {
     pub transforms: Vec<PropsTransform>,
     pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
+    pub lint_policy: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -297,6 +298,7 @@ impl Compiler {
         if let Some(prefix) = &theme.config.tailwind_prefix {
             options.tailwind_prefix.clone_from(prefix);
         }
+        result.lint_policy.clone_from(&theme.config.lint_rules);
 
         if !result.diagnostics.is_empty() {
             return result;
