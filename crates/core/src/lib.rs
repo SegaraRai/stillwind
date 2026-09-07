@@ -2365,17 +2365,6 @@ fn render_used_properties(
     if css.contains("var(--tw-leading") && !css.contains("--tw-leading:") {
         used.remove("--tw-leading");
     }
-    if css.contains("transition-property:") && !css.contains("var(--tw-gradient-") {
-        for name in [
-            "--tw-gradient-from",
-            "--tw-gradient-via",
-            "--tw-gradient-to",
-            "--tw-gradient-stops",
-            "--tw-gradient-via-stops",
-        ] {
-            used.remove(name);
-        }
-    }
     if css.contains("--tw-ring-shadow:")
         || css.contains("--tw-shadow-color:")
         || css.contains("--tw-shadow:")
