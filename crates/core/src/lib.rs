@@ -1718,17 +1718,7 @@ fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
-    let mut declaration = declaration.to_owned();
-    if declaration.contains("border-inline-end-width:")
-        && !declaration.contains("--tw-divide-x-reverse:")
-    {
-        declaration.insert_str(0, "--tw-divide-x-reverse:0;");
-    }
-    if declaration.contains("border-bottom-width:")
-        && !declaration.contains("--tw-divide-y-reverse:")
-    {
-        declaration.insert_str(0, "--tw-divide-y-reverse:0;");
-    }
+    let declaration = declaration.to_owned();
     let declaration = declaration
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
