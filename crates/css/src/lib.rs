@@ -2122,9 +2122,6 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
         .into_iter()
         .flat_map(|(header, body)| {
             let (domain, negative) = parse_utility_family_header(&header);
-            if domain.as_deref() == Some("mask-stop") {
-                return expand_mask_stop_family(&body);
-            }
             if domain.as_deref() == Some("color-alpha-default") {
                 return expand_color_alpha_default_family(&body);
             }
@@ -2186,7 +2183,7 @@ fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
         .any(|flag| flag == "negative");
     let Some(start) = header.find("value=") else {
         let symbolic = header.split_whitespace().next().filter(|name| {
-            matches!(*name, "mask-stop" | "color-alpha" | "color-alpha-default")
+            matches!(*name, "color-alpha" | "color-alpha-default")
         });
         return (symbolic.map(str::to_owned), negative);
     };
@@ -2203,68 +2200,6 @@ fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
 /// utility roots and the affected edges; this helper merely stamps the shared
 /// custom-property protocol into each definition. It deliberately enumerates
 /// neither colors nor spacing values.
-fn expand_mask_stop_family(body: &str) -> Vec<CustomUtility> {
-    body.split(';')
-        .filter_map(|entry| {
-            let (name, edges) = entry.split_once(':')?;
-            let name = name.trim();
-            let stop = name.strip_prefix("mask-")?.rsplit_once('-')?.1.trim();
-            matches!(stop, "from" | "to").then_some((
-                name,
-                stop,
-                edges
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|edge| matches!(*edge, "top" | "right" | "bottom" | "left"))
-                    .collect::<Vec<_>>(),
-            ))
-        })
-        .flat_map(|(name, stop, edges)| {
-            [
-                mask_stop_body(&edges, stop, "position"),
-                mask_stop_body(&edges, stop, "color"),
-                mask_stop_body(&edges, stop, "alpha-color"),
-            ]
-            .into_iter()
-            .map(move |body| CustomUtility {
-                name: format!("{name}-*"),
-                body,
-            })
-        })
-        .collect()
-}
-
-fn mask_stop_body(edges: &[&str], stop: &str, kind: &str) -> String {
-    let mut body = String::from(
-        "mask-image:var(--tw-mask-linear),var(--tw-mask-radial),var(--tw-mask-conic);mask-composite:intersect;--tw-mask-linear:var(--tw-mask-left),var(--tw-mask-right),var(--tw-mask-bottom),var(--tw-mask-top);",
-    );
-    for edge in edges {
-        write!(
-            body,
-            "--tw-mask-{edge}:linear-gradient(to {edge},var(--tw-mask-{edge}-from-color,black) var(--tw-mask-{edge}-from-position,0%),var(--tw-mask-{edge}-to-color,transparent) var(--tw-mask-{edge}-to-position,100%));"
-        )
-        .expect("writing to a String cannot fail");
-    }
-    let value = match kind {
-        "position" => "--value(--spacing-*, --spacing(), percentage, [length])",
-        "color" => "--value(--color-*, current, inherit, transparent, [color])",
-        "alpha-color" => {
-            "color-mix(in oklab,--value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),transparent)"
-        }
-        _ => unreachable!("mask stop body kind is fixed by the expander"),
-    };
-    let suffix = if kind == "position" {
-        "position"
-    } else {
-        "color"
-    };
-    for edge in edges {
-        write!(body, "--tw-mask-{edge}-{stop}-{suffix}:{value};")
-            .expect("writing to a String cannot fail");
-    }
-    body
-}
-
 fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
     let mut remaining = css;
@@ -2613,8 +2548,9 @@ mod tests {
 
     #[test]
     fn expands_mask_stop_roots_from_edge_metadata() {
-        let utilities =
-            parse_utility_definitions("@utility-family mask-stop { mask-x-from: left, right; }");
+        let utilities = parse_utility_definitions(
+            "@utility mask-x-from-* { --tw-mask-left-from-position:--value(--spacing-*); } @utility mask-x-from-* { --tw-mask-right-from-color:--value(--color-*); } @utility mask-x-from-* { --alpha(--modifier()); }",
+        );
 
         assert_eq!(utilities.len(), 3);
         assert!(
