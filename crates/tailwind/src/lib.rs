@@ -4,7 +4,7 @@
 //! names, or Stillwind-only relations. It turns a parsed candidate and a
 //! CSS-first theme into standard CSS declarations and wrappers.
 
-use std::{collections::HashMap, fmt::Write, sync::OnceLock};
+use std::{collections::{BTreeSet, HashMap}, fmt::Write, sync::OnceLock};
 
 use stillwind_css::{
     CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
@@ -157,6 +157,12 @@ pub fn builtin_declaration_order() -> &'static [Vec<String>] {
     ORDER
         .get_or_init(|| stillwind_css::parse_declaration_order(BUILTIN_REGISTRY_CSS))
         .as_slice()
+}
+
+#[must_use]
+fn builtin_marker_utilities() -> &'static BTreeSet<String> {
+    static MARKERS: OnceLock<BTreeSet<String>> = OnceLock::new();
+    MARKERS.get_or_init(|| stillwind_css::parse_marker_utilities(BUILTIN_REGISTRY_CSS))
 }
 
 /// Removes non-semantic whitespace from vendored declarations.
@@ -709,7 +715,7 @@ pub fn is_tailwind_relationship_candidate(raw: &str) -> bool {
 /// `group` and `peer` utilities. These classes intentionally bypass hashing so
 /// relational selectors can find them across independent `style()` calls.
 #[must_use]
-pub fn compatibility_marker_class(raw: &str) -> Option<String> {
+pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<String> {
     let candidate = parse_candidate(raw)?;
     if candidate.negative || candidate.important || !candidate.variants.is_empty() {
         return None;
@@ -717,7 +723,9 @@ pub fn compatibility_marker_class(raw: &str) -> Option<String> {
     let Utility::Named { name, modifier } = candidate.utility else {
         return None;
     };
-    if !matches!(name.as_str(), "group" | "peer") {
+    if !theme.marker_utilities.contains(name.as_str())
+        && !builtin_marker_utilities().contains(name.as_str())
+    {
         return None;
     }
     match modifier {
@@ -2223,7 +2231,7 @@ mod tests {
         parse_tailwind_theme(&SourceFile::new(
             FileId(1),
             "theme.css",
-            "@theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
+            "@stillwind-marker group; @stillwind-marker peer; @theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
         ))
         .unwrap()
     }
@@ -2665,11 +2673,11 @@ mod tests {
         }
         assert!(!is_tailwind_relationship_candidate("max-w-lg"));
         assert_eq!(
-            compatibility_marker_class("group").as_deref(),
+            compatibility_marker_class("group", &theme).as_deref(),
             Some("group")
         );
         assert_eq!(
-            compatibility_marker_class("peer/field").as_deref(),
+            compatibility_marker_class("peer/field", &theme).as_deref(),
             Some("peer/field")
         );
         let container = resolve_utility("container", &theme).unwrap();

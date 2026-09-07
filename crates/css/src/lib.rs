@@ -978,6 +978,8 @@ pub struct ThemeIndex {
     /// patterns from lower to higher precedence and is interpreted generically
     /// by consumers (no framework property table required).
     pub declaration_order: Vec<Vec<String>>,
+    /// Utility names whose declarations provide compatibility marker classes.
+    pub marker_utilities: BTreeSet<String>,
     pub authored_properties: BTreeSet<String>,
     /// Framework layers requested by the authored Tailwind-compatible imports.
     ///
@@ -1100,6 +1102,11 @@ pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
 #[must_use]
 pub fn parse_declaration_order(css: &str) -> Vec<Vec<String>> {
     extract_declaration_order(css)
+}
+
+/// Extracts compatibility marker utility names declared by CSS metadata.
+pub fn parse_marker_utilities(css: &str) -> BTreeSet<String> {
+    extract_marker_utilities(css)
 }
 
 impl ThemeIndex {
@@ -1363,6 +1370,7 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
     theme.declaration_order = extract_declaration_order(source.text());
+    theme.marker_utilities = extract_marker_utilities(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
     theme.config = extract_stillwind_config(source.text());
     Ok(theme)
@@ -1411,6 +1419,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         variants: extract_custom_variants(source.text()),
         properties: extract_property_definitions(source.text()),
         declaration_order: extract_declaration_order(source.text()),
+        marker_utilities: extract_marker_utilities(source.text()),
         authored_properties: extract_authored_property_names(source.text()),
         imports,
         config: extract_stillwind_config(source.text()),
@@ -1489,6 +1498,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         variants: Vec::new(),
         properties: Vec::new(),
         declaration_order: Vec::new(),
+        marker_utilities: BTreeSet::new(),
         authored_properties: BTreeSet::new(),
         imports: FrameworkImports::default(),
         config: StillwindConfig::default(),
@@ -1958,6 +1968,15 @@ fn extract_declaration_order(css: &str) -> Vec<Vec<String>> {
                 (!group.is_empty()).then_some(group)
             }).collect::<Vec<_>>()
         })
+        .collect()
+}
+
+fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-marker"))
+        .filter_map(|segment| segment.split_once(';').map(|(name, _)| name.trim()))
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
         .collect()
 }
 

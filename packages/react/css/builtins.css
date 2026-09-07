@@ -6,6 +6,9 @@
   inset: inset, inset-inline, inset-block, inset-inline-start, inset-inline-end, inset-block-start, inset-block-end, left, right, top, bottom;
   border: border, border-style, border-width, border-inline-*, border-block-*, border-*-style, border-*-width;
 }
+
+@stillwind-marker group;
+@stillwind-marker peer;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";

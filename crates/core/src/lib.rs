@@ -778,7 +778,10 @@ impl Compiler {
                     }
                     if selector.is_none()
                         && let Some(marker) =
-                            stillwind_tailwind::compatibility_marker_class(&utility.value.raw)
+                            stillwind_tailwind::compatibility_marker_class(
+                                &utility.value.raw,
+                                &theme,
+                            )
                     {
                         let class = GeneratedClass {
                             class_name: marker,
