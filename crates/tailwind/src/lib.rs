@@ -452,7 +452,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
-    if declaration.contains("--tw-mask-") && declaration.contains("* -1") {
+    if declaration.contains("deg") && declaration.contains("* -1") {
         for number in 2..=1000 {
             declaration = declaration.replace(
                 &format!("calc({number}deg * -1)"),
