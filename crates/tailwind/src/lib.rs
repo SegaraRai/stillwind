@@ -1402,14 +1402,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             ));
         }
     }
-    if raw == "placeholder-transparent/100" {
-        if let Some(start) = declaration.find("color:")
-            && let Some(end) = declaration[start..].find(';')
-        {
-            declaration.replace_range(start..start + end + 1, "color:#0000;");
-        }
-        nested.clear();
-    }
     if raw == "shadow-transparent/100" {
         declaration = "--tw-shadow-color:transparent;".to_owned();
         nested.clear();
