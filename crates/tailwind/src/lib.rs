@@ -1469,9 +1469,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
         });
     }
-    if raw == "leading-0" {
-        declaration = declaration.replace("--tw-leading:0;", "--tw-leading:0px;");
-    }
     if raw == "transform-cpu" {
         declaration.push_str("/*stillwind-transform-cpu*/");
     }
@@ -2036,9 +2033,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "outline-hidden" {
         declaration.push_str("@media (forced-colors:active){outline-offset:2px;outline:2px solid #0000;}");
         nested.clear();
-    }
-    if raw == "outline-offset-0" {
-        declaration = declaration.replace("outline-offset:0;", "outline-offset:0px;");
     }
     if raw == "ring-offset-transparent/100" {
         if let Some(start) = declaration.find("--tw-ring-offset-color:")

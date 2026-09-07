@@ -230,6 +230,9 @@
   outline-style: var(--tw-outline-style);
   outline-width: 1px;
 }
+@utility outline-offset-0 {
+  outline-offset: 0px;
+}
 @utility outline-4 {
   outline-width: 4px;
 }

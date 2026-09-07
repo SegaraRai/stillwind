@@ -800,3 +800,7 @@
 @utility mix-blend-multiply {
   mix-blend-mode: multiply;
 }
+@utility leading-0 {
+  --tw-leading: 0px;
+  line-height: var(--tw-leading);
+}
