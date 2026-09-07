@@ -1492,34 +1492,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
-    if raw.starts_with("mask-") && raw.contains("-current/") {
-        for alpha in 0..=100 {
-            let value = format!("color-mix(in oklab, currentcolor {alpha}%, transparent)");
-            while let Some(pos) = declaration.find(&value) {
-                let property_start = declaration[..pos]
-                    .rfind(';')
-                    .map_or(0, |index| index + 1);
-                let property = declaration[property_start..pos].to_owned();
-                let modern = format!("{property}{value};");
-                declaration.replace_range(pos..pos + value.len(), "currentcolor");
-                nested.push(NestedUtilityRule {
-                    at_rule: NestedUtilityAtRule::Supports,
-                    condition: "color:color-mix(in lab, red, red)".to_owned(),
-                    declaration: modern,
-                });
-            }
-        }
-    }
-    if raw.starts_with("mask-") && raw.ends_with("transparent/100") {
-        for color in ["from-color", "to-color"] {
-            let marker = format!("--tw-mask-{color}:");
-            if let Some(start) = declaration.find(&marker)
-                && let Some(end) = declaration[start..].find(';')
-            {
-                declaration.replace_range(start..start + end + 1, &format!("{marker}transparent;"));
-            }
-        }
-    }
     if raw.starts_with("mask-x-") {
         declaration = reorder_mask_axis_segments(&declaration, &["right", "left"]);
     } else if raw.starts_with("mask-y-") {
