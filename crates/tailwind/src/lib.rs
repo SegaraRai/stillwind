@@ -741,17 +741,8 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if value == "**" {
         return Some(VariantApplication::SelectorTemplate(":is(& *)".to_owned()));
     }
-    if value.contains('/')
-        && let Some(application) = resolve_registered_variant(value, theme)
-    {
-        return Some(if value.starts_with("group-") || value.starts_with("peer-") {
-            with_hover_media(application)
-        } else {
-            application
-        });
-    }
-    if let Some(application) = resolve_relationship_variant(value, theme) {
-        return Some(application);
+    if let Some(application) = resolve_registered_variant(value, theme) {
+        return Some(with_hover_media(application));
     }
     if let Some(application) = resolve_container_variant(value, theme) {
         return Some(application);
@@ -761,9 +752,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         .and_then(|value| value.strip_suffix(']'))
     {
         return Some(VariantApplication::Supports(condition.replace('_', " ")));
-    }
-    if let Some(application) = resolve_registered_variant(value, theme) {
-        return Some(application);
     }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
@@ -904,7 +892,9 @@ pub fn compatibility_marker_class(raw: &str) -> Option<String> {
     }
 }
 
-fn resolve_relationship_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
+/* Relationship variants are resolved from CSS @variant definitions. */
+/* legacy resolver removed */
+/*
     let (relation, remainder) = value
         .strip_prefix("group-")
         .map(|value| ("group", value))
@@ -951,7 +941,7 @@ fn resolve_relationship_variant(value: &str, theme: &ThemeIndex) -> Option<Varia
         }),
         _ => None,
     }
-}
+}*/
 
 fn resolve_container_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
     let value = value.strip_prefix('@')?;
@@ -1018,7 +1008,15 @@ fn find_registered_variant<'a, 'b>(
             return None;
         }
         let capture = value.strip_prefix(prefix)?;
-        (!capture.is_empty() && !capture.starts_with('[')).then_some((variant, Some(capture)))
+        // Attribute variants with bracket payloads use the dedicated
+        // `aria-[name=value]` / `data-[name=value]` grammar below; their
+        // wildcard CSS bodies are for simple names only.
+        if (variant.name == "aria-*" || variant.name == "data-*")
+            && capture.starts_with('[')
+        {
+            return None;
+        }
+        (!capture.is_empty()).then_some((variant, Some(capture)))
     })
 }
 
@@ -1035,19 +1033,32 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
     let (capture, modifier) = capture
         .split_once('/')
         .map_or((capture, None), |(capture, modifier)| (capture, Some(modifier)));
-    let capture = capture.replace('_', " ");
+    let capture = if let Some(inner) = capture.strip_prefix('[').and_then(|value| value.strip_suffix(']')) {
+        // Arbitrary selector variants use `[&...]`; relationship CSS expects
+        // the selector fragment without the variant's leading `&` wrapper.
+        inner.strip_prefix('&').unwrap_or(inner).replace('_', " ")
+    } else {
+        capture.replace('_', " ")
+    };
     let modifier = modifier
         .map(|modifier| modifier.replace('_', " ").replace('/', r"\/"))
         .unwrap_or_default();
-    Some(
-        value
+    let modifier_suffix = if modifier.is_empty() {
+        String::new()
+    } else {
+        format!(r"\/{}", modifier)
+    };
+    let mut expanded = value
             .replace("--value()", &capture)
             .replace(r"\*", &capture)
-            .replace("/{modifier}", &format!(r"\/{}", modifier))
+            .replace("/{modifier}", &modifier_suffix)
             .replace("{modifier}", &modifier)
             .replace(":root", &format!(":{capture}"))
-            .replace("0n", &capture),
-    )
+            .replace("0n", &capture);
+    if capture.starts_with('[') {
+        expanded = expanded.replace("):[", ")[");
+    }
+    Some(expanded)
 }
 
 fn resolve_variant_css_placeholders(
