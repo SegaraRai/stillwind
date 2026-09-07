@@ -1599,9 +1599,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "blur-none" {
         declaration = declaration.replace("--tw-blur:;", "--tw-blur: ;");
     }
-    if raw == "text-shadow-none" {
-        declaration = declaration.replace("--tw-text-shadow:none;", "");
-    }
     if raw == "text-shadow-transparent"
         && declaration.contains("--tw-text-shadow-color:transparent;")
     {
