@@ -1994,7 +1994,7 @@ fn render_stylesheet(
         let used_css = format!("{utility_css}{authored_css}");
         let mut required_tokens =
             theme.tokens_required_by(&used_css, imports.base_layer.is_some());
-        required_tokens.sort_by_key(|token| theme_token_order(&token.name.value));
+        required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
         if authored_css.contains("--color-") && authored_css.contains("--spacing") {
             required_tokens.sort_by_key(|token| {
                 if token.name.value.starts_with("--color-") {
@@ -2141,27 +2141,6 @@ fn matching_brace(value: &str, open: usize) -> Option<usize> {
         }
     }
     None
-}
-
-fn theme_token_order(name: &str) -> (u8, &str) {
-    if name == "--font-sans" {
-        return (2, "");
-    }
-    if name == "--font-mono" {
-        return (2, "!");
-    }
-    let rank = if name == "--spacing" || name.starts_with("--default-transition-") {
-        0
-    } else if name.starts_with("--animate-") {
-        1
-    } else if name.starts_with("--color-") {
-        2
-    } else if name.starts_with("--default-") {
-        4
-    } else {
-        3
-    };
-    (rank, name)
 }
 
 fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
