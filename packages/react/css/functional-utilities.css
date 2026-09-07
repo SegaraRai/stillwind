@@ -328,6 +328,12 @@
     );
   }
 }
+@utility space-x-0 {
+  & > :not(:last-child) {
+    --tw-space-x-reverse: 0;
+    margin-inline: 0;
+  }
+}
 @utility -space-x-* {
   & > :not(:last-child) {
     --tw-space-x-reverse: 0;
@@ -346,6 +352,12 @@
       --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-y-reverse))
     );
     margin-block-end: calc(--value(--spacing-*, --spacing(), [length]) * var(--tw-space-y-reverse));
+  }
+}
+@utility space-y-0 {
+  & > :not(:last-child) {
+    --tw-space-y-reverse: 0;
+    margin-block: 0;
   }
 }
 @utility -space-y-* {

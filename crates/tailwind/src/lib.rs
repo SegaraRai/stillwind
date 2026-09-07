@@ -842,11 +842,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         );
     }
     if raw.starts_with("space-x-") || raw.starts_with("space-y-") {
-        if raw == "space-x-0" {
-            declaration = "--tw-space-x-reverse:0;margin-inline:0;".to_owned();
-        } else if raw == "space-y-0" {
-            declaration = "--tw-space-y-reverse:0;margin-block:0;".to_owned();
-        }
         declaration = declaration
             .replace("calc(calc(var(--spacing) * 1)*", "calc(var(--spacing) * ")
             .replace("px*", "px *")
