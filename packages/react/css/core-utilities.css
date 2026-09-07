@@ -444,13 +444,13 @@
   perspective: none;
 }
 @utility perspective-dramatic {
-  perspective: 100px;
+  perspective: var(--perspective-dramatic);
 }
 @utility perspective-near {
   perspective: 300px;
 }
 @utility perspective-normal {
-  perspective: 500px;
+  perspective: var(--perspective-normal);
 }
 @utility perspective-midrange {
   perspective: 500px;

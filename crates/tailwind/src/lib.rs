@@ -1470,9 +1470,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "inset-shadow-none" {
         declaration = "--tw-inset-shadow:inset 0 0 #0000;box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
     }
-    if matches!(raw, "perspective-dramatic" | "perspective-normal") {
-        declaration = format!("perspective:var(--{raw});");
-    }
     if raw == "shadow-none" {
         declaration = "--tw-shadow:0 0 #0000;box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
     }
