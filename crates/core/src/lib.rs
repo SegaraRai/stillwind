@@ -1828,15 +1828,8 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 } else {
                     declaration
                 };
-                let declaration = if declaration.starts_with("outline-offset:")
-                    || declaration.starts_with("text-underline-offset:")
-                    || declaration.starts_with("--tw-scale-")
-                {
+                let declaration = if declaration.contains("deg") {
                     normalize_angle_calc(&normalize_negative_calc(&declaration))
-                } else if declaration.contains("--tw-mask-conic-position:calc(1deg") {
-                    // Tailwind intentionally retains the unit-multiplier spelling
-                    // for conic mask angles (for example `calc(1deg * 2)`).
-                    normalize_negative_calc(&declaration)
                 } else {
                     normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
                 };
