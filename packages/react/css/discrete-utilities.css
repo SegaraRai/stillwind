@@ -226,7 +226,7 @@
   order: 9999;
 }
 @utility outline {
-  outline-style: solid;
+  outline-style: var(--tw-outline-style);
   outline-width: 1px;
 }
 @utility outline-4 {

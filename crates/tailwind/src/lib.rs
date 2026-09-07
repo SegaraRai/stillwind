@@ -1482,9 +1482,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
         });
     }
-    if raw == "outline" {
-        declaration = "outline-style:var(--tw-outline-style);outline-width:1px;".to_owned();
-    }
     if raw == "leading-0" {
         declaration = declaration.replace("--tw-leading:0;", "--tw-leading:0px;");
     }
