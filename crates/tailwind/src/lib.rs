@@ -687,7 +687,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
             .replace("var(--tw-mask-bottom-from-color, black)", "var(--tw-mask-bottom-from-color)")
@@ -1363,7 +1363,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             ));
         }
     }
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace("calc(1deg * 0)", "0deg")
             .replace("calc(1deg*0)", "0deg");
@@ -1415,7 +1415,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw.ends_with("/100") && declaration.contains(":#0000;") {
         nested.clear();
     }
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace(",black)", ")")
             .replace(", 0%)", ")")
@@ -1423,7 +1423,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(", 100%)", ")")
             .replace(",100%)", ")");
     }
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
             .replace("var(--tw-mask-bottom-from-position,0%)", "var(--tw-mask-bottom-from-position)")
@@ -1434,7 +1434,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace(", black)", ")")
             .replace(", 0%)", ")")
