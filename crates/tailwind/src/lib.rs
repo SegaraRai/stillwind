@@ -735,12 +735,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if let Some(application) = resolve_container_variant(value, theme) {
         return Some(application);
     }
-    if let Some(condition) = value
-        .strip_prefix("supports-[")
-        .and_then(|value| value.strip_suffix(']'))
-    {
-        return Some(VariantApplication::Supports(condition.replace('_', " ")));
-    }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
             .strip_prefix(prefix)

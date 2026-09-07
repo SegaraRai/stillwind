@@ -58,6 +58,11 @@
     @slot;
   }
 }
+@variant supports-* {
+  @supports ({modifier}) {
+    @slot;
+  }
+}
 @variant user-invalid {
   &:user-invalid {
     @slot;
