@@ -511,19 +511,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
-    if let Utility::Named { name, .. } = &candidate.utility
-        && name.starts_with("backdrop-")
-        && let Some(value) = declaration
+    if let Some(value) = declaration
             .strip_prefix("backdrop-filter:")
             .and_then(|value| value.strip_suffix(';'))
         && !declaration.contains("var(--tw-backdrop-brightness")
+        && let Some(property) = value.split_once('(').map(|(property, _)| property)
+        && !property.is_empty()
+        && property.chars().all(|character| character.is_ascii_alphabetic() || character == '-')
     {
-        let property = name
-            .strip_prefix("backdrop-")
-            .unwrap_or_default()
-            .split("-[")
-            .next()
-            .unwrap_or_default();
         declaration = format!(
             "--tw-backdrop-{property}:{value};backdrop-filter:var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);"
         );
