@@ -192,25 +192,46 @@
     var(--tw-skew-y);
 }
 @utility brightness-* {
-  filter: brightness(calc(--value(integer) * 1%));
+  --tw-brightness: brightness(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility contrast-* {
-  filter: contrast(calc(--value(integer) * 1%));
+  --tw-contrast: contrast(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility grayscale-* {
-  filter: grayscale(calc(--value(integer) * 1%));
+  --tw-grayscale: grayscale(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility invert-* {
-  filter: invert(calc(--value(integer) * 1%));
+  --tw-invert: invert(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility saturate-* {
-  filter: saturate(calc(--value(integer) * 1%));
+  --tw-saturate: saturate(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility sepia-* {
-  filter: sepia(calc(--value(integer) * 1%));
+  --tw-sepia: sepia(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility hue-rotate-* {
-  filter: hue-rotate(calc(--value(integer) * 1deg));
+  --tw-hue-rotate: hue-rotate(calc(--value(integer) * 1deg));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility outline-offset-* {
   outline-offset: --value(--spacing-*, --spacing(), [length]);
