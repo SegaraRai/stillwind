@@ -8,7 +8,7 @@ use std::{collections::HashMap, fmt::Write, sync::OnceLock};
 
 use stillwind_css::{
     CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
-    color_with_alpha_fallback, shadow_with_color_fallback,
+    shadow_with_color_fallback,
 };
 use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -776,14 +776,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             )
             .replace(")*-1*", ") * ")
             .replace("calc(calc(1px * -1) * ", "calc(-1px * ");
-        declaration = normalize_negative_space_order(
-            declaration,
-            if declaration.contains("--tw-space-x-reverse") {
-                "x"
-            } else {
-                "y"
-            },
-        );
+        let axis = if declaration.contains("--tw-space-x-reverse") {
+            "x"
+        } else {
+            "y"
+        };
+        declaration = normalize_negative_space_order(declaration, axis);
     }
     if declaration.contains("--tw-space-x-reverse") || declaration.contains("--tw-space-y-reverse") {
         declaration = declaration
@@ -791,14 +789,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("px*", "px *")
             .replace("*var(--tw-space", "* var(--tw-space")
             .replace("*calc(1 - var(--tw-space", "* calc(1 - var(--tw-space");
-        declaration = normalize_positive_space_order(
-            declaration,
-            if declaration.contains("--tw-space-x-reverse") {
-                "x"
-            } else {
-                "y"
-            },
-        );
+        let axis = if declaration.contains("--tw-space-x-reverse") {
+            "x"
+        } else {
+            "y"
+        };
+        declaration = normalize_positive_space_order(declaration, axis);
     }
     if (raw.ends_with("-inherit/100") || raw.ends_with("-transparent/100"))
         && let Some(property) = ["from", "via", "to"]
@@ -1224,69 +1220,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
             declaration: format!("--tw-gradient-position:{} in {color_space};", position.0),
-        });
-    }
-    // Tailwind emits an sRGB fallback for shadow opacity modifiers, then
-    // upgrades to the relative-color form behind a color-mix feature query.
-    if let Utility::Named {
-        name,
-        modifier: Some(Value::Named(alpha_value)),
-    } = &candidate.utility
-        && let Some(color_name) = name.strip_prefix("shadow-")
-        && let Some(alpha_value) = alpha(alpha_value)
-        && let Some(theme_color) =
-            theme_value_literal(ThemeNamespace::Color, color_name, false, theme)
-        && let Some(fallback) = color_with_alpha_fallback(&theme_color, &alpha_value)
-        && let Some(color_mix) = declaration
-            .strip_prefix("--tw-shadow-color:")
-            .and_then(|value| value.strip_suffix(';'))
-    {
-        let upgraded = format!(
-            "--tw-shadow-color:color-mix(in oklab, {color_mix} var(--tw-shadow-alpha), transparent);"
-        );
-        declaration = declaration.replacen(
-            &format!("--tw-shadow-color:{color_mix};"),
-            &format!("--tw-shadow-color:{fallback};"),
-            1,
-        );
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: upgraded,
-        });
-    }
-    // `current` shadow colors use a color-mix fallback even though there is
-    // no theme color literal to resolve. Preserve Tailwind's two-stage
-    // declaration: the plain currentcolor value is emitted first, then the
-    // alpha-aware relative-color form is enabled behind the feature query.
-    if let Utility::Named { name, modifier } = &candidate.utility
-        && name == "shadow-current"
-    {
-        let alpha = modifier
-            .as_ref()
-            .and_then(|value| match value {
-                Value::Named(value) => alpha(value),
-                _ => None,
-            });
-        let nested_declaration = match alpha.as_deref() {
-            Some("100%") | None => {
-                "--tw-shadow-color:color-mix(in oklab, currentcolor var(--tw-shadow-alpha), transparent);".to_owned()
-            }
-            Some(alpha) => format!(
-                "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, currentcolor {alpha}, transparent) var(--tw-shadow-alpha), transparent);"
-            ),
-        };
-        if alpha.as_ref().is_some_and(|value| value != "100%") {
-            if let Some(start) = declaration.find("--tw-shadow-color:")
-                && let Some(end) = declaration[start..].find(';')
-            {
-                declaration.replace_range(start..start + end + 1, "--tw-shadow-color:currentcolor;");
-            }
-        }
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: nested_declaration,
         });
     }
     if declaration.contains("--tw-mask-") {
@@ -3242,12 +3175,12 @@ mod tests {
         let background = resolve_utility("bg-brand/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb, red 50%, transparent);"
+            "background-color:color-mix(in srgb,red 50%,transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.declaration
-                    == "background-color:color-mix(in oklab, var(--color-brand) 50%, transparent);"
+                    == "background-color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
         }));
         assert_eq!(
             resolve_utility("w-(--sidebar)", &theme)
@@ -3419,12 +3352,12 @@ mod tests {
         let background = resolve_utility("bg-red-500/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
+            "background-color:color-mix(in srgb,oklch(63.7% 0.237 25.331) 50%,transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.declaration
-                    == "background-color:color-mix(in oklab, var(--color-red-500) 50%, transparent);"
+                    == "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
         }));
     }
 
@@ -3794,16 +3727,14 @@ mod tests {
     #[test]
     fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
         let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
-        assert!(
-            resolved
-                .declaration
-                .contains("--tw-shadow-color:#fb2c3680;")
-        );
+        assert!(resolved
+            .declaration
+            .contains("--tw-shadow-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);"));
         assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.condition == "color:color-mix(in lab, red, red)"
                 && rule.declaration.contains(
-                    "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha), transparent);",
+                    "--tw-shadow-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);",
                 )
         }));
     }
@@ -4026,9 +3957,13 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("color:color-mix(in oklab, currentcolor 50%, transparent);"),
+                .contains("color:color-mix(in srgb,currentcolor 50%,transparent);"),
             "{resolved:#?}"
         );
+        assert!(resolved
+            .nested
+            .iter()
+            .any(|rule| rule.declaration.contains("color-mix(in oklab,currentcolor 50%,transparent)")));
         assert!(resolve_utility("placeholder-[length:1rem]", &theme()).is_none());
     }
 
