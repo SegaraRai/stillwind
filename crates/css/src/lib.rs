@@ -1122,6 +1122,17 @@ pub fn parse_selector_wrappers(css: &str) -> BTreeMap<String, String> {
     extract_selector_wrappers(css)
 }
 
+/// Canonicalizes serializer-only transparent color spellings emitted by CSS
+/// color conversion. This is independent of any utility or framework name.
+pub fn normalize_serialized_declaration(value: &str) -> String {
+    value
+        .replace(
+            "oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0)",
+            "#0000",
+        )
+        .replace(":oklab(0% none none/0);", ":#0000;")
+}
+
 pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-format-functions"))

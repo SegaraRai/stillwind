@@ -1681,9 +1681,7 @@ fn render_utility_rule(
         .replace(" deg", "deg")
         .replace("deg*-1", "deg * -1")
         .replace("*-1)", "* -1)");
-    let declaration = declaration
-        .replace("oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0)", "#0000")
-        .replace(":oklab(0% none none/0);", ":#0000;");
+    let declaration = stillwind_css::normalize_serialized_declaration(&declaration);
     // Canonicalize CSS math structurally for every declaration. This keeps
     // unit/negative/angle handling independent of the utility name or
     // property prefix.
