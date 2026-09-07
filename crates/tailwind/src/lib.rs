@@ -1959,10 +1959,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    if raw == "outline-hidden" {
-        declaration.push_str("@media (forced-colors:active){outline-offset:2px;outline:2px solid #0000;}");
-        nested.clear();
-    }
     if raw == "ring-offset-transparent/100" {
         if let Some(start) = declaration.find("--tw-ring-offset-color:")
             && let Some(end) = declaration[start..].find(';')
