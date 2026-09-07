@@ -2174,90 +2174,6 @@ fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
     (!value.is_empty()).then(|| (Some(value.to_owned()), negative)).unwrap_or((None, negative))
 }
 
-/// Expands colour-with-alpha utility roots without a palette enumeration.
-/// The same source DSL emits Tailwind's sRGB fallback and its Oklab upgrade;
-/// individual utilities therefore cannot accidentally drift in colour-space
-/// behaviour.
-fn expand_color_alpha_family(body: &str) -> Vec<CustomUtility> {
-    body.split(';')
-        .filter_map(|entry| {
-            let (names, properties) = entry.split_once(':')?;
-            let properties = properties
-                .split(',')
-                .map(str::trim)
-                .filter(|property| !property.is_empty())
-                .collect::<Vec<_>>();
-            (!properties.is_empty()).then_some((names, properties))
-        })
-        .flat_map(|(names, properties)| {
-            names
-                .split(',')
-                .map(str::trim)
-                .filter(|name| !name.is_empty())
-                .map(move |name| {
-                    let mut body = String::new();
-                    for property in &properties {
-                        write!(
-                            body,
-                            "{property}:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);"
-                        )
-                        .expect("writing to a String cannot fail");
-                    }
-                    body.push_str("@supports (color:color-mix(in lab,red,red)){");
-                    for property in &properties {
-                        write!(
-                            body,
-                            "{property}:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);"
-                        )
-                        .expect("writing to a String cannot fail");
-                    }
-                    body.push('}');
-                    CustomUtility {
-                        name: format!("{name}-*"),
-                        body,
-                    }
-                })
-        })
-        .collect()
-}
-
-/// Expands bare colour utilities such as `border/50` without inventing a
-/// default-palette table. The value is always `currentcolor`; a slash modifier
-/// is required by the generated body and is validated by the shared
-/// `--modifier(...)` resolver.
-fn expand_color_alpha_default_family(body: &str) -> Vec<CustomUtility> {
-    body.split(';')
-        .filter_map(|entry| {
-            let (names, properties) = entry.split_once(':')?;
-            let properties = properties
-                .split(',')
-                .map(str::trim)
-                .filter(|property| !property.is_empty())
-                .collect::<Vec<_>>();
-            (!properties.is_empty()).then_some((names, properties))
-        })
-        .flat_map(|(names, properties)| {
-            names
-                .split(',')
-                .map(str::trim)
-                .filter(|name| !name.is_empty())
-                .map(move |name| {
-                    let mut body = String::new();
-                    for property in &properties {
-                        write!(
-                            body,
-                            "{property}:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent);"
-                        )
-                        .expect("writing to a String cannot fail");
-                    }
-                    CustomUtility {
-                        name: name.to_owned(),
-                        body,
-                    }
-                })
-        })
-        .collect()
-}
 
 /// Expands composable edge-mask stop utilities. The CSS source owns the
 /// utility roots and the affected edges; this helper merely stamps the shared
@@ -3021,4 +2937,88 @@ mod tests {
         assert!(!theme.custom_css().contains("@stillwind-property"));
         assert!(theme.custom_css().contains("@property --authored-value"));
     }
+}
+/// Expands colour-with-alpha utility roots without a palette enumeration.
+/// The same source DSL emits Tailwind's sRGB fallback and its Oklab upgrade;
+/// individual utilities therefore cannot accidentally drift in colour-space
+/// behaviour.
+fn expand_color_alpha_family(body: &str) -> Vec<CustomUtility> {
+    body.split(';')
+        .filter_map(|entry| {
+            let (names, properties) = entry.split_once(':')?;
+            let properties = properties
+                .split(',')
+                .map(str::trim)
+                .filter(|property| !property.is_empty())
+                .collect::<Vec<_>>();
+            (!properties.is_empty()).then_some((names, properties))
+        })
+        .flat_map(|(names, properties)| {
+            names
+                .split(',')
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(move |name| {
+                    let mut body = String::new();
+                    for property in &properties {
+                        write!(
+                            body,
+                            "{property}:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);"
+                        )
+                        .expect("writing to a String cannot fail");
+                    }
+                    body.push_str("@supports (color:color-mix(in lab,red,red)){");
+                    for property in &properties {
+                        write!(
+                            body,
+                            "{property}:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);"
+                        )
+                        .expect("writing to a String cannot fail");
+                    }
+                    body.push('}');
+                    CustomUtility {
+                        name: format!("{name}-*"),
+                        body,
+                    }
+                })
+        })
+        .collect()
+}
+
+/// Expands bare colour utilities such as `border/50` without inventing a
+/// default-palette table. The value is always `currentcolor`; a slash modifier
+/// is required by the generated body and is validated by the shared
+/// `--modifier(...)` resolver.
+fn expand_color_alpha_default_family(body: &str) -> Vec<CustomUtility> {
+    body.split(';')
+        .filter_map(|entry| {
+            let (names, properties) = entry.split_once(':')?;
+            let properties = properties
+                .split(',')
+                .map(str::trim)
+                .filter(|property| !property.is_empty())
+                .collect::<Vec<_>>();
+            (!properties.is_empty()).then_some((names, properties))
+        })
+        .flat_map(|(names, properties)| {
+            names
+                .split(',')
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(move |name| {
+                    let mut body = String::new();
+                    for property in &properties {
+                        write!(
+                            body,
+                            "{property}:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent);"
+                        )
+                        .expect("writing to a String cannot fail");
+                    }
+                    CustomUtility {
+                        name: name.to_owned(),
+                        body,
+                    }
+                })
+        })
+        .collect()
 }
