@@ -434,6 +434,21 @@ fn normalize_spaced_angle_products(value: &str) -> String {
     output
 }
 
+fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
+    let mut output = value.to_owned();
+    let mut cursor = 0;
+    while let Some(relative) = output[cursor..].find("calc(var(--") {
+        let start = cursor + relative;
+        let Some(close) = output[start..].find(") * 0)").or_else(|| output[start..].find(")*0)")) else {
+            break;
+        };
+        let end = start + close + 6;
+        output.replace_range(start..end, replacement);
+        cursor = start + replacement.len();
+    }
+    output
+}
+
 fn normalize_calc_var_operators(mut declaration: String) -> String {
     let mut cursor = 0;
     while cursor < declaration.len() {
@@ -536,7 +551,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("*calc(1 - var(", "* calc(1 - var(");
     }
     declaration = apply_zero_length_format(declaration, theme);
-    declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
+    declaration = normalize_zero_var_calc(&declaration, "0");
     declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
     if declaration.contains("calc(var(--spacing) * -1)") {
         declaration = declaration
@@ -676,7 +691,7 @@ fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> Stri
             let end = declaration[start..]
                 .find(';')
                 .map_or(declaration.len(), |offset| start + offset);
-            let segment = declaration[start..end].replace("calc(var(--spacing) * 0)", "0px");
+            let segment = normalize_zero_var_calc(&declaration[start..end], "0px");
             declaration.replace_range(start..end, &segment);
             cursor = start + segment.len();
             if end == declaration.len() {

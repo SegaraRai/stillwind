@@ -1690,9 +1690,7 @@ fn render_utility_rule(
     let declaration = normalize_angle_calc(&normalize_negative_calc(
         &normalize_signed_length_calc(&declaration),
     ));
-    let declaration = declaration
-        .replace("calc(var(--spacing) * 0)", "0")
-        .replace("calc(var(--spacing)*0)", "0");
+    let declaration = normalize_zero_var_calc(&declaration, "0");
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
@@ -1848,9 +1846,7 @@ fn combine_declarations_with_order(
                 } else {
                     "0"
                 };
-                let declaration = declaration
-                    .replace("calc(var(--spacing) * 0)", zero)
-                    .replace("calc(var(--spacing)*0)", zero);
+                let declaration = normalize_zero_var_calc(&declaration, zero);
                 let declaration = declaration.replace("*-1", " * -1");
                 // Keep fallback `var()` comma spacing generic across all
                 // declaration values.
@@ -1942,6 +1938,21 @@ fn normalize_angle_calc(value: &str) -> String {
             .replace(&format!("calc({number} * 1deg)"), &format!("{number}deg"));
     }
     normalized
+}
+
+fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
+    let mut output = value.to_owned();
+    let mut cursor = 0;
+    while let Some(relative) = output[cursor..].find("calc(var(--") {
+        let start = cursor + relative;
+        let Some(close) = output[start..].find(") * 0)").or_else(|| output[start..].find(")*0)")) else {
+            break;
+        };
+        let end = start + close + 6;
+        output.replace_range(start..end, replacement);
+        cursor = start + replacement.len();
+    }
+    output
 }
 
 fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, u16)> {
