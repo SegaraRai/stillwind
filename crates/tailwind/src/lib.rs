@@ -999,17 +999,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                     .replace("calc(var(--spacing) * -1)", "-1px")
                     .replace("calc(var(--spacing)*-1)", "-1px");
             }
-            if let Utility::Named { name, .. } = &candidate.utility {
-                if (name == "divide-y" || name.ends_with("divide-y-[initial]"))
-                    && nested.declaration.contains("border-bottom-width:")
-                {
-                    "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut nested.declaration);
-                } else if (name == "divide-x" || name.ends_with("divide-x-[initial]"))
-                    && nested.declaration.contains("border-inline-end-width:")
-                {
-                    "--tw-divide-x-reverse:0;border-inline-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut nested.declaration);
-                }
-            }
             if candidate.important {
                 nested.declaration = important(&nested.declaration);
             }
