@@ -517,18 +517,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
-    if let Some(value) = declaration
-            .strip_prefix("backdrop-filter:")
-            .and_then(|value| value.strip_suffix(';'))
-        && !declaration.contains("var(--tw-backdrop-brightness")
-        && let Some(property) = value.split_once('(').map(|(property, _)| property)
-        && !property.is_empty()
-        && property.chars().all(|character| character.is_ascii_alphabetic() || character == '-')
-    {
-        declaration = format!(
-            "--tw-backdrop-{property}:{value};backdrop-filter:var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);"
-        );
-    }
     if declaration == "grid-column:span initial/span initial;" {
         declaration = "grid-column:span initial / span initial;".to_owned();
     }

@@ -518,28 +518,36 @@
   grid-row-end: calc(--value(integer) * -1);
 }
 @utility backdrop-opacity-* {
-  backdrop-filter: opacity(calc(--value(integer) * 1%));
+  --tw-backdrop-opacity: opacity(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-brightness-* {
-  backdrop-filter: brightness(calc(--value(integer) * 1%));
+  --tw-backdrop-brightness: brightness(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-contrast-* {
-  backdrop-filter: contrast(calc(--value(integer) * 1%));
+  --tw-backdrop-contrast: contrast(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-grayscale-* {
-  backdrop-filter: grayscale(calc(--value(integer) * 1%));
+  --tw-backdrop-grayscale: grayscale(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-hue-rotate-* {
-  backdrop-filter: hue-rotate(calc(--value(integer) * 1deg));
+  --tw-backdrop-hue-rotate: hue-rotate(calc(--value(integer) * 1deg));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-invert-* {
-  backdrop-filter: invert(calc(--value(integer) * 1%));
+  --tw-backdrop-invert: invert(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-saturate-* {
-  backdrop-filter: saturate(calc(--value(integer) * 1%));
+  --tw-backdrop-saturate: saturate(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility backdrop-sepia-* {
-  backdrop-filter: sepia(calc(--value(integer) * 1%));
+  --tw-backdrop-sepia: sepia(calc(--value(integer) * 1%));
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
 }
 @utility underline-offset-* {
   text-underline-offset: --value(--spacing-*, --spacing(), [length]);
