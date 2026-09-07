@@ -1445,28 +1445,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    // Color-only inset-shadow utilities only set the color slot. The
-    // functional CSS definitions also contain the token-shadow plumbing, but
-    // Tailwind does not emit that plumbing for `current`/`transparent`/
-    // `inherit` colors.
-    if raw.starts_with("inset-shadow-")
-        && (raw == "inset-shadow-current"
-            || raw.starts_with("inset-shadow-current/")
-            || raw == "inset-shadow-transparent"
-            || raw.starts_with("inset-shadow-transparent/")
-            || raw == "inset-shadow-inherit"
-            || raw.starts_with("inset-shadow-inherit/"))
-    {
-        if let Some(start) = declaration.find("box-shadow:")
-            && let Some(end) = declaration[start..].find(';')
-        {
-            declaration.replace_range(start..start + end + 1, "");
-        }
-        while let Some(start) = declaration.find("--tw-inset-shadow-alpha:") {
-            let Some(end) = declaration[start..].find(';') else { break };
-            declaration.replace_range(start..start + end + 1, "");
-        }
-    }
     if raw.starts_with("mask-") {
         declaration = declaration
             .replace(", black)", ")")

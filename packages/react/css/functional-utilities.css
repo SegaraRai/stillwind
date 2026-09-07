@@ -267,14 +267,12 @@
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
-  box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
-  box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
 }
 @utility inset-shadow-none {
   --tw-inset-shadow: inset 0 0 #0000;
