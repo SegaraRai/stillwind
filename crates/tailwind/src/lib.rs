@@ -736,15 +736,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
-    if raw.starts_with("bg-conic-") {
-        declaration = declaration.replace("calc(1deg*0)", "0deg");
-        for amount in 1..=1000 {
-            declaration = declaration.replace(
-                &format!("calc(1deg*{amount})"),
-                &format!("{amount}deg"),
-            );
-        }
-    }
     if raw.starts_with("-mask-linear-") || raw.starts_with("-mask-conic-") {
         for number in 2..=1000 {
             declaration = declaration.replace(
