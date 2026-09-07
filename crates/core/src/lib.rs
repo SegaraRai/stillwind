@@ -808,21 +808,6 @@ impl Compiler {
                             .unwrap_or_default();
                         {
                             for resolved_utility in &mut utilities {
-                                let pseudo_content = candidate_variants.iter().any(|variant| {
-                                    matches!(
-                                        &variant.kind,
-                                        stillwind_grammar::VariantKind::Named(name)
-                                            if name == "before" || name == "after"
-                                    )
-                                });
-                                if pseudo_content
-                                    && !resolved_utility.declaration.contains("content:")
-                                {
-                                    resolved_utility.declaration = format!(
-                                        "content:var(--tw-content);{}",
-                                        resolved_utility.declaration
-                                    );
-                                }
                                 resolved_utility.variants = candidate_variants.clone();
                                 if let Some(selector) = &selector {
                                     resolved_utility.selector =
@@ -1547,19 +1532,8 @@ fn resolve_utility_targets(
     theme: &stillwind_css::ThemeIndex,
 ) -> Option<Vec<CompiledUtility>> {
     let resolved = stillwind_tailwind::resolve_utility(utility, theme)?;
-    let pseudo_content = resolved.candidate.variants.iter().any(|variant| {
-        matches!(&variant.kind, stillwind_grammar::VariantKind::Named(name) if name == "before" || name == "after")
-    });
     let mut targets = vec![stillwind_tailwind::ResolvedUtilityTarget {
-        declaration: if pseudo_content {
-            if resolved.declaration.contains("content:") {
-                resolved.declaration.clone()
-            } else {
-                format!("content:var(--tw-content);{}", resolved.declaration)
-            }
-        } else {
-            resolved.declaration
-        },
+        declaration: resolved.declaration,
         selector: resolved.selector,
         nested: resolved.nested,
     }];

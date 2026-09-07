@@ -139,11 +139,13 @@
 }
 @variant before {
   &::before {
+    content: var(--tw-content);
     @slot;
   }
 }
 @variant after {
   &::after {
+    content: var(--tw-content);
     @slot;
   }
 }
