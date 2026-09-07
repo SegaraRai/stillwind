@@ -372,7 +372,7 @@ fn normalize_dimension_calc_operators(mut declaration: String) -> String {
         };
         let end = cursor + relative;
         let segment = &declaration[cursor..end];
-        if segment.starts_with("width:") || segment.starts_with("height:") {
+        if segment.contains("100%") {
             let normalized = segment.replace(" * ", "*").replace('*', " * ");
             declaration.replace_range(cursor..end, &normalized);
             cursor += normalized.len() + 1;
