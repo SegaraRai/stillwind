@@ -1445,13 +1445,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace(", black)", ")")
             .replace(", 0%)", ")")
             .replace(", 100%)", ")");
     }
-    if raw.starts_with("mask-") {
+    if declaration.contains("--tw-mask-") {
         for side in ["left", "right", "top", "bottom"] {
             declaration = declaration.replace(
                 &format!("--tw-mask-{side}-from-position:0;"),
