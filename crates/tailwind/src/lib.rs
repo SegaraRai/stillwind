@@ -1581,26 +1581,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             });
         }
     }
-    if let Some(alpha) = raw.strip_prefix("text-shadow-current/") {
-        let alpha = alpha.trim_end_matches('%');
-        if !alpha.is_empty()
-            && declaration.contains("--tw-text-shadow-color:color-mix(in oklab, currentcolor")
-        {
-            declaration = declaration.replace(
-                "--tw-text-shadow-color:color-mix(in oklab, currentcolor 50%, transparent);",
-                "--tw-text-shadow-color:currentcolor;",
-            );
-            declaration = declaration.replace(
-                &format!("--tw-text-shadow-color:color-mix(in oklab, currentcolor {alpha}%, transparent);"),
-                "--tw-text-shadow-color:currentcolor;",
-            );
-            nested.push(NestedUtilityRule {
-                at_rule: NestedUtilityAtRule::Supports,
-                condition: "color:color-mix(in lab, red, red)".to_owned(),
-                declaration: format!("--tw-text-shadow-color:color-mix(in oklab, color-mix(in oklab, currentcolor {alpha}%, transparent) var(--tw-text-shadow-alpha), transparent);"),
-            });
-        }
-    }
     if raw == "drop-shadow-current" && declaration.contains("--tw-drop-shadow-color:currentcolor;") {
         nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
