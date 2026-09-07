@@ -387,18 +387,10 @@
   background-color: --value(--color-*, [color]);
 }
 @utility bg-* {
-  background-color: color-mix(
-    in srgb,
-    --value-literal(--color-*, [color]) --alpha(--modifier()),
-    transparent
+  background-color: --compat-color(
+    --value-literal(--color-*, [color]),
+    --alpha(--modifier())
   );
-  @supports (color: color-mix(in lab, red, red)) {
-    background-color: color-mix(
-      in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
-      transparent
-    );
-  }
 }
 @utility bg-* {
   background-image: --value([image], [url]);
