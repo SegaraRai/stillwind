@@ -2905,6 +2905,19 @@ mod tests {
     }
 
     #[test]
+    fn merges_declaration_and_function_format_metadata() {
+        let formats = parse_declaration_formats(
+            "@stillwind-format transform var-fallback; @stillwind-format transform compose-space;",
+        );
+        assert_eq!(formats.get("transform").map(String::as_str), Some("var-fallback compose-space"));
+        let functions = parse_function_formats(
+            "@stillwind-format-functions color-mix linear-gradient;",
+        );
+        assert!(functions.contains("color-mix"));
+        assert!(functions.contains("linear-gradient"));
+    }
+
+    #[test]
     fn parses_block_variants_and_omits_them_from_authored_output() {
         let source = SourceFile::new(
             FileId(7),
