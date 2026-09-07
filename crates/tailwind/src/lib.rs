@@ -491,46 +491,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
-    if declaration.contains("--tw-mask-") {
-        declaration = declaration
-            .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
-            .replace("var(--tw-mask-bottom-from-color, black)", "var(--tw-mask-bottom-from-color)")
-            .replace("var(--tw-mask-bottom-from-position,0%)", "var(--tw-mask-bottom-from-position)")
-            .replace("var(--tw-mask-bottom-from-position, 0%)", "var(--tw-mask-bottom-from-position)")
-            .replace("var(--tw-mask-bottom-to-color,transparent)", "var(--tw-mask-bottom-to-color)")
-            .replace("var(--tw-mask-bottom-to-color, transparent)", "var(--tw-mask-bottom-to-color)")
-            .replace("var(--tw-mask-bottom-to-position,100%)", "var(--tw-mask-bottom-to-position)")
-            .replace("var(--tw-mask-conic-position,0deg)", "var(--tw-mask-conic-position)")
-            .replace("var(--tw-mask-conic-position, 0deg)", "var(--tw-mask-conic-position)")
-            .replace("var(--tw-mask-conic-from-color,black)", "var(--tw-mask-conic-from-color)")
-            .replace("var(--tw-mask-conic-from-color, black)", "var(--tw-mask-conic-from-color)")
-            .replace("var(--tw-mask-conic-to-color,transparent)", "var(--tw-mask-conic-to-color)")
-            .replace("var(--tw-mask-conic-to-color, transparent)", "var(--tw-mask-conic-to-color)")
-            .replace("--tw-mask-conic-stops:var(--tw-mask-conic-position),", "--tw-mask-conic-stops:from var(--tw-mask-conic-position),")
-            .replace("--tw-mask-conic-from-position:0;", "--tw-mask-conic-from-position:0px;")
-            .replace("--tw-mask-conic-to-position:0;", "--tw-mask-conic-to-position:0px;")
-            .replace("var(--tw-mask-bottom-to-position, 100%)", "var(--tw-mask-bottom-to-position)")
-            .replace("var(--tw-mask-radial-shape,ellipse)", "var(--tw-mask-radial-shape)")
-            .replace("var(--tw-mask-radial-size,farthest-corner)", "var(--tw-mask-radial-size)")
-            .replace("var(--tw-mask-radial-position,center)", "var(--tw-mask-radial-position)")
-            .replace("var(--tw-mask-radial-from-color,black)", "var(--tw-mask-radial-from-color)")
-            .replace("var(--tw-mask-radial-from-position,0%)", "var(--tw-mask-radial-from-position)")
-            .replace("var(--tw-mask-radial-to-color,transparent)", "var(--tw-mask-radial-to-color)")
-            .replace("var(--tw-mask-radial-to-position,100%)", "var(--tw-mask-radial-to-position)")
-            .replace("var(--tw-mask-radial-shape,ellipse)", "var(--tw-mask-radial-shape)")
-            .replace("var(--tw-mask-radial-size,farthest-corner)", "var(--tw-mask-radial-size)")
-            .replace("var(--tw-mask-radial-position,center)", "var(--tw-mask-radial-position)")
-            .replace("var(--tw-mask-radial-from-color,black)", "var(--tw-mask-radial-from-color)")
-            .replace("var(--tw-mask-radial-from-position,0%)", "var(--tw-mask-radial-from-position)")
-            .replace("var(--tw-mask-radial-to-color,transparent)", "var(--tw-mask-radial-to-color)")
-            .replace("var(--tw-mask-radial-to-position,100%)", "var(--tw-mask-radial-to-position)")
-            .replace(",black)", ")")
-            .replace(", 0%)", ")")
-            .replace(",0%)", ")")
-            .replace(", 100%)", ")")
-            .replace(",100%)", ")")
-            .replace("),var(--tw-mask", "), var(--tw-mask");
-    }
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
