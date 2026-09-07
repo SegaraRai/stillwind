@@ -655,17 +655,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             target
         })
         .collect();
-    let selector = resolution.selector.or_else(|| {
-        matches!(
-            &candidate.utility,
-            Utility::Named { name, .. }
-                if matches!(
-                    name.as_str(),
-                    "divide-x-reverse" | "divide-y-reverse" | "space-x-reverse" | "space-y-reverse"
-                )
-        )
-        .then_some("&>:not(:last-child)".to_owned())
-    });
+    let selector = resolution.selector;
     if raw.ends_with("/100") && declaration.contains(":#0000;") {
         nested.clear();
     }

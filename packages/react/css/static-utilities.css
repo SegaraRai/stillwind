@@ -331,10 +331,14 @@
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 @utility divide-x-reverse {
-  --tw-divide-x-reverse: 1;
+  & > :not(:last-child) {
+    --tw-divide-x-reverse: 1;
+  }
 }
 @utility divide-y-reverse {
-  --tw-divide-y-reverse: 1;
+  & > :not(:last-child) {
+    --tw-divide-y-reverse: 1;
+  }
 }
 @utility drop-shadow-none {
   --tw-drop-shadow:  ;
@@ -1082,10 +1086,14 @@
   scroll-snap-align: start;
 }
 @utility space-x-reverse {
-  --tw-space-x-reverse: 1;
+  & > :not(:last-child) {
+    --tw-space-x-reverse: 1;
+  }
 }
 @utility space-y-reverse {
-  --tw-space-y-reverse: 1;
+  & > :not(:last-child) {
+    --tw-space-y-reverse: 1;
+  }
 }
 @utility sr-only {
   position: absolute;
