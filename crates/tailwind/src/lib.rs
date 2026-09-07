@@ -3507,6 +3507,21 @@ mod tests {
     }
 
     #[test]
+    fn resolves_container_at_variants_from_css_registry() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@theme { --container-md: 40rem; }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+        let candidate = parse_candidate("@min-md:flex").unwrap();
+        assert_eq!(
+            resolve_variant(&candidate.variants[0], &theme),
+            Some(VariantApplication::Container("(width >= 40rem)".to_owned()))
+        );
+    }
+
+    #[test]
     fn resolves_formal_variant_modifier_placeholder() {
         let source = SourceFile::new(
             FileId(1),

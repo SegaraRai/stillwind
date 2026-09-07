@@ -130,6 +130,16 @@
     @slot;
   }
 }
+@variant @min-* {
+  @container (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+@variant @max-* {
+  @container (width < --value(--container-*)) {
+    @slot;
+  }
+}
 @variant group-* {
   &:is(:where(.group/{modifier}):--value() *) {
     @slot;
