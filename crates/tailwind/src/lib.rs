@@ -721,17 +721,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if value == "**" {
         return Some(VariantApplication::SelectorTemplate(":is(& *)".to_owned()));
     }
-    if value == "marker" {
-        return Some(VariantApplication::SelectorTemplate(
-            "& ::marker,&::marker,& ::-webkit-details-marker,&::-webkit-details-marker".to_owned(),
-        ));
-    }
-    if value == "not-hover" {
-        return Some(VariantApplication::SelectorMedia {
-            selector: "&:not(:hover)".to_owned(),
-            condition: "not (hover: hover)".to_owned(),
-        });
-    }
     if value.contains('/')
         && let Some(application) = resolve_registered_variant(value, theme)
     {
