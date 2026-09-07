@@ -511,12 +511,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
-    if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-from-") || name.starts_with("mask-linear-to-"))
-    {
-        declaration = declaration
-            .replace("calc(var(--spacing) * 0)", "0px")
-            .replace(":0;", ":0px;");
-    }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.starts_with("backdrop-")
         && let Some(value) = declaration
