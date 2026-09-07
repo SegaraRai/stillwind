@@ -564,27 +564,22 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         nested.clear();
     }
-    // Linear-gradient angle utilities provide a legacy fallback and put the
-    // color-space-qualified position behind the Images 4 feature query.
+    // CSS definitions normally provide this fallback/supports pair. Keep a
+    // generic bridge for authored definitions that resolve an interpolation
+    // space directly but omit the nested feature query.
     if declaration.contains("background-image:linear-gradient")
+        && !nested.iter().any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
         && let Some(position) = declaration
             .strip_prefix("--tw-gradient-position:")
             .and_then(|value| value.split_once(';'))
-        && let Some((angle, color_space)) = position.0.split_once(" in ")
-        && !angle.is_empty()
+        && position.0.contains(" in ")
     {
+        let position = position.0.to_owned();
+        let (angle, color_space) = position.split_once(" in ").expect("gradient space");
         let angle = angle.to_owned();
-        let color_space = match color_space {
-            "longer" => "oklch longer hue",
-            "shorter" => "oklch shorter hue",
-            "increasing" => "oklch increasing hue",
-            "decreasing" => "oklch decreasing hue",
-            value => value,
-        }
-        .to_owned();
-        let full_position = position.0.to_owned();
+        let color_space = color_space.to_owned();
         declaration = declaration.replacen(
-            &format!("--tw-gradient-position:{full_position};"),
+            &format!("--tw-gradient-position:{position};"),
             &format!("--tw-gradient-position:{angle};"),
             1,
         );
@@ -592,53 +587,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
             declaration: format!("--tw-gradient-position:{angle} in {color_space};"),
-            inside: true,
-        });
-    }
-    // Bare linear-gradient angles also receive the Images 4 color-space
-    // upgrade in Tailwind (the unqualified angle remains the fallback).
-    if declaration.contains("background-image:linear-gradient")
-        && !nested
-            .iter()
-            .any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
-        && let Some(position) = declaration
-            .strip_prefix("--tw-gradient-position:")
-            .and_then(|value| value.split_once(';'))
-        && position.0.ends_with("deg")
-    {
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
-            declaration: format!("--tw-gradient-position:{} in oklab;", position.0),
-            inside: true,
-        });
-    }
-    if declaration.contains("background-image:linear-gradient")
-        && !nested
-            .iter()
-            .any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
-        && let Some(position) = declaration
-            .strip_prefix("--tw-gradient-position:")
-            .and_then(|value| value.split_once(';'))
-        && position.0.starts_with("calc(")
-    {
-        let color_space = match &candidate.utility {
-            Utility::Named {
-                modifier: Some(Value::Named(modifier)),
-                ..
-            } => match modifier.as_str() {
-                "longer" => "oklch longer hue",
-                "shorter" => "oklch shorter hue",
-                "increasing" => "oklch increasing hue",
-                "decreasing" => "oklch decreasing hue",
-                value => value,
-            },
-            _ => "oklab",
-        };
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
-            declaration: format!("--tw-gradient-position:{} in {color_space};", position.0),
             inside: true,
         });
     }
