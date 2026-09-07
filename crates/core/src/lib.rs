@@ -2311,23 +2311,6 @@ fn render_used_properties(
         })
         .collect::<Vec<_>>();
     properties.reverse();
-    // Tailwind places divide's reverse variable before the shared border style
-    // registration. Keep this pair stable after de-duplicating builtin and
-    // authored definitions.
-    for reverse_name in ["--tw-divide-x-reverse", "--tw-divide-y-reverse"] {
-        if let (Some(reverse), Some(border)) = (
-            properties
-                .iter()
-                .position(|(name, ..)| name == reverse_name),
-            properties
-                .iter()
-                .position(|(name, ..)| name == "--tw-border-style"),
-        ) && border < reverse
-        {
-            properties.swap(border, reverse);
-        }
-    }
-
     let mut output = String::new();
     let mut builtin_initials = Vec::new();
     for (name, body, builtin) in &properties {
