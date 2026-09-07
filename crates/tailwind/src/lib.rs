@@ -164,7 +164,6 @@ fn canonical_builtin_body(value: &str) -> String {
     let mut functions = Vec::<String>::new();
     let mut gradient_declaration = false;
     let mut shadow_declaration = false;
-    let mut mask_declaration = false;
 
     for character in value.chars() {
         if let Some(current_quote) = quote {
@@ -192,7 +191,6 @@ fn canonical_builtin_body(value: &str) -> String {
                 whitespace = false;
                 gradient_declaration = false;
                 shadow_declaration = false;
-                mask_declaration = false;
                 functions.clear();
                 output.push(character);
             }
@@ -221,7 +219,6 @@ fn canonical_builtin_body(value: &str) -> String {
                     .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
                 if gradient_declaration
                     || shadow_declaration
-                    || mask_declaration
                     || preserve_function_spacing
                 {
                     output.push(' ');
@@ -249,14 +246,6 @@ fn canonical_builtin_body(value: &str) -> String {
                 || output.trim_end().ends_with("--tw-ring-offset-shadow") =>
             {
                 shadow_declaration = true;
-                output.push(character);
-            }
-            ':' if output.rsplit_once(';').is_some_and(|(_, declaration)| {
-                declaration.starts_with("mask-image")
-                    || declaration.ends_with("--tw-mask-linear-stops")
-            }) =>
-            {
-                mask_declaration = true;
                 output.push(character);
             }
             character if character.is_whitespace() => whitespace = true,
