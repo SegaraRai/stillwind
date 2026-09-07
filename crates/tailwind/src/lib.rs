@@ -37,6 +37,11 @@ pub struct NestedUtilityRule {
     pub at_rule: NestedUtilityAtRule,
     pub condition: String,
     pub declaration: String,
+    /// Whether the conditional was authored inside the utility's selector
+    /// block (or as a CSS `@supports` declaration, which is nested by CSS).
+    /// This preserves placement from the CSS source instead of classifying
+    /// declarations by Tailwind property names.
+    pub inside: bool,
 }
 
 /// The CSS conditional wrapper associated with a nested utility declaration.
@@ -484,6 +489,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
             declaration: format!("--tw-gradient-position:{modern};"),
+            inside: true,
         });
         for nested in &mut resolution.nested {
             if nested.at_rule == NestedUtilityAtRule::Supports {
@@ -867,6 +873,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
             declaration: format!("--tw-gradient-position:{angle} in {color_space};"),
+            inside: true,
         });
     }
     // Bare linear-gradient angles also receive the Images 4 color-space
@@ -884,6 +891,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
             declaration: format!("--tw-gradient-position:{} in oklab;", position.0),
+            inside: true,
         });
     }
     if declaration.contains("background-image:linear-gradient")
@@ -912,6 +920,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             at_rule: NestedUtilityAtRule::Supports,
             condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
             declaration: format!("--tw-gradient-position:{} in {color_space};", position.0),
+            inside: true,
         });
     }
     if declaration.contains("--tw-mask-") {
@@ -1701,6 +1710,7 @@ fn resolve_css_utility_body(
             at_rule: NestedUtilityAtRule::Supports,
             condition: "color:color-mix(in lab, red, red)".to_owned(),
             declaration: modern,
+            inside: true,
         });
     }
     for (at_rule, condition, body) in nested {
@@ -1720,6 +1730,7 @@ fn resolve_css_utility_body(
                     at_rule,
                     condition,
                     declaration,
+                    inside: selector.is_some() || at_rule == NestedUtilityAtRule::Supports,
                 });
                 if body.contains("--compat-color(")
                     && let Some(modern) = compat_color_modern_declaration(
@@ -1730,6 +1741,7 @@ fn resolve_css_utility_body(
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: "color:color-mix(in lab, red, red)".to_owned(),
                         declaration: modern,
+                        inside: true,
                     });
                 }
             }
