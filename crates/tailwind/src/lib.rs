@@ -1959,14 +1959,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    if raw == "ring-offset-transparent/100" {
-        if let Some(start) = declaration.find("--tw-ring-offset-color:")
-            && let Some(end) = declaration[start..].find(';')
-        {
-            declaration.replace_range(start..start + end + 1, "--tw-ring-offset-color:transparent;");
-        }
-        nested.clear();
-    }
     if raw.starts_with("mask-x-") {
         declaration = reorder_mask_axis_segments(&declaration, &["right", "left"]);
     } else if raw.starts_with("mask-y-") {
