@@ -162,7 +162,7 @@ fn canonical_builtin_body(value: &str) -> String {
     let mut escaped = false;
     let mut whitespace = false;
     let mut functions = Vec::<String>::new();
-    let mut gradient_declaration = false;
+    let mut custom_property_declaration = false;
     let mut shadow_declaration = false;
 
     for character in value.chars() {
@@ -189,7 +189,7 @@ fn canonical_builtin_body(value: &str) -> String {
             }
             ';' => {
                 whitespace = false;
-                gradient_declaration = false;
+                custom_property_declaration = false;
                 shadow_declaration = false;
                 functions.clear();
                 output.push(character);
@@ -217,20 +217,21 @@ fn canonical_builtin_body(value: &str) -> String {
                 let preserve_function_spacing = functions
                     .iter()
                     .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
-                if gradient_declaration
-                    || shadow_declaration
+                if custom_property_declaration || shadow_declaration
                     || preserve_function_spacing
                 {
                     output.push(' ');
                 }
                 whitespace = false;
             }
-            ':' if output.rsplit_once(';').is_some_and(|(_, declaration)| {
-                declaration.ends_with("--tw-gradient-stops")
-                    || declaration.ends_with("--tw-gradient-via-stops")
-            }) =>
+            ':' if output
+                .rsplit_once(';')
+                .map(|(_, declaration)| declaration)
+                .unwrap_or(output.as_str())
+                .trim_start()
+                .starts_with("--") =>
             {
-                gradient_declaration = true;
+                custom_property_declaration = true;
                 output.push(character);
             }
             ':' if output
@@ -264,7 +265,7 @@ fn canonical_builtin_body(value: &str) -> String {
                         .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
                     if adjacent_words
                         || function_followed_by_word
-                        || (previous == ',' && (gradient_declaration || preserve_function_spacing))
+                        || (previous == ',' && (custom_property_declaration || preserve_function_spacing))
                     {
                         output.push(' ');
                     }
