@@ -2528,6 +2528,17 @@ fn resolve_css_utility_body(
                     condition,
                     declaration,
                 });
+                if body.contains("--compat-color(")
+                    && let Some(modern) = compat_color_modern_declaration(
+                        &resolved_nested.last().expect("nested rule just pushed").declaration,
+                    )
+                {
+                    resolved_nested.push(NestedUtilityRule {
+                        at_rule: NestedUtilityAtRule::Supports,
+                        condition: "color:color-mix(in lab, red, red)".to_owned(),
+                        declaration: modern,
+                    });
+                }
             }
         }
     }
@@ -4643,6 +4654,18 @@ mod tests {
                 .declaration,
             "color: color-mix(in srgb,red 50%,transparent);"
         );
+
+        let nested_source = SourceFile::new(
+            FileId(3),
+            "nested.css",
+            "@utility nested-tone-* { @media (width >= 1px) { color: --compat-color(red, --alpha(--modifier())); } }",
+        );
+        let nested_theme = parse_tailwind_theme(&nested_source).unwrap();
+        let nested = resolve_utility("nested-tone-brand/50", &nested_theme).unwrap();
+        assert!(nested.nested.iter().any(|rule| {
+            rule.at_rule == NestedUtilityAtRule::Supports
+                && rule.declaration.contains("color-mix(in oklab")
+        }));
     }
 
     #[test]
