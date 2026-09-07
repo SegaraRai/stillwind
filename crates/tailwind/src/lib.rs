@@ -1593,12 +1593,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    if raw == "backdrop-blur-none" {
-        declaration = declaration.replace("--tw-backdrop-blur:blur(0);", "--tw-backdrop-blur: ;");
-    }
-    if raw == "blur-none" {
-        declaration = declaration.replace("--tw-blur:;", "--tw-blur: ;");
-    }
     if raw == "text-shadow-transparent"
         && declaration.contains("--tw-text-shadow-color:transparent;")
     {
