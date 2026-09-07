@@ -687,9 +687,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = normalize_conic_angles(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
-    if raw.starts_with("mask-linear-") || raw.starts_with("mask-conic-") {
-        declaration = declaration.replace("calc(1deg*", "calc(1deg * ");
-    }
     if raw.starts_with("mask-") {
         declaration = declaration
             .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
