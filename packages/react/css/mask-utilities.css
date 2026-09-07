@@ -219,6 +219,9 @@
 @utility outline-offset-* {
   outline-offset: --value(--spacing-*, --spacing(), [length]);
 }
+@utility -outline-offset-* {
+  outline-offset: calc(--value(--spacing-*, --spacing(), [length]) * -1);
+}
 @utility size-* {
   width: --value(--spacing-*, --spacing(), [length]);
   height: --value(--spacing-*, --spacing(), [length]);
