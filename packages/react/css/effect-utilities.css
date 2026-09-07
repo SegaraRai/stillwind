@@ -75,10 +75,9 @@
   --tw-ring-color: --value(--color-*, current, transparent);
 }
 @utility ring-* {
-  --tw-ring-color: color-mix(
-    in oklab,
-    --value(--color-*, current, transparent) --alpha(--modifier()),
-    transparent
+  --tw-ring-color: --compat-color(
+    --value(--color-*, current, transparent),
+    --alpha(--modifier())
   );
 }
 @utility shadow-* {
