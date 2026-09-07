@@ -1673,7 +1673,7 @@ fn resolve_css_utility_body(
     if utility.body.contains("@slot") {
         return None;
     }
-    let (selector, body) = split_utility_selector(&utility.body)?;
+    let (selector, body, parent_body) = split_utility_selector(&utility.body)?;
     let (body, nested) = split_nested_conditions(body)?;
     // A slash modifier is meaningful only when a branch explicitly consumes
     // it. This prevents a broad base branch (for example `bg-*`'s colour
@@ -1743,12 +1743,35 @@ fn resolve_css_utility_body(
     if modifier.is_some() && consumes_modifier && !modifier_resolved {
         return None;
     }
-    (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
-        declaration,
-        selector,
-        nested: resolved_nested,
-        additional: Vec::new(),
-    })
+    if let Some(parent_body) = parent_body {
+        let parent_declaration = resolve_css_declarations(
+            parent_body,
+            utility.name.as_str(),
+            name,
+            modifier,
+            theme,
+        )?;
+        let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
+            vec![ResolvedUtilityTarget {
+                declaration,
+                selector,
+                nested: resolved_nested,
+            }]
+        })?;
+        (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
+            declaration: parent_declaration,
+            selector: None,
+            nested: Vec::new(),
+            additional,
+        })
+    } else {
+        (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
+            declaration,
+            selector,
+            nested: resolved_nested,
+            additional: Vec::new(),
+        })
+    }
 }
 
 fn compat_color_modern_declaration(declaration: &str) -> Option<String> {
@@ -2186,9 +2209,9 @@ fn next_nested_condition(
     }
 }
 
-fn split_utility_selector(body: &str) -> Option<(Option<String>, &str)> {
+fn split_utility_selector(body: &str) -> Option<(Option<String>, &str, Option<&str>)> {
     let Some(selector_start) = body.find('&') else {
-        return Some((None, body));
+        return Some((None, body, None));
     };
     let open = body[selector_start..].find('{')? + selector_start;
     let close = closing_brace(body, open)?;
@@ -2196,7 +2219,13 @@ fn split_utility_selector(body: &str) -> Option<(Option<String>, &str)> {
         return None;
     }
     let selector = body[selector_start..open].trim();
-    (!selector.is_empty()).then(|| (Some(selector.to_owned()), body[open + 1..close].trim()))
+    (!selector.is_empty()).then(|| {
+        (
+            Some(selector.to_owned()),
+            body[open + 1..close].trim(),
+            (!body[..selector_start].trim().is_empty()).then_some(body[..selector_start].trim()),
+        )
+    })
 }
 
 fn closing_brace(value: &str, open: usize) -> Option<usize> {
@@ -3459,7 +3488,11 @@ mod tests {
             let resolved = resolve_utility(candidate, &theme)
                 .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
             assert!(
-                resolved.declaration.contains(declaration),
+                resolved.declaration.contains(declaration)
+                    || resolved
+                        .additional
+                        .iter()
+                        .any(|target| target.declaration.contains(declaration)),
                 "{candidate}: {resolved:#?}"
             );
         }
@@ -3471,7 +3504,7 @@ mod tests {
         for (candidate, declaration, selector) in [
             (
                 "divide-y",
-                "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));",
+                "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px*var(--tw-divide-y-reverse));border-bottom-width:calc(1px*calc(1 - var(--tw-divide-y-reverse)));",
                 Some("&>:not(:last-child)"),
             ),
             (
@@ -3493,10 +3526,21 @@ mod tests {
             let resolved = resolve_utility(candidate, &theme)
                 .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
             assert!(
-                resolved.declaration.contains(declaration),
+                resolved.declaration.contains(declaration)
+                    || resolved
+                        .additional
+                        .iter()
+                        .any(|target| target.declaration.contains(declaration)),
                 "{candidate}: {resolved:#?}"
             );
-            assert_eq!(resolved.selector.as_deref(), selector, "{candidate}");
+            assert_eq!(
+                resolved
+                    .selector
+                    .as_deref()
+                    .or_else(|| resolved.additional.first().and_then(|target| target.selector.as_deref())),
+                selector,
+                "{candidate}"
+            );
         }
     }
 
