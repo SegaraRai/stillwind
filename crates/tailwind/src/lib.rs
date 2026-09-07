@@ -1720,14 +1720,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             });
         }
     }
-    if raw.starts_with("backdrop-hue-rotate-") {
-        for angle in [0, 15, 30, 45, 60, 90, 180, 270, 360] {
-            declaration = declaration.replace(
-                &format!("hue-rotate(calc({angle}*1deg))"),
-                &format!("hue-rotate({angle}deg)"),
-            );
-        }
-    }
     if raw.starts_with("ring-current/")
         && declaration.contains("--tw-ring-color:color-mix(in oklab, currentcolor")
         && let Some(start) = declaration.find("--tw-ring-color:color-mix(in oklab, ")
