@@ -2045,9 +2045,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     if raw == "outline-offset-0" {
         declaration = declaration.replace("outline-offset:0;", "outline-offset:0px;");
     }
-    if raw == "ring" {
-        declaration = "--tw-ring-shadow:var(--tw-ring-inset,) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color,currentcolor);box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
-    }
     if raw == "ring-offset-transparent/100" {
         if let Some(start) = declaration.find("--tw-ring-offset-color:")
             && let Some(end) = declaration[start..].find(';')
