@@ -677,47 +677,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if let Some(condition) = dynamic_media_condition(value, theme) {
         return Some(VariantApplication::Media(condition));
     }
-    for (prefix, pseudo) in [
-        ("nth-[", "nth-child"),
-        ("nth-last-[", "nth-last-child"),
-        ("nth-of-type-[", "nth-of-type"),
-        ("nth-last-of-type-[", "nth-last-of-type"),
-    ] {
-        if let Some(value) = bracketed(value, prefix) {
-            return Some(VariantApplication::SelectorTemplate(format!(
-                "&:{pseudo}({})",
-                value.replace('_', " ")
-            )));
-        }
-    }
-    for (prefix, pseudo) in [
-        ("nth-last-of-type-", "nth-last-of-type"),
-        ("nth-of-type-", "nth-of-type"),
-        ("nth-last-", "nth-last-child"),
-        ("nth-", "nth-child"),
-    ] {
-        if let Some(value) = value.strip_prefix(prefix) {
-            return Some(VariantApplication::SelectorTemplate(format!(
-                "&:{pseudo}({})",
-                value.replace('_', " ")
-            )));
-        }
-    }
-    if let Some(value) = value.strip_prefix("has-") {
-        return Some(VariantApplication::SelectorTemplate(format!(
-            "&:has(:{value})"
-        )));
-    }
-    if let Some(value) = value.strip_prefix("not-") {
-        return Some(VariantApplication::SelectorTemplate(format!(
-            "&:not(:{value})"
-        )));
-    }
-    if let Some(value) = value.strip_prefix("in-") {
-        return Some(VariantApplication::SelectorTemplate(format!(
-            ":where(:{value}) &"
-        )));
-    }
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
