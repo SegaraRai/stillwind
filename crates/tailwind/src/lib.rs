@@ -505,83 +505,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             ));
         }
     }
-    if raw.ends_with("/100") {
-        if resolution.declaration.contains(":#0000;")
-            || resolution.declaration.contains(":transparent;")
-        {
-            resolution.nested.clear();
-        }
-        if resolution
-            .nested
-            .iter()
-            .any(|nested| nested.declaration.contains("transparent") || nested.declaration.contains("/0)"))
-        {
-            resolution.nested.clear();
-        }
-        if resolution.declaration.contains("color-mix(in srgb, currentcolor 100%") {
-            resolution.declaration = resolution
-                .declaration
-                .replace("color-mix(in srgb, currentcolor 100%, transparent)", "currentColor");
-            resolution.nested.clear();
-        } else if resolution
-            .declaration
-            .contains("color-mix(in srgb, inherit 100%, transparent)")
-        {
-            resolution.declaration = resolution
-                .declaration
-                .replace("color-mix(in srgb, inherit 100%, transparent)", "inherit");
-            resolution.nested.clear();
-        } else if resolution.declaration.contains("color-mix(in oklab, inherit 100%, transparent)") {
-            resolution.declaration = resolution
-                .declaration
-                .replace("color-mix(in oklab, inherit 100%, transparent)", "inherit");
-            resolution.nested.clear();
-        } else if resolution.declaration.contains("color-mix(in oklab,inherit 100%,transparent)") {
-            resolution.declaration = resolution
-                .declaration
-                .replace("color-mix(in oklab,inherit 100%,transparent)", "inherit");
-            resolution.nested.clear();
-        } else if resolution.declaration.contains("color-mix(in srgb, inherit")
-            && let Some(modern) = resolution
-                .nested
-                .iter()
-                .find(|nested| nested.declaration.contains("color-mix(in oklab"))
-                .map(|nested| nested.declaration.clone())
-        {
-            resolution.declaration = modern;
-            resolution.nested.clear();
-        }
-    } else if !raw.starts_with("placeholder-")
-        && resolution.declaration.contains("color-mix(in srgb, inherit")
-        && let Some(modern) = resolution
-            .nested
-            .iter()
-            .find(|nested| nested.declaration.contains("color-mix(in oklab"))
-            .map(|nested| nested.declaration.clone())
-    {
-        resolution.declaration = modern;
-        resolution.nested.clear();
-    }
     let mut declaration = if candidate.important {
         important(&resolution.declaration)
     } else {
         resolution.declaration
     };
-    if raw.ends_with("/100") {
-        declaration = declaration
-            .replace("color-mix(in oklab, inherit 100%, transparent)", "inherit")
-            .replace("color-mix(in oklab,inherit 100%,transparent)", "inherit");
-        if raw.contains("-transparent/100") {
-            declaration = declaration
-                .replace("color-mix(in oklab, transparent 100%, transparent)", "transparent")
-                .replace("color-mix(in srgb, transparent 100%, transparent)", "transparent");
-        }
-        if raw.contains("-current/100") {
-            declaration = declaration
-                .replace("color-mix(in oklab, currentcolor 100%, transparent)", "currentcolor")
-                .replace("color-mix(in oklab,currentcolor 100%,transparent)", "currentcolor");
-        }
-    }
     if matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("mask-linear-from-") || name.starts_with("mask-linear-to-"))
     {
         declaration = declaration
