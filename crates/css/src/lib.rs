@@ -1796,14 +1796,21 @@ fn strip_blocks(css: &str, directive: &str) -> String {
     while let Some(relative) = css[cursor..].find(directive) {
         let start = cursor + relative;
         output.push_str(&css[cursor..start]);
-        let Some(open_relative) = css[start..].find('{') else {
+        let Some(open_relative) = find_block_open(&css[start..]) else {
             output.push_str(&css[start..]);
             break;
         };
         let open = start + open_relative;
         let mut depth = 1_u32;
         let mut close = open + 1;
-        for (offset, character) in css[open + 1..].char_indices() {
+        let body = &css[open + 1..];
+        let mut offset = 0;
+        while offset < body.len() {
+            if body[offset..].starts_with("{modifier}") {
+                offset += "{modifier}".len();
+                continue;
+            }
+            let character = body[offset..].chars().next().unwrap();
             match character {
                 '{' => depth += 1,
                 '}' => {
@@ -1815,6 +1822,7 @@ fn strip_blocks(css: &str, directive: &str) -> String {
                 }
                 _ => {}
             }
+            offset += character.len_utf8();
         }
         cursor = close.saturating_add(1);
     }
@@ -1822,6 +1830,22 @@ fn strip_blocks(css: &str, directive: &str) -> String {
         output.push_str(&css[cursor..]);
     }
     output
+}
+
+fn find_block_open(value: &str) -> Option<usize> {
+    let mut offset = 0;
+    while offset < value.len() {
+        if value[offset..].starts_with("{modifier}") {
+            offset += "{modifier}".len();
+            continue;
+        }
+        let character = value[offset..].chars().next()?;
+        if character == '{' {
+            return Some(offset);
+        }
+        offset += character.len_utf8();
+    }
+    None
 }
 
 fn strip_top_level_blocks(css: &str, directive: &str) -> String {
