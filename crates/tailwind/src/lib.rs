@@ -331,7 +331,8 @@ fn normalize_angle_multipliers(mut declaration: &str) -> String {
     output
 }
 
-fn normalize_spaced_negative_angles(value: &str) -> String {
+/// Normalizes whitespace around signed angle products independently of the utility that produced the expression.
+fn normalize_spaced_angle_products(value: &str) -> String {
     let mut output = value.to_owned();
     while let Some(end) = output.find(" deg*-1)") {
         let number_end = end;
@@ -421,7 +422,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("calc(1deg * -1 *", "calc(1deg*-1*");
     declaration = normalize_angle_multipliers(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
-    declaration = normalize_spaced_negative_angles(&declaration);
+    declaration = normalize_spaced_angle_products(&declaration);
     if declaration.contains("deg") && declaration.contains("* -1") {
         for number in 2..=1000 {
             declaration = declaration.replace(
