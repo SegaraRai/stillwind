@@ -974,6 +974,10 @@ pub struct ThemeIndex {
     pub utilities: Vec<CustomUtility>,
     pub variants: Vec<CustomVariant>,
     pub properties: Vec<CustomPropertyDefinition>,
+    /// CSS-authored declaration precedence groups. Each group lists property
+    /// patterns from lower to higher precedence and is interpreted generically
+    /// by consumers (no framework property table required).
+    pub declaration_order: Vec<Vec<String>>,
     pub authored_properties: BTreeSet<String>,
     /// Framework layers requested by the authored Tailwind-compatible imports.
     ///
@@ -1090,6 +1094,12 @@ pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
 #[must_use]
 pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_property_definitions(css)
+}
+
+/// Parses compiler-owned declaration precedence metadata.
+#[must_use]
+pub fn parse_declaration_order(css: &str) -> Vec<Vec<String>> {
+    extract_declaration_order(css)
 }
 
 impl ThemeIndex {
@@ -1352,6 +1362,7 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     theme.utilities = extract_custom_utilities(source.text());
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
+    theme.declaration_order = extract_declaration_order(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
     theme.config = extract_stillwind_config(source.text());
     Ok(theme)
@@ -1399,6 +1410,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         utilities: extract_custom_utilities(source.text()),
         variants: extract_custom_variants(source.text()),
         properties: extract_property_definitions(source.text()),
+        declaration_order: extract_declaration_order(source.text()),
         authored_properties: extract_authored_property_names(source.text()),
         imports,
         config: extract_stillwind_config(source.text()),
@@ -1476,6 +1488,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         utilities: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
+        declaration_order: Vec::new(),
         authored_properties: BTreeSet::new(),
         imports: FrameworkImports::default(),
         config: StillwindConfig::default(),
@@ -1928,6 +1941,24 @@ fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
         .collect::<Vec<_>>();
     utilities.extend(extract_utility_families(&css));
     utilities
+}
+
+fn extract_declaration_order(css: &str) -> Vec<Vec<String>> {
+    extract_named_blocks(&strip_css_comments(css), "@stillwind-order")
+        .into_iter()
+        .flat_map(|(_, body)| {
+            body.split(';').filter_map(|entry| {
+                let (_, properties) = entry.split_once(':')?;
+                let group = properties
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|property| !property.is_empty())
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>();
+                (!group.is_empty()).then_some(group)
+            }).collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 /// Expands Stillwind's compact built-in utility-family syntax.
@@ -2778,6 +2809,20 @@ mod tests {
         );
         assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
         assert_eq!(theme.tokens[2].kind, ThemeTokenKind::Custom);
+    }
+
+    #[test]
+    fn parses_declaration_order_metadata_from_css() {
+        let groups = parse_declaration_order(
+            "@stillwind-order { margin: margin, margin-inline, margin-left; border: border, border-style; }",
+        );
+        assert_eq!(
+            groups,
+            vec![
+                vec!["margin".to_owned(), "margin-inline".to_owned(), "margin-left".to_owned()],
+                vec!["border".to_owned(), "border-style".to_owned()],
+            ]
+        );
     }
 
     #[test]
