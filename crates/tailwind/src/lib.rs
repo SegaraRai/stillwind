@@ -1397,9 +1397,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
-    if raw.starts_with("mask-x-") {
+    if declaration.contains("--tw-mask-right") && declaration.contains("--tw-mask-left") {
         declaration = reorder_mask_axis_segments(&declaration, &["right", "left"]);
-    } else if raw.starts_with("mask-y-") {
+    } else if declaration.contains("--tw-mask-top") && declaration.contains("--tw-mask-bottom") {
         declaration = reorder_mask_axis_segments(&declaration, &["top", "bottom"]);
     }
     Some(ResolvedUtility {
