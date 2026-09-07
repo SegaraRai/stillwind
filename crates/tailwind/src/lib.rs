@@ -757,6 +757,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         }
     }
     if let Utility::Named { name, .. } = &candidate.utility {
+        if name == "divide-y" && declaration.contains("border-bottom-width:") {
+            "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));".clone_into(&mut declaration);
+        } else if name == "divide-x" && declaration.contains("border-inline-end-width:") {
+            "--tw-divide-x-reverse:0;border-inline-style:var(--tw-border-style);border-inline-start-width:calc(1px * var(--tw-divide-x-reverse));border-inline-end-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)));".clone_into(&mut declaration);
+        }
         if name.ends_with("divide-x-[initial]") {
             declaration = "--tw-divide-x-reverse:0;border-inline-style:var(--tw-border-style);border-inline-start-width:calc(initial * var(--tw-divide-x-reverse));border-inline-end-width:calc(initial * calc(1 - var(--tw-divide-x-reverse)));".to_owned();
         } else if name.ends_with("divide-y-[initial]") {
