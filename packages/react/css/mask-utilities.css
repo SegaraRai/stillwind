@@ -631,7 +631,7 @@
   );
 }
 @utility from-* {
-  --tw-gradient-from: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  --tw-gradient-from: --compat-color(--value(--color-*), --alpha(--modifier()));
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
     var(--tw-gradient-position),
@@ -651,7 +651,7 @@
   --tw-gradient-stops: var(--tw-gradient-via-stops);
 }
 @utility via-* {
-  --tw-gradient-via: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  --tw-gradient-via: --compat-color(--value(--color-*), --alpha(--modifier()));
   --tw-gradient-via-stops:
     var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position),
     var(--tw-gradient-via) var(--tw-gradient-via-position),
@@ -671,7 +671,7 @@
   );
 }
 @utility to-* {
-  --tw-gradient-to: color-mix(in oklab, --value(--color-*) --alpha(--modifier()), transparent);
+  --tw-gradient-to: --compat-color(--value(--color-*), --alpha(--modifier()));
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
     var(--tw-gradient-position),
