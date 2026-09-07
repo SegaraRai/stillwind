@@ -2260,24 +2260,7 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
             else {
                 continue;
             };
-            for (prefix, expected_namespace) in [
-                ("bg", "color"),
-                ("text", "color"),
-                ("border", "color"),
-                ("p", "spacing"),
-                ("px", "spacing"),
-                ("py", "spacing"),
-                ("m", "spacing"),
-                ("mx", "spacing"),
-                ("my", "spacing"),
-                ("gap", "spacing"),
-                ("w", "spacing"),
-                ("h", "spacing"),
-                ("rounded", "radius"),
-                ("shadow", "shadow"),
-                ("duration", "duration"),
-                ("ease", "ease"),
-            ] {
+            for (prefix, expected_namespace) in stillwind_tailwind::builtin_utility_token_prefixes() {
                 if namespace == expected_namespace {
                     utilities.push(format!("{prefix}-{name}"));
                 }

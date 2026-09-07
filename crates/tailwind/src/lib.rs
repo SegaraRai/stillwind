@@ -168,6 +168,26 @@ pub fn builtin_utility_names() -> Vec<String> {
 }
 
 #[must_use]
+pub fn builtin_utility_token_prefixes() -> Vec<(String, String)> {
+    let mut entries = Vec::new();
+    for utility in stillwind_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS) {
+        let Some(prefix) = utility.name.strip_suffix('*') else {
+            continue;
+        };
+        let prefix = prefix.trim_end_matches('-');
+        let Some(start) = utility.body.find("--value(--") else {
+            continue;
+        };
+        let rest = &utility.body[start + "--value(--".len()..];
+        let Some(end) = rest.find("-*") else {
+            continue;
+        };
+        entries.push((prefix.to_owned(), rest[..end].to_owned()));
+    }
+    entries
+}
+
+#[must_use]
 pub fn builtin_variant_names() -> Vec<String> {
     stillwind_css::parse_variant_definitions(BUILTIN_REGISTRY_CSS)
         .into_iter()
