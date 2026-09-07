@@ -2977,6 +2977,12 @@ fn resolve_css_placeholders(
         let replacement = alpha(&body[open + 1..end])?;
         body.replace_range(start..=end, &replacement);
     }
+    while let Some(start) = body.find("--compat-color(") {
+        let open = start + "--compat-color".len();
+        let end = closing_parenthesis(&body, open)?;
+        let replacement = resolve_compat_color(&body[open + 1..end])?;
+        body.replace_range(start..=end, &replacement);
+    }
     while let Some(start) = body.find("--shadow-color(") {
         let open = start + "--shadow-color".len();
         let end = closing_parenthesis(&body, open)?;
@@ -2991,8 +2997,28 @@ fn resolve_css_placeholders(
         && !body.contains("--modifier-map(")
         && !body.contains("--modifier-none()")
         && !body.contains("--alpha(")
+        && !body.contains("--compat-color(")
         && !body.contains("--shadow-color("))
     .then_some(body)
+}
+
+/// Produces the legacy Color 4 fallback for an authored color and alpha.
+/// Modern `color-mix(in oklab, ...)` upgrades remain expressible through a
+/// surrounding standard `@supports` block in the CSS registry.
+fn resolve_compat_color(arguments: &str) -> Option<String> {
+    let arguments = split_domains(arguments);
+    let [color, alpha] = arguments.as_slice() else {
+        return None;
+    };
+    let color = color.trim();
+    let alpha = alpha.trim();
+    if color.is_empty() || alpha.is_empty() {
+        return None;
+    }
+    if alpha == "100%" {
+        return Some(color.to_owned());
+    }
+    Some(format!("color-mix(in srgb,{color} {alpha},transparent)"))
 }
 
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits
@@ -4746,6 +4772,22 @@ mod tests {
             Some(VariantApplication::SelectorTemplate(
                 "&[aria-expanded=\"true\"]".to_owned()
             ))
+        );
+    }
+
+    #[test]
+    fn resolves_compat_color_value_function() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@theme { --color-brand: red; }\n@utility tone-* { color: --compat-color(--value(--color-*), --alpha(--modifier())); }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+        assert_eq!(
+            resolve_utility("tone-brand/50", &theme)
+                .unwrap()
+                .declaration,
+            "color: color-mix(in srgb,var(--color-brand) 50%,transparent);"
         );
     }
 
