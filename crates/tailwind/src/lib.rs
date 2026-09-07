@@ -1499,25 +1499,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-text-shadow-color:color-mix(in oklab, transparent var(--tw-text-shadow-alpha), transparent);".to_owned(),
         });
     }
-    if raw == "decoration-transparent/100"
-        && let Some(start) = declaration.find("text-decoration-color:")
-        && let Some(end) = declaration[start..].find(';')
-    {
-        declaration.replace_range(start..start + end + 1, "text-decoration-color:#0000;");
-    }
-    if raw == "decoration-transparent/100" {
-        declaration = declaration.replace(
-            "text-decoration-color:oklab(0% none none/0);",
-            "text-decoration-color:#0000;",
-        );
-    }
-    if raw == "divide-transparent/100" {
-        if let Some(start) = declaration.find("border-color:")
-            && let Some(end) = declaration[start..].find(';')
-        {
-            declaration.replace_range(start..start + end + 1, "border-color:#0000;");
-        }
-    }
     if let Some(alpha) = raw.strip_prefix("ring-offset-current/") {
         let alpha = alpha.trim_end_matches('%');
         if alpha != "100" {
