@@ -3681,7 +3681,7 @@ mod tests {
         parse_tailwind_theme(&SourceFile::new(
             FileId(1),
             "theme.css",
-            "@theme { --color-brand: red; }",
+            "@theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
         ))
         .unwrap()
     }
@@ -4131,7 +4131,7 @@ mod tests {
         let container = resolve_utility("container", &theme).unwrap();
         assert_eq!(container.declaration, "width:100%;");
         assert!(container.nested.iter().any(|rule| {
-            rule.condition == "(width >= 48rem)" && rule.declaration == "max-width:48rem;"
+            rule.condition == "(width>=48rem)" && rule.declaration == "max-width:48rem;"
         }));
         assert_eq!(
             resolve_utility("@container", &theme).unwrap().declaration,
@@ -4840,7 +4840,7 @@ mod tests {
         let source = SourceFile::new(
             FileId(1),
             "theme.css",
-            "@theme { --color-brand: red; }\n@utility tone-* { color: --compat-color(--value(--color-*), --alpha(--modifier())); }",
+            "@theme { --color-brand: red; --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility tone-* { color: --compat-color(--value(--color-*), --alpha(--modifier())); }",
         );
         let theme = parse_tailwind_theme(&source).unwrap();
         assert_eq!(

@@ -1768,16 +1768,12 @@ fn render_utility_rule(
     let declaration = declaration
         .replace("border-color:oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0);", "border-color:#0000;")
         .replace("text-decoration-color:oklab(0% none none/0);", "text-decoration-color:#0000;");
-    let declaration = if declaration.starts_with("outline-offset:")
-        || declaration.starts_with("text-underline-offset:")
-        || declaration.starts_with("--tw-scale-")
-    {
-        normalize_angle_calc(&normalize_negative_calc(&declaration))
-    } else if declaration.contains("--tw-mask-conic-position:calc(1deg") {
-        normalize_negative_calc(&declaration)
-    } else {
-        normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
-    };
+    // Canonicalize CSS math structurally for every declaration. This keeps
+    // unit/negative/angle handling independent of the utility name or
+    // property prefix.
+    let declaration = normalize_angle_calc(&normalize_negative_calc(
+        &normalize_signed_length_calc(&declaration),
+    ));
     let declaration = declaration
         .replace("calc(var(--spacing) * 0)", "0")
         .replace("calc(var(--spacing)*0)", "0");
