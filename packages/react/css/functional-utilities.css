@@ -569,7 +569,10 @@
   border-radius: --value(--radius-*);
 }
 @utility shadow-* {
-  box-shadow: --value(--shadow-*);
+  --tw-shadow: --value(--shadow-*);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
 }
 @utility font-* {
   font-family: --value(--font-*);

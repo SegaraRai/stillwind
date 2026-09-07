@@ -842,16 +842,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration = format!("--tw-border-style:{style};{declaration}");
         }
     }
-    if let Utility::Named { name, .. } = &candidate.utility
-        && name.starts_with("shadow-")
-        && let Some(token) = declaration
-            .strip_prefix("box-shadow:var(--shadow-")
-            .and_then(|value| value.strip_suffix(");"))
-    {
-        declaration = format!(
-            "--tw-shadow:var(--shadow-{token});box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);"
-        );
-    }
     // Tailwind's width utilities also establish the border style through the
     // built-in --tw-border-style property. Keep the declaration explicit so
     // the generated rule has the same computed behavior and registration set.
