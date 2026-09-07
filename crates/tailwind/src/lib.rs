@@ -466,10 +466,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    if raw.starts_with("bg-linear-")
-        && ["/longer", "/shorter", "/increasing", "/decreasing"]
-        .iter()
-        .any(|suffix| raw.ends_with(suffix))
+    if resolution.declaration.contains("--tw-gradient-position:")
+        && resolution
+            .declaration
+            .contains(" in oklch")
         && let Some(value) = resolution
             .declaration
             .strip_prefix("--tw-gradient-position:")
@@ -492,7 +492,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
         if !resolution.declaration.contains("background-image:") {
-            let function = if raw.starts_with("bg-radial") {
+            let function = if resolution
+                .declaration
+                .contains("background-image:radial-gradient")
+            {
                 "radial-gradient"
             } else {
                 "linear-gradient"
