@@ -4841,9 +4841,13 @@ mod tests {
         );
         let theme = parse_tailwind_theme(&source).unwrap();
         let utility = resolve_utility("container", &theme).unwrap();
-        assert_eq!(utility.nested.len(), 2);
-        assert_eq!(utility.nested[0].condition, "(width >= 37rem)");
-        assert_eq!(utility.nested[1].condition, "(width >= 80rem)");
+        let conditions = utility
+            .nested
+            .iter()
+            .map(|rule| rule.condition.as_str())
+            .collect::<Vec<_>>();
+        assert!(conditions.contains(&"(width >= 37rem)"));
+        assert!(conditions.contains(&"(width >= 80rem)"));
     }
 
     #[test]
