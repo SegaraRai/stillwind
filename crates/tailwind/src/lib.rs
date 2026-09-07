@@ -208,6 +208,12 @@ pub fn builtin_declaration_formats() -> &'static std::collections::BTreeMap<Stri
 }
 
 #[must_use]
+pub fn builtin_omit_token_prefixes() -> &'static Vec<(String, String)> {
+    static RULES: OnceLock<Vec<(String, String)>> = OnceLock::new();
+    RULES.get_or_init(|| stillwind_css::parse_omit_token_prefixes(BUILTIN_REGISTRY_CSS))
+}
+
+#[must_use]
 fn builtin_function_formats() -> &'static BTreeSet<String> {
     static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
     FORMATS.get_or_init(|| stillwind_css::parse_function_formats(BUILTIN_REGISTRY_CSS))

@@ -1969,8 +1969,11 @@ fn render_stylesheet(
     let mut animation_names = Vec::new();
     if let Some(layer) = &imports.theme_layer {
         let used_css = format!("{utility_css}{authored_css}");
-        let mut required_tokens =
-            theme.tokens_required_by(&used_css, imports.base_layer.is_some());
+        let mut required_tokens = theme.tokens_required_by_with_omit_rules(
+            &used_css,
+            imports.base_layer.is_some(),
+            stillwind_tailwind::builtin_omit_token_prefixes(),
+        );
         required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
         if authored_css.contains("--color-") && authored_css.contains("--spacing") {
             required_tokens.sort_by_key(|token| {

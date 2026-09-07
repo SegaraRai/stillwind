@@ -27,6 +27,7 @@
 @stillwind-compat-color srgb oklab;
 @stillwind-compat-support color:color-mix(in lab, red, red);
 @stillwind-compat-bridge --tw-gradient-position background-image:linear-gradient(in lab, red, red);
+@stillwind-omit-token-prefix --shadow- --tw-shadow:;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";

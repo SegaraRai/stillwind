@@ -1164,6 +1164,21 @@ pub fn parse_compatibility_bridge(css: &str, directive: &str) -> Option<(String,
         })
 }
 
+/// Parses generic token-pruning rules authored by the registry CSS.
+pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-omit-token-prefix"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .filter_map(|value| {
+            let (prefix, condition) = value.split_once(char::is_whitespace)?;
+            let prefix = prefix.trim();
+            let condition = condition.trim();
+            (!prefix.is_empty() && !condition.is_empty())
+                .then(|| (prefix.to_owned(), condition.to_owned()))
+        })
+        .collect()
+}
+
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }
@@ -1260,6 +1275,17 @@ impl ThemeIndex {
     /// their `var()` dependencies are followed transitively.
     #[must_use]
     pub fn tokens_required_by(&self, css: &str, include_preflight: bool) -> Vec<&ThemeToken> {
+        self.tokens_required_by_with_omit_rules(css, include_preflight, &[])
+    }
+
+    /// Selects required tokens while applying registry-authored pruning rules.
+    #[must_use]
+    pub fn tokens_required_by_with_omit_rules(
+        &self,
+        css: &str,
+        include_preflight: bool,
+        omit_rules: &[(String, String)],
+    ) -> Vec<&ThemeToken> {
         let tokens = self.active_tokens();
         let mut required = custom_property_references(css);
         if include_preflight {
@@ -1304,11 +1330,12 @@ impl ThemeIndex {
                 }
             }
         }
-        // Built-in shadow utilities materialize their token into the
-        // --tw-shadow state variable. Once that declaration is present, the
-        // intermediate --shadow-* theme alias is not emitted by Tailwind.
-        if css.contains("--tw-shadow:") {
-            required.retain(|name| !name.starts_with("--shadow-"));
+        // Registry-authored pruning rules can remove intermediate aliases
+        // after dependency closure, without embedding property names here.
+        for (prefix, condition) in omit_rules {
+            if css.contains(condition) {
+                required.retain(|name| !name.starts_with(prefix));
+            }
         }
         tokens
             .into_iter()
@@ -2865,6 +2892,10 @@ mod tests {
         );
         assert!(functions.contains("color-mix"));
         assert!(functions.contains("linear-gradient"));
+        assert_eq!(
+            parse_omit_token_prefixes("@stillwind-omit-token-prefix --shadow- --tw-shadow:;"),
+            vec![("--shadow-".to_owned(), "--tw-shadow:".to_owned())]
+        );
     }
 
     #[test]
