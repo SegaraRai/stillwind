@@ -767,20 +767,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 declaration.insert_str(value_start + end + 1, &format!("--tw-scale-z:{value};"));
             }
         }
-        if name.starts_with("outline-offset-")
-            && let Some(value) = name.strip_prefix("outline-offset-")
-            && value.parse::<f64>().is_ok()
-        {
-            declaration = declaration
-                .replace(
-                    &format!("calc(var(--spacing) * {value})"),
-                    &format!("{}px", value.parse::<f64>().unwrap_or_default()),
-                )
-                .replace(
-                    "var(--spacing)",
-                    &format!("{}px", value.parse::<f64>().unwrap_or_default()),
-                );
-        }
         if name.starts_with("leading-")
             && declaration.starts_with("line-height:")
             && let Some(value) = declaration
