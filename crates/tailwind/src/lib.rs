@@ -650,39 +650,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("var(--tw-skew-x)", "var(--tw-skew-x,)")
         .replace("var(--tw-skew-y)", "var(--tw-skew-y,)");
     if let Utility::Named { name, .. } = &candidate.utility {
-        let mask = match name.as_str() {
-            "mask-linear-[initial]" => Some(
-                "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-linear:linear-gradient(var(--tw-mask-linear-stops,var(--tw-mask-linear-position)));--tw-mask-linear-position:initial;mask-composite:intersect;",
-            ),
-            "mask-radial-[initial]" => Some(
-                "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-radial:radial-gradient(var(--tw-mask-radial-stops,var(--tw-mask-radial-size)));--tw-mask-radial-size:initial;mask-composite:intersect;",
-            ),
-            "mask-conic-[initial]" => Some(
-                "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-conic:conic-gradient(var(--tw-mask-conic-stops,var(--tw-mask-conic-position)));--tw-mask-conic-position:initial;mask-composite:intersect;",
-            ),
-            _ => None,
-        };
-        if let Some(mask) = mask {
-            declaration = mask.to_owned();
-        }
-        match name.as_str() {
-            "mask-radial-at-[initial]" if declaration == "mask-position:initial;" => {
-                declaration = "--tw-mask-radial-position:initial;".to_owned();
-            }
-            "skew-[initial]" => {
-                declaration = "--tw-skew-x:skewX(initial);--tw-skew-y:skewY(initial);transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);".to_owned();
-            }
-            "skew-x-[initial]" => {
-                declaration = "--tw-skew-x:skewX(initial);transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);".to_owned();
-            }
-            "skew-y-[initial]" => {
-                declaration = "--tw-skew-y:skewY(initial);transform:var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);".to_owned();
-            }
-            "transition-[initial]" => {
-                declaration = "transition-property:initial;transition-timing-function:var(--tw-ease,var(--default-transition-timing-function));transition-duration:var(--tw-duration,var(--default-transition-duration));".to_owned();
-            }
-            _ => {}
-        }
         if name.starts_with("w-[calc(")
             || name.starts_with("h-[calc(")
             || name.starts_with("size-[calc(")

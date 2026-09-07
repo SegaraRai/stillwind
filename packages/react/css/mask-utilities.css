@@ -185,6 +185,19 @@
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
+@utility skew-[initial] {
+  --tw-skew-x: skewX(initial);
+  --tw-skew-y: skewY(initial);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+}
+@utility skew-x-[initial] {
+  --tw-skew-x: skewX(initial);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+}
+@utility skew-y-[initial] {
+  --tw-skew-y: skewY(initial);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+}
 @utility -skew-* {
   --tw-skew-x: skewX(calc(--value(integer) * -1deg));
   --tw-skew-y: skewY(calc(--value(integer) * -1deg));
@@ -822,4 +835,25 @@
 @utility -bg-linear-* {
   --tw-gradient-position: calc(--value(integer) deg * -1) in --modifier();
   background-image: linear-gradient(var(--tw-gradient-stops));
+}
+@utility mask-linear-[initial] {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops,var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: initial;
+  mask-composite: intersect;
+}
+@utility mask-radial-[initial] {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops,var(--tw-mask-radial-size)));
+  --tw-mask-radial-size: initial;
+  mask-composite: intersect;
+}
+@utility mask-conic-[initial] {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops,var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: initial;
+  mask-composite: intersect;
+}
+@utility mask-radial-at-[initial] {
+  --tw-mask-radial-position: initial;
 }
