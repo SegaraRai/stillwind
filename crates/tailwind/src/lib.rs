@@ -884,17 +884,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration = format!("{prefix}{value};{rest}");
         }
     }
-    if raw == "translate-x-0"
-        || raw == "translate-y-0"
-        || raw == "translate-z-0"
-        || raw == "translate-0"
-    {
-        declaration = declaration
-            .replace("transform:translateX(0);", "")
-            .replace("transform:translateY(0);", "")
-            .replace("transform:translateZ(0);", "")
-            .replace("transform:translate(0);", "");
-    }
     if raw == "underline-offset-0" {
         declaration = declaration.replace("text-underline-offset:0;", "text-underline-offset:0px;");
     }
@@ -910,20 +899,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration = declaration
             .replace("calc(var(--spacing) * -1)", "-1px")
             .replace("calc(var(--spacing)*-1)", "-1px");
-    }
-    if raw == "translate-0"
-        || raw == "translate-z-0"
-        || raw == "translate-x-0"
-        || raw == "translate-y-0"
-        || raw == "-translate-0"
-        || raw == "-translate-z-0"
-        || raw == "-translate-x-0"
-        || raw == "-translate-y-0"
-    {
-        declaration = declaration
-            .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
-            .replace("--tw-translate-y:0;", "--tw-translate-y:0px;")
-            .replace("--tw-translate-z:0;", "--tw-translate-z:0px;");
     }
     for number in 0..=1000 {
         declaration = declaration

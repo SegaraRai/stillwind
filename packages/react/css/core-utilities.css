@@ -474,10 +474,12 @@
   perspective-origin: top left;
 }
 @utility translate-x-0 {
-  transform: translateX(0);
+  --tw-translate-x: 0px;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 @utility translate-y-0 {
-  transform: translateY(0);
+  --tw-translate-y: 0px;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 @utility transition {
   transition-property:
