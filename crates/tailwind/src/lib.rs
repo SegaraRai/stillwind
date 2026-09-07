@@ -723,17 +723,20 @@ pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool
     let Some(candidate) = parse_candidate(raw) else {
         return false;
     };
-    let patterns = if theme.relationship_patterns.is_empty() {
-        builtin_relationship_patterns()
-    } else {
-        &theme.relationship_patterns
-    };
     let matches_pattern = |value: &str| {
-        patterns.iter().any(|pattern| {
+        theme
+            .relationship_patterns
+            .iter()
+            .chain(builtin_relationship_patterns().iter())
+            .any(|pattern| {
             pattern.strip_suffix('*').map_or(value == pattern, |prefix| value.starts_with(prefix))
-        })
+            })
     };
-    matches!(&candidate.utility, Utility::Named { name, .. } if matches_pattern(name))
+    matches!(
+        &candidate.utility,
+        Utility::Named { name, .. } if matches_pattern(name)
+        || name.starts_with('@'))
+        || raw.starts_with('@')
         || candidate.variants.iter().any(|variant| {
             matches!(&variant.kind, VariantKind::Named(name) if matches_pattern(name))
                 || variant.raw.starts_with('@')
