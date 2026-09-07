@@ -4442,7 +4442,7 @@ mod tests {
             ("mix-blend-color-dodge", "mix-blend-mode:color-dodge;", None),
             ("object-bottom-left", "object-position:left bottom;", None),
             ("outline", "outline-style:var(--tw-outline-style);outline-width:1px;", None),
-            ("ring", "--tw-ring-shadow:var(--tw-ring-inset,)", None),
+            ("ring", "--tw-ring-shadow:0 0 0 1px", None),
             (
                 "rounded-se-full",
                 "border-start-end-radius:calc(infinity*1px);",
@@ -4655,7 +4655,7 @@ mod tests {
         let theme = theme();
         assert_eq!(
             resolve_utility("blur-none", &theme).unwrap().declaration,
-            "--tw-blur: ;filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
+            "--tw-blur:;filter:var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);"
         );
         assert_eq!(
             resolve_utility("perspective-dramatic", &theme)
