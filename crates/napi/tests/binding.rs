@@ -162,7 +162,7 @@ fn serializes_editor_positions_for_diagnostics() {
     .unwrap();
 
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
-    let diagnostic = &value["diagnostics"][0];
+    let diagnostic = &value["lint_findings"][0];
     assert_eq!(diagnostic["file"], "Button.tsx");
     assert_eq!(diagnostic["start_line"], 1);
     assert!(diagnostic["start_utf16"].as_u64().unwrap() > 0);
