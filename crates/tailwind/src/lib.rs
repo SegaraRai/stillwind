@@ -163,7 +163,6 @@ fn canonical_builtin_body(value: &str) -> String {
     let mut whitespace = false;
     let mut functions = Vec::<String>::new();
     let mut custom_property_declaration = false;
-    let mut shadow_declaration = false;
 
     for character in value.chars() {
         if let Some(current_quote) = quote {
@@ -190,7 +189,6 @@ fn canonical_builtin_body(value: &str) -> String {
             ';' => {
                 whitespace = false;
                 custom_property_declaration = false;
-                shadow_declaration = false;
                 functions.clear();
                 output.push(character);
             }
@@ -217,7 +215,7 @@ fn canonical_builtin_body(value: &str) -> String {
                 let preserve_function_spacing = functions
                     .iter()
                     .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
-                if custom_property_declaration || shadow_declaration
+                if custom_property_declaration
                     || preserve_function_spacing
                 {
                     output.push(' ');
@@ -234,27 +232,11 @@ fn canonical_builtin_body(value: &str) -> String {
                 custom_property_declaration = true;
                 output.push(character);
             }
-            ':' if output
-                .rsplit_once(';')
-                .map(|(_, declaration)| declaration)
-                .unwrap_or(output.as_str())
-                .trim()
-                .ends_with("box-shadow")
-                || output.trim_end().ends_with("--tw-shadow")
-                || output.trim_end().ends_with("--tw-inset-shadow")
-                || output.trim_end().ends_with("--tw-ring-shadow")
-                || output.trim_end().ends_with("--tw-inset-ring-shadow")
-                || output.trim_end().ends_with("--tw-ring-offset-shadow") =>
-            {
-                shadow_declaration = true;
-                output.push(character);
-            }
             character if character.is_whitespace() => whitespace = true,
             character => {
                 if whitespace && let Some(previous) = output.chars().last() {
                     let adjacent_words = is_word_character(previous)
-                        && (is_word_character(character)
-                            || (shadow_declaration && character == '#'));
+                        && (is_word_character(character) || character == '#');
                     let function_followed_by_word = previous == ')' && is_word_character(character);
                     // Keep a separator after commas. Tailwind's vendored
                     // utility serializer retains this spelling in function
@@ -276,7 +258,9 @@ fn canonical_builtin_body(value: &str) -> String {
         }
     }
 
-    output
+    // Fallback lists retain a separator before `var()` regardless of the
+    // surrounding property; this is a value-level serialization rule.
+    output.replace(",var(", ", var(")
 }
 
 fn is_word_character(character: char) -> bool {
