@@ -64,10 +64,9 @@
 }
 @utility divide-* {
   & > :not(:last-child) {
-    border-color: color-mix(
-      in oklab,
-      --value(--color-*, current, transparent) --alpha(--modifier()),
-      transparent
+    border-color: --compat-color(
+      --value(--color-*, current, transparent),
+      --alpha(--modifier())
     );
   }
 }
