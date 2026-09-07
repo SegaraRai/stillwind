@@ -2817,6 +2817,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_selector_wrapper_metadata_from_css() {
+        let wrappers = parse_selector_wrappers(
+            "@stillwind-selector-wrapper >:not(:last-child) :where({selector});",
+        );
+        assert_eq!(
+            wrappers.get(">:not(:last-child)").map(String::as_str),
+            Some(":where({selector})")
+        );
+    }
+
+    #[test]
     fn parses_compatibility_color_metadata_from_css() {
         assert_eq!(
             parse_compat_color_spaces("@stillwind-compat-color srgb oklab;"),
