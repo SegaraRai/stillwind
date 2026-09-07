@@ -2536,27 +2536,6 @@ fn resolve_named_utility(
     if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    if theme.imports.builtins && !negative && name == "container" && modifier.is_none() {
-        let mut breakpoints = theme.tokens_in(ThemeNamespace::Breakpoint);
-        breakpoints.sort_by(|left, right| {
-            css_length_sort_key(&left.value.value)
-                .partial_cmp(&css_length_sort_key(&right.value.value))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        return Some(UtilityResolution {
-            declaration: "width:100%;".to_owned(),
-            selector: None,
-            nested: breakpoints
-                .into_iter()
-                .map(|token| NestedUtilityRule {
-                    at_rule: NestedUtilityAtRule::Media,
-                    condition: format!("(width >= {})", token.value.value),
-                    declaration: format!("max-width:{};", token.value.value),
-                })
-                .collect(),
-            additional: Vec::new(),
-        });
-    }
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
