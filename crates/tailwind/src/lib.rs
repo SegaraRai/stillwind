@@ -609,25 +609,17 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("rotateZ(calc({number}deg * -1))"),
             );
     }
-    if let Utility::Named { name, .. } = &candidate.utility {
-        if name.starts_with("w-[calc(")
-            || name.starts_with("h-[calc(")
-            || name.starts_with("size-[calc(")
-        {
-            declaration = declaration.replace('*', " * ");
-        }
-        if candidate.negative
-            && let Some(value) = declaration
-                .strip_prefix("--tw-translate-x:")
-                .and_then(|value| {
-                    value.strip_suffix(";translate:var(--tw-translate-x) var(--tw-translate-y);")
-                })
-                .filter(|value| !value.contains("--tw-translate-y:"))
-        {
-            declaration = format!(
-                "--tw-translate-x:calc({value} * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
-            );
-        }
+    if candidate.negative
+        && let Some(value) = declaration
+            .strip_prefix("--tw-translate-x:")
+            .and_then(|value| {
+                value.strip_suffix(";translate:var(--tw-translate-x) var(--tw-translate-y);")
+            })
+            .filter(|value| !value.contains("--tw-translate-y:"))
+    {
+        declaration = format!(
+            "--tw-translate-x:calc({value} * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
+        );
     }
     let mut nested: Vec<NestedUtilityRule> = resolution
         .nested
