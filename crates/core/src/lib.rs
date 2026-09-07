@@ -765,6 +765,7 @@ impl Compiler {
                         || theme.config.lint_enabled("prefer-typed-relationships"))
                         && stillwind_tailwind::is_tailwind_relationship_candidate(
                             &utility.value.raw,
+                            &theme,
                         )
                     {
                         result.lint_findings.push(LintFinding::new(

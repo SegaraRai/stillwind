@@ -171,6 +171,12 @@ pub fn builtin_declaration_formats() -> &'static std::collections::BTreeMap<Stri
     FORMATS.get_or_init(|| stillwind_css::parse_declaration_formats(BUILTIN_REGISTRY_CSS))
 }
 
+#[must_use]
+fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
+    static PATTERNS: OnceLock<BTreeSet<String>> = OnceLock::new();
+    PATTERNS.get_or_init(|| stillwind_css::parse_relationship_patterns(BUILTIN_REGISTRY_CSS))
+}
+
 /// Removes non-semantic whitespace from vendored declarations.
 ///
 /// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
@@ -713,25 +719,25 @@ fn with_hover_media(application: VariantApplication) -> VariantApplication {
 /// Whether a Tailwind candidate uses a relationship primitive for which
 /// projects may prefer Stillwind's typed handle API.
 #[must_use]
-pub fn is_tailwind_relationship_candidate(raw: &str) -> bool {
+pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool {
     let Some(candidate) = parse_candidate(raw) else {
         return false;
     };
-    matches!(
-        &candidate.utility,
-        Utility::Named { name, .. }
-            if matches!(name.as_str(), "container" | "@container" | "@container-normal" | "group" | "peer")
-    ) || candidate.variants.iter().any(|variant| {
-        matches!(
-            &variant.kind,
-            VariantKind::Named(name)
-                if name.starts_with('@')
-                    || name == "group"
-                    || name.starts_with("group-")
-                    || name == "peer"
-                    || name.starts_with("peer-")
-        )
-    })
+    let patterns = if theme.relationship_patterns.is_empty() {
+        builtin_relationship_patterns()
+    } else {
+        &theme.relationship_patterns
+    };
+    let matches_pattern = |value: &str| {
+        patterns.iter().any(|pattern| {
+            pattern.strip_suffix('*').map_or(value == pattern, |prefix| value.starts_with(prefix))
+        })
+    };
+    matches!(&candidate.utility, Utility::Named { name, .. } if matches_pattern(name))
+        || candidate.variants.iter().any(|variant| {
+            matches!(&variant.kind, VariantKind::Named(name) if matches_pattern(name))
+                || variant.raw.starts_with('@')
+        })
 }
 
 /// Returns the literal marker class carried by Tailwind's declaration-only
@@ -2692,9 +2698,9 @@ mod tests {
             "peer-checked:flex",
             "@sm:flex",
         ] {
-            assert!(is_tailwind_relationship_candidate(candidate), "{candidate}");
+            assert!(is_tailwind_relationship_candidate(candidate, &theme), "{candidate}");
         }
-        assert!(!is_tailwind_relationship_candidate("max-w-lg"));
+        assert!(!is_tailwind_relationship_candidate("max-w-lg", &theme));
         assert_eq!(
             compatibility_marker_class("group", &theme).as_deref(),
             Some("group")

@@ -9,6 +9,12 @@
 
 @stillwind-marker group;
 @stillwind-marker peer;
+@stillwind-relationship container;
+@stillwind-relationship @container;
+@stillwind-relationship @container-normal;
+@stillwind-relationship @*;
+@stillwind-relationship group-*;
+@stillwind-relationship peer-*;
 @stillwind-format grid-column slash-space-span;
 @stillwind-format grid-row slash-space-span;
 @stillwind-format --tw-drop-shadow empty-space;

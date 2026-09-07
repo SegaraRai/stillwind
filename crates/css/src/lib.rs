@@ -982,6 +982,7 @@ pub struct ThemeIndex {
     pub marker_utilities: BTreeSet<String>,
     /// Generic serialization formats attached to CSS declarations.
     pub declaration_formats: BTreeMap<String, String>,
+    pub relationship_patterns: BTreeSet<String>,
     pub authored_properties: BTreeSet<String>,
     /// Framework layers requested by the authored Tailwind-compatible imports.
     ///
@@ -1113,6 +1114,10 @@ pub fn parse_marker_utilities(css: &str) -> BTreeSet<String> {
 
 pub fn parse_declaration_formats(css: &str) -> BTreeMap<String, String> {
     extract_declaration_formats(css)
+}
+
+pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
+    extract_relationship_patterns(css)
 }
 
 impl ThemeIndex {
@@ -1378,6 +1383,7 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     theme.declaration_order = extract_declaration_order(source.text());
     theme.marker_utilities = extract_marker_utilities(source.text());
     theme.declaration_formats = extract_declaration_formats(source.text());
+    theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
     theme.config = extract_stillwind_config(source.text());
     Ok(theme)
@@ -1428,6 +1434,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         declaration_order: extract_declaration_order(source.text()),
         marker_utilities: extract_marker_utilities(source.text()),
         declaration_formats: extract_declaration_formats(source.text()),
+        relationship_patterns: extract_relationship_patterns(source.text()),
         authored_properties: extract_authored_property_names(source.text()),
         imports,
         config: extract_stillwind_config(source.text()),
@@ -1508,6 +1515,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         declaration_order: Vec::new(),
         marker_utilities: BTreeSet::new(),
         declaration_formats: BTreeMap::new(),
+        relationship_patterns: BTreeSet::new(),
         authored_properties: BTreeSet::new(),
         imports: FrameworkImports::default(),
         config: StillwindConfig::default(),
@@ -1997,6 +2005,15 @@ fn extract_declaration_formats(css: &str) -> BTreeMap<String, String> {
             let mut parts = value.split_whitespace();
             Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
         })
+        .collect()
+}
+
+fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-relationship"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
         .collect()
 }
 
