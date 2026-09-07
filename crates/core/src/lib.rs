@@ -2282,77 +2282,7 @@ fn render_used_properties(
     css: &str,
     options: &CompilerOptions,
 ) -> String {
-    let mut used = stillwind_css::referenced_custom_properties(css);
-    if css.contains("--tw-mask-linear-position:initial")
-        || css.contains("--tw-mask-linear-position: initial")
-        || css.contains("--tw-mask-radial-size:initial")
-        || css.contains("--tw-mask-radial-size: initial")
-        || css.contains("--tw-mask-conic-position:initial")
-        || css.contains("--tw-mask-conic-position: initial")
-    {
-        for name in [
-            "--tw-mask-linear",
-            "--tw-mask-radial",
-            "--tw-mask-conic",
-            "--tw-mask-linear-position",
-            "--tw-mask-linear-from-position",
-            "--tw-mask-linear-to-position",
-            "--tw-mask-linear-from-color",
-            "--tw-mask-linear-to-color",
-            "--tw-mask-radial-from-position",
-            "--tw-mask-radial-to-position",
-            "--tw-mask-radial-from-color",
-            "--tw-mask-radial-to-color",
-            "--tw-mask-radial-shape",
-            "--tw-mask-radial-size",
-            "--tw-mask-radial-position",
-            "--tw-mask-conic-position",
-            "--tw-mask-conic-from-position",
-            "--tw-mask-conic-to-position",
-            "--tw-mask-conic-from-color",
-            "--tw-mask-conic-to-color",
-        ] {
-            used.insert(name.to_owned());
-        }
-    }
-    // Mask gradients register the stop family selected by the utility.
-    if css.contains("mask-image:") && !css.contains("position:initial") {
-        let family = if css.contains("--tw-mask-linear-position:") {
-            "linear"
-        } else if css.contains("--tw-mask-radial-position:") {
-            "radial"
-        } else if css.contains("--tw-mask-conic-position:") {
-            "conic"
-        } else {
-            ""
-        };
-        let names: &[&str] = match family {
-            "linear" => &[
-                "--tw-mask-linear-from-position",
-                "--tw-mask-linear-to-position",
-                "--tw-mask-linear-from-color",
-                "--tw-mask-linear-to-color",
-            ],
-            "radial" => &[
-                "--tw-mask-radial-from-position",
-                "--tw-mask-radial-to-position",
-                "--tw-mask-radial-from-color",
-                "--tw-mask-radial-to-color",
-                "--tw-mask-radial-shape",
-                "--tw-mask-radial-size",
-            ],
-            "conic" => &[
-                "--tw-mask-conic-from-position",
-                "--tw-mask-conic-to-position",
-                "--tw-mask-conic-from-color",
-                "--tw-mask-conic-to-color",
-            ],
-            _ => &[],
-        };
-        for name in names {
-            used.insert((*name).to_owned());
-        }
-    }
+    let used = stillwind_css::referenced_custom_properties(css);
     let inset_ring_color_only = css.contains("--tw-inset-ring-color:")
         && !css.contains("--tw-inset-ring-shadow:");
     let mut seen = BTreeSet::new();
