@@ -1434,9 +1434,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
         });
     }
-    if raw == "transform-cpu" {
-        declaration.push_str("/*stillwind-transform-cpu*/");
-    }
     if raw == "drop-shadow-transparent/100" {
         if let Some(start) = declaration.find("--tw-drop-shadow-color:")
             && let Some(end) = declaration[start..].find(';')
