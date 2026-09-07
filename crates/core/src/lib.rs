@@ -2410,10 +2410,6 @@ fn render_used_properties(
             used.retain(|name| !name.starts_with("--tw-mask-linear-"));
         }
     }
-    if css.contains("--tw-text-shadow-color:") {
-        used.insert("--tw-text-shadow-color".to_owned());
-        used.insert("--tw-text-shadow-alpha".to_owned());
-    }
     if css.contains("--tw-mask-linear-position:initial")
         || css.contains("--tw-mask-linear-position: initial")
         || css.contains("--tw-mask-radial-size:initial")
