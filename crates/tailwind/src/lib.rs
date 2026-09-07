@@ -2786,6 +2786,7 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
+            || declaration.contains("--compat-color(")
             || declaration.contains("--shadow-color(")
     });
     let uses_value = declarations.iter().any(|declaration| {
