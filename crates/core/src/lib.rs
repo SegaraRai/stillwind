@@ -2410,29 +2410,6 @@ fn render_used_properties(
             used.retain(|name| !name.starts_with("--tw-mask-linear-"));
         }
     }
-    if css.contains("--tw-drop-shadow:")
-        || (css.contains("filter:") && css.contains("var(--tw-drop-shadow"))
-    {
-        for name in [
-            "--tw-blur",
-            "--tw-brightness",
-            "--tw-contrast",
-            "--tw-grayscale",
-            "--tw-hue-rotate",
-            "--tw-invert",
-            "--tw-saturate",
-            "--tw-sepia",
-            "--tw-drop-shadow",
-            "--tw-drop-shadow-color",
-            "--tw-drop-shadow-alpha",
-            "--tw-drop-shadow-size",
-        ] {
-            used.insert(name.to_owned());
-        }
-        // Tailwind keeps the opacity slot registered for the complete filter
-        // family even when the serialized filter chain omits it.
-        used.insert("--tw-opacity".to_owned());
-    }
     if css.contains("--tw-text-shadow-color:") {
         used.insert("--tw-text-shadow-color".to_owned());
         used.insert("--tw-text-shadow-alpha".to_owned());
