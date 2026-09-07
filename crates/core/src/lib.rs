@@ -2283,8 +2283,6 @@ fn render_used_properties(
     options: &CompilerOptions,
 ) -> String {
     let used = stillwind_css::referenced_custom_properties(css);
-    let inset_ring_color_only = css.contains("--tw-inset-ring-color:")
-        && !css.contains("--tw-inset-ring-shadow:");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
@@ -2297,9 +2295,6 @@ fn render_used_properties(
         .rev()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
-            if inset_ring_color_only {
-                return None;
-            }
             if css.contains("--tw-mask-conic-position:initial")
                 && (name.starts_with("--tw-mask-linear-") || name.starts_with("--tw-mask-radial-"))
             {
