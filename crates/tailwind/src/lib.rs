@@ -787,38 +787,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(", 100%)", ")")
             .replace(",100%)", ")");
     }
-    if declaration.contains("--tw-mask-") {
-        declaration = declaration
-            .replace("var(--tw-mask-bottom-from-color,black)", "var(--tw-mask-bottom-from-color)")
-            .replace("var(--tw-mask-bottom-from-position,0%)", "var(--tw-mask-bottom-from-position)")
-            .replace("var(--tw-mask-bottom-to-color,transparent)", "var(--tw-mask-bottom-to-color)")
-            .replace("var(--tw-mask-bottom-to-position,100%)", "var(--tw-mask-bottom-to-position)")
-            .replace("),var(--tw-mask", "), var(--tw-mask");
-    }
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
-    if declaration.contains("--tw-mask-") {
-        declaration = declaration
-            .replace(", black)", ")")
-            .replace(", 0%)", ")")
-            .replace(", 100%)", ")");
-        for side in ["left", "right", "top", "bottom"] {
-            declaration = declaration.replace(
-                &format!("--tw-mask-{side}-from-position:0;"),
-                &format!("--tw-mask-{side}-from-position:0px;"),
-            );
-            declaration = declaration
-                .replace(
-                    &format!("var(--tw-mask-{side}-to-color,transparent)"),
-                    &format!("var(--tw-mask-{side}-to-color)"),
-                )
-                .replace(
-                    &format!("var(--tw-mask-{side}-to-color, transparent)"),
-                    &format!("var(--tw-mask-{side}-to-color)"),
-                );
-        }
-    }
     if declaration.contains("--tw-backdrop-") {
         for property in [
             "blur", "brightness", "contrast", "grayscale", "hue-rotate", "invert",
