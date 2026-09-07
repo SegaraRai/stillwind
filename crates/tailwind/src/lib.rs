@@ -293,7 +293,8 @@ fn is_word_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
 }
 
-fn normalize_conic_angles(mut declaration: &str) -> String {
+/// Normalizes CSS angle multiplication expressions independent of utility or property.
+fn normalize_angle_multipliers(mut declaration: &str) -> String {
     let mut output = String::with_capacity(declaration.len());
     while let Some(start) = declaration.find("calc(1deg*") {
         output.push_str(&declaration[..start]);
@@ -412,7 +413,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("calc(1 deg*-1*", "calc(1deg*-1*")
         .replace("calc(1 deg * -1 *", "calc(1deg*-1*")
         .replace("calc(1deg * -1 *", "calc(1deg*-1*");
-    declaration = normalize_conic_angles(&declaration);
+    declaration = normalize_angle_multipliers(&declaration);
     declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
     declaration = normalize_spaced_negative_angles(&declaration);
     if declaration.contains("deg") && declaration.contains("* -1") {
