@@ -89,39 +89,7 @@
   border-b: border-bottom-color;
   border-l: border-left-color;
 }
-@utility-family color-alpha {
-  text: color;
-  border: border-color;
-  outline: outline-color;
-  fill: fill;
-  stroke: stroke;
-  caret: caret-color;
-  accent: accent-color;
-  border-x: border-inline-color;
-  border-y: border-block-color;
-  border-s: border-inline-start-color;
-  border-e: border-inline-end-color;
-  border-bs: border-block-start-color;
-  border-be: border-block-end-color;
-  border-t: border-top-color;
-  border-r: border-right-color;
-  border-b: border-bottom-color;
-  border-l: border-left-color;
-}
-@utility-family color-alpha-default {
-  border: border-color;
-  border-x: border-inline-color;
-  border-y: border-block-color;
-  border-s: border-inline-start-color;
-  border-e: border-inline-end-color;
-  border-bs: border-block-start-color;
-  border-be: border-block-end-color;
-  border-t: border-top-color;
-  border-r: border-right-color;
-  border-b: border-bottom-color;
-  border-l: border-left-color;
-  outline: outline-color;
-}
+@utility text-* { color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-* { border-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility outline-* { outline-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){outline-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility fill-* { fill:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){fill:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility stroke-* { stroke:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){stroke:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility caret-* { caret-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){caret-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility accent-* { accent-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){accent-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-x-* { border-inline-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-inline-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-y-* { border-block-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-block-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-s-* { border-inline-start-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-inline-start-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-e-* { border-inline-end-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-inline-end-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-bs-* { border-block-start-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-block-start-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-be-* { border-block-end-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-block-end-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-t-* { border-top-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-top-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-r-* { border-right-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-right-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-b-* { border-bottom-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-bottom-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border-l-* { border-left-color:color-mix(in srgb,--value(--color-*,[color]) --alpha(--modifier()),transparent);@supports (color:color-mix(in lab,red,red)){border-left-color:color-mix(in oklab,--value(--color-*,[color]) --alpha(--modifier()),transparent);} }\n@utility border { border-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-x { border-inline-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-y { border-block-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-s { border-inline-start-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-e { border-inline-end-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-bs { border-block-start-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-be { border-block-end-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-t { border-top-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-r { border-right-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-b { border-bottom-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility border-l { border-left-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n@utility outline { outline-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }\n
 @utility-family value=--value(integer, [integer]) {
   col-start: grid-column-start;
   col-end: grid-column-end;
