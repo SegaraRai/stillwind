@@ -21,6 +21,7 @@
 @stillwind-format grid-row slash-space-span;
 @stillwind-format --tw-drop-shadow empty-space;
 @stillwind-format transform var-fallback;
+@stillwind-format-functions color-mix linear-gradient;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";

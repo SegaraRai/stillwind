@@ -1116,6 +1116,16 @@ pub fn parse_declaration_formats(css: &str) -> BTreeMap<String, String> {
     extract_declaration_formats(css)
 }
 
+pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-format-functions"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .flat_map(str::split_whitespace)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }

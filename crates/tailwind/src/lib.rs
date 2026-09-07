@@ -172,6 +172,12 @@ pub fn builtin_declaration_formats() -> &'static std::collections::BTreeMap<Stri
 }
 
 #[must_use]
+fn builtin_function_formats() -> &'static BTreeSet<String> {
+    static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
+    FORMATS.get_or_init(|| stillwind_css::parse_function_formats(BUILTIN_REGISTRY_CSS))
+}
+
+#[must_use]
 fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
     static PATTERNS: OnceLock<BTreeSet<String>> = OnceLock::new();
     PATTERNS.get_or_init(|| stillwind_css::parse_relationship_patterns(BUILTIN_REGISTRY_CSS))
@@ -240,7 +246,7 @@ fn canonical_builtin_body(value: &str) -> String {
                 output.push(character);
                 let preserve_function_spacing = functions
                     .iter()
-                    .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
+                    .any(|name| builtin_function_formats().contains(name));
                 if custom_property_declaration
                     || preserve_function_spacing
                 {
@@ -270,7 +276,7 @@ fn canonical_builtin_body(value: &str) -> String {
                     // LightningCSS does not normalize it away in its output.
                     let preserve_function_spacing = functions
                         .iter()
-                        .any(|name| matches!(name.as_str(), "color-mix" | "linear-gradient"));
+                        .any(|name| builtin_function_formats().contains(name));
                     if adjacent_words
                         || function_followed_by_word
                         || (previous == ',' && (custom_property_declaration || preserve_function_spacing))
