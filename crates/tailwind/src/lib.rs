@@ -1994,7 +1994,8 @@ fn theme_value(
                 } else {
                     value.to_owned()
                 };
-                return Some(format!("calc(var(--spacing) * {multiplier})"));
+                let scale_name = theme.scale(ThemeNamespace::Spacing)?.name.value.as_str();
+                return Some(format!("calc(var({scale_name}) * {multiplier})"));
             } else {
                 return None;
             }
