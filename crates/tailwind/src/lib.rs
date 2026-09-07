@@ -789,11 +789,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
-    if declaration.contains("--tw-mask-right") && declaration.contains("--tw-mask-left") {
-        declaration = reorder_mask_axis_segments(&declaration, &["right", "left"]);
-    } else if declaration.contains("--tw-mask-top") && declaration.contains("--tw-mask-bottom") {
-        declaration = reorder_mask_axis_segments(&declaration, &["top", "bottom"]);
-    }
     Some(ResolvedUtility {
         declaration,
         selector,
@@ -801,35 +796,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         additional,
         candidate,
     })
-}
-
-fn reorder_mask_axis_segments(value: &str, sides: &[&str]) -> String {
-    let mut segments: Vec<&str> = value.split_inclusive(';').collect();
-    let is_axis = |segment: &str| {
-        sides.iter().any(|side| {
-            segment.starts_with(&format!("--tw-mask-{side}:"))
-                || segment.starts_with(&format!("--tw-mask-{side}-"))
-        })
-    };
-    let Some(first) = segments.iter().position(|segment| is_axis(segment)) else {
-        return value.to_owned();
-    };
-    let Some(last) = segments.iter().rposition(|segment| is_axis(segment)) else {
-        return value.to_owned();
-    };
-    let axis: Vec<&str> = segments[first..=last].to_vec();
-    let mut ordered = Vec::with_capacity(axis.len());
-    for side in sides {
-        ordered.extend(axis.iter().copied().filter(|segment| {
-            segment.starts_with(&format!("--tw-mask-{side}:"))
-                || segment.starts_with(&format!("--tw-mask-{side}-"))
-        }));
-    }
-    if ordered.len() != axis.len() {
-        return value.to_owned();
-    }
-    segments.splice(first..=last, ordered);
-    segments.concat()
 }
 
 #[must_use]
