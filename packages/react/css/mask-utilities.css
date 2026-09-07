@@ -29,10 +29,9 @@
     var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
     var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
-  --tw-mask-linear-from-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-mask-linear-from-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility mask-linear-to-* {
@@ -63,10 +62,9 @@
     var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
     var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
-  --tw-mask-linear-to-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-mask-linear-to-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility mask-conic-from-* {
@@ -97,10 +95,9 @@
     var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
     var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
-  --tw-mask-conic-from-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-mask-conic-from-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility mask-conic-to-* {
@@ -131,10 +128,9 @@
     var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
     var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
-  --tw-mask-conic-to-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-mask-conic-to-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility mask-position-* {
