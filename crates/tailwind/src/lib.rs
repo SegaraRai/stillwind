@@ -733,7 +733,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
-    if raw.starts_with("-mask-linear-") || raw.starts_with("-mask-conic-") {
+    if declaration.contains("--tw-mask-") && declaration.contains("* -1") {
         for number in 2..=1000 {
             declaration = declaration.replace(
                 &format!("calc({number}deg * -1)"),
