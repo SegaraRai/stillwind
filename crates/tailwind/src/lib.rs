@@ -701,21 +701,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         };
         declaration = normalize_positive_space_order(declaration, axis);
     }
-    if (raw.ends_with("-inherit/100") || raw.ends_with("-transparent/100"))
-        && let Some(property) = ["from", "via", "to"]
-            .into_iter()
-            .find(|property| declaration.starts_with(&format!("--tw-gradient-{property}:")))
-    {
-        let prefix = format!("--tw-gradient-{property}:");
-        let value = if raw.ends_with("-inherit/100") {
-            "inherit"
-        } else {
-            "transparent"
-        };
-        if let Some((_, rest)) = declaration.trim_start_matches(&prefix).split_once(';') {
-            declaration = format!("{prefix}{value};{rest}");
-        }
-    }
     if declaration.contains("--tw-translate-") {
         declaration = declaration
             .replace("calc(var(--spacing) * 0)", "0px")
@@ -724,7 +709,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     }
     declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
-    if raw.contains("translate-px") {
+    if declaration.contains("calc(var(--spacing) * -1)") {
         declaration = declaration
             .replace("calc(var(--spacing) * -1)", "-1px")
             .replace("calc(var(--spacing)*-1)", "-1px");
