@@ -1718,6 +1718,8 @@ fn render_utility_rule(
         || class_selector.clone(),
         |selector| selector.replace('&', &class_selector),
     );
+    // Child-targeting utility selectors are emitted in a zero-specificity
+    // wrapper, matching the selector form authored by the built-in CSS.
     if selector.contains(">:not(:last-child)") {
         selector = format!(":where({selector})");
     }
