@@ -358,28 +358,6 @@ fn normalize_calc_var_operators(mut declaration: String) -> String {
     declaration
 }
 
-fn normalize_transform_vars(declaration: String) -> String {
-    let mut output = String::with_capacity(declaration.len());
-    let mut cursor = 0;
-    while let Some(relative) = declaration[cursor..].find("transform:") {
-        let start = cursor + relative;
-        output.push_str(&declaration[cursor..start]);
-        let end = declaration[start..]
-            .find(';')
-            .map_or(declaration.len(), |offset| start + offset);
-        let value = &declaration[start..end];
-        output.push_str(&normalize_var_fallbacks(value));
-        if end < declaration.len() {
-            output.push(';');
-            cursor = end + 1;
-        } else {
-            cursor = end;
-        }
-    }
-    output.push_str(&declaration[cursor..]);
-    output
-}
-
 fn normalize_var_fallbacks(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut cursor = 0;
@@ -425,7 +403,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
-    declaration = normalize_transform_vars(declaration);
+    declaration = normalize_format_var_fallbacks(declaration, theme);
     declaration = normalize_calc_var_operators(declaration);
     declaration = apply_declaration_formats(declaration, theme);
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
@@ -586,6 +564,34 @@ fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> Str
             }
             let value = value.replace('/', " / ");
             declaration = format!("{prefix}{value}");
+        }
+    }
+    declaration
+}
+
+fn normalize_format_var_fallbacks(mut declaration: String, theme: &ThemeIndex) -> String {
+    let formats = if theme.declaration_formats.is_empty() {
+        builtin_declaration_formats()
+    } else {
+        &theme.declaration_formats
+    };
+    for (property, format) in formats {
+        if format != "var-fallback" {
+            continue;
+        }
+        let prefix = format!("{property}:");
+        let mut cursor = 0;
+        while let Some(relative) = declaration[cursor..].find(&prefix) {
+            let start = cursor + relative;
+            let end = declaration[start..]
+                .find(';')
+                .map_or(declaration.len(), |offset| start + offset);
+            let value = normalize_var_fallbacks(&declaration[start..end]);
+            declaration.replace_range(start..end, &value);
+            cursor = start + value.len();
+            if end == declaration.len() {
+                break;
+            }
         }
     }
     declaration

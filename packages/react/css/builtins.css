@@ -20,6 +20,7 @@
 @stillwind-format grid-column slash-space-span;
 @stillwind-format grid-row slash-space-span;
 @stillwind-format --tw-drop-shadow empty-space;
+@stillwind-format transform var-fallback;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";
