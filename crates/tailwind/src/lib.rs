@@ -233,7 +233,15 @@ fn canonical_builtin_body(value: &str) -> String {
             }
             ':' if output
                 .rsplit_once(';')
-                .is_some_and(|(_, declaration)| declaration.ends_with("box-shadow")) =>
+                .map(|(_, declaration)| declaration)
+                .unwrap_or(output.as_str())
+                .trim()
+                .ends_with("box-shadow")
+                || output.trim_end().ends_with("--tw-shadow")
+                || output.trim_end().ends_with("--tw-inset-shadow")
+                || output.trim_end().ends_with("--tw-ring-shadow")
+                || output.trim_end().ends_with("--tw-inset-ring-shadow")
+                || output.trim_end().ends_with("--tw-ring-offset-shadow") =>
             {
                 shadow_declaration = true;
                 output.push(character);
@@ -249,8 +257,9 @@ fn canonical_builtin_body(value: &str) -> String {
             character if character.is_whitespace() => whitespace = true,
             character => {
                 if whitespace && let Some(previous) = output.chars().last() {
-                    let adjacent_words =
-                        is_word_character(previous) && is_word_character(character);
+                    let adjacent_words = is_word_character(previous)
+                        && (is_word_character(character)
+                            || (shadow_declaration && character == '#'));
                     let function_followed_by_word = previous == ')' && is_word_character(character);
                     // Keep a separator after commas. Tailwind's vendored
                     // utility serializer retains this spelling in function
@@ -1469,9 +1478,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     if raw == "inset-shadow-none" {
         declaration = "--tw-inset-shadow:inset 0 0 #0000;box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
-    }
-    if raw == "shadow-none" {
-        declaration = "--tw-shadow:0 0 #0000;box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);".to_owned();
     }
     if raw == "shadow-transparent/100" {
         declaration = "--tw-shadow-color:transparent;".to_owned();

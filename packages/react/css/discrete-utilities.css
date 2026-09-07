@@ -242,7 +242,10 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 @utility shadow-none {
-  box-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
 }
 @utility transform {
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
