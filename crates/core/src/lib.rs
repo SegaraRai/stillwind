@@ -1816,18 +1816,10 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                 let declaration = declaration
                     .replace("calc(var(--spacing) * 0)", zero)
                     .replace("calc(var(--spacing)*0)", zero);
-                let declaration = if declaration.starts_with("grid-column-")
-                    || declaration.starts_with("grid-row-")
-                {
-                    declaration.replace("*-1", " * -1")
-                } else {
-                    declaration
-                };
-                let declaration = if let Some(value) = declaration.strip_prefix("mask-image:") {
-                    format!("mask-image:{}", value.replace(",var(", ", var("))
-                } else {
-                    declaration
-                };
+                let declaration = declaration.replace("*-1", " * -1");
+                // Keep fallback `var()` comma spacing generic across all
+                // properties instead of recognizing mask/shadow families.
+                let declaration = declaration.replace(",var(", ", var(");
                 let declaration = if declaration.contains("deg") {
                     normalize_angle_calc(&normalize_negative_calc(&declaration))
                 } else {
@@ -1878,12 +1870,10 @@ fn normalize_negative_calc(value: &str) -> String {
         let compact = format!("calc({number}* -1)");
         let spaced = format!("calc({number} * -1)");
         normalized = normalized.replace(&compact, &spaced);
-        for suffix in ["var(--tw-divide-x-reverse)", "var(--tw-divide-y-reverse)", "calc(1 - var(--tw-divide-x-reverse))", "calc(1 - var(--tw-divide-y-reverse))"] {
-            normalized = normalized.replace(
-                &format!("calc({number}*1px*{suffix}"),
-                &format!("calc({number}px * {suffix}"),
-            );
-        }
+        normalized = normalized.replace(
+            &format!("calc({number}*1px*"),
+            &format!("calc({number}px * "),
+        );
     }
     normalized = normalized
         .replace(")* var(", ") * var(")
