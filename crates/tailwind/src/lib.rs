@@ -685,23 +685,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         nested.clear();
     }
     if declaration.contains("--tw-mask-") {
-        declaration = declaration
-            .replace(",black)", ")")
-            .replace(", 0%)", ")")
-            .replace(",0%)", ")")
-            .replace(", 100%)", ")")
-            .replace(",100%)", ")");
-    }
-    declaration = declaration
-        .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
-        .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
-    if declaration.contains("--tw-mask-") {
-        declaration = declaration
-            .replace(", black)", ")")
-            .replace(", 0%)", ")")
-            .replace(", 100%)", ")");
-    }
-    if declaration.contains("--tw-mask-") {
         for side in ["left", "right", "top", "bottom"] {
             declaration = declaration.replace(
                 &format!("--tw-mask-{side}-from-position:0;"),
