@@ -1508,40 +1508,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             }
         }
     }
-    if raw == "shadow-transparent" {
-        declaration = declaration.replace("--tw-shadow-color:oklab(0% none none/0);", "--tw-shadow-color:transparent;");
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: "--tw-shadow-color:color-mix(in oklab, transparent var(--tw-shadow-alpha), transparent);".to_owned(),
-        });
-    }
-    if raw == "inset-shadow-transparent" {
-        declaration = declaration.replace(
-            "--tw-inset-shadow-color:oklab(0% none none/0);",
-            "--tw-inset-shadow-color:transparent;",
-        );
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: "--tw-inset-shadow-color:color-mix(in oklab, transparent var(--tw-inset-shadow-alpha), transparent);".to_owned(),
-        });
-    }
-    if let Some(alpha) = raw.strip_prefix("inset-shadow-transparent/") {
-        let alpha = alpha.trim_end_matches('%');
-        if !alpha.is_empty() && alpha != "100" {
-            if let Some(start) = declaration.find("--tw-inset-shadow-color:")
-                && let Some(end) = declaration[start..].find(';')
-            {
-                declaration.replace_range(start..start + end + 1, "--tw-inset-shadow-color:#0000;");
-            }
-            nested.push(NestedUtilityRule {
-                at_rule: NestedUtilityAtRule::Supports,
-                condition: "color:color-mix(in lab, red, red)".to_owned(),
-                declaration: "--tw-inset-shadow-color:color-mix(in oklab, oklab(0% none none/0) var(--tw-inset-shadow-alpha), transparent);".to_owned(),
-            });
-        }
-    }
     if let Utility::Named { name, modifier } = &candidate.utility
         && name == "inset-shadow-current"
     {
