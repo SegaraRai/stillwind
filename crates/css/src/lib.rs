@@ -2078,7 +2078,7 @@ fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Expands Stillwind's compact built-in utility-family syntax.
+/// Expands the generic value-bearing utility-family syntax.
 ///
 /// ```css
 /// @utility-family spacing negative {
@@ -2087,9 +2087,9 @@ fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
 /// }
 /// ```
 ///
-/// The example declares `inset-*`, `inset-x-*`, and their negative forms,
-/// all backed by the same typed Tailwind spacing value domain. It keeps a
-/// family definition reviewable without enumerating its default values.
+/// The value expression is authored in the CSS header, so this parser does
+/// not need a table of framework namespaces or property families. A family
+/// definition remains reviewable without enumerating concrete token values.
 fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, "@utility-family")
         .into_iter()
@@ -2152,7 +2152,7 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
         .collect()
 }
 
-/// Reads the generic family header. Value domains are authored in CSS as
+/// Reads the generic family header. Value expressions are authored in CSS as
 /// `value=--value(...)`; the optional `negative` flag only controls the
 /// generated sign branch. Legacy symbolic headers are intentionally ignored,
 /// keeping Tailwind vocabulary out of the parser.
