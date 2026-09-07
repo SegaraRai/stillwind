@@ -455,7 +455,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     {
         return None;
     }
-    let mut resolution = match &candidate.utility {
+    let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             UtilityResolution::plain(format!("{property}:{value};"))
         }
@@ -471,47 +471,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    if resolution.declaration.contains("background-image:linear-gradient")
-        && resolution.declaration.contains("--tw-gradient-position:")
-        && resolution
-            .declaration
-            .contains(" in oklch")
-        && let Some(value) = resolution
-            .declaration
-            .strip_prefix("--tw-gradient-position:")
-            .and_then(|value| value.strip_suffix(';'))
-        && let Some(split) = value.find(" in oklch")
-    {
-        let fallback = &value[..split];
-        let modern = value.to_owned();
-        resolution.declaration = resolution.declaration.replacen(value, fallback, 1);
-        resolution.nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
-            declaration: format!("--tw-gradient-position:{modern};"),
-            inside: true,
-        });
-        for nested in &mut resolution.nested {
-            if nested.at_rule == NestedUtilityAtRule::Supports {
-                if let Some(split) = nested.declaration.find(";background-image:") {
-                    nested.declaration.truncate(split + 1);
-                }
-            }
-        }
-        if !resolution.declaration.contains("background-image:") {
-            let function = if resolution
-                .declaration
-                .contains("background-image:radial-gradient")
-            {
-                "radial-gradient"
-            } else {
-                "linear-gradient"
-            };
-            resolution.declaration.push_str(&format!(
-                "background-image:{function}(var(--tw-gradient-stops));"
-            ));
-        }
-    }
     let mut declaration = if candidate.important {
         important(&resolution.declaration)
     } else {
