@@ -1675,8 +1675,8 @@ fn render_utility_rule(
         .replace("deg*-1", "deg * -1")
         .replace("*-1)", "* -1)");
     let declaration = declaration
-        .replace("border-color:oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0);", "border-color:#0000;")
-        .replace("text-decoration-color:oklab(0% none none/0);", "text-decoration-color:#0000;");
+        .replace("oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0)", "#0000")
+        .replace(":oklab(0% none none/0);", ":#0000;");
     // Canonicalize CSS math structurally for every declaration. This keeps
     // unit/negative/angle handling independent of the utility name or
     // property prefix.

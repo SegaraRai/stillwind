@@ -315,6 +315,23 @@ fn normalize_spaced_negative_angles(value: &str) -> String {
     output
 }
 
+fn normalize_calc_var_operators(mut declaration: String) -> String {
+    let mut cursor = 0;
+    while cursor < declaration.len() {
+        let Some(relative) = declaration[cursor..].find(';') else { break };
+        let end = cursor + relative;
+        let segment = &declaration[cursor..end];
+        if segment.contains("calc(var(--") {
+            let normalized = segment.replace(" * ", "*").replace('*', " * ");
+            declaration.replace_range(cursor..end, &normalized);
+            cursor += normalized.len() + 1;
+        } else {
+            cursor = end + 1;
+        }
+    }
+    declaration
+}
+
 fn normalize_transform_vars(declaration: String) -> String {
     let mut output = String::with_capacity(declaration.len());
     let mut cursor = 0;
@@ -383,6 +400,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         resolution.declaration
     };
     declaration = normalize_transform_vars(declaration);
+    declaration = normalize_calc_var_operators(declaration);
     if declaration == "grid-column:span initial/span initial;" {
         declaration = "grid-column:span initial / span initial;".to_owned();
     }
