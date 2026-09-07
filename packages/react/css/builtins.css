@@ -24,6 +24,8 @@
 @stillwind-format transform compose-space;
 @stillwind-format translate zero-length;
 @stillwind-format-functions color-mix linear-gradient;
+@stillwind-compat-color srgb oklab;
+@stillwind-compat-support color:color-mix(in lab, red, red);
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";

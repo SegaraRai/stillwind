@@ -214,6 +214,25 @@ fn builtin_function_formats() -> &'static BTreeSet<String> {
 }
 
 #[must_use]
+fn builtin_compat_color_spaces() -> Option<&'static (String, String)> {
+    static SPACES: OnceLock<Option<(String, String)>> = OnceLock::new();
+    SPACES
+        .get_or_init(|| stillwind_css::parse_compat_color_spaces(BUILTIN_REGISTRY_CSS))
+        .as_ref()
+}
+
+#[must_use]
+fn builtin_compat_color_support() -> &'static str {
+    static SUPPORT: OnceLock<String> = OnceLock::new();
+    SUPPORT
+        .get_or_init(|| {
+            stillwind_css::parse_compat_color_support(BUILTIN_REGISTRY_CSS)
+                .unwrap_or_default()
+        })
+        .as_str()
+}
+
+#[must_use]
 fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
     static PATTERNS: OnceLock<BTreeSet<String>> = OnceLock::new();
     PATTERNS.get_or_init(|| stillwind_css::parse_relationship_patterns(BUILTIN_REGISTRY_CSS))
@@ -1198,7 +1217,7 @@ fn resolve_css_utility_body(
     {
         resolved_nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            condition: builtin_compat_color_support().to_owned(),
             declaration: modern,
             inside: true,
         });
@@ -1230,7 +1249,7 @@ fn resolve_css_utility_body(
                 {
                     resolved_nested.push(NestedUtilityRule {
                         at_rule: NestedUtilityAtRule::Supports,
-                        condition: "color:color-mix(in lab, red, red)".to_owned(),
+                        condition: builtin_compat_color_support().to_owned(),
                         declaration: modern,
                         inside: true,
                     });
@@ -1273,7 +1292,11 @@ fn resolve_css_utility_body(
 }
 
 fn compat_color_modern_declaration(declaration: &str) -> Option<String> {
-    let modern = declaration.replace("color-mix(in srgb,", "color-mix(in oklab,");
+    let (legacy, modern) = builtin_compat_color_spaces()?;
+    let modern = declaration.replace(
+        &format!("color-mix(in {legacy},"),
+        &format!("color-mix(in {modern},"),
+    );
     (modern != declaration).then_some(modern)
 }
 

@@ -1126,6 +1126,29 @@ pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Parses the CSS-authored compatibility color mapping. The directive uses
+/// two whitespace-separated color spaces, e.g. `@stillwind-compat-color srgb
+/// oklab;`, keeping the policy in the registry rather than the Rust engine.
+pub fn parse_compat_color_spaces(css: &str) -> Option<(String, String)> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-compat-color"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .find_map(|value| {
+            let mut parts = value.split_whitespace();
+            Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
+        })
+}
+
+/// Parses the CSS-authored feature query used for modern compatibility color
+/// upgrades, e.g. `@stillwind-compat-support color-mix(in lab, red, red);`.
+pub fn parse_compat_color_support(css: &str) -> Option<String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-compat-support"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .find(|value| !value.is_empty())
+        .map(str::to_owned)
+}
+
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }
@@ -2915,6 +2938,20 @@ mod tests {
         );
         assert!(functions.contains("color-mix"));
         assert!(functions.contains("linear-gradient"));
+    }
+
+    #[test]
+    fn parses_compatibility_color_metadata_from_css() {
+        assert_eq!(
+            parse_compat_color_spaces("@stillwind-compat-color srgb oklab;"),
+            Some(("srgb".to_owned(), "oklab".to_owned()))
+        );
+        assert_eq!(
+            parse_compat_color_support(
+                "@stillwind-compat-support color:color-mix(in lab, red, red);"
+            ),
+            Some("color:color-mix(in lab, red, red)".to_owned())
+        );
     }
 
     #[test]
