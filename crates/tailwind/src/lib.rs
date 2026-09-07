@@ -736,14 +736,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     declaration = declaration
         .replace("--tw-scrollbar-thumb:--tw-scrollbar-thumb:", "--tw-scrollbar-thumb:")
         .replace("--tw-scrollbar-track:--tw-scrollbar-track:", "--tw-scrollbar-track:");
-    if raw.starts_with("inset-ring-") {
-        for width in 0..=64 {
-            declaration = declaration.replace(
-                &format!("calc({width}*1px)"),
-                &format!("{width}px"),
-            );
-        }
-    }
     if raw.starts_with("bg-conic-") {
         declaration = declaration.replace("calc(1deg*0)", "0deg");
         for amount in 1..=1000 {
