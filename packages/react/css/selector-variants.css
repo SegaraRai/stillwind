@@ -130,3 +130,13 @@
     @slot;
   }
 }
+@variant group-* {
+  &:is(:where(.group/{modifier}):--value() *) {
+    @slot;
+  }
+}
+@variant peer-* {
+  &:is(:where(.peer/{modifier}):--value() ~ *) {
+    @slot;
+  }
+}

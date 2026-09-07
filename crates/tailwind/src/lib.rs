@@ -2130,6 +2130,11 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             condition: "not (hover: hover)".to_owned(),
         });
     }
+    if value.contains('/')
+        && let Some(application) = resolve_registered_variant(value, theme)
+    {
+        return Some(with_hover_media(application));
+    }
     if let Some(application) = resolve_relationship_variant(value, theme) {
         return Some(application);
     }
@@ -2143,7 +2148,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         return Some(VariantApplication::Supports(condition.replace('_', " ")));
     }
     if let Some(application) = resolve_registered_variant(value, theme) {
-        return Some(application);
+        return Some(with_hover_media(application));
     }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
@@ -2224,6 +2229,18 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             };
             Some(VariantApplication::Media(format!("(width >= {value})")))
         })
+}
+
+fn with_hover_media(application: VariantApplication) -> VariantApplication {
+    match application {
+        VariantApplication::SelectorTemplate(selector) if selector.contains(":hover") => {
+            VariantApplication::SelectorMedia {
+                selector,
+                condition: "(hover: hover)".to_owned(),
+            }
+        }
+        application => application,
+    }
 }
 
 /// Whether a Tailwind candidate uses a relationship primitive for which
@@ -2411,6 +2428,7 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
         value
             .replace("--value()", &capture)
             .replace(r"\*", &capture)
+            .replace("/{modifier}", &format!(r"\/{}", modifier))
             .replace("{modifier}", &modifier)
             .replace(":root", &format!(":{capture}"))
             .replace("0n", &capture),
@@ -4775,7 +4793,7 @@ mod tests {
                 &theme
             ),
             Some(VariantApplication::SelectorTemplate(
-                ":where(.peer/field) ~ &".to_owned()
+                r":where(.peer\/field) ~ &".to_owned()
             ))
         );
     }
