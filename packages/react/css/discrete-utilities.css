@@ -42,26 +42,31 @@
   }
 }
 @utility divide-solid {
+  --tw-border-style: solid;
   & > :not(:last-child) {
     border-style: solid;
   }
 }
 @utility divide-dashed {
+  --tw-border-style: dashed;
   & > :not(:last-child) {
     border-style: dashed;
   }
 }
 @utility divide-dotted {
+  --tw-border-style: dotted;
   & > :not(:last-child) {
     border-style: dotted;
   }
 }
 @utility divide-double {
+  --tw-border-style: double;
   & > :not(:last-child) {
     border-style: double;
   }
 }
 @utility divide-none {
+  --tw-border-style: none;
   & > :not(:last-child) {
     border-style: none;
   }
