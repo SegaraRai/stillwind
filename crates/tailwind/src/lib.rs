@@ -2722,33 +2722,88 @@ fn resolve_css_utility_body(
         || body.contains("--modifier-map(")
         || body.contains("--fraction()")
         || body.contains("--shadow-color(");
-    let nested = nested
-        .into_iter()
-        .filter_map(|(at_rule, condition, body)| {
+    let mut resolved_nested = Vec::new();
+    for (at_rule, condition, body) in nested {
+        for (condition, body) in expand_theme_wildcard_nested(&condition, &body, theme) {
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
                 || body.contains("--fraction()")
                 || body.contains("--shadow-color(");
-            let declaration =
-                resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
-            let rule = (!declaration.is_empty()).then_some(NestedUtilityRule {
-                at_rule,
-                condition,
-                declaration,
-            });
-            modifier_resolved |= uses_modifier && rule.is_some();
-            rule
-        })
-        .collect::<Vec<_>>();
+            let Some(declaration) =
+                resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)
+            else {
+                continue;
+            };
+            if !declaration.is_empty() {
+                modifier_resolved |= uses_modifier;
+                resolved_nested.push(NestedUtilityRule {
+                    at_rule,
+                    condition,
+                    declaration,
+                });
+            }
+        }
+    }
     if modifier.is_some() && consumes_modifier && !modifier_resolved {
         return None;
     }
-    (!declaration.is_empty() || !nested.is_empty()).then_some(UtilityResolution {
+    (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
         declaration,
         selector,
-        nested,
+        nested: resolved_nested,
         additional: Vec::new(),
     })
+}
+
+fn expand_theme_wildcard_nested(
+    condition: &str,
+    body: &str,
+    theme: &ThemeIndex,
+) -> Vec<(String, String)> {
+    let marker_start = condition.find("--value(--");
+    let Some(marker_start) = marker_start else {
+        return vec![(condition.to_owned(), body.to_owned())];
+    };
+    let Some(marker_end) = condition[marker_start..].find(')') else {
+        return vec![(condition.to_owned(), body.to_owned())];
+    };
+    let marker_end = marker_start + marker_end + 1;
+    let marker = &condition[marker_start..marker_end];
+    let Some(namespace) = marker
+        .strip_prefix("--value(--")
+        .and_then(|value| value.strip_suffix("-*)"))
+        .and_then(ThemeNamespace::parse)
+    else {
+        return vec![(condition.to_owned(), body.to_owned())];
+    };
+    let mut tokens = theme.tokens_in(namespace);
+    tokens.sort_by(|left, right| {
+        css_length_sort_key(&left.value.value)
+            .partial_cmp(&css_length_sort_key(&right.value.value))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    tokens
+        .into_iter()
+        .map(|token| {
+            let value = token.value.value.clone();
+            (
+                condition.replace(marker, &value),
+                body.replace(marker, &value),
+            )
+        })
+        .collect()
+}
+
+fn css_length_sort_key(value: &str) -> f64 {
+    let value = value.trim();
+    for (unit, scale) in [("rem", 16.0), ("em", 16.0), ("px", 1.0)] {
+        if let Some(number) = value.strip_suffix(unit)
+            && let Ok(number) = number.trim().parse::<f64>()
+        {
+            return number * scale;
+        }
+    }
+    f64::INFINITY
 }
 
 /// Resolves each declaration independently. `@utility` overloads are often
@@ -4775,6 +4830,20 @@ mod tests {
                 .declaration,
             "color: color-mix(in srgb,var(--color-brand) 50%,transparent);"
         );
+    }
+
+    #[test]
+    fn expands_theme_wildcards_in_nested_utility_rules() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@theme { --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility container { width: 100%; @media (width >= --value(--breakpoint-*)) { max-width: --value(--breakpoint-*); } }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+        let utility = resolve_utility("container", &theme).unwrap();
+        assert_eq!(utility.nested.len(), 2);
+        assert_eq!(utility.nested[0].condition, "(width >= 37rem)");
+        assert_eq!(utility.nested[1].condition, "(width >= 80rem)");
     }
 
     #[test]
