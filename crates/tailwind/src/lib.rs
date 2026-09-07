@@ -3748,11 +3748,12 @@ mod tests {
                 .contains("--tw-mask-conic-position:calc(1deg*45);"),
             "{resolved:?}"
         );
+        let negative = resolve_utility("-mask-conic-45", &theme())
+                .expect("negative mask conic angle");
         assert!(
-            resolve_utility("-mask-conic-45", &theme())
-                .expect("negative mask conic angle")
+            negative
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg*-45);")
+                .contains("--tw-mask-conic-position:calc(1deg * -45);")
         );
     }
 
@@ -3769,7 +3770,7 @@ mod tests {
             resolve_utility("bg-conic-45/increasing", &theme()).expect("interpolated conic");
         assert!(interpolated
             .declaration
-            .contains("from 45deg in oklch increasing hue"));
+            .contains("from calc(1deg*45) in oklch increasing hue"));
     }
 
     #[test]
