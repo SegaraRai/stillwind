@@ -1700,11 +1700,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             });
         }
     }
-    if raw.starts_with("border-spacing") {
-        declaration = declaration
-            .replace("--tw-border-spacing-x:0;", "--tw-border-spacing-x:0px;")
-            .replace("--tw-border-spacing-y:0;", "--tw-border-spacing-y:0px;");
-    }
     if let Some(alpha) = raw.strip_prefix("text-shadow-current/") {
         let alpha = alpha.trim_end_matches('%');
         if !alpha.is_empty()
