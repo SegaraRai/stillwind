@@ -483,7 +483,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("*var(--tw-space", "* var(--tw-space")
             .replace("*calc(1 - var(--tw-space", "* calc(1 - var(--tw-space");
     }
-    if declaration.contains("--tw-translate-") {
+    if declaration.contains("translate:") {
         declaration = declaration
             .replace("calc(var(--spacing) * 0)", "0px")
             .replace("calc(var(--spacing) * 1)", "var(--spacing)");
@@ -545,7 +545,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .nested
         .into_iter()
         .map(|mut nested| {
-            if nested.declaration.contains("--tw-translate-") {
+            if nested.declaration.contains("translate:") {
                 nested.declaration = nested
                     .declaration
                     .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
