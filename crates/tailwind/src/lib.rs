@@ -2548,18 +2548,6 @@ fn resolve_named_utility(
     None
 }
 
-fn css_length_sort_key(value: &str) -> f64 {
-    let value = value.trim();
-    for (unit, scale) in [("rem", 16.0), ("em", 16.0), ("px", 1.0)] {
-        if let Some(number) = value.strip_suffix(unit)
-            && let Ok(number) = number.trim().parse::<f64>()
-        {
-            return number * scale;
-        }
-    }
-    f64::INFINITY
-}
-
 /// Resolves the same `@utility` body language for user CSS and vendored
 /// built-ins. `--value(...)` tries its comma-separated value domains in order.
 fn resolve_user_css_utility(
