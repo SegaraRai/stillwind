@@ -2415,15 +2415,6 @@ fn render_used_properties(
             used.remove(name);
         }
     }
-    // Tailwind registers the complete transform axis family when any axis is
-    // used, including the z-axis default even when the emitted utility does
-    // not reference it directly.
-    if used.contains("--tw-translate-x") || used.contains("--tw-translate-y") {
-        used.insert("--tw-translate-z".to_owned());
-    }
-    if used.contains("--tw-scale-x") || used.contains("--tw-scale-y") {
-        used.insert("--tw-scale-z".to_owned());
-    }
     if css.contains("--tw-ring-shadow:")
         || css.contains("--tw-shadow-color:")
         || css.contains("--tw-shadow:")
