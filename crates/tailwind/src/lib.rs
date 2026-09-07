@@ -3745,14 +3745,14 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg * 45);"),
+                .contains("--tw-mask-conic-position:calc(1deg*45);"),
             "{resolved:?}"
         );
         assert!(
             resolve_utility("-mask-conic-45", &theme())
                 .expect("negative mask conic angle")
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg * -45);")
+                .contains("--tw-mask-conic-position:calc(1deg*-45);")
         );
     }
 
@@ -3762,7 +3762,7 @@ mod tests {
         assert!(
             default
                 .declaration
-                .contains("--tw-gradient-position:from 45deg in oklab;"),
+                .contains("--tw-gradient-position:from calc(1deg*45) in oklab;"),
             "{default:?}"
         );
         let interpolated =
