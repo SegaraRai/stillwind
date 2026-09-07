@@ -2094,22 +2094,20 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, "@utility-family")
         .into_iter()
         .flat_map(|(header, body)| {
-            let mut header = header.split_whitespace();
-            let domain = header.next();
-            let negative = header.any(|flag| flag == "negative");
-            if domain == Some("mask-stop") {
+            let (domain, negative) = parse_utility_family_header(&header);
+            if domain.as_deref() == Some("mask-stop") {
                 return expand_mask_stop_family(&body);
             }
-            if domain == Some("mask-radial-stop") {
+            if domain.as_deref() == Some("mask-radial-stop") {
                 return expand_mask_radial_stop_family(&body);
             }
-            if domain == Some("color-alpha-default") {
+            if domain.as_deref() == Some("color-alpha-default") {
                 return expand_color_alpha_default_family(&body);
             }
-            if domain == Some("color-alpha") {
+            if domain.as_deref() == Some("color-alpha") {
                 return expand_color_alpha_family(&body);
             }
-            let Some(value) = domain.and_then(utility_family_value) else {
+            let Some(value) = domain else {
                 return Vec::new();
             };
             body.split(';')
@@ -2152,6 +2150,28 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+/// Reads the generic family header. Value domains are authored in CSS as
+/// `value=--value(...)`; the optional `negative` flag only controls the
+/// generated sign branch. Legacy symbolic headers are intentionally ignored,
+/// keeping Tailwind vocabulary out of the parser.
+fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
+    let negative = header
+        .split_whitespace()
+        .any(|flag| flag == "negative");
+    let Some(start) = header.find("value=") else {
+        let symbolic = header.split_whitespace().next().filter(|name| {
+            matches!(*name, "mask-stop" | "mask-radial-stop" | "color-alpha" | "color-alpha-default")
+        });
+        return (symbolic.map(str::to_owned), negative);
+    };
+    let mut value = &header[start + "value=".len()..];
+    if let Some(end) = value.rfind(" negative") {
+        value = &value[..end];
+    }
+    let value = value.trim();
+    (!value.is_empty()).then(|| (Some(value.to_owned()), negative)).unwrap_or((None, negative))
 }
 
 /// Expands colour-with-alpha utility roots without a palette enumeration.
@@ -2340,30 +2360,6 @@ fn mask_radial_stop_body(stop: &str, kind: &str) -> String {
     format!(
         "mask-image:var(--tw-mask-linear),var(--tw-mask-radial),var(--tw-mask-conic);mask-composite:intersect;--tw-mask-radial-stops:var(--tw-mask-radial-shape,ellipse) var(--tw-mask-radial-size,farthest-corner) at var(--tw-mask-radial-position,center),var(--tw-mask-radial-from-color,black) var(--tw-mask-radial-from-position,0%),var(--tw-mask-radial-to-color,transparent) var(--tw-mask-radial-to-position,100%);--tw-mask-radial:radial-gradient(var(--tw-mask-radial-stops));--tw-mask-radial-{stop}-{suffix}:{value};"
     )
-}
-
-fn utility_family_value(domain: &str) -> Option<&'static str> {
-    match domain {
-        "spacing" => Some("--value(--spacing-*, --spacing(), [length])"),
-        "spacing-fraction" => Some("--value(--spacing-*, --spacing(), --fraction(), [length])"),
-        "inset" => Some("--value(--spacing-*, --spacing(), --fraction(), --inset(), [length])"),
-        "length" => {
-            Some("--value(--spacing-*, --spacing(), --container-*, --fraction(), [length])")
-        }
-        "width" => Some(
-            "--value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length])",
-        ),
-        "height" => Some(
-            "--value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length])",
-        ),
-        "integer" => Some("--value(integer, [integer])"),
-        "number" => Some("--value(number, [number])"),
-        "color" => Some("--value(--color-*, current, inherit, transparent, [color])"),
-        "color-alpha" => Some(
-            "color-mix(in oklab, --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()), transparent)",
-        ),
-        _ => None,
-    }
 }
 
 fn strip_css_comments(css: &str) -> String {
@@ -2673,7 +2669,7 @@ mod tests {
     #[test]
     fn expands_compact_utility_families_without_enumerating_values() {
         let utilities = parse_utility_definitions(
-            "@utility-family spacing negative { inset: inset; inset-x: inset-inline; }",
+            "@utility-family value=--value(--spacing-*, --spacing(), [length]) negative { inset: inset; inset-x: inset-inline; }",
         );
 
         assert_eq!(

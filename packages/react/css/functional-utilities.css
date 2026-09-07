@@ -6,7 +6,7 @@
  * spacing values it accepts. The `negative` flag produces the paired negative
  * utility with the same typed value grammar.
  */
-@utility-family inset negative {
+@utility-family value=--value(--spacing-*, --spacing(), --fraction(), --inset(), [length]) negative {
   inset: inset;
   inset-x: inset-inline;
   inset-y: inset-block;
@@ -33,7 +33,7 @@
   scroll-mbs: scroll-margin-block-start;
   scroll-mbe: scroll-margin-block-end;
 }
-@utility-family spacing {
+@utility-family value=--value(--spacing-*, --spacing(), [length]) {
   pbs: padding-block-start;
   pbe: padding-block-end;
   ps: padding-inline-start;
@@ -52,7 +52,7 @@
   scroll-pbs: scroll-padding-block-start;
   scroll-pbe: scroll-padding-block-end;
 }
-@utility-family spacing negative {
+@utility-family value=--value(--spacing-*, --spacing(), [length]) negative {
   mbs: margin-block-start;
   mbe: margin-block-end;
   ms: margin-inline-start;
@@ -60,7 +60,7 @@
   outline-offset: outline-offset;
   underline-offset: text-underline-offset;
 }
-@utility-family width {
+@utility-family value=--value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]) {
   w: width;
   min-w: min-width;
   max-w: max-width;
@@ -69,7 +69,7 @@
   max-inline: max-inline-size;
   basis: flex-basis;
 }
-@utility-family height {
+@utility-family value=--value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]) {
   h: height;
   min-h: min-height;
   max-h: max-height;
@@ -77,7 +77,7 @@
   min-block: min-block-size;
   max-block: max-block-size;
 }
-@utility-family color {
+@utility-family value=--value(--color-*, current, inherit, transparent, [color]) {
   border-x: border-inline-color;
   border-y: border-block-color;
   border-s: border-inline-start-color;
@@ -122,7 +122,7 @@
   border-l: border-left-color;
   outline: outline-color;
 }
-@utility-family integer {
+@utility-family value=--value(integer, [integer]) {
   col-start: grid-column-start;
   col-end: grid-column-end;
   row-start: grid-row-start;
