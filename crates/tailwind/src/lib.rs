@@ -165,6 +165,12 @@ fn builtin_marker_utilities() -> &'static BTreeSet<String> {
     MARKERS.get_or_init(|| stillwind_css::parse_marker_utilities(BUILTIN_REGISTRY_CSS))
 }
 
+#[must_use]
+fn builtin_declaration_formats() -> &'static std::collections::BTreeMap<String, String> {
+    static FORMATS: OnceLock<std::collections::BTreeMap<String, String>> = OnceLock::new();
+    FORMATS.get_or_init(|| stillwind_css::parse_declaration_formats(BUILTIN_REGISTRY_CSS))
+}
+
 /// Removes non-semantic whitespace from vendored declarations.
 ///
 /// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
@@ -415,12 +421,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     };
     declaration = normalize_transform_vars(declaration);
     declaration = normalize_calc_var_operators(declaration);
-    if declaration == "grid-column:span initial/span initial;" {
-        declaration = "grid-column:span initial / span initial;".to_owned();
-    }
-    if declaration == "grid-row:span initial/span initial;" {
-        declaration = "grid-row:span initial / span initial;".to_owned();
-    }
+    declaration = apply_declaration_formats(declaration, theme);
     // Tailwind canonicalizes zero-angle conic values instead of retaining the
     // registry's unit multiplier expression.
     declaration = declaration
@@ -560,6 +561,28 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         additional,
         candidate,
     })
+}
+
+fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
+    let formats = if theme.declaration_formats.is_empty() {
+        builtin_declaration_formats()
+    } else {
+        &theme.declaration_formats
+    };
+    for (property, format) in formats {
+        if format != "slash-space-span" {
+            continue;
+        }
+        let prefix = format!("{property}:");
+        if let Some(value) = declaration.strip_prefix(&prefix) {
+            if !value.contains("span") {
+                continue;
+            }
+            let value = value.replace('/', " / ");
+            declaration = format!("{prefix}{value}");
+        }
+    }
+    declaration
 }
 
 #[must_use]
