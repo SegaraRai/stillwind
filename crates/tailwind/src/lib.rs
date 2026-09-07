@@ -151,6 +151,14 @@ pub fn builtin_property_definitions() -> &'static [stillwind_css::CustomProperty
         .as_slice()
 }
 
+#[must_use]
+pub fn builtin_declaration_order() -> &'static [Vec<String>] {
+    static ORDER: OnceLock<Vec<Vec<String>>> = OnceLock::new();
+    ORDER
+        .get_or_init(|| stillwind_css::parse_declaration_order(BUILTIN_REGISTRY_CSS))
+        .as_slice()
+}
+
 /// Removes non-semantic whitespace from vendored declarations.
 ///
 /// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep

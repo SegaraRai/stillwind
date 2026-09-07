@@ -1146,7 +1146,10 @@ fn emit_animation_definition(
         }
         output.push_str(&frame.selector.value);
         output.push('{');
-        output.push_str(&combine_declarations(&utilities.iter().collect::<Vec<_>>()));
+        output.push_str(&combine_declarations_for_theme(
+            &utilities.iter().collect::<Vec<_>>(),
+            theme,
+        ));
         output.push('}');
     }
     output.push('}');
@@ -1293,7 +1296,7 @@ fn resolve_static_utility_list(
             )),
         }
     }
-    combine_declarations(&utilities.iter().collect::<Vec<_>>())
+    combine_declarations_for_theme(&utilities.iter().collect::<Vec<_>>(), theme)
 }
 
 fn render_handle_projection(
@@ -1569,7 +1572,7 @@ fn emit_utility_rules(
             utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
         })
         .collect::<Vec<_>>();
-    let base = combine_declarations(&base);
+    let base = combine_declarations_for_theme(&base, theme);
     if !base.is_empty() {
         let mut nested_in_rule_css = String::new();
         let mut anchored_nested = Vec::<(String, String)>::new();
@@ -1637,7 +1640,7 @@ fn emit_utility_rules(
             class_name,
             utility,
             theme,
-            &combine_declarations(&[utility]),
+            &combine_declarations_for_theme(&[utility], theme),
             None,
         ));
     }
@@ -1759,7 +1762,27 @@ fn render_utility_rule(
     rule
 }
 
+#[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
+    combine_declarations_with_order(utilities, stillwind_tailwind::builtin_declaration_order())
+}
+
+fn combine_declarations_for_theme(
+    utilities: &[&CompiledUtility],
+    theme: &stillwind_css::ThemeIndex,
+) -> String {
+    let order = if theme.declaration_order.is_empty() {
+        stillwind_tailwind::builtin_declaration_order()
+    } else {
+        theme.declaration_order.as_slice()
+    };
+    combine_declarations_with_order(utilities, order)
+}
+
+fn combine_declarations_with_order(
+    utilities: &[&CompiledUtility],
+    order: &[Vec<String>],
+) -> String {
     let mut declarations = String::new();
     let mut transforms = Vec::new();
     let mut ordered = Vec::new();
@@ -1808,12 +1831,12 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     // candidates appear in the source. Reorder only declarations belonging to
     // the same competing family; unrelated declarations keep their original
     // slots and source order.
-    for group in 0..stillwind_tailwind::builtin_declaration_order().len() {
+    for group in 0..order.len() {
         let mut positions = ordered
             .iter()
             .enumerate()
             .filter_map(|(index, declaration)| {
-                (declaration_order(declaration).is_some_and(|(name, _)| name == group))
+                (declaration_order(declaration, order).is_some_and(|(name, _)| name == group))
                     .then_some(index)
             })
             .collect::<Vec<_>>();
@@ -1822,7 +1845,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
             .map(|index| ordered[*index].clone())
             .collect::<Vec<_>>();
         declarations_for_family
-            .sort_by_key(|declaration| declaration_order(declaration).unwrap().1);
+            .sort_by_key(|declaration| declaration_order(declaration, order).unwrap().1);
         for (index, declaration) in positions.drain(..).zip(declarations_for_family) {
             ordered[index] = declaration;
         }
@@ -1883,9 +1906,9 @@ fn normalize_angle_calc(value: &str) -> String {
     normalized
 }
 
-fn declaration_order(declaration: &str) -> Option<(usize, u16)> {
+fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, u16)> {
     let property = declaration.split_once(':').map(|(property, _)| property)?;
-    stillwind_tailwind::builtin_declaration_order()
+    order
         .iter()
         .enumerate()
         .find_map(|(group, patterns)| {
