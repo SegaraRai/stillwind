@@ -160,6 +160,22 @@ pub fn builtin_declaration_order() -> &'static [Vec<String>] {
 }
 
 #[must_use]
+pub fn builtin_utility_names() -> Vec<String> {
+    stillwind_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
+        .into_iter()
+        .map(|utility| utility.name)
+        .collect()
+}
+
+#[must_use]
+pub fn builtin_variant_names() -> Vec<String> {
+    stillwind_css::parse_variant_definitions(BUILTIN_REGISTRY_CSS)
+        .into_iter()
+        .map(|variant| variant.name)
+        .collect()
+}
+
+#[must_use]
 fn builtin_marker_utilities() -> &'static BTreeSet<String> {
     static MARKERS: OnceLock<BTreeSet<String>> = OnceLock::new();
     MARKERS.get_or_init(|| stillwind_css::parse_marker_utilities(BUILTIN_REGISTRY_CSS))

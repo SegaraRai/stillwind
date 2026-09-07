@@ -2243,53 +2243,10 @@ fn render_used_properties(
     output
 }
 
-const DEFAULT_REACT_UTILITIES: &[&str] = &[
-    "absolute",
-    "block",
-    "container",
-    "cursor-pointer",
-    "cursor-wait",
-    "flex",
-    "grid",
-    "group",
-    "hidden",
-    "inline-block",
-    "inline-flex",
-    "items-center",
-    "items-end",
-    "items-start",
-    "justify-between",
-    "justify-center",
-    "opacity-0",
-    "opacity-60",
-    "opacity-100",
-    "overflow-hidden",
-    "peer",
-    "relative",
-    "text-center",
-    "text-left",
-    "transition",
-    "@container",
-    "@container-normal",
-];
-
-const DEFAULT_REACT_VARIANTS: &[&str] = &[
-    "active",
-    "dark",
-    "disabled",
-    "focus",
-    "focus-visible",
-    "group-focus-within",
-    "group-hover",
-    "hover",
-    "peer-checked",
-    "peer-hover",
-];
-
 fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
     let mut utilities = Vec::new();
     if theme.imports.builtins {
-        utilities.extend(DEFAULT_REACT_UTILITIES.iter().copied().map(str::to_owned));
+        utilities.extend(stillwind_tailwind::builtin_utility_names());
         for token in &theme.tokens {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
             else {
@@ -2328,12 +2285,18 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
         .join("\n");
     let mut variants = Vec::new();
     if theme.imports.builtins {
-        variants.extend(DEFAULT_REACT_VARIANTS.iter().copied());
+        variants.extend(stillwind_tailwind::builtin_variant_names());
         variants.extend(
             theme
                 .tokens
                 .iter()
-                .filter_map(|token| token.name.value.strip_prefix("--breakpoint-")),
+                .filter_map(|token| {
+                    token
+                        .name
+                        .value
+                        .strip_prefix("--breakpoint-")
+                        .map(str::to_owned)
+                }),
         );
     }
     variants.sort_unstable();
