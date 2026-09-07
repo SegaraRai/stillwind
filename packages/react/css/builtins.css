@@ -22,6 +22,7 @@
 @stillwind-format --tw-drop-shadow empty-space;
 @stillwind-format transform var-fallback;
 @stillwind-format transform compose-space;
+@stillwind-format translate zero-length;
 @stillwind-format-functions color-mix linear-gradient;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
