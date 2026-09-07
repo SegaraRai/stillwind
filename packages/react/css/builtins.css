@@ -1,5 +1,11 @@
 /* Stillwind's CSS registry entrypoint. Keep these imports ordered: later
  * definitions intentionally override earlier compatibility fallbacks. */
+@stillwind-order {
+  margin: margin, margin-inline, margin-block, margin-inline-start, margin-inline-end, margin-block-start, margin-block-end, margin-*;
+  padding: padding, padding-inline, padding-block, padding-inline-start, padding-inline-end, padding-block-start, padding-block-end, padding-*;
+  inset: inset, inset-inline, inset-block, inset-inline-start, inset-inline-end, inset-block-start, inset-block-end, left, right, top, bottom;
+  border: border, border-style, border-width, border-inline-*, border-block-*, border-*-style, border-*-width;
+}
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";

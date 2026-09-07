@@ -1808,12 +1808,12 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     // candidates appear in the source. Reorder only declarations belonging to
     // the same competing family; unrelated declarations keep their original
     // slots and source order.
-    for family in ["margin", "padding", "inset", "border"] {
+    for group in 0..stillwind_tailwind::builtin_declaration_order().len() {
         let mut positions = ordered
             .iter()
             .enumerate()
             .filter_map(|(index, declaration)| {
-                (declaration_order(declaration).is_some_and(|(name, _)| name == family))
+                (declaration_order(declaration).is_some_and(|(name, _)| name == group))
                     .then_some(index)
             })
             .collect::<Vec<_>>();
@@ -1883,60 +1883,18 @@ fn normalize_angle_calc(value: &str) -> String {
     normalized
 }
 
-fn declaration_order(declaration: &str) -> Option<(&'static str, u16)> {
+fn declaration_order(declaration: &str) -> Option<(usize, u16)> {
     let property = declaration.split_once(':').map(|(property, _)| property)?;
-
-    // CSS cascade order used by Tailwind for shorthand, axis and side forms.
-    // Keep the table deliberately focused on competing longhands; unrelated
-    // properties retain their source order via the stable sequence tie-breaker.
-    for (base, shorthand, axis, side) in [
-        ("margin", "margin", "margin-inline", "margin-left"),
-        ("padding", "padding", "padding-inline", "padding-left"),
-        ("inset", "inset", "inset-inline", "left"),
-    ] {
-        if property == shorthand || property.starts_with(&format!("{shorthand}-")) {
-            if property == shorthand {
-                return Some((base, 100));
-            }
-            if property == axis || property == format!("{base}-block") {
-                return Some((base, 110));
-            }
-            if property.contains("inline-start")
-                || property.contains("inline-end")
-                || property.contains("block-start")
-                || property.contains("block-end")
-            {
-                return Some((base, 120));
-            }
-            if property.ends_with("-top")
-                || property.ends_with("-right")
-                || property.ends_with("-bottom")
-                || property.ends_with("-left")
-            {
-                return Some((base, 130));
-            }
-        } else if property == side || property.starts_with(&format!("{side}-")) {
-            return Some((base, 130));
-        }
-    }
-
-    if property == "border" || property.starts_with("border-") {
-        if property == "border" || property == "border-width" || property == "border-style" {
-            return Some(("border", 200));
-        }
-        if property.starts_with("border-inline-") || property.starts_with("border-block-") {
-            return Some(("border", 210));
-        }
-        if property.contains("-top-")
-            || property.contains("-right-")
-            || property.contains("-bottom-")
-            || property.contains("-left-")
-        {
-            return Some(("border", 230));
-        }
-    }
-
-    None
+    stillwind_tailwind::builtin_declaration_order()
+        .iter()
+        .enumerate()
+        .find_map(|(group, patterns)| {
+            patterns.iter().enumerate().find_map(|(rank, pattern)| {
+                let matched = pattern.strip_suffix('*')
+                    .map_or(property == pattern, |prefix| property.starts_with(prefix));
+                matched.then_some((group, rank as u16))
+            })
+        })
 }
 
 fn render_stylesheet(
