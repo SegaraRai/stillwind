@@ -233,6 +233,19 @@ fn builtin_compat_color_support() -> &'static str {
 }
 
 #[must_use]
+fn builtin_compatibility_bridge() -> Option<&'static (String, String)> {
+    static BRIDGE: OnceLock<Option<(String, String)>> = OnceLock::new();
+    BRIDGE
+        .get_or_init(|| {
+            stillwind_css::parse_compatibility_bridge(
+                BUILTIN_REGISTRY_CSS,
+                "stillwind-compat-bridge",
+            )
+        })
+        .as_ref()
+}
+
+#[must_use]
 fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
     static PATTERNS: OnceLock<BTreeSet<String>> = OnceLock::new();
     PATTERNS.get_or_init(|| stillwind_css::parse_relationship_patterns(BUILTIN_REGISTRY_CSS))
@@ -559,10 +572,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     // CSS definitions normally provide this fallback/supports pair. Keep a
     // generic bridge for authored definitions that resolve an interpolation
     // space directly but omit the nested feature query.
-    if declaration.contains("background-image:linear-gradient")
+    if let Some((bridge_property, bridge_condition)) = builtin_compatibility_bridge()
+        && declaration.contains(&format!("{bridge_property}:"))
+        && declaration.contains("linear-gradient")
         && !nested.iter().any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
         && let Some(position) = declaration
-            .strip_prefix("--tw-gradient-position:")
+            .strip_prefix(&format!("{bridge_property}:"))
             .and_then(|value| value.split_once(';'))
         && position.0.contains(" in ")
     {
@@ -571,14 +586,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         let angle = angle.to_owned();
         let color_space = color_space.to_owned();
         declaration = declaration.replacen(
-            &format!("--tw-gradient-position:{position};"),
-            &format!("--tw-gradient-position:{angle};"),
+            &format!("{bridge_property}:{position};"),
+            &format!("{bridge_property}:{angle};"),
             1,
         );
         nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
-            condition: "background-image:linear-gradient(in lab, red, red)".to_owned(),
-            declaration: format!("--tw-gradient-position:{angle} in {color_space};"),
+            condition: bridge_condition.clone(),
+            declaration: format!("{bridge_property}:{angle} in {color_space};"),
             inside: true,
         });
     }

@@ -1149,6 +1149,21 @@ pub fn parse_compat_color_support(css: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
+/// Parses a generic declaration compatibility bridge. The first token is the
+/// declaration property and the remainder is the feature query condition.
+pub fn parse_compatibility_bridge(css: &str, directive: &str) -> Option<(String, String)> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix(directive))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .find_map(|value| {
+            let (property, condition) = value.split_once(char::is_whitespace)?;
+            let property = property.trim();
+            let condition = condition.trim();
+            (!property.is_empty() && !condition.is_empty())
+                .then(|| (property.to_owned(), condition.to_owned()))
+        })
+}
+
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }
@@ -2951,6 +2966,16 @@ mod tests {
                 "@stillwind-compat-support color:color-mix(in lab, red, red);"
             ),
             Some("color:color-mix(in lab, red, red)".to_owned())
+        );
+        assert_eq!(
+            parse_compatibility_bridge(
+                "@stillwind-compat-bridge --tw-gradient-position background-image:linear-gradient(in lab, red, red);",
+                "stillwind-compat-bridge",
+            ),
+            Some((
+                "--tw-gradient-position".to_owned(),
+                "background-image:linear-gradient(in lab, red, red)".to_owned(),
+            ))
         );
     }
 
