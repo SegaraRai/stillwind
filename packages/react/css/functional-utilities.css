@@ -153,30 +153,39 @@
   border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
 }
 @utility border-x-* {
+  border-inline-style: var(--tw-border-style);
   border-inline-width: calc(--value(integer) * 1px);
 }
 @utility border-y-* {
+  border-block-style: var(--tw-border-style);
   border-block-width: calc(--value(integer) * 1px);
 }
 @utility border-s-* {
+  border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: calc(--value(integer) * 1px);
 }
 @utility border-e-* {
+  border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: calc(--value(integer) * 1px);
 }
 @utility border-bs-* {
+  border-block-start-style: var(--tw-border-style);
   border-block-start-width: calc(--value(integer) * 1px);
 }
 @utility border-be-* {
+  border-block-end-style: var(--tw-border-style);
   border-block-end-width: calc(--value(integer) * 1px);
 }
 @utility border-t-* {
+  border-top-style: var(--tw-border-style);
   border-top-width: calc(--value(integer) * 1px);
 }
 @utility border-r-* {
+  border-right-style: var(--tw-border-style);
   border-right-width: calc(--value(integer) * 1px);
 }
 @utility border-b-* {
+  border-bottom-style: var(--tw-border-style);
   border-bottom-width: calc(--value(integer) * 1px);
 }
 @utility border-l-* {
@@ -410,69 +419,91 @@
   border-color: --value(--color-*);
 }
 @utility border-* {
+  border-style: var(--tw-border-style);
   border-width: calc(--value(integer) * 1px);
 }
 @utility border-* {
+  border-style: var(--tw-border-style);
   border-width: --value([line-width]);
 }
 @utility border-x-* {
+  border-inline-style: var(--tw-border-style);
   border-inline-width: calc(--value(integer) * 1px);
 }
 @utility border-x-* {
+  border-inline-style: var(--tw-border-style);
   border-inline-width: --value([line-width]);
 }
 @utility border-y-* {
+  border-block-style: var(--tw-border-style);
   border-block-width: calc(--value(integer) * 1px);
 }
 @utility border-y-* {
+  border-block-style: var(--tw-border-style);
   border-block-width: --value([line-width]);
 }
 @utility border-s-* {
+  border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: calc(--value(integer) * 1px);
 }
 @utility border-s-* {
+  border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: --value([line-width]);
 }
 @utility border-e-* {
+  border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: calc(--value(integer) * 1px);
 }
 @utility border-e-* {
+  border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: --value([line-width]);
 }
 @utility border-bs-* {
+  border-block-start-style: var(--tw-border-style);
   border-block-start-width: calc(--value(integer) * 1px);
 }
 @utility border-bs-* {
+  border-block-start-style: var(--tw-border-style);
   border-block-start-width: --value([line-width]);
 }
 @utility border-be-* {
+  border-block-end-style: var(--tw-border-style);
   border-block-end-width: calc(--value(integer) * 1px);
 }
 @utility border-be-* {
+  border-block-end-style: var(--tw-border-style);
   border-block-end-width: --value([line-width]);
 }
 @utility border-t-* {
+  border-top-style: var(--tw-border-style);
   border-top-width: calc(--value(integer) * 1px);
 }
 @utility border-t-* {
+  border-top-style: var(--tw-border-style);
   border-top-width: --value([line-width]);
 }
 @utility border-r-* {
+  border-right-style: var(--tw-border-style);
   border-right-width: calc(--value(integer) * 1px);
 }
 @utility border-r-* {
+  border-right-style: var(--tw-border-style);
   border-right-width: --value([line-width]);
 }
 @utility border-b-* {
+  border-bottom-style: var(--tw-border-style);
   border-bottom-width: calc(--value(integer) * 1px);
 }
 @utility border-b-* {
+  border-bottom-style: var(--tw-border-style);
   border-bottom-width: --value([line-width]);
 }
 @utility border-l-* {
+  border-left-style: var(--tw-border-style);
   border-left-width: calc(--value(integer) * 1px);
 }
 @utility border-l-* {
+  border-left-style: var(--tw-border-style);
   border-left-width: --value([line-width]);
 }
 @utility outline-* {

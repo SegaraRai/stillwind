@@ -244,9 +244,11 @@
   text-underline-offset: 0px;
 }
 @utility outline-4 {
+  outline-style: var(--tw-outline-style);
   outline-width: 4px;
 }
 @utility outline-8 {
+  outline-style: var(--tw-outline-style);
   outline-width: 8px;
 }
 @utility ring {

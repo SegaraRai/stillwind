@@ -96,11 +96,13 @@
 }
 @utility divide-x-* {
   & > :not(:last-child) {
+    border-inline-end-style: var(--tw-border-style);
     border-inline-end-width: --value([line-width]);
   }
 }
 @utility divide-y-* {
   & > :not(:last-child) {
+    border-bottom-style: var(--tw-border-style);
     border-bottom-width: --value([line-width]);
   }
 }

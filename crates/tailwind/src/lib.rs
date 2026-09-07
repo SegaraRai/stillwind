@@ -753,59 +753,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration = "--tw-divide-y-reverse:0;border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(initial * var(--tw-divide-y-reverse));border-bottom-width:calc(initial * calc(1 - var(--tw-divide-y-reverse)));".to_owned();
         }
     }
-    // Tailwind's width utilities also establish the border style through the
-    // built-in --tw-border-style property. Keep the declaration explicit so
-    // the generated rule has the same computed behavior and registration set.
-    let border_candidate = matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("border") || name.starts_with("divide"));
-    let outline_candidate =
-        matches!(&candidate.utility, Utility::Named { name, .. } if name.starts_with("outline"));
-    if outline_candidate
-        && declaration.contains("outline-width:")
-        && !declaration.contains("outline-style:")
-    {
-        declaration = format!("outline-style:var(--tw-outline-style);{declaration}");
-    }
-    if border_candidate
-        && declaration.split(';').any(|part| {
-            part.starts_with("border-width:")
-                || part.starts_with("border-inline-width:")
-                || part.starts_with("border-block-width:")
-                || part.starts_with("border-inline-start-width:")
-                || part.starts_with("border-inline-end-width:")
-                || part.starts_with("border-block-start-width:")
-                || part.starts_with("border-block-end-width:")
-                || part.starts_with("border-top-width:")
-                || part.starts_with("border-right-width:")
-                || part.starts_with("border-bottom-width:")
-                || part.starts_with("border-left-width:")
-        })
-        && !declaration.contains("style:var(--tw-border-style)")
-    {
-        let style = if declaration.contains("border-inline-width:") {
-            "border-inline-style"
-        } else if declaration.contains("border-inline-start-width:") {
-            "border-inline-start-style"
-        } else if declaration.contains("border-inline-end-width:") {
-            "border-inline-end-style"
-        } else if declaration.contains("border-block-start-width:") {
-            "border-block-start-style"
-        } else if declaration.contains("border-block-end-width:") {
-            "border-block-end-style"
-        } else if declaration.contains("border-block-width:") {
-            "border-block-style"
-        } else if declaration.contains("border-top-width:") {
-            "border-top-style"
-        } else if declaration.contains("border-bottom-width:") {
-            "border-bottom-style"
-        } else if declaration.contains("border-left-width:") {
-            "border-left-style"
-        } else if declaration.contains("border-right-width:") {
-            "border-right-style"
-        } else {
-            "border-style"
-        };
-        declaration = format!("{style}:var(--tw-border-style);{declaration}");
-    }
     let mut nested: Vec<NestedUtilityRule> = resolution
         .nested
         .into_iter()

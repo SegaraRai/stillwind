@@ -283,12 +283,15 @@
   border-left-width: 1px;
 }
 @utility outline-0 {
+  outline-style: var(--tw-outline-style);
   outline-width: 0;
 }
 @utility outline-1 {
+  outline-style: var(--tw-outline-style);
   outline-width: 1px;
 }
 @utility outline-2 {
+  outline-style: var(--tw-outline-style);
   outline-width: 2px;
 }
 @utility outline-hidden {
