@@ -1601,32 +1601,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             });
         }
     }
-    if raw.starts_with("ring-current/")
-        && declaration.contains("--tw-ring-color:color-mix(in oklab, currentcolor")
-        && let Some(start) = declaration.find("--tw-ring-color:color-mix(in oklab, ")
-        && let Some(end) = declaration[start..].find(';')
-    {
-        let modern = declaration[start..start + end + 1].to_owned();
-        declaration.replace_range(start..start + end + 1, "--tw-ring-color:currentcolor;");
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: modern,
-        });
-    }
-    if raw.starts_with("inset-ring-current/")
-        && declaration.contains("--tw-inset-ring-color:color-mix(in oklab, currentcolor")
-        && let Some(start) = declaration.find("--tw-inset-ring-color:color-mix(in oklab, ")
-        && let Some(end) = declaration[start..].find(';')
-    {
-        let modern = declaration[start..start + end + 1].to_owned();
-        declaration.replace_range(start..start + end + 1, "--tw-inset-ring-color:currentcolor;");
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: "color:color-mix(in lab, red, red)".to_owned(),
-            declaration: modern,
-        });
-    }
     if raw == "drop-shadow-current" && declaration.contains("--tw-drop-shadow-color:currentcolor;") {
         nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
