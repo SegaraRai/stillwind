@@ -1135,7 +1135,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .nested
         .into_iter()
         .map(|mut nested| {
-            if raw.starts_with("translate") || raw.starts_with("-translate") {
+            if nested.declaration.contains("--tw-translate-") {
                 nested.declaration = nested
                     .declaration
                     .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
