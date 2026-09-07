@@ -387,10 +387,9 @@
   --tw-ring-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility ring-* {
-  --tw-ring-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-ring-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility decoration-* {
@@ -400,10 +399,9 @@
   text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility decoration-* {
-  text-decoration-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  text-decoration-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility stroke-* {
@@ -413,10 +411,9 @@
   stroke: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility stroke-* {
-  stroke: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  stroke: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility divide-x-* {
