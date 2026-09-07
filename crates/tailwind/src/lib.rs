@@ -1365,17 +1365,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
-    if raw.starts_with("mask-") && raw.ends_with("transparent/100") {
-        for color in ["from-color", "to-color"] {
-            let marker = format!("--tw-mask-{color}:");
-            if let Some(start) = declaration.find(&marker)
-                && let Some(end) = declaration[start..].find(';')
-            {
-                declaration.replace_range(start..start + end + 1, &format!("{marker}transparent;"));
-            }
-        }
-        nested.clear();
-    }
     let additional = resolution
         .additional
         .into_iter()
