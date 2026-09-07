@@ -2307,40 +2307,6 @@ fn render_used_properties(
             used.remove(name);
         }
     }
-    if css.contains("--tw-ring-shadow:")
-        || css.contains("--tw-shadow-color:")
-        || css.contains("--tw-shadow:")
-        || css.contains("--tw-inset-shadow-color:")
-        || css.contains("--tw-inset-shadow-alpha:")
-        || css.contains("--tw-ring-inset:")
-    {
-        for name in [
-            "--tw-shadow",
-            "--tw-shadow-color",
-            "--tw-shadow-alpha",
-            "--tw-inset-shadow",
-            "--tw-inset-shadow-color",
-            "--tw-inset-shadow-alpha",
-            "--tw-ring-color",
-            "--tw-inset-ring-color",
-            "--tw-inset-ring-shadow",
-            "--tw-ring-inset",
-            "--tw-ring-offset-width",
-            "--tw-ring-offset-color",
-            "--tw-ring-offset-shadow",
-        ] {
-            used.insert(name.to_owned());
-        }
-        if css.contains("--tw-mask-conic-position:initial") {
-            used.retain(|name| {
-                !name.starts_with("--tw-mask-linear-") && !name.starts_with("--tw-mask-radial-")
-            });
-        } else if css.contains("--tw-mask-linear-position:initial") {
-            used.retain(|name| !name.starts_with("--tw-mask-radial-"));
-        } else if css.contains("--tw-mask-radial-size:initial") {
-            used.retain(|name| !name.starts_with("--tw-mask-linear-"));
-        }
-    }
     if css.contains("--tw-mask-linear-position:initial")
         || css.contains("--tw-mask-linear-position: initial")
         || css.contains("--tw-mask-radial-size:initial")
@@ -2432,14 +2398,6 @@ fn render_used_properties(
             used.insert(name.to_owned());
         }
     }
-    let shadow_family_used = css.contains("--tw-shadow:")
-        || css.contains("--tw-shadow-color:")
-        || css.contains("--tw-ring-shadow:")
-        || css.contains("--tw-ring-inset:")
-        || css.contains("--tw-inset-ring-shadow:")
-        || css.contains("--tw-inset-shadow:")
-        || css.contains("--tw-inset-shadow-color:")
-        || css.contains("--tw-inset-shadow-alpha:");
     let inset_ring_color_only = css.contains("--tw-inset-ring-color:")
         && !css.contains("--tw-inset-ring-shadow:");
     let text_shadow_none = css.contains("text-shadow:none");
@@ -2464,9 +2422,6 @@ fn render_used_properties(
             {
                 return None;
             }
-            if name == "--tw-ring-color" && !shadow_family_used {
-                return None;
-            }
             if css.contains("--tw-mask-conic-position:initial")
                 && (name.starts_with("--tw-mask-linear-") || name.starts_with("--tw-mask-radial-"))
             {
@@ -2482,13 +2437,7 @@ fn render_used_properties(
             {
                 return None;
             }
-            let shadow_family_property = shadow_family_used
-                && (name.starts_with("--tw-shadow")
-                    || name.starts_with("--tw-inset-shadow")
-                    || name.starts_with("--tw-ring")
-                    || name.starts_with("--tw-inset-ring"));
             let property_used = (gradient_stops_used && name.starts_with("--tw-gradient-"))
-                || shadow_family_property
                 || (text_shadow_none
                     && (name == "--tw-text-shadow-color" || name == "--tw-text-shadow-alpha"))
                 || used.contains(&name);
