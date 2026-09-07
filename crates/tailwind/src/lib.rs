@@ -549,31 +549,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("rotateZ(calc({number}deg * -1))"),
             );
     }
-    if candidate.negative
-        && let Some(value) = declaration
-            .strip_prefix("--tw-translate-x:")
-            .and_then(|value| {
-                value.strip_suffix(";translate:var(--tw-translate-x) var(--tw-translate-y);")
-            })
-            .filter(|value| !value.contains("--tw-translate-y:"))
-    {
-        declaration = format!(
-            "--tw-translate-x:calc({value} * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
-        );
-    }
     let mut nested: Vec<NestedUtilityRule> = resolution
         .nested
         .into_iter()
         .map(|mut nested| {
-            if nested.declaration.contains("translate:") {
-                nested.declaration = nested
-                    .declaration
-                    .replace("--tw-translate-x:0;", "--tw-translate-x:0px;")
-                    .replace("--tw-translate-y:0;", "--tw-translate-y:0px;")
-                    .replace("--tw-translate-z:0;", "--tw-translate-z:0px;")
-                    .replace("calc(var(--spacing) * -1)", "-1px")
-                    .replace("calc(var(--spacing)*-1)", "-1px");
-            }
             if candidate.important {
                 nested.declaration = important(&nested.declaration);
             }
