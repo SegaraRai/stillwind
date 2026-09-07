@@ -743,7 +743,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration = declaration.replace('*', " * ");
         }
         if candidate.negative
-            && name.starts_with("translate-x-[")
             && let Some(value) = declaration
                 .strip_prefix("--tw-translate-x:")
                 .and_then(|value| {
