@@ -1179,6 +1179,18 @@ pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+/// Parses the authored order of theme namespaces used when serializing the
+/// generated theme layer.
+pub fn parse_theme_order(css: &str) -> Vec<String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-theme-order"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .flat_map(str::split_whitespace)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }

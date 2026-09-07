@@ -214,6 +214,12 @@ pub fn builtin_omit_token_prefixes() -> &'static Vec<(String, String)> {
 }
 
 #[must_use]
+pub fn builtin_theme_order() -> &'static Vec<String> {
+    static ORDER: OnceLock<Vec<String>> = OnceLock::new();
+    ORDER.get_or_init(|| stillwind_css::parse_theme_order(BUILTIN_REGISTRY_CSS))
+}
+
+#[must_use]
 fn builtin_function_formats() -> &'static BTreeSet<String> {
     static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
     FORMATS.get_or_init(|| stillwind_css::parse_function_formats(BUILTIN_REGISTRY_CSS))

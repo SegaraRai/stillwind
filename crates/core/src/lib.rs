@@ -1975,15 +1975,20 @@ fn render_stylesheet(
             stillwind_tailwind::builtin_omit_token_prefixes(),
         );
         required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
-        if authored_css.contains("--color-") && authored_css.contains("--spacing") {
+        let theme_order = stillwind_tailwind::builtin_theme_order();
+        if !theme_order.is_empty() {
             required_tokens.sort_by_key(|token| {
-                if token.name.value.starts_with("--color-") {
-                    0
-                } else if token.name.value == "--spacing" {
-                    1
-                } else {
-                    2
-                }
+                let namespace = match token.kind {
+                    stillwind_css::ThemeTokenKind::Scale(namespace)
+                    | stillwind_css::ThemeTokenKind::Token { namespace, .. } => {
+                        Some(namespace.css_name())
+                    }
+                    stillwind_css::ThemeTokenKind::Custom => None,
+                };
+                let rank = namespace
+                    .and_then(|name| theme_order.iter().position(|item| item == name))
+                    .unwrap_or(theme_order.len());
+                (rank, token.name.span.file, token.name.span.start)
             });
         }
         let animations = required_tokens
