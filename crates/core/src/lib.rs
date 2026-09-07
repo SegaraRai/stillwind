@@ -2285,11 +2285,15 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
                 .tokens
                 .iter()
                 .filter_map(|token| {
-                    token
-                        .name
-                        .value
-                        .strip_prefix("--breakpoint-")
-                        .map(str::to_owned)
+                    if let stillwind_css::ThemeTokenKind::Token {
+                        namespace: stillwind_css::ThemeNamespace::Breakpoint,
+                        name,
+                    } = &token.kind
+                    {
+                        Some(name.clone())
+                    } else {
+                        None
+                    }
                 }),
         );
     }
