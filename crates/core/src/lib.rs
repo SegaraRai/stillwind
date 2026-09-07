@@ -2377,30 +2377,8 @@ fn render_used_properties(
             used.insert((*name).to_owned());
         }
     }
-    let gradient_stops_used = css.contains("--tw-gradient-from:")
-        || css.contains("--tw-gradient-via:")
-        || css.contains("--tw-gradient-to:")
-        || css.contains("--tw-gradient-from-position:")
-        || css.contains("--tw-gradient-via-position:")
-        || css.contains("--tw-gradient-to-position:");
-    if gradient_stops_used {
-        for name in [
-            "--tw-gradient-position",
-            "--tw-gradient-from",
-            "--tw-gradient-via",
-            "--tw-gradient-to",
-            "--tw-gradient-stops",
-            "--tw-gradient-via-stops",
-            "--tw-gradient-from-position",
-            "--tw-gradient-via-position",
-            "--tw-gradient-to-position",
-        ] {
-            used.insert(name.to_owned());
-        }
-    }
     let inset_ring_color_only = css.contains("--tw-inset-ring-color:")
         && !css.contains("--tw-inset-ring-shadow:");
-    let text_shadow_none = css.contains("text-shadow:none");
     let mut seen = BTreeSet::new();
     let builtin_properties = theme
         .imports
@@ -2414,12 +2392,6 @@ fn render_used_properties(
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
             if inset_ring_color_only {
-                return None;
-            }
-            if name.starts_with("--tw-gradient-")
-                && (name == "--tw-gradient-position" || name == "--tw-gradient-stops")
-                && !gradient_stops_used
-            {
                 return None;
             }
             if css.contains("--tw-mask-conic-position:initial")
@@ -2437,10 +2409,7 @@ fn render_used_properties(
             {
                 return None;
             }
-            let property_used = (gradient_stops_used && name.starts_with("--tw-gradient-"))
-                || (text_shadow_none
-                    && (name == "--tw-text-shadow-color" || name == "--tw-text-shadow-alpha"))
-                || used.contains(&name);
+            let property_used = used.contains(&name);
             let builtin = builtin_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
