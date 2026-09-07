@@ -429,34 +429,10 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     if declaration.contains("-reverse") {
         declaration = declaration
-            .replace(
-                "* -1*calc(1 - var(--tw-space-x-reverse))",
-                " * calc(1 - var(--tw-space-x-reverse))",
-            )
-            .replace(
-                ")*-1*calc(1 - var(--tw-space-x-reverse))",
-                ") * calc(1 - var(--tw-space-x-reverse))",
-            )
-            .replace(
-                "* -1*var(--tw-space-x-reverse)",
-                " * var(--tw-space-x-reverse)",
-            )
-            .replace(
-                ")*-1*var(--tw-space-x-reverse)",
-                ") * var(--tw-space-x-reverse)",
-            )
-            .replace(
-                "* -1*calc(1 - var(--tw-space-y-reverse))",
-                " * calc(1 - var(--tw-space-y-reverse))",
-            )
-            .replace(
-                ")*-1*calc(1 - var(--tw-space-y-reverse))",
-                ") * calc(1 - var(--tw-space-y-reverse))",
-            )
-            .replace(
-                "* -1*var(--tw-space-y-reverse)",
-                " * var(--tw-space-y-reverse)",
-            )
+            .replace("* -1*calc(1 - var(", " * calc(1 - var(")
+            .replace(")*-1*calc(1 - var(", ") * calc(1 - var(")
+            .replace("* -1*var(", " * var(")
+            .replace(")*-1*var(", ") * var(")
             .replace(")*-1*", ") * ")
             .replace("calc(calc(1px * -1) * ", "calc(-1px * ");
     }
@@ -464,8 +440,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         declaration = declaration
             .replace("calc(calc(var(--spacing) * 1)*", "calc(var(--spacing) * ")
             .replace("px*", "px *")
-            .replace("*var(--tw-space", "* var(--tw-space")
-            .replace("*calc(1 - var(--tw-space", "* calc(1 - var(--tw-space");
+            .replace("*var(", "* var(")
+            .replace("*calc(1 - var(", "* calc(1 - var(");
     }
     if declaration.contains("translate:") {
         declaration = declaration
