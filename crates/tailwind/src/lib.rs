@@ -2640,6 +2640,7 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-map(")
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
+            || declaration.contains("--compat-color(")
             || declaration.contains("--shadow-color(");
         let contains_modifier =
             declaration.contains("--modifier(") || declaration.contains("--shadow-color(");
@@ -4629,6 +4630,19 @@ mod tests {
         assert!(utility.nested[0]
             .declaration
             .contains("color-mix(in oklab,var(--color-brand) 50%,transparent)"));
+
+        let plain_source = SourceFile::new(
+            FileId(2),
+            "plain.css",
+            "@utility plain-tone { color: --compat-color(red, 50%); }",
+        );
+        let plain_theme = parse_tailwind_theme(&plain_source).unwrap();
+        assert_eq!(
+            resolve_utility("plain-tone", &plain_theme)
+                .unwrap()
+                .declaration,
+            "color: color-mix(in srgb,red 50%,transparent);"
+        );
     }
 
     #[test]
