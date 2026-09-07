@@ -2727,6 +2727,16 @@ fn resolve_css_utility_body(
         || body.contains("--fraction()")
         || body.contains("--shadow-color(");
     let mut resolved_nested = Vec::new();
+    let compat_color = body.contains("--compat-color(");
+    if compat_color
+        && let Some(modern) = compat_color_modern_declaration(&declaration)
+    {
+        resolved_nested.push(NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "color:color-mix(in lab, red, red)".to_owned(),
+            declaration: modern,
+        });
+    }
     for (at_rule, condition, body) in nested {
         for (condition, body) in expand_theme_wildcard_nested(&condition, &body, theme) {
             let uses_modifier = body.contains("--modifier(")
@@ -2757,6 +2767,11 @@ fn resolve_css_utility_body(
         nested: resolved_nested,
         additional: Vec::new(),
     })
+}
+
+fn compat_color_modern_declaration(declaration: &str) -> Option<String> {
+    let modern = declaration.replace("color-mix(in srgb,", "color-mix(in oklab,");
+    (modern != declaration).then_some(modern)
 }
 
 fn expand_theme_wildcard_nested(
@@ -4834,6 +4849,11 @@ mod tests {
                 .declaration,
             "color: color-mix(in srgb,var(--color-brand) 50%,transparent);"
         );
+        let utility = resolve_utility("tone-brand/50", &theme).unwrap();
+        assert_eq!(utility.nested.len(), 1);
+        assert!(utility.nested[0]
+            .declaration
+            .contains("color-mix(in oklab,var(--color-brand) 50%,transparent)"));
     }
 
     #[test]
