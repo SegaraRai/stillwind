@@ -2283,7 +2283,6 @@ fn render_used_properties(
     options: &CompilerOptions,
 ) -> String {
     let mut used = stillwind_css::referenced_custom_properties(css);
-    let transform_cpu = css.contains("stillwind-transform-cpu");
     // A utility that only assigns a custom property does not make Tailwind
     // register it. Registration is needed when the value participates in a
     // consuming declaration (`var(--tw-...)`) or an explicitly materialized
@@ -2307,63 +2306,6 @@ fn render_used_properties(
         {
             used.remove(name);
         }
-    }
-    // The CPU/GPU transform shorthands intentionally consume the transform
-    // axes without registering them; Tailwind keeps these as unregistered
-    // fallback variables.
-    if !css.contains("--tw-rotate-x:")
-        && !css.contains("--tw-rotate-y:")
-        && !css.contains("--tw-rotate-z:")
-        && !css.contains("--tw-skew-x:")
-        && !css.contains("--tw-skew-y:")
-    {
-        for name in [
-            "--tw-rotate-x",
-            "--tw-rotate-y",
-            "--tw-rotate-z",
-            "--tw-skew-x",
-            "--tw-skew-y",
-        ] {
-            used.remove(name);
-        }
-    }
-    if css.contains("transform:var(--tw-rotate-x")
-        && !transform_cpu
-        && (css.contains("--tw-rotate-x:")
-            || css.contains("--tw-rotate-y:")
-            || css.contains("--tw-rotate-z:")
-            || css.contains("--tw-skew-x:")
-            || css.contains("--tw-skew-y:")
-            || !css.contains(".transform-cpu"))
-    {
-        for name in [
-            "--tw-rotate-x",
-            "--tw-rotate-y",
-            "--tw-rotate-z",
-            "--tw-skew-x",
-            "--tw-skew-y",
-        ] {
-            used.insert(name.to_owned());
-        }
-    }
-    if css.contains("transition-property:initial") {
-        used.remove("--tw-duration");
-        used.remove("--tw-ease");
-    }
-    if css.contains("--tw-ring-offset-shadow:") && !css.contains("--tw-ring-shadow:") {
-        used.remove("--tw-ring-offset-width");
-        used.remove("--tw-ring-inset");
-        used.remove("--tw-ring-offset-color");
-        used.remove("--tw-ring-offset-shadow");
-    }
-    if css.contains("var(--tw-duration") && !css.contains("--tw-duration:") {
-        used.remove("--tw-duration");
-    }
-    if css.contains("var(--tw-ease") && !css.contains("--tw-ease:") {
-        used.remove("--tw-ease");
-    }
-    if css.contains("var(--tw-leading") && !css.contains("--tw-leading:") {
-        used.remove("--tw-leading");
     }
     if css.contains("--tw-ring-shadow:")
         || css.contains("--tw-shadow-color:")
