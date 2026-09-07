@@ -220,10 +220,10 @@
   transform-origin: left;
 }
 @utility order-first {
-  order: calc(-infinity);
+  order: -9999;
 }
 @utility order-last {
-  order: calc(infinity);
+  order: 9999;
 }
 @utility outline {
   outline-style: solid;
