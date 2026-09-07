@@ -2169,17 +2169,14 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
 
 /// Reads the generic family header. Value expressions are authored in CSS as
 /// `value=--value(...)`; the optional `negative` flag only controls the
-/// generated sign branch. Legacy symbolic headers are intentionally ignored,
-/// keeping Tailwind vocabulary out of the parser.
+/// generated sign branch. Headers without an authored value expression are
+/// ignored, keeping framework vocabulary out of the parser.
 fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
     let negative = header
         .split_whitespace()
         .any(|flag| flag == "negative");
     let Some(start) = header.find("value=") else {
-        let symbolic = header.split_whitespace().next().filter(|_| {
-            false
-        });
-        return (symbolic.map(str::to_owned), negative);
+        return (None, negative);
     };
     let mut value = &header[start + "value=".len()..];
     if let Some(end) = value.rfind(" negative") {
