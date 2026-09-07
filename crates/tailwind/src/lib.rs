@@ -486,13 +486,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("*var(", "* var(")
             .replace("*calc(1 - var(", "* calc(1 - var(");
     }
-    if declaration.contains("translate:") {
-        declaration = declaration
-            .replace("calc(var(--spacing) * 0)", "0px")
-            .replace("calc(var(--spacing) * 1)", "var(--spacing)");
-    } else {
-        declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
-    }
+    declaration = apply_zero_length_format(declaration, theme);
+    declaration = declaration.replace("calc(var(--spacing) * 0)", "0");
     declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
     if declaration.contains("calc(var(--spacing) * -1)") {
         declaration = declaration
@@ -613,6 +608,34 @@ fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> Str
     declaration
 }
 
+fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> String {
+    let formats = if theme.declaration_formats.is_empty() {
+        builtin_declaration_formats()
+    } else {
+        &theme.declaration_formats
+    };
+    for (property, format) in formats {
+        if !format.split_whitespace().any(|item| item == "zero-length") {
+            continue;
+        }
+        let prefix = format!("{property}:");
+        let mut cursor = 0;
+        while let Some(relative) = declaration[cursor..].find(&prefix) {
+            let start = cursor + relative;
+            let end = declaration[start..]
+                .find(';')
+                .map_or(declaration.len(), |offset| start + offset);
+            let segment = declaration[start..end].replace("calc(var(--spacing) * 0)", "0px");
+            declaration.replace_range(start..end, &segment);
+            cursor = start + segment.len();
+            if end == declaration.len() {
+                break;
+            }
+        }
+    }
+    declaration
+}
+
 fn normalize_format_var_fallbacks(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
         builtin_declaration_formats()
@@ -673,6 +696,9 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     {
         return Some(VariantApplication::Supports(condition.replace('_', " ")));
     }
+    if let Some(condition) = dynamic_media_condition(value, theme) {
+        return Some(VariantApplication::Media(condition));
+    }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
             .strip_prefix(prefix)
@@ -697,6 +723,22 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
+}
+
+fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
+    for (prefix, operator) in [("min-[", ">="), ("max-[", "<")] {
+        if let Some(value) = value.strip_prefix(prefix).and_then(|value| value.strip_suffix(']')) {
+            return Some(format!("(width {operator} {})", value.replace('_', " ")));
+        }
+    }
+    for (prefix, operator) in [("min-", ">="), ("max-", "<")] {
+        if let Some(name) = value.strip_prefix(prefix)
+            && let Some(token) = theme.token_in(ThemeNamespace::Breakpoint, name)
+        {
+            return Some(format!("(width {operator} {})", token.value.value));
+        }
+    }
+    None
 }
 
 fn with_hover_media(application: VariantApplication) -> VariantApplication {
