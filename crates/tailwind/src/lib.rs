@@ -3928,10 +3928,11 @@ mod tests {
     fn preserves_supports_and_media_conditions_from_css_utilities() {
         let theme = theme();
         let outline = resolve_utility("outline-hidden", &theme).unwrap();
-
-        assert!(outline
-            .declaration
-            .contains("@media (forced-colors:active){outline-offset:2px;outline:2px solid #0000;}"));
+        assert!(outline.nested.iter().any(|rule| {
+            rule.condition == "(forced-colors:active)"
+                && rule.declaration.contains("outline-offset:2px;")
+                && rule.declaration.contains("outline:2px solid transparent;")
+        }));
     }
 
     #[test]
