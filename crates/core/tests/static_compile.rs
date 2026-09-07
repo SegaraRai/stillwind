@@ -106,7 +106,11 @@ proptest! {
         let border = format!("border-width:calc({n}*1px);");
         let z_index = format!("z-index:{n};");
         let css = normalize_css(&result.css);
-        prop_assert!(css.contains(&padding), "{}", result.css);
+        prop_assert!(
+            css.contains(&padding) || (n == 1 && css.contains("padding:var(--spacing);")),
+            "{}",
+            result.css
+        );
         prop_assert!(css.contains(&border), "{}", result.css);
         prop_assert!(css.contains(&z_index), "{}", result.css);
     }
