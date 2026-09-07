@@ -781,57 +781,6 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
     }
 }
 
-/* Relationship variants are resolved from CSS @variant definitions. */
-/* legacy resolver removed */
-/*
-    let (relation, remainder) = value
-        .strip_prefix("group-")
-        .map(|value| ("group", value))
-        .or_else(|| value.strip_prefix("peer-").map(|value| ("peer", value)))?;
-    let (state, modifier) = remainder
-        .split_once('/')
-        .map_or((remainder, None), |(state, name)| {
-            (state, (!name.is_empty()).then_some(name))
-        });
-    if state.is_empty() {
-        return None;
-    }
-    let marker = modifier.map_or_else(
-        || relation.to_owned(),
-        |modifier| format!(r"{relation}\/{modifier}"),
-    );
-    let inner = Variant {
-        raw: state.to_owned(),
-        kind: state
-            .strip_prefix('[')
-            .and_then(|state| state.strip_suffix(']'))
-            .map_or_else(
-                || VariantKind::Named(state.to_owned()),
-                |state| VariantKind::Arbitrary(state.to_owned()),
-            ),
-    };
-    let relation_selector = |template: String| {
-        let state_selector = template.strip_prefix('&')?;
-        let combinator = if relation == "group" { " *" } else { " ~ *" };
-        Some(format!(
-            "&:is(:where(.{marker}){state_selector}{combinator})"
-        ))
-    };
-    match resolve_variant(&inner, theme)? {
-        VariantApplication::SelectorTemplate(template) => {
-            relation_selector(template).map(VariantApplication::SelectorTemplate)
-        }
-        VariantApplication::SelectorMedia {
-            selector,
-            condition,
-        } => relation_selector(selector).map(|selector| VariantApplication::SelectorMedia {
-            selector,
-            condition,
-        }),
-        _ => None,
-    }
-}*/
-
 fn resolve_container_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
     let value = value.strip_prefix('@')?;
     let (query, name) = value
