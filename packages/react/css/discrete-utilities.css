@@ -320,10 +320,9 @@
 }
 @utility placeholder-* {
   &::placeholder {
-    color: color-mix(
-      in oklab,
-      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-      transparent
+    color: --compat-color(
+      --value(--color-*, current, inherit, transparent, [color]),
+      --alpha(--modifier())
     );
   }
 }
