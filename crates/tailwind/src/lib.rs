@@ -724,12 +724,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    if value == "*" {
-        return Some(VariantApplication::SelectorTemplate(":is(&>*)".to_owned()));
-    }
-    if value == "**" {
-        return Some(VariantApplication::SelectorTemplate(":is(& *)".to_owned()));
-    }
     if let Some(application) = resolve_registered_variant(value, theme) {
         return Some(with_hover_media(application));
     }
