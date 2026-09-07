@@ -1432,7 +1432,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 );
         }
     }
-    if raw.starts_with("backdrop-") {
+    if declaration.contains("--tw-backdrop-") {
         for property in [
             "blur", "brightness", "contrast", "grayscale", "hue-rotate", "invert",
             "opacity", "saturate", "sepia",
