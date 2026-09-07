@@ -575,13 +575,16 @@
   font-family: --value(--font-*);
 }
 @utility leading-* {
-  line-height: --value(--leading-*);
+  --tw-leading: --value(--leading-*);
+  line-height: var(--tw-leading);
 }
 @utility leading-* {
-  line-height: --value(--leading-*, --spacing(), number, [length]);
+  --tw-leading: --value(--leading-*, --spacing(), number, [length]);
+  line-height: var(--tw-leading);
 }
 @utility tracking-* {
-  letter-spacing: --value(--tracking-*);
+  --tw-tracking: --value(--tracking-*);
+  letter-spacing: var(--tw-tracking);
 }
 @utility z-* {
   z-index: --value(--z-index-*);
@@ -593,14 +596,17 @@
   z-index: calc(--value(--z-index-*, integer, [z-index]) * -1);
 }
 @utility duration-* {
-  transition-duration: --value(--duration-*);
+  --tw-duration: --value(--duration-*);
+  transition-duration: var(--tw-duration);
 }
 @utility duration-* {
-  transition-duration: calc(--value(integer) * 1ms);
+  --tw-duration: calc(--value(integer) * 1ms);
+  transition-duration: var(--tw-duration);
 }
 @utility delay-* {
   transition-delay: calc(--value(integer) * 1ms);
 }
 @utility ease-* {
-  transition-timing-function: --value(--ease-*);
+  --tw-ease: --value(--ease-*);
+  transition-timing-function: var(--tw-ease);
 }

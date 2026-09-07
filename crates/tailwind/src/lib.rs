@@ -767,43 +767,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 declaration.insert_str(value_start + end + 1, &format!("--tw-scale-z:{value};"));
             }
         }
-        if name.starts_with("leading-")
-            && declaration.starts_with("line-height:")
-            && let Some(value) = declaration
-                .strip_prefix("line-height:")
-                .and_then(|v| v.strip_suffix(';'))
-        {
-            declaration = format!("--tw-leading:{value};{declaration}");
-        } else if name.starts_with("tracking-")
-            && declaration.starts_with("letter-spacing:")
-            && let Some(value) = declaration
-                .strip_prefix("letter-spacing:")
-                .and_then(|v| v.strip_suffix(';'))
-        {
-            declaration = format!("--tw-tracking:{value};{declaration}");
-        }
-        if name.starts_with("duration-")
-            && declaration.starts_with("transition-duration:")
-            && let Some(value) = declaration
-                .strip_prefix("transition-duration:")
-                .and_then(|value| value.strip_suffix(';'))
-        {
-            let value = if let Some(number) = value
-                .strip_prefix("calc(")
-                .and_then(|value| value.strip_suffix("*1ms)"))
-                .and_then(|value| value.parse::<f64>().ok())
-            {
-                format!("{}s", number / 1000.0)
-            } else {
-                value.to_owned()
-            };
-            declaration = format!("--tw-duration:{value};{declaration}");
-        } else if name.starts_with("ease-")
-            && declaration.starts_with("transition-timing-function:")
-            && let Some(value) = name.strip_prefix("ease-")
-        {
-            declaration = format!("--tw-ease:var(--ease-{value});{declaration}");
-        }
         let mask = match name.as_str() {
             "mask-linear-[initial]" => Some(
                 "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-linear:linear-gradient(var(--tw-mask-linear-stops,var(--tw-mask-linear-position)));--tw-mask-linear-position:initial;mask-composite:intersect;",
