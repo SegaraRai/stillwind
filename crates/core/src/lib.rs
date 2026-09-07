@@ -2295,21 +2295,6 @@ fn render_used_properties(
         .rev()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
-            if css.contains("--tw-mask-conic-position:initial")
-                && (name.starts_with("--tw-mask-linear-") || name.starts_with("--tw-mask-radial-"))
-            {
-                return None;
-            }
-            if css.contains("--tw-mask-linear-position:initial")
-                && (name.starts_with("--tw-mask-radial-") || name.starts_with("--tw-mask-conic-"))
-            {
-                return None;
-            }
-            if css.contains("--tw-mask-radial-size:initial")
-                && (name.starts_with("--tw-mask-linear-") || name.starts_with("--tw-mask-conic-"))
-            {
-                return None;
-            }
             let property_used = used.contains(&name);
             let builtin = builtin_properties
                 .iter()
