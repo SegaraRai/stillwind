@@ -2125,9 +2125,6 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
             if domain.as_deref() == Some("mask-stop") {
                 return expand_mask_stop_family(&body);
             }
-            if domain.as_deref() == Some("mask-radial-stop") {
-                return expand_mask_radial_stop_family(&body);
-            }
             if domain.as_deref() == Some("color-alpha-default") {
                 return expand_color_alpha_default_family(&body);
             }
@@ -2189,7 +2186,7 @@ fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
         .any(|flag| flag == "negative");
     let Some(start) = header.find("value=") else {
         let symbolic = header.split_whitespace().next().filter(|name| {
-            matches!(*name, "mask-stop" | "mask-radial-stop" | "color-alpha" | "color-alpha-default")
+            matches!(*name, "mask-stop" | "color-alpha" | "color-alpha-default")
         });
         return (symbolic.map(str::to_owned), negative);
     };
@@ -2266,43 +2263,6 @@ fn mask_stop_body(edges: &[&str], stop: &str, kind: &str) -> String {
             .expect("writing to a String cannot fail");
     }
     body
-}
-
-fn expand_mask_radial_stop_family(body: &str) -> Vec<CustomUtility> {
-    body.split(';')
-        .filter_map(|entry| entry.split_once(':').map(|(name, _)| name.trim()))
-        .filter_map(|name| {
-            let stop = name.strip_prefix("mask-radial-")?;
-            matches!(stop, "from" | "to").then_some((name, stop))
-        })
-        .flat_map(|(name, stop)| {
-            ["position", "color", "alpha-color"]
-                .into_iter()
-                .map(move |kind| CustomUtility {
-                    name: format!("{name}-*"),
-                    body: mask_radial_stop_body(stop, kind),
-                })
-        })
-        .collect()
-}
-
-fn mask_radial_stop_body(stop: &str, kind: &str) -> String {
-    let value = match kind {
-        "position" => "--value(--spacing-*, --spacing(), percentage, [length])",
-        "color" => "--value(--color-*, current, inherit, transparent, [color])",
-        "alpha-color" => {
-            "color-mix(in oklab,--value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),transparent)"
-        }
-        _ => unreachable!("radial mask stop body kind is fixed by the expander"),
-    };
-    let suffix = if kind == "position" {
-        "position"
-    } else {
-        "color"
-    };
-    format!(
-        "mask-image:var(--tw-mask-linear),var(--tw-mask-radial),var(--tw-mask-conic);mask-composite:intersect;--tw-mask-radial-stops:var(--tw-mask-radial-shape,ellipse) var(--tw-mask-radial-size,farthest-corner) at var(--tw-mask-radial-position,center),var(--tw-mask-radial-from-color,black) var(--tw-mask-radial-from-position,0%),var(--tw-mask-radial-to-color,transparent) var(--tw-mask-radial-to-position,100%);--tw-mask-radial:radial-gradient(var(--tw-mask-radial-stops));--tw-mask-radial-{stop}-{suffix}:{value};"
-    )
 }
 
 fn strip_css_comments(css: &str) -> String {
