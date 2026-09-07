@@ -270,10 +270,9 @@
   box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
 }
 @utility inset-shadow-* {
-  --tw-inset-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-inset-shadow-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
   box-shadow: var(--tw-inset-shadow, 0 0 #0000) var(--tw-inset-shadow-color);
 }
@@ -291,10 +290,9 @@
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility text-shadow-* {
-  --tw-text-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-text-shadow-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility drop-shadow-* {
@@ -306,10 +304,9 @@
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility drop-shadow-* {
-  --tw-drop-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-drop-shadow-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
