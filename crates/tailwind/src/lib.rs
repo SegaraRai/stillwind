@@ -702,13 +702,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("var(--tw-rotate-z)", "var(--tw-rotate-z,)")
         .replace("var(--tw-skew-x)", "var(--tw-skew-x,)")
         .replace("var(--tw-skew-y)", "var(--tw-skew-y,)");
-    if let Utility::Named { name, .. } = &candidate.utility
-        && name.starts_with("line-clamp-")
-        && declaration.starts_with("-webkit-line-clamp:")
-        && !declaration.contains("-webkit-box-orient")
-    {
-        declaration.push_str("-webkit-box-orient:vertical;display:-webkit-box;overflow:hidden;");
-    }
     if let Utility::Named { name, .. } = &candidate.utility {
         if name.starts_with("scale-")
             && !name.starts_with("scale-x-")
