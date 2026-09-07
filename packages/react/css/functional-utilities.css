@@ -218,11 +218,11 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 /* A token shadow with a slash opacity modifier needs its authored colour,
- * rather than a `var()` reference. `--shadow-color` is the narrow registry
+ * rather than a `var()` reference. `--relative-color` is the generic registry
  * extension for this CSS Color 5 relative-colour operation. */
 @utility inset-shadow-* {
   --tw-inset-shadow-alpha: --alpha(--modifier());
-  --tw-inset-shadow: --shadow-color(
+  --tw-inset-shadow: --relative-color(
     --inset-shadow-*,
     --tw-inset-shadow-color,
     --alpha(--modifier())

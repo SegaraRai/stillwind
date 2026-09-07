@@ -1192,11 +1192,11 @@ fn resolve_css_utility_body(
     // exception: their slash is deliberately reassembled by `--fraction()`.
     let consumes_modifier = body.contains("--modifier")
         || body.contains("--fraction()")
-        || body.contains("--shadow-color(")
+        || body.contains("--relative-color(")
         || nested.iter().any(|(_, _, body)| {
             body.contains("--modifier")
                 || body.contains("--fraction()")
-                || body.contains("--shadow-color(")
+                || body.contains("--relative-color(")
         });
     if modifier.is_some() && !consumes_modifier {
         return None;
@@ -1208,7 +1208,7 @@ fn resolve_css_utility_body(
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
         || body.contains("--fraction()")
-        || body.contains("--shadow-color(");
+        || body.contains("--relative-color(");
     let mut resolved_nested = Vec::new();
     let compat_color = body.contains("--compat-color(");
     if compat_color
@@ -1226,7 +1226,7 @@ fn resolve_css_utility_body(
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
                 || body.contains("--fraction()")
-                || body.contains("--shadow-color(");
+                || body.contains("--relative-color(");
             let Some(declaration) =
                 resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)
             else {
@@ -1409,13 +1409,13 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
             || declaration.contains("--compat-color(")
-            || declaration.contains("--shadow-color(")
+            || declaration.contains("--relative-color(")
     });
     let uses_value = declarations.iter().any(|declaration| {
         declaration.contains("--value(") || declaration.contains("--value-literal(")
     });
     let requires_modifier = declarations.iter().any(|declaration| {
-        declaration.contains("--modifier(") || declaration.contains("--shadow-color(")
+        declaration.contains("--modifier(") || declaration.contains("--relative-color(")
     });
     let mut resolved_placeholder = false;
     let mut resolved_value = false;
@@ -1431,9 +1431,9 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
             || declaration.contains("--compat-color(")
-            || declaration.contains("--shadow-color(");
+            || declaration.contains("--relative-color(");
         let contains_modifier =
-            declaration.contains("--modifier(") || declaration.contains("--shadow-color(");
+            declaration.contains("--modifier(") || declaration.contains("--relative-color(");
         let contains_value =
             declaration.contains("--value(") || declaration.contains("--value-literal(");
         if let Some(declaration) =
@@ -1607,8 +1607,8 @@ fn resolve_css_placeholders(
         let replacement = resolve_compat_color(&body[open + 1..end])?;
         body.replace_range(start..=end, &replacement);
     }
-    while let Some(start) = body.find("--shadow-color(") {
-        let open = start + "--shadow-color".len();
+    while let Some(start) = body.find("--relative-color(") {
+        let open = start + "--relative-color".len();
         let end = closing_parenthesis(&body, open)?;
         let replacement = resolve_shadow_color(&body[open + 1..end], capture, theme)?;
         body.replace_range(start..=end, &replacement);
@@ -1622,7 +1622,7 @@ fn resolve_css_placeholders(
         && !body.contains("--modifier-none()")
         && !body.contains("--alpha(")
         && !body.contains("--compat-color(")
-        && !body.contains("--shadow-color("))
+        && !body.contains("--relative-color("))
     .then_some(body)
 }
 
