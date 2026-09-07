@@ -2393,16 +2393,25 @@ fn find_registered_variant<'a, 'b>(
 fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
     if !value.contains("--value()")
         && !value.contains(r"\*")
+        && !value.contains("{modifier}")
         && !value.contains(":root")
         && !value.contains("0n")
     {
         return Some(value.to_owned());
     }
-    let capture = capture?.replace('_', " ");
+    let capture = capture?;
+    let (capture, modifier) = capture
+        .split_once('/')
+        .map_or((capture, None), |(capture, modifier)| (capture, Some(modifier)));
+    let capture = capture.replace('_', " ");
+    let modifier = modifier
+        .map(|modifier| modifier.replace('_', " ").replace('/', r"\/"))
+        .unwrap_or_default();
     Some(
         value
             .replace("--value()", &capture)
             .replace(r"\*", &capture)
+            .replace("{modifier}", &modifier)
             .replace(":root", &format!(":{capture}"))
             .replace("0n", &capture),
     )
@@ -4736,6 +4745,27 @@ mod tests {
             ),
             Some(VariantApplication::SelectorTemplate(
                 "&[aria-expanded=\"true\"]".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn resolves_formal_variant_modifier_placeholder() {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@variant rel-* { :where(.peer/{modifier}) ~ & { @slot; } }",
+        );
+        let theme = parse_tailwind_theme(&source).unwrap();
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("rel-checked/field:flex")
+                    .unwrap()
+                    .variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorTemplate(
+                ":where(.peer/field) ~ &".to_owned()
             ))
         );
     }
