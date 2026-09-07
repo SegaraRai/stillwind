@@ -143,6 +143,11 @@
 @utility mask-conic-* {
   mask-image: conic-gradient(--value([conic-gradient-arguments]));
 }
+@utility mask-conic-1 {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-position: 1deg;
+}
 @utility mask-conic-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -166,6 +171,11 @@
 }
 @utility mask-linear-* {
   mask-image: linear-gradient(--value([linear-gradient-arguments]));
+}
+@utility mask-linear-1 {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-position: 1deg;
 }
 @utility mask-linear-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);

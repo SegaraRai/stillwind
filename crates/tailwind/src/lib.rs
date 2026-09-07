@@ -744,18 +744,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             );
         }
     }
-    if raw == "mask-conic-1" {
-        declaration = declaration.replace(
-            "--tw-mask-conic-position:calc(1deg * 1);",
-            "--tw-mask-conic-position:1deg;",
-        );
-    }
-    if raw == "mask-linear-1" {
-        declaration = declaration.replace(
-            "--tw-mask-linear-position:calc(1deg * 1);",
-            "--tw-mask-linear-position:1deg;",
-        );
-    }
     if raw.starts_with("bg-conic-") {
         declaration = declaration.replace("calc(1deg*0)", "0deg");
         for amount in 1..=1000 {
