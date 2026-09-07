@@ -206,10 +206,9 @@
   --tw-inset-ring-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility inset-ring-* {
-  --tw-inset-ring-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-inset-ring-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility ring-offset-* {
@@ -219,10 +218,9 @@
   --tw-ring-offset-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility ring-offset-* {
-  --tw-ring-offset-color: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-ring-offset-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
 }
 @utility scrollbar-track-* {
@@ -230,10 +228,9 @@
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
 }
 @utility scrollbar-track-* {
-  --tw-scrollbar-track: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-scrollbar-track: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
 }
@@ -242,10 +239,9 @@
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
 }
 @utility scrollbar-thumb-* {
-  --tw-scrollbar-thumb: color-mix(
-    in oklab,
-    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
-    transparent
+  --tw-scrollbar-thumb: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
   );
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
 }
