@@ -1818,19 +1818,19 @@ fn combine_declarations_with_order(
                     }
                 }
             } else if !declaration.is_empty() {
-                // Tailwind's minifier retains a separating space in
-                // comma-separated shadow fallback lists. Keep that spelling so
-                // parity comparisons are made against the same serialized CSS.
                 let declaration = if let Some((property, value)) = declaration.split_once(':')
                     && value.is_empty()
                     && formats.get(property).is_some_and(|format| format == "empty-space")
                 {
                     format!("{property}: ")
+                } else if let Some((property, value)) = declaration.split_once(':')
+                    && formats.get(property).is_some_and(|format| {
+                        format.split_whitespace().any(|item| item == "comma-space")
+                    })
+                {
+                    format!("{property}:{}", value.replace(",var(", ", var("))
                 } else {
-                    declaration.strip_prefix("box-shadow:").map_or_else(
-                        || declaration.to_owned(),
-                        |value| format!("box-shadow:{}", value.replace(",var(", ", var(")),
-                    )
+                    declaration.to_owned()
                 };
                 let declaration = declaration
                     .replace(" deg", "deg")

@@ -20,6 +20,7 @@
 @stillwind-format grid-column slash-space-span;
 @stillwind-format grid-row slash-space-span;
 @stillwind-format --tw-drop-shadow empty-space;
+@stillwind-format box-shadow comma-space;
 @stillwind-format transform var-fallback;
 @stillwind-format transform compose-space;
 @stillwind-format translate zero-length;
