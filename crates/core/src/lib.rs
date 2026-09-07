@@ -1798,7 +1798,7 @@ fn combine_declarations_with_order(
     formats: &std::collections::BTreeMap<String, String>,
 ) -> String {
     let mut declarations = String::new();
-    let mut transforms = Vec::new();
+    let mut composed = Vec::<(String, String)>::new();
     let mut ordered = Vec::new();
     for utility in utilities {
         for declaration in utility.declaration.split_terminator(';') {
@@ -1809,7 +1809,14 @@ fn combine_declarations_with_order(
                     format.split_whitespace().any(|item| item == "compose-space")
                 });
             if compose_space {
-                transforms.push(declaration.split_once(':').map_or("", |(_, value)| value));
+                if let Some((property, value)) = declaration.split_once(':') {
+                    if let Some((_, existing)) = composed.iter_mut().find(|(name, _)| name == property) {
+                        existing.push(' ');
+                        existing.push_str(value);
+                    } else {
+                        composed.push((property.to_owned(), value.to_owned()));
+                    }
+                }
             } else if !declaration.is_empty() {
                 // Tailwind's minifier retains a separating space in
                 // comma-separated shadow fallback lists. Keep that spelling so
@@ -1877,9 +1884,10 @@ fn combine_declarations_with_order(
         declarations.push_str(&declaration);
         declarations.push(';');
     }
-    if !transforms.is_empty() {
-        declarations.push_str("transform:");
-        declarations.push_str(&transforms.join(" "));
+    for (property, value) in composed {
+        declarations.push_str(&property);
+        declarations.push(':');
+        declarations.push_str(&value);
         declarations.push(';');
     }
     declarations
