@@ -1777,20 +1777,7 @@ fn render_utility_rule(
             None => {}
         }
     }
-    let marker_selectors = (nested_rule.is_none()
-        && selector.contains("::marker")
-        && selector.contains("::-webkit-details-marker"))
-    .then(|| {
-        let selectors = selector.split(',').collect::<Vec<_>>();
-        (selectors.len() == 4).then(|| {
-            format!(
-                "{},{}{{{declaration}}}{}{{{declaration}}}{}{{{declaration}}}",
-                selectors[0], selectors[1], selectors[2], selectors[3]
-            )
-        })
-    })
-    .flatten();
-    let mut rule = marker_selectors.unwrap_or_else(|| format!("{selector}{{{declaration}}}"));
+    let mut rule = format!("{selector}{{{declaration}}}");
     if let Some(nested) = nested_rule {
         rule = match nested.at_rule {
             stillwind_tailwind::NestedUtilityAtRule::Media => {
