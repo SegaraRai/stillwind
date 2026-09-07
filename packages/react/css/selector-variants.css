@@ -155,6 +155,11 @@
     @slot;
   }
 }
+@variant @container* {
+  @container {modifier} {
+    @slot;
+  }
+}
 @variant group-* {
   &:is(:where(.group/{modifier}):--value() *) {
     @slot;
