@@ -341,6 +341,55 @@ fn normalize_spaced_negative_angles(value: &str) -> String {
     output
 }
 
+fn normalize_transform_vars(declaration: String) -> String {
+    let mut output = String::with_capacity(declaration.len());
+    let mut cursor = 0;
+    while let Some(relative) = declaration[cursor..].find("transform:") {
+        let start = cursor + relative;
+        output.push_str(&declaration[cursor..start]);
+        let end = declaration[start..]
+            .find(';')
+            .map_or(declaration.len(), |offset| start + offset);
+        let value = &declaration[start..end];
+        output.push_str(&normalize_var_fallbacks(value));
+        if end < declaration.len() {
+            output.push(';');
+            cursor = end + 1;
+        } else {
+            cursor = end;
+        }
+    }
+    output.push_str(&declaration[cursor..]);
+    output
+}
+
+fn normalize_var_fallbacks(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut cursor = 0;
+    while let Some(relative) = value[cursor..].find("var(--") {
+        let start = cursor + relative;
+        output.push_str(&value[cursor..start]);
+        let Some(open) = value[start..].find('(').map(|offset| start + offset) else {
+            output.push_str(&value[start..]);
+            return output;
+        };
+        let Some(close) = closing_parenthesis(value, open) else {
+            output.push_str(&value[start..]);
+            return output;
+        };
+        let expression = &value[open + 1..close];
+        output.push_str(&value[start..open + 1]);
+        output.push_str(expression);
+        if !expression.contains(',') {
+            output.push(',');
+        }
+        output.push(')');
+        cursor = close + 1;
+    }
+    output.push_str(&value[cursor..]);
+    output
+}
+
 fn normalize_negative_space_order(mut declaration: String, axis: &str) -> String {
     let (start_property, end_property) = if axis == "x" {
         ("margin-inline-start:", "margin-inline-end:")
@@ -476,6 +525,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     } else {
         resolution.declaration
     };
+    declaration = normalize_transform_vars(declaration);
     if declaration == "grid-column:span initial/span initial;" {
         declaration = "grid-column:span initial / span initial;".to_owned();
     }
@@ -600,12 +650,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("rotateZ(calc({number}deg * -1))"),
             );
     }
-    declaration = declaration
-        .replace("var(--tw-rotate-x)", "var(--tw-rotate-x,)")
-        .replace("var(--tw-rotate-y)", "var(--tw-rotate-y,)")
-        .replace("var(--tw-rotate-z)", "var(--tw-rotate-z,)")
-        .replace("var(--tw-skew-x)", "var(--tw-skew-x,)")
-        .replace("var(--tw-skew-y)", "var(--tw-skew-y,)");
     if let Utility::Named { name, .. } = &candidate.utility {
         if name.starts_with("w-[calc(")
             || name.starts_with("h-[calc(")
