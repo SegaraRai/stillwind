@@ -1351,18 +1351,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: nested_declaration,
         });
     }
-    if let Some(alpha) = raw.strip_prefix("placeholder-current/") {
-        let alpha = alpha.trim_end_matches('%');
-        if alpha != "100" {
-            declaration = declaration.replace(
-                &format!("color:color-mix(in oklab, currentcolor {alpha}%, transparent);"),
-                "color:currentColor;",
-            );
-            declaration.push_str(&format!(
-                "@supports (color:color-mix(in lab, red, red)){{color:color-mix(in oklab, currentcolor {alpha}%, transparent);}}"
-            ));
-        }
-    }
     if declaration.contains("--tw-mask-") {
         declaration = declaration
             .replace("calc(1deg * 0)", "0deg")
