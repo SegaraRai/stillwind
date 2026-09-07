@@ -750,16 +750,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             )));
         }
     }
-    for (prefix, attribute) in [("aria-", "aria"), ("data-", "data")] {
-        if let Some(name) = value.strip_prefix(prefix) {
-            let selector = if attribute == "aria" {
-                format!("&[{attribute}-{name}=\"true\"]")
-            } else {
-                format!("&[{attribute}-{name}]")
-            };
-            return Some(VariantApplication::SelectorTemplate(selector));
-        }
-    }
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
