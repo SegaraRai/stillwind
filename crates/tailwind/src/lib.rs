@@ -915,25 +915,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 declaration.insert_str(value_start + end + 1, &format!("--tw-scale-z:{value};"));
             }
         }
-        if name.starts_with("underline-offset-")
-            && let Some(value) = name.strip_prefix("underline-offset-")
-            && value.parse::<f64>().is_ok()
-        {
-            declaration = declaration.replace(
-                &format!("calc(var(--spacing) * {value})"),
-                &format!("{}px", value.parse::<f64>().unwrap_or_default()),
-            );
-            declaration = declaration.replace(
-                "var(--spacing)",
-                &format!("{}px", value.parse::<f64>().unwrap_or_default()),
-            );
-        }
-        if raw.starts_with("-underline-offset-")
-            && let Some(value) = raw.strip_prefix("-underline-offset-")
-            && let Ok(value) = value.parse::<f64>()
-        {
-            declaration = format!("text-underline-offset:calc({value}px * -1);");
-        }
         if name.starts_with("outline-offset-")
             && let Some(value) = name.strip_prefix("outline-offset-")
             && value.parse::<f64>().is_ok()

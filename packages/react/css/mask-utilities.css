@@ -522,6 +522,9 @@
 @utility underline-offset-* {
   text-underline-offset: --value(--spacing-*, --spacing(), [length]);
 }
+@utility -underline-offset-* {
+  text-underline-offset: calc(--value(--spacing-*, --spacing(), [length]) * -1);
+}
 @utility underline-offset-auto {
   text-underline-offset: auto;
 }
