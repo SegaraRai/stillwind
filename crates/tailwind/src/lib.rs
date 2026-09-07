@@ -680,17 +680,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
-        .or_else(|| {
-            let value = match value.as_str() {
-                "sm" => "40rem",
-                "md" => "48rem",
-                "lg" => "64rem",
-                "xl" => "80rem",
-                "2xl" => "96rem",
-                _ => return None,
-            };
-            Some(VariantApplication::Media(format!("(width >= {value})")))
-        })
 }
 
 fn with_hover_media(application: VariantApplication) -> VariantApplication {
