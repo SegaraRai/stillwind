@@ -364,25 +364,6 @@ fn normalize_var_fallbacks(value: &str) -> String {
     output
 }
 
-fn normalize_dimension_calc_operators(mut declaration: String) -> String {
-    let mut cursor = 0;
-    while cursor < declaration.len() {
-        let Some(relative) = declaration[cursor..].find(';') else {
-            break;
-        };
-        let end = cursor + relative;
-        let segment = &declaration[cursor..end];
-        if segment.contains("100%") {
-            let normalized = segment.replace(" * ", "*").replace('*', " * ");
-            declaration.replace_range(cursor..end, &normalized);
-            cursor += normalized.len() + 1;
-        } else {
-            cursor = end + 1;
-        }
-    }
-    declaration
-}
-
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]
 #[allow(clippy::too_many_lines)]
@@ -402,7 +383,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         resolution.declaration
     };
     declaration = normalize_transform_vars(declaration);
-    declaration = normalize_dimension_calc_operators(declaration);
     if declaration == "grid-column:span initial/span initial;" {
         declaration = "grid-column:span initial / span initial;".to_owned();
     }
