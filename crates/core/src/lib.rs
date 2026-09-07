@@ -1796,15 +1796,6 @@ fn render_utility_rule(
     })
     .flatten();
     let mut rule = marker_selectors.unwrap_or_else(|| format!("{selector}{{{declaration}}}"));
-    let not_hover = utility
-        .variants
-        .iter()
-        .any(|variant| variant.raw == "not-hover");
-    let base_rule = if not_hover {
-        format!("{selector}{{{declaration}}}")
-    } else {
-        rule.clone()
-    };
     if let Some(nested) = nested_rule {
         rule = match nested.at_rule {
             stillwind_tailwind::NestedUtilityAtRule::Media => {
@@ -1829,10 +1820,6 @@ fn render_utility_rule(
     }
     if let Some(container) = &utility.container {
         rule = format!("@container {container}{{{rule}}}");
-    }
-    if not_hover {
-        rule = rule.replace(":not(:hover)", "");
-        rule = format!("{base_rule}{rule}");
     }
     rule
 }
