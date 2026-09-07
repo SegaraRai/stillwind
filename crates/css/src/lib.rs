@@ -1296,6 +1296,39 @@ pub fn used_custom_properties(css: &str) -> BTreeSet<String> {
     custom_property_references(&strip_css_comments(&strip_blocks(css, "@property")))
 }
 
+/// Returns only custom properties consumed through `var(...)` references.
+/// Definitions such as `--tw-shadow: ...` are intentionally excluded; the
+/// caller can use this dependency set to decide which registered properties
+/// must be emitted without knowing any framework-specific property families.
+#[must_use]
+pub fn referenced_custom_properties(css: &str) -> BTreeSet<String> {
+    let css = strip_css_comments(&strip_blocks(css, "@property"));
+    let mut references = BTreeSet::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find("var(") {
+        let start = cursor + relative + 4;
+        let Some(relative_name) = css[start..].find("--") else {
+            cursor = start;
+            continue;
+        };
+        let name_start = start + relative_name;
+        let end = css[name_start..]
+            .char_indices()
+            .take_while(|(_, character)| {
+                character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+            })
+            .last()
+            .map_or(name_start + 2, |(offset, character)| {
+                name_start + offset + character.len_utf8()
+            });
+        if end > name_start + 2 {
+            references.insert(css[name_start..end].to_owned());
+        }
+        cursor = end.max(start);
+    }
+    references
+}
+
 #[derive(Debug, Error)]
 pub enum ThemeError {
     #[error("CSS parse error: {0}")]
@@ -2282,6 +2315,15 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn extracts_only_var_custom_property_dependencies() {
+        let css = "--unused:red;--used:var(--source, var(--fallback));@property --ignored { syntax: '*' }";
+        assert_eq!(
+            referenced_custom_properties(css),
+            BTreeSet::from(["--source".to_owned(), "--fallback".to_owned()])
+        );
+    }
 
     #[test]
     fn validates_arbitrary_values_with_lightningcss_value_parsers() {

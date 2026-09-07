@@ -2282,7 +2282,7 @@ fn render_used_properties(
     css: &str,
     options: &CompilerOptions,
 ) -> String {
-    let mut used = stillwind_css::used_custom_properties(css);
+    let mut used = stillwind_css::referenced_custom_properties(css);
     let transform_cpu = css.contains("stillwind-transform-cpu");
     // A utility that only assigns a custom property does not make Tailwind
     // register it. Registration is needed when the value participates in a
@@ -2811,7 +2811,7 @@ mod tests {
                   inherits: false;
                   initial-value: 0;
                 }
-                .example { --example-used: 1; }
+                .example { --example-used: 1; color: var(--example-used); }
             "#,
         );
 
