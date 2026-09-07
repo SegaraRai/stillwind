@@ -884,9 +884,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration = format!("{prefix}{value};{rest}");
         }
     }
-    if raw == "underline-offset-0" {
-        declaration = declaration.replace("text-underline-offset:0;", "text-underline-offset:0px;");
-    }
     if declaration.contains("--tw-translate-") {
         declaration = declaration
             .replace("calc(var(--spacing) * 0)", "0px")
