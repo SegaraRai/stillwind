@@ -67,10 +67,11 @@
   }
 }
 @utility ease-linear {
+  --tw-ease: linear;
   transition-timing-function: linear;
 }
 @utility ease-initial {
-  transition-timing-function: initial;
+  --tw-ease: initial;
 }
 @utility list-none {
   list-style-type: none;
