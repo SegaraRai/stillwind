@@ -84,20 +84,18 @@
   --tw-shadow-color: --value(--color-*, current, transparent);
 }
 @utility shadow-* {
-  --tw-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, transparent) --alpha(--modifier()),
-    transparent
+  --tw-shadow-color: --compat-color(
+    --value(--color-*, current, transparent),
+    --alpha(--modifier())
   );
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --value(--color-*, current, transparent);
 }
 @utility inset-shadow-* {
-  --tw-inset-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, transparent) --alpha(--modifier()),
-    transparent
+  --tw-inset-shadow-color: --compat-color(
+    --value(--color-*, current, transparent),
+    --alpha(--modifier())
   );
 }
 @utility drop-shadow-* {
@@ -105,10 +103,9 @@
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility drop-shadow-* {
-  --tw-drop-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, transparent) --alpha(--modifier()),
-    transparent
+  --tw-drop-shadow-color: --compat-color(
+    --value(--color-*, current, transparent),
+    --alpha(--modifier())
   );
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
@@ -126,10 +123,9 @@
   text-shadow: none;
 }
 @utility text-shadow-* {
-  --tw-text-shadow-color: color-mix(
-    in oklab,
-    --value(--color-*, current, transparent) --alpha(--modifier()),
-    transparent
+  --tw-text-shadow-color: --compat-color(
+    --value(--color-*, current, transparent),
+    --alpha(--modifier())
   );
 }
 @utility mask-linear-from-* {
