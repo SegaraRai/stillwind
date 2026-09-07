@@ -545,9 +545,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         })
         .collect();
     let selector = resolution.selector;
-    if raw.ends_with("/100") && declaration.contains(":#0000;") {
-        nested.clear();
-    }
     Some(ResolvedUtility {
         declaration,
         selector,
