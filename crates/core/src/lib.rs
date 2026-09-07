@@ -1846,7 +1846,7 @@ fn combine_declarations_with_order(
                     .replace("calc(var(--spacing)*0)", zero);
                 let declaration = declaration.replace("*-1", " * -1");
                 // Keep fallback `var()` comma spacing generic across all
-                // properties instead of recognizing mask/shadow families.
+                // declaration values.
                 let declaration = declaration.replace(",var(", ", var(");
                 let declaration = if declaration.contains("deg") {
                     normalize_angle_calc(&normalize_negative_calc(&declaration))
