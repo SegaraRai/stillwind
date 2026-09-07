@@ -125,8 +125,18 @@
     @slot;
   }
 }
+@variant min-* {
+  @media (width >= --value([length])) {
+    @slot;
+  }
+}
 @variant max-* {
   @media (width < --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+@variant max-* {
+  @media (width < --value([length])) {
     @slot;
   }
 }

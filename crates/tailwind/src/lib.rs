@@ -694,9 +694,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
             return Some(VariantApplication::SelectorTemplate(selector));
         }
     }
-    if let Some(condition) = dynamic_media_condition(value, theme) {
-        return Some(VariantApplication::Media(condition));
-    }
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
@@ -922,26 +919,6 @@ fn resolve_variant_value_domains(
         }
         resolve_value_domains(domain, capture, false, theme)
     })
-}
-
-fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
-    for (prefix, operator) in [("min-[", ">="), ("max-[", "<")] {
-        if let Some(value) = bracketed(value, prefix) {
-            return Some(format!("(width {operator} {})", value.replace('_', " ")));
-        }
-    }
-    for (prefix, operator) in [("min-", ">="), ("max-", "<")] {
-        if let Some(name) = value.strip_prefix(prefix)
-            && let Some(token) = theme.token_in(ThemeNamespace::Breakpoint, name)
-        {
-            return Some(format!("(width {operator} {})", token.value.value));
-        }
-    }
-    None
-}
-
-fn bracketed<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
-    value.strip_prefix(prefix)?.strip_suffix(']')
 }
 
 fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
