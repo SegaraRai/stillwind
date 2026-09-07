@@ -642,20 +642,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             inside: true,
         });
     }
-    if declaration.contains("--tw-mask-") {
-        declaration = declaration
-            .replace("calc(1deg * 0)", "0deg")
-            .replace("calc(1deg*0)", "0deg");
-        declaration = declaration
-            .replace("--tw-mask-radial-from-position:0;", "--tw-mask-radial-from-position:0px;")
-            .replace("--tw-mask-radial-to-position:0;", "--tw-mask-radial-to-position:0px;");
-        for axis in ["left", "right", "top", "bottom", "x", "y"] {
-            declaration = declaration.replace(
-                &format!("--tw-mask-{axis}-to-position:0;"),
-                &format!("--tw-mask-{axis}-to-position:0px;"),
-            );
-        }
-    }
     let additional = resolution
         .additional
         .into_iter()
@@ -682,14 +668,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     });
     if raw.ends_with("/100") && declaration.contains(":#0000;") {
         nested.clear();
-    }
-    if declaration.contains("--tw-mask-") {
-        for side in ["left", "right", "top", "bottom"] {
-            declaration = declaration.replace(
-                &format!("--tw-mask-{side}-from-position:0;"),
-                &format!("--tw-mask-{side}-from-position:0px;"),
-            );
-        }
     }
     Some(ResolvedUtility {
         declaration,
