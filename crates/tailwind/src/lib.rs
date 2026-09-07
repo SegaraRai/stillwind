@@ -463,7 +463,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace("calc(1deg * -1)", "-1deg")
             .replace("calc(0deg * -1)", "0deg");
     }
-    if declaration.contains("--tw-space-x-reverse") || declaration.contains("--tw-space-y-reverse") {
+    if declaration.contains("-reverse") {
         declaration = declaration
             .replace(
                 "* -1*calc(1 - var(--tw-space-x-reverse))",
@@ -496,7 +496,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             .replace(")*-1*", ") * ")
             .replace("calc(calc(1px * -1) * ", "calc(-1px * ");
     }
-    if declaration.contains("--tw-space-x-reverse") || declaration.contains("--tw-space-y-reverse") {
+    if declaration.contains("-reverse") {
         declaration = declaration
             .replace("calc(calc(var(--spacing) * 1)*", "calc(var(--spacing) * ")
             .replace("px*", "px *")
