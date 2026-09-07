@@ -1808,7 +1808,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
                     .replace(" deg", "deg")
                     .replace("deg*-1", "deg * -1")
                     .replace("*-1)", "* -1)");
-                let zero = if declaration.starts_with("--tw-mask-") {
+                let zero = if declaration.contains("deg") || declaration.contains("px") {
                     "0px"
                 } else {
                     "0"
