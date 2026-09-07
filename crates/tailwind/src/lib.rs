@@ -736,9 +736,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     {
         return Some(VariantApplication::Supports(condition.replace('_', " ")));
     }
-    if let Some(condition) = dynamic_media_condition(value, theme) {
-        return Some(VariantApplication::Media(condition));
-    }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
             .strip_prefix(prefix)
@@ -753,22 +750,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     theme
         .token_in(ThemeNamespace::Breakpoint, value)
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
-}
-
-fn dynamic_media_condition(value: &str, theme: &ThemeIndex) -> Option<String> {
-    for (prefix, operator) in [("min-[", ">="), ("max-[", "<")] {
-        if let Some(value) = value.strip_prefix(prefix).and_then(|value| value.strip_suffix(']')) {
-            return Some(format!("(width {operator} {})", value.replace('_', " ")));
-        }
-    }
-    for (prefix, operator) in [("min-", ">="), ("max-", "<")] {
-        if let Some(name) = value.strip_prefix(prefix)
-            && let Some(token) = theme.token_in(ThemeNamespace::Breakpoint, name)
-        {
-            return Some(format!("(width {operator} {})", token.value.value));
-        }
-    }
-    None
 }
 
 fn with_hover_media(application: VariantApplication) -> VariantApplication {
@@ -871,44 +852,52 @@ fn resolve_container_variant(value: &str, theme: &ThemeIndex) -> Option<VariantA
 }
 
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
-    let (custom, capture) = find_registered_variant(&theme.variants, value).or_else(|| {
-        theme
-            .imports
-            .builtins
-            .then(|| find_registered_variant(builtin_variants(), value))
-            .flatten()
-    })?;
-    let body = substitute_variant_capture(&custom.body, capture)?;
-    let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
-    resolve_variant_body(&body).or_else(|| {
-        substitute_variant_capture(&custom.selector, capture)
-            .map(VariantApplication::SelectorTemplate)
+    let mut candidates = registered_variant_candidates(&theme.variants, value);
+    if theme.imports.builtins {
+        candidates.extend(registered_variant_candidates(builtin_variants(), value));
+    }
+    candidates.into_iter().find_map(|(custom, capture)| {
+        let body = substitute_variant_capture(&custom.body, capture)?;
+        let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
+        resolve_variant_body(&body).or_else(|| {
+            substitute_variant_capture(&custom.selector, capture)
+                .map(VariantApplication::SelectorTemplate)
+        })
     })
 }
 
-fn find_registered_variant<'a, 'b>(
+fn registered_variant_candidates<'a, 'b>(
     variants: &'a [CustomVariant],
     value: &'b str,
-) -> Option<(&'a CustomVariant, Option<&'b str>)> {
-    if let Some(variant) = variants.iter().rev().find(|variant| variant.name == value) {
-        return Some((variant, None));
-    }
-    variants.iter().rev().find_map(|variant| {
-        let prefix = variant.name.strip_suffix('*')?;
-        if prefix.is_empty() {
-            return None;
+) -> Vec<(&'a CustomVariant, Option<&'b str>)> {
+    let mut candidates = Vec::new();
+    for variant in variants.iter().rev() {
+        if variant.name == value {
+            candidates.push((variant, None));
+            continue;
         }
-        let capture = value.strip_prefix(prefix)?;
+        let Some(prefix) = variant.name.strip_suffix('*') else {
+            continue;
+        };
+        if prefix.is_empty() {
+            continue;
+        }
+        let Some(capture) = value.strip_prefix(prefix) else {
+            continue;
+        };
         // Attribute variants with bracket payloads use the dedicated
         // `aria-[name=value]` / `data-[name=value]` grammar below; their
         // wildcard CSS bodies are for simple names only.
         if (variant.name == "aria-*" || variant.name == "data-*")
             && capture.starts_with('[')
         {
-            return None;
+            continue;
         }
-        (!capture.is_empty()).then_some((variant, Some(capture)))
-    })
+        if !capture.is_empty() {
+            candidates.push((variant, Some(capture)));
+        }
+    }
+    candidates
 }
 
 fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
