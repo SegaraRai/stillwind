@@ -703,18 +703,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("var(--tw-skew-x)", "var(--tw-skew-x,)")
         .replace("var(--tw-skew-y)", "var(--tw-skew-y,)");
     if let Utility::Named { name, .. } = &candidate.utility {
-        if name.starts_with("scale-")
-            && !name.starts_with("scale-x-")
-            && !name.starts_with("scale-y-")
-            && !declaration.contains("--tw-scale-z:")
-            && let Some(start) = declaration.find("--tw-scale-y:")
-        {
-            let value_start = start + "--tw-scale-y:".len();
-            if let Some(end) = declaration[value_start..].find(';') {
-                let value = declaration[value_start..value_start + end].to_owned();
-                declaration.insert_str(value_start + end + 1, &format!("--tw-scale-z:{value};"));
-            }
-        }
         let mask = match name.as_str() {
             "mask-linear-[initial]" => Some(
                 "mask-image:var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);--tw-mask-linear:linear-gradient(var(--tw-mask-linear-stops,var(--tw-mask-linear-position)));--tw-mask-linear-position:initial;mask-composite:intersect;",
@@ -3790,7 +3778,7 @@ mod tests {
         );
         assert_eq!(
             resolve_utility("scale-[0.8]", &theme).unwrap().declaration,
-            "--tw-scale-x:0.8;--tw-scale-y:0.8;--tw-scale-z:0.8;scale:var(--tw-scale-x) var(--tw-scale-y);"
+            "--tw-scale-x:0.8;--tw-scale-y:0.8;--tw-scale-z:0.8;scale:var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);"
         );
     }
 

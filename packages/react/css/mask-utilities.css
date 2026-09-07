@@ -349,7 +349,7 @@
   --tw-scale-x: calc(--value(integer) * 1%);
   --tw-scale-y: calc(--value(integer) * 1%);
   --tw-scale-z: calc(--value(integer) * 1%);
-  scale: var(--tw-scale-x) var(--tw-scale-y);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
 @utility scale-x-* {
   --tw-scale-x: calc(--value(integer) * 1%);
@@ -378,7 +378,8 @@
 @utility -scale-* {
   --tw-scale-x: calc(--value(integer) * -1%);
   --tw-scale-y: calc(--value(integer) * -1%);
-  scale: var(--tw-scale-x) var(--tw-scale-y);
+  --tw-scale-z: calc(--value(integer) * -1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
 @utility zoom-* {
   zoom: calc(--value(integer) * 1%);
@@ -571,7 +572,7 @@
   --tw-scale-x: --value([number-percentage]);
   --tw-scale-y: --value([number-percentage]);
   --tw-scale-z: --value([number-percentage]);
-  scale: var(--tw-scale-x) var(--tw-scale-y);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
 @utility order-* {
   order: --value([integer]);
