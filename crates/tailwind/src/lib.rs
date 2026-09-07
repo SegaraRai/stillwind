@@ -2133,7 +2133,11 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if value.contains('/')
         && let Some(application) = resolve_registered_variant(value, theme)
     {
-        return Some(with_hover_media(application));
+        return Some(if value.starts_with("group-") || value.starts_with("peer-") {
+            with_hover_media(application)
+        } else {
+            application
+        });
     }
     if let Some(application) = resolve_relationship_variant(value, theme) {
         return Some(application);
@@ -2148,7 +2152,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         return Some(VariantApplication::Supports(condition.replace('_', " ")));
     }
     if let Some(application) = resolve_registered_variant(value, theme) {
-        return Some(with_hover_media(application));
+        return Some(application);
     }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
