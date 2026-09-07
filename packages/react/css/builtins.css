@@ -17,6 +17,7 @@
 @stillwind-relationship peer-*;
 @stillwind-relationship group;
 @stillwind-relationship peer;
+@stillwind-selector-wrapper >:not(:last-child) :where({selector});
 @stillwind-format grid-column slash-space-span;
 @stillwind-format grid-row slash-space-span;
 @stillwind-format --tw-drop-shadow empty-space;

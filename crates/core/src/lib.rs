@@ -1698,10 +1698,17 @@ fn render_utility_rule(
         || class_selector.clone(),
         |selector| selector.replace('&', &class_selector),
     );
-    // Child-targeting utility selectors are emitted in a zero-specificity
-    // wrapper, matching the selector form authored by the built-in CSS.
-    if selector.contains(">:not(:last-child)") {
-        selector = format!(":where({selector})");
+    // Selector wrappers are authored by CSS metadata, keeping selector
+    // specificity policy out of the Rust utility implementation.
+    let wrappers = if theme.selector_wrappers.is_empty() {
+        stillwind_tailwind::builtin_selector_wrappers()
+    } else {
+        &theme.selector_wrappers
+    };
+    for (pattern, wrapper) in wrappers {
+        if selector.contains(pattern) {
+            selector = wrapper.replace("{selector}", &selector);
+        }
     }
     let mut media = Vec::new();
     let mut containers = Vec::new();

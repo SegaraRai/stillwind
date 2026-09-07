@@ -219,6 +219,11 @@ pub fn builtin_theme_order() -> &'static Vec<String> {
     ORDER.get_or_init(|| stillwind_css::parse_theme_order(BUILTIN_REGISTRY_CSS))
 }
 
+pub fn builtin_selector_wrappers() -> &'static std::collections::BTreeMap<String, String> {
+    static WRAPPERS: OnceLock<std::collections::BTreeMap<String, String>> = OnceLock::new();
+    WRAPPERS.get_or_init(|| stillwind_css::parse_selector_wrappers(BUILTIN_REGISTRY_CSS))
+}
+
 #[must_use]
 fn builtin_function_formats() -> &'static BTreeSet<String> {
     static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
