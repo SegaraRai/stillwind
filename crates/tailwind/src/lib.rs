@@ -747,16 +747,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .replace("var(--tw-rotate-z)", "var(--tw-rotate-z,)")
         .replace("var(--tw-skew-x)", "var(--tw-skew-x,)")
         .replace("var(--tw-skew-y)", "var(--tw-skew-y,)");
-    if declaration == "transition-timing-function:initial;"
-        && matches!(&candidate.utility, Utility::Named { name, .. } if name == "ease-[initial]")
-    {
-        declaration = "--tw-ease:initial;transition-timing-function:initial;".to_owned();
-    }
-    if declaration == "letter-spacing:initial;"
-        && matches!(&candidate.utility, Utility::Named { name, .. } if name == "tracking-[initial]")
-    {
-        declaration = "--tw-tracking:initial;letter-spacing:initial;".to_owned();
-    }
     if let Utility::Named { name, .. } = &candidate.utility
         && name.starts_with("line-clamp-")
         && declaration.starts_with("-webkit-line-clamp:")
