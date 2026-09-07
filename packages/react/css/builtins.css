@@ -11,6 +11,7 @@
 @stillwind-marker peer;
 @stillwind-format grid-column slash-space-span;
 @stillwind-format grid-row slash-space-span;
+@stillwind-format --tw-drop-shadow empty-space;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";

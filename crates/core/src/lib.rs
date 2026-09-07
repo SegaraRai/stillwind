@@ -1767,7 +1767,11 @@ fn render_utility_rule(
 
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
-    combine_declarations_with_order(utilities, stillwind_tailwind::builtin_declaration_order())
+    combine_declarations_with_order(
+        utilities,
+        stillwind_tailwind::builtin_declaration_order(),
+        stillwind_tailwind::builtin_declaration_formats(),
+    )
 }
 
 fn combine_declarations_for_theme(
@@ -1779,12 +1783,18 @@ fn combine_declarations_for_theme(
     } else {
         theme.declaration_order.as_slice()
     };
-    combine_declarations_with_order(utilities, order)
+    let formats = if theme.declaration_formats.is_empty() {
+        stillwind_tailwind::builtin_declaration_formats()
+    } else {
+        &theme.declaration_formats
+    };
+    combine_declarations_with_order(utilities, order, formats)
 }
 
 fn combine_declarations_with_order(
     utilities: &[&CompiledUtility],
     order: &[Vec<String>],
+    formats: &std::collections::BTreeMap<String, String>,
 ) -> String {
     let mut declarations = String::new();
     let mut transforms = Vec::new();
@@ -1797,8 +1807,11 @@ fn combine_declarations_with_order(
                 // Tailwind's minifier retains a separating space in
                 // comma-separated shadow fallback lists. Keep that spelling so
                 // parity comparisons are made against the same serialized CSS.
-                let declaration = if declaration == "--tw-drop-shadow:" {
-                    "--tw-drop-shadow: ".to_owned()
+                let declaration = if let Some((property, value)) = declaration.split_once(':')
+                    && value.is_empty()
+                    && formats.get(property).is_some_and(|format| format == "empty-space")
+                {
+                    format!("{property}: ")
                 } else {
                     declaration.strip_prefix("box-shadow:").map_or_else(
                         || declaration.to_owned(),
