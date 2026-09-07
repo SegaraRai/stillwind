@@ -525,11 +525,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
-    if raw.ends_with("/100")
-        && (declaration.contains(":#0000;") || declaration.contains(":inherit;"))
-    {
-        nested.clear();
-    }
     // CSS definitions normally provide this fallback/supports pair. Keep a
     // generic bridge for authored definitions that resolve an interpolation
     // space directly but omit the nested feature query.
