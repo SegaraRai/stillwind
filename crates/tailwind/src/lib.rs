@@ -466,7 +466,8 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    if resolution.declaration.contains("--tw-gradient-position:")
+    if resolution.declaration.contains("background-image:linear-gradient")
+        && resolution.declaration.contains("--tw-gradient-position:")
         && resolution
             .declaration
             .contains(" in oklch")
@@ -1012,8 +1013,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     // Linear-gradient angle utilities provide a legacy fallback and put the
     // color-space-qualified position behind the Images 4 feature query.
-    if let Utility::Named { name, .. } = &candidate.utility
-        && name.contains("bg-linear-")
+    if declaration.contains("background-image:linear-gradient")
         && let Some(position) = declaration
             .strip_prefix("--tw-gradient-position:")
             .and_then(|value| value.split_once(';'))
@@ -1043,8 +1043,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     }
     // Bare linear-gradient angles also receive the Images 4 color-space
     // upgrade in Tailwind (the unqualified angle remains the fallback).
-    if let Utility::Named { name, .. } = &candidate.utility
-        && name.starts_with("bg-linear-")
+    if declaration.contains("background-image:linear-gradient")
         && !nested
             .iter()
             .any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
@@ -1059,8 +1058,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             declaration: format!("--tw-gradient-position:{} in oklab;", position.0),
         });
     }
-    if let Utility::Named { name, .. } = &candidate.utility
-        && name.contains("bg-linear-")
+    if declaration.contains("background-image:linear-gradient")
         && !nested
             .iter()
             .any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
