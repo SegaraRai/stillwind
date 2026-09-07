@@ -1802,8 +1802,14 @@ fn combine_declarations_with_order(
     let mut ordered = Vec::new();
     for utility in utilities {
         for declaration in utility.declaration.split_terminator(';') {
-            if let Some(transform) = declaration.strip_prefix("transform:") {
-                transforms.push(transform);
+            let compose_space = declaration
+                .split_once(':')
+                .and_then(|(property, _)| formats.get(property))
+                .is_some_and(|format| {
+                    format.split_whitespace().any(|item| item == "compose-space")
+                });
+            if compose_space {
+                transforms.push(declaration.split_once(':').map_or("", |(_, value)| value));
             } else if !declaration.is_empty() {
                 // Tailwind's minifier retains a separating space in
                 // comma-separated shadow fallback lists. Keep that spelling so

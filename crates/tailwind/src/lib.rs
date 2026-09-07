@@ -561,7 +561,7 @@ fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> Str
         &theme.declaration_formats
     };
     for (property, format) in formats {
-        if format != "slash-space-span" {
+        if !format.split_whitespace().any(|item| item == "slash-space-span") {
             continue;
         }
         let prefix = format!("{property}:");
@@ -583,7 +583,7 @@ fn normalize_format_var_fallbacks(mut declaration: String, theme: &ThemeIndex) -
         &theme.declaration_formats
     };
     for (property, format) in formats {
-        if format != "var-fallback" {
+        if !format.split_whitespace().any(|item| item == "var-fallback") {
             continue;
         }
         let prefix = format!("{property}:");

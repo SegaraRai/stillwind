@@ -2008,14 +2008,27 @@ fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
 }
 
 fn extract_declaration_formats(css: &str) -> BTreeMap<String, String> {
-    css.split('@')
+    let mut formats = BTreeMap::new();
+    for (property, format) in css
+        .split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-format"))
         .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
         .filter_map(|value| {
             let mut parts = value.split_whitespace();
             Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
         })
-        .collect()
+    {
+        formats
+            .entry(property)
+            .and_modify(|existing: &mut String| {
+                if !existing.is_empty() {
+                    existing.push(' ');
+                }
+                existing.push_str(&format);
+            })
+            .or_insert(format);
+    }
+    formats
 }
 
 fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
