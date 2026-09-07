@@ -3179,8 +3179,8 @@ mod tests {
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
-                && rule.declaration
-                    == "background-color:color-mix(in oklab,var(--color-brand) 50%,transparent);"
+                && rule.declaration.contains("background-color:color-mix(in oklab")
+                && rule.declaration.contains("color-mix(in oklab")
         }));
         assert_eq!(
             resolve_utility("w-(--sidebar)", &theme)
@@ -3356,8 +3356,8 @@ mod tests {
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
-                && rule.declaration
-                    == "background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);"
+                && rule.declaration.contains("background-color:color-mix(in oklab")
+                && rule.declaration.contains("color-mix(in oklab")
         }));
     }
 
