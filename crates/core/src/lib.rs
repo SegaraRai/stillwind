@@ -1206,21 +1206,26 @@ fn resolve_motion_options(
             }
             "infinite" => declaration.push_str("animation-iteration-count:infinite;"),
             value => match resolve_utility(value, theme) {
-                Some(utility)
-                    if utility.variants.is_empty()
-                        && (utility.declaration.contains("transition-duration:")
-                            || utility.declaration.contains("transition-timing-function:")) =>
-                {
+                Some(utility) if utility.variants.is_empty() => {
                     let animation = utility
                         .declaration
                         .split(';')
                         .filter(|part| {
-                            !part.starts_with("--tw-duration:") && !part.starts_with("--tw-ease:")
+                            part.starts_with("transition-duration:")
+                                || part.starts_with("transition-timing-function:")
                         })
                         .collect::<Vec<_>>()
                         .join(";");
-                    declaration.push_str(&animation.replace("transition-", "animation-"));
-                    declaration.push(';');
+                    if animation.is_empty() {
+                        diagnostics.push(CompileError::new(
+                            "SHANIMATION002",
+                            format!("unknown animation option `{value}`"),
+                            option.span,
+                        ));
+                    } else {
+                        declaration.push_str(&animation.replace("transition-", "animation-"));
+                        declaration.push(';');
+                    }
                 }
                 _ => diagnostics.push(CompileError::new(
                     "SHANIMATION002",
