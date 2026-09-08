@@ -330,7 +330,7 @@
 @utility placeholder-* {
   &::placeholder {
     color: --compat-color(
-      --value(--color-*, current, inherit, transparent, [color]),
+      --value-literal(--color-*, current, inherit, transparent, [color]),
       --alpha(--modifier())
     );
   }

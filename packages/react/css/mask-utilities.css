@@ -30,7 +30,7 @@
     var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
   --tw-mask-linear-from-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -63,7 +63,7 @@
     var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
   --tw-mask-linear-to-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -96,7 +96,7 @@
     var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
   --tw-mask-conic-from-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -129,7 +129,7 @@
     var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
   --tw-mask-conic-to-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -410,7 +410,7 @@
 }
 @utility ring-* {
   --tw-ring-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -422,7 +422,7 @@
 }
 @utility decoration-* {
   text-decoration-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -434,7 +434,7 @@
 }
 @utility stroke-* {
   stroke: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -683,7 +683,7 @@
 }
 @utility from-* {
   --tw-gradient-from: --compat-color(
-    --value(--color-*, current, inherit, transparent),
+    --value-literal(--color-*, current, inherit, transparent),
     --alpha(--modifier())
   );
   --tw-gradient-stops: var(
@@ -706,7 +706,7 @@
 }
 @utility via-* {
   --tw-gradient-via: --compat-color(
-    --value(--color-*, current, inherit, transparent),
+    --value-literal(--color-*, current, inherit, transparent),
     --alpha(--modifier())
   );
   --tw-gradient-via-stops:
@@ -729,7 +729,7 @@
 }
 @utility to-* {
   --tw-gradient-to: --compat-color(
-    --value(--color-*, current, inherit, transparent),
+    --value-literal(--color-*, current, inherit, transparent),
     --alpha(--modifier())
   );
   --tw-gradient-stops: var(

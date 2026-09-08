@@ -65,6 +65,18 @@ struct UtilityResolution {
     additional: Vec<ResolvedUtilityTarget>,
 }
 
+#[derive(Clone, Debug, Default)]
+struct ResolvedCssDeclarations {
+    base: String,
+    compat_modern: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompatColorMode {
+    Legacy,
+    Modern,
+}
+
 impl UtilityResolution {
     fn plain(declaration: String) -> Self {
         Self {
@@ -992,21 +1004,19 @@ fn resolve_css_utility_body(
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
-    let declaration = normalize_registered_var_fallbacks(
-        resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?,
-        theme,
-    );
+    let declarations =
+        resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
+    let declaration = normalize_registered_var_fallbacks(declarations.base, theme);
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
         || body.contains("--fraction()")
         || body.contains("--relative-color(");
     let mut resolved_nested = Vec::new();
-    let compat_color = body.contains("--compat-color(");
-    if compat_color && let Some(modern) = compat_color_modern_declaration(&declaration) {
+    if !declarations.compat_modern.is_empty() {
         resolved_nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_owned(),
-            declaration: modern,
+            declaration: normalize_registered_var_fallbacks(declarations.compat_modern, theme),
             inside: true,
         });
     }
@@ -1016,12 +1026,12 @@ fn resolve_css_utility_body(
                 || body.contains("--modifier-map(")
                 || body.contains("--fraction()")
                 || body.contains("--relative-color(");
-            let Some(declaration) =
+            let Some(declarations) =
                 resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)
             else {
                 continue;
             };
-            let declaration = normalize_registered_var_fallbacks(declaration, theme);
+            let declaration = normalize_registered_var_fallbacks(declarations.base, theme);
             if !declaration.is_empty() {
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
@@ -1030,18 +1040,14 @@ fn resolve_css_utility_body(
                     declaration,
                     inside: selector.is_some() || at_rule == NestedUtilityAtRule::Supports,
                 });
-                if body.contains("--compat-color(")
-                    && let Some(modern) = compat_color_modern_declaration(
-                        &resolved_nested
-                            .last()
-                            .expect("nested rule just pushed")
-                            .declaration,
-                    )
-                {
+                if !declarations.compat_modern.is_empty() {
                     resolved_nested.push(NestedUtilityRule {
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: COMPAT_COLOR_SUPPORT.to_owned(),
-                        declaration: modern,
+                        declaration: normalize_registered_var_fallbacks(
+                            declarations.compat_modern,
+                            theme,
+                        ),
                         inside: true,
                     });
                 }
@@ -1053,7 +1059,8 @@ fn resolve_css_utility_body(
     }
     if let Some(parent_body) = parent_body {
         let parent_declaration =
-            resolve_css_declarations(parent_body, utility.name.as_str(), name, modifier, theme)?;
+            resolve_css_declarations(parent_body, utility.name.as_str(), name, modifier, theme)?
+                .base;
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
                 declaration,
@@ -1077,14 +1084,6 @@ fn resolve_css_utility_body(
     }
 }
 
-fn compat_color_modern_declaration(declaration: &str) -> Option<String> {
-    let modern = declaration.replace(
-        &format!("color-mix(in {COMPAT_COLOR_LEGACY_SPACE},"),
-        &format!("color-mix(in {COMPAT_COLOR_MODERN_SPACE},"),
-    );
-    (modern != declaration).then_some(modern)
-}
-
 /// Removes a `var()` fallback when it is exactly the registered initial value
 /// of that custom property. The registry metadata is the source of truth;
 /// no Tailwind property family is encoded here.
@@ -1105,13 +1104,21 @@ fn normalize_registered_var_fallbacks(mut declaration: String, theme: &ThemeInde
         };
         let name = name.trim().to_owned();
         let fallback = fallback.trim();
-        let matches_initial = theme.properties.iter().any(|property| {
-            property.name == name
-                && property.body.split(';').map(str::trim).any(|entry| {
-                    entry
-                        .strip_prefix("initial-value:")
-                        .is_some_and(|value| value.trim() == fallback)
-                })
+        let property = theme
+            .properties
+            .iter()
+            .find(|property| property.name == name)
+            .or_else(|| {
+                builtin_property_definitions()
+                    .iter()
+                    .find(|property| property.name == name)
+            });
+        let matches_initial = property.is_some_and(|property| {
+            property.body.split(';').map(str::trim).any(|entry| {
+                entry
+                    .strip_prefix("initial-value:")
+                    .is_some_and(|value| value.trim() == fallback)
+            })
         });
         if matches_initial {
             declaration.replace_range(open + 1..close, &name);
@@ -1184,7 +1191,7 @@ fn resolve_css_declarations(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
-) -> Option<String> {
+) -> Option<ResolvedCssDeclarations> {
     let declarations = split_css_declarations(body);
     let uses_placeholder = declarations.iter().any(|declaration| {
         declaration.contains("--value(")
@@ -1211,35 +1218,57 @@ fn resolve_css_declarations(
     let mut resolved_value = false;
     let mut resolved_modifier = false;
     let mut resolved_required_declarations = 0;
-    let mut output = String::new();
+    let mut output = ResolvedCssDeclarations::default();
 
-    for declaration in declarations {
-        let contains_placeholder = declaration.contains("--value(")
-            || declaration.contains("--value-literal(")
-            || declaration.contains("--value-map(")
-            || declaration.contains("--modifier(")
-            || declaration.contains("--modifier-map(")
-            || declaration.contains("--modifier-none()")
-            || declaration.contains("--alpha(")
-            || declaration.contains("--compat-color(")
-            || declaration.contains("--relative-color(");
-        let contains_modifier =
-            declaration.contains("--modifier(") || declaration.contains("--relative-color(");
-        let contains_required = declaration.contains("--relative-color(");
-        let contains_value =
-            declaration.contains("--value(") || declaration.contains("--value-literal(");
-        if let Some(declaration) =
-            resolve_css_placeholders(declaration, utility_name, name, modifier, theme)
-            && !declaration.trim().is_empty()
+    for authored_declaration in declarations {
+        let contains_placeholder = authored_declaration.contains("--value(")
+            || authored_declaration.contains("--value-literal(")
+            || authored_declaration.contains("--value-map(")
+            || authored_declaration.contains("--modifier(")
+            || authored_declaration.contains("--modifier-map(")
+            || authored_declaration.contains("--modifier-none()")
+            || authored_declaration.contains("--alpha(")
+            || authored_declaration.contains("--compat-color(")
+            || authored_declaration.contains("--relative-color(");
+        let contains_modifier = authored_declaration.contains("--modifier(")
+            || authored_declaration.contains("--relative-color(");
+        let contains_required = authored_declaration.contains("--relative-color(");
+        let contains_value = authored_declaration.contains("--value(")
+            || authored_declaration.contains("--value-literal(");
+        if let Some(declaration) = resolve_css_placeholders(
+            authored_declaration,
+            utility_name,
+            name,
+            modifier,
+            theme,
+            CompatColorMode::Legacy,
+        ) && !declaration.trim().is_empty()
         {
             resolved_placeholder |= contains_placeholder;
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
             resolved_required_declarations += usize::from(contains_required);
-            if output.is_empty() {
-                output.push_str(declaration.trim_start());
+            if output.base.is_empty() {
+                output.base.push_str(declaration.trim_start());
             } else {
-                output.push_str(&declaration);
+                output.base.push_str(&declaration);
+            }
+            if authored_declaration.contains("--compat-color(")
+                && let Some(modern) = resolve_css_placeholders(
+                    authored_declaration,
+                    utility_name,
+                    name,
+                    modifier,
+                    theme,
+                    CompatColorMode::Modern,
+                )
+                && modern != declaration
+            {
+                if output.compat_modern.is_empty() {
+                    output.compat_modern.push_str(modern.trim_start());
+                } else {
+                    output.compat_modern.push_str(&modern);
+                }
             }
         }
     }
@@ -1306,12 +1335,19 @@ fn resolve_css_placeholders(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
+    compat_color_mode: CompatColorMode,
 ) -> Option<String> {
     let capture = utility_name
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_owned();
-    resolve_literal_value_placeholders(&mut body, capture, utility_name.starts_with('-'), theme)?;
+    resolve_literal_value_placeholders(
+        &mut body,
+        capture,
+        utility_name.starts_with('-'),
+        theme,
+        compat_color_mode,
+    )?;
     resolve_text_line_height_placeholders(&mut body, capture, theme)?;
     resolve_value_map_placeholders(&mut body, capture)?;
     while let Some(start) = body.find("--value(") {
@@ -1399,7 +1435,7 @@ fn resolve_css_placeholders(
     while let Some(start) = body.find("--compat-color(") {
         let open = start + "--compat-color".len();
         let end = closing_parenthesis(&body, open)?;
-        let replacement = resolve_compat_color(&body[open + 1..end])?;
+        let replacement = resolve_compat_color(&body[open + 1..end], compat_color_mode)?;
         body.replace_range(start..=end, &replacement);
     }
     while let Some(start) = body.find("--relative-color(") {
@@ -1424,22 +1460,37 @@ fn resolve_css_placeholders(
 /// Produces the legacy Color 4 fallback for an authored color and alpha.
 /// The caller also emits the modern upgrade guarded by the capability query
 /// intrinsic to `--compat-color()`.
-fn resolve_compat_color(arguments: &str) -> Option<String> {
+fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String> {
     let arguments = split_domains(arguments);
-    let [color, alpha] = arguments.as_slice() else {
-        return None;
+    let (color, alpha, modern_alpha) = match arguments.as_slice() {
+        [color, alpha] => (*color, *alpha, None),
+        [color, alpha, modern_alpha] => (*color, *alpha, Some(modern_alpha.trim())),
+        _ => return None,
     };
     let color = color.trim();
     let alpha = alpha.trim();
     if color.is_empty() || alpha.is_empty() {
         return None;
     }
-    if alpha == "100%" {
-        return Some(color.to_owned());
+    let color_space = match mode {
+        CompatColorMode::Legacy => COMPAT_COLOR_LEGACY_SPACE,
+        CompatColorMode::Modern => COMPAT_COLOR_MODERN_SPACE,
+    };
+    let mixed = if alpha == "100%"
+        || (mode == CompatColorMode::Legacy && color.eq_ignore_ascii_case("currentcolor"))
+    {
+        color.to_owned()
+    } else {
+        format!("color-mix(in {color_space}, {color} {alpha}, transparent)")
+    };
+    if mode == CompatColorMode::Modern
+        && let Some(modern_alpha) = modern_alpha
+    {
+        return Some(format!(
+            "color-mix(in {COMPAT_COLOR_MODERN_SPACE}, {mixed} {modern_alpha}, transparent)"
+        ));
     }
-    Some(format!(
-        "color-mix(in {COMPAT_COLOR_LEGACY_SPACE},{color} {alpha},transparent)"
-    ))
+    Some(mixed)
 }
 
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits
@@ -1475,12 +1526,19 @@ fn resolve_literal_value_placeholders(
     capture: Option<&str>,
     negative: bool,
     theme: &ThemeIndex,
+    compat_color_mode: CompatColorMode,
 ) -> Option<()> {
     while let Some(start) = body.find("--value-literal(") {
         let open = start + "--value-literal".len();
         let end = closing_parenthesis(body, open)?;
-        let replacement =
-            resolve_literal_value_domains(&body[open + 1..end], capture, negative, theme)?;
+        let replacement = match compat_color_mode {
+            CompatColorMode::Legacy => {
+                resolve_literal_value_domains(&body[open + 1..end], capture, negative, theme)?
+            }
+            CompatColorMode::Modern => {
+                resolve_value_domains(&body[open + 1..end], capture, negative, theme)?
+            }
+        };
         body.replace_range(start..=end, &replacement);
     }
     Some(())
@@ -1816,8 +1874,6 @@ fn theme_value_literal(
     theme: &ThemeIndex,
 ) -> Option<String> {
     let value = match (namespace, value) {
-        (ThemeNamespace::Color, "current") => "currentcolor".to_owned(),
-        (ThemeNamespace::Color, "inherit" | "transparent") => value.to_owned(),
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
         _ if let Some(value) = css_variable(value) => format!("var({value})"),
         _ if let Some(token) = theme.token_in(namespace, value) => token.value.value.clone(),
@@ -2280,7 +2336,7 @@ mod tests {
         let background = resolve_utility("bg-brand/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb,red 50%,transparent);"
+            "background-color:color-mix(in srgb, red 50%, transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
@@ -2354,7 +2410,7 @@ mod tests {
         assert!(
             negative
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg * -1 * 45);"),
+                .contains("--tw-mask-conic-position:calc(45deg * -1);"),
             "{negative:?}"
         );
     }
@@ -2384,7 +2440,7 @@ mod tests {
             resolve_utility("fill-brand/50", &theme)
                 .unwrap()
                 .declaration,
-            "fill:color-mix(in srgb, var(--color-brand) 50%, transparent);"
+            "fill:color-mix(in srgb, red 50%, transparent);"
         );
         assert_eq!(
             resolve_utility("from-brand", &theme).unwrap().declaration,
@@ -2462,7 +2518,7 @@ mod tests {
         let background = resolve_utility("bg-red-500/50", &theme).unwrap();
         assert_eq!(
             background.declaration,
-            "background-color:color-mix(in srgb,oklch(63.7% 0.237 25.331) 50%,transparent);"
+            "background-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
@@ -2850,7 +2906,7 @@ mod tests {
         let resolved = resolve_utility("text-brand/50", &theme()).unwrap();
         assert_eq!(
             resolved.declaration,
-            "color:color-mix(in srgb, var(--color-brand) 50%, transparent);"
+            "color:color-mix(in srgb, red 50%, transparent);"
         );
         assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
@@ -2865,13 +2921,13 @@ mod tests {
     fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
         let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
         assert!(resolved.declaration.contains(
-            "--tw-shadow-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);"
+            "--tw-shadow-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
         ));
         assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.condition == "color:color-mix(in lab, red, red)"
                 && rule.declaration.contains(
-                    "--tw-shadow-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);",
+                    "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha), transparent);",
                 )
         }));
     }
@@ -3111,14 +3167,12 @@ mod tests {
         let resolved = resolve_utility("placeholder-current/50", &theme()).unwrap();
         assert_eq!(resolved.selector.as_deref(), Some("&::placeholder"));
         assert!(
-            resolved
-                .declaration
-                .contains("color:color-mix(in srgb,currentcolor 50%,transparent);"),
+            resolved.declaration.contains("color:currentcolor;"),
             "{resolved:#?}"
         );
         assert!(resolved.nested.iter().any(|rule| {
             rule.declaration
-                .contains("color-mix(in oklab,currentcolor 50%,transparent)")
+                .contains("color-mix(in oklab, currentcolor 50%, transparent)")
         }));
         assert!(resolve_utility("placeholder-[length:1rem]", &theme()).is_none());
     }
@@ -3298,7 +3352,7 @@ mod tests {
             resolve_utility("tone-brand/50", &theme)
                 .unwrap()
                 .declaration,
-            "color: color-mix(in srgb,var(--color-brand) 50%,transparent);"
+            "color: color-mix(in srgb, var(--color-brand) 50%, transparent);"
         );
         let utility = resolve_utility("tone-brand/50", &theme).unwrap();
         assert_eq!(utility.nested.len(), 1);
@@ -3306,7 +3360,7 @@ mod tests {
         assert!(
             utility.nested[0]
                 .declaration
-                .contains("color-mix(in oklab,var(--color-brand) 50%,transparent)")
+                .contains("color-mix(in oklab, var(--color-brand) 50%, transparent)")
         );
 
         let plain_source = SourceFile::new(
@@ -3319,7 +3373,7 @@ mod tests {
             resolve_utility("plain-tone", &plain_theme)
                 .unwrap()
                 .declaration,
-            "color: color-mix(in srgb,red 50%,transparent);"
+            "color: color-mix(in srgb, red 50%, transparent);"
         );
 
         let nested_source = SourceFile::new(

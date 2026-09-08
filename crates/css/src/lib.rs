@@ -1215,6 +1215,19 @@ impl MathExpression {
     }
 
     fn product(left: Self, right: Self) -> Self {
+        if let (Self::Product(positive, negative), Self::Value(MathValue::Number(scale))) =
+            (&left, &right)
+            && negative.is_negative_numeric()
+            && *scale >= 0.0
+        {
+            return Self::Product(
+                Box::new(Self::product(
+                    (**positive).clone(),
+                    Self::Value(MathValue::Number(*scale)),
+                )),
+                Box::new((**negative).clone()),
+            );
+        }
         if left.is_negative_numeric() || right.is_negative_numeric() {
             return Self::Product(Box::new(left), Box::new(right));
         }
