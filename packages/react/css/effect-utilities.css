@@ -58,12 +58,12 @@
   background-image: conic-gradient(var(--tw-gradient-stops));
 }
 @utility divide-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-color: --value(--color-*, current, transparent);
   }
 }
 @utility divide-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-color: --compat-color(
       --value(--color-*, current, transparent),
       --alpha(--modifier())

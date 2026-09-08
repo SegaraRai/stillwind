@@ -26,7 +26,7 @@
 }
 @utility divide-x {
   --tw-divide-x-reverse: 0;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
     border-inline-start-width: calc(1px * var(--tw-divide-x-reverse));
@@ -35,7 +35,7 @@
 }
 @utility divide-y {
   --tw-divide-y-reverse: 0;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 0;
     border-bottom-style: var(--tw-border-style);
     border-top-style: var(--tw-border-style);
@@ -45,31 +45,31 @@
 }
 @utility divide-solid {
   --tw-border-style: solid;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-style: solid;
   }
 }
 @utility divide-dashed {
   --tw-border-style: dashed;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-style: dashed;
   }
 }
 @utility divide-dotted {
   --tw-border-style: dotted;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-style: dotted;
   }
 }
 @utility divide-double {
   --tw-border-style: double;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-style: double;
   }
 }
 @utility divide-none {
   --tw-border-style: none;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-style: none;
   }
 }

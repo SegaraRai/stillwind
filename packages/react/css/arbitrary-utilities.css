@@ -95,28 +95,28 @@
   transition-delay: --value([time]);
 }
 @utility divide-x-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-inline-end-style: var(--tw-border-style);
     border-inline-end-width: --value([line-width]);
   }
 }
 @utility divide-x-[initial] {
   --tw-divide-x-reverse: 0;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-inline-style: var(--tw-border-style);
     border-inline-start-width: calc(initial * var(--tw-divide-x-reverse));
     border-inline-end-width: calc(initial * calc(1 - var(--tw-divide-x-reverse)));
   }
 }
 @utility divide-y-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: --value([line-width]);
   }
 }
 @utility divide-y-[initial] {
   --tw-divide-y-reverse: 0;
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     border-bottom-style: var(--tw-border-style);
     border-top-style: var(--tw-border-style);
     border-top-width: calc(initial * var(--tw-divide-y-reverse));

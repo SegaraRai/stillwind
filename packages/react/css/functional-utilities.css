@@ -275,7 +275,7 @@
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 @utility space-x-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 0;
     margin-inline-start: calc(
       --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-x-reverse))
@@ -286,13 +286,13 @@
   }
 }
 @utility space-x-0 {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 0;
     margin-inline: 0;
   }
 }
 @utility -space-x-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 0;
     margin-inline-start: calc(
       --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-x-reverse))
@@ -303,7 +303,7 @@
   }
 }
 @utility space-y-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(
       --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-y-reverse))
@@ -312,25 +312,25 @@
   }
 }
 @utility -space-x-0 {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 0;
     margin-inline: 0;
   }
 }
 @utility space-y-0 {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block: 0;
   }
 }
 @utility -space-y-0 {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block: 0;
   }
 }
 @utility -space-y-* {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(
       --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-y-reverse))

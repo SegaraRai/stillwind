@@ -331,12 +331,12 @@
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 @utility divide-x-reverse {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 1;
   }
 }
 @utility divide-y-reverse {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 1;
   }
 }
@@ -1086,12 +1086,12 @@
   scroll-snap-align: start;
 }
 @utility space-x-reverse {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 1;
   }
 }
 @utility space-y-reverse {
-  & > :not(:last-child) {
+  :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 1;
   }
 }

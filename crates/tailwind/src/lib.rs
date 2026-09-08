@@ -219,11 +219,6 @@ pub fn builtin_theme_order() -> &'static Vec<String> {
     ORDER.get_or_init(|| stillwind_css::parse_theme_order(BUILTIN_REGISTRY_CSS))
 }
 
-pub fn builtin_selector_wrappers() -> &'static std::collections::BTreeMap<String, String> {
-    static WRAPPERS: OnceLock<std::collections::BTreeMap<String, String>> = OnceLock::new();
-    WRAPPERS.get_or_init(|| stillwind_css::parse_selector_wrappers(BUILTIN_REGISTRY_CSS))
-}
-
 #[must_use]
 fn builtin_function_formats() -> &'static BTreeSet<String> {
     static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
@@ -1783,10 +1778,29 @@ fn next_nested_condition(
 }
 
 fn split_utility_selector(body: &str) -> Option<(Option<String>, &str, Option<&str>)> {
-    let Some(selector_start) = body.find('&') else {
+    if !body.contains('&') {
         return Some((None, body, None));
-    };
-    let open = body[selector_start..].find('{')? + selector_start;
+    }
+
+    let mut selector_start = 0;
+    let mut open = None;
+    let mut parenthesis_depth = 0_u32;
+    for (index, character) in body.char_indices() {
+        match character {
+            '(' | '[' => parenthesis_depth += 1,
+            ')' | ']' => parenthesis_depth = parenthesis_depth.checked_sub(1)?,
+            ';' if parenthesis_depth == 0 => selector_start = index + 1,
+            '{' if parenthesis_depth == 0 => {
+                let prelude = body[selector_start..index].trim();
+                if prelude.contains('&') {
+                    open = Some(index);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let open = open?;
     let close = closing_brace(body, open)?;
     if !body[close + 1..].trim().is_empty() {
         return None;
@@ -2458,7 +2472,10 @@ mod tests {
             resolved.declaration,
             "border-inline-end-style:var(--tw-border-style);border-inline-end-width:2px;"
         );
-        assert_eq!(resolved.selector.as_deref(), Some("&>:not(:last-child)"));
+        assert_eq!(
+            resolved.selector.as_deref(),
+            Some(":where(&>:not(:last-child))")
+        );
     }
 
     #[test]
@@ -3079,12 +3096,12 @@ mod tests {
             (
                 "divide-y",
                 "border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px*var(--tw-divide-y-reverse));border-bottom-width:calc(1px*calc(1 - var(--tw-divide-y-reverse)));",
-                Some("&>:not(:last-child)"),
+                Some(":where(&>:not(:last-child))"),
             ),
             (
                 "divide-dashed",
                 "border-style:dashed;",
-                Some("&>:not(:last-child)"),
+                Some(":where(&>:not(:last-child))"),
             ),
             ("m-auto", "margin:auto;", None),
             ("mix-blend-color-dodge", "mix-blend-mode:color-dodge;", None),
