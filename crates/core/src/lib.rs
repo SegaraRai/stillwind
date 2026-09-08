@@ -1211,6 +1211,24 @@ fn resolve_motion_options(
                 .expect("writing to a String cannot fail");
             }
             "infinite" => declaration.push_str("animation-iteration-count:infinite;"),
+            value
+                if value
+                    .strip_prefix("duration-")
+                    .and_then(|name| theme.token_in(stillwind_css::ThemeNamespace::Duration, name))
+                    .is_some() =>
+            {
+                let token = value
+                    .strip_prefix("duration-")
+                    .and_then(|name| theme.token_in(stillwind_css::ThemeNamespace::Duration, name))
+                    .expect("duration token was checked above");
+                let value = if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
+                    token.value.value.clone()
+                } else {
+                    format!("var({})", token.name.value)
+                };
+                write!(&mut declaration, "animation-duration:{value};")
+                    .expect("writing to a String cannot fail");
+            }
             value => match resolve_utility(value, theme) {
                 Some(utility) if utility.variants.is_empty() => {
                     let animation = utility
@@ -2390,9 +2408,30 @@ fn class_name(canonical_input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::FileId;
+    use stillwind_source::{FileId, Span};
 
     use super::*;
+
+    #[test]
+    fn resolves_themed_duration_as_an_animation_option_only() {
+        let source = SourceFile::new(
+            FileId(1),
+            "stillwind.css",
+            "@theme { --duration-normal: 180ms; }",
+        );
+        let theme = Compiler::read_theme(&source).unwrap();
+        let options = Spanned::new(
+            "duration-normal both".to_owned(),
+            Span::new(FileId(2), 0, 20),
+        );
+        let mut diagnostics = Vec::new();
+
+        assert_eq!(
+            resolve_motion_options(&options, &theme, &mut diagnostics),
+            "animation-duration:var(--duration-normal);animation-fill-mode:both;"
+        );
+        assert!(diagnostics.is_empty());
+    }
 
     #[test]
     fn exposes_the_first_frontends_through_one_compiler_api() {

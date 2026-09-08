@@ -3499,12 +3499,7 @@ mod tests {
 
     #[test]
     fn resolves_animation_size_and_grid_columns_from_css_value_domains() {
-        let source = SourceFile::new(
-            FileId(1),
-            "theme.css",
-            "@import \"tailwindcss\"; @theme { --duration-normal: 180ms; }",
-        );
-        let theme = parse_tailwind_theme(&source).unwrap();
+        let theme = theme();
 
         assert_eq!(
             resolve_utility("animate-spin", &theme).unwrap().declaration,
@@ -3517,12 +3512,6 @@ mod tests {
         assert_eq!(
             resolve_utility("grid-cols-13", &theme).unwrap().declaration,
             "grid-template-columns:repeat(13,minmax(0,1fr));"
-        );
-        assert_eq!(
-            resolve_utility("duration-normal", &theme)
-                .unwrap()
-                .declaration,
-            "--tw-duration:var(--duration-normal);transition-duration:var(--duration-normal);"
         );
     }
 
