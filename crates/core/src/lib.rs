@@ -1639,22 +1639,22 @@ fn emit_utility_rules(
     for utility in utilities.iter().filter(|utility| {
         !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
     }) {
+        let mut declaration = combine_declarations_for_theme(&[utility], theme);
+        for nested in utility.nested.iter().filter(|nested| nested.inside) {
+            insert_nested_declaration(&mut declaration, nested);
+        }
         output.push_str(&render_utility_rule(
             class_name,
             utility,
             theme,
-            &combine_declarations_for_theme(&[utility], theme),
+            &declaration,
             None,
         ));
     }
     for utility in utilities {
         for nested in &utility.nested {
             let nested_in_rule = nested.inside;
-            if nested_in_rule
-                && utility.variants.is_empty()
-                && utility.selector.is_none()
-                && utility.container.is_none()
-            {
+            if nested_in_rule {
                 continue;
             }
             output.push_str(&render_utility_rule(
@@ -1666,6 +1666,41 @@ fn emit_utility_rules(
             ));
         }
     }
+}
+
+fn insert_nested_declaration(
+    declaration: &mut String,
+    nested: &stillwind_tailwind::NestedUtilityRule,
+) {
+    let mut nested_css = String::new();
+    match nested.at_rule {
+        stillwind_tailwind::NestedUtilityAtRule::Media => {
+            nested_css.push_str("@media ");
+            nested_css.push_str(&nested.condition);
+            nested_css.push('{');
+        }
+        stillwind_tailwind::NestedUtilityAtRule::Supports => {
+            nested_css.push_str("@supports (");
+            nested_css.push_str(&nested.condition);
+            nested_css.push_str("){");
+        }
+    }
+    nested_css.push_str(&nested.declaration);
+    nested_css.push('}');
+    let Some((property, _)) = nested.declaration.split_once(':') else {
+        declaration.push_str(&nested_css);
+        return;
+    };
+    let marker = format!("{}:", property.trim());
+    let Some(start) = declaration.find(&marker) else {
+        declaration.push_str(&nested_css);
+        return;
+    };
+    let Some(end) = declaration[start..].find(';') else {
+        declaration.push_str(&nested_css);
+        return;
+    };
+    declaration.insert_str(start + end + 1, &nested_css);
 }
 
 fn render_utility_rule(

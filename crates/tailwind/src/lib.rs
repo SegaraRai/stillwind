@@ -941,7 +941,7 @@ fn resolve_css_utility_branches<'a>(
         if branch.selector == resolution.selector {
             resolution.declaration =
                 merge_branch_declarations(&resolution.declaration, &branch.declaration);
-            resolution.nested.extend(branch.nested);
+            merge_nested_rules(&mut resolution.nested, branch.nested);
             resolution.additional.extend(branch.additional);
         } else {
             resolution.additional.push(ResolvedUtilityTarget {
@@ -953,6 +953,31 @@ fn resolve_css_utility_branches<'a>(
         }
     }
     Some(resolution)
+}
+
+fn merge_nested_rules(primary: &mut Vec<NestedUtilityRule>, secondary: Vec<NestedUtilityRule>) {
+    for rule in secondary {
+        let properties = declaration_property_names(&rule.declaration);
+        let conflicts = primary.iter().any(|existing| {
+            existing.at_rule == rule.at_rule
+                && existing.condition == rule.condition
+                && existing.inside == rule.inside
+                && declaration_property_names(&existing.declaration)
+                    .iter()
+                    .any(|property| properties.contains(property))
+        });
+        if !conflicts {
+            primary.push(rule);
+        }
+    }
+}
+
+fn declaration_property_names(declaration: &str) -> std::collections::HashSet<&str> {
+    declaration
+        .split_terminator(';')
+        .filter_map(|declaration| declaration.split_once(':'))
+        .map(|(property, _)| property.trim())
+        .collect()
 }
 
 /// Merges independent `@utility` overloads without erasing repeated fallback
@@ -1484,15 +1509,15 @@ fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String
         return None;
     }
     let color_kind = CompatColorKind::from_css(color);
-    let color_space = match (mode, color_kind) {
+    let color_space = match (mode, color_kind, modern_alpha.is_none()) {
         // Tailwind does not synthesize an sRGB compatibility branch for CSS
         // wide/transparent keywords. Keeping both passes identical makes the
         // declaration unconditional instead of wrapping the modern form in
         // an unnecessary capability query.
-        (_, CompatColorKind::ModernOnlyKeyword) | (CompatColorMode::Modern, _) => {
+        (_, CompatColorKind::ModernOnlyKeyword, true) | (CompatColorMode::Modern, _, _) => {
             COMPAT_COLOR_MODERN_SPACE
         }
-        (CompatColorMode::Legacy, _) => COMPAT_COLOR_LEGACY_SPACE,
+        (CompatColorMode::Legacy, _, _) => COMPAT_COLOR_LEGACY_SPACE,
     };
     let mixed = if alpha == "100%"
         || (mode == CompatColorMode::Legacy && color_kind == CompatColorKind::CurrentColor)
