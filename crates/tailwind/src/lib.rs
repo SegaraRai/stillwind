@@ -696,9 +696,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if let Some(application) = resolve_registered_variant(value, theme) {
         return Some(with_hover_media(application));
     }
-    if let Some(application) = resolve_container_variant(value, theme) {
-        return Some(application);
-    }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
             .strip_prefix(prefix)
@@ -780,42 +777,6 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
     }
 }
 
-fn resolve_container_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
-    let value = value.strip_prefix('@')?;
-    let (query, name) = value
-        .split_once('/')
-        .map_or((value, None), |(query, name)| {
-            (query, (!name.is_empty()).then_some(name))
-        });
-    let condition = if let Some(value) = query
-        .strip_prefix("min-[")
-        .and_then(|value| value.strip_suffix(']'))
-        .or_else(|| {
-            query
-                .strip_prefix('[')
-                .and_then(|value| value.strip_suffix(']'))
-        }) {
-        format!("(width >= {})", value.replace('_', " "))
-    } else if let Some(value) = query
-        .strip_prefix("max-[")
-        .and_then(|value| value.strip_suffix(']'))
-    {
-        format!("(width < {})", value.replace('_', " "))
-    } else if let Some(token) = query
-        .strip_prefix("max-")
-        .and_then(|name| theme.token_in(ThemeNamespace::Container, name))
-    {
-        format!("(width < {})", token.value.value)
-    } else {
-        let name = query.strip_prefix("min-").unwrap_or(query);
-        let token = theme.token_in(ThemeNamespace::Container, name)?;
-        format!("(width >= {})", token.value.value)
-    };
-    Some(VariantApplication::Container(
-        name.map_or(condition.clone(), |name| format!("{name} {condition}")),
-    ))
-}
-
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
     let mut candidates = registered_variant_candidates(&theme.variants, value);
     if theme.imports.builtins {
@@ -867,6 +828,7 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
     if !value.contains("--value()")
         && !value.contains(r"\*")
         && !value.contains("{modifier}")
+        && !value.contains(r"\{modifier\}")
         && !value.contains(":root")
         && !value.contains("0n")
     {
@@ -899,6 +861,8 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
     let mut expanded = value
         .replace("--value()", &capture)
         .replace(r"\*", &capture)
+        .replace(r"\/\{modifier\}", &modifier_suffix)
+        .replace(r"\{modifier\}", &modifier)
         .replace("/{modifier}", &modifier_suffix)
         .replace("{modifier}", &modifier)
         .replace(":root", &format!(":{capture}"))
@@ -917,7 +881,8 @@ fn resolve_variant_css_placeholders(
 ) -> Option<String> {
     let capture = variant_name
         .strip_suffix('*')
-        .and_then(|prefix| value.strip_prefix(prefix));
+        .and_then(|prefix| value.strip_prefix(prefix))
+        .map(|capture| capture.split_once('/').map_or(capture, |(value, _)| value));
     let mut body = body.to_owned();
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
@@ -2246,7 +2211,7 @@ mod tests {
     #[test]
     fn builtins_declare_no_untyped_arbitrary_value_domains() {
         assert!(
-            !BUILTIN_REGISTRY_CSS.contains("[*]"),
+            !BUILTIN_REGISTRY_CSS.contains("--value([*])"),
             "built-in utilities must use a typed CSS value domain"
         );
         assert!(
@@ -3508,6 +3473,17 @@ mod tests {
             resolve_variant(&candidate.variants[0], &theme),
             Some(VariantApplication::Container("(width >= 40rem)".to_owned()))
         );
+        for (candidate, condition) in [
+            ("@md/sidebar:flex", "sidebar (width >= 40rem)"),
+            ("@[48rem]/main:flex", "main (width >= 48rem)"),
+            ("@max-[48rem]/main:flex", "main (width < 48rem)"),
+        ] {
+            let candidate = parse_candidate(candidate).unwrap();
+            assert_eq!(
+                resolve_variant(&candidate.variants[0], &theme),
+                Some(VariantApplication::Container(condition.to_owned()))
+            );
+        }
     }
 
     #[test]

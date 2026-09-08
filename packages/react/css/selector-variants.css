@@ -146,32 +146,42 @@
   }
 }
 @variant @min-* {
-  @container (width >= --value(--container-*)) {
+  @container \{modifier\} (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+@variant @min-* {
+  @container \{modifier\} (width >= --value([length])) {
     @slot;
   }
 }
 @variant @max-* {
-  @container (width < --value(--container-*)) {
+  @container \{modifier\} (width < --value(--container-*)) {
     @slot;
   }
 }
-@variant @container {
-  @container {
+@variant @max-* {
+  @container \{modifier\} (width < --value([length])) {
     @slot;
   }
 }
-@variant @container* {
-  @container {modifier} {
+@variant @* {
+  @container \{modifier\} (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+@variant @* {
+  @container \{modifier\} (width >= --value([length])) {
     @slot;
   }
 }
 @variant group-* {
-  &:is(:where(.group/{modifier}):--value() *) {
+  &:is(:where(.group\/\{modifier\}):--value() *) {
     @slot;
   }
 }
 @variant peer-* {
-  &:is(:where(.peer/{modifier}):--value() ~ *) {
+  &:is(:where(.peer\/\{modifier\}):--value() ~ *) {
     @slot;
   }
 }
