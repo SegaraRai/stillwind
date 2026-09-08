@@ -1190,6 +1190,10 @@
   z-index: calc(--value(--z-index-*, integer, [z-index]) * -1);
 }
 @utility duration-* {
+  --tw-duration: --value(--duration-*);
+  transition-duration: --value(--duration-*);
+}
+@utility duration-* {
   --tw-duration: calc(--value(integer) * 1ms);
   transition-duration: calc(--value(integer) * 1ms);
 }
