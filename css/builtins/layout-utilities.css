@@ -18,11 +18,19 @@
 }
 
 @utility bottom-* {
-  bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  bottom: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility bottom-* {
+  bottom: --value-map(auto: auto, full: 100%);
 }
 
 @utility -bottom-* {
-  bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  bottom: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -bottom-* {
+  bottom: calc(--value-map(full: 100%) * -1);
 }
 
 @utility box-border {
@@ -154,11 +162,19 @@
 }
 
 @utility end-* {
-  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility end-* {
+  inset-inline-end: --value-map(auto: auto, full: 100%);
 }
 
 @utility -end-* {
-  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -end-* {
+  inset-inline-end: calc(--value-map(full: 100%) * -1);
 }
 
 @utility fixed {
@@ -194,35 +210,67 @@
 }
 
 @utility inset-* {
-  inset: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-* {
+  inset: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-* {
-  inset: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-* {
+  inset: calc(--value-map(full: 100%) * -1);
 }
 
 @utility inset-be-* {
-  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-be-* {
+  inset-block-end: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-be-* {
-  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-block-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-be-* {
+  inset-block-end: calc(--value-map(full: 100%) * -1);
 }
 
 @utility inset-bs-* {
-  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-bs-* {
+  inset-block-start: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-bs-* {
-  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-block-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-bs-* {
+  inset-block-start: calc(--value-map(full: 100%) * -1);
 }
 
 @utility inset-e-* {
-  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-e-* {
+  inset-inline-end: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-e-* {
-  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-e-* {
+  inset-inline-end: calc(--value-map(full: 100%) * -1);
 }
 
 @utility inset-ring {
@@ -252,27 +300,51 @@
 }
 
 @utility inset-s-* {
-  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-s-* {
+  inset-inline-start: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-s-* {
-  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-s-* {
+  inset-inline-start: calc(--value-map(full: 100%) * -1);
 }
 
 @utility inset-x-* {
-  inset-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-x-* {
+  inset-inline: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-x-* {
-  inset-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-x-* {
+  inset-inline: calc(--value-map(full: 100%) * -1);
 }
 
 @utility inset-y-* {
-  inset-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-block: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility inset-y-* {
+  inset-block: --value-map(auto: auto, full: 100%);
 }
 
 @utility -inset-y-* {
-  inset-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-block: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -inset-y-* {
+  inset-block: calc(--value-map(full: 100%) * -1);
 }
 
 @utility invisible {
@@ -288,11 +360,19 @@
 }
 
 @utility left-* {
-  left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  left: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility left-* {
+  left: --value-map(auto: auto, full: 100%);
 }
 
 @utility -left-* {
-  left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  left: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -left-* {
+  left: calc(--value-map(full: 100%) * -1);
 }
 
 @utility object-* {
@@ -456,19 +536,35 @@
 }
 
 @utility right-* {
-  right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  right: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility right-* {
+  right: --value-map(auto: auto, full: 100%);
 }
 
 @utility -right-* {
-  right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  right: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -right-* {
+  right: calc(--value-map(full: 100%) * -1);
 }
 
 @utility start-* {
-  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility start-* {
+  inset-inline-start: --value-map(auto: auto, full: 100%);
 }
 
 @utility -start-* {
-  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  inset-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -start-* {
+  inset-inline-start: calc(--value-map(full: 100%) * -1);
 }
 
 @utility static {
@@ -524,11 +620,19 @@
 }
 
 @utility top-* {
-  top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  top: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@utility top-* {
+  top: --value-map(auto: auto, full: 100%);
 }
 
 @utility -top-* {
-  top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  top: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+@utility -top-* {
+  top: calc(--value-map(full: 100%) * -1);
 }
 
 @utility visible {

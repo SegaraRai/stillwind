@@ -338,14 +338,14 @@
 }
 
 @utility translate-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
-  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
 @utility -translate-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
-  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-x: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -375,17 +375,27 @@
 }
 
 @utility -translate-x-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), [length-percentage]);
+  --tw-translate-x: calc(--value(--spacing-*, --spacing(), [length-percentage]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
 @utility translate-x-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
 @utility -translate-x-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-x: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-x-full {
+  --tw-translate-x: -100%;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-x-full {
+  --tw-translate-x: 100%;
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -400,17 +410,27 @@
 }
 
 @utility -translate-y-* {
-  --tw-translate-y: --value(--spacing-*, --spacing(), [length-percentage]);
+  --tw-translate-y: calc(--value(--spacing-*, --spacing(), [length-percentage]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
 @utility translate-y-* {
-  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
 @utility -translate-y-* {
-  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-y-full {
+  --tw-translate-y: -100%;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-y-full {
+  --tw-translate-y: 100%;
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -425,6 +445,6 @@
 }
 
 @utility -translate-z-* {
-  --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
+  --tw-translate-z: calc(--value(--spacing-*, --spacing(), [length]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
 }

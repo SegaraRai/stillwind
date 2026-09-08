@@ -1217,17 +1217,15 @@ impl MathExpression {
     }
 
     fn product(left: Self, right: Self) -> Self {
-        if let (Self::Product(positive, negative), Self::Value(MathValue::Number(scale))) =
-            (&left, &right)
-            && negative.is_negative_numeric()
-            && *scale >= 0.0
+        if let (
+            Self::Product(value, coefficient),
+            Self::Value(MathValue::Number(right_coefficient)),
+        ) = (&left, &right)
+            && let Self::Value(MathValue::Number(left_coefficient)) = coefficient.as_ref()
         {
-            return Self::Product(
-                Box::new(Self::product(
-                    (**positive).clone(),
-                    Self::Value(MathValue::Number(*scale)),
-                )),
-                Box::new((**negative).clone()),
+            return Self::product(
+                (**value).clone(),
+                Self::Value(MathValue::Number(left_coefficient * right_coefficient)),
             );
         }
         match (left, right) {
@@ -1260,17 +1258,6 @@ impl MathExpression {
             }
             (left, right) => Self::Product(Box::new(left), Box::new(right)),
         }
-    }
-
-    fn is_negative_numeric(&self) -> bool {
-        matches!(
-            self,
-            Self::Value(
-                MathValue::Number(value)
-                    | MathValue::Dimension(value, _)
-                    | MathValue::Percentage(value)
-            ) if *value < 0.0
-        )
     }
 
     fn sum(left: Self, right: Self) -> Self {
@@ -2698,7 +2685,7 @@ fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
 /// Expands the generic value-bearing utility-family syntax.
 ///
 /// ```css
-/// @utility-family spacing negative {
+/// @utility-family value=--value(--spacing-*, --spacing(), [length]) {
 ///   inset: inset;
 ///   inset-x: inset-inline;
 /// }
@@ -2711,8 +2698,7 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, "@utility-family")
         .into_iter()
         .flat_map(|(header, body)| {
-            let (domain, negative) = parse_utility_family_header(&header);
-            let Some(value) = domain else {
+            let Some(value) = parse_utility_family_header(&header) else {
                 return Vec::new();
             };
             body.split(';')
@@ -2738,17 +2724,10 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                                 write!(body, "{property}:{value};")
                                     .expect("writing to a String cannot fail");
                             }
-                            let mut utilities = vec![CustomUtility {
+                            vec![CustomUtility {
                                 name: format!("{name}-*"),
-                                body: body.clone(),
-                            }];
-                            if negative {
-                                utilities.push(CustomUtility {
-                                    name: format!("-{name}-*"),
-                                    body,
-                                });
-                            }
-                            utilities
+                                body,
+                            }]
                         }
                     })
                 })
@@ -2758,23 +2737,17 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
 }
 
 /// Reads the generic family header. Value expressions are authored in CSS as
-/// `value=--value(...)`; the optional `negative` flag only controls the
-/// generated sign branch. Headers without an authored value expression are
-/// ignored, keeping framework vocabulary out of the parser.
-fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
-    let negative = header.split_whitespace().any(|flag| flag == "negative");
-    let Some(start) = header.find("value=") else {
-        return (None, negative);
-    };
-    let mut value = &header[start + "value=".len()..];
-    if let Some(end) = value.rfind(" negative") {
-        value = &value[..end];
-    }
+/// `value=--value(...)`. Headers without an authored value expression are
+/// ignored, keeping framework vocabulary and sign handling out of the parser.
+/// Negative utilities must be authored explicitly with their own `* -1`.
+fn parse_utility_family_header(header: &str) -> Option<String> {
+    let start = header.find("value=")?;
+    let value = &header[start + "value=".len()..];
     let value = value.trim();
     if value.is_empty() {
-        (None, negative)
+        None
     } else {
-        (Some(value.to_owned()), negative)
+        Some(value.to_owned())
     }
 }
 
@@ -3089,7 +3062,7 @@ mod tests {
     #[test]
     fn expands_compact_utility_families_without_enumerating_values() {
         let utilities = parse_utility_definitions(
-            "@utility-family value=--value(--spacing-*, --spacing(), [length]) negative { inset: inset; inset-x: inset-inline; }",
+            "@utility-family value=--value(--spacing-*, --spacing(), [length]) { inset: inset; inset-x: inset-inline; }",
         );
 
         assert_eq!(
@@ -3100,15 +3073,7 @@ mod tests {
                     body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
                 },
                 CustomUtility {
-                    name: "-inset-*".to_owned(),
-                    body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
-                },
-                CustomUtility {
                     name: "inset-x-*".to_owned(),
-                    body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
-                },
-                CustomUtility {
-                    name: "-inset-x-*".to_owned(),
                     body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
                 },
             ]
@@ -3493,6 +3458,16 @@ mod tests {
                 "width:calc(2 * 1px);scale:calc(125 * 1%);left:calc(var(--spacing) * 4);right:calc((2px + 3px) * -1);"
             ),
             "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:-5px;"
+        );
+    }
+
+    #[test]
+    fn folds_trailing_numeric_factors_without_string_rewrites() {
+        assert_eq!(
+            fold_calc_expressions(
+                "left:calc(var(--spacing) * 4 * -1);right:calc(var(--spacing) * -1 * 4);"
+            ),
+            "left:calc(var(--spacing) * -4);right:calc(var(--spacing) * -4);"
         );
     }
 }

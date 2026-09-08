@@ -279,11 +279,11 @@
 }
 
 @utility indent-* {
-  text-indent: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  text-indent: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -indent-* {
-  text-indent: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  text-indent: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility italic {
@@ -558,7 +558,7 @@
 }
 
 @utility -underline-offset-* {
-  text-underline-offset: --value(--text-underline-offset-*, [length]);
+  text-underline-offset: calc(--value(--text-underline-offset-*, [length]) * -1);
 }
 
 @utility -underline-offset-* {

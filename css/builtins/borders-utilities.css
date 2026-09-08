@@ -534,7 +534,7 @@
 }
 
 @utility -outline-offset-* {
-  outline-offset: --value(--outline-offset-*, [length]);
+  outline-offset: calc(--value(--outline-offset-*, [length]) * -1);
 }
 
 @utility -outline-offset-* {

@@ -262,91 +262,91 @@
 }
 
 @utility scroll-m-* {
-  scroll-margin: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-m-* {
-  scroll-margin: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-mb-* {
-  scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-mb-* {
-  scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-bottom: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-mbe-* {
-  scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-mbe-* {
-  scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-block-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-mbs-* {
-  scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-mbs-* {
-  scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-block-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-me-* {
-  scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-me-* {
-  scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-ml-* {
-  scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-ml-* {
-  scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-left: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-mr-* {
-  scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-mr-* {
-  scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-right: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-ms-* {
-  scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-ms-* {
-  scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-mt-* {
-  scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-mt-* {
-  scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-top: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-mx-* {
-  scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-mx-* {
-  scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-inline: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-my-* {
-  scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
 
 @utility -scroll-my-* {
-  scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  scroll-margin-block: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
 @utility scroll-p-* {

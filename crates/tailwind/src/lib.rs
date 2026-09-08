@@ -843,7 +843,7 @@ fn resolve_variant_value_domains(
                     .map(|token| token.value.value.clone())
             });
         }
-        resolve_value_domains(domain, capture, false, theme)
+        resolve_value_domains(domain, capture, theme)
     })
 }
 
@@ -1526,13 +1526,7 @@ fn resolve_css_placeholders(
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_owned();
-    resolve_literal_value_placeholders(
-        &mut body,
-        capture,
-        utility_name.starts_with('-'),
-        theme,
-        compat_color_mode,
-    )?;
+    resolve_literal_value_placeholders(&mut body, capture, theme, compat_color_mode)?;
     resolve_text_line_height_placeholders(&mut body, capture, theme)?;
     resolve_value_map_placeholders(&mut body, capture)?;
     while let Some(start) = body.find("--value(") {
@@ -1556,8 +1550,7 @@ fn resolve_css_placeholders(
             None
         };
         let capture = fraction_capture.as_deref().or(capture);
-        let replacement =
-            resolve_value_domains(domains, capture, utility_name.starts_with('-'), theme)?;
+        let replacement = resolve_value_domains(domains, capture, theme)?;
         body.replace_range(start..=end, &replacement);
     }
     while let Some(start) = body.find("--modifier(") {
@@ -1579,7 +1572,7 @@ fn resolve_css_placeholders(
                 Value::Arbitrary(value) => format!("[{value}]"),
                 Value::CssVariable(value) => format!("({value})"),
             };
-            resolve_value_domains(domains, Some(&capture), false, theme)?
+            resolve_value_domains(domains, Some(&capture), theme)?
         };
         body.replace_range(start..=end, &replacement);
     }
@@ -1725,7 +1718,7 @@ fn resolve_shadow_color(
         .strip_prefix("--")
         .and_then(|domain| domain.strip_suffix("-*"))
         .and_then(ThemeNamespace::parse)?;
-    let value = theme_value_literal(namespace, capture?, false, theme)?;
+    let value = theme_value_literal(namespace, capture?, theme)?;
     let color_property = color_property.trim();
     color_property.strip_prefix("--").filter(|name| {
         !name.is_empty()
@@ -1739,7 +1732,6 @@ fn resolve_shadow_color(
 fn resolve_literal_value_placeholders(
     body: &mut String,
     capture: Option<&str>,
-    negative: bool,
     theme: &ThemeIndex,
     compat_color_mode: CompatColorMode,
 ) -> Option<()> {
@@ -1748,11 +1740,9 @@ fn resolve_literal_value_placeholders(
         let end = closing_parenthesis(body, open)?;
         let replacement = match compat_color_mode {
             CompatColorMode::Legacy => {
-                resolve_literal_value_domains(&body[open + 1..end], capture, negative, theme)?
+                resolve_literal_value_domains(&body[open + 1..end], capture, theme)?
             }
-            CompatColorMode::Modern => {
-                resolve_value_domains(&body[open + 1..end], capture, negative, theme)?
-            }
+            CompatColorMode::Modern => resolve_value_domains(&body[open + 1..end], capture, theme)?,
         };
         body.replace_range(start..=end, &replacement);
     }
@@ -1925,7 +1915,6 @@ fn closing_parenthesis(value: &str, open: usize) -> Option<usize> {
 fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
-    negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
@@ -1947,28 +1936,24 @@ fn resolve_value_domains(
                 .map(|value| format!("{value}%"));
         }
         if domain == "--spacing()" {
-            return capture.and_then(|capture| {
-                theme_value(ThemeNamespace::Spacing, capture, negative, theme)
-            });
+            return capture
+                .and_then(|capture| theme_value(ThemeNamespace::Spacing, capture, theme));
         }
         if domain == "--fraction()" {
-            return capture.and_then(|capture| fraction_value(capture, negative));
-        }
-        if domain == "--inset()" {
-            return capture.and_then(|capture| inset_value(capture, negative));
+            return capture.and_then(fraction_value);
         }
         if domain == "--width()" {
-            return capture.and_then(|capture| axis_size_value(capture, "vw", negative));
+            return capture.and_then(|capture| axis_size_value(capture, "vw"));
         }
         if domain == "--height()" {
-            return capture.and_then(|capture| axis_size_value(capture, "vh", negative));
+            return capture.and_then(|capture| axis_size_value(capture, "vh"));
         }
         if let Some(namespace) = domain
             .strip_prefix("--")
             .and_then(|domain| domain.strip_suffix("-*"))
             .and_then(ThemeNamespace::parse)
         {
-            return capture.and_then(|capture| theme_value(namespace, capture, negative, theme));
+            return capture.and_then(|capture| theme_value(namespace, capture, theme));
         }
         if !domain.starts_with('[') && !domain.starts_with("--") {
             return capture.filter(|value| *value == domain).map(|value| {
@@ -1982,26 +1967,13 @@ fn resolve_value_domains(
         let expected = ValueDomain::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
         if let Some(variable) = parse_css_variable(capture?) {
             let hint_is_compatible = variable.hint.is_none_or(|hint| expected.accepts_hint(hint));
-            return hint_is_compatible.then(|| {
-                let value = format!("var({})", variable.name);
-                if negative {
-                    format!("calc(({value}) * -1)")
-                } else {
-                    value
-                }
-            });
+            return hint_is_compatible.then(|| format!("var({})", variable.name));
         }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
         let (hint, value) = arbitrary.split_once(':').unwrap_or(("", arbitrary));
         let value = decode_arbitrary(value);
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
-        (hint_is_compatible && expected.accepts(&value)).then(|| {
-            if negative {
-                format!("calc(({value}) * -1)")
-            } else {
-                value
-            }
-        })
+        (hint_is_compatible && expected.accepts(&value)).then_some(value)
     })
 }
 
@@ -2011,7 +1983,6 @@ fn resolve_value_domains(
 fn resolve_literal_value_domains(
     domains: &str,
     capture: Option<&str>,
-    negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
@@ -2021,10 +1992,9 @@ fn resolve_literal_value_domains(
             .and_then(|domain| domain.strip_suffix("-*"))
             .and_then(ThemeNamespace::parse);
         if let Some(namespace) = namespace {
-            return capture
-                .and_then(|capture| theme_value_literal(namespace, capture, negative, theme));
+            return capture.and_then(|capture| theme_value_literal(namespace, capture, theme));
         }
-        resolve_value_domains(domain, capture, negative, theme)
+        resolve_value_domains(domain, capture, theme)
     })
 }
 
@@ -2047,12 +2017,7 @@ fn split_domains(value: &str) -> Vec<&str> {
     domains
 }
 
-fn theme_value(
-    namespace: ThemeNamespace,
-    value: &str,
-    negative: bool,
-    theme: &ThemeIndex,
-) -> Option<String> {
+fn theme_value(namespace: ThemeNamespace, value: &str, theme: &ThemeIndex) -> Option<String> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
         _ if let Some(value) = typed_css_variable(namespace, value) => format!("var({value})"),
@@ -2081,39 +2046,29 @@ fn theme_value(
                 if value.parse::<f64>().is_ok_and(|number| number == 0.0) {
                     return Some("0".to_owned());
                 }
-                let multiplier = if negative {
-                    format!("-{value}")
-                } else {
-                    value.to_owned()
-                };
                 let scale_name = theme.scale(ThemeNamespace::Spacing)?.name.value.as_str();
-                return Some(format!("calc(var({scale_name}) * {multiplier})"));
+                return Some(format!("calc(var({scale_name}) * {value})"));
             } else {
                 return None;
             }
         }
         _ => return None,
     };
-    negative
-        .then(|| format!("calc({value} * -1)"))
-        .or(Some(value))
+    Some(value)
 }
 
 fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,
-    negative: bool,
     theme: &ThemeIndex,
 ) -> Option<String> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
         _ if let Some(value) = typed_css_variable(namespace, value) => format!("var({value})"),
         _ if let Some(token) = theme.token_in(namespace, value) => token.value.value.clone(),
-        _ => return theme_value(namespace, value, negative, theme),
+        _ => return theme_value(namespace, value, theme),
     };
-    negative
-        .then(|| format!("calc({value} * -1)"))
-        .or(Some(value))
+    Some(value)
 }
 
 fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<String> {
@@ -2156,32 +2111,14 @@ fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
     }
 }
 
-fn fraction_value(value: &str, negative: bool) -> Option<String> {
+fn fraction_value(value: &str) -> Option<String> {
     let (numerator, denominator) = value.split_once('/')?;
     let numerator = numerator.parse::<u16>().ok()?;
     let denominator = denominator.parse::<u16>().ok()?;
-    (denominator != 0).then(|| {
-        let value = format!("calc({numerator} / {denominator} * 100%)");
-        if negative {
-            format!("calc({value} * -1)")
-        } else {
-            value
-        }
-    })
+    (denominator != 0).then(|| format!("calc({numerator} / {denominator} * 100%)"))
 }
 
-fn inset_value(value: &str, negative: bool) -> Option<String> {
-    let value = match value {
-        "auto" if !negative => "auto".to_owned(),
-        "full" => "100%".to_owned(),
-        _ => return None,
-    };
-    negative
-        .then(|| format!("calc({value} * -1)"))
-        .or(Some(value))
-}
-
-fn axis_size_value(value: &str, viewport_axis: &str, negative: bool) -> Option<String> {
+fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String> {
     let value = match value {
         "auto" => "auto".to_owned(),
         "full" => "100%".to_owned(),
@@ -2198,9 +2135,7 @@ fn axis_size_value(value: &str, viewport_axis: &str, negative: bool) -> Option<S
         "lh" => "1lh".to_owned(),
         _ => return None,
     };
-    negative
-        .then(|| format!("calc({value} * -1)"))
-        .or(Some(value))
+    Some(value)
 }
 
 fn typed_css_variable(namespace: ThemeNamespace, value: &str) -> Option<&str> {
@@ -2958,6 +2893,14 @@ mod tests {
         let theme = theme();
 
         assert_eq!(
+            resolve_utility("left-auto", &theme).unwrap().declaration,
+            "left:auto;"
+        );
+        assert!(
+            resolve_utility("-left-auto", &theme).is_none(),
+            "negative keyword admissibility must come from the CSS definition"
+        );
+        assert_eq!(
             resolve_utility("-left-4", &theme).unwrap().declaration,
             "left:calc(var(--spacing) * -4);"
         );
@@ -3072,6 +3015,9 @@ mod tests {
             r"@theme { --color-brand: red; }
 @utility tone-* { color: --value(--color-*); }
 @utility rail-* { inline-size: --value(--spacing()); }
+@utility -rail-* { inline-size: calc(--value(--spacing()) * -1); }
+@utility offset-* { inset: --value-map(auto: auto, full: 100%); }
+@utility -offset-* { inset: calc(--value-map(full: 100%) * -1); }
 @utility mask-* { mask-size: --value([length]); }
 @utility alpha-* { opacity: --modifier(); }",
         );
@@ -3084,6 +3030,19 @@ mod tests {
         assert_eq!(
             resolve_utility("rail-4", &theme).unwrap().declaration,
             "inline-size: calc(var(--spacing) * 4);"
+        );
+        assert_eq!(
+            resolve_utility("-rail-4", &theme).unwrap().declaration,
+            "inline-size: calc(var(--spacing) * -4);"
+        );
+        assert_eq!(
+            resolve_utility("offset-auto", &theme).unwrap().declaration,
+            "inset: auto;"
+        );
+        assert!(resolve_utility("-offset-auto", &theme).is_none());
+        assert_eq!(
+            resolve_utility("-offset-full", &theme).unwrap().declaration,
+            "inset: -100%;"
         );
         assert_eq!(
             resolve_utility("mask-[length:12px]", &theme)
@@ -3841,6 +3800,28 @@ mod tests {
                     );
                 }
                 locations.insert(family.to_owned(), (file, index));
+            }
+        }
+    }
+
+    #[test]
+    fn builtin_negative_value_definitions_author_their_sign_explicitly() {
+        for (file, css) in REGISTRY_FILES {
+            assert!(
+                !css.contains("--inset()"),
+                "{file} must express keyword domains in CSS instead of a Rust inset helper"
+            );
+            for utility in stillwind_css::parse_utility_definitions(css) {
+                if utility.name.starts_with('-')
+                    && (utility.body.contains("--value(") || utility.body.contains("--value-map("))
+                {
+                    assert!(
+                        utility.body.contains("* -1"),
+                        "negative utility {} in {file} must author its sign in CSS: {}",
+                        utility.name,
+                        utility.body
+                    );
+                }
             }
         }
     }
