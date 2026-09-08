@@ -1,4 +1,5 @@
-/* Vendored Stillwind built-ins. Parsed once into the same registry as @utility. */
+/* Utilities whose output structure contains selectors, nested rules, or
+ * at-rules. Scalar declaration-only utilities belong in the value shards. */
 @utility container {
   width: 100%;
   @media (width >= --value(--breakpoint-*)) {
@@ -198,14 +199,6 @@
 @utility outline-0 {
   outline-style: var(--tw-outline-style);
   outline-width: 0;
-}
-@utility outline-1 {
-  outline-style: var(--tw-outline-style);
-  outline-width: 1px;
-}
-@utility outline-2 {
-  outline-style: var(--tw-outline-style);
-  outline-width: 2px;
 }
 @utility outline-hidden {
   --tw-outline-style: none;

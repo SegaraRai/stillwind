@@ -1,0 +1,11 @@
+/* Literal compatibility markers and relationship-aware candidate families. */
+@stillwind-marker group;
+@stillwind-marker peer;
+@stillwind-relationship container;
+@stillwind-relationship @container;
+@stillwind-relationship @container-normal;
+@stillwind-relationship @*;
+@stillwind-relationship group-*;
+@stillwind-relationship peer-*;
+@stillwind-relationship group;
+@stillwind-relationship peer;

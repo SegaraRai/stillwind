@@ -120,14 +120,16 @@ pub struct VariantDeclaration {
 
 const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../packages/react/css/builtins.css"),
-    include_str!("../../../packages/react/css/core-utilities.css"),
-    include_str!("../../../packages/react/css/discrete-utilities.css"),
-    include_str!("../../../packages/react/css/functional-utilities.css"),
+    include_str!("../../../packages/react/css/registry-metadata.css"),
+    include_str!("../../../packages/react/css/relationship-metadata.css"),
+    include_str!("../../../packages/react/css/structural-utilities.css"),
+    include_str!("../../../packages/react/css/keyword-utilities.css"),
+    include_str!("../../../packages/react/css/theme-value-utilities.css"),
     include_str!("../../../packages/react/css/interaction-variants.css"),
-    include_str!("../../../packages/react/css/static-utilities.css"),
-    include_str!("../../../packages/react/css/arbitrary-utilities.css"),
-    include_str!("../../../packages/react/css/mask-utilities.css"),
-    include_str!("../../../packages/react/css/effect-utilities.css"),
+    include_str!("../../../packages/react/css/exact-utilities.css"),
+    include_str!("../../../packages/react/css/typed-value-utilities.css"),
+    include_str!("../../../packages/react/css/css-grammar-utilities.css"),
+    include_str!("../../../packages/react/css/compatibility-utilities.css"),
     include_str!("../../../packages/react/css/selector-variants.css"),
     include_str!("../../../packages/react/css/properties.css"),
 );
@@ -3741,36 +3743,44 @@ mod tests {
             include_str!("../../../packages/react/css/builtins.css"),
         ),
         (
-            "core-utilities.css",
-            include_str!("../../../packages/react/css/core-utilities.css"),
+            "registry-metadata.css",
+            include_str!("../../../packages/react/css/registry-metadata.css"),
         ),
         (
-            "discrete-utilities.css",
-            include_str!("../../../packages/react/css/discrete-utilities.css"),
+            "relationship-metadata.css",
+            include_str!("../../../packages/react/css/relationship-metadata.css"),
         ),
         (
-            "functional-utilities.css",
-            include_str!("../../../packages/react/css/functional-utilities.css"),
+            "structural-utilities.css",
+            include_str!("../../../packages/react/css/structural-utilities.css"),
+        ),
+        (
+            "keyword-utilities.css",
+            include_str!("../../../packages/react/css/keyword-utilities.css"),
+        ),
+        (
+            "theme-value-utilities.css",
+            include_str!("../../../packages/react/css/theme-value-utilities.css"),
         ),
         (
             "interaction-variants.css",
             include_str!("../../../packages/react/css/interaction-variants.css"),
         ),
         (
-            "static-utilities.css",
-            include_str!("../../../packages/react/css/static-utilities.css"),
+            "exact-utilities.css",
+            include_str!("../../../packages/react/css/exact-utilities.css"),
         ),
         (
-            "arbitrary-utilities.css",
-            include_str!("../../../packages/react/css/arbitrary-utilities.css"),
+            "typed-value-utilities.css",
+            include_str!("../../../packages/react/css/typed-value-utilities.css"),
         ),
         (
-            "mask-utilities.css",
-            include_str!("../../../packages/react/css/mask-utilities.css"),
+            "css-grammar-utilities.css",
+            include_str!("../../../packages/react/css/css-grammar-utilities.css"),
         ),
         (
-            "effect-utilities.css",
-            include_str!("../../../packages/react/css/effect-utilities.css"),
+            "compatibility-utilities.css",
+            include_str!("../../../packages/react/css/compatibility-utilities.css"),
         ),
         (
             "selector-variants.css",

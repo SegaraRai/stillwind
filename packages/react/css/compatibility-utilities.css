@@ -1,4 +1,6 @@
-/* Gradient interpolation follows the CSS Images 4 color-space spelling.
+/* Compatibility refinements whose conditional/fallback emission builds on
+ * more general definitions in the earlier shards.
+ * Gradient interpolation follows the CSS Images 4 color-space spelling.
  * `--modifier-map` is registry syntax, so user-defined utilities get the
  * same checked modifier behaviour without a JavaScript-side special case. */
 @utility bg-conic {

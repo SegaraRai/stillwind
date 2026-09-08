@@ -45,6 +45,10 @@ export default defineConfig({
         command:
           "cargo test -p stillwind-tailwind audits_builtin_registry_reachability_from_parity_fixtures -- --ignored --nocapture",
       },
+      "tailwind:numeric-domain-audit": {
+        command: "node tailwind-numeric-domain-audit.mts",
+        dependsOn: ["@stillwind/native#build"],
+      },
       "tailwind:extract": {
         command: "node extract-tailwind-v4-registrations.ts",
       },

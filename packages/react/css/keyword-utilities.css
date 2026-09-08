@@ -1,6 +1,5 @@
-/* Discrete Tailwind keywords stay ordinary @utility registrations. They are
- * intentionally not expanded from fixture data: each rule is the browser CSS
- * contract exposed by the public registry DSL. */
+/* Finite keyword utilities and exact zero-value exceptions. They are not
+ * expanded from fixture data: each rule is part of the browser CSS contract. */
 @utility cursor-none {
   cursor: none;
 }
@@ -241,14 +240,6 @@
 }
 @utility underline-offset-0 {
   text-underline-offset: 0px;
-}
-@utility outline-4 {
-  outline-style: var(--tw-outline-style);
-  outline-width: 4px;
-}
-@utility outline-8 {
-  outline-style: var(--tw-outline-style);
-  outline-width: 8px;
 }
 @utility ring {
   --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(1px + var(--tw-ring-offset-width))

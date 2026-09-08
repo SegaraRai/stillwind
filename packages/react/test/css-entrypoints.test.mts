@@ -20,14 +20,16 @@ void test("builtins.css imports every split registry file", () => {
   const imports = [...css.matchAll(/@import "\.\/(.+\.css)";/g)].map((match) => match[1]);
 
   assert.deepEqual(imports, [
-    "core-utilities.css",
-    "discrete-utilities.css",
-    "functional-utilities.css",
+    "registry-metadata.css",
+    "relationship-metadata.css",
+    "structural-utilities.css",
+    "keyword-utilities.css",
+    "theme-value-utilities.css",
     "interaction-variants.css",
-    "static-utilities.css",
-    "arbitrary-utilities.css",
-    "mask-utilities.css",
-    "effect-utilities.css",
+    "exact-utilities.css",
+    "typed-value-utilities.css",
+    "css-grammar-utilities.css",
+    "compatibility-utilities.css",
     "selector-variants.css",
     "properties.css",
   ]);

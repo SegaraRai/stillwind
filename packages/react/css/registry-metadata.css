@@ -1,0 +1,60 @@
+/* Serialization and dependency metadata shared by all built-in families. */
+@stillwind-order {
+  margin:
+    margin,
+    margin-inline,
+    margin-block,
+    margin-inline-start,
+    margin-inline-end,
+    margin-block-start,
+    margin-block-end,
+    margin-[*];
+  padding:
+    padding,
+    padding-inline,
+    padding-block,
+    padding-inline-start,
+    padding-inline-end,
+    padding-block-start,
+    padding-block-end,
+    padding-[*];
+  inset:
+    inset, inset-inline, inset-block, inset-inline-start, inset-inline-end, inset-block-start,
+    inset-block-end, left, right, top, bottom;
+  border:
+    border,
+    border-style,
+    border-width,
+    border-inline-[*],
+    border-block-[*],
+    border-[*]-style,
+    border-[*]-width;
+  mask-x:
+    --tw-mask-right, --tw-mask-right-from-position, --tw-mask-right-to-position,
+    --tw-mask-right-from-color, --tw-mask-right-to-color, --tw-mask-left,
+    --tw-mask-left-from-position, --tw-mask-left-to-position, --tw-mask-left-from-color,
+    --tw-mask-left-to-color;
+  mask-y:
+    --tw-mask-top, --tw-mask-top-from-position, --tw-mask-top-to-position, --tw-mask-top-from-color,
+    --tw-mask-top-to-color, --tw-mask-bottom, --tw-mask-bottom-from-position,
+    --tw-mask-bottom-to-position, --tw-mask-bottom-from-color, --tw-mask-bottom-to-color;
+}
+
+@stillwind-format grid-column slash-space-span;
+@stillwind-format grid-row slash-space-span;
+@stillwind-format --tw-drop-shadow empty-space;
+@stillwind-format --tw-blur empty-space;
+@stillwind-format --tw-backdrop-blur empty-space;
+@stillwind-format box-shadow comma-space;
+@stillwind-format transform var-fallback;
+@stillwind-theme-order spacing color;
+@stillwind-format --tw-ring-shadow empty-var-fallback;
+@stillwind-format --tw-ring-offset-shadow empty-var-fallback;
+@stillwind-format transform compose-space;
+@stillwind-format translate zero-length;
+@stillwind-format --tw-translate-* zero-length;
+@stillwind-format --tw-border-spacing-* zero-length;
+@stillwind-format --tw-mask-*-from-position zero-length;
+@stillwind-format --tw-mask-*-to-position zero-length;
+@stillwind-format-functions color-mix linear-gradient;
+@stillwind-omit-token-prefix --shadow- --tw-shadow:;

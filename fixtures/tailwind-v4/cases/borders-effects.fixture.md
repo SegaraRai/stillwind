@@ -12,7 +12,7 @@
 ### Candidates
 
 ```text
-border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-2 outline-offset-2 ring-2 ring-red-500 shadow-lg shadow-red-500/50 opacity-50 mix-blend-multiply bg-blend-multiply
+border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-2 outline-offset-2 -outline-offset-[1px] -underline-offset-[1px] ring-2 ring-red-500 shadow-lg shadow-red-500/50 opacity-50 mix-blend-multiply bg-blend-multiply
 ```
 
 ### Expected CSS
@@ -51,6 +51,9 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
   .border-red-500 {
     border-color: var(--color-red-500);
   }
+  .-underline-offset-\[1px\] {
+    text-underline-offset: calc(1px * -1);
+  }
   .opacity-50 {
     opacity: 50%;
   }
@@ -80,6 +83,9 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
   .outline-2 {
     outline-style: var(--tw-outline-style);
     outline-width: 2px;
+  }
+  .-outline-offset-\[1px\] {
+    outline-offset: calc(1px * -1);
   }
   .outline-offset-2 {
     outline-offset: 2px;

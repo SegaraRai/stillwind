@@ -1,4 +1,4 @@
-/* Tailwind v4-compatible static utility definitions. */
+/* Finite exact-name utilities with no value-domain resolution. */
 @utility -translate-full {
   --tw-translate-x: -100%;
   --tw-translate-y: -100%;

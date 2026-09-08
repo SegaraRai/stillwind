@@ -1,4 +1,6 @@
-/* Mask stop utilities intentionally keep their gradient state on the element.
+/* Utilities resolved through reusable CSS grammar, numeric domains, or
+ * composable function state rather than a finite fixture-derived value list.
+ * Mask stop utilities intentionally keep their gradient state on the element.
  * This mirrors Tailwind's composable custom-property model without a generated
  * table for every color, percentage, and spacing token. */
 @utility mask-linear-from-* {
@@ -243,7 +245,7 @@
     var(--tw-drop-shadow,);
 }
 @utility -outline-offset-* {
-  outline-offset: calc(--value(--outline-offset-*, [length]) * -1);
+  outline-offset: --value(--outline-offset-*, [length]);
 }
 @utility -outline-offset-* {
   outline-offset: calc(--value(integer) * 1px * -1);
@@ -435,12 +437,6 @@
 @utility stroke-* {
   stroke: --value(--color-*, current, inherit, transparent, [color]);
 }
-@utility stroke-* {
-  stroke: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
-}
 @utility divide-x-* {
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
@@ -577,7 +573,7 @@
     var(--tw-backdrop-sepia,);
 }
 @utility -underline-offset-* {
-  text-underline-offset: calc(--value(--text-underline-offset-*, [length]) * -1);
+  text-underline-offset: --value(--text-underline-offset-*, [length]);
 }
 @utility -underline-offset-* {
   text-underline-offset: calc(--value(integer) * 1px * -1);
@@ -649,7 +645,7 @@
     var(--tw-drop-shadow,);
 }
 @utility shrink-* {
-  flex-shrink: --value([number]);
+  flex-shrink: --value(number, [number]);
 }
 @utility skew-* {
   transform: skew(--value([skew-arguments]));
@@ -680,9 +676,6 @@
 }
 @utility fill-* {
   fill: --value(--color-*, current, inherit, transparent);
-}
-@utility stroke-* {
-  stroke: --value(--color-*, current, inherit, transparent);
 }
 @utility caret-* {
   caret-color: --value(--color-*, current, inherit, transparent);

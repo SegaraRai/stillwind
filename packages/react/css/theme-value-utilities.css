@@ -1,5 +1,5 @@
-/* Functional registrations. Several entries intentionally share a root: a
- * value domain decides which expression accepts each candidate. */
+/* Theme-token and scalar-backed wildcard utilities. Several definitions may
+ * share a root; their value domains decide which expression accepts it. */
 /*
  * `@utility-family` is Stillwind's compact registry syntax. Each entry
  * declares a wildcard utility root and its CSS property, not the 30+ default
@@ -1068,6 +1068,10 @@
 }
 @utility outline-* {
   outline-color: --value(--color-*, current, inherit, transparent);
+}
+@utility outline-* {
+  outline-style: var(--tw-outline-style);
+  outline-width: calc(--value(integer) * 1px);
 }
 @utility p-* {
   padding: --value(--spacing-*, --spacing(), [length-percentage]);

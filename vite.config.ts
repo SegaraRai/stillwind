@@ -57,6 +57,10 @@ export default defineConfig({
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:parity:analyze"],
       },
+      "tailwind:numeric-domain-audit": {
+        command: "",
+        dependsOn: ["@stillwind/tools#tailwind:numeric-domain-audit"],
+      },
       "tailwind:registry-audit": {
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:registry-audit"],

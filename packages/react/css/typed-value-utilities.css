@@ -1,5 +1,5 @@
-/* Functional arbitrary-value utilities. Theme-token overloads live above;
- * these definitions provide the common arbitrary-value grammar. */
+/* Typed arbitrary-value utilities. Theme-token overloads live in
+ * theme-value-utilities.css; these rules accept explicit CSS value grammar. */
 @utility align-* {
   vertical-align: --value([vertical-align]);
 }
@@ -184,7 +184,7 @@
   grid-template-rows: subgrid;
 }
 @utility grow-* {
-  flex-grow: --value([number]);
+  flex-grow: --value(number, [number]);
 }
 @utility hue-rotate-* {
   --tw-hue-rotate: hue-rotate(--value([angle]));
