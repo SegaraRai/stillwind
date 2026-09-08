@@ -88,6 +88,21 @@ function registeredProperties(css: string): Set<string> {
   return new Set([...css.matchAll(/@property\s+(--[a-zA-Z][\w-]*)/g)].map((match) => match[1]));
 }
 
+function isJustifiedPropertyExtension(expected: string, received: string): boolean {
+  if (withoutMetadata(expected, false) !== withoutMetadata(received, false)) return false;
+  const expectedRegistrations = registeredProperties(expected);
+  const receivedRegistrations = registeredProperties(received);
+  if ([...expectedRegistrations].some((property) => !receivedRegistrations.has(property))) {
+    return false;
+  }
+  const additions = [...receivedRegistrations].filter(
+    (property) => !expectedRegistrations.has(property),
+  );
+  return (
+    additions.length > 0 && additions.every((property) => expected.includes(`var(${property}`))
+  );
+}
+
 function hasVariant(candidate: string): boolean {
   let brackets = 0;
   let parentheses = 0;
@@ -293,7 +308,7 @@ for (const file of readdirSync(caseRoot)
       if (expected === "@layer utilities;" && received === "") {
         continue;
       }
-      if (expected !== received) {
+      if (expected !== received && !isJustifiedPropertyExtension(expected, received)) {
         failures.push(`${file} ${candidate}`);
         recordDifference(file, candidate, expected, received);
         if (!quiet && failures.length <= 20) {

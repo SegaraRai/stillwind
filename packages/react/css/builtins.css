@@ -54,7 +54,7 @@
 @stillwind-format --tw-mask-*-to-position zero-length;
 @stillwind-format-functions color-mix linear-gradient;
 @stillwind-omit-token-prefix --shadow- --tw-shadow:;
-@stillwind-theme-order color spacing;
+@stillwind-theme-order spacing color;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";
