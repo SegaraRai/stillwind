@@ -413,22 +413,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    let mut declaration = if candidate.important {
-        important(&resolution.declaration)
-    } else {
-        resolution.declaration
-    };
-    declaration = normalize_format_var_fallbacks(declaration, theme);
-    declaration = apply_declaration_formats(declaration, theme);
-    declaration = apply_zero_length_format(declaration, theme);
-    declaration = stillwind_css::fold_calc_expressions(&declaration);
+    let declaration = finalize_declaration(resolution.declaration, candidate.important, theme);
     let nested: Vec<NestedUtilityRule> = resolution
         .nested
         .into_iter()
         .map(|mut nested| {
-            if candidate.important {
-                nested.declaration = important(&nested.declaration);
-            }
+            nested.declaration =
+                finalize_declaration(nested.declaration, candidate.important, theme);
             nested
         })
         .collect();
@@ -436,11 +427,14 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .additional
         .into_iter()
         .map(|mut target| {
-            if candidate.important {
-                target.declaration = important(&target.declaration);
-                for nested in &mut target.nested {
-                    nested.declaration = important(&nested.declaration);
-                }
+            target.declaration =
+                finalize_declaration(target.declaration, candidate.important, theme);
+            for nested in &mut target.nested {
+                nested.declaration = finalize_declaration(
+                    std::mem::take(&mut nested.declaration),
+                    candidate.important,
+                    theme,
+                );
             }
             target
         })
@@ -453,6 +447,18 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         nested,
         additional,
     })
+}
+
+fn finalize_declaration(declaration: String, is_important: bool, theme: &ThemeIndex) -> String {
+    let declaration = if is_important {
+        important(&declaration)
+    } else {
+        declaration
+    };
+    let declaration = normalize_format_var_fallbacks(declaration, theme);
+    let declaration = apply_declaration_formats(declaration, theme);
+    let declaration = apply_zero_length_format(declaration, theme);
+    stillwind_css::fold_calc_expressions(&declaration)
 }
 
 fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
@@ -2971,7 +2977,7 @@ mod tests {
         for (candidate, declaration, selector) in [
             (
                 "divide-y",
-                "border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px*var(--tw-divide-y-reverse));border-bottom-width:calc(1px*calc(1 - var(--tw-divide-y-reverse)));",
+                "border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));",
                 Some(":where(&>:not(:last-child))"),
             ),
             (

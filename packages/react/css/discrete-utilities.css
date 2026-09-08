@@ -25,7 +25,6 @@
   line-height: 1;
 }
 @utility divide-x {
-  --tw-divide-x-reverse: 0;
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
@@ -34,7 +33,6 @@
   }
 }
 @utility divide-y {
-  --tw-divide-y-reverse: 0;
   :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 0;
     border-bottom-style: var(--tw-border-style);

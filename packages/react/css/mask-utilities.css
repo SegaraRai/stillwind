@@ -439,16 +439,16 @@
   );
 }
 @utility divide-x-* {
-  --tw-divide-x-reverse: 0;
   :where(& > :not(:last-child)) {
+    --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
     border-inline-start-width: calc(--value(integer) * 1px * var(--tw-divide-x-reverse));
     border-inline-end-width: calc(--value(integer) * 1px * calc(1 - var(--tw-divide-x-reverse)));
   }
 }
 @utility divide-y-* {
-  --tw-divide-y-reverse: 0;
   :where(& > :not(:last-child)) {
+    --tw-divide-y-reverse: 0;
     border-bottom-style: var(--tw-border-style);
     border-top-style: var(--tw-border-style);
     border-top-width: calc(--value(integer) * 1px * var(--tw-divide-y-reverse));
@@ -847,30 +847,30 @@
   background-image: radial-gradient(var(--tw-gradient-stops));
 }
 @utility bg-linear-* {
-  --tw-gradient-position: --value(integer) deg;
+  --tw-gradient-position: calc(--value(integer) * 1deg);
   @supports (background-image: linear-gradient(in lab, red, red)) {
-    --tw-gradient-position: --value(integer) deg in oklab;
+    --tw-gradient-position: calc(--value(integer) * 1deg) in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
 @utility bg-linear-* {
-  --tw-gradient-position: --value(integer) deg in --modifier();
+  --tw-gradient-position: calc(--value(integer) * 1deg);
   @supports (background-image: linear-gradient(in lab, red, red)) {
-    --tw-gradient-position: --value(integer) deg in --modifier();
+    --tw-gradient-position: calc(--value(integer) * 1deg) in --modifier();
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
 @utility -bg-linear-* {
-  --tw-gradient-position: calc(--value(integer) deg * -1);
+  --tw-gradient-position: calc(--value(integer) * 1deg * -1);
   @supports (background-image: linear-gradient(in lab, red, red)) {
-    --tw-gradient-position: calc(--value(integer) deg * -1) in oklab;
+    --tw-gradient-position: calc(--value(integer) * 1deg * -1) in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
 @utility -bg-linear-* {
-  --tw-gradient-position: calc(--value(integer) deg * -1) in --modifier();
+  --tw-gradient-position: calc(--value(integer) * 1deg * -1);
   @supports (background-image: linear-gradient(in lab, red, red)) {
-    --tw-gradient-position: calc(--value(integer) deg * -1) in --modifier();
+    --tw-gradient-position: calc(--value(integer) * 1deg * -1) in --modifier();
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }

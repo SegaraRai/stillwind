@@ -879,10 +879,10 @@
   :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 0;
     margin-inline-start: calc(
-      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-x-reverse))
+      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-x-reverse)
     );
     margin-inline-end: calc(
-      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-x-reverse)
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-x-reverse))
     );
   }
 }
@@ -896,10 +896,10 @@
   :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 0;
     margin-inline-start: calc(
-      --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-x-reverse))
+      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-x-reverse)
     );
     margin-inline-end: calc(
-      --value(--spacing-*, --spacing(), [length]) * -1 * var(--tw-space-x-reverse)
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-x-reverse))
     );
   }
 }
@@ -907,9 +907,11 @@
   :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(
+      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-y-reverse)
+    );
+    margin-block-end: calc(
       --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-y-reverse))
     );
-    margin-block-end: calc(--value(--spacing-*, --spacing(), [length]) * var(--tw-space-y-reverse));
   }
 }
 @utility -space-x-0 {
@@ -934,10 +936,10 @@
   :where(& > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(
-      --value(--spacing-*, --spacing(), [length]) * -1 * calc(1 - var(--tw-space-y-reverse))
+      --value(--spacing-*, --spacing(), [length]) * var(--tw-space-y-reverse)
     );
     margin-block-end: calc(
-      --value(--spacing-*, --spacing(), [length]) * -1 * var(--tw-space-y-reverse)
+      --value(--spacing-*, --spacing(), [length]) * calc(1 - var(--tw-space-y-reverse))
     );
   }
 }
@@ -1168,11 +1170,11 @@
 }
 @utility leading-* {
   --tw-leading: --value(--leading-*);
-  line-height: var(--tw-leading);
+  line-height: --value(--leading-*);
 }
 @utility leading-* {
   --tw-leading: --value(--leading-*, --spacing(), number, [length]);
-  line-height: var(--tw-leading);
+  line-height: --value(--leading-*, --spacing(), number, [length]);
 }
 @utility tracking-* {
   --tw-tracking: --value(--tracking-*);
