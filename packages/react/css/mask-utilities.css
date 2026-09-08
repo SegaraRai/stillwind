@@ -794,17 +794,29 @@
       bl: to bottom left,
       l: to left,
       tl: to top left
-    )
-    --modifier-map(
-      oklab: in oklab,
-      oklch: in oklch,
-      srgb: in srgb,
-      hsl: in hsl,
-      longer: in oklch longer hue,
-      shorter: in oklch shorter hue,
-      increasing: in oklch increasing hue,
-      decreasing: in oklch decreasing hue
     );
+  @supports (background-image: linear-gradient(in lab, red, red)) {
+    --tw-gradient-position: --value-map(
+        t: to top,
+        tr: to top right,
+        r: to right,
+        br: to bottom right,
+        b: to bottom,
+        bl: to bottom left,
+        l: to left,
+        tl: to top left
+      )
+      --modifier-map(
+        oklab: in oklab,
+        oklch: in oklch,
+        srgb: in srgb,
+        hsl: in hsl,
+        longer: in oklch longer hue,
+        shorter: in oklch shorter hue,
+        increasing: in oklch increasing hue,
+        decreasing: in oklch decreasing hue
+      );
+  }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
 @utility bg-radial {

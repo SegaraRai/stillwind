@@ -1150,21 +1150,6 @@ pub fn parse_compat_color_spaces(css: &str) -> Option<(String, String)> {
         })
 }
 
-/// Parses a generic declaration compatibility bridge. The first token is the
-/// declaration property and the remainder is the feature query condition.
-pub fn parse_compatibility_bridge(css: &str, directive: &str) -> Option<(String, String)> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix(directive))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .find_map(|value| {
-            let (property, condition) = value.split_once(char::is_whitespace)?;
-            let property = property.trim();
-            let condition = condition.trim();
-            (!property.is_empty() && !condition.is_empty())
-                .then(|| (property.to_owned(), condition.to_owned()))
-        })
-}
-
 /// Parses generic token-pruning rules authored by the registry CSS.
 pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
     css.split('@')
@@ -2803,16 +2788,6 @@ mod tests {
         assert_eq!(
             parse_compat_color_spaces("@stillwind-compat-color srgb oklab;"),
             Some(("srgb".to_owned(), "oklab".to_owned()))
-        );
-        assert_eq!(
-            parse_compatibility_bridge(
-                "@stillwind-compat-bridge --tw-gradient-position background-image:linear-gradient(in lab, red, red);",
-                "stillwind-compat-bridge",
-            ),
-            Some((
-                "--tw-gradient-position".to_owned(),
-                "background-image:linear-gradient(in lab, red, red)".to_owned(),
-            ))
         );
     }
 

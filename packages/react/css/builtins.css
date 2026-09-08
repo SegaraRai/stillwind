@@ -26,7 +26,6 @@
 @stillwind-format translate zero-length;
 @stillwind-format-functions color-mix linear-gradient;
 @stillwind-compat-color srgb oklab;
-@stillwind-compat-bridge --tw-gradient-position background-image:linear-gradient(in lab, red, red);
 @stillwind-omit-token-prefix --shadow- --tw-shadow:;
 @stillwind-theme-order color spacing;
 @import "./core-utilities.css";

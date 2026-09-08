@@ -236,19 +236,6 @@ fn builtin_compat_color_spaces() -> Option<&'static (String, String)> {
 const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
 
 #[must_use]
-fn builtin_compatibility_bridge() -> Option<&'static (String, String)> {
-    static BRIDGE: OnceLock<Option<(String, String)>> = OnceLock::new();
-    BRIDGE
-        .get_or_init(|| {
-            stillwind_css::parse_compatibility_bridge(
-                BUILTIN_REGISTRY_CSS,
-                "stillwind-compat-bridge",
-            )
-        })
-        .as_ref()
-}
-
-#[must_use]
 fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
     static PATTERNS: OnceLock<BTreeSet<String>> = OnceLock::new();
     PATTERNS.get_or_init(|| stillwind_css::parse_relationship_patterns(BUILTIN_REGISTRY_CSS))
@@ -577,7 +564,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
                 &format!("rotateZ(calc({number}deg * -1))"),
             );
     }
-    let mut nested: Vec<NestedUtilityRule> = resolution
+    let nested: Vec<NestedUtilityRule> = resolution
         .nested
         .into_iter()
         .map(|mut nested| {
@@ -587,34 +574,6 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             nested
         })
         .collect();
-    // CSS definitions normally provide this fallback/supports pair. Keep a
-    // generic bridge for authored definitions that resolve an interpolation
-    // space directly but omit the nested feature query.
-    if let Some((bridge_property, bridge_condition)) = builtin_compatibility_bridge()
-        && declaration.contains(&format!("{bridge_property}:"))
-        && declaration.contains("linear-gradient")
-        && !nested.iter().any(|rule| matches!(rule.at_rule, NestedUtilityAtRule::Supports))
-        && let Some(position) = declaration
-            .strip_prefix(&format!("{bridge_property}:"))
-            .and_then(|value| value.split_once(';'))
-        && position.0.contains(" in ")
-    {
-        let position = position.0.to_owned();
-        let (angle, color_space) = position.split_once(" in ").expect("gradient space");
-        let angle = angle.to_owned();
-        let color_space = color_space.to_owned();
-        declaration = declaration.replacen(
-            &format!("{bridge_property}:{position};"),
-            &format!("{bridge_property}:{angle};"),
-            1,
-        );
-        nested.push(NestedUtilityRule {
-            at_rule: NestedUtilityAtRule::Supports,
-            condition: bridge_condition.clone(),
-            declaration: format!("{bridge_property}:{angle} in {color_space};"),
-            inside: true,
-        });
-    }
     let additional = resolution
         .additional
         .into_iter()
