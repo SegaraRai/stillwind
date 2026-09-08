@@ -233,16 +233,7 @@ fn builtin_compat_color_spaces() -> Option<&'static (String, String)> {
         .as_ref()
 }
 
-#[must_use]
-fn builtin_compat_color_support() -> &'static str {
-    static SUPPORT: OnceLock<String> = OnceLock::new();
-    SUPPORT
-        .get_or_init(|| {
-            stillwind_css::parse_compat_color_support(BUILTIN_REGISTRY_CSS)
-                .unwrap_or_default()
-        })
-        .as_str()
-}
+const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
 
 #[must_use]
 fn builtin_compatibility_bridge() -> Option<&'static (String, String)> {
@@ -1226,7 +1217,7 @@ fn resolve_css_utility_body(
     {
         resolved_nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
-            condition: builtin_compat_color_support().to_owned(),
+            condition: COMPAT_COLOR_SUPPORT.to_owned(),
             declaration: modern,
             inside: true,
         });
@@ -1258,7 +1249,7 @@ fn resolve_css_utility_body(
                 {
                     resolved_nested.push(NestedUtilityRule {
                         at_rule: NestedUtilityAtRule::Supports,
-                        condition: builtin_compat_color_support().to_owned(),
+                        condition: COMPAT_COLOR_SUPPORT.to_owned(),
                         declaration: modern,
                         inside: true,
                     });
@@ -3473,6 +3464,7 @@ mod tests {
         );
         let utility = resolve_utility("tone-brand/50", &theme).unwrap();
         assert_eq!(utility.nested.len(), 1);
+        assert_eq!(utility.nested[0].condition, COMPAT_COLOR_SUPPORT);
         assert!(utility.nested[0]
             .declaration
             .contains("color-mix(in oklab,var(--color-brand) 50%,transparent)"));

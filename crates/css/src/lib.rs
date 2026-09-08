@@ -1150,16 +1150,6 @@ pub fn parse_compat_color_spaces(css: &str) -> Option<(String, String)> {
         })
 }
 
-/// Parses the CSS-authored feature query used for modern compatibility color
-/// upgrades, e.g. `@stillwind-compat-support color-mix(in lab, red, red);`.
-pub fn parse_compat_color_support(css: &str) -> Option<String> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-compat-support"))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .find(|value| !value.is_empty())
-        .map(str::to_owned)
-}
-
 /// Parses a generic declaration compatibility bridge. The first token is the
 /// declaration property and the remainder is the feature query condition.
 pub fn parse_compatibility_bridge(css: &str, directive: &str) -> Option<(String, String)> {
@@ -2813,12 +2803,6 @@ mod tests {
         assert_eq!(
             parse_compat_color_spaces("@stillwind-compat-color srgb oklab;"),
             Some(("srgb".to_owned(), "oklab".to_owned()))
-        );
-        assert_eq!(
-            parse_compat_color_support(
-                "@stillwind-compat-support color:color-mix(in lab, red, red);"
-            ),
-            Some("color:color-mix(in lab, red, red)".to_owned())
         );
         assert_eq!(
             parse_compatibility_bridge(
