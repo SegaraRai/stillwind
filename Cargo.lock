@@ -1324,6 +1324,7 @@ dependencies = [
  "serde",
  "serde_json",
  "stillwind-core",
+ "stillwind-css",
  "stillwind-semantic",
  "stillwind-source",
 ]

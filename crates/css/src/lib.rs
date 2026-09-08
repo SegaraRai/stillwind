@@ -1228,9 +1228,6 @@ impl MathExpression {
                 Box::new((**negative).clone()),
             );
         }
-        if left.is_negative_numeric() || right.is_negative_numeric() {
-            return Self::Product(Box::new(left), Box::new(right));
-        }
         match (left, right) {
             (Self::Value(MathValue::Number(0.0)), value)
             | (value, Self::Value(MathValue::Number(0.0))) => value
@@ -3459,7 +3456,7 @@ mod tests {
             fold_calc_expressions(
                 "width:calc(2 * 1px);scale:calc(125 * 1%);left:calc(var(--spacing) * 4);right:calc((2px + 3px) * -1);"
             ),
-            "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:calc(5px * -1);"
+            "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:-5px;"
         );
     }
 }

@@ -31,3 +31,4 @@ export const compileReactProject = binding.compileReactProject;
 export const renderReactStylesheet = binding.renderReactStylesheet;
 export const summarizeReact = binding.summarizeReact;
 export const generateReactTypes = binding.generateReactTypes;
+export const foldCalcExpressions = binding.foldCalcExpressions;

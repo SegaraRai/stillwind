@@ -164,7 +164,6 @@
 }
 
 @stillwind-property --tw-shadow {
-  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
@@ -176,21 +175,22 @@
 }
 
 @stillwind-property --tw-shadow-color {
-  group: shadow;
   activation: declared;
   syntax: "*";
   inherits: false;
+  depends-on: --tw-shadow --tw-shadow-alpha --tw-inset-shadow --tw-inset-shadow-color
+    --tw-inset-shadow-alpha --tw-ring-color --tw-ring-shadow --tw-inset-ring-color
+    --tw-inset-ring-shadow --tw-ring-inset --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-shadow-alpha {
-  group: shadow;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-inset-shadow {
-  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
@@ -202,70 +202,76 @@
 }
 
 @stillwind-property --tw-inset-shadow-color {
-  group: shadow;
   activation: declared;
   syntax: "*";
   inherits: false;
+  depends-on: --tw-shadow --tw-shadow-color --tw-shadow-alpha --tw-inset-shadow
+    --tw-inset-shadow-alpha --tw-ring-color --tw-ring-shadow --tw-inset-ring-color
+    --tw-inset-ring-shadow --tw-ring-inset --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-inset-shadow-alpha {
-  group: shadow;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-ring-color {
-  group: shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-ring-shadow {
-  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
   activation: declared;
+  depends-on: --tw-shadow --tw-shadow-color --tw-shadow-alpha --tw-inset-shadow
+    --tw-inset-shadow-color --tw-inset-shadow-alpha --tw-ring-color --tw-inset-ring-color
+    --tw-inset-ring-shadow --tw-ring-inset --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-inset-ring-color {
-  group: shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-inset-ring-shadow {
-  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
   activation: declared;
+  depends-on: --tw-shadow --tw-shadow-color --tw-shadow-alpha --tw-inset-shadow
+    --tw-inset-shadow-color --tw-inset-shadow-alpha --tw-ring-color --tw-ring-shadow
+    --tw-inset-ring-color --tw-ring-inset --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-ring-inset {
-  group: shadow;
   activation: declared;
   syntax: "*";
   inherits: false;
+  depends-on: --tw-shadow --tw-shadow-color --tw-shadow-alpha --tw-inset-shadow
+    --tw-inset-shadow-color --tw-inset-shadow-alpha --tw-ring-color --tw-ring-shadow
+    --tw-inset-ring-color --tw-inset-ring-shadow --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-ring-offset-width {
-  group: shadow;
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
 }
 
 @stillwind-property --tw-ring-offset-color {
-  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: #fff;
 }
 
 @stillwind-property --tw-ring-offset-shadow {
-  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;

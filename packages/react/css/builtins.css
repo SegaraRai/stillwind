@@ -57,6 +57,7 @@
 @stillwind-format box-shadow comma-space;
 @stillwind-format transform var-fallback;
 @stillwind-format --tw-ring-shadow empty-var-fallback;
+@stillwind-format --tw-ring-offset-shadow empty-var-fallback;
 @stillwind-format transform compose-space;
 @stillwind-format translate zero-length;
 @stillwind-format --tw-mask-*-from-position zero-length;

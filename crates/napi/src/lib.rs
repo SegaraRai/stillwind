@@ -432,3 +432,11 @@ pub fn generate_react_types(theme: String) -> Result<String> {
     let source = SourceFile::new(FileId(2), "stillwind.css", theme);
     Compiler::generate_react_types(&source).map_err(|error| Error::from_reason(error.to_string()))
 }
+
+/// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value
+/// parser. Exposed so parity and integration tools compare both compilers
+/// after the same semantic normalization.
+#[napi(js_name = "foldCalcExpressions")]
+pub fn fold_calc_expressions(css: String) -> String {
+    stillwind_css::fold_calc_expressions(&css)
+}

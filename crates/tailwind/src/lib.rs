@@ -2473,7 +2473,7 @@ mod tests {
         assert!(
             negative
                 .declaration
-                .contains("--tw-mask-conic-position:calc(45deg * -1);"),
+                .contains("--tw-mask-conic-position:-45deg;"),
             "{negative:?}"
         );
     }
@@ -2783,7 +2783,7 @@ mod tests {
         );
         assert_eq!(
             resolve_utility("-bottom-full", &theme).unwrap().declaration,
-            "bottom:calc(100% * -1);"
+            "bottom:-100%;"
         );
     }
 
@@ -3005,7 +3005,7 @@ mod tests {
             ("break-after-page", "break-after:page;"),
             ("z-auto", "z-index:auto;"),
             ("z-73", "z-index:73;"),
-            ("-z-73", "z-index:calc(73 * -1);"),
+            ("-z-73", "z-index:-73;"),
             ("border-13", "border-width:13px;"),
             ("col-span-full", "grid-column:1/-1;"),
             ("row-auto", "grid-row:auto;"),
@@ -3344,7 +3344,7 @@ mod tests {
             resolve_utility("-translate-y-[12px]", &theme)
                 .unwrap()
                 .declaration,
-            "--tw-translate-y:calc(12px * -1);translate:var(--tw-translate-x) var(--tw-translate-y);"
+            "--tw-translate-y:-12px;translate:var(--tw-translate-x) var(--tw-translate-y);"
         );
         assert_eq!(
             resolve_utility("scale-[0.8]", &theme).unwrap().declaration,

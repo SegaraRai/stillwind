@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { compileReact } from "@stillwind/native";
+import { compileReact, foldCalcExpressions } from "@stillwind/native";
 import { transform } from "lightningcss";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
@@ -99,7 +99,10 @@ function isJustifiedPropertyExtension(expected: string, received: string): boole
     (property) => !expectedRegistrations.has(property),
   );
   return (
-    additions.length > 0 && additions.every((property) => expected.includes(`var(${property}`))
+    additions.length > 0 &&
+    additions.every(
+      (property) => expected.includes(`var(${property}`) || expected.includes(`${property}:`),
+    )
   );
 }
 
@@ -222,7 +225,7 @@ function minify(css: string): string {
   return Buffer.from(
     transform({
       filename: "parity.css",
-      code: Buffer.from(css.replaceAll(/\/\*[\s\S]*?\*\//g, "")),
+      code: Buffer.from(foldCalcExpressions(css.replaceAll(/\/\*[\s\S]*?\*\//g, ""))),
       minify: true,
       errorRecovery: true,
     }).code,

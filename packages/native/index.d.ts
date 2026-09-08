@@ -34,3 +34,5 @@ export declare function summarizeReact(
   sourcePath: string | undefined | null,
 ): string;
 export declare function generateReactTypes(theme: string): string;
+/** Canonicalizes constant calc() subexpressions with Stillwind's CSS value parser. */
+export declare function foldCalcExpressions(css: string): string;

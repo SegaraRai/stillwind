@@ -170,7 +170,7 @@
   rotate: calc(--value(integer) * 1deg);
 }
 @utility -rotate-* {
-  rotate: calc(--value(integer) * -1deg);
+  rotate: calc(--value(integer) * 1deg * -1);
 }
 @utility skew-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg));
@@ -195,8 +195,8 @@
     var(--tw-skew-y,);
 }
 @utility -skew-* {
-  --tw-skew-x: skewX(calc(--value(integer) * -1deg));
-  --tw-skew-y: skewY(calc(--value(integer) * -1deg));
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg * -1));
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg * -1));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
@@ -243,7 +243,10 @@
     var(--tw-drop-shadow,);
 }
 @utility -outline-offset-* {
-  outline-offset: calc(--value(--spacing-*, --spacing(), [length]) * -1);
+  outline-offset: calc(--value(--outline-offset-*, [length]) * -1);
+}
+@utility -outline-offset-* {
+  outline-offset: calc(--value(integer) * 1px * -1);
 }
 @utility size-* {
   width: --value(--spacing-*, --spacing(), [length]);
@@ -366,22 +369,22 @@
   scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
 @utility -scale-x-* {
-  --tw-scale-x: calc(--value(integer) * -1%);
+  --tw-scale-x: calc(--value(integer) * 1% * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @utility -scale-y-* {
-  --tw-scale-y: calc(--value(integer) * -1%);
+  --tw-scale-y: calc(--value(integer) * 1% * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @utility -scale-z-* {
-  --tw-scale-z: calc(--value(integer) * -1%);
+  --tw-scale-z: calc(--value(integer) * 1% * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
 @utility -scale-* {
-  --tw-scale-x: calc(--value(integer) * -1%);
-  --tw-scale-y: calc(--value(integer) * -1%);
-  --tw-scale-z: calc(--value(integer) * -1%);
-  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+  --tw-scale-x: calc(--value(integer) * 1% * -1);
+  --tw-scale-y: calc(--value(integer) * 1% * -1);
+  --tw-scale-z: calc(--value(integer) * 1% * -1);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @utility zoom-* {
   zoom: calc(--value(integer) * 1%);
@@ -471,17 +474,17 @@
     var(--tw-skew-y);
 }
 @utility -rotate-x-* {
-  --tw-rotate-x: rotateX(calc(--value(integer) * -1deg));
+  --tw-rotate-x: rotateX(calc(--value(integer) * 1deg * -1));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
 @utility -rotate-y-* {
-  --tw-rotate-y: rotateY(calc(--value(integer) * -1deg));
+  --tw-rotate-y: rotateY(calc(--value(integer) * 1deg * -1));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
 @utility -rotate-z-* {
-  --tw-rotate-z: rotateZ(calc(--value(integer) * -1deg));
+  --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg * -1));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
@@ -496,12 +499,12 @@
     var(--tw-skew-y);
 }
 @utility -skew-x-* {
-  --tw-skew-x: skewX(calc(--value(integer) * -1deg));
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg * -1));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
 @utility -skew-y-* {
-  --tw-skew-y: skewY(calc(--value(integer) * -1deg));
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg * -1));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
@@ -574,7 +577,10 @@
     var(--tw-backdrop-sepia,);
 }
 @utility -underline-offset-* {
-  text-underline-offset: calc(--value(--spacing-*, --spacing(), [length]) * -1);
+  text-underline-offset: calc(--value(--text-underline-offset-*, [length]) * -1);
+}
+@utility -underline-offset-* {
+  text-underline-offset: calc(--value(integer) * 1px * -1);
 }
 @utility underline-offset-auto {
   text-underline-offset: auto;
@@ -607,7 +613,10 @@
   transform-origin: --value([position]);
 }
 @utility outline-offset-* {
-  outline-offset: --value([length]);
+  outline-offset: --value(--outline-offset-*, [length]);
+}
+@utility outline-offset-* {
+  outline-offset: calc(--value(integer) * 1px);
 }
 @utility perspective-* {
   perspective: --value([length]);
@@ -658,7 +667,10 @@
   transition-property: --value([transition-property]);
 }
 @utility underline-offset-* {
-  text-underline-offset: --value([length]);
+  text-underline-offset: --value(--text-underline-offset-*, [length]);
+}
+@utility underline-offset-* {
+  text-underline-offset: calc(--value(integer) * 1px);
 }
 @utility will-change-* {
   will-change: --value([will-change]);
