@@ -94,7 +94,10 @@ for (const file of readdirSync(caseRoot)
         if (!quiet && unresolvedShown < 20) {
           unresolvedShown += 1;
           console.error(`\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${expected}`);
-          if (debugRaw) console.error(`Native diagnostics: ${JSON.stringify(native.diagnostics)}\nRaw: ${native.css}`);
+          if (debugRaw)
+            console.error(
+              `Native diagnostics: ${JSON.stringify(native.diagnostics)}\nRaw: ${native.css}`,
+            );
         }
         continue;
       }

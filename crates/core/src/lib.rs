@@ -778,11 +778,10 @@ impl Compiler {
                         ));
                     }
                     if selector.is_none()
-                        && let Some(marker) =
-                            stillwind_tailwind::compatibility_marker_class(
-                                &utility.value.raw,
-                                &theme,
-                            )
+                        && let Some(marker) = stillwind_tailwind::compatibility_marker_class(
+                            &utility.value.raw,
+                            &theme,
+                        )
                     {
                         let class = GeneratedClass {
                             class_name: marker,
@@ -812,7 +811,7 @@ impl Compiler {
                             .unwrap_or_default();
                         {
                             for resolved_utility in &mut utilities {
-                                resolved_utility.variants = candidate_variants.clone();
+                                resolved_utility.variants.clone_from(&candidate_variants);
                                 if let Some(selector) = &selector {
                                     resolved_utility.selector =
                                         Some(resolved_utility.selector.as_deref().map_or_else(
@@ -1620,7 +1619,10 @@ fn emit_utility_rules(
                 nested_in_rule_css.push_str(&nested_css);
             }
         }
-        if !anchored_nested.is_empty() {
+        if anchored_nested.is_empty() {
+            output.push_str(&base);
+            output.push_str(&nested_in_rule_css);
+        } else {
             let mut inlined = base.clone();
             for (property, nested_css) in anchored_nested {
                 let marker = format!("{property}:");
@@ -1631,9 +1633,6 @@ fn emit_utility_rules(
                 }
             }
             output.push_str(&inlined);
-        } else {
-            output.push_str(&base);
-            output.push_str(&nested_in_rule_css);
         }
         output.push('}');
     }
@@ -1797,11 +1796,15 @@ fn combine_declarations_with_order(
                 .split_once(':')
                 .and_then(|(property, _)| formats.get(property))
                 .is_some_and(|format| {
-                    format.split_whitespace().any(|item| item == "compose-space")
+                    format
+                        .split_whitespace()
+                        .any(|item| item == "compose-space")
                 });
             if compose_space {
                 if let Some((property, value)) = declaration.split_once(':') {
-                    if let Some((_, existing)) = composed.iter_mut().find(|(name, _)| name == property) {
+                    if let Some((_, existing)) =
+                        composed.iter_mut().find(|(name, _)| name == property)
+                    {
                         existing.push(' ');
                         existing.push_str(value);
                     } else {
@@ -1811,7 +1814,9 @@ fn combine_declarations_with_order(
             } else if !declaration.is_empty() {
                 let declaration = if let Some((property, value)) = declaration.split_once(':')
                     && value.is_empty()
-                    && formats.get(property).is_some_and(|format| format == "empty-space")
+                    && formats
+                        .get(property)
+                        .is_some_and(|format| format == "empty-space")
                 {
                     format!("{property}: ")
                 } else if let Some((property, value)) = declaration.split_once(':')
@@ -1840,7 +1845,9 @@ fn combine_declarations_with_order(
                 let declaration = if declaration.contains("deg") {
                     normalize_angle_calc(&normalize_negative_calc(&declaration))
                 } else {
-                    normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(&declaration)))
+                    normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(
+                        &declaration,
+                    )))
                 };
                 ordered.push(declaration);
             }
@@ -1931,7 +1938,10 @@ fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
     let mut cursor = 0;
     while let Some(relative) = output[cursor..].find("calc(var(--") {
         let start = cursor + relative;
-        let Some(close) = output[start..].find(") * 0)").or_else(|| output[start..].find(")*0)")) else {
+        let Some(close) = output[start..]
+            .find(") * 0)")
+            .or_else(|| output[start..].find(")*0)"))
+        else {
             break;
         };
         let end = start + close + 6;
@@ -1941,20 +1951,19 @@ fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
     output
 }
 
-fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, u16)> {
+fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, usize)> {
     let property = declaration.split_once(':').map(|(property, _)| property)?;
-    order
-        .iter()
-        .enumerate()
-        .find_map(|(group, patterns)| {
-            patterns.iter().enumerate().find_map(|(rank, pattern)| {
-                let matched = pattern.strip_suffix('*')
-                    .map_or(property == pattern, |prefix| property.starts_with(prefix));
-                matched.then_some((group, rank as u16))
-            })
+    order.iter().enumerate().find_map(|(group, patterns)| {
+        patterns.iter().enumerate().find_map(|(rank, pattern)| {
+            let matched = pattern
+                .strip_suffix('*')
+                .map_or(property == pattern, |prefix| property.starts_with(prefix));
+            matched.then_some((group, rank))
         })
+    })
 }
 
+#[allow(clippy::too_many_lines)]
 fn render_stylesheet(
     theme: &stillwind_css::ThemeIndex,
     utility_css: &str,
@@ -1962,10 +1971,7 @@ fn render_stylesheet(
 ) -> String {
     let imports = &theme.imports;
     let mut css = String::new();
-    let authored_css = expand_authored_directives(
-        &without_keyframes(theme.custom_css()),
-        theme,
-    );
+    let authored_css = expand_authored_directives(&without_keyframes(theme.custom_css()), theme);
     if imports.layer_order {
         css.push_str("@layer theme, base, components, utilities;\n");
     }
@@ -2010,7 +2016,7 @@ fn render_stylesheet(
                 _ => None,
             })
             .collect::<Vec<_>>();
-        animation_names = animations.clone();
+        animation_names.clone_from(&animations);
         if !required_tokens.is_empty() || !animations.is_empty() {
             css.push_str("@layer ");
             css.push_str(layer);
@@ -2087,7 +2093,9 @@ fn render_stylesheet(
 fn expand_authored_directives(css: &str, theme: &stillwind_css::ThemeIndex) -> String {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
-        let Some(end_rel) = output[start..].find(';') else { break };
+        let Some(end_rel) = output[start..].find(';') else {
+            break;
+        };
         let end = start + end_rel;
         let candidates = output[start + 7..end].split_whitespace();
         let mut declarations = Vec::new();
@@ -2097,21 +2105,26 @@ fn expand_authored_directives(css: &str, theme: &stillwind_css::ThemeIndex) -> S
             }
         }
         declarations.sort_by_key(|declaration| {
-            if declaration.starts_with("background-") { 0 }
-            else if declaration.starts_with("padding-") { 1 }
-            else if declaration.starts_with("display:") { 2 }
-            else { 3 }
+            if declaration.starts_with("background-") {
+                0
+            } else if declaration.starts_with("padding-") {
+                1
+            } else if declaration.starts_with("display:") {
+                2
+            } else {
+                3
+            }
         });
         let declarations = declarations.concat();
         output.replace_range(start..=end, &declarations);
     }
     while let Some(start) = output.find("@variant hover {") {
         let open = start + "@variant hover ".len();
-        let Some(close) = matching_brace(&output, open) else { break };
+        let Some(close) = matching_brace(&output, open) else {
+            break;
+        };
         let body = &output[open + 1..close];
-        let replacement = format!(
-            "&:hover {{ @media (hover: hover) {{{body}}} }}"
-        );
+        let replacement = format!("&:hover {{ @media (hover: hover) {{{body}}} }}");
         output.replace_range(start..=close, &replacement);
     }
     output
@@ -2124,7 +2137,9 @@ fn matching_brace(value: &str, open: usize) -> Option<usize> {
             '{' => depth += 1,
             '}' => {
                 depth = depth.checked_sub(1)?;
-                if depth == 0 { return Some(open + offset); }
+                if depth == 0 {
+                    return Some(open + offset);
+                }
             }
             _ => {}
         }
@@ -2272,7 +2287,8 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
             else {
                 continue;
             };
-            for (prefix, expected_namespace) in stillwind_tailwind::builtin_utility_token_prefixes() {
+            for (prefix, expected_namespace) in stillwind_tailwind::builtin_utility_token_prefixes()
+            {
                 if namespace == expected_namespace {
                     utilities.push(format!("{prefix}-{name}"));
                 }
@@ -2289,22 +2305,17 @@ fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
     let mut variants = Vec::new();
     if theme.imports.builtins {
         variants.extend(stillwind_tailwind::builtin_variant_names());
-        variants.extend(
-            theme
-                .tokens
-                .iter()
-                .filter_map(|token| {
-                    if let stillwind_css::ThemeTokenKind::Token {
-                        namespace: stillwind_css::ThemeNamespace::Breakpoint,
-                        name,
-                    } = &token.kind
-                    {
-                        Some(name.clone())
-                    } else {
-                        None
-                    }
-                }),
-        );
+        variants.extend(theme.tokens.iter().filter_map(|token| {
+            if let stillwind_css::ThemeTokenKind::Token {
+                namespace: stillwind_css::ThemeNamespace::Breakpoint,
+                name,
+            } = &token.kind
+            {
+                Some(name.clone())
+            } else {
+                None
+            }
+        }));
     }
     variants.sort_unstable();
     variants.dedup();

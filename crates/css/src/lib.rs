@@ -421,7 +421,7 @@ pub fn shadow_with_color_fallback(
 
 /// Serializes a theme color as an sRGB fallback with the requested alpha.
 /// Tailwind emits the legacy fallback before its Color 5 `color-mix` upgrade;
-/// LightningCSS provides the color-space conversion we need here.
+/// `LightningCSS` provides the color-space conversion we need here.
 #[must_use]
 pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
     let color = CssColor::parse_string(value).ok()?.to_rgb().ok()?;
@@ -435,6 +435,9 @@ pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
     ) && hex.len() == 6
         && hex.chars().all(|character| character.is_ascii_hexdigit())
     {
+        // Clamping and rounding guarantee an integer-valued result in the
+        // inclusive u8 range before this intentional float conversion.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let byte = (percent.clamp(0.0, 100.0) * 255.0 / 100.0).round() as u8;
         return Some(format!("#{hex}{byte:02x}"));
     }
@@ -1608,13 +1611,13 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
                 output.builtins = true;
-                output.prefix = prefix.clone();
+                output.prefix.clone_from(&prefix);
             }
             "tailwindcss/theme" => {
                 found = true;
                 output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
                 output.builtins = true;
-                output.prefix = prefix.clone();
+                output.prefix.clone_from(&prefix);
             }
             "tailwindcss/preflight" => {
                 found = true;
@@ -1625,7 +1628,7 @@ fn framework_imports(css: &str) -> FrameworkImports {
                 found = true;
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
                 output.builtins = true;
-                output.prefix = prefix.clone();
+                output.prefix.clone_from(&prefix);
             }
             "stillwind/theme.css" => {
                 found = true;
@@ -1987,7 +1990,9 @@ fn strip_top_level_blocks(css: &str, directive: &str) -> String {
     let mut depth = 0_u32;
     while cursor < css.len() {
         if depth == 0 && css[cursor..].starts_with(directive) {
-            let Some(open_rel) = css[cursor..].find('{') else { break };
+            let Some(open_rel) = css[cursor..].find('{') else {
+                break;
+            };
             let open = cursor + open_rel;
             let mut inner = 1_u32;
             let mut end = open + 1;
@@ -1996,7 +2001,10 @@ fn strip_top_level_blocks(css: &str, directive: &str) -> String {
                     '{' => inner += 1,
                     '}' => {
                         inner = inner.saturating_sub(1);
-                        if inner == 0 { end = open + 1 + offset + 1; break; }
+                        if inner == 0 {
+                            end = open + 1 + offset + 1;
+                            break;
+                        }
                     }
                     _ => {}
                 }
@@ -2004,9 +2012,15 @@ fn strip_top_level_blocks(css: &str, directive: &str) -> String {
             cursor = end;
             continue;
         }
-        let Some(ch) = css[cursor..].chars().next() else { break };
-        if ch == '{' { depth += 1; }
-        if ch == '}' { depth = depth.saturating_sub(1); }
+        let Some(ch) = css[cursor..].chars().next() else {
+            break;
+        };
+        if ch == '{' {
+            depth += 1;
+        }
+        if ch == '}' {
+            depth = depth.saturating_sub(1);
+        }
         output.push(ch);
         cursor += ch.len_utf8();
     }
@@ -2034,16 +2048,18 @@ fn extract_declaration_order(css: &str) -> Vec<Vec<String>> {
     extract_named_blocks(&strip_css_comments(css), "@stillwind-order")
         .into_iter()
         .flat_map(|(_, body)| {
-            body.split(';').filter_map(|entry| {
-                let (_, properties) = entry.split_once(':')?;
-                let group = properties
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|property| !property.is_empty())
-                    .map(str::to_owned)
-                    .collect::<Vec<_>>();
-                (!group.is_empty()).then_some(group)
-            }).collect::<Vec<_>>()
+            body.split(';')
+                .filter_map(|entry| {
+                    let (_, properties) = entry.split_once(':')?;
+                    let group = properties
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|property| !property.is_empty())
+                        .map(str::to_owned)
+                        .collect::<Vec<_>>();
+                    (!group.is_empty()).then_some(group)
+                })
+                .collect::<Vec<_>>()
         })
         .collect()
 }
@@ -2126,7 +2142,7 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                 })
                 .flat_map(move |(names, properties)| {
                     names.flat_map({
-                        let value = value.to_owned();
+                        let value = value.clone();
                         move |name| {
                             let mut body = String::new();
                             for property in &properties {
@@ -2157,9 +2173,7 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
 /// generated sign branch. Headers without an authored value expression are
 /// ignored, keeping framework vocabulary out of the parser.
 fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
-    let negative = header
-        .split_whitespace()
-        .any(|flag| flag == "negative");
+    let negative = header.split_whitespace().any(|flag| flag == "negative");
     let Some(start) = header.find("value=") else {
         return (None, negative);
     };
@@ -2168,9 +2182,12 @@ fn parse_utility_family_header(header: &str) -> (Option<String>, bool) {
         value = &value[..end];
     }
     let value = value.trim();
-    (!value.is_empty()).then(|| (Some(value.to_owned()), negative)).unwrap_or((None, negative))
+    if value.is_empty() {
+        (None, negative)
+    } else {
+        (Some(value.to_owned()), negative)
+    }
 }
-
 
 /// Expands composable edge-mask stop utilities. The CSS source owns the
 /// utility roots and the affected edges; this helper merely stamps the shared
@@ -2747,7 +2764,11 @@ mod tests {
         assert_eq!(
             groups,
             vec![
-                vec!["margin".to_owned(), "margin-inline".to_owned(), "margin-left".to_owned()],
+                vec![
+                    "margin".to_owned(),
+                    "margin-inline".to_owned(),
+                    "margin-left".to_owned()
+                ],
                 vec!["border".to_owned(), "border-style".to_owned()],
             ]
         );
@@ -2758,10 +2779,12 @@ mod tests {
         let formats = parse_declaration_formats(
             "@stillwind-format transform var-fallback; @stillwind-format transform compose-space;",
         );
-        assert_eq!(formats.get("transform").map(String::as_str), Some("var-fallback compose-space"));
-        let functions = parse_function_formats(
-            "@stillwind-format-functions color-mix linear-gradient;",
+        assert_eq!(
+            formats.get("transform").map(String::as_str),
+            Some("var-fallback compose-space")
         );
+        let functions =
+            parse_function_formats("@stillwind-format-functions color-mix linear-gradient;");
         assert!(functions.contains("color-mix"));
         assert!(functions.contains("linear-gradient"));
         assert_eq!(

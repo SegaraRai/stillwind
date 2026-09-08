@@ -4,7 +4,11 @@
 //! names, or Stillwind-only relations. It turns a parsed candidate and a
 //! CSS-first theme into standard CSS declarations and wrappers.
 
-use std::{collections::{BTreeSet, HashMap}, fmt::Write, sync::OnceLock};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fmt::Write,
+    sync::OnceLock,
+};
 
 use stillwind_css::{
     CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
@@ -299,17 +303,14 @@ fn canonical_builtin_body(value: &str) -> String {
                 let preserve_function_spacing = functions
                     .iter()
                     .any(|name| builtin_function_formats().contains(name));
-                if custom_property_declaration
-                    || preserve_function_spacing
-                {
+                if custom_property_declaration || preserve_function_spacing {
                     output.push(' ');
                 }
                 whitespace = false;
             }
             ':' if output
                 .rsplit_once(';')
-                .map(|(_, declaration)| declaration)
-                .unwrap_or(output.as_str())
+                .map_or(output.as_str(), |(_, declaration)| declaration)
                 .trim_start()
                 .starts_with("--") =>
             {
@@ -331,7 +332,8 @@ fn canonical_builtin_body(value: &str) -> String {
                         .any(|name| builtin_function_formats().contains(name));
                     if adjacent_words
                         || function_followed_by_word
-                        || (previous == ',' && (custom_property_declaration || preserve_function_spacing))
+                        || (previous == ','
+                            && (custom_property_declaration || preserve_function_spacing))
                     {
                         output.push(' ');
                     }
@@ -373,9 +375,9 @@ fn normalize_angle_multipliers(mut declaration: &str) -> String {
             continue;
         }
         if negative {
-            output.push_str(&format!("calc({amount}deg * -1)"));
+            write!(output, "calc({amount}deg * -1)").expect("writing to a String cannot fail");
         } else {
-            output.push_str(&declaration[start..start + 10 + end + 1]);
+            output.push_str(&declaration[start..=start + 10 + end]);
         }
         declaration = &digits[end + 1..];
     }
@@ -406,7 +408,10 @@ fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
     let mut cursor = 0;
     while let Some(relative) = output[cursor..].find("calc(var(--") {
         let start = cursor + relative;
-        let Some(close) = output[start..].find(") * 0)").or_else(|| output[start..].find(")*0)")) else {
+        let Some(close) = output[start..]
+            .find(") * 0)")
+            .or_else(|| output[start..].find(")*0)"))
+        else {
             break;
         };
         let end = start + close + 6;
@@ -419,7 +424,9 @@ fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
 fn normalize_calc_var_operators(mut declaration: String) -> String {
     let mut cursor = 0;
     while cursor < declaration.len() {
-        let Some(relative) = declaration[cursor..].find(';') else { break };
+        let Some(relative) = declaration[cursor..].find(';') else {
+            break;
+        };
         let end = cursor + relative;
         let segment = &declaration[cursor..end];
         if segment.contains("calc(var(--") {
@@ -448,7 +455,7 @@ fn normalize_var_fallbacks(value: &str) -> String {
             return output;
         };
         let expression = &value[open + 1..close];
-        output.push_str(&value[start..open + 1]);
+        output.push_str(&value[start..=open]);
         output.push_str(expression);
         if !expression.contains(',') {
             output.push(',');
@@ -583,11 +590,11 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .collect();
     let selector = resolution.selector;
     Some(ResolvedUtility {
+        candidate,
         declaration,
         selector,
         nested,
         additional,
-        candidate,
     })
 }
 
@@ -598,7 +605,10 @@ fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> Str
         &theme.declaration_formats
     };
     for (property, format) in formats {
-        if !format.split_whitespace().any(|item| item == "slash-space-span") {
+        if !format
+            .split_whitespace()
+            .any(|item| item == "slash-space-span")
+        {
             continue;
         }
         let prefix = format!("{property}:");
@@ -730,7 +740,9 @@ pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool
             .iter()
             .chain(builtin_relationship_patterns().iter())
             .any(|pattern| {
-            pattern.strip_suffix('*').map_or(value == pattern, |prefix| value.starts_with(prefix))
+                pattern
+                    .strip_suffix('*')
+                    .map_or(value == pattern, |prefix| value.starts_with(prefix))
             })
     };
     matches!(
@@ -841,9 +853,7 @@ fn registered_variant_candidates<'a, 'b>(
         // Attribute variants with bracket payloads use the dedicated
         // `aria-[name=value]` / `data-[name=value]` grammar below; their
         // wildcard CSS bodies are for simple names only.
-        if (variant.name == "aria-*" || variant.name == "data-*")
-            && capture.starts_with('[')
-        {
+        if (variant.name == "aria-*" || variant.name == "data-*") && capture.starts_with('[') {
             continue;
         }
         if !capture.is_empty() {
@@ -865,8 +875,13 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
     let capture = capture?;
     let (capture, modifier) = capture
         .split_once('/')
-        .map_or((capture, None), |(capture, modifier)| (capture, Some(modifier)));
-    let capture = if let Some(inner) = capture.strip_prefix('[').and_then(|value| value.strip_suffix(']')) {
+        .map_or((capture, None), |(capture, modifier)| {
+            (capture, Some(modifier))
+        });
+    let capture = if let Some(inner) = capture
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+    {
         // Arbitrary selector variants use `[&...]`; relationship CSS expects
         // the selector fragment without the variant's leading `&` wrapper.
         inner.strip_prefix('&').unwrap_or(inner).replace('_', " ")
@@ -879,15 +894,15 @@ fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<Stri
     let modifier_suffix = if modifier.is_empty() {
         String::new()
     } else {
-        format!(r"\/{}", modifier)
+        format!(r"\/{modifier}")
     };
     let mut expanded = value
-            .replace("--value()", &capture)
-            .replace(r"\*", &capture)
-            .replace("/{modifier}", &modifier_suffix)
-            .replace("{modifier}", &modifier)
-            .replace(":root", &format!(":{capture}"))
-            .replace("0n", &capture);
+        .replace("--value()", &capture)
+        .replace(r"\*", &capture)
+        .replace("/{modifier}", &modifier_suffix)
+        .replace("{modifier}", &modifier)
+        .replace(":root", &format!(":{capture}"))
+        .replace("0n", &capture);
     if capture.starts_with('[') {
         expanded = expanded.replace("):[", ")[");
     }
@@ -1165,9 +1180,7 @@ fn resolve_css_utility_body(
         || body.contains("--relative-color(");
     let mut resolved_nested = Vec::new();
     let compat_color = body.contains("--compat-color(");
-    if compat_color
-        && let Some(modern) = compat_color_modern_declaration(&declaration)
-    {
+    if compat_color && let Some(modern) = compat_color_modern_declaration(&declaration) {
         resolved_nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_owned(),
@@ -1197,7 +1210,10 @@ fn resolve_css_utility_body(
                 });
                 if body.contains("--compat-color(")
                     && let Some(modern) = compat_color_modern_declaration(
-                        &resolved_nested.last().expect("nested rule just pushed").declaration,
+                        &resolved_nested
+                            .last()
+                            .expect("nested rule just pushed")
+                            .declaration,
                     )
                 {
                     resolved_nested.push(NestedUtilityRule {
@@ -1214,13 +1230,8 @@ fn resolve_css_utility_body(
         return None;
     }
     if let Some(parent_body) = parent_body {
-        let parent_declaration = resolve_css_declarations(
-            parent_body,
-            utility.name.as_str(),
-            name,
-            modifier,
-            theme,
-        )?;
+        let parent_declaration =
+            resolve_css_declarations(parent_body, utility.name.as_str(), name, modifier, theme)?;
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
                 declaration,
@@ -1274,11 +1285,11 @@ fn normalize_registered_var_fallbacks(mut declaration: String, theme: &ThemeInde
         let fallback = fallback.trim();
         let matches_initial = theme.properties.iter().any(|property| {
             property.name == name
-                && property
-                    .body
-                    .split(';')
-                    .map(str::trim)
-                    .any(|entry| entry.strip_prefix("initial-value:").is_some_and(|value| value.trim() == fallback))
+                && property.body.split(';').map(str::trim).any(|entry| {
+                    entry
+                        .strip_prefix("initial-value:")
+                        .is_some_and(|value| value.trim() == fallback)
+                })
         });
         if matches_initial {
             declaration.replace_range(open + 1..close, &name);
@@ -1458,6 +1469,7 @@ fn split_css_declarations(body: &str) -> Vec<&str> {
     declarations
 }
 
+#[allow(clippy::too_many_lines)]
 fn resolve_css_placeholders(
     body: &str,
     utility_name: &str,
@@ -1925,7 +1937,7 @@ fn theme_value(
         _ if let Some(value) = css_variable(value) => format!("var({value})"),
         // Tailwind's candidate grammar accepts ASCII identifier tokens only;
         // Unicode theme names remain valid CSS but are not utility candidates.
-        _ if value.chars().any(|character| !character.is_ascii()) => return None,
+        _ if !value.is_ascii() => return None,
         _ if let Some(token) = theme.token_in(namespace, value) => {
             if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
                 token.value.value.clone()
@@ -2441,7 +2453,9 @@ mod tests {
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
-                && rule.declaration.contains("background-color:color-mix(in oklab")
+                && rule
+                    .declaration
+                    .contains("background-color:color-mix(in oklab")
                 && rule.declaration.contains("color-mix(in oklab")
         }));
         assert_eq!(
@@ -2504,8 +2518,8 @@ mod tests {
                 .contains("--tw-mask-conic-position:calc(1deg*45);"),
             "{resolved:?}"
         );
-        let negative = resolve_utility("-mask-conic-45", &theme())
-                .expect("negative mask conic angle");
+        let negative =
+            resolve_utility("-mask-conic-45", &theme()).expect("negative mask conic angle");
         assert!(
             negative
                 .declaration
@@ -2524,9 +2538,11 @@ mod tests {
         );
         let interpolated =
             resolve_utility("bg-conic-45/increasing", &theme()).expect("interpolated conic");
-        assert!(interpolated
-            .declaration
-            .contains("from calc(1deg*45) in oklch increasing hue"));
+        assert!(
+            interpolated
+                .declaration
+                .contains("from calc(1deg*45) in oklch increasing hue")
+        );
     }
 
     #[test]
@@ -2618,7 +2634,9 @@ mod tests {
         );
         assert!(background.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
-                && rule.declaration.contains("background-color:color-mix(in oklab")
+                && rule
+                    .declaration
+                    .contains("background-color:color-mix(in oklab")
                 && rule.declaration.contains("color-mix(in oklab")
         }));
     }
@@ -2667,7 +2685,10 @@ mod tests {
             "peer-checked:flex",
             "@sm:flex",
         ] {
-            assert!(is_tailwind_relationship_candidate(candidate, &theme), "{candidate}");
+            assert!(
+                is_tailwind_relationship_candidate(candidate, &theme),
+                "{candidate}"
+            );
         }
         assert!(!is_tailwind_relationship_candidate("max-w-lg", &theme));
         assert_eq!(
@@ -2989,9 +3010,9 @@ mod tests {
     #[test]
     fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
         let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
-        assert!(resolved
-            .declaration
-            .contains("--tw-shadow-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);"));
+        assert!(resolved.declaration.contains(
+            "--tw-shadow-color:color-mix(in srgb,var(--color-red-500) 50%,transparent);"
+        ));
         assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.condition == "color:color-mix(in lab, red, red)"
@@ -3051,7 +3072,11 @@ mod tests {
             ("m-auto", "margin:auto;", None),
             ("mix-blend-color-dodge", "mix-blend-mode:color-dodge;", None),
             ("object-bottom-left", "object-position:left bottom;", None),
-            ("outline", "outline-style:var(--tw-outline-style);outline-width:1px;", None),
+            (
+                "outline",
+                "outline-style:var(--tw-outline-style);outline-width:1px;",
+                None,
+            ),
             ("ring", "--tw-ring-shadow:0 0 0 1px", None),
             (
                 "rounded-se-full",
@@ -3070,10 +3095,10 @@ mod tests {
                 "{candidate}: {resolved:#?}"
             );
             assert_eq!(
-                resolved
-                    .selector
-                    .as_deref()
-                    .or_else(|| resolved.additional.first().and_then(|target| target.selector.as_deref())),
+                resolved.selector.as_deref().or_else(|| resolved
+                    .additional
+                    .first()
+                    .and_then(|target| target.selector.as_deref())),
                 selector,
                 "{candidate}"
             );
@@ -3237,10 +3262,10 @@ mod tests {
                 .contains("color:color-mix(in srgb,currentcolor 50%,transparent);"),
             "{resolved:#?}"
         );
-        assert!(resolved
-            .nested
-            .iter()
-            .any(|rule| rule.declaration.contains("color-mix(in oklab,currentcolor 50%,transparent)")));
+        assert!(resolved.nested.iter().any(|rule| {
+            rule.declaration
+                .contains("color-mix(in oklab,currentcolor 50%,transparent)")
+        }));
         assert!(resolve_utility("placeholder-[length:1rem]", &theme()).is_none());
     }
 
@@ -3252,7 +3277,12 @@ mod tests {
                 .declaration
                 .contains("--tw-gradient-position:to right;")
         );
-        assert!(resolved.nested.iter().any(|nested| nested.declaration.contains("to right in oklch")));
+        assert!(
+            resolved
+                .nested
+                .iter()
+                .any(|nested| nested.declaration.contains("to right in oklch"))
+        );
         let radial = resolve_utility("bg-radial/hsl", &theme()).unwrap();
         assert!(
             radial
@@ -3419,9 +3449,11 @@ mod tests {
         let utility = resolve_utility("tone-brand/50", &theme).unwrap();
         assert_eq!(utility.nested.len(), 1);
         assert_eq!(utility.nested[0].condition, COMPAT_COLOR_SUPPORT);
-        assert!(utility.nested[0]
-            .declaration
-            .contains("color-mix(in oklab,var(--color-brand) 50%,transparent)"));
+        assert!(
+            utility.nested[0]
+                .declaration
+                .contains("color-mix(in oklab,var(--color-brand) 50%,transparent)")
+        );
 
         let plain_source = SourceFile::new(
             FileId(2),
@@ -3469,11 +3501,7 @@ mod tests {
 
     #[test]
     fn resolves_container_at_variants_from_css_registry() {
-        let source = SourceFile::new(
-            FileId(1),
-            "theme.css",
-            "@theme { --container-md: 40rem; }",
-        );
+        let source = SourceFile::new(FileId(1), "theme.css", "@theme { --container-md: 40rem; }");
         let theme = parse_tailwind_theme(&source).unwrap();
         let candidate = parse_candidate("@min-md:flex").unwrap();
         assert_eq!(
@@ -3492,9 +3520,7 @@ mod tests {
         let theme = parse_tailwind_theme(&source).unwrap();
         assert_eq!(
             resolve_variant(
-                &parse_candidate("rel-checked/field:flex")
-                    .unwrap()
-                    .variants[0],
+                &parse_candidate("rel-checked/field:flex").unwrap().variants[0],
                 &theme
             ),
             Some(VariantApplication::SelectorTemplate(
