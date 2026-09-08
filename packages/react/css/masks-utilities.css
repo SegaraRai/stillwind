@@ -1,0 +1,1137 @@
+/* Built-in masks utilities. Related utility overloads are kept adjacent. */
+
+@utility mask-add {
+  mask-composite: add;
+}
+
+@utility mask-alpha {
+  mask-mode: alpha;
+}
+
+@utility mask-auto {
+  mask-size: auto;
+}
+
+@utility mask-b-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-bottom-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-b-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-bottom-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-b-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-bottom-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-b-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-b-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-bottom-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-b-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-bottom-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-bottom {
+  mask-position: bottom;
+}
+
+@utility mask-bottom-left {
+  mask-position: left bottom;
+}
+
+@utility mask-bottom-right {
+  mask-position: right bottom;
+}
+
+@utility mask-center {
+  mask-position: center;
+}
+
+@utility mask-circle {
+  --tw-mask-radial-shape: circle;
+}
+
+@utility mask-clip-border {
+  mask-clip: border-box;
+}
+
+@utility mask-clip-content {
+  mask-clip: content-box;
+}
+
+@utility mask-clip-fill {
+  mask-clip: fill-box;
+}
+
+@utility mask-clip-padding {
+  mask-clip: padding-box;
+}
+
+@utility mask-clip-stroke {
+  mask-clip: stroke-box;
+}
+
+@utility mask-clip-view {
+  mask-clip: view-box;
+}
+
+@utility mask-conic-[initial] {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: initial;
+  mask-composite: intersect;
+}
+
+@utility mask-conic-* {
+  mask-image: conic-gradient(--value([conic-gradient-arguments]));
+}
+
+@utility mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: calc(1deg * --value(integer));
+}
+
+@utility -mask-conic-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
+  --tw-mask-conic-position: calc(1deg * -1 * --value(integer));
+}
+
+@utility mask-conic-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    from var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-conic-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    from var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-conic-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    from var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-conic-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    from var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-conic-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    from var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-conic-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-conic-stops:
+    from var(--tw-mask-conic-position, 0deg),
+    var(--tw-mask-conic-from-color, black) var(--tw-mask-conic-from-position, 0%),
+    var(--tw-mask-conic-to-color, transparent) var(--tw-mask-conic-to-position, 100%);
+  --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
+  --tw-mask-conic-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-contain {
+  mask-size: contain;
+}
+
+@utility mask-cover {
+  mask-size: cover;
+}
+
+@utility mask-ellipse {
+  --tw-mask-radial-shape: ellipse;
+}
+
+@utility mask-exclude {
+  mask-composite: exclude;
+}
+
+@utility mask-intersect {
+  mask-composite: intersect;
+}
+
+@utility mask-l-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-l-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-l-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-l-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-l-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-l-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-left {
+  mask-position: left;
+}
+
+@utility mask-linear-[initial] {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: initial;
+  mask-composite: intersect;
+}
+
+@utility mask-linear-* {
+  mask-image: linear-gradient(--value([linear-gradient-arguments]));
+}
+
+@utility mask-linear-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: calc(1deg * --value(integer));
+}
+
+@utility -mask-linear-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
+  --tw-mask-linear-position: calc(1deg * -1 * --value(integer));
+}
+
+/* Mask stop utilities intentionally keep their gradient state on the element.
+ * This mirrors Tailwind's composable custom-property model without a generated
+ * table for every color, percentage, and spacing token. */
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-linear-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-from-position: --value(--spacing());
+}
+
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-linear-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear-stops:
+    var(--tw-mask-linear-position),
+    var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
+    var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
+  --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
+  --tw-mask-linear-to-position: --value(--spacing());
+}
+
+@utility mask-luminance {
+  mask-mode: luminance;
+}
+
+@utility mask-match {
+  mask-mode: match-source;
+}
+
+@utility mask-no-clip {
+  mask-clip: no-clip;
+}
+
+@utility mask-no-repeat {
+  mask-repeat: no-repeat;
+}
+
+@utility mask-none {
+  mask-image: none;
+}
+
+@utility mask-origin-border {
+  mask-origin: border-box;
+}
+
+@utility mask-origin-content {
+  mask-origin: content-box;
+}
+
+@utility mask-origin-fill {
+  mask-origin: fill-box;
+}
+
+@utility mask-origin-padding {
+  mask-origin: padding-box;
+}
+
+@utility mask-origin-stroke {
+  mask-origin: stroke-box;
+}
+
+@utility mask-origin-view {
+  mask-origin: view-box;
+}
+
+@utility mask-position-* {
+  mask-position: --value([position]);
+}
+
+@utility mask-r-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-r-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-r-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-r-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-r-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-r-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-radial-[initial] {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops, var(--tw-mask-radial-size)));
+  --tw-mask-radial-size: initial;
+  mask-composite: intersect;
+}
+
+@utility mask-radial-* {
+  mask-image: radial-gradient(--value([radial-gradient-arguments]));
+}
+
+@utility mask-radial-at-[initial] {
+  --tw-mask-radial-position: initial;
+}
+
+@utility mask-radial-at-* {
+  mask-position: --value([position]);
+}
+
+@utility mask-radial-at-bottom {
+  --tw-mask-radial-position: bottom;
+}
+
+@utility mask-radial-at-bottom-left {
+  --tw-mask-radial-position: bottom left;
+}
+
+@utility mask-radial-at-bottom-right {
+  --tw-mask-radial-position: bottom right;
+}
+
+@utility mask-radial-at-center {
+  --tw-mask-radial-position: center;
+}
+
+@utility mask-radial-at-left {
+  --tw-mask-radial-position: left;
+}
+
+@utility mask-radial-at-right {
+  --tw-mask-radial-position: right;
+}
+
+@utility mask-radial-at-top {
+  --tw-mask-radial-position: top;
+}
+
+@utility mask-radial-at-top-left {
+  --tw-mask-radial-position: top left;
+}
+
+@utility mask-radial-at-top-right {
+  --tw-mask-radial-position: top right;
+}
+
+@utility mask-radial-closest-corner {
+  --tw-mask-radial-size: closest-corner;
+}
+
+@utility mask-radial-closest-side {
+  --tw-mask-radial-size: closest-side;
+}
+
+@utility mask-radial-farthest-corner {
+  --tw-mask-radial-size: farthest-corner;
+}
+
+@utility mask-radial-farthest-side {
+  --tw-mask-radial-size: farthest-side;
+}
+
+@utility mask-radial-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial-stops:
+    var(--tw-mask-radial-shape, ellipse) var(--tw-mask-radial-size, farthest-corner) at
+      var(--tw-mask-radial-position, center),
+    var(--tw-mask-radial-from-color, black) var(--tw-mask-radial-from-position, 0%),
+    var(--tw-mask-radial-to-color, transparent) var(--tw-mask-radial-to-position, 100%);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
+  --tw-mask-radial-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-radial-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial-stops:
+    var(--tw-mask-radial-shape, ellipse) var(--tw-mask-radial-size, farthest-corner) at
+      var(--tw-mask-radial-position, center),
+    var(--tw-mask-radial-from-color, black) var(--tw-mask-radial-from-position, 0%),
+    var(--tw-mask-radial-to-color, transparent) var(--tw-mask-radial-to-position, 100%);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
+  --tw-mask-radial-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-radial-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial-stops:
+    var(--tw-mask-radial-shape, ellipse) var(--tw-mask-radial-size, farthest-corner) at
+      var(--tw-mask-radial-position, center),
+    var(--tw-mask-radial-from-color, black) var(--tw-mask-radial-from-position, 0%),
+    var(--tw-mask-radial-to-color, transparent) var(--tw-mask-radial-to-position, 100%);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
+  --tw-mask-radial-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-radial-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial-stops:
+    var(--tw-mask-radial-shape, ellipse) var(--tw-mask-radial-size, farthest-corner) at
+      var(--tw-mask-radial-position, center),
+    var(--tw-mask-radial-from-color, black) var(--tw-mask-radial-from-position, 0%),
+    var(--tw-mask-radial-to-color, transparent) var(--tw-mask-radial-to-position, 100%);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
+  --tw-mask-radial-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-radial-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial-stops:
+    var(--tw-mask-radial-shape, ellipse) var(--tw-mask-radial-size, farthest-corner) at
+      var(--tw-mask-radial-position, center),
+    var(--tw-mask-radial-from-color, black) var(--tw-mask-radial-from-position, 0%),
+    var(--tw-mask-radial-to-color, transparent) var(--tw-mask-radial-to-position, 100%);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
+  --tw-mask-radial-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-radial-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-radial-stops:
+    var(--tw-mask-radial-shape, ellipse) var(--tw-mask-radial-size, farthest-corner) at
+      var(--tw-mask-radial-position, center),
+    var(--tw-mask-radial-from-color, black) var(--tw-mask-radial-from-position, 0%),
+    var(--tw-mask-radial-to-color, transparent) var(--tw-mask-radial-to-position, 100%);
+  --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
+  --tw-mask-radial-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-repeat {
+  mask-repeat: repeat;
+}
+
+@utility mask-repeat-round {
+  mask-repeat: round;
+}
+
+@utility mask-repeat-space {
+  mask-repeat: space;
+}
+
+@utility mask-repeat-x {
+  mask-repeat: repeat-x;
+}
+
+@utility mask-repeat-y {
+  mask-repeat: repeat-y;
+}
+
+@utility mask-right {
+  mask-position: right;
+}
+
+@utility mask-size-* {
+  mask-size: --value([bg-size]);
+}
+
+@utility mask-subtract {
+  mask-composite: subtract;
+}
+
+@utility mask-t-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-t-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-top-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-t-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-top-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-t-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-t-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-top-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-t-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-top-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-top {
+  mask-position: top;
+}
+
+@utility mask-top-left {
+  mask-position: left top;
+}
+
+@utility mask-top-right {
+  mask-position: right top;
+}
+
+@utility mask-type-alpha {
+  mask-type: alpha;
+}
+
+@utility mask-type-luminance {
+  mask-type: luminance;
+}
+
+@utility mask-x-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-x-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-left-from-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-right-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-x-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-left-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  --tw-mask-right-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-x-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-x-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-left-to-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-right-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-x-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-right: linear-gradient(
+    to right,
+    var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
+    var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-left-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  --tw-mask-right-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-y-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-y-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-top-from-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-bottom-from-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-y-from-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-top-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  --tw-mask-bottom-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility mask-y-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+}
+
+@utility mask-y-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-top-to-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-bottom-to-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility mask-y-to-* {
+  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
+  mask-composite: intersect;
+  --tw-mask-linear:
+    var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
+  --tw-mask-top: linear-gradient(
+    to top,
+    var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
+    var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
+  --tw-mask-top-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  --tw-mask-bottom-to-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}

@@ -1,0 +1,35 @@
+/* Built-in svg utilities. Related utility overloads are kept adjacent. */
+
+@utility fill-* {
+  fill: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility fill-* {
+  fill: --value(--color-*, current, inherit, transparent);
+}
+
+@utility fill-none {
+  fill: none;
+}
+
+@utility stroke-* {
+  stroke: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility stroke-* {
+  stroke-width: --value(integer, [length]);
+}
+
+@utility stroke-* {
+  stroke: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility stroke-none {
+  stroke: none;
+}

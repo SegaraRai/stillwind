@@ -1,0 +1,622 @@
+/* Built-in typography utilities. Related utility overloads are kept adjacent. */
+
+/* Vertical-alignment utilities share the same typed CSS value family. */
+@utility align-* {
+  vertical-align: --value([vertical-align]);
+}
+
+@utility align-baseline {
+  vertical-align: baseline;
+}
+
+@utility align-bottom {
+  vertical-align: bottom;
+}
+
+@utility align-middle {
+  vertical-align: middle;
+}
+
+@utility align-sub {
+  vertical-align: sub;
+}
+
+@utility align-super {
+  vertical-align: super;
+}
+
+@utility align-text-bottom {
+  vertical-align: text-bottom;
+}
+
+@utility align-text-top {
+  vertical-align: text-top;
+}
+
+@utility align-top {
+  vertical-align: top;
+}
+
+@utility antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@utility break-after-all {
+  break-after: all;
+}
+
+@utility break-after-auto {
+  break-after: auto;
+}
+
+@utility break-after-avoid {
+  break-after: avoid;
+}
+
+@utility break-after-avoid-page {
+  break-after: avoid-page;
+}
+
+@utility break-after-column {
+  break-after: column;
+}
+
+@utility break-after-left {
+  break-after: left;
+}
+
+@utility break-after-page {
+  break-after: page;
+}
+
+@utility break-after-right {
+  break-after: right;
+}
+
+@utility break-all {
+  word-break: break-all;
+}
+
+@utility break-before-all {
+  break-before: all;
+}
+
+@utility break-before-auto {
+  break-before: auto;
+}
+
+@utility break-before-avoid {
+  break-before: avoid;
+}
+
+@utility break-before-avoid-page {
+  break-before: avoid-page;
+}
+
+@utility break-before-column {
+  break-before: column;
+}
+
+@utility break-before-left {
+  break-before: left;
+}
+
+@utility break-before-page {
+  break-before: page;
+}
+
+@utility break-before-right {
+  break-before: right;
+}
+
+@utility break-inside-auto {
+  break-inside: auto;
+}
+
+@utility break-inside-avoid {
+  break-inside: avoid;
+}
+
+@utility break-inside-avoid-column {
+  break-inside: avoid-column;
+}
+
+@utility break-inside-avoid-page {
+  break-inside: avoid-page;
+}
+
+@utility break-keep {
+  word-break: keep-all;
+}
+
+@utility break-normal {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@utility break-words {
+  overflow-wrap: break-word;
+}
+
+@utility capitalize {
+  text-transform: capitalize;
+}
+
+@utility decoration-* {
+  text-decoration-thickness: calc(--value(integer) * 1px);
+}
+
+@utility decoration-* {
+  text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility decoration-* {
+  text-decoration-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility decoration-auto {
+  text-decoration-thickness: auto;
+}
+
+@utility decoration-dashed {
+  text-decoration-style: dashed;
+}
+
+@utility decoration-dotted {
+  text-decoration-style: dotted;
+}
+
+@utility decoration-double {
+  text-decoration-style: double;
+}
+
+@utility decoration-from-font {
+  text-decoration-thickness: from-font;
+}
+
+@utility decoration-solid {
+  text-decoration-style: solid;
+}
+
+@utility decoration-wavy {
+  text-decoration-style: wavy;
+}
+
+@utility diagonal-fractions {
+  --tw-numeric-fraction: diagonal-fractions;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility font-* {
+  font-family: --value(--font-*);
+}
+
+@utility font-bold {
+  --tw-font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-bold);
+}
+
+@utility font-features-* {
+  font-feature-settings: --value([font-feature-settings]);
+}
+
+@utility font-medium {
+  --tw-font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-medium);
+}
+
+@utility font-semibold {
+  --tw-font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-semibold);
+}
+
+@utility font-stretch-* {
+  font-stretch: --value(percentage);
+}
+
+@utility font-stretch-* {
+  font-stretch: --value(--font-stretch-*);
+}
+
+@utility font-stretch-* {
+  font-stretch: --value([font-stretch]);
+}
+
+@utility font-stretch-condensed {
+  font-stretch: condensed;
+}
+
+@utility font-stretch-expanded {
+  font-stretch: expanded;
+}
+
+@utility font-stretch-extra-condensed {
+  font-stretch: extra-condensed;
+}
+
+@utility font-stretch-extra-expanded {
+  font-stretch: extra-expanded;
+}
+
+@utility font-stretch-normal {
+  font-stretch: normal;
+}
+
+@utility font-stretch-semi-condensed {
+  font-stretch: semi-condensed;
+}
+
+@utility font-stretch-semi-expanded {
+  font-stretch: semi-expanded;
+}
+
+@utility font-stretch-ultra-condensed {
+  font-stretch: ultra-condensed;
+}
+
+@utility font-stretch-ultra-expanded {
+  font-stretch: ultra-expanded;
+}
+
+@utility hyphens-auto {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
+
+@utility hyphens-manual {
+  -webkit-hyphens: manual;
+  hyphens: manual;
+}
+
+@utility hyphens-none {
+  -webkit-hyphens: none;
+  hyphens: none;
+}
+
+@utility indent-* {
+  text-indent: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -indent-* {
+  text-indent: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility italic {
+  font-style: italic;
+}
+
+@utility leading-* {
+  --tw-leading: --value(--leading-*);
+  line-height: --value(--leading-*);
+}
+
+@utility leading-* {
+  --tw-leading: --value(--leading-*, --spacing(), number, [length]);
+  line-height: --value(--leading-*, --spacing(), number, [length]);
+}
+
+@utility leading-0 {
+  --tw-leading: 0px;
+  line-height: 0;
+}
+
+@utility leading-none {
+  --tw-leading: 1;
+  line-height: 1;
+}
+
+@utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value([integer]);
+}
+
+@utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value(integer);
+}
+
+@utility line-clamp-none {
+  overflow: visible;
+  display: block;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: unset;
+}
+
+@utility line-through {
+  text-decoration-line: line-through;
+}
+
+@utility lining-nums {
+  --tw-numeric-figure: lining-nums;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility list-* {
+  list-style-type: --value([list-style-type]);
+}
+
+@utility list-decimal {
+  list-style-type: decimal;
+}
+
+@utility list-disc {
+  list-style-type: disc;
+}
+
+@utility list-image-* {
+  list-style-image: --value([list-style-image]);
+}
+
+@utility list-image-none {
+  list-style-image: none;
+}
+
+@utility list-inside {
+  list-style-position: inside;
+}
+
+@utility list-item {
+  display: list-item;
+}
+
+@utility list-none {
+  list-style-type: none;
+}
+
+@utility list-outside {
+  list-style-position: outside;
+}
+
+@utility lowercase {
+  text-transform: lowercase;
+}
+
+@utility no-underline {
+  text-decoration-line: none;
+}
+
+@utility normal-case {
+  text-transform: none;
+}
+
+@utility normal-nums {
+  font-variant-numeric: normal;
+}
+
+@utility not-italic {
+  font-style: normal;
+}
+
+@utility oldstyle-nums {
+  --tw-numeric-figure: oldstyle-nums;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility ordinal {
+  --tw-ordinal: ordinal;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility overline {
+  text-decoration-line: overline;
+}
+
+@utility placeholder-* {
+  &::placeholder {
+    color: --value(--color-*, current, inherit, transparent, [color]);
+  }
+}
+
+@utility placeholder-* {
+  &::placeholder {
+    color: --compat-color(
+      --value-literal(--color-*, current, inherit, transparent, [color]),
+      --alpha(--modifier())
+    );
+  }
+}
+
+@utility proportional-nums {
+  --tw-numeric-spacing: proportional-nums;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility slashed-zero {
+  --tw-slashed-zero: slashed-zero;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility stacked-fractions {
+  --tw-numeric-fraction: stacked-fractions;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility subpixel-antialiased {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+@utility tab-* {
+  tab-size: --value(integer, [integer]);
+}
+
+@utility tab-* {
+  tab-size: --value([tab-size]);
+}
+
+@utility tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@utility text-* {
+  font-size: --value(--text-*, [length]);
+}
+
+@utility text-* {
+  color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility text-* {
+  font-size: --value(--text-*);
+}
+
+@utility text-* {
+  font-size: --value(--text-*);
+  line-height: var(--tw-leading, --text-line-height());
+}
+
+@utility text-* {
+  font-size: --value(--text-*);
+  line-height: --modifier(--leading-*, --spacing(), [length]);
+}
+
+@utility text-* {
+  color: --value(--color-*, current, inherit, transparent);
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility text-center {
+  text-align: center;
+}
+
+@utility text-clip {
+  text-overflow: clip;
+}
+
+@utility text-ellipsis {
+  text-overflow: ellipsis;
+}
+
+@utility text-end {
+  text-align: end;
+}
+
+@utility text-justify {
+  text-align: justify;
+}
+
+@utility text-left {
+  text-align: left;
+}
+
+@utility text-nowrap {
+  text-wrap: nowrap;
+}
+
+@utility text-pretty {
+  text-wrap: pretty;
+}
+
+@utility text-right {
+  text-align: right;
+}
+
+@utility text-start {
+  text-align: start;
+}
+
+@utility text-wrap {
+  text-wrap: wrap;
+}
+
+@utility tracking-* {
+  --tw-tracking: --value(--tracking-*);
+  letter-spacing: --value(--tracking-*);
+}
+
+@utility truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@utility underline {
+  text-decoration-line: underline;
+}
+
+@utility -underline-offset-* {
+  text-underline-offset: --value(--text-underline-offset-*, [length]);
+}
+
+@utility -underline-offset-* {
+  text-underline-offset: calc(--value(integer) * 1px * -1);
+}
+
+@utility underline-offset-* {
+  text-underline-offset: --value(--text-underline-offset-*, [length]);
+}
+
+@utility underline-offset-* {
+  text-underline-offset: calc(--value(integer) * 1px);
+}
+
+@utility underline-offset-0 {
+  text-underline-offset: 0px;
+}
+
+@utility underline-offset-auto {
+  text-underline-offset: auto;
+}
+
+@utility uppercase {
+  text-transform: uppercase;
+}
+
+@utility whitespace-break-spaces {
+  white-space: break-spaces;
+}
+
+@utility whitespace-normal {
+  white-space: normal;
+}
+
+@utility whitespace-nowrap {
+  white-space: nowrap;
+}
+
+@utility whitespace-pre {
+  white-space: pre;
+}
+
+@utility whitespace-pre-line {
+  white-space: pre-line;
+}
+
+@utility whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+@utility wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+@utility wrap-break-word {
+  overflow-wrap: break-word;
+}
+
+@utility wrap-normal {
+  overflow-wrap: normal;
+}

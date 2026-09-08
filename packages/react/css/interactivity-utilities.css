@@ -1,0 +1,603 @@
+/* Built-in interactivity utilities. Related utility overloads are kept adjacent. */
+
+@utility accent-* {
+  accent-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility accent-* {
+  accent-color: --value(--color-*, current, inherit, transparent);
+}
+
+@utility accent-auto {
+  accent-color: auto;
+}
+
+@utility appearance-auto {
+  appearance: auto;
+}
+
+@utility appearance-none {
+  appearance: none;
+}
+
+@utility caret-* {
+  caret-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility caret-* {
+  caret-color: --value(--color-*, current, inherit, transparent);
+}
+
+@utility cursor-* {
+  cursor: --value([cursor]);
+}
+
+@utility cursor-alias {
+  cursor: alias;
+}
+
+@utility cursor-all-scroll {
+  cursor: all-scroll;
+}
+
+@utility cursor-auto {
+  cursor: auto;
+}
+
+@utility cursor-cell {
+  cursor: cell;
+}
+
+@utility cursor-col-resize {
+  cursor: col-resize;
+}
+
+@utility cursor-context-menu {
+  cursor: context-menu;
+}
+
+@utility cursor-copy {
+  cursor: copy;
+}
+
+@utility cursor-crosshair {
+  cursor: crosshair;
+}
+
+@utility cursor-default {
+  cursor: default;
+}
+
+@utility cursor-e-resize {
+  cursor: e-resize;
+}
+
+@utility cursor-ew-resize {
+  cursor: ew-resize;
+}
+
+@utility cursor-grab {
+  cursor: grab;
+}
+
+@utility cursor-grabbing {
+  cursor: grabbing;
+}
+
+@utility cursor-help {
+  cursor: help;
+}
+
+@utility cursor-move {
+  cursor: move;
+}
+
+@utility cursor-n-resize {
+  cursor: n-resize;
+}
+
+@utility cursor-ne-resize {
+  cursor: ne-resize;
+}
+
+@utility cursor-nesw-resize {
+  cursor: nesw-resize;
+}
+
+@utility cursor-no-drop {
+  cursor: no-drop;
+}
+
+@utility cursor-none {
+  cursor: none;
+}
+
+@utility cursor-not-allowed {
+  cursor: not-allowed;
+}
+
+@utility cursor-ns-resize {
+  cursor: ns-resize;
+}
+
+@utility cursor-nw-resize {
+  cursor: nw-resize;
+}
+
+@utility cursor-nwse-resize {
+  cursor: nwse-resize;
+}
+
+@utility cursor-pointer {
+  cursor: pointer;
+}
+
+@utility cursor-progress {
+  cursor: progress;
+}
+
+@utility cursor-row-resize {
+  cursor: row-resize;
+}
+
+@utility cursor-s-resize {
+  cursor: s-resize;
+}
+
+@utility cursor-se-resize {
+  cursor: se-resize;
+}
+
+@utility cursor-sw-resize {
+  cursor: sw-resize;
+}
+
+@utility cursor-text {
+  cursor: text;
+}
+
+@utility cursor-vertical-text {
+  cursor: vertical-text;
+}
+
+@utility cursor-w-resize {
+  cursor: w-resize;
+}
+
+@utility cursor-wait {
+  cursor: wait;
+}
+
+@utility cursor-zoom-in {
+  cursor: zoom-in;
+}
+
+@utility cursor-zoom-out {
+  cursor: zoom-out;
+}
+
+@utility field-sizing-content {
+  field-sizing: content;
+}
+
+@utility field-sizing-fixed {
+  field-sizing: fixed;
+}
+
+@utility forced-color-adjust-auto {
+  forced-color-adjust: auto;
+}
+
+@utility forced-color-adjust-none {
+  forced-color-adjust: none;
+}
+
+@utility not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+
+@utility pointer-events-auto {
+  pointer-events: auto;
+}
+
+@utility pointer-events-none {
+  pointer-events: none;
+}
+
+@utility resize {
+  resize: both;
+}
+
+@utility resize-none {
+  resize: none;
+}
+
+@utility resize-x {
+  resize: horizontal;
+}
+
+@utility resize-y {
+  resize: vertical;
+}
+
+@utility scheme-dark {
+  color-scheme: dark;
+}
+
+@utility scheme-light {
+  color-scheme: light;
+}
+
+@utility scheme-light-dark {
+  color-scheme: light dark;
+}
+
+@utility scheme-normal {
+  color-scheme: normal;
+}
+
+@utility scheme-only-dark {
+  color-scheme: only dark;
+}
+
+@utility scheme-only-light {
+  color-scheme: only light;
+}
+
+@utility scroll-auto {
+  scroll-behavior: auto;
+}
+
+@utility scroll-m-* {
+  scroll-margin: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-m-* {
+  scroll-margin: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-mb-* {
+  scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-mb-* {
+  scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-mbe-* {
+  scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-mbe-* {
+  scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-mbs-* {
+  scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-mbs-* {
+  scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-me-* {
+  scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-me-* {
+  scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-ml-* {
+  scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-ml-* {
+  scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-mr-* {
+  scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-mr-* {
+  scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-ms-* {
+  scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-ms-* {
+  scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-mt-* {
+  scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-mt-* {
+  scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-mx-* {
+  scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-mx-* {
+  scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-my-* {
+  scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -scroll-my-* {
+  scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility scroll-p-* {
+  scroll-padding: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pb-* {
+  scroll-padding-bottom: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pbe-* {
+  scroll-padding-block-end: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pbs-* {
+  scroll-padding-block-start: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pe-* {
+  scroll-padding-inline-end: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pl-* {
+  scroll-padding-left: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pr-* {
+  scroll-padding-right: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-ps-* {
+  scroll-padding-inline-start: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-pt-* {
+  scroll-padding-top: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-px-* {
+  scroll-padding-inline: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-py-* {
+  scroll-padding-block: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+@utility scrollbar-auto {
+  scrollbar-width: auto;
+}
+
+@utility scrollbar-gutter-auto {
+  scrollbar-gutter: auto;
+}
+
+@utility scrollbar-gutter-both {
+  scrollbar-gutter: stable both-edges;
+}
+
+@utility scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+@utility scrollbar-thumb-* {
+  --tw-scrollbar-thumb: --value(--color-*, current, inherit, transparent, [color]);
+  scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
+}
+
+@utility scrollbar-thumb-* {
+  --tw-scrollbar-thumb: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
+}
+
+@utility scrollbar-track-* {
+  --tw-scrollbar-track: --value(--color-*, current, inherit, transparent, [color]);
+  scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
+}
+
+@utility scrollbar-track-* {
+  --tw-scrollbar-track: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
+}
+
+@utility select-all {
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+@utility select-auto {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+@utility select-none {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@utility select-text {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+@utility snap-align-none {
+  scroll-snap-align: none;
+}
+
+@utility snap-always {
+  scroll-snap-stop: always;
+}
+
+@utility snap-both {
+  scroll-snap-type: both var(--tw-scroll-snap-strictness);
+}
+
+@utility snap-center {
+  scroll-snap-align: center;
+}
+
+@utility snap-end {
+  scroll-snap-align: end;
+}
+
+@utility snap-mandatory {
+  --tw-scroll-snap-strictness: mandatory;
+}
+
+@utility snap-none {
+  scroll-snap-type: none;
+}
+
+@utility snap-normal {
+  scroll-snap-stop: normal;
+}
+
+@utility snap-proximity {
+  --tw-scroll-snap-strictness: proximity;
+}
+
+@utility snap-start {
+  scroll-snap-align: start;
+}
+
+@utility snap-x {
+  scroll-snap-type: x var(--tw-scroll-snap-strictness);
+}
+
+@utility snap-y {
+  scroll-snap-type: y var(--tw-scroll-snap-strictness);
+}
+
+@utility sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@utility touch-auto {
+  touch-action: auto;
+}
+
+@utility touch-manipulation {
+  touch-action: manipulation;
+}
+
+@utility touch-none {
+  touch-action: none;
+}
+
+@utility touch-pan-down {
+  --tw-pan-y: pan-down;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility touch-pan-left {
+  --tw-pan-x: pan-left;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility touch-pan-right {
+  --tw-pan-x: pan-right;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility touch-pan-up {
+  --tw-pan-y: pan-up;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility touch-pan-x {
+  --tw-pan-x: pan-x;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility touch-pan-y {
+  --tw-pan-y: pan-y;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility touch-pinch-zoom {
+  --tw-pinch-zoom: pinch-zoom;
+  touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+}
+
+@utility will-change-* {
+  will-change: --value([will-change]);
+}
+
+@utility will-change-auto {
+  will-change: auto;
+}
+
+@utility will-change-contents {
+  will-change: contents;
+}
+
+@utility will-change-scroll {
+  will-change: scroll-position;
+}
+
+@utility will-change-transform {
+  will-change: transform;
+}
+
+@utility zoom-* {
+  zoom: calc(--value(integer) * 1%);
+}
+
+@utility zoom-* {
+  zoom: --value([zoom]);
+}

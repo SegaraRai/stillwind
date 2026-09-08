@@ -122,14 +122,19 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../packages/react/css/builtins.css"),
     include_str!("../../../packages/react/css/registry-metadata.css"),
     include_str!("../../../packages/react/css/relationship-metadata.css"),
-    include_str!("../../../packages/react/css/structural-utilities.css"),
-    include_str!("../../../packages/react/css/keyword-utilities.css"),
-    include_str!("../../../packages/react/css/theme-value-utilities.css"),
+    include_str!("../../../packages/react/css/layout-utilities.css"),
+    include_str!("../../../packages/react/css/spacing-sizing-utilities.css"),
+    include_str!("../../../packages/react/css/flex-grid-utilities.css"),
+    include_str!("../../../packages/react/css/typography-utilities.css"),
+    include_str!("../../../packages/react/css/backgrounds-utilities.css"),
+    include_str!("../../../packages/react/css/borders-utilities.css"),
+    include_str!("../../../packages/react/css/effects-utilities.css"),
+    include_str!("../../../packages/react/css/masks-utilities.css"),
+    include_str!("../../../packages/react/css/transforms-utilities.css"),
+    include_str!("../../../packages/react/css/motion-utilities.css"),
+    include_str!("../../../packages/react/css/interactivity-utilities.css"),
+    include_str!("../../../packages/react/css/svg-utilities.css"),
     include_str!("../../../packages/react/css/interaction-variants.css"),
-    include_str!("../../../packages/react/css/exact-utilities.css"),
-    include_str!("../../../packages/react/css/typed-value-utilities.css"),
-    include_str!("../../../packages/react/css/css-grammar-utilities.css"),
-    include_str!("../../../packages/react/css/compatibility-utilities.css"),
     include_str!("../../../packages/react/css/selector-variants.css"),
     include_str!("../../../packages/react/css/properties.css"),
 );
@@ -3751,36 +3756,56 @@ mod tests {
             include_str!("../../../packages/react/css/relationship-metadata.css"),
         ),
         (
-            "structural-utilities.css",
-            include_str!("../../../packages/react/css/structural-utilities.css"),
+            "layout-utilities.css",
+            include_str!("../../../packages/react/css/layout-utilities.css"),
         ),
         (
-            "keyword-utilities.css",
-            include_str!("../../../packages/react/css/keyword-utilities.css"),
+            "spacing-sizing-utilities.css",
+            include_str!("../../../packages/react/css/spacing-sizing-utilities.css"),
         ),
         (
-            "theme-value-utilities.css",
-            include_str!("../../../packages/react/css/theme-value-utilities.css"),
+            "flex-grid-utilities.css",
+            include_str!("../../../packages/react/css/flex-grid-utilities.css"),
+        ),
+        (
+            "typography-utilities.css",
+            include_str!("../../../packages/react/css/typography-utilities.css"),
+        ),
+        (
+            "backgrounds-utilities.css",
+            include_str!("../../../packages/react/css/backgrounds-utilities.css"),
+        ),
+        (
+            "borders-utilities.css",
+            include_str!("../../../packages/react/css/borders-utilities.css"),
+        ),
+        (
+            "effects-utilities.css",
+            include_str!("../../../packages/react/css/effects-utilities.css"),
+        ),
+        (
+            "masks-utilities.css",
+            include_str!("../../../packages/react/css/masks-utilities.css"),
+        ),
+        (
+            "transforms-utilities.css",
+            include_str!("../../../packages/react/css/transforms-utilities.css"),
+        ),
+        (
+            "motion-utilities.css",
+            include_str!("../../../packages/react/css/motion-utilities.css"),
+        ),
+        (
+            "interactivity-utilities.css",
+            include_str!("../../../packages/react/css/interactivity-utilities.css"),
+        ),
+        (
+            "svg-utilities.css",
+            include_str!("../../../packages/react/css/svg-utilities.css"),
         ),
         (
             "interaction-variants.css",
             include_str!("../../../packages/react/css/interaction-variants.css"),
-        ),
-        (
-            "exact-utilities.css",
-            include_str!("../../../packages/react/css/exact-utilities.css"),
-        ),
-        (
-            "typed-value-utilities.css",
-            include_str!("../../../packages/react/css/typed-value-utilities.css"),
-        ),
-        (
-            "css-grammar-utilities.css",
-            include_str!("../../../packages/react/css/css-grammar-utilities.css"),
-        ),
-        (
-            "compatibility-utilities.css",
-            include_str!("../../../packages/react/css/compatibility-utilities.css"),
         ),
         (
             "selector-variants.css",
@@ -3791,6 +3816,37 @@ mod tests {
             include_str!("../../../packages/react/css/properties.css"),
         ),
     ];
+
+    #[test]
+    fn builtin_utility_families_are_colocated_and_contiguous() {
+        let mut locations = HashMap::<String, (&str, usize)>::new();
+        for (file, css) in REGISTRY_FILES
+            .iter()
+            .filter(|(file, _)| file.ends_with("-utilities.css"))
+        {
+            for (index, utility) in stillwind_css::parse_utility_definitions(css)
+                .into_iter()
+                .enumerate()
+            {
+                // Positive and negative registrations are one family. Keep the
+                // wildcard marker so related exact exceptions may sit inside
+                // the surrounding alphabetical feature cluster.
+                let family = utility.name.trim_start_matches('-');
+                if let Some((previous_file, previous_index)) = locations.get(family) {
+                    assert_eq!(
+                        previous_file, file,
+                        "utility family {family} is split between {previous_file} and {file}"
+                    );
+                    assert_eq!(
+                        previous_index + 1,
+                        index,
+                        "utility family {family} is not contiguous in {file}"
+                    );
+                }
+                locations.insert(family.to_owned(), (file, index));
+            }
+        }
+    }
 
     fn registry_utilities() -> Vec<(String, CustomUtility)> {
         let mut definitions = Vec::new();

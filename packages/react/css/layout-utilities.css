@@ -1,0 +1,552 @@
+/* Built-in layout utilities. Related utility overloads are kept adjacent. */
+
+@utility @container {
+  container-type: inline-size;
+}
+
+@utility @container {
+  container-name: --modifier();
+  container-type: inline-size;
+}
+
+@utility @container-normal {
+  container-type: normal;
+}
+
+@utility absolute {
+  position: absolute;
+}
+
+@utility bottom-* {
+  bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -bottom-* {
+  bottom: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility box-border {
+  box-sizing: border-box;
+}
+
+@utility box-content {
+  box-sizing: content-box;
+}
+
+@utility box-decoration-clone {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@utility box-decoration-slice {
+  -webkit-box-decoration-break: slice;
+  box-decoration-break: slice;
+}
+
+@utility caption-bottom {
+  caption-side: bottom;
+}
+
+@utility caption-top {
+  caption-side: top;
+}
+
+@utility clear-both {
+  clear: both;
+}
+
+@utility clear-end {
+  clear: inline-end;
+}
+
+@utility clear-left {
+  clear: left;
+}
+
+@utility clear-none {
+  clear: none;
+}
+
+@utility clear-right {
+  clear: right;
+}
+
+@utility clear-start {
+  clear: inline-start;
+}
+
+@utility collapse {
+  visibility: collapse;
+}
+
+@utility columns-* {
+  columns: --value(--container-*, integer, [integer]);
+}
+
+@utility columns-* {
+  columns: --value([columns]);
+}
+
+@utility columns-* {
+  columns: --value(integer, [integer]);
+}
+
+@utility columns-auto {
+  columns: auto;
+}
+
+@utility contain-* {
+  contain: --value([contain]);
+}
+
+@utility contain-content {
+  contain: content;
+}
+
+@utility contain-inline-size {
+  --tw-contain-size: inline-size;
+  contain: var(--tw-contain-size,) var(--tw-contain-layout,) var(--tw-contain-paint,)
+    var(--tw-contain-style,);
+}
+
+@utility contain-layout {
+  --tw-contain-layout: layout;
+  contain: var(--tw-contain-size,) var(--tw-contain-layout,) var(--tw-contain-paint,)
+    var(--tw-contain-style,);
+}
+
+@utility contain-none {
+  contain: none;
+}
+
+@utility contain-paint {
+  --tw-contain-paint: paint;
+  contain: var(--tw-contain-size,) var(--tw-contain-layout,) var(--tw-contain-paint,)
+    var(--tw-contain-style,);
+}
+
+@utility contain-size {
+  --tw-contain-size: size;
+  contain: var(--tw-contain-size,) var(--tw-contain-layout,) var(--tw-contain-paint,)
+    var(--tw-contain-style,);
+}
+
+@utility contain-strict {
+  contain: strict;
+}
+
+@utility contain-style {
+  --tw-contain-style: style;
+  contain: var(--tw-contain-size,) var(--tw-contain-layout,) var(--tw-contain-paint,)
+    var(--tw-contain-style,);
+}
+
+/* Container max-width rules are generated from the configured breakpoints. */
+@utility container {
+  width: 100%;
+  @media (width >= --value(--breakpoint-*)) {
+    max-width: --value(--breakpoint-*);
+  }
+}
+
+@utility contents {
+  display: contents;
+}
+
+@utility end-* {
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -end-* {
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility fixed {
+  position: fixed;
+}
+
+@utility float-end {
+  float: inline-end;
+}
+
+@utility float-left {
+  float: left;
+}
+
+@utility float-none {
+  float: none;
+}
+
+@utility float-right {
+  float: right;
+}
+
+@utility float-start {
+  float: inline-start;
+}
+
+@utility flow-root {
+  display: flow-root;
+}
+
+@utility hidden {
+  display: none;
+}
+
+@utility inset-* {
+  inset: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-* {
+  inset: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility inset-be-* {
+  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-be-* {
+  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility inset-bs-* {
+  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-bs-* {
+  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility inset-e-* {
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-e-* {
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility inset-ring {
+  --tw-inset-ring-shadow: inset 0 0 0 1px var(--tw-inset-ring-color, currentcolor);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+@utility inset-ring-* {
+  --tw-inset-ring-shadow: inset 0 0 0 calc(--value(integer) * 1px)
+    var(--tw-inset-ring-color, currentcolor);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+@utility inset-ring-* {
+  --tw-inset-ring-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility inset-ring-* {
+  --tw-inset-ring-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility inset-s-* {
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-s-* {
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility inset-x-* {
+  inset-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-x-* {
+  inset-inline: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility inset-y-* {
+  inset-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -inset-y-* {
+  inset-block: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility invisible {
+  visibility: hidden;
+}
+
+@utility isolate {
+  isolation: isolate;
+}
+
+@utility isolation-auto {
+  isolation: auto;
+}
+
+@utility left-* {
+  left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -left-* {
+  left: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility object-* {
+  object-position: --value([position]);
+}
+
+@utility object-bottom {
+  object-position: bottom;
+}
+
+@utility object-bottom-left {
+  object-position: left bottom;
+}
+
+@utility object-bottom-right {
+  object-position: right bottom;
+}
+
+@utility object-center {
+  object-position: center;
+}
+
+@utility object-contain {
+  object-fit: contain;
+}
+
+@utility object-cover {
+  object-fit: cover;
+}
+
+@utility object-fill {
+  object-fit: fill;
+}
+
+@utility object-left {
+  object-position: left;
+}
+
+@utility object-none {
+  object-fit: none;
+}
+
+@utility object-right {
+  object-position: right;
+}
+
+@utility object-scale-down {
+  object-fit: scale-down;
+}
+
+@utility object-top {
+  object-position: top;
+}
+
+@utility object-top-left {
+  object-position: left top;
+}
+
+@utility object-top-right {
+  object-position: right top;
+}
+
+@utility overflow-auto {
+  overflow: auto;
+}
+
+@utility overflow-clip {
+  overflow: clip;
+}
+
+@utility overflow-hidden {
+  overflow: hidden;
+}
+
+@utility overflow-scroll {
+  overflow: scroll;
+}
+
+@utility overflow-visible {
+  overflow: visible;
+}
+
+@utility overflow-x-auto {
+  overflow-x: auto;
+}
+
+@utility overflow-x-clip {
+  overflow-x: clip;
+}
+
+@utility overflow-x-hidden {
+  overflow-x: hidden;
+}
+
+@utility overflow-x-scroll {
+  overflow-x: scroll;
+}
+
+@utility overflow-x-visible {
+  overflow-x: visible;
+}
+
+@utility overflow-y-auto {
+  overflow-y: auto;
+}
+
+@utility overflow-y-clip {
+  overflow-y: clip;
+}
+
+@utility overflow-y-hidden {
+  overflow-y: hidden;
+}
+
+@utility overflow-y-scroll {
+  overflow-y: scroll;
+}
+
+@utility overflow-y-visible {
+  overflow-y: visible;
+}
+
+@utility overscroll-auto {
+  overscroll-behavior: auto;
+}
+
+@utility overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+@utility overscroll-none {
+  overscroll-behavior: none;
+}
+
+@utility overscroll-x-auto {
+  overscroll-behavior-x: auto;
+}
+
+@utility overscroll-x-contain {
+  overscroll-behavior-x: contain;
+}
+
+@utility overscroll-x-none {
+  overscroll-behavior-x: none;
+}
+
+@utility overscroll-y-auto {
+  overscroll-behavior-y: auto;
+}
+
+@utility overscroll-y-contain {
+  overscroll-behavior-y: contain;
+}
+
+@utility overscroll-y-none {
+  overscroll-behavior-y: none;
+}
+
+@utility relative {
+  position: relative;
+}
+
+@utility right-* {
+  right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -right-* {
+  right: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility start-* {
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -start-* {
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility static {
+  position: static;
+}
+
+@utility sticky {
+  position: sticky;
+}
+
+@utility table {
+  display: table;
+}
+
+@utility table-auto {
+  table-layout: auto;
+}
+
+@utility table-caption {
+  display: table-caption;
+}
+
+@utility table-cell {
+  display: table-cell;
+}
+
+@utility table-column {
+  display: table-column;
+}
+
+@utility table-column-group {
+  display: table-column-group;
+}
+
+@utility table-fixed {
+  table-layout: fixed;
+}
+
+@utility table-footer-group {
+  display: table-footer-group;
+}
+
+@utility table-header-group {
+  display: table-header-group;
+}
+
+@utility table-row {
+  display: table-row;
+}
+
+@utility table-row-group {
+  display: table-row-group;
+}
+
+@utility top-* {
+  top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility -top-* {
+  top: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+}
+
+@utility visible {
+  visibility: visible;
+}
+
+@utility z-* {
+  z-index: --value(--z-index-*);
+}
+
+@utility z-* {
+  z-index: --value(--z-index-*, integer, [z-index]);
+}
+
+@utility -z-* {
+  z-index: calc(--value(--z-index-*, integer, [z-index]) * -1);
+}
+
+@utility z-auto {
+  z-index: auto;
+}

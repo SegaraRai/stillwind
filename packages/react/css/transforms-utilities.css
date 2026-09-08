@@ -1,0 +1,430 @@
+/* Built-in transforms utilities. Related utility overloads are kept adjacent. */
+
+@utility backface-hidden {
+  backface-visibility: hidden;
+}
+
+@utility backface-visible {
+  backface-visibility: visible;
+}
+
+@utility origin-* {
+  transform-origin: --value([position]);
+}
+
+@utility origin-bottom {
+  transform-origin: bottom;
+}
+
+@utility origin-bottom-left {
+  transform-origin: bottom left;
+}
+
+@utility origin-bottom-right {
+  transform-origin: bottom right;
+}
+
+@utility origin-center {
+  transform-origin: center;
+}
+
+@utility origin-left {
+  transform-origin: left;
+}
+
+@utility origin-right {
+  transform-origin: right;
+}
+
+@utility origin-top {
+  transform-origin: top;
+}
+
+@utility origin-top-left {
+  transform-origin: top left;
+}
+
+@utility origin-top-right {
+  transform-origin: top right;
+}
+
+@utility perspective-* {
+  perspective: --value([length]);
+}
+
+@utility perspective-distant {
+  perspective: var(--perspective-distant);
+}
+
+@utility perspective-dramatic {
+  perspective: var(--perspective-dramatic);
+}
+
+@utility perspective-midrange {
+  perspective: var(--perspective-midrange);
+}
+
+@utility perspective-near {
+  perspective: var(--perspective-near);
+}
+
+@utility perspective-none {
+  perspective: none;
+}
+
+@utility perspective-normal {
+  perspective: var(--perspective-normal);
+}
+
+@utility perspective-origin-* {
+  perspective-origin: --value([position]);
+}
+
+@utility perspective-origin-bottom {
+  perspective-origin: bottom;
+}
+
+@utility perspective-origin-bottom-left {
+  perspective-origin: bottom left;
+}
+
+@utility perspective-origin-bottom-right {
+  perspective-origin: bottom right;
+}
+
+@utility perspective-origin-center {
+  perspective-origin: center;
+}
+
+@utility perspective-origin-left {
+  perspective-origin: left;
+}
+
+@utility perspective-origin-right {
+  perspective-origin: right;
+}
+
+@utility perspective-origin-top {
+  perspective-origin: top;
+}
+
+@utility perspective-origin-top-left {
+  perspective-origin: top left;
+}
+
+@utility perspective-origin-top-right {
+  perspective-origin: top right;
+}
+
+@utility rotate-* {
+  rotate: calc(--value(integer) * 1deg);
+}
+
+@utility -rotate-* {
+  rotate: calc(--value(integer) * 1deg * -1);
+}
+
+@utility rotate-none {
+  rotate: none;
+}
+
+@utility rotate-x-* {
+  --tw-rotate-x: rotateX(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility -rotate-x-* {
+  --tw-rotate-x: rotateX(calc(--value(integer) * 1deg * -1));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility rotate-y-* {
+  --tw-rotate-y: rotateY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility -rotate-y-* {
+  --tw-rotate-y: rotateY(calc(--value(integer) * 1deg * -1));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility rotate-z-* {
+  --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility -rotate-z-* {
+  --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg * -1));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility scale-* {
+  --tw-scale-x: calc(--value(integer) * 1%);
+  --tw-scale-y: calc(--value(integer) * 1%);
+  --tw-scale-z: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@utility -scale-* {
+  --tw-scale-x: calc(--value(integer) * 1% * -1);
+  --tw-scale-y: calc(--value(integer) * 1% * -1);
+  --tw-scale-z: calc(--value(integer) * 1% * -1);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@utility scale-* {
+  scale: --value([number-percentage]);
+}
+
+@utility scale-3d {
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+
+@utility scale-none {
+  scale: none;
+}
+
+@utility scale-x-* {
+  --tw-scale-x: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@utility -scale-x-* {
+  --tw-scale-x: calc(--value(integer) * 1% * -1);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@utility scale-y-* {
+  --tw-scale-y: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@utility -scale-y-* {
+  --tw-scale-y: calc(--value(integer) * 1% * -1);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@utility scale-z-* {
+  --tw-scale-z: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+
+@utility -scale-z-* {
+  --tw-scale-z: calc(--value(integer) * 1% * -1);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+
+@utility skew-[initial] {
+  --tw-skew-x: skewX(initial);
+  --tw-skew-y: skewY(initial);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@utility skew-* {
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg));
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility -skew-* {
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg * -1));
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg * -1));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility skew-* {
+  transform: skew(--value([skew-arguments]));
+}
+
+@utility skew-x-[initial] {
+  --tw-skew-x: skewX(initial);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@utility skew-x-* {
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility -skew-x-* {
+  --tw-skew-x: skewX(calc(--value(integer) * 1deg * -1));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility skew-x-* {
+  transform: skewX(--value([skew-x-arguments]));
+}
+
+@utility skew-y-[initial] {
+  --tw-skew-y: skewY(initial);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@utility skew-y-* {
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility -skew-y-* {
+  --tw-skew-y: skewY(calc(--value(integer) * 1deg * -1));
+  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
+    var(--tw-skew-y);
+}
+
+@utility skew-y-* {
+  transform: skewY(--value([skew-y-arguments]));
+}
+
+@utility transform {
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@utility transform-3d {
+  transform-style: preserve-3d;
+}
+
+@utility transform-border {
+  transform-box: border-box;
+}
+
+@utility transform-content {
+  transform-box: content-box;
+}
+
+@utility transform-cpu {
+  /*stillwind-transform-cpu*/
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@utility transform-fill {
+  transform-box: fill-box;
+}
+
+@utility transform-flat {
+  transform-style: flat;
+}
+
+@utility transform-gpu {
+  transform: translateZ(0) var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,)
+    var(--tw-skew-x,) var(--tw-skew-y,);
+}
+
+@utility transform-none {
+  transform: none;
+}
+
+@utility transform-stroke {
+  transform-box: stroke-box;
+}
+
+@utility transform-view {
+  transform-box: view-box;
+}
+
+@utility translate-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-3d {
+  translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
+}
+
+@utility -translate-full {
+  --tw-translate-x: -100%;
+  --tw-translate-y: -100%;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-full {
+  --tw-translate-x: 100%;
+  --tw-translate-y: 100%;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-none {
+  translate: none;
+}
+
+@utility translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), [length-percentage]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), [length-percentage]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-x-* {
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-x-0 {
+  --tw-translate-x: 0px;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), [length-percentage]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), [length-percentage]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility -translate-y-* {
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), --inset(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-y-0 {
+  --tw-translate-y: 0px;
+  translate: var(--tw-translate-x) var(--tw-translate-y);
+}
+
+@utility translate-z-* {
+  --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
+}
+
+@utility -translate-z-* {
+  --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
+  translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
+}

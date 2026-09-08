@@ -1,0 +1,123 @@
+/* Built-in motion utilities. Related utility overloads are kept adjacent. */
+
+@utility animate-* {
+  animation: --value(--animate-*, [animation]);
+}
+
+@utility animate-none {
+  animation: none;
+}
+
+@utility delay-* {
+  transition-delay: calc(--value(integer) * 1ms);
+}
+
+@utility delay-* {
+  transition-delay: --value([time]);
+}
+
+@utility duration-* {
+  --tw-duration: calc(--value(integer) * 1ms);
+  transition-duration: calc(--value(integer) * 1ms);
+}
+
+@utility duration-initial {
+  --tw-duration: initial;
+}
+
+@utility ease-* {
+  --tw-ease: --value(--ease-*);
+  transition-timing-function: --value(--ease-*);
+}
+
+@utility ease-initial {
+  --tw-ease: initial;
+}
+
+@utility ease-linear {
+  --tw-ease: linear;
+  transition-timing-function: linear;
+}
+
+@utility transition {
+  transition-property:
+    color,
+    background-color,
+    border-color,
+    outline-color,
+    text-decoration-color,
+    fill,
+    stroke,
+    --tw-gradient-from,
+    --tw-gradient-via,
+    --tw-gradient-to,
+    opacity,
+    box-shadow,
+    transform,
+    translate,
+    scale,
+    rotate,
+    filter,
+    -webkit-backdrop-filter,
+    backdrop-filter,
+    display,
+    content-visibility,
+    overlay,
+    pointer-events;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+@utility transition-[initial] {
+  transition-property: initial;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+@utility transition-* {
+  transition-property: --value([transition-property]);
+}
+
+@utility transition-all {
+  transition-property: all;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+@utility transition-colors {
+  transition-property:
+    color, background-color, border-color, outline-color, text-decoration-color, fill, stroke,
+    --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+@utility transition-discrete {
+  transition-behavior: allow-discrete;
+}
+
+@utility transition-none {
+  transition-property: none;
+}
+
+@utility transition-normal {
+  transition-behavior: normal;
+}
+
+@utility transition-opacity {
+  transition-property: opacity;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+@utility transition-shadow {
+  transition-property: box-shadow;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+@utility transition-transform {
+  transition-property: transform, translate, scale, rotate;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}

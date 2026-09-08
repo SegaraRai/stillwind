@@ -1,14 +1,21 @@
-/* Stillwind's built-in registry manifest. Import order is semantic: later
- * definitions may refine or override earlier, more general definitions. */
+/* Stillwind's built-in registry manifest. Utility definitions are grouped by
+ * feature domain; overloads for one utility family stay in the same shard. */
 @import "./registry-metadata.css";
 @import "./relationship-metadata.css";
-@import "./structural-utilities.css";
-@import "./keyword-utilities.css";
-@import "./theme-value-utilities.css";
+
+@import "./layout-utilities.css";
+@import "./spacing-sizing-utilities.css";
+@import "./flex-grid-utilities.css";
+@import "./typography-utilities.css";
+@import "./backgrounds-utilities.css";
+@import "./borders-utilities.css";
+@import "./effects-utilities.css";
+@import "./masks-utilities.css";
+@import "./transforms-utilities.css";
+@import "./motion-utilities.css";
+@import "./interactivity-utilities.css";
+@import "./svg-utilities.css";
+
 @import "./interaction-variants.css";
-@import "./exact-utilities.css";
-@import "./typed-value-utilities.css";
-@import "./css-grammar-utilities.css";
-@import "./compatibility-utilities.css";
 @import "./selector-variants.css";
 @import "./properties.css";

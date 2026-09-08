@@ -1,0 +1,647 @@
+/* Built-in flex grid utilities. Related utility overloads are kept adjacent. */
+
+@utility auto-cols-* {
+  grid-auto-columns: --value([grid-track-size]);
+}
+
+@utility auto-cols-auto {
+  grid-auto-columns: auto;
+}
+
+@utility auto-cols-fr {
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+@utility auto-cols-max {
+  grid-auto-columns: max-content;
+}
+
+@utility auto-cols-min {
+  grid-auto-columns: min-content;
+}
+
+@utility auto-rows-* {
+  grid-auto-rows: --value([grid-track-size]);
+}
+
+@utility auto-rows-auto {
+  grid-auto-rows: auto;
+}
+
+@utility auto-rows-fr {
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+@utility auto-rows-max {
+  grid-auto-rows: max-content;
+}
+
+@utility auto-rows-min {
+  grid-auto-rows: min-content;
+}
+
+@utility basis-* {
+  flex-basis: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
+}
+
+@utility basis-* {
+  flex-basis: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility basis-auto {
+  flex-basis: auto;
+}
+
+@utility basis-full {
+  flex-basis: 100%;
+}
+
+@utility col-* {
+  grid-column: --value([grid-line]);
+}
+
+@utility col-auto {
+  grid-column: auto;
+}
+
+@utility col-end-* {
+  grid-column-end: --value(integer, [integer]);
+}
+
+@utility col-end-* {
+  grid-column-end: --value([grid-line]);
+}
+
+@utility -col-end-* {
+  grid-column-end: calc(--value(integer) * -1);
+}
+
+@utility col-end-auto {
+  grid-column-end: auto;
+}
+
+@utility col-span-* {
+  grid-column: span --value([integer]) / span --value([integer]);
+}
+
+@utility col-span-* {
+  grid-column: span --value(integer) / span --value(integer);
+}
+
+@utility col-span-full {
+  grid-column: 1 / -1;
+}
+
+@utility col-start-* {
+  grid-column-start: --value(integer, [integer]);
+}
+
+@utility col-start-* {
+  grid-column-start: --value([grid-line]);
+}
+
+@utility -col-start-* {
+  grid-column-start: calc(--value(integer) * -1);
+}
+
+@utility col-start-auto {
+  grid-column-start: auto;
+}
+
+@utility content-* {
+  --tw-content: --value([content]);
+  content: var(--tw-content);
+}
+
+@utility content-around {
+  align-content: space-around;
+}
+
+@utility content-baseline {
+  align-content: baseline;
+}
+
+@utility content-between {
+  align-content: space-between;
+}
+
+@utility content-center {
+  align-content: center;
+}
+
+@utility content-center-safe {
+  align-content: safe center;
+}
+
+@utility content-end {
+  align-content: flex-end;
+}
+
+@utility content-end-safe {
+  align-content: safe flex-end;
+}
+
+@utility content-evenly {
+  align-content: space-evenly;
+}
+
+@utility content-none {
+  --tw-content: none;
+  content: none;
+}
+
+@utility content-normal {
+  align-content: normal;
+}
+
+@utility content-start {
+  align-content: flex-start;
+}
+
+@utility content-stretch {
+  align-content: stretch;
+}
+
+@utility flex {
+  display: flex;
+}
+
+@utility flex-* {
+  flex: --value(--fraction());
+}
+
+@utility flex-* {
+  flex: --value(integer, [flex]);
+}
+
+@utility flex-1 {
+  flex: 1 1 0%;
+}
+
+@utility flex-auto {
+  flex: auto;
+}
+
+@utility flex-col {
+  flex-direction: column;
+}
+
+@utility flex-col-reverse {
+  flex-direction: column-reverse;
+}
+
+@utility flex-initial {
+  flex: 0 auto;
+}
+
+@utility flex-none {
+  flex: none;
+}
+
+@utility flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+@utility flex-row {
+  flex-direction: row;
+}
+
+@utility flex-row-reverse {
+  flex-direction: row-reverse;
+}
+
+@utility flex-wrap {
+  flex-wrap: wrap;
+}
+
+@utility flex-wrap-reverse {
+  flex-wrap: wrap-reverse;
+}
+
+@utility gap-* {
+  gap: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility gap-x-* {
+  column-gap: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility gap-y-* {
+  row-gap: --value(--spacing-*, --spacing(), [length]);
+}
+
+@utility grid {
+  display: grid;
+}
+
+@utility grid-cols-* {
+  grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
+}
+
+@utility grid-cols-* {
+  grid-template-columns: --value([grid-track-list]);
+}
+
+@utility grid-cols-none {
+  grid-template-columns: none;
+}
+
+@utility grid-cols-subgrid {
+  grid-template-columns: subgrid;
+}
+
+@utility grid-flow-col {
+  grid-auto-flow: column;
+}
+
+@utility grid-flow-col-dense {
+  grid-auto-flow: column dense;
+}
+
+@utility grid-flow-dense {
+  grid-auto-flow: dense;
+}
+
+@utility grid-flow-row {
+  grid-auto-flow: row;
+}
+
+@utility grid-flow-row-dense {
+  grid-auto-flow: row dense;
+}
+
+@utility grid-rows-* {
+  grid-template-rows: --value([grid-track-list]);
+}
+
+@utility grid-rows-* {
+  grid-template-rows: repeat(--value(integer), minmax(0, 1fr));
+}
+
+@utility grid-rows-none {
+  grid-template-rows: none;
+}
+
+@utility grid-rows-subgrid {
+  grid-template-rows: subgrid;
+}
+
+@utility grow {
+  flex-grow: 1;
+}
+
+@utility grow-* {
+  flex-grow: --value(number, [number]);
+}
+
+@utility grow-0 {
+  flex-grow: 0;
+}
+
+@utility items-baseline {
+  align-items: baseline;
+}
+
+@utility items-baseline-last {
+  align-items: last baseline;
+}
+
+@utility items-center {
+  align-items: center;
+}
+
+@utility items-center-safe {
+  align-items: safe center;
+}
+
+@utility items-end {
+  align-items: flex-end;
+}
+
+@utility items-end-safe {
+  align-items: safe flex-end;
+}
+
+@utility items-start {
+  align-items: flex-start;
+}
+
+@utility items-stretch {
+  align-items: stretch;
+}
+
+@utility justify-around {
+  justify-content: space-around;
+}
+
+@utility justify-baseline {
+  justify-content: baseline;
+}
+
+@utility justify-between {
+  justify-content: space-between;
+}
+
+@utility justify-center {
+  justify-content: center;
+}
+
+@utility justify-center-safe {
+  justify-content: safe center;
+}
+
+@utility justify-end {
+  justify-content: flex-end;
+}
+
+@utility justify-end-safe {
+  justify-content: safe flex-end;
+}
+
+@utility justify-evenly {
+  justify-content: space-evenly;
+}
+
+@utility justify-items-center {
+  justify-items: center;
+}
+
+@utility justify-items-center-safe {
+  justify-items: safe center;
+}
+
+@utility justify-items-end {
+  justify-items: end;
+}
+
+@utility justify-items-end-safe {
+  justify-items: safe end;
+}
+
+@utility justify-items-normal {
+  justify-items: normal;
+}
+
+@utility justify-items-start {
+  justify-items: start;
+}
+
+@utility justify-items-stretch {
+  justify-items: stretch;
+}
+
+@utility justify-normal {
+  justify-content: normal;
+}
+
+@utility justify-self-auto {
+  justify-self: auto;
+}
+
+@utility justify-self-center {
+  justify-self: center;
+}
+
+@utility justify-self-center-safe {
+  justify-self: safe center;
+}
+
+@utility justify-self-end {
+  justify-self: flex-end;
+}
+
+@utility justify-self-end-safe {
+  justify-self: safe flex-end;
+}
+
+@utility justify-self-start {
+  justify-self: flex-start;
+}
+
+@utility justify-self-stretch {
+  justify-self: stretch;
+}
+
+@utility justify-start {
+  justify-content: flex-start;
+}
+
+@utility justify-stretch {
+  justify-content: stretch;
+}
+
+@utility order-* {
+  order: --value(integer, [integer]);
+}
+
+@utility -order-* {
+  order: calc(--value(integer) * -1);
+}
+
+@utility order-* {
+  order: --value([integer]);
+}
+
+@utility order-first {
+  order: -9999;
+}
+
+@utility order-last {
+  order: 9999;
+}
+
+@utility place-content-around {
+  place-content: space-around;
+}
+
+@utility place-content-baseline {
+  place-content: baseline;
+}
+
+@utility place-content-between {
+  place-content: space-between;
+}
+
+@utility place-content-center {
+  place-content: center;
+}
+
+@utility place-content-center-safe {
+  place-content: safe center;
+}
+
+@utility place-content-end {
+  place-content: end;
+}
+
+@utility place-content-end-safe {
+  place-content: safe end;
+}
+
+@utility place-content-evenly {
+  place-content: space-evenly;
+}
+
+@utility place-content-start {
+  place-content: start;
+}
+
+@utility place-content-stretch {
+  place-content: stretch;
+}
+
+@utility place-items-baseline {
+  place-items: baseline;
+}
+
+@utility place-items-center {
+  place-items: center;
+}
+
+@utility place-items-center-safe {
+  place-items: safe center;
+}
+
+@utility place-items-end {
+  place-items: end;
+}
+
+@utility place-items-end-safe {
+  place-items: safe end;
+}
+
+@utility place-items-start {
+  place-items: start;
+}
+
+@utility place-items-stretch {
+  place-items: stretch;
+}
+
+@utility place-self-auto {
+  place-self: auto;
+}
+
+@utility place-self-center {
+  place-self: center;
+}
+
+@utility place-self-center-safe {
+  place-self: safe center;
+}
+
+@utility place-self-end {
+  place-self: end;
+}
+
+@utility place-self-end-safe {
+  place-self: safe end;
+}
+
+@utility place-self-start {
+  place-self: start;
+}
+
+@utility place-self-stretch {
+  place-self: stretch;
+}
+
+@utility row-* {
+  grid-row: --value([grid-line]);
+}
+
+@utility row-auto {
+  grid-row: auto;
+}
+
+@utility row-end-* {
+  grid-row-end: --value(integer, [integer]);
+}
+
+@utility -row-end-* {
+  grid-row-end: calc(--value(integer) * -1);
+}
+
+@utility row-end-* {
+  grid-row-end: --value([grid-line]);
+}
+
+@utility row-end-auto {
+  grid-row-end: auto;
+}
+
+@utility row-span-* {
+  grid-row: span --value(integer) / span --value(integer);
+}
+
+@utility row-span-* {
+  grid-row: span --value([integer]) / span --value([integer]);
+}
+
+@utility row-span-full {
+  grid-row: 1 / -1;
+}
+
+@utility row-start-* {
+  grid-row-start: --value(integer, [integer]);
+}
+
+@utility -row-start-* {
+  grid-row-start: calc(--value(integer) * -1);
+}
+
+@utility row-start-* {
+  grid-row-start: --value([grid-line]);
+}
+
+@utility row-start-auto {
+  grid-row-start: auto;
+}
+
+@utility self-auto {
+  align-self: auto;
+}
+
+@utility self-baseline {
+  align-self: baseline;
+}
+
+@utility self-baseline-last {
+  align-self: last baseline;
+}
+
+@utility self-center {
+  align-self: center;
+}
+
+@utility self-center-safe {
+  align-self: safe center;
+}
+
+@utility self-end {
+  align-self: flex-end;
+}
+
+@utility self-end-safe {
+  align-self: safe flex-end;
+}
+
+@utility self-start {
+  align-self: flex-start;
+}
+
+@utility self-stretch {
+  align-self: stretch;
+}
+
+@utility shrink {
+  flex-shrink: 1;
+}
+
+@utility shrink-* {
+  flex-shrink: --value(number, [number]);
+}
+
+@utility shrink-0 {
+  flex-shrink: 0;
+}

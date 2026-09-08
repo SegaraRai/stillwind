@@ -1,0 +1,699 @@
+/* Built-in borders utilities. Related utility overloads are kept adjacent. */
+
+@utility border {
+  border-style: var(--tw-border-style);
+  border-width: 1px;
+}
+
+@utility border-* {
+  border-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-* {
+  border-color: --value(--color-*, current, inherit, transparent);
+}
+
+@utility border-* {
+  border-style: var(--tw-border-style);
+  border-width: calc(--value(integer) * 1px);
+}
+
+@utility border-* {
+  border-style: var(--tw-border-style);
+  border-width: --value([line-width]);
+}
+
+@utility border-0 {
+  border-style: var(--tw-border-style);
+  border-width: 0;
+}
+
+@utility border-b {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: 1px;
+}
+
+@utility border-b-* {
+  border-bottom-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-b-* {
+  border-bottom-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-b-* {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: calc(--value(integer) * 1px);
+}
+
+@utility border-b-* {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: --value([line-width]);
+}
+
+@utility border-be {
+  border-block-end-style: var(--tw-border-style);
+  border-block-end-width: 1px;
+}
+
+@utility border-be-* {
+  border-block-end-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-be-* {
+  border-block-end-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-be-* {
+  border-block-end-style: var(--tw-border-style);
+  border-block-end-width: calc(--value(integer) * 1px);
+}
+
+@utility border-be-* {
+  border-block-end-style: var(--tw-border-style);
+  border-block-end-width: --value([line-width]);
+}
+
+@utility border-bs {
+  border-block-start-style: var(--tw-border-style);
+  border-block-start-width: 1px;
+}
+
+@utility border-bs-* {
+  border-block-start-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-bs-* {
+  border-block-start-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-bs-* {
+  border-block-start-style: var(--tw-border-style);
+  border-block-start-width: calc(--value(integer) * 1px);
+}
+
+@utility border-bs-* {
+  border-block-start-style: var(--tw-border-style);
+  border-block-start-width: --value([line-width]);
+}
+
+@utility border-collapse {
+  border-collapse: collapse;
+}
+
+@utility border-dashed {
+  --tw-border-style: dashed;
+  border-style: dashed;
+}
+
+@utility border-dotted {
+  --tw-border-style: dotted;
+  border-style: dotted;
+}
+
+@utility border-double {
+  --tw-border-style: double;
+  border-style: double;
+}
+
+@utility border-e {
+  border-inline-end-style: var(--tw-border-style);
+  border-inline-end-width: 1px;
+}
+
+@utility border-e-* {
+  border-inline-end-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-e-* {
+  border-inline-end-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-e-* {
+  border-inline-end-style: var(--tw-border-style);
+  border-inline-end-width: calc(--value(integer) * 1px);
+}
+
+@utility border-e-* {
+  border-inline-end-style: var(--tw-border-style);
+  border-inline-end-width: --value([line-width]);
+}
+
+@utility border-hidden {
+  --tw-border-style: hidden;
+  border-style: hidden;
+}
+
+@utility border-l {
+  border-left-style: var(--tw-border-style);
+  border-left-width: 1px;
+}
+
+@utility border-l-* {
+  border-left-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-l-* {
+  border-left-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-l-* {
+  border-left-style: var(--tw-border-style);
+  border-left-width: calc(--value(integer) * 1px);
+}
+
+@utility border-l-* {
+  border-left-style: var(--tw-border-style);
+  border-left-width: --value([line-width]);
+}
+
+@utility border-none {
+  --tw-border-style: none;
+  border-style: none;
+}
+
+@utility border-r {
+  border-right-style: var(--tw-border-style);
+  border-right-width: 1px;
+}
+
+@utility border-r-* {
+  border-right-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-r-* {
+  border-right-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-r-* {
+  border-right-style: var(--tw-border-style);
+  border-right-width: calc(--value(integer) * 1px);
+}
+
+@utility border-r-* {
+  border-right-style: var(--tw-border-style);
+  border-right-width: --value([line-width]);
+}
+
+@utility border-s {
+  border-inline-start-style: var(--tw-border-style);
+  border-inline-start-width: 1px;
+}
+
+@utility border-s-* {
+  border-inline-start-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-s-* {
+  border-inline-start-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-s-* {
+  border-inline-start-style: var(--tw-border-style);
+  border-inline-start-width: calc(--value(integer) * 1px);
+}
+
+@utility border-s-* {
+  border-inline-start-style: var(--tw-border-style);
+  border-inline-start-width: --value([line-width]);
+}
+
+@utility border-separate {
+  border-collapse: separate;
+}
+
+@utility border-solid {
+  --tw-border-style: solid;
+  border-style: solid;
+}
+
+@utility border-spacing-* {
+  --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
+  --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+
+@utility border-spacing-x-* {
+  --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+
+@utility border-spacing-y-* {
+  --tw-border-spacing-y: --value(--spacing-*, --spacing(), [length]);
+  border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
+}
+
+@utility border-t {
+  border-top-style: var(--tw-border-style);
+  border-top-width: 1px;
+}
+
+@utility border-t-* {
+  border-top-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-t-* {
+  border-top-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-t-* {
+  border-top-style: var(--tw-border-style);
+  border-top-width: calc(--value(integer) * 1px);
+}
+
+@utility border-t-* {
+  border-top-style: var(--tw-border-style);
+  border-top-width: --value([line-width]);
+}
+
+@utility border-x {
+  border-inline-style: var(--tw-border-style);
+  border-inline-width: 1px;
+}
+
+@utility border-x-* {
+  border-inline-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-x-* {
+  border-inline-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-x-* {
+  border-inline-style: var(--tw-border-style);
+  border-inline-width: calc(--value(integer) * 1px);
+}
+
+@utility border-x-* {
+  border-inline-style: var(--tw-border-style);
+  border-inline-width: --value([line-width]);
+}
+
+@utility border-y {
+  border-block-style: var(--tw-border-style);
+  border-block-width: 1px;
+}
+
+@utility border-y-* {
+  border-block-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@utility border-y-* {
+  border-block-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility border-y-* {
+  border-block-style: var(--tw-border-style);
+  border-block-width: calc(--value(integer) * 1px);
+}
+
+@utility border-y-* {
+  border-block-style: var(--tw-border-style);
+  border-block-width: --value([line-width]);
+}
+
+@utility divide-* {
+  :where(& > :not(:last-child)) {
+    border-color: --value(--color-*, current, inherit, transparent);
+  }
+}
+
+@utility divide-* {
+  :where(& > :not(:last-child)) {
+    border-color: --compat-color(
+      --value-literal(--color-*, current, inherit, transparent),
+      --alpha(--modifier())
+    );
+  }
+}
+
+@utility divide-dashed {
+  :where(& > :not(:last-child)) {
+    --tw-border-style: dashed;
+    border-style: dashed;
+  }
+}
+
+@utility divide-dotted {
+  :where(& > :not(:last-child)) {
+    --tw-border-style: dotted;
+    border-style: dotted;
+  }
+}
+
+@utility divide-double {
+  :where(& > :not(:last-child)) {
+    --tw-border-style: double;
+    border-style: double;
+  }
+}
+
+@utility divide-none {
+  :where(& > :not(:last-child)) {
+    --tw-border-style: none;
+    border-style: none;
+  }
+}
+
+@utility divide-solid {
+  :where(& > :not(:last-child)) {
+    --tw-border-style: solid;
+    border-style: solid;
+  }
+}
+
+@utility divide-x {
+  :where(& > :not(:last-child)) {
+    --tw-divide-x-reverse: 0;
+    border-inline-style: var(--tw-border-style);
+    border-inline-start-width: calc(1px * var(--tw-divide-x-reverse));
+    border-inline-end-width: calc(1px * calc(1 - var(--tw-divide-x-reverse)));
+  }
+}
+
+@utility divide-x-[initial] {
+  :where(& > :not(:last-child)) {
+    --tw-divide-x-reverse: 0;
+    border-inline-style: var(--tw-border-style);
+    border-inline-start-width: calc(initial * var(--tw-divide-x-reverse));
+    border-inline-end-width: calc(initial * calc(1 - var(--tw-divide-x-reverse)));
+  }
+}
+
+@utility divide-x-* {
+  :where(& > :not(:last-child)) {
+    border-inline-end-style: var(--tw-border-style);
+    border-inline-end-width: --value([line-width]);
+  }
+}
+
+@utility divide-x-* {
+  :where(& > :not(:last-child)) {
+    --tw-divide-x-reverse: 0;
+    border-inline-style: var(--tw-border-style);
+    border-inline-start-width: calc(--value(integer) * 1px * var(--tw-divide-x-reverse));
+    border-inline-end-width: calc(--value(integer) * 1px * calc(1 - var(--tw-divide-x-reverse)));
+  }
+}
+
+@utility divide-x-reverse {
+  :where(& > :not(:last-child)) {
+    --tw-divide-x-reverse: 1;
+  }
+}
+
+@utility divide-y {
+  :where(& > :not(:last-child)) {
+    --tw-divide-y-reverse: 0;
+    border-bottom-style: var(--tw-border-style);
+    border-top-style: var(--tw-border-style);
+    border-top-width: calc(1px * var(--tw-divide-y-reverse));
+    border-bottom-width: calc(1px * calc(1 - var(--tw-divide-y-reverse)));
+  }
+}
+
+@utility divide-y-[initial] {
+  :where(& > :not(:last-child)) {
+    --tw-divide-y-reverse: 0;
+    border-bottom-style: var(--tw-border-style);
+    border-top-style: var(--tw-border-style);
+    border-top-width: calc(initial * var(--tw-divide-y-reverse));
+    border-bottom-width: calc(initial * calc(1 - var(--tw-divide-y-reverse)));
+  }
+}
+
+@utility divide-y-* {
+  :where(& > :not(:last-child)) {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: --value([line-width]);
+  }
+}
+
+@utility divide-y-* {
+  :where(& > :not(:last-child)) {
+    --tw-divide-y-reverse: 0;
+    border-bottom-style: var(--tw-border-style);
+    border-top-style: var(--tw-border-style);
+    border-top-width: calc(--value(integer) * 1px * var(--tw-divide-y-reverse));
+    border-bottom-width: calc(--value(integer) * 1px * calc(1 - var(--tw-divide-y-reverse)));
+  }
+}
+
+@utility divide-y-reverse {
+  :where(& > :not(:last-child)) {
+    --tw-divide-y-reverse: 1;
+  }
+}
+
+@utility outline {
+  outline-style: var(--tw-outline-style);
+  outline-width: 1px;
+}
+
+@utility outline-* {
+  outline-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@utility outline-* {
+  outline-color: --value(--color-*, current, inherit, transparent);
+}
+
+@utility outline-* {
+  outline-style: var(--tw-outline-style);
+  outline-width: calc(--value(integer) * 1px);
+}
+
+@utility outline-0 {
+  outline-style: var(--tw-outline-style);
+  outline-width: 0;
+}
+
+@utility outline-dashed {
+  --tw-outline-style: dashed;
+  outline-style: dashed;
+}
+
+@utility outline-dotted {
+  --tw-outline-style: dotted;
+  outline-style: dotted;
+}
+
+@utility outline-double {
+  --tw-outline-style: double;
+  outline-style: double;
+}
+
+@utility outline-hidden {
+  --tw-outline-style: none;
+  outline-style: none;
+  @media (forced-colors: active) {
+    outline-offset: 2px;
+    outline: 2px solid transparent;
+  }
+}
+
+@utility outline-none {
+  --tw-outline-style: none;
+  outline-style: none;
+}
+
+@utility -outline-offset-* {
+  outline-offset: --value(--outline-offset-*, [length]);
+}
+
+@utility -outline-offset-* {
+  outline-offset: calc(--value(integer) * 1px * -1);
+}
+
+@utility outline-offset-* {
+  outline-offset: --value(--outline-offset-*, [length]);
+}
+
+@utility outline-offset-* {
+  outline-offset: calc(--value(integer) * 1px);
+}
+
+@utility outline-offset-0 {
+  outline-offset: 0px;
+}
+
+@utility outline-offset-2 {
+  outline-offset: 2px;
+}
+
+@utility outline-solid {
+  --tw-outline-style: solid;
+  outline-style: solid;
+}
+
+@utility rounded-* {
+  border-radius: --value(--radius-*);
+}
+
+@utility rounded-b-full {
+  border-bottom-right-radius: calc(infinity * 1px);
+  border-bottom-left-radius: calc(infinity * 1px);
+}
+
+@utility rounded-b-none {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+@utility rounded-bl-full {
+  border-bottom-left-radius: calc(infinity * 1px);
+}
+
+@utility rounded-bl-none {
+  border-bottom-left-radius: 0;
+}
+
+@utility rounded-br-full {
+  border-bottom-right-radius: calc(infinity * 1px);
+}
+
+@utility rounded-br-none {
+  border-bottom-right-radius: 0;
+}
+
+@utility rounded-e-full {
+  border-start-end-radius: calc(infinity * 1px);
+  border-end-end-radius: calc(infinity * 1px);
+}
+
+@utility rounded-e-none {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+@utility rounded-ee-full {
+  border-end-end-radius: calc(infinity * 1px);
+}
+
+@utility rounded-ee-none {
+  border-end-end-radius: 0;
+}
+
+@utility rounded-es-full {
+  border-end-start-radius: calc(infinity * 1px);
+}
+
+@utility rounded-es-none {
+  border-end-start-radius: 0;
+}
+
+@utility rounded-full {
+  border-radius: calc(infinity * 1px);
+}
+
+@utility rounded-l-full {
+  border-top-left-radius: calc(infinity * 1px);
+  border-bottom-left-radius: calc(infinity * 1px);
+}
+
+@utility rounded-l-none {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+@utility rounded-none {
+  border-radius: 0;
+}
+
+@utility rounded-r-full {
+  border-top-right-radius: calc(infinity * 1px);
+  border-bottom-right-radius: calc(infinity * 1px);
+}
+
+@utility rounded-r-none {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+@utility rounded-s-full {
+  border-start-start-radius: calc(infinity * 1px);
+  border-end-start-radius: calc(infinity * 1px);
+}
+
+@utility rounded-s-none {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+@utility rounded-se-full {
+  border-start-end-radius: calc(infinity * 1px);
+}
+
+@utility rounded-se-none {
+  border-start-end-radius: 0;
+}
+
+@utility rounded-ss-full {
+  border-start-start-radius: calc(infinity * 1px);
+}
+
+@utility rounded-ss-none {
+  border-start-start-radius: 0;
+}
+
+@utility rounded-t-full {
+  border-top-left-radius: calc(infinity * 1px);
+  border-top-right-radius: calc(infinity * 1px);
+}
+
+@utility rounded-t-none {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+@utility rounded-tl-full {
+  border-top-left-radius: calc(infinity * 1px);
+}
+
+@utility rounded-tl-none {
+  border-top-left-radius: 0;
+}
+
+@utility rounded-tr-full {
+  border-top-right-radius: calc(infinity * 1px);
+}
+
+@utility rounded-tr-none {
+  border-top-right-radius: 0;
+}
