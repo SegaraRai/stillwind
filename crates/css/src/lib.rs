@@ -2055,7 +2055,7 @@ fn extract_declaration_order(css: &str) -> Vec<Vec<String>> {
                         .split(',')
                         .map(str::trim)
                         .filter(|property| !property.is_empty())
-                        .map(str::to_owned)
+                        .map(|property| property.replace("[*]", "*"))
                         .collect::<Vec<_>>();
                     (!group.is_empty()).then_some(group)
                 })
@@ -2759,7 +2759,7 @@ mod tests {
     #[test]
     fn parses_declaration_order_metadata_from_css() {
         let groups = parse_declaration_order(
-            "@stillwind-order { margin: margin, margin-inline, margin-left; border: border, border-style; }",
+            "@stillwind-order { margin: margin, margin-inline, margin-[*]; border: border, border-[*]-style; }",
         );
         assert_eq!(
             groups,
@@ -2767,9 +2767,9 @@ mod tests {
                 vec![
                     "margin".to_owned(),
                     "margin-inline".to_owned(),
-                    "margin-left".to_owned()
+                    "margin-*".to_owned()
                 ],
-                vec!["border".to_owned(), "border-style".to_owned()],
+                vec!["border".to_owned(), "border-*-style".to_owned()],
             ]
         );
     }

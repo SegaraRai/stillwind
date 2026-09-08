@@ -9,10 +9,6 @@ export default defineConfig({
     options: { typeAware: true },
   },
   fmt: {
-    // These files use Stillwind's CSS registry DSL (`@utility`, `@variant`,
-    // wildcard property patterns, and empty container wrappers). Formatting
-    // them as standard CSS can change their semantics.
-    ignorePatterns: ["packages/react/css/**"],
     sortImports: true,
     sortPackageJson: true,
   },
