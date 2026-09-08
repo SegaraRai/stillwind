@@ -1711,7 +1711,7 @@ fn render_utility_rule(
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
     let declaration = stillwind_css::fold_calc_expressions(declaration);
-    let declaration = stillwind_css::normalize_serialized_declaration(&declaration);
+    let mut declaration = stillwind_css::normalize_serialized_declaration(&declaration);
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
@@ -1729,11 +1729,27 @@ fn render_utility_rule(
             Some(stillwind_tailwind::VariantApplication::SelectorTemplate(template)) => {
                 selector = template.replace('&', &selector);
             }
+            Some(stillwind_tailwind::VariantApplication::SelectorRule {
+                selector: template,
+                declarations,
+            }) => {
+                selector = template.replace('&', &selector);
+                declaration.insert_str(0, &declarations);
+            }
             Some(stillwind_tailwind::VariantApplication::SelectorMedia {
                 selector: template,
                 condition,
             }) => {
                 selector = template.replace('&', &selector);
+                media.push(condition);
+            }
+            Some(stillwind_tailwind::VariantApplication::SelectorMediaRule {
+                selector: template,
+                declarations,
+                condition,
+            }) => {
+                selector = template.replace('&', &selector);
+                declaration.insert_str(0, &declarations);
                 media.push(condition);
             }
             Some(stillwind_tailwind::VariantApplication::Media(condition)) => {
@@ -2174,13 +2190,14 @@ fn render_used_properties(
         .clone()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
-            property
-                .activation
-                .is_active(
-                    usage.declared.contains(&name),
-                    usage.referenced.contains(&name),
-                )
-                .then_some(name)
+            (property.activation.is_active(
+                usage.declared.contains(&name),
+                usage.referenced.contains(&name),
+            ) || property
+                .activation_properties
+                .iter()
+                .any(|name| usage.declaration_properties.contains(name)))
+            .then_some(name)
         })
         .collect::<BTreeSet<_>>();
     let mut changed = true;

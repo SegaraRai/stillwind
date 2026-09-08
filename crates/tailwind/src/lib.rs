@@ -92,7 +92,19 @@ impl UtilityResolution {
 pub enum VariantApplication {
     SelectorSuffix(&'static str),
     SelectorTemplate(String),
-    SelectorMedia { selector: String, condition: String },
+    SelectorRule {
+        selector: String,
+        declarations: String,
+    },
+    SelectorMedia {
+        selector: String,
+        condition: String,
+    },
+    SelectorMediaRule {
+        selector: String,
+        declarations: String,
+        condition: String,
+    },
     Media(String),
     Container(String),
     Supports(String),
@@ -594,6 +606,14 @@ fn with_hover_media(application: VariantApplication) -> VariantApplication {
                 condition: "(hover: hover)".to_owned(),
             }
         }
+        VariantApplication::SelectorRule {
+            selector,
+            declarations,
+        } if selector.contains(":hover") => VariantApplication::SelectorMediaRule {
+            selector,
+            declarations,
+            condition: "(hover: hover)".to_owned(),
+        },
         application => application,
     }
 }
@@ -800,13 +820,22 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if let Some(start) = body.find("@media ") {
         let condition_start = start + "@media ".len();
         let condition_end = body[condition_start..].find('{')? + condition_start;
+        let media_end = closing_brace(body, condition_end)?;
         let condition = body[condition_start..condition_end].trim().to_owned();
-        let nested = &body[condition_end + 1..];
-        if let Some(selector) = selector_from_variant_body(nested) {
-            return Some(VariantApplication::SelectorMedia {
-                selector,
-                condition,
-            });
+        let nested = &body[condition_end + 1..media_end];
+        if let Some(rule) = selector_rule_from_variant_body(nested) {
+            return if rule.declarations.is_empty() {
+                Some(VariantApplication::SelectorMedia {
+                    selector: rule.selector,
+                    condition,
+                })
+            } else {
+                Some(VariantApplication::SelectorMediaRule {
+                    selector: rule.selector,
+                    declarations: rule.declarations,
+                    condition,
+                })
+            };
         }
         return Some(VariantApplication::Media(condition));
     }
@@ -828,13 +857,69 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
             .to_owned();
         return Some(VariantApplication::Supports(condition));
     }
-    selector_from_variant_body(body).map(VariantApplication::SelectorTemplate)
+    let rule = selector_rule_from_variant_body(body)?;
+    if rule.declarations.is_empty() {
+        Some(VariantApplication::SelectorTemplate(rule.selector))
+    } else {
+        Some(VariantApplication::SelectorRule {
+            selector: rule.selector,
+            declarations: rule.declarations,
+        })
+    }
 }
 
-fn selector_from_variant_body(body: &str) -> Option<String> {
-    let selector_end = body.find('{')?;
-    let selector = body[..selector_end].trim();
-    (selector.contains('&') && !selector.is_empty()).then(|| selector.to_owned())
+struct VariantSelectorRule {
+    selector: String,
+    declarations: String,
+}
+
+fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
+    let open = body.find('{')?;
+    let close = closing_brace(body, open)?;
+    if !body[close + 1..].trim().is_empty() {
+        return None;
+    }
+    let selector = body[..open].trim();
+    if selector.is_empty() || !selector.contains('&') {
+        return None;
+    }
+
+    let inner = &body[open + 1..close];
+    let mut declarations = String::new();
+    let mut start = 0;
+    let mut depth = 0_u32;
+    for (offset, character) in inner.char_indices() {
+        match character {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = depth.checked_sub(1)?,
+            '{' | '}' => return None,
+            ';' if depth == 0 => {
+                let node = inner[start..offset].trim();
+                start = offset + 1;
+                if node.is_empty() || node == "@slot" {
+                    continue;
+                }
+                let (property, value) = node.split_once(':')?;
+                let property = property.trim();
+                let value = value.trim();
+                if property.is_empty() || value.is_empty() {
+                    return None;
+                }
+                declarations.push_str(property);
+                declarations.push(':');
+                declarations.push_str(value);
+                declarations.push(';');
+            }
+            _ => {}
+        }
+    }
+    if !inner[start..].trim().is_empty() {
+        return None;
+    }
+    Some(VariantSelectorRule {
+        selector: selector.to_owned(),
+        declarations,
+    })
 }
 
 fn resolve_named_utility(
@@ -2779,7 +2864,7 @@ mod tests {
         );
         assert_eq!(
             resolve_utility("-left-1/2", &theme).unwrap().declaration,
-            "left:calc(calc(1 / 2 * 100%) * -1);"
+            "left:calc(1 / 2 * 100% * -1);"
         );
         assert_eq!(
             resolve_utility("-bottom-full", &theme).unwrap().declaration,
@@ -3034,7 +3119,7 @@ mod tests {
         for (candidate, declaration, selector) in [
             (
                 "divide-y",
-                "border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));",
+                "border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * (1 - var(--tw-divide-y-reverse)));",
                 Some(":where(&>:not(:last-child))"),
             ),
             (
@@ -3050,7 +3135,11 @@ mod tests {
                 "outline-style:var(--tw-outline-style);outline-width:1px;",
                 None,
             ),
-            ("ring", "--tw-ring-shadow:0 0 0 1px", None),
+            (
+                "ring",
+                "--tw-ring-shadow:var(--tw-ring-inset,) 0 0 0 calc(1px + var(--tw-ring-offset-width))",
+                None,
+            ),
             (
                 "rounded-se-full",
                 "border-start-end-radius:calc(infinity * 1px);",
@@ -3357,7 +3446,7 @@ mod tests {
         let source = SourceFile::new(
             FileId(1),
             "theme.css",
-            "@variant pressed { &:active { @slot; } }\n@variant narrow { @media (width < 40rem) { @slot; } }",
+            "@variant pressed { &:active { @slot; } }\n@variant narrow { @media (width < 40rem) { @slot; } }\n@variant decorated { &::before { content: var(--content); @slot; } }",
         );
         let theme = parse_tailwind_theme(&source).unwrap();
 
@@ -3371,6 +3460,16 @@ mod tests {
         assert_eq!(
             resolve_variant(&parse_candidate("narrow:flex").unwrap().variants[0], &theme),
             Some(VariantApplication::Media("(width < 40rem)".to_owned()))
+        );
+        assert_eq!(
+            resolve_variant(
+                &parse_candidate("decorated:flex").unwrap().variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorRule {
+                selector: "&::before".to_owned(),
+                declarations: "content:var(--content);".to_owned(),
+            })
         );
     }
 

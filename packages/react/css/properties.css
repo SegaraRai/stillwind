@@ -489,12 +489,14 @@
 @stillwind-property --tw-text-shadow-color {
   group: text-shadow;
   activation: declared;
+  activate-on: text-shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-text-shadow-alpha {
   group: text-shadow;
+  activate-on: text-shadow;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
@@ -622,6 +624,7 @@
 }
 
 @stillwind-property --tw-tracking {
+  activation: declared;
   syntax: "*";
   inherits: false;
 }

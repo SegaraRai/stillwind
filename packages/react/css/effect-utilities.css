@@ -79,6 +79,13 @@
 }
 @utility shadow-* {
   --tw-shadow-color: --compat-color(
+    --value-literal(current, transparent),
+    100%,
+    var(--tw-shadow-alpha)
+  );
+}
+@utility shadow-* {
+  --tw-shadow-color: --compat-color(
     --value-literal(--color-*, current, transparent),
     --alpha(--modifier()),
     var(--tw-shadow-alpha)
@@ -86,6 +93,13 @@
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent);
+}
+@utility inset-shadow-* {
+  --tw-inset-shadow-color: --compat-color(
+    --value-literal(current, transparent),
+    100%,
+    var(--tw-inset-shadow-alpha)
+  );
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --compat-color(
@@ -97,6 +111,13 @@
 @utility drop-shadow-* {
   --tw-drop-shadow-color: --value(--color-*, current, transparent);
   --tw-drop-shadow: var(--tw-drop-shadow-size);
+}
+@utility drop-shadow-* {
+  --tw-drop-shadow-color: --compat-color(
+    --value-literal(current, transparent),
+    100%,
+    var(--tw-drop-shadow-alpha)
+  );
 }
 @utility drop-shadow-* {
   --tw-drop-shadow-color: --compat-color(
@@ -129,6 +150,13 @@
 }
 @utility text-shadow-* {
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent);
+}
+@utility text-shadow-* {
+  --tw-text-shadow-color: --compat-color(
+    --value-literal(current, transparent),
+    100%,
+    var(--tw-text-shadow-alpha)
+  );
 }
 @utility text-shadow-none {
   text-shadow: none;

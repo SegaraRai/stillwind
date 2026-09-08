@@ -1178,7 +1178,7 @@
 }
 @utility tracking-* {
   --tw-tracking: --value(--tracking-*);
-  letter-spacing: var(--tw-tracking);
+  letter-spacing: --value(--tracking-*);
 }
 @utility z-* {
   z-index: --value(--z-index-*);
@@ -1198,5 +1198,5 @@
 }
 @utility ease-* {
   --tw-ease: --value(--ease-*);
-  transition-timing-function: var(--tw-ease);
+  transition-timing-function: --value(--ease-*);
 }

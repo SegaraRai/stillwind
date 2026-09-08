@@ -1113,12 +1113,14 @@ pub struct CustomPropertyDefinition {
     pub activation: CustomPropertyActivation,
     pub dependencies: Vec<String>,
     pub groups: Vec<String>,
+    pub activation_properties: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CustomPropertyUsage {
     pub declared: BTreeSet<String>,
     pub referenced: BTreeSet<String>,
+    pub declaration_properties: BTreeSet<String>,
 }
 
 /// Parses `@utility` definitions without requiring a complete theme stylesheet.
@@ -1229,6 +1231,10 @@ impl MathExpression {
             );
         }
         match (left, right) {
+            (Self::Value(MathValue::Number(0.0)), Self::Value(MathValue::Percentage(_)))
+            | (Self::Value(MathValue::Percentage(_)), Self::Value(MathValue::Number(0.0))) => {
+                Self::Value(MathValue::Percentage(0.0))
+            }
             (Self::Value(MathValue::Number(0.0)), value)
             | (value, Self::Value(MathValue::Number(0.0))) => value
                 .numeric_unit()
@@ -1315,11 +1321,21 @@ impl MathExpression {
             }
             Self::Value(MathValue::Percentage(value)) => format!("{}%", serialize_number(*value)),
             Self::Atom(value) => value.clone(),
-            Self::Sum(left, right) => format!(
-                "{} + {}",
-                left.serialize(precedence),
-                right.serialize(precedence)
-            ),
+            Self::Sum(left, right) => {
+                if let Self::Negate(right) = right.as_ref() {
+                    format!(
+                        "{} - {}",
+                        left.serialize(precedence),
+                        right.serialize(precedence + 1)
+                    )
+                } else {
+                    format!(
+                        "{} + {}",
+                        left.serialize(precedence),
+                        right.serialize(precedence)
+                    )
+                }
+            }
             Self::Product(left, right) => format!(
                 "{} * {}",
                 left.serialize(precedence),
@@ -1458,6 +1474,11 @@ impl<'a> MathParser<'a> {
         if self.peek() == Some('(') {
             let open = self.cursor;
             let close = matching_parenthesis(self.input, open)?;
+            if self.input[start..open].eq_ignore_ascii_case("calc") {
+                let expression = MathParser::new(&self.input[open + 1..close]).parse()?;
+                self.cursor = close + 1;
+                return Some(expression);
+            }
             self.cursor = close + 1;
         }
         Some(MathExpression::Atom(
@@ -1919,6 +1940,9 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, ThemeErro
         }
 
         fn visit_property(&mut self, property: &mut Property<'i>) -> Result<(), Self::Error> {
+            self.usage
+                .declaration_properties
+                .insert(property.property_id().name().to_owned());
             if let Property::Custom(property) = property {
                 let name = property.name.as_ref();
                 if name.starts_with("--") {
@@ -2451,6 +2475,7 @@ fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
             let mut activation = CustomPropertyActivation::default();
             let mut dependencies = Vec::new();
             let mut groups = Vec::new();
+            let mut activation_properties = Vec::new();
             let mut standard_descriptors = Vec::new();
             for descriptor in body.split(';') {
                 let trimmed = descriptor.trim();
@@ -2462,6 +2487,8 @@ fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
                     dependencies.extend(value.split_whitespace().map(str::to_owned));
                 } else if let Some(value) = trimmed.strip_prefix("group:") {
                     groups.extend(value.split_whitespace().map(str::to_owned));
+                } else if let Some(value) = trimmed.strip_prefix("activate-on:") {
+                    activation_properties.extend(value.split_whitespace().map(str::to_owned));
                 } else if !trimmed.is_empty() {
                     standard_descriptors.push(format!("{trimmed};"));
                 }
@@ -2472,6 +2499,7 @@ fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
                 activation,
                 dependencies,
                 groups,
+                activation_properties,
             })
         })
         .collect()
@@ -3411,6 +3439,7 @@ mod tests {
                   activation: referenced;
                   depends-on: --dependency-a --dependency-b;
                   group: example-group shared-group;
+                  activate-on: text-shadow box-shadow;
                 }
             "#,
         );
@@ -3425,9 +3454,14 @@ mod tests {
             ["--dependency-a", "--dependency-b"]
         );
         assert_eq!(definitions[0].groups, ["example-group", "shared-group"]);
+        assert_eq!(
+            definitions[0].activation_properties,
+            ["text-shadow", "box-shadow"]
+        );
         assert!(!definitions[0].body.contains("activation"));
         assert!(!definitions[0].body.contains("depends-on"));
         assert!(!definitions[0].body.contains("group"));
+        assert!(!definitions[0].body.contains("activate-on"));
     }
 
     #[test]
@@ -3438,6 +3472,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(usage.declared, BTreeSet::from(["--declared".to_owned()]));
+        assert!(usage.declaration_properties.contains("color"));
+        assert!(usage.declaration_properties.contains("scroll-snap-type"));
         assert_eq!(
             usage.referenced,
             BTreeSet::from([

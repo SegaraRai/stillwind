@@ -1,10 +1,10 @@
 @variant * {
-  & > * {
+  :is(& > *) {
     @slot;
   }
 }
 @variant ** {
-  & * {
+  :is(& *) {
     @slot;
   }
 }
@@ -59,7 +59,7 @@
   }
 }
 @variant supports-* {
-  @supports ({modifier}) {
+  @supports (\*) {
     @slot;
   }
 }
