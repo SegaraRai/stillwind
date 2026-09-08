@@ -84,11 +84,11 @@
 @utility bg-size-* {
   background-size: --value([bg-size]);
 }
-@utility blur-* {
-  filter: blur(--value([length]));
-}
 @utility brightness-* {
-  filter: brightness(--value([number-percentage]));
+  --tw-brightness: brightness(--value([number-percentage]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility col-* {
   grid-column: --value([grid-line]);
@@ -113,7 +113,10 @@
   content: var(--tw-content);
 }
 @utility contrast-* {
-  filter: contrast(--value([number-percentage]));
+  --tw-contrast: contrast(--value([number-percentage]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility cursor-* {
   cursor: --value([cursor]);
@@ -157,7 +160,10 @@
   font-stretch: --value([font-stretch]);
 }
 @utility grayscale-* {
-  filter: grayscale(--value([number-percentage]));
+  --tw-grayscale: grayscale(--value([number-percentage]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility grid-cols-* {
   grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
@@ -181,10 +187,16 @@
   flex-grow: --value([number]);
 }
 @utility hue-rotate-* {
-  filter: hue-rotate(--value([angle]));
+  --tw-hue-rotate: hue-rotate(--value([angle]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility invert-* {
-  filter: invert(--value([number-percentage]));
+  --tw-invert: invert(--value([number-percentage]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 @utility line-clamp-* {
   -webkit-line-clamp: --value([integer]);

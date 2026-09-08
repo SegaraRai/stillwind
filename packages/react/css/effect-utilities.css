@@ -164,7 +164,7 @@
   overflow-wrap: break-word;
 }
 @utility blur-* {
-  --tw-blur: blur(--value(--blur-*));
+  --tw-blur: blur(--value(--blur-*, [length]));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);

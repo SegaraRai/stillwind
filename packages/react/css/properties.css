@@ -150,6 +150,13 @@
   initial-value: 0;
 }
 
+@stillwind-property --tw-divide-x-reverse {
+  activation: declared;
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+
 @stillwind-property --tw-border-style {
   syntax: "*";
   inherits: false;
@@ -465,13 +472,6 @@
 @stillwind-property --tw-contain-style {
   syntax: "*";
   inherits: false;
-}
-
-@stillwind-property --tw-divide-x-reverse {
-  activation: declared;
-  syntax: "*";
-  inherits: false;
-  initial-value: 0;
 }
 
 @stillwind-property --tw-duration {

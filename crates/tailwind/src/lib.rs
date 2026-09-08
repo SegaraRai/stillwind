@@ -915,13 +915,25 @@ fn resolve_css_utility_branches<'a>(
 ) -> Option<UtilityResolution> {
     let mut branches = utilities
         .filter_map(|utility| {
-            resolve_css_utility_body(utility, name, modifier, theme)
-                .map(|resolution| (utility_branch_specificity(utility, name), resolution))
+            resolve_css_utility_body(utility, name, modifier, theme).map(|resolution| {
+                (
+                    utility_branch_specificity(utility, name),
+                    utility.name == name,
+                    resolution,
+                )
+            })
         })
         .collect::<Vec<_>>();
-    branches.sort_by_key(|(specificity, _)| std::cmp::Reverse(*specificity));
-    let (_, mut resolution) = branches.first()?.clone();
-    for (_, branch) in branches.into_iter().skip(1) {
+    branches.sort_by_key(|(specificity, _, _)| std::cmp::Reverse(*specificity));
+    let has_exact = branches.iter().any(|(_, exact, _)| *exact);
+    if has_exact {
+        // An exact registration defines the complete utility. Wildcard
+        // overloads are alternative candidate grammar branches, not a source
+        // of extra declarations for a spelling that has an exact definition.
+        branches.retain(|(_, exact, _)| *exact);
+    }
+    let (_, _, mut resolution) = branches.first()?.clone();
+    for (_, _, branch) in branches.into_iter().skip(1) {
         // Overloads with a shared selector form one declaration list. CSS
         // fallbacks authored within one overload intentionally retain their
         // order, while competing overloads cannot overwrite a more-specific
@@ -1478,12 +1490,19 @@ fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String
     if color.is_empty() || alpha.is_empty() {
         return None;
     }
-    let color_space = match mode {
-        CompatColorMode::Legacy => COMPAT_COLOR_LEGACY_SPACE,
-        CompatColorMode::Modern => COMPAT_COLOR_MODERN_SPACE,
+    let color_kind = CompatColorKind::from_css(color);
+    let color_space = match (mode, color_kind) {
+        // Tailwind does not synthesize an sRGB compatibility branch for CSS
+        // wide/transparent keywords. Keeping both passes identical makes the
+        // declaration unconditional instead of wrapping the modern form in
+        // an unnecessary capability query.
+        (_, CompatColorKind::ModernOnlyKeyword) | (CompatColorMode::Modern, _) => {
+            COMPAT_COLOR_MODERN_SPACE
+        }
+        (CompatColorMode::Legacy, _) => COMPAT_COLOR_LEGACY_SPACE,
     };
     let mixed = if alpha == "100%"
-        || (mode == CompatColorMode::Legacy && color.eq_ignore_ascii_case("currentcolor"))
+        || (mode == CompatColorMode::Legacy && color_kind == CompatColorKind::CurrentColor)
     {
         color.to_owned()
     } else {
@@ -1497,6 +1516,26 @@ fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String
         ));
     }
     Some(mixed)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompatColorKind {
+    CurrentColor,
+    ModernOnlyKeyword,
+    General,
+}
+
+impl CompatColorKind {
+    fn from_css(color: &str) -> Self {
+        if color.eq_ignore_ascii_case("currentcolor") {
+            Self::CurrentColor
+        } else if color.eq_ignore_ascii_case("inherit") || color.eq_ignore_ascii_case("transparent")
+        {
+            Self::ModernOnlyKeyword
+        } else {
+            Self::General
+        }
+    }
 }
 
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits
