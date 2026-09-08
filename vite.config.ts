@@ -53,6 +53,10 @@ export default defineConfig({
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:parity:all"],
       },
+      "tailwind:parity:analyze": {
+        command: "",
+        dependsOn: ["@stillwind/tools#tailwind:parity:analyze"],
+      },
       "tailwind:registry-audit": {
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:registry-audit"],
