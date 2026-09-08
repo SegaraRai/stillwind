@@ -54,12 +54,15 @@
 }
 @utility divide-* {
   :where(& > :not(:last-child)) {
-    border-color: --value(--color-*, current, transparent);
+    border-color: --value(--color-*, current, inherit, transparent);
   }
 }
 @utility divide-* {
   :where(& > :not(:last-child)) {
-    border-color: --compat-color(--value(--color-*, current, transparent), --alpha(--modifier()));
+    border-color: --compat-color(
+      --value(--color-*, current, inherit, transparent),
+      --alpha(--modifier())
+    );
   }
 }
 @utility ring-* {
@@ -69,7 +72,7 @@
   --tw-ring-color: --compat-color(--value(--color-*, current, transparent), --alpha(--modifier()));
 }
 @utility shadow-* {
-  --tw-shadow-color: --value(--color-*, current, transparent);
+  --tw-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 @utility shadow-* {
   --tw-shadow-color: --compat-color(
@@ -78,7 +81,7 @@
   );
 }
 @utility inset-shadow-* {
-  --tw-inset-shadow-color: --value(--color-*, current, transparent);
+  --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --compat-color(
@@ -119,7 +122,7 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 @utility text-shadow-* {
-  --tw-text-shadow-color: --value(--color-*, current, transparent);
+  --tw-text-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 @utility text-shadow-none {
   text-shadow: none;

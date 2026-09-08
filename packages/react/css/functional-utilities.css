@@ -90,59 +90,99 @@
   border-l: border-left-color;
 }
 @utility text-* {
-  color: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  color: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
-    color: color-mix(in oklab, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+    color: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
   }
 }
 @utility border-* {
-  border-color: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  border-color: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
     border-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
 }
 @utility outline-* {
-  outline-color: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  outline-color: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
     outline-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
 }
 @utility fill-* {
-  fill: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  fill: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
-    fill: color-mix(in oklab, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+    fill: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
   }
 }
 @utility stroke-* {
-  stroke: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  stroke: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
-    stroke: color-mix(in oklab, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+    stroke: color-mix(
+      in oklab,
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+      transparent
+    );
   }
 }
 @utility caret-* {
-  caret-color: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  caret-color: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
     caret-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
 }
 @utility accent-* {
-  accent-color: color-mix(in srgb, --value(--color-*, [color]) --alpha(--modifier()), transparent);
+  accent-color: color-mix(
+    in srgb,
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
+    transparent
+  );
   @supports (color: color-mix(in lab, red, red)) {
     accent-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -150,13 +190,13 @@
 @utility border-x-* {
   border-inline-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-inline-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -164,13 +204,13 @@
 @utility border-y-* {
   border-block-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-block-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -178,13 +218,13 @@
 @utility border-s-* {
   border-inline-start-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-inline-start-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -192,13 +232,13 @@
 @utility border-e-* {
   border-inline-end-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-inline-end-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -206,13 +246,13 @@
 @utility border-bs-* {
   border-block-start-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-block-start-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -220,13 +260,13 @@
 @utility border-be-* {
   border-block-end-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-block-end-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -234,13 +274,13 @@
 @utility border-t-* {
   border-top-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-top-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -248,13 +288,13 @@
 @utility border-r-* {
   border-right-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-right-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -262,13 +302,13 @@
 @utility border-b-* {
   border-bottom-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-bottom-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
@@ -276,52 +316,16 @@
 @utility border-l-* {
   border-left-color: color-mix(
     in srgb,
-    --value(--color-*, [color]) --alpha(--modifier()),
+    --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
     transparent
   );
   @supports (color: color-mix(in lab, red, red)) {
     border-left-color: color-mix(
       in oklab,
-      --value(--color-*, [color]) --alpha(--modifier()),
+      --value(--color-*, current, inherit, transparent, [color]) --alpha(--modifier()),
       transparent
     );
   }
-}
-@utility border {
-  border-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-x {
-  border-inline-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-y {
-  border-block-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-s {
-  border-inline-start-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-e {
-  border-inline-end-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-bs {
-  border-block-start-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-be {
-  border-block-end-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-t {
-  border-top-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-r {
-  border-right-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-b {
-  border-bottom-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility border-l {
-  border-left-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
-}
-@utility outline {
-  outline-color: color-mix(in oklab, currentcolor --alpha(--modifier()), transparent);
 }
 @utility-family value=--value(integer, [integer]) {
   col-start: grid-column-start;
@@ -1067,7 +1071,7 @@
 }
 @utility inset-shadow-* {
   --tw-inset-shadow-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -1086,7 +1090,7 @@
 }
 @utility text-shadow-* {
   --tw-text-shadow-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -1172,10 +1176,13 @@
   }
 }
 @utility bg-* {
-  background-color: --value(--color-*, [color]);
+  background-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 @utility bg-* {
-  background-color: --compat-color(--value-literal(--color-*, [color]), --alpha(--modifier()));
+  background-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
 }
 @utility bg-* {
   background-image: --value([image], [url]);
@@ -1198,10 +1205,10 @@
   line-height: --modifier(--leading-*, --spacing(), [length]);
 }
 @utility text-* {
-  color: --value(--color-*);
+  color: --value(--color-*, current, inherit, transparent);
 }
 @utility border-* {
-  border-color: --value(--color-*);
+  border-color: --value(--color-*, current, inherit, transparent);
 }
 @utility border-* {
   border-style: var(--tw-border-style);
@@ -1292,7 +1299,7 @@
   border-left-width: --value([line-width]);
 }
 @utility outline-* {
-  outline-color: --value(--color-*);
+  outline-color: --value(--color-*, current, inherit, transparent);
 }
 @utility p-* {
   padding: --value(--spacing-*, --spacing(), [length-percentage]);
@@ -1413,10 +1420,6 @@
 }
 @utility -z-* {
   z-index: calc(--value(--z-index-*, integer, [z-index]) * -1);
-}
-@utility duration-* {
-  --tw-duration: --value(--duration-*);
-  transition-duration: var(--tw-duration);
 }
 @utility duration-* {
   --tw-duration: calc(--value(integer) * 1ms);

@@ -1086,12 +1086,12 @@ fn resolves_negative_and_transition_utilities_from_declared_theme_tokens() {
         FileId(1),
         "src/Card.tsx",
         r#"import { style } from "stillwind/react";
-const props = style("-mt-4 duration-fast ease-standard");"#,
+const props = style("-mt-4 duration-120 ease-standard");"#,
     );
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
-        "@theme { --spacing-4: 1rem; --duration-fast: 120ms; --ease-standard: ease-out; }",
+        "@theme { --spacing-4: 1rem; --ease-standard: ease-out; }",
     );
 
     let result = Compiler::compile_react(&component, &theme);
@@ -1102,7 +1102,11 @@ const props = style("-mt-4 duration-fast ease-standard");"#,
             .css
             .contains("margin-top:calc(var(--spacing-4) * -1);")
     );
-    assert!(result.css.contains("--tw-duration:var(--duration-fast);"));
+    assert!(
+        result.css.contains("--tw-duration:calc(120*1ms);"),
+        "{}",
+        result.css
+    );
     assert!(result.css.contains("--tw-ease:var(--ease-standard);"));
 }
 
@@ -1302,12 +1306,12 @@ fn compiles_local_utility_animations_and_selector_uses() {
         r#"import { style } from "stillwind/react";
 const enter = style.animation({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
 const exit = style.animation({ from: "opacity-100", to: "opacity-0 scale-98" });
-const panel = style("rounded-md", enter("duration-normal ease-standard both"), { "&[data-state=closed]": exit("duration-fast ease-standard both") });"#,
+const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&[data-state=closed]": exit("duration-120 ease-standard both") });"#,
     );
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
-        "@theme { --radius-md: .375rem; --spacing-2: .5rem; --duration-fast: 120ms; --duration-normal: 180ms; --ease-standard: ease-out; }",
+        "@theme { --radius-md: .375rem; --spacing-2: .5rem; --ease-standard: ease-out; }",
     );
 
     let result = Compiler::compile_react(&component, &theme);
@@ -1338,7 +1342,7 @@ fn compiles_view_transition_assets_and_keyed_instances() {
         "src/ProductCard.tsx",
         r#"import { style } from "stillwind/react";
 declare const product: { id: string };
-const title = style.viewTransition({ group: "duration-normal ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
+const title = style.viewTransition({ group: "duration-180 ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
 const card = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 const heading = style("text-accent", title);
 const item = style("rounded-md", card.for(product.id));
@@ -1348,7 +1352,7 @@ const detail = style(title);"#,
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
-        "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --duration-normal: 180ms; --ease-standard: ease-out; }",
+        "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --ease-standard: ease-out; }",
     );
 
     let result = Compiler::compile_react(&component, &theme);

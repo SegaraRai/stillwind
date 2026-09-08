@@ -218,9 +218,6 @@
 @utility outline-offset-2 {
   outline-offset: 2px;
 }
-@utility position-area-block-end {
-  position-area: block-end;
-}
 @utility overflow-hidden {
   overflow: hidden;
 }

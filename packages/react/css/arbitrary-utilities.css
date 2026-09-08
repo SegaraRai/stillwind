@@ -215,15 +215,6 @@
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
   --tw-mask-conic-position: calc(1deg * -1 * --value(integer));
 }
-@utility mask-conic-* {
-  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
-  --tw-mask-conic: conic-gradient(
-    in --modifier(),
-    var(--tw-mask-conic-stops, var(--tw-mask-conic-position))
-  );
-  --tw-mask-conic-position: calc(1deg * --value(integer));
-}
 @utility mask-linear-* {
   mask-image: linear-gradient(--value([linear-gradient-arguments]));
 }

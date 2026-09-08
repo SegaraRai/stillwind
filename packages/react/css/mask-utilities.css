@@ -139,13 +139,6 @@
 @utility mask-radial-* {
   mask-image: radial-gradient(--value([radial-gradient-arguments]));
 }
-@utility mask-radial {
-  mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
-  --tw-mask-radial: radial-gradient(
-    var(--tw-mask-radial-stops, var(--tw-mask-radial-size, farthest-corner))
-  );
-}
 @utility mask-radial-at-* {
   mask-position: --value([position]);
 }
@@ -267,10 +260,6 @@
 @utility size-full {
   width: 100%;
   height: 100%;
-}
-@utility size-screen {
-  width: 100vw;
-  height: 100vh;
 }
 @utility size-min {
   width: min-content;
@@ -396,9 +385,6 @@
 }
 @utility zoom-* {
   zoom: calc(--value(integer) * 1%);
-}
-@utility font-stretch-* {
-  font-stretch: calc(--value(integer) * 1%);
 }
 @utility line-clamp-* {
   overflow: hidden;
@@ -678,19 +664,19 @@
   zoom: --value([zoom]);
 }
 @utility fill-* {
-  fill: --value(--color-*);
+  fill: --value(--color-*, current, inherit, transparent);
 }
 @utility stroke-* {
-  stroke: --value(--color-*);
+  stroke: --value(--color-*, current, inherit, transparent);
 }
 @utility caret-* {
-  caret-color: --value(--color-*);
+  caret-color: --value(--color-*, current, inherit, transparent);
 }
 @utility accent-* {
-  accent-color: --value(--color-*);
+  accent-color: --value(--color-*, current, inherit, transparent);
 }
 @utility from-* {
-  --tw-gradient-from: --value(--color-*);
+  --tw-gradient-from: --value(--color-*, current, inherit, transparent);
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
     var(--tw-gradient-position),
@@ -699,7 +685,10 @@
   );
 }
 @utility from-* {
-  --tw-gradient-from: --compat-color(--value(--color-*), --alpha(--modifier()));
+  --tw-gradient-from: --compat-color(
+    --value(--color-*, current, inherit, transparent),
+    --alpha(--modifier())
+  );
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
     var(--tw-gradient-position),
@@ -711,7 +700,7 @@
   --tw-gradient-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
 @utility via-* {
-  --tw-gradient-via: --value(--color-*);
+  --tw-gradient-via: --value(--color-*, current, inherit, transparent);
   --tw-gradient-via-stops:
     var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position),
     var(--tw-gradient-via) var(--tw-gradient-via-position),
@@ -719,7 +708,10 @@
   --tw-gradient-stops: var(--tw-gradient-via-stops);
 }
 @utility via-* {
-  --tw-gradient-via: --compat-color(--value(--color-*), --alpha(--modifier()));
+  --tw-gradient-via: --compat-color(
+    --value(--color-*, current, inherit, transparent),
+    --alpha(--modifier())
+  );
   --tw-gradient-via-stops:
     var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position),
     var(--tw-gradient-via) var(--tw-gradient-via-position),
@@ -730,7 +722,7 @@
   --tw-gradient-via-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
 @utility to-* {
-  --tw-gradient-to: --value(--color-*);
+  --tw-gradient-to: --value(--color-*, current, inherit, transparent);
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
     var(--tw-gradient-position),
@@ -739,7 +731,10 @@
   );
 }
 @utility to-* {
-  --tw-gradient-to: --compat-color(--value(--color-*), --alpha(--modifier()));
+  --tw-gradient-to: --compat-color(
+    --value(--color-*, current, inherit, transparent),
+    --alpha(--modifier())
+  );
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
     var(--tw-gradient-position),

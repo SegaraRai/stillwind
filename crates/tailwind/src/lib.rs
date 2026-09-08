@@ -1347,9 +1347,14 @@ fn resolve_css_declarations(
     let requires_modifier = declarations.iter().any(|declaration| {
         declaration.contains("--modifier(") || declaration.contains("--relative-color(")
     });
+    let required_declarations = declarations
+        .iter()
+        .filter(|declaration| declaration.contains("--relative-color("))
+        .count();
     let mut resolved_placeholder = false;
     let mut resolved_value = false;
     let mut resolved_modifier = false;
+    let mut resolved_required_declarations = 0;
     let mut output = String::new();
 
     for declaration in declarations {
@@ -1364,6 +1369,7 @@ fn resolve_css_declarations(
             || declaration.contains("--relative-color(");
         let contains_modifier =
             declaration.contains("--modifier(") || declaration.contains("--relative-color(");
+        let contains_required = declaration.contains("--relative-color(");
         let contains_value =
             declaration.contains("--value(") || declaration.contains("--value-literal(");
         if let Some(declaration) =
@@ -1373,6 +1379,7 @@ fn resolve_css_declarations(
             resolved_placeholder |= contains_placeholder;
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
+            resolved_required_declarations += usize::from(contains_required);
             if output.is_empty() {
                 output.push_str(declaration.trim_start());
             } else {
@@ -1392,6 +1399,7 @@ fn resolve_css_declarations(
         // spellings use a slash.
         .filter(|()| !uses_value || resolved_value)
         .filter(|()| !requires_modifier || resolved_modifier)
+        .filter(|()| resolved_required_declarations == required_declarations)
         .map(|()| output)
 }
 
@@ -1834,7 +1842,13 @@ fn resolve_value_domains(
             return capture.and_then(|capture| theme_value(namespace, capture, negative, theme));
         }
         if !domain.starts_with('[') && !domain.starts_with("--") {
-            return capture.filter(|value| *value == domain).map(str::to_owned);
+            return capture.filter(|value| *value == domain).map(|value| {
+                if value == "current" {
+                    "currentcolor".to_owned()
+                } else {
+                    value.to_owned()
+                }
+            });
         }
         let expected = ValueDomain::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
@@ -1894,11 +1908,6 @@ fn theme_value(
     theme: &ThemeIndex,
 ) -> Option<String> {
     let value = match (namespace, value) {
-        // These are CSS colour keywords, not `@theme` tokens. They are
-        // nevertheless part of every Tailwind colour utility's public value
-        // grammar, including after an application resets `--color-*`.
-        (ThemeNamespace::Color, "current") => "currentcolor".to_owned(),
-        (ThemeNamespace::Color, "inherit" | "transparent") => value.to_owned(),
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
         _ if let Some(value) = css_variable(value) => format!("var({value})"),
         // Tailwind's candidate grammar accepts ASCII identifier tokens only;
@@ -2752,6 +2761,16 @@ mod tests {
             "box-shadow:var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);"
         ));
         assert!(resolve_utility("inset-shadow-sm/not-an-opacity", &theme()).is_none());
+    }
+
+    #[test]
+    fn keeps_css_wide_color_keywords_in_the_declared_utility_domain() {
+        let theme = theme();
+
+        assert!(resolve_utility("divide-inherit/50", &theme).is_some());
+        assert!(resolve_utility("shadow-inherit", &theme).is_some());
+        assert!(resolve_utility("shadow-inherit/50", &theme).is_none());
+        assert!(resolve_utility("inset-shadow-inherit/50", &theme).is_none());
     }
 
     #[test]
