@@ -4,29 +4,19 @@
   container-type: inline-size;
   border-radius: var(--radius-lg);
   padding: calc(var(--spacing) * 4);
-}
-@media (width >= 40rem) {
-  ._s_1abb76ea {
+  @media (width>=40rem) {
     max-width: 40rem;
   }
-}
-@media (width >= 48rem) {
-  ._s_1abb76ea {
+  @media (width>=48rem) {
     max-width: 48rem;
   }
-}
-@media (width >= 64rem) {
-  ._s_1abb76ea {
+  @media (width>=64rem) {
     max-width: 64rem;
   }
-}
-@media (width >= 80rem) {
-  ._s_1abb76ea {
+  @media (width>=80rem) {
     max-width: 80rem;
   }
-}
-@media (width >= 96rem) {
-  ._s_1abb76ea {
+  @media (width>=96rem) {
     max-width: 96rem;
   }
 }
