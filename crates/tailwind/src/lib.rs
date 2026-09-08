@@ -225,14 +225,8 @@ fn builtin_function_formats() -> &'static BTreeSet<String> {
     FORMATS.get_or_init(|| stillwind_css::parse_function_formats(BUILTIN_REGISTRY_CSS))
 }
 
-#[must_use]
-fn builtin_compat_color_spaces() -> Option<&'static (String, String)> {
-    static SPACES: OnceLock<Option<(String, String)>> = OnceLock::new();
-    SPACES
-        .get_or_init(|| stillwind_css::parse_compat_color_spaces(BUILTIN_REGISTRY_CSS))
-        .as_ref()
-}
-
+const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
+const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
 const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
 
 #[must_use]
@@ -1251,10 +1245,9 @@ fn resolve_css_utility_body(
 }
 
 fn compat_color_modern_declaration(declaration: &str) -> Option<String> {
-    let (legacy, modern) = builtin_compat_color_spaces()?;
     let modern = declaration.replace(
-        &format!("color-mix(in {legacy},"),
-        &format!("color-mix(in {modern},"),
+        &format!("color-mix(in {COMPAT_COLOR_LEGACY_SPACE},"),
+        &format!("color-mix(in {COMPAT_COLOR_MODERN_SPACE},"),
     );
     (modern != declaration).then_some(modern)
 }
@@ -1587,8 +1580,8 @@ fn resolve_css_placeholders(
 }
 
 /// Produces the legacy Color 4 fallback for an authored color and alpha.
-/// Modern `color-mix(in oklab, ...)` upgrades remain expressible through a
-/// surrounding standard `@supports` block in the CSS registry.
+/// The caller also emits the modern upgrade guarded by the capability query
+/// intrinsic to `--compat-color()`.
 fn resolve_compat_color(arguments: &str) -> Option<String> {
     let arguments = split_domains(arguments);
     let [color, alpha] = arguments.as_slice() else {
@@ -1602,7 +1595,9 @@ fn resolve_compat_color(arguments: &str) -> Option<String> {
     if alpha == "100%" {
         return Some(color.to_owned());
     }
-    Some(format!("color-mix(in srgb,{color} {alpha},transparent)"))
+    Some(format!(
+        "color-mix(in {COMPAT_COLOR_LEGACY_SPACE},{color} {alpha},transparent)"
+    ))
 }
 
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits

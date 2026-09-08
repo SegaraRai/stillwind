@@ -1137,19 +1137,6 @@ pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Parses the CSS-authored compatibility color mapping. The directive uses
-/// two whitespace-separated color spaces, e.g. `@stillwind-compat-color srgb
-/// oklab;`, keeping the policy in the registry rather than the Rust engine.
-pub fn parse_compat_color_spaces(css: &str) -> Option<(String, String)> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-compat-color"))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .find_map(|value| {
-            let mut parts = value.split_whitespace();
-            Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
-        })
-}
-
 /// Parses generic token-pruning rules authored by the registry CSS.
 pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
     css.split('@')
@@ -2780,14 +2767,6 @@ mod tests {
         assert_eq!(
             parse_omit_token_prefixes("@stillwind-omit-token-prefix --shadow- --tw-shadow:;"),
             vec![("--shadow-".to_owned(), "--tw-shadow:".to_owned())]
-        );
-    }
-
-    #[test]
-    fn parses_compatibility_color_metadata_from_css() {
-        assert_eq!(
-            parse_compat_color_spaces("@stillwind-compat-color srgb oklab;"),
-            Some(("srgb".to_owned(), "oklab".to_owned()))
         );
     }
 

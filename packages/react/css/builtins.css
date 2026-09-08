@@ -25,7 +25,6 @@
 @stillwind-format transform compose-space;
 @stillwind-format translate zero-length;
 @stillwind-format-functions color-mix linear-gradient;
-@stillwind-compat-color srgb oklab;
 @stillwind-omit-token-prefix --shadow- --tw-shadow:;
 @stillwind-theme-order color spacing;
 @import "./core-utilities.css";
