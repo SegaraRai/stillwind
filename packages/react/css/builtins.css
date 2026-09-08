@@ -30,6 +30,15 @@
     border-block-[*],
     border-[*]-style,
     border-[*]-width;
+  mask-x:
+    --tw-mask-right, --tw-mask-right-from-position, --tw-mask-right-to-position,
+    --tw-mask-right-from-color, --tw-mask-right-to-color, --tw-mask-left,
+    --tw-mask-left-from-position, --tw-mask-left-to-position, --tw-mask-left-from-color,
+    --tw-mask-left-to-color;
+  mask-y:
+    --tw-mask-top, --tw-mask-top-from-position, --tw-mask-top-to-position, --tw-mask-top-from-color,
+    --tw-mask-top-to-color, --tw-mask-bottom, --tw-mask-bottom-from-position,
+    --tw-mask-bottom-to-position, --tw-mask-bottom-from-color, --tw-mask-bottom-to-color;
 }
 
 @stillwind-marker group;

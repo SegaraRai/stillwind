@@ -68,7 +68,7 @@ struct UtilityResolution {
 #[derive(Clone, Debug, Default)]
 struct ResolvedCssDeclarations {
     base: String,
-    compat_modern: String,
+    compat_modern: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1030,11 +1030,11 @@ fn resolve_css_utility_body(
         || body.contains("--fraction()")
         || body.contains("--relative-color(");
     let mut resolved_nested = Vec::new();
-    if !declarations.compat_modern.is_empty() {
+    for modern in declarations.compat_modern {
         resolved_nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_owned(),
-            declaration: normalize_registered_var_fallbacks(declarations.compat_modern, theme),
+            declaration: normalize_registered_var_fallbacks(modern, theme),
             inside: true,
         });
     }
@@ -1058,14 +1058,11 @@ fn resolve_css_utility_body(
                     declaration,
                     inside: selector.is_some() || at_rule == NestedUtilityAtRule::Supports,
                 });
-                if !declarations.compat_modern.is_empty() {
+                for modern in declarations.compat_modern {
                     resolved_nested.push(NestedUtilityRule {
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: COMPAT_COLOR_SUPPORT.to_owned(),
-                        declaration: normalize_registered_var_fallbacks(
-                            declarations.compat_modern,
-                            theme,
-                        ),
+                        declaration: normalize_registered_var_fallbacks(modern, theme),
                         inside: true,
                     });
                 }
@@ -1282,11 +1279,7 @@ fn resolve_css_declarations(
                 )
                 && modern != declaration
             {
-                if output.compat_modern.is_empty() {
-                    output.compat_modern.push_str(modern.trim_start());
-                } else {
-                    output.compat_modern.push_str(&modern);
-                }
+                output.compat_modern.push(modern.trim_start().to_owned());
             }
         }
     }

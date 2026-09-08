@@ -862,7 +862,17 @@
 @utility bg-linear-* {
   --tw-gradient-position: calc(--value(integer) * 1deg);
   @supports (background-image: linear-gradient(in lab, red, red)) {
-    --tw-gradient-position: calc(--value(integer) * 1deg) in --modifier();
+    --tw-gradient-position: calc(--value(integer) * 1deg)
+      --modifier-map(
+        oklab: in oklab,
+        oklch: in oklch,
+        srgb: in srgb,
+        hsl: in hsl,
+        longer: in oklch longer hue,
+        shorter: in oklch shorter hue,
+        increasing: in oklch increasing hue,
+        decreasing: in oklch decreasing hue
+      );
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
@@ -876,7 +886,17 @@
 @utility -bg-linear-* {
   --tw-gradient-position: calc(--value(integer) * 1deg * -1);
   @supports (background-image: linear-gradient(in lab, red, red)) {
-    --tw-gradient-position: calc(--value(integer) * 1deg * -1) in --modifier();
+    --tw-gradient-position: calc(--value(integer) * 1deg * -1)
+      --modifier-map(
+        oklab: in oklab,
+        oklch: in oklch,
+        srgb: in srgb,
+        hsl: in hsl,
+        longer: in oklch longer hue,
+        shorter: in oklch shorter hue,
+        increasing: in oklch increasing hue,
+        decreasing: in oklch decreasing hue
+      );
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
