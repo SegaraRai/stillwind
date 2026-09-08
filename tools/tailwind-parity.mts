@@ -29,6 +29,7 @@ const missingRegistrations = new Map<string, number>();
 const extraRegistrations = new Map<string, number>();
 const declarationShapes = new Map<string, number>();
 const categoryExamples = new Map<string, string[]>();
+const categoryFamilies = new Map<string, Map<string, number>>();
 
 function increment(counter: Map<string, number>, key: string): void {
   counter.set(key, (counter.get(key) ?? 0) + 1);
@@ -156,6 +157,9 @@ function recordDifference(
   increment(categories, category);
   increment(files, file);
   increment(families, candidateFamily(candidate));
+  const familiesForCategory = categoryFamilies.get(category) ?? new Map<string, number>();
+  increment(familiesForCategory, candidateFamily(candidate));
+  categoryFamilies.set(category, familiesForCategory);
   const examples = categoryExamples.get(category) ?? [];
   if (examples.length < 5) examples.push(`${file} ${candidate}`);
   categoryExamples.set(category, examples);
@@ -312,6 +316,9 @@ if (analyze) {
   console.log("Category examples:");
   for (const [category, examples] of categoryExamples) {
     console.log(`  ${category}: ${examples.join(", ")}`);
+  }
+  for (const [category, categoryCounter] of categoryFamilies) {
+    printCounter(`Candidate families for ${category}`, categoryCounter, 30);
   }
   printCounter("Declaration mismatch shapes", declarationShapes);
   printCounter("Fixture files", files);

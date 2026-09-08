@@ -16,57 +16,74 @@
 }
 
 @stillwind-property --tw-scroll-snap-strictness {
+  activation: either;
   syntax: "*";
   inherits: false;
   initial-value: proximity;
 }
 
 @stillwind-property --tw-gradient-position {
+  group: gradient;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-gradient-from {
+  group: gradient;
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
 @stillwind-property --tw-gradient-via {
+  group: gradient;
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
 @stillwind-property --tw-gradient-to {
+  group: gradient;
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
 @stillwind-property --tw-gradient-stops {
+  group: gradient;
   syntax: "*";
   inherits: false;
+  activation: declared;
+  depends-on: --tw-gradient-position --tw-gradient-from --tw-gradient-via --tw-gradient-to
+    --tw-gradient-via-stops --tw-gradient-from-position --tw-gradient-via-position
+    --tw-gradient-to-position;
 }
 
 @stillwind-property --tw-gradient-via-stops {
+  group: gradient;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-gradient-from-position {
+  group: gradient;
+  activation: declared;
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-gradient-via-position {
+  group: gradient;
+  activation: declared;
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 50%;
 }
 
 @stillwind-property --tw-gradient-to-position {
+  group: gradient;
+  activation: declared;
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 100%;
@@ -91,36 +108,43 @@
 }
 
 @stillwind-property --tw-mask-linear-position {
+  group: mask-linear;
+  depends-on: --tw-mask-linear --tw-mask-radial --tw-mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: 0deg;
 }
 
 @stillwind-property --tw-mask-linear-from-position {
+  group: mask-linear;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-linear-to-position {
+  group: mask-linear;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-linear-from-color {
+  group: mask-linear;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-linear-to-color {
+  group: mask-linear;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
 @stillwind-property --tw-divide-y-reverse {
+  activation: declared;
   syntax: "*";
   inherits: false;
   initial-value: 0;
@@ -133,82 +157,112 @@
 }
 
 @stillwind-property --tw-shadow {
+  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
+  activation: declared;
+  depends-on: --tw-shadow-color --tw-shadow-alpha --tw-inset-shadow --tw-inset-shadow-color
+    --tw-inset-shadow-alpha --tw-ring-color --tw-ring-shadow --tw-inset-ring-color
+    --tw-inset-ring-shadow --tw-ring-inset --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-shadow-color {
+  group: shadow;
+  activation: declared;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-shadow-alpha {
+  group: shadow;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-inset-shadow {
+  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
+  activation: declared;
+  depends-on: --tw-shadow --tw-shadow-color --tw-shadow-alpha --tw-inset-shadow-color
+    --tw-inset-shadow-alpha --tw-ring-color --tw-ring-shadow --tw-inset-ring-color
+    --tw-inset-ring-shadow --tw-ring-inset --tw-ring-offset-width --tw-ring-offset-color
+    --tw-ring-offset-shadow;
 }
 
 @stillwind-property --tw-inset-shadow-color {
+  group: shadow;
+  activation: declared;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-inset-shadow-alpha {
+  group: shadow;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-ring-color {
+  group: shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-ring-shadow {
+  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
+  activation: declared;
 }
 
 @stillwind-property --tw-inset-ring-color {
+  group: shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-inset-ring-shadow {
+  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
+  activation: declared;
 }
 
 @stillwind-property --tw-ring-inset {
+  group: shadow;
+  activation: declared;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-ring-offset-width {
+  group: shadow;
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
 }
 
 @stillwind-property --tw-ring-offset-color {
+  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: #fff;
 }
 
 @stillwind-property --tw-ring-offset-shadow {
+  group: shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
+  activation: declared;
 }
 
 @stillwind-property --tw-outline-style {
@@ -218,48 +272,59 @@
 }
 
 @stillwind-property --tw-translate-x {
+  group: translate;
   syntax: "*";
   inherits: false;
   initial-value: 0;
+  depends-on: --tw-translate-y --tw-translate-z;
 }
 
 @stillwind-property --tw-translate-y {
+  group: translate;
   syntax: "*";
   inherits: false;
   initial-value: 0;
+  depends-on: --tw-translate-x --tw-translate-z;
 }
 
 @stillwind-property --tw-translate-z {
+  group: translate;
   syntax: "*";
   inherits: false;
   initial-value: 0;
+  depends-on: --tw-translate-x --tw-translate-y;
 }
 
 @stillwind-property --tw-scale-x {
+  group: scale;
   syntax: "*";
   inherits: false;
   initial-value: 1;
 }
 
 @stillwind-property --tw-scale-y {
+  group: scale;
   syntax: "*";
   inherits: false;
   initial-value: 1;
 }
 
 @stillwind-property --tw-scale-z {
+  group: scale;
   syntax: "*";
   inherits: false;
   initial-value: 1;
 }
 
 @stillwind-property --tw-space-y-reverse {
+  activation: declared;
   syntax: "*";
   inherits: false;
   initial-value: 0;
 }
 
 @stillwind-property --tw-space-x-reverse {
+  activation: declared;
   syntax: "*";
   inherits: false;
   initial-value: 0;
@@ -291,67 +356,93 @@
 }
 
 @stillwind-property --tw-blur {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-brightness {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-contrast {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-grayscale {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-hue-rotate {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-invert {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-opacity {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-saturate {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-sepia {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-drop-shadow {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-drop-shadow-color {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-drop-shadow-alpha {
+  group: filter;
+  activation: either;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-drop-shadow-size {
+  group: filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
@@ -377,6 +468,7 @@
 }
 
 @stillwind-property --tw-divide-x-reverse {
+  activation: declared;
   syntax: "*";
   inherits: false;
   initial-value: 0;
@@ -385,111 +477,139 @@
 @stillwind-property --tw-duration {
   syntax: "*";
   inherits: false;
+  activation: declared;
 }
 
 @stillwind-property --tw-text-shadow-color {
+  group: text-shadow;
+  activation: declared;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-text-shadow-alpha {
+  group: text-shadow;
   syntax: "<percentage>";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-rotate-x {
+  group: transform-functions;
   syntax: "*";
   inherits: false;
+  activation: either;
 }
 
 @stillwind-property --tw-rotate-y {
+  group: transform-functions;
   syntax: "*";
   inherits: false;
+  activation: either;
 }
 
 @stillwind-property --tw-rotate-z {
+  group: transform-functions;
   syntax: "*";
   inherits: false;
+  activation: either;
 }
 
 @stillwind-property --tw-skew-x {
+  group: transform-functions;
   syntax: "*";
   inherits: false;
+  activation: either;
 }
 
 @stillwind-property --tw-skew-y {
+  group: transform-functions;
   syntax: "*";
   inherits: false;
+  activation: either;
 }
 
 @stillwind-property --tw-mask-radial-from-position {
+  group: mask-radial;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-radial-to-position {
+  group: mask-radial;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-radial-from-color {
+  group: mask-radial;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-radial-to-color {
+  group: mask-radial;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
 @stillwind-property --tw-mask-radial-shape {
+  group: mask-radial;
   syntax: "*";
   inherits: false;
   initial-value: ellipse;
 }
 
 @stillwind-property --tw-mask-radial-size {
+  group: mask-radial;
   syntax: "*";
   inherits: false;
   initial-value: farthest-corner;
 }
 
 @stillwind-property --tw-mask-radial-position {
+  group: mask-radial;
+  depends-on: --tw-mask-linear --tw-mask-radial --tw-mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: center;
 }
 
 @stillwind-property --tw-mask-conic-position {
+  group: mask-conic;
+  depends-on: --tw-mask-linear --tw-mask-radial --tw-mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: 0deg;
 }
 
 @stillwind-property --tw-mask-conic-from-position {
+  group: mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-conic-to-position {
+  group: mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-conic-from-color {
+  group: mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-conic-to-color {
+  group: mask-conic;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
@@ -501,46 +621,64 @@
 }
 
 @stillwind-property --tw-backdrop-blur {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-brightness {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-contrast {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-grayscale {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-hue-rotate {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-invert {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-opacity {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-saturate {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-sepia {
+  group: backdrop-filter;
+  activation: either;
   syntax: "*";
   inherits: false;
 }
@@ -548,6 +686,7 @@
 @stillwind-property --tw-ease {
   syntax: "*";
   inherits: false;
+  activation: declared;
 }
 
 @stillwind-property --tw-content {
@@ -703,9 +842,11 @@
 @stillwind-property --tw-leading {
   syntax: "*";
   inherits: false;
+  activation: declared;
 }
 
 @stillwind-property --tw-font-weight {
   syntax: "*";
   inherits: false;
+  activation: declared;
 }

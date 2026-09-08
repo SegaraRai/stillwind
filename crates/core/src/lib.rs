@@ -2218,31 +2218,63 @@ fn render_used_properties(
     css: &str,
     options: &CompilerOptions,
 ) -> String {
-    let used = stillwind_css::referenced_custom_properties(css);
-    let mut seen = BTreeSet::new();
+    let usage = stillwind_css::custom_property_usage(css)
+        .expect("compiler and authored CSS were validated before property rendering");
     let builtin_properties = theme
         .imports
         .builtins
         .then(stillwind_tailwind::builtin_property_definitions)
         .unwrap_or_default();
-    let mut properties = builtin_properties
-        .iter()
-        .chain(&theme.properties)
+    let definitions = builtin_properties.iter().chain(&theme.properties);
+    let mut required = definitions
+        .clone()
+        .filter_map(|property| {
+            let name = options.rewrite_generated(&property.name);
+            property
+                .activation
+                .is_active(
+                    usage.declared.contains(&name),
+                    usage.referenced.contains(&name),
+                )
+                .then_some(name)
+        })
+        .collect::<BTreeSet<_>>();
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for property in definitions.clone() {
+            let name = options.rewrite_generated(&property.name);
+            if required.contains(&name) {
+                for dependency in &property.dependencies {
+                    changed |= required.insert(options.rewrite_generated(dependency));
+                }
+                for group in &property.groups {
+                    for member in definitions
+                        .clone()
+                        .filter(|member| member.groups.contains(group))
+                    {
+                        changed |= required.insert(options.rewrite_generated(&member.name));
+                    }
+                }
+            }
+        }
+    }
+    let mut seen = BTreeSet::new();
+    let mut properties = definitions
         .rev()
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
-            let property_used = used.contains(&name);
+            // Authored @property declarations take precedence over compiler
+            // defaults, including when they intentionally reuse a builtin name.
+            if !required.contains(&name)
+                || theme.authored_properties.contains(&name)
+                || !seen.insert(name.clone())
+            {
+                return None;
+            }
             let builtin = builtin_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
-            // Authored @property declarations take precedence over compiler
-            // defaults, including when they intentionally reuse a builtin name.
-            if !property_used || theme.authored_properties.contains(&name) {
-                return None;
-            }
-            if !seen.insert(name.clone()) {
-                return None;
-            }
             Some((name, property.body.as_str(), builtin))
         })
         .collect::<Vec<_>>();
@@ -2433,7 +2465,8 @@ mod tests {
         .unwrap();
 
         assert!(css.contains("@property --internal-translate-x"));
-        assert!(!css.contains("@property --internal-translate-y"));
+        assert!(css.contains("@property --internal-translate-y"));
+        assert!(css.contains("@property --internal-translate-z"));
         assert!(!css.contains("@property --internal-gradient-from"));
     }
 

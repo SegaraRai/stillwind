@@ -27,6 +27,8 @@ use lightningcss::{
         time::Time,
         url::Url,
     },
+    visit_types,
+    visitor::{Visit, VisitTypes, Visitor},
 };
 use stillwind_source::{FileId, SourceFile, Span, Spanned};
 use thiserror::Error;
@@ -1076,10 +1078,47 @@ pub struct CustomVariant {
 /// One compiler-owned custom-property registration declared with
 /// `@stillwind-property`. Ordinary authored `@property` rules are never added
 /// to this registry and remain untouched in the output stylesheet.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CustomPropertyActivation {
+    Declared,
+    #[default]
+    Referenced,
+    Either,
+}
+
+impl CustomPropertyActivation {
+    fn parse(value: &str) -> Option<Self> {
+        match value.trim() {
+            "declared" => Some(Self::Declared),
+            "referenced" => Some(Self::Referenced),
+            "either" => Some(Self::Either),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn is_active(self, declared: bool, referenced: bool) -> bool {
+        match self {
+            Self::Declared => declared,
+            Self::Referenced => referenced,
+            Self::Either => declared || referenced,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomPropertyDefinition {
     pub name: String,
     pub body: String,
+    pub activation: CustomPropertyActivation,
+    pub dependencies: Vec<String>,
+    pub groups: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CustomPropertyUsage {
+    pub declared: BTreeSet<String>,
+    pub referenced: BTreeSet<String>,
 }
 
 /// Parses `@utility` definitions without requiring a complete theme stylesheet.
@@ -1418,6 +1457,68 @@ pub fn referenced_custom_properties(css: &str) -> BTreeSet<String> {
         cursor = end.max(start);
     }
     references
+}
+
+/// Parses emitted CSS and classifies custom-property declarations and
+/// `var()` references using Lightning CSS's syntax tree.
+///
+/// This is the activation input for compiler-owned `@property` definitions;
+/// registration policy remains declarative metadata rather than property-name
+/// knowledge in the compiler.
+///
+/// # Errors
+///
+/// Returns an error when the emitted stylesheet cannot be parsed, including
+/// with Lightning CSS error recovery enabled.
+pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, ThemeError> {
+    struct UsageVisitor {
+        usage: CustomPropertyUsage,
+    }
+
+    impl<'i> Visitor<'i> for UsageVisitor {
+        type Error = std::convert::Infallible;
+
+        fn visit_types(&self) -> VisitTypes {
+            visit_types!(RULES | PROPERTIES | TOKENS | FUNCTIONS | VARIABLES)
+        }
+
+        fn visit_property(&mut self, property: &mut Property<'i>) -> Result<(), Self::Error> {
+            if let Property::Custom(property) = property {
+                let name = property.name.as_ref();
+                if name.starts_with("--") {
+                    self.usage.declared.insert(name.to_owned());
+                }
+            }
+            property.visit_children(self)
+        }
+
+        fn visit_variable(
+            &mut self,
+            variable: &mut lightningcss::properties::custom::Variable<'i>,
+        ) -> Result<(), Self::Error> {
+            self.usage
+                .referenced
+                .insert(variable.name.ident.0.as_ref().to_owned());
+            variable.visit_children(self)
+        }
+    }
+
+    let mut stylesheet = StyleSheet::parse(
+        css,
+        ParserOptions {
+            error_recovery: true,
+            ..ParserOptions::default()
+        },
+    )
+    .map_err(|error| ThemeError::Parse(error.to_string()))?;
+    let mut visitor = UsageVisitor {
+        usage: CustomPropertyUsage::default(),
+    };
+    match stylesheet.visit(&mut visitor) {
+        Ok(()) => {}
+        Err(error) => match error {},
+    }
+    Ok(visitor.usage)
 }
 
 #[derive(Debug, Error)]
@@ -1908,9 +2009,33 @@ fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
         .into_iter()
         .filter_map(|(header, body)| {
             let name = header.split_whitespace().next()?;
-            name.starts_with("--").then(|| CustomPropertyDefinition {
+            if !name.starts_with("--") {
+                return None;
+            }
+            let mut activation = CustomPropertyActivation::default();
+            let mut dependencies = Vec::new();
+            let mut groups = Vec::new();
+            let mut standard_descriptors = Vec::new();
+            for descriptor in body.split(';') {
+                let trimmed = descriptor.trim();
+                if let Some(value) = trimmed.strip_prefix("activation:") {
+                    if let Some(parsed) = CustomPropertyActivation::parse(value) {
+                        activation = parsed;
+                    }
+                } else if let Some(value) = trimmed.strip_prefix("depends-on:") {
+                    dependencies.extend(value.split_whitespace().map(str::to_owned));
+                } else if let Some(value) = trimmed.strip_prefix("group:") {
+                    groups.extend(value.split_whitespace().map(str::to_owned));
+                } else if !trimmed.is_empty() {
+                    standard_descriptors.push(format!("{trimmed};"));
+                }
+            }
+            Some(CustomPropertyDefinition {
                 name: name.to_owned(),
-                body,
+                body: standard_descriptors.join("\n"),
+                activation,
+                dependencies,
+                groups,
             })
         })
         .collect()
@@ -2838,5 +2963,54 @@ mod tests {
         assert!(theme.authored_properties.contains("--authored-value"));
         assert!(!theme.custom_css().contains("@stillwind-property"));
         assert!(theme.custom_css().contains("@property --authored-value"));
+    }
+
+    #[test]
+    fn parses_property_activation_and_dependency_metadata() {
+        let definitions = parse_property_definitions(
+            r#"
+                @stillwind-property --example {
+                  syntax: "*";
+                  inherits: false;
+                  activation: referenced;
+                  depends-on: --dependency-a --dependency-b;
+                  group: example-group shared-group;
+                }
+            "#,
+        );
+
+        assert_eq!(definitions.len(), 1);
+        assert_eq!(
+            definitions[0].activation,
+            CustomPropertyActivation::Referenced
+        );
+        assert_eq!(
+            definitions[0].dependencies,
+            ["--dependency-a", "--dependency-b"]
+        );
+        assert_eq!(definitions[0].groups, ["example-group", "shared-group"]);
+        assert!(!definitions[0].body.contains("activation"));
+        assert!(!definitions[0].body.contains("depends-on"));
+        assert!(!definitions[0].body.contains("group"));
+    }
+
+    #[test]
+    fn classifies_custom_property_usage_from_the_css_ast() {
+        let usage = custom_property_usage(
+            "@layer utilities { .example { --declared: var(--referenced, var(--fallback)); color: var(--color); scroll-snap-type: x var(--snap); transform: var(--transform,) } }",
+        )
+        .unwrap();
+
+        assert_eq!(usage.declared, BTreeSet::from(["--declared".to_owned()]));
+        assert_eq!(
+            usage.referenced,
+            BTreeSet::from([
+                "--color".to_owned(),
+                "--fallback".to_owned(),
+                "--referenced".to_owned(),
+                "--snap".to_owned(),
+                "--transform".to_owned(),
+            ])
+        );
     }
 }
