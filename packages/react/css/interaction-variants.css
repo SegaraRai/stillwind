@@ -172,8 +172,12 @@
 }
 @variant marker {
   & ::marker,
-  &::marker,
-  & ::-webkit-details-marker,
+  &::marker {
+    @slot;
+  }
+  & ::-webkit-details-marker {
+    @slot;
+  }
   &::-webkit-details-marker {
     @slot;
   }

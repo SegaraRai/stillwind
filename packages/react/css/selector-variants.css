@@ -100,6 +100,14 @@
     @slot;
   }
 }
+@variant not-hover {
+  &:not(:hover) {
+    @slot;
+  }
+  @media not (hover: hover) {
+    @slot;
+  }
+}
 @variant in-* {
   :where(:root) & {
     @slot;

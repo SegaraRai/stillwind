@@ -90,11 +90,12 @@ impl UtilityResolution {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariantApplication {
+    Compound(Vec<VariantApplication>),
     SelectorSuffix(&'static str),
     SelectorTemplate(String),
     SelectorRule {
         selector: String,
-        declarations: String,
+        declarations: Vec<VariantDeclaration>,
     },
     SelectorMedia {
         selector: String,
@@ -102,13 +103,19 @@ pub enum VariantApplication {
     },
     SelectorMediaRule {
         selector: String,
-        declarations: String,
+        declarations: Vec<VariantDeclaration>,
         condition: String,
     },
     Media(String),
     Container(String),
     Supports(String),
     StartingStyle,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariantDeclaration {
+    pub property: String,
+    pub value: String,
 }
 
 const BUILTIN_REGISTRY_CSS: &str = concat!(
@@ -580,7 +587,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         return None;
     };
     if let Some(application) = resolve_registered_variant(value, theme) {
-        return Some(with_hover_media(application));
+        return Some(application);
     }
     for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
         if let Some(value) = value
@@ -600,6 +607,9 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
 
 fn with_hover_media(application: VariantApplication) -> VariantApplication {
     match application {
+        VariantApplication::Compound(applications) => {
+            VariantApplication::Compound(applications.into_iter().map(with_hover_media).collect())
+        }
         VariantApplication::SelectorTemplate(selector) if selector.contains(":hover") => {
             VariantApplication::SelectorMedia {
                 selector,
@@ -615,6 +625,14 @@ fn with_hover_media(application: VariantApplication) -> VariantApplication {
             condition: "(hover: hover)".to_owned(),
         },
         application => application,
+    }
+}
+
+fn with_builtin_hover_media(value: &str, application: VariantApplication) -> VariantApplication {
+    if value == "hover" || value.starts_with("group-hover") || value.starts_with("peer-hover") {
+        with_hover_media(application)
+    } else {
+        application
     }
 }
 
@@ -672,18 +690,30 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
 }
 
 fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
-    let mut candidates = registered_variant_candidates(&theme.variants, value);
-    if theme.imports.builtins {
-        candidates.extend(registered_variant_candidates(builtin_variants(), value));
+    if let Some(application) = resolve_registered_variant_from(&theme.variants, value, theme) {
+        return Some(application);
     }
-    candidates.into_iter().find_map(|(custom, capture)| {
-        let body = substitute_variant_capture(&custom.body, capture)?;
-        let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
-        resolve_variant_body(&body).or_else(|| {
-            substitute_variant_capture(&custom.selector, capture)
-                .map(VariantApplication::SelectorTemplate)
+    theme.imports.builtins.then(|| {
+        resolve_registered_variant_from(builtin_variants(), value, theme)
+            .map(|application| with_builtin_hover_media(value, application))
+    })?
+}
+
+fn resolve_registered_variant_from(
+    variants: &[CustomVariant],
+    value: &str,
+    theme: &ThemeIndex,
+) -> Option<VariantApplication> {
+    registered_variant_candidates(variants, value)
+        .into_iter()
+        .find_map(|(custom, capture)| {
+            let body = substitute_variant_capture(&custom.body, capture)?;
+            let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
+            resolve_variant_body(&body).or_else(|| {
+                substitute_variant_capture(&custom.selector, capture)
+                    .map(VariantApplication::SelectorTemplate)
+            })
         })
-    })
 }
 
 fn registered_variant_candidates<'a, 'b>(
@@ -814,6 +844,14 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {
         return None;
     }
+    let blocks = split_variant_blocks(body)?;
+    if blocks.len() > 1 {
+        return blocks
+            .into_iter()
+            .map(resolve_variant_body)
+            .collect::<Option<Vec<_>>>()
+            .map(VariantApplication::Compound);
+    }
     if body.contains("@starting-style") {
         return Some(VariantApplication::StartingStyle);
     }
@@ -868,9 +906,28 @@ fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     }
 }
 
+fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
+    let mut blocks = Vec::new();
+    let mut cursor = 0;
+    while cursor < body.len() {
+        let start = body[cursor..]
+            .char_indices()
+            .find(|(_, character)| !character.is_whitespace())
+            .map_or(body.len(), |(offset, _)| cursor + offset);
+        if start == body.len() {
+            break;
+        }
+        let open = body[start..].find('{')? + start;
+        let close = closing_brace(body, open)?;
+        blocks.push(&body[start..=close]);
+        cursor = close + 1;
+    }
+    (!blocks.is_empty()).then_some(blocks)
+}
+
 struct VariantSelectorRule {
     selector: String,
-    declarations: String,
+    declarations: Vec<VariantDeclaration>,
 }
 
 fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
@@ -885,7 +942,7 @@ fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     }
 
     let inner = &body[open + 1..close];
-    let mut declarations = String::new();
+    let mut declarations = Vec::new();
     let mut start = 0;
     let mut depth = 0_u32;
     for (offset, character) in inner.char_indices() {
@@ -905,10 +962,10 @@ fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
                 if property.is_empty() || value.is_empty() {
                     return None;
                 }
-                declarations.push_str(property);
-                declarations.push(':');
-                declarations.push_str(value);
-                declarations.push(';');
+                declarations.push(VariantDeclaration {
+                    property: property.to_owned(),
+                    value: value.to_owned(),
+                });
             }
             _ => {}
         }
@@ -1166,7 +1223,7 @@ fn resolve_css_utility_body(
                     at_rule,
                     condition,
                     declaration,
-                    inside: selector.is_some() || at_rule == NestedUtilityAtRule::Supports,
+                    inside: true,
                 });
                 for modern in declarations.compat_modern {
                     resolved_nested.push(NestedUtilityRule {
@@ -1594,6 +1651,9 @@ fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String
         return None;
     }
     let color_kind = CompatColorKind::from_css(color);
+    if color.eq_ignore_ascii_case("inherit") && alpha == "100%" {
+        return Some(color.to_owned());
+    }
     let color_space = match (mode, color_kind, modern_alpha.is_none()) {
         // Tailwind does not synthesize an sRGB compatibility branch for CSS
         // wide/transparent keywords. Keeping both passes identical makes the
@@ -1913,11 +1973,28 @@ fn resolve_value_domains(
             });
         }
         let expected = ValueDomain::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
+        if let Some(variable) = parse_css_variable(capture?) {
+            let hint_is_compatible = variable.hint.is_none_or(|hint| expected.accepts_hint(hint));
+            return hint_is_compatible.then(|| {
+                let value = format!("var({})", variable.name);
+                if negative {
+                    format!("calc(({value}) * -1)")
+                } else {
+                    value
+                }
+            });
+        }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
         let (hint, value) = arbitrary.split_once(':').unwrap_or(("", arbitrary));
         let value = decode_arbitrary(value);
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
-        (hint_is_compatible && expected.accepts(&value)).then_some(value)
+        (hint_is_compatible && expected.accepts(&value)).then(|| {
+            if negative {
+                format!("calc(({value}) * -1)")
+            } else {
+                value
+            }
+        })
     })
 }
 
@@ -1971,7 +2048,7 @@ fn theme_value(
 ) -> Option<String> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
-        _ if let Some(value) = css_variable(value) => format!("var({value})"),
+        _ if let Some(value) = typed_css_variable(namespace, value) => format!("var({value})"),
         // Tailwind's candidate grammar accepts ASCII identifier tokens only;
         // Unicode theme names remain valid CSS but are not utility candidates.
         _ if !value.is_ascii() => return None,
@@ -2023,7 +2100,7 @@ fn theme_value_literal(
 ) -> Option<String> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
-        _ if let Some(value) = css_variable(value) => format!("var({value})"),
+        _ if let Some(value) = typed_css_variable(namespace, value) => format!("var({value})"),
         _ if let Some(token) = theme.token_in(namespace, value) => token.value.value.clone(),
         _ => return theme_value(namespace, value, negative, theme),
     };
@@ -2119,10 +2196,29 @@ fn axis_size_value(value: &str, viewport_axis: &str, negative: bool) -> Option<S
         .or(Some(value))
 }
 
-fn css_variable(value: &str) -> Option<&str> {
-    value
-        .strip_prefix('(')
-        .and_then(|value| value.strip_suffix(')'))
+fn typed_css_variable(namespace: ThemeNamespace, value: &str) -> Option<&str> {
+    let variable = parse_css_variable(value)?;
+    let types = theme_arbitrary_types(namespace);
+    (variable.hint.is_none()
+        || types.is_empty()
+        || variable
+            .hint
+            .and_then(ValueType::from_hint)
+            .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint))))
+    .then_some(variable.name)
+}
+
+struct CssVariable<'a> {
+    hint: Option<&'a str>,
+    name: &'a str,
+}
+
+fn parse_css_variable(value: &str) -> Option<CssVariable<'_>> {
+    let value = value.strip_prefix('(')?.strip_suffix(')')?;
+    let (hint, name) = value
+        .split_once(':')
+        .map_or((None, value), |(hint, name)| (Some(hint), name));
+    name.starts_with("--").then_some(CssVariable { hint, name })
 }
 
 fn decode_arbitrary(value: &str) -> String {
@@ -3468,7 +3564,10 @@ mod tests {
             ),
             Some(VariantApplication::SelectorRule {
                 selector: "&::before".to_owned(),
-                declarations: "content:var(--content);".to_owned(),
+                declarations: vec![VariantDeclaration {
+                    property: "content".to_owned(),
+                    value: "var(--content)".to_owned(),
+                }],
             })
         );
     }

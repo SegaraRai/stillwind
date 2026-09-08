@@ -1711,7 +1711,43 @@ fn render_utility_rule(
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
     let declaration = stillwind_css::fold_calc_expressions(declaration);
-    let mut declaration = stillwind_css::normalize_serialized_declaration(&declaration);
+    let declaration = stillwind_css::normalize_serialized_declaration(&declaration);
+    let mut paths = vec![Vec::new()];
+    for variant in &utility.variants {
+        let Some(application) = stillwind_tailwind::resolve_variant(variant, theme) else {
+            continue;
+        };
+        let alternatives = match application {
+            stillwind_tailwind::VariantApplication::Compound(applications) => applications,
+            application => vec![application],
+        };
+        paths = paths
+            .into_iter()
+            .flat_map(|path| {
+                alternatives.iter().cloned().map(move |application| {
+                    let mut path = path.clone();
+                    path.push(application);
+                    path
+                })
+            })
+            .collect();
+    }
+    paths
+        .iter()
+        .map(|applications| {
+            render_utility_rule_path(class_name, utility, &declaration, nested_rule, applications)
+        })
+        .collect()
+}
+
+fn render_utility_rule_path(
+    class_name: &str,
+    utility: &CompiledUtility,
+    declaration: &str,
+    nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
+    applications: &[stillwind_tailwind::VariantApplication],
+) -> String {
+    let mut declaration = declaration.to_owned();
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
@@ -1721,50 +1757,50 @@ fn render_utility_rule(
     let mut containers = Vec::new();
     let mut supports = Vec::new();
     let mut starting_style = false;
-    for variant in &utility.variants {
-        match stillwind_tailwind::resolve_variant(variant, theme) {
-            Some(stillwind_tailwind::VariantApplication::SelectorSuffix(suffix)) => {
+    for application in applications {
+        match application {
+            stillwind_tailwind::VariantApplication::Compound(_) => unreachable!(),
+            stillwind_tailwind::VariantApplication::SelectorSuffix(suffix) => {
                 selector.push_str(suffix);
             }
-            Some(stillwind_tailwind::VariantApplication::SelectorTemplate(template)) => {
+            stillwind_tailwind::VariantApplication::SelectorTemplate(template) => {
                 selector = template.replace('&', &selector);
             }
-            Some(stillwind_tailwind::VariantApplication::SelectorRule {
+            stillwind_tailwind::VariantApplication::SelectorRule {
                 selector: template,
                 declarations,
-            }) => {
+            } => {
                 selector = template.replace('&', &selector);
-                declaration.insert_str(0, &declarations);
+                prepend_missing_declarations(&mut declaration, declarations);
             }
-            Some(stillwind_tailwind::VariantApplication::SelectorMedia {
+            stillwind_tailwind::VariantApplication::SelectorMedia {
                 selector: template,
                 condition,
-            }) => {
+            } => {
                 selector = template.replace('&', &selector);
-                media.push(condition);
+                media.push(condition.clone());
             }
-            Some(stillwind_tailwind::VariantApplication::SelectorMediaRule {
+            stillwind_tailwind::VariantApplication::SelectorMediaRule {
                 selector: template,
                 declarations,
                 condition,
-            }) => {
+            } => {
                 selector = template.replace('&', &selector);
-                declaration.insert_str(0, &declarations);
-                media.push(condition);
+                prepend_missing_declarations(&mut declaration, declarations);
+                media.push(condition.clone());
             }
-            Some(stillwind_tailwind::VariantApplication::Media(condition)) => {
-                media.push(condition);
+            stillwind_tailwind::VariantApplication::Media(condition) => {
+                media.push(condition.clone());
             }
-            Some(stillwind_tailwind::VariantApplication::Container(condition)) => {
-                containers.push(condition);
+            stillwind_tailwind::VariantApplication::Container(condition) => {
+                containers.push(condition.clone());
             }
-            Some(stillwind_tailwind::VariantApplication::Supports(condition)) => {
-                supports.push(condition);
+            stillwind_tailwind::VariantApplication::Supports(condition) => {
+                supports.push(condition.clone());
             }
-            Some(stillwind_tailwind::VariantApplication::StartingStyle) => {
+            stillwind_tailwind::VariantApplication::StartingStyle => {
                 starting_style = true;
             }
-            None => {}
         }
     }
     let mut rule = format!("{selector}{{{declaration}}}");
@@ -1794,6 +1830,27 @@ fn render_utility_rule(
         rule = format!("@container {container}{{{rule}}}");
     }
     rule
+}
+
+fn prepend_missing_declarations(
+    declaration: &mut String,
+    supporting: &[stillwind_tailwind::VariantDeclaration],
+) {
+    let declared = declaration
+        .split_terminator(';')
+        .filter_map(|declaration| declaration.split_once(':').map(|(name, _)| name.trim()))
+        .collect::<std::collections::BTreeSet<_>>();
+    let supporting = supporting
+        .iter()
+        .filter(|candidate| !declared.contains(candidate.property.as_str()))
+        .fold(String::new(), |mut output, candidate| {
+            output.push_str(&candidate.property);
+            output.push(':');
+            output.push_str(&candidate.value);
+            output.push(';');
+            output
+        });
+    declaration.insert_str(0, &supporting);
 }
 
 #[cfg(test)]
@@ -1946,7 +2003,11 @@ fn render_stylesheet(
         );
         required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
         let theme_order = stillwind_tailwind::builtin_theme_order();
-        if !theme_order.is_empty() {
+        if !theme_order.is_empty()
+            && required_tokens
+                .iter()
+                .any(|token| token.name.span.file != stillwind_source::FileId(0))
+        {
             required_tokens.sort_by_key(|token| {
                 let namespace = match token.kind {
                     stillwind_css::ThemeTokenKind::Scale(namespace)

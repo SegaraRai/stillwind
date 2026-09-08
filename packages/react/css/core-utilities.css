@@ -211,8 +211,8 @@
   --tw-outline-style: none;
   outline-style: none;
   @media (forced-colors: active) {
-    outline: 2px solid transparent;
     outline-offset: 2px;
+    outline: 2px solid transparent;
   }
 }
 @utility outline-offset-2 {
@@ -330,7 +330,7 @@
     var(--tw-drop-shadow,);
 }
 @utility backdrop-blur-none {
-  --tw-backdrop-blur: blur(0);
+  --tw-backdrop-blur: ;
   backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)

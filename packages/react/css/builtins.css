@@ -58,6 +58,8 @@
 @stillwind-format --tw-backdrop-blur empty-space;
 @stillwind-format box-shadow comma-space;
 @stillwind-format transform var-fallback;
+
+@stillwind-theme-order spacing color;
 @stillwind-format --tw-ring-shadow empty-var-fallback;
 @stillwind-format --tw-ring-offset-shadow empty-var-fallback;
 @stillwind-format transform compose-space;
@@ -68,7 +70,6 @@
 @stillwind-format --tw-mask-*-to-position zero-length;
 @stillwind-format-functions color-mix linear-gradient;
 @stillwind-omit-token-prefix --shadow- --tw-shadow:;
-@stillwind-theme-order spacing color;
 @import "./core-utilities.css";
 @import "./discrete-utilities.css";
 @import "./functional-utilities.css";
