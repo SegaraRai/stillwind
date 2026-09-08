@@ -2097,7 +2097,7 @@ fn important(declaration: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::{collections::BTreeSet, fs, path::Path};
 
     use stillwind_css::parse_tailwind_theme;
     use stillwind_source::{FileId, SourceFile};
@@ -3528,6 +3528,397 @@ mod tests {
                 &theme
             ),
             Some(VariantApplication::Media("(width < 40rem)".to_owned()))
+        );
+    }
+
+    const REGISTRY_FILES: &[(&str, &str)] = &[
+        (
+            "builtins.css",
+            include_str!("../../../packages/react/css/builtins.css"),
+        ),
+        (
+            "core-utilities.css",
+            include_str!("../../../packages/react/css/core-utilities.css"),
+        ),
+        (
+            "discrete-utilities.css",
+            include_str!("../../../packages/react/css/discrete-utilities.css"),
+        ),
+        (
+            "functional-utilities.css",
+            include_str!("../../../packages/react/css/functional-utilities.css"),
+        ),
+        (
+            "interaction-variants.css",
+            include_str!("../../../packages/react/css/interaction-variants.css"),
+        ),
+        (
+            "static-utilities.css",
+            include_str!("../../../packages/react/css/static-utilities.css"),
+        ),
+        (
+            "arbitrary-utilities.css",
+            include_str!("../../../packages/react/css/arbitrary-utilities.css"),
+        ),
+        (
+            "mask-utilities.css",
+            include_str!("../../../packages/react/css/mask-utilities.css"),
+        ),
+        (
+            "effect-utilities.css",
+            include_str!("../../../packages/react/css/effect-utilities.css"),
+        ),
+        (
+            "selector-variants.css",
+            include_str!("../../../packages/react/css/selector-variants.css"),
+        ),
+        (
+            "properties.css",
+            include_str!("../../../packages/react/css/properties.css"),
+        ),
+    ];
+
+    fn registry_utilities() -> Vec<(String, CustomUtility)> {
+        let mut definitions = Vec::new();
+        for (file, css) in REGISTRY_FILES {
+            let mut occurrences = HashMap::<String, usize>::new();
+            for mut utility in stillwind_css::parse_utility_definitions(css) {
+                utility.body = canonical_builtin_body(&utility.body);
+                let occurrence = occurrences.entry(utility.name.clone()).or_default();
+                *occurrence += 1;
+                definitions.push((format!("{file}:{}#{occurrence}", utility.name), utility));
+            }
+        }
+        definitions
+    }
+
+    fn registry_variants() -> Vec<(String, CustomVariant)> {
+        let mut definitions = Vec::new();
+        for (file, css) in REGISTRY_FILES {
+            let mut occurrences = HashMap::<String, usize>::new();
+            for variant in stillwind_css::parse_variant_definitions(css) {
+                let occurrence = occurrences.entry(variant.name.clone()).or_default();
+                *occurrence += 1;
+                definitions.push((format!("{file}:{}#{occurrence}", variant.name), variant));
+            }
+        }
+        definitions
+    }
+
+    fn fenced_section<'a>(section: &'a str, heading: &str, language: &str) -> Option<&'a str> {
+        let after_heading = section.split_once(heading)?.1;
+        let fence = format!("```{language}");
+        let after_fence = after_heading.split_once(&fence)?.1;
+        after_fence.split_once("```").map(|(body, _)| body.trim())
+    }
+
+    fn parity_cases(markdown: &str) -> Vec<(&str, Vec<&str>)> {
+        markdown
+            .split("\n## `")
+            .skip(1)
+            .filter_map(|section| {
+                let input = fenced_section(section, "### Input CSS", "css")?;
+                let candidates = fenced_section(section, "### Candidates", "text")?
+                    .split_whitespace()
+                    .collect::<Vec<_>>();
+                Some((input, candidates))
+            })
+            .collect()
+    }
+
+    fn matched_registry_utilities<'a>(
+        definitions: &'a [(String, CustomUtility)],
+        lookup: &str,
+    ) -> Vec<(usize, &'a CustomUtility)> {
+        let matches = |definition: &CustomUtility| {
+            definition.name == lookup
+                || definition
+                    .name
+                    .strip_suffix('*')
+                    .is_some_and(|prefix| lookup.starts_with(prefix))
+        };
+        definitions
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|(_, (_, definition))| definition.name.ends_with('*') && matches(definition))
+            .map(|(index, (_, definition))| (index, definition))
+            .chain(
+                definitions
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter(|(_, (_, definition))| definition.name == lookup)
+                    .map(|(index, (_, definition))| (index, definition)),
+            )
+            .collect()
+    }
+
+    fn resolve_registry_variant(
+        definition: &CustomVariant,
+        value: &str,
+        theme: &ThemeIndex,
+    ) -> (bool, Option<VariantApplication>) {
+        let candidates = registered_variant_candidates(std::slice::from_ref(definition), value);
+        let matched = !candidates.is_empty();
+        let resolved = candidates.into_iter().find_map(|(custom, capture)| {
+            let body = substitute_variant_capture(&custom.body, capture)?;
+            let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
+            resolve_variant_body(&body).or_else(|| {
+                substitute_variant_capture(&custom.selector, capture)
+                    .map(VariantApplication::SelectorTemplate)
+            })
+        });
+        (matched, resolved)
+    }
+
+    fn resolve_registry_variant_branches<'a>(
+        definitions: impl DoubleEndedIterator<Item = (usize, &'a CustomVariant)>,
+        value: &str,
+        theme: &ThemeIndex,
+    ) -> Option<VariantApplication> {
+        definitions.rev().find_map(|(_, custom)| {
+            registered_variant_candidates(std::slice::from_ref(custom), value)
+                .into_iter()
+                .find_map(|(custom, capture)| {
+                    let body = substitute_variant_capture(&custom.body, capture)?;
+                    let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
+                    resolve_variant_body(&body).or_else(|| {
+                        substitute_variant_capture(&custom.selector, capture)
+                            .map(VariantApplication::SelectorTemplate)
+                    })
+                })
+        })
+    }
+
+    #[test]
+    #[ignore = "manual exhaustive built-in registry reachability audit"]
+    #[allow(clippy::too_many_lines)]
+    fn audits_builtin_registry_reachability_from_parity_fixtures() {
+        assert_eq!(
+            REGISTRY_FILES
+                .iter()
+                .map(|(_, css)| *css)
+                .collect::<String>(),
+            BUILTIN_REGISTRY_CSS,
+            "audit registry must follow the production registry exactly"
+        );
+        let utilities = registry_utilities();
+        let variants = registry_variants();
+        let mut matched_utilities = BTreeSet::new();
+        let mut resolved_utilities = BTreeSet::new();
+        let mut used_utilities = BTreeSet::new();
+        let mut matched_variants = BTreeSet::new();
+        let mut resolved_variants = BTreeSet::new();
+        let mut used_variants = BTreeSet::new();
+        let fixture_root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/tailwind-v4/cases");
+        let mut fixture_paths = fs::read_dir(fixture_root)
+            .expect("parity fixture directory")
+            .map(|entry| entry.expect("fixture entry").path())
+            .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
+            .collect::<Vec<_>>();
+        fixture_paths.sort();
+
+        let mut candidate_count = 0_usize;
+        let mut skipped_scope_candidates = 0_usize;
+        let mut theme_parse_failures = 0_usize;
+        let mut candidate_parse_failures = 0_usize;
+        for path in fixture_paths {
+            let markdown = fs::read_to_string(&path).expect("parity fixture");
+            for (case_index, (input, candidates)) in parity_cases(&markdown).into_iter().enumerate()
+            {
+                if ["@source", "@config", "@plugin", "@reference"]
+                    .iter()
+                    .any(|directive| input.contains(directive))
+                {
+                    skipped_scope_candidates += candidates.len();
+                    continue;
+                }
+                let source =
+                    SourceFile::new(FileId(1), format!("{}#{case_index}", path.display()), input);
+                let Ok(theme) = parse_tailwind_theme(&source) else {
+                    theme_parse_failures += 1;
+                    continue;
+                };
+                for raw in candidates {
+                    let Some(candidate) = parse_candidate(raw) else {
+                        candidate_parse_failures += 1;
+                        continue;
+                    };
+                    candidate_count += 1;
+                    for variant in &candidate.variants {
+                        if let VariantKind::Named(value) = &variant.kind {
+                            for (index, (_, definition)) in variants.iter().enumerate() {
+                                let (matched, resolved) =
+                                    resolve_registry_variant(definition, value, &theme);
+                                if matched {
+                                    matched_variants.insert(index);
+                                }
+                                if resolved.is_some() {
+                                    resolved_variants.insert(index);
+                                }
+                            }
+                            let baseline = resolve_registry_variant_branches(
+                                variants
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(index, (_, definition))| (index, definition)),
+                                value,
+                                &theme,
+                            );
+                            for excluded in 0..variants.len() {
+                                let without = resolve_registry_variant_branches(
+                                    variants
+                                        .iter()
+                                        .enumerate()
+                                        .filter(|(index, _)| *index != excluded)
+                                        .map(|(index, (_, definition))| (index, definition)),
+                                    value,
+                                    &theme,
+                                );
+                                if without != baseline {
+                                    used_variants.insert(excluded);
+                                }
+                            }
+                        }
+                    }
+                    let Utility::Named { name, modifier } = &candidate.utility else {
+                        continue;
+                    };
+                    let lookup = if candidate.negative {
+                        format!("-{name}")
+                    } else {
+                        name.clone()
+                    };
+                    let matched = matched_registry_utilities(&utilities, &lookup);
+                    matched_utilities.extend(matched.iter().map(|(index, _)| *index));
+                    resolved_utilities.extend(matched.iter().filter_map(|(index, definition)| {
+                        resolve_css_utility_body(definition, &lookup, modifier.as_ref(), &theme)
+                            .map(|_| *index)
+                    }));
+                    let baseline = resolve_css_utility_branches(
+                        matched.iter().map(|(_, definition)| *definition),
+                        &lookup,
+                        modifier.as_ref(),
+                        &theme,
+                    );
+                    for (excluded, _) in &matched {
+                        let without = resolve_css_utility_branches(
+                            matched
+                                .iter()
+                                .filter(|(index, _)| index != excluded)
+                                .map(|(_, definition)| *definition),
+                            &lookup,
+                            modifier.as_ref(),
+                            &theme,
+                        );
+                        if without != baseline {
+                            used_utilities.insert(*excluded);
+                        }
+                    }
+                }
+            }
+        }
+
+        let never_matched_utilities = utilities
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !matched_utilities.contains(index))
+            .map(|(_, (label, _))| label.as_str())
+            .collect::<Vec<_>>();
+        let unresolved_utilities = utilities
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                matched_utilities.contains(index) && !resolved_utilities.contains(index)
+            })
+            .map(|(_, (label, _))| label.as_str())
+            .collect::<Vec<_>>();
+        let non_contributing_utilities = utilities
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                resolved_utilities.contains(index) && !used_utilities.contains(index)
+            })
+            .map(|(_, (label, _))| label.as_str())
+            .collect::<Vec<_>>();
+        let never_matched_variants = variants
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !matched_variants.contains(index))
+            .map(|(_, (label, _))| label.as_str())
+            .collect::<Vec<_>>();
+        let unresolved_variants = variants
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                matched_variants.contains(index) && !resolved_variants.contains(index)
+            })
+            .map(|(_, (label, _))| label.as_str())
+            .collect::<Vec<_>>();
+        let shadowed_variants = variants
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                resolved_variants.contains(index) && !used_variants.contains(index)
+            })
+            .map(|(_, (label, _))| label.as_str())
+            .collect::<Vec<_>>();
+        let mut duplicate_utilities = HashMap::<(&str, &str), Vec<&str>>::new();
+        for (label, utility) in &utilities {
+            duplicate_utilities
+                .entry((&utility.name, &utility.body))
+                .or_default()
+                .push(label);
+        }
+        let mut duplicate_utility_groups = duplicate_utilities
+            .into_values()
+            .filter(|labels| labels.len() > 1)
+            .map(|labels| labels.join(" = "))
+            .collect::<Vec<_>>();
+        duplicate_utility_groups.sort();
+        eprintln!(
+            "registry audit: {candidate_count} candidates, {skipped_scope_candidates} out-of-scope candidates, {theme_parse_failures} theme parse failures, {candidate_parse_failures} candidate parse failures, {}/{} utility definitions contribute, {}/{} variant definitions contribute",
+            used_utilities.len(),
+            utilities.len(),
+            used_variants.len(),
+            variants.len()
+        );
+        eprintln!(
+            "utility definitions never matched ({}):\n{}",
+            never_matched_utilities.len(),
+            never_matched_utilities.join("\n")
+        );
+        eprintln!(
+            "utility definitions matched but never resolved ({}):\n{}",
+            unresolved_utilities.len(),
+            unresolved_utilities.join("\n")
+        );
+        eprintln!(
+            "utility definitions resolved but never contributed ({}):\n{}",
+            non_contributing_utilities.len(),
+            non_contributing_utilities.join("\n")
+        );
+        eprintln!(
+            "exact duplicate utility groups ({}):\n{}",
+            duplicate_utility_groups.len(),
+            duplicate_utility_groups.join("\n")
+        );
+        eprintln!(
+            "variant definitions never matched ({}):\n{}",
+            never_matched_variants.len(),
+            never_matched_variants.join("\n")
+        );
+        eprintln!(
+            "variant definitions matched but never resolved ({}):\n{}",
+            unresolved_variants.len(),
+            unresolved_variants.join("\n")
+        );
+        eprintln!(
+            "variant definitions resolved but never contributed ({}):\n{}",
+            shadowed_variants.len(),
+            shadowed_variants.join("\n")
         );
     }
 }
