@@ -15,33 +15,6 @@
 @utility @container-normal {
   container-type: normal;
 }
-@utility block {
-  display: block;
-}
-@utility inline-block {
-  display: inline-block;
-}
-@utility contents {
-  display: contents;
-}
-@utility flow-root {
-  display: flow-root;
-}
-@utility flex {
-  display: flex;
-}
-@utility inline-flex {
-  display: inline-flex;
-}
-@utility flex-row {
-  flex-direction: row;
-}
-@utility flex-col {
-  flex-direction: column;
-}
-@utility flex-wrap {
-  flex-wrap: wrap;
-}
 @utility flex-1 {
   flex: 1 1 0%;
 }
@@ -56,51 +29,6 @@
 }
 @utility shrink-0 {
   flex-shrink: 0;
-}
-@utility grid {
-  display: grid;
-}
-@utility hidden {
-  display: none;
-}
-@utility visible {
-  visibility: visible;
-}
-@utility invisible {
-  visibility: hidden;
-}
-@utility place-items-center {
-  place-items: center;
-}
-@utility place-content-center {
-  place-content: center;
-}
-@utility items-center {
-  align-items: center;
-}
-@utility items-start {
-  align-items: flex-start;
-}
-@utility items-end {
-  align-items: flex-end;
-}
-@utility justify-center {
-  justify-content: center;
-}
-@utility justify-between {
-  justify-content: space-between;
-}
-@utility justify-start {
-  justify-content: flex-start;
-}
-@utility justify-end {
-  justify-content: flex-end;
-}
-@utility text-center {
-  text-align: center;
-}
-@utility text-left {
-  text-align: left;
 }
 @utility font-medium {
   --tw-font-weight: var(--font-weight-medium);
@@ -218,21 +146,6 @@
 }
 @utility cursor-nwse-resize {
   cursor: nwse-resize;
-}
-@utility relative {
-  position: relative;
-}
-@utility absolute {
-  position: absolute;
-}
-@utility fixed {
-  position: fixed;
-}
-@utility sticky {
-  position: sticky;
-}
-@utility static {
-  position: static;
 }
 @utility border {
   border-style: var(--tw-border-style);

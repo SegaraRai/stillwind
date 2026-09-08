@@ -244,6 +244,3 @@
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
   --tw-mask-linear-position: calc(1deg * -1 * --value(integer));
 }
-@utility text-(length:*) {
-  font-size: --value([length]);
-}

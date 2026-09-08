@@ -2,11 +2,6 @@
  * `--modifier-map` is registry syntax, so user-defined utilities get the
  * same checked modifier behaviour without a JavaScript-side special case. */
 @utility bg-conic {
-  --stillwind-modifier-guard: --modifier-none();
-  --tw-gradient-position: in oklab;
-  background-image: conic-gradient(var(--tw-gradient-stops));
-}
-@utility bg-conic {
   --tw-gradient-position: --modifier-map(
     oklab: in oklab,
     oklch: in oklch,

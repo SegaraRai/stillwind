@@ -800,8 +800,9 @@ fn registered_variant_candidates<'a, 'b>(
     for variant in variants.iter().rev() {
         if variant.name == value {
             candidates.push((variant, None));
-            continue;
         }
+    }
+    for variant in variants.iter().rev() {
         let Some(prefix) = variant.name.strip_suffix('*') else {
             continue;
         };
@@ -2866,6 +2867,18 @@ mod tests {
                 "&:has(:checked)".to_owned()
             ))
         );
+        assert_eq!(
+            resolve("in-range:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                "&:in-range".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve("not-focus:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                "&:not(:focus)".to_owned()
+            ))
+        );
     }
 
     #[test]
@@ -3672,12 +3685,13 @@ mod tests {
         (matched, resolved)
     }
 
-    fn resolve_registry_variant_branches<'a>(
-        definitions: impl DoubleEndedIterator<Item = (usize, &'a CustomVariant)>,
+    fn resolve_registry_variant_branches(
+        definitions: &[(String, CustomVariant)],
+        excluded: Option<usize>,
         value: &str,
         theme: &ThemeIndex,
     ) -> Option<VariantApplication> {
-        definitions.rev().find_map(|(_, custom)| {
+        let resolve = |custom: &CustomVariant| {
             registered_variant_candidates(std::slice::from_ref(custom), value)
                 .into_iter()
                 .find_map(|(custom, capture)| {
@@ -3688,7 +3702,23 @@ mod tests {
                             .map(VariantApplication::SelectorTemplate)
                     })
                 })
-        })
+        };
+        definitions
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|(index, (_, custom))| Some(*index) != excluded && custom.name == value)
+            .find_map(|(_, (_, custom))| resolve(custom))
+            .or_else(|| {
+                definitions
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter(|(index, (_, custom))| {
+                        Some(*index) != excluded && custom.name.ends_with('*')
+                    })
+                    .find_map(|(_, (_, custom))| resolve(custom))
+            })
     }
 
     #[test]
@@ -3759,21 +3789,12 @@ mod tests {
                                     resolved_variants.insert(index);
                                 }
                             }
-                            let baseline = resolve_registry_variant_branches(
-                                variants
-                                    .iter()
-                                    .enumerate()
-                                    .map(|(index, (_, definition))| (index, definition)),
-                                value,
-                                &theme,
-                            );
+                            let baseline =
+                                resolve_registry_variant_branches(&variants, None, value, &theme);
                             for excluded in 0..variants.len() {
                                 let without = resolve_registry_variant_branches(
-                                    variants
-                                        .iter()
-                                        .enumerate()
-                                        .filter(|(index, _)| *index != excluded)
-                                        .map(|(index, (_, definition))| (index, definition)),
+                                    &variants,
+                                    Some(excluded),
                                     value,
                                     &theme,
                                 );
@@ -3919,6 +3940,24 @@ mod tests {
             "variant definitions resolved but never contributed ({}):\n{}",
             shadowed_variants.len(),
             shadowed_variants.join("\n")
+        );
+        assert!(
+            never_matched_utilities.is_empty(),
+            "every utility definition must have fixture coverage"
+        );
+        assert!(
+            unresolved_utilities.is_empty(),
+            "every matched utility definition must resolve in a fixture"
+        );
+        assert!(
+            duplicate_utility_groups.is_empty(),
+            "exact duplicate utility definitions must be removed"
+        );
+        assert!(
+            never_matched_variants.is_empty()
+                && unresolved_variants.is_empty()
+                && shadowed_variants.is_empty(),
+            "every variant definition must contribute in a fixture"
         );
     }
 }

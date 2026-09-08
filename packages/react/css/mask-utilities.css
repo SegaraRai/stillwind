@@ -249,9 +249,6 @@
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);
 }
-@utility outline-offset-* {
-  outline-offset: --value(--spacing-*, --spacing(), [length]);
-}
 @utility -outline-offset-* {
   outline-offset: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
@@ -589,9 +586,6 @@
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
     var(--tw-backdrop-sepia,);
-}
-@utility underline-offset-* {
-  text-underline-offset: --value(--spacing-*, --spacing(), [length]);
 }
 @utility -underline-offset-* {
   text-underline-offset: calc(--value(--spacing-*, --spacing(), [length]) * -1);
