@@ -1158,6 +1158,21 @@ pub fn parse_declaration_formats(css: &str) -> BTreeMap<String, String> {
     extract_declaration_formats(css)
 }
 
+/// Resolves declaration metadata by exact property name first, then by an
+/// authored single-wildcard property pattern.
+#[must_use]
+pub fn declaration_format<'a>(
+    formats: &'a BTreeMap<String, String>,
+    property: &str,
+) -> Option<&'a str> {
+    formats.get(property).map(String::as_str).or_else(|| {
+        formats.iter().find_map(|(pattern, format)| {
+            let (prefix, suffix) = pattern.split_once('*')?;
+            (property.starts_with(prefix) && property.ends_with(suffix)).then_some(format.as_str())
+        })
+    })
+}
+
 /// Canonicalizes serializer-only transparent color spellings emitted by CSS
 /// color conversion. This is independent of any utility or framework name.
 pub fn normalize_serialized_declaration(value: &str) -> String {
@@ -1167,6 +1182,417 @@ pub fn normalize_serialized_declaration(value: &str) -> String {
             "#0000",
         )
         .replace(":oklab(0% none none/0);", ":#0000;")
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum MathValue {
+    Number(f64),
+    Dimension(f64, String),
+    Percentage(f64),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum MathExpression {
+    Value(MathValue),
+    Atom(String),
+    Sum(Box<Self>, Box<Self>),
+    Product(Box<Self>, Box<Self>),
+    Quotient(Box<Self>, Box<Self>),
+    Negate(Box<Self>),
+}
+
+impl MathExpression {
+    fn negate(self) -> Self {
+        match self {
+            Self::Value(MathValue::Number(value)) => Self::Value(MathValue::Number(-value)),
+            Self::Value(MathValue::Dimension(value, unit)) => {
+                Self::Value(MathValue::Dimension(-value, unit))
+            }
+            Self::Value(MathValue::Percentage(value)) => Self::Value(MathValue::Percentage(-value)),
+            Self::Negate(value) => *value,
+            value => Self::Negate(Box::new(value)),
+        }
+    }
+
+    fn product(left: Self, right: Self) -> Self {
+        if left.is_negative_numeric() || right.is_negative_numeric() {
+            return Self::Product(Box::new(left), Box::new(right));
+        }
+        match (left, right) {
+            (Self::Value(MathValue::Number(0.0)), value)
+            | (value, Self::Value(MathValue::Number(0.0))) => value
+                .numeric_unit()
+                .map_or(Self::Value(MathValue::Number(0.0)), |unit| {
+                    Self::Value(MathValue::Dimension(0.0, unit.to_owned()))
+                }),
+            (Self::Value(MathValue::Number(1.0)), value)
+            | (value, Self::Value(MathValue::Number(1.0))) => value,
+            (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
+                Self::Value(MathValue::Number(left * right))
+            }
+            (
+                Self::Value(MathValue::Number(scale)),
+                Self::Value(MathValue::Dimension(value, unit)),
+            )
+            | (
+                Self::Value(MathValue::Dimension(value, unit)),
+                Self::Value(MathValue::Number(scale)),
+            ) => Self::Value(MathValue::Dimension(value * scale, unit)),
+            (Self::Value(MathValue::Number(scale)), Self::Value(MathValue::Percentage(value)))
+            | (Self::Value(MathValue::Percentage(value)), Self::Value(MathValue::Number(scale))) => {
+                Self::Value(MathValue::Percentage(value * scale))
+            }
+            (left, right) => Self::Product(Box::new(left), Box::new(right)),
+        }
+    }
+
+    fn is_negative_numeric(&self) -> bool {
+        matches!(
+            self,
+            Self::Value(
+                MathValue::Number(value)
+                    | MathValue::Dimension(value, _)
+                    | MathValue::Percentage(value)
+            ) if *value < 0.0
+        )
+    }
+
+    fn sum(left: Self, right: Self) -> Self {
+        match (left, right) {
+            (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
+                Self::Value(MathValue::Number(left + right))
+            }
+            (
+                Self::Value(MathValue::Dimension(left, left_unit)),
+                Self::Value(MathValue::Dimension(right, right_unit)),
+            ) if left_unit.eq_ignore_ascii_case(&right_unit) => {
+                Self::Value(MathValue::Dimension(left + right, left_unit))
+            }
+            (
+                Self::Value(MathValue::Percentage(left)),
+                Self::Value(MathValue::Percentage(right)),
+            ) => Self::Value(MathValue::Percentage(left + right)),
+            (left, right) => Self::Sum(Box::new(left), Box::new(right)),
+        }
+    }
+
+    fn numeric_unit(&self) -> Option<&str> {
+        match self {
+            Self::Value(MathValue::Dimension(_, unit)) => Some(unit),
+            Self::Product(left, right) | Self::Quotient(left, right) | Self::Sum(left, right) => {
+                left.numeric_unit().or_else(|| right.numeric_unit())
+            }
+            Self::Negate(value) => value.numeric_unit(),
+            Self::Value(MathValue::Number(_) | MathValue::Percentage(_)) | Self::Atom(_) => None,
+        }
+    }
+
+    fn precedence(&self) -> u8 {
+        match self {
+            Self::Sum(..) => 1,
+            Self::Product(..) | Self::Quotient(..) => 2,
+            Self::Negate(..) => 3,
+            Self::Value(..) | Self::Atom(..) => 4,
+        }
+    }
+
+    fn serialize(&self, parent_precedence: u8) -> String {
+        let precedence = self.precedence();
+        let value = match self {
+            Self::Value(MathValue::Number(value)) => serialize_number(*value),
+            Self::Value(MathValue::Dimension(value, unit)) => {
+                format!("{}{unit}", serialize_number(*value))
+            }
+            Self::Value(MathValue::Percentage(value)) => format!("{}%", serialize_number(*value)),
+            Self::Atom(value) => value.clone(),
+            Self::Sum(left, right) => format!(
+                "{} + {}",
+                left.serialize(precedence),
+                right.serialize(precedence)
+            ),
+            Self::Product(left, right) => format!(
+                "{} * {}",
+                left.serialize(precedence),
+                right.serialize(precedence)
+            ),
+            Self::Quotient(left, right) => format!(
+                "{} / {}",
+                left.serialize(precedence),
+                right.serialize(precedence + 1)
+            ),
+            Self::Negate(value) => format!("-{}", value.serialize(precedence)),
+        };
+        if precedence < parent_precedence {
+            format!("({value})")
+        } else {
+            value
+        }
+    }
+}
+
+fn serialize_number(value: f64) -> String {
+    if value == 0.0 {
+        return "0".to_owned();
+    }
+    if value.fract() == 0.0 {
+        return format!("{value:.0}");
+    }
+    let mut value = value.to_string();
+    if let Some(fraction) = value.strip_prefix("0.") {
+        value = format!(".{fraction}");
+    } else if let Some(fraction) = value.strip_prefix("-0.") {
+        value = format!("-.{fraction}");
+    }
+    value
+}
+
+struct MathParser<'a> {
+    input: &'a str,
+    cursor: usize,
+}
+
+impl<'a> MathParser<'a> {
+    fn new(input: &'a str) -> Self {
+        Self { input, cursor: 0 }
+    }
+
+    fn parse(mut self) -> Option<MathExpression> {
+        let expression = self.parse_sum()?;
+        self.skip_whitespace();
+        (self.cursor == self.input.len()).then_some(expression)
+    }
+
+    fn parse_sum(&mut self) -> Option<MathExpression> {
+        let mut expression = self.parse_product()?;
+        loop {
+            self.skip_whitespace();
+            let Some(operator) = self.peek() else {
+                break;
+            };
+            if operator != '+' && operator != '-' {
+                break;
+            }
+            self.cursor += operator.len_utf8();
+            let right = self.parse_product()?;
+            expression = if operator == '-' {
+                MathExpression::sum(expression, right.negate())
+            } else {
+                MathExpression::sum(expression, right)
+            };
+        }
+        Some(expression)
+    }
+
+    fn parse_product(&mut self) -> Option<MathExpression> {
+        let mut expression = self.parse_unary()?;
+        loop {
+            self.skip_whitespace();
+            let Some(operator) = self.peek() else {
+                break;
+            };
+            if operator != '*' && operator != '/' {
+                break;
+            }
+            self.cursor += operator.len_utf8();
+            let right = self.parse_unary()?;
+            expression = if operator == '*' {
+                MathExpression::product(expression, right)
+            } else {
+                match (&expression, &right) {
+                    (_, MathExpression::Value(MathValue::Number(1.0))) => expression,
+                    _ => MathExpression::Quotient(Box::new(expression), Box::new(right)),
+                }
+            };
+        }
+        Some(expression)
+    }
+
+    fn parse_unary(&mut self) -> Option<MathExpression> {
+        self.skip_whitespace();
+        if self.peek() == Some('-') && !self.input[self.cursor..].starts_with("--") {
+            self.cursor += 1;
+            return Some(self.parse_unary()?.negate());
+        }
+        if self.peek() == Some('+') {
+            self.cursor += 1;
+            return self.parse_unary();
+        }
+        self.parse_atom()
+    }
+
+    fn parse_atom(&mut self) -> Option<MathExpression> {
+        self.skip_whitespace();
+        if self.peek() == Some('(') {
+            self.cursor += 1;
+            let expression = self.parse_sum()?;
+            self.skip_whitespace();
+            (self.peek() == Some(')')).then_some(())?;
+            self.cursor += 1;
+            return Some(expression);
+        }
+        if self
+            .peek()
+            .is_some_and(|character| character.is_ascii_digit() || character == '.')
+        {
+            return self.parse_numeric();
+        }
+        let start = self.cursor;
+        while self.peek().is_some_and(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+        }) {
+            self.cursor += self.peek()?.len_utf8();
+        }
+        if self.cursor == start {
+            return None;
+        }
+        if self.peek() == Some('(') {
+            let open = self.cursor;
+            let close = matching_parenthesis(self.input, open)?;
+            self.cursor = close + 1;
+        }
+        Some(MathExpression::Atom(
+            self.input[start..self.cursor].trim().to_owned(),
+        ))
+    }
+
+    fn parse_numeric(&mut self) -> Option<MathExpression> {
+        let start = self.cursor;
+        let mut decimal = false;
+        while let Some(character) = self.peek() {
+            if character.is_ascii_digit() {
+                self.cursor += 1;
+            } else if character == '.' && !decimal {
+                decimal = true;
+                self.cursor += 1;
+            } else {
+                break;
+            }
+        }
+        let number = self.input[start..self.cursor].parse::<f64>().ok()?;
+        if self.peek() == Some('%') {
+            self.cursor += 1;
+            return Some(MathExpression::Value(MathValue::Percentage(number)));
+        }
+        let unit_start = self.cursor;
+        while self
+            .peek()
+            .is_some_and(|character| character.is_ascii_alphabetic())
+        {
+            self.cursor += 1;
+        }
+        if unit_start == self.cursor {
+            Some(MathExpression::Value(MathValue::Number(number)))
+        } else {
+            Some(MathExpression::Value(MathValue::Dimension(
+                number,
+                self.input[unit_start..self.cursor].to_owned(),
+            )))
+        }
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.peek().is_some_and(char::is_whitespace) {
+            self.cursor += self.peek().map_or(0, char::len_utf8);
+        }
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.input[self.cursor..].chars().next()
+    }
+}
+
+fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for (offset, character) in value[open..].char_indices() {
+        if let Some(current_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == current_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' => depth += 1,
+            ')' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Parses and folds every valid `calc()` expression in a CSS fragment.
+///
+/// Invalid or currently unsupported expressions are retained byte-for-byte.
+#[must_use]
+pub fn fold_calc_expressions(value: &str) -> String {
+    fold_calc_expressions_with_zero_unit(value, None)
+}
+
+/// Parses and folds `calc()` expressions, assigning a dimension to a folded
+/// zero when the surrounding declaration metadata requires one.
+#[must_use]
+pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut cursor = 0;
+    while let Some(relative) = value[cursor..].find("calc(") {
+        let start = cursor + relative;
+        output.push_str(&value[cursor..start]);
+        let open = start + "calc".len();
+        let Some(close) = matching_parenthesis(value, open) else {
+            output.push_str(&value[start..]);
+            return output;
+        };
+        let expression = &value[open + 1..close];
+        if let Some(mut expression) = MathParser::new(expression).parse() {
+            if matches!(expression, MathExpression::Value(MathValue::Number(0.0)))
+                && let Some(unit) = zero_unit
+            {
+                expression = MathExpression::Value(MathValue::Dimension(0.0, unit.to_owned()));
+            }
+            let serialized = expression.serialize(0);
+            if matches!(
+                expression,
+                MathExpression::Value(_) | MathExpression::Atom(_)
+            ) {
+                output.push_str(&serialized);
+            } else {
+                output.push_str("calc(");
+                output.push_str(&serialized);
+                output.push(')');
+            }
+        } else {
+            output.push_str(&value[start..=close]);
+        }
+        cursor = close + 1;
+    }
+    output.push_str(&value[cursor..]);
+    output
+}
+
+/// Applies a declaration's length-zero format after parsing the value as CSS
+/// numeric syntax. Non-zero and non-numeric values are returned unchanged.
+#[must_use]
+pub fn format_numeric_zero(value: &str, unit: &str) -> String {
+    let folded = fold_calc_expressions_with_zero_unit(value, Some(unit));
+    if matches!(
+        MathParser::new(folded.trim()).parse(),
+        Some(MathExpression::Value(MathValue::Number(0.0)))
+    ) {
+        format!("0{unit}")
+    } else {
+        folded
+    }
 }
 
 pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
@@ -3011,6 +3437,16 @@ mod tests {
                 "--snap".to_owned(),
                 "--transform".to_owned(),
             ])
+        );
+    }
+
+    #[test]
+    fn folds_calc_expressions_through_a_numeric_syntax_tree() {
+        assert_eq!(
+            fold_calc_expressions(
+                "width:calc(2 * 1px);scale:calc(125 * 1%);left:calc(var(--spacing) * 4);right:calc((2px + 3px) * -1);"
+            ),
+            "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:calc(5px * -1);"
         );
     }
 }

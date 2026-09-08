@@ -1675,19 +1675,8 @@ fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
 ) -> String {
-    let declaration = declaration.to_owned();
-    let declaration = declaration
-        .replace(" deg", "deg")
-        .replace("deg*-1", "deg * -1")
-        .replace("*-1)", "* -1)");
+    let declaration = stillwind_css::fold_calc_expressions(declaration);
     let declaration = stillwind_css::normalize_serialized_declaration(&declaration);
-    // Canonicalize CSS math structurally for every declaration. This keeps
-    // unit/negative/angle handling independent of the utility name or
-    // property prefix.
-    let declaration = normalize_angle_calc(&normalize_negative_calc(
-        &normalize_signed_length_calc(&declaration),
-    ));
-    let declaration = normalize_zero_var_calc(&declaration, "0");
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
@@ -1794,7 +1783,7 @@ fn combine_declarations_with_order(
         for declaration in utility.declaration.split_terminator(';') {
             let compose_space = declaration
                 .split_once(':')
-                .and_then(|(property, _)| formats.get(property))
+                .and_then(|(property, _)| stillwind_css::declaration_format(formats, property))
                 .is_some_and(|format| {
                     format
                         .split_whitespace()
@@ -1814,13 +1803,12 @@ fn combine_declarations_with_order(
             } else if !declaration.is_empty() {
                 let declaration = if let Some((property, value)) = declaration.split_once(':')
                     && value.is_empty()
-                    && formats
-                        .get(property)
+                    && stillwind_css::declaration_format(formats, property)
                         .is_some_and(|format| format == "empty-space")
                 {
                     format!("{property}: ")
                 } else if let Some((property, value)) = declaration.split_once(':')
-                    && formats.get(property).is_some_and(|format| {
+                    && stillwind_css::declaration_format(formats, property).is_some_and(|format| {
                         format.split_whitespace().any(|item| item == "comma-space")
                     })
                 {
@@ -1828,27 +1816,10 @@ fn combine_declarations_with_order(
                 } else {
                     declaration.to_owned()
                 };
-                let declaration = declaration
-                    .replace(" deg", "deg")
-                    .replace("deg*-1", "deg * -1")
-                    .replace("*-1)", "* -1)");
-                let zero = if declaration.contains("deg") || declaration.contains("px") {
-                    "0px"
-                } else {
-                    "0"
-                };
-                let declaration = normalize_zero_var_calc(&declaration, zero);
-                let declaration = declaration.replace("*-1", " * -1");
                 // Keep fallback `var()` comma spacing generic across all
                 // declaration values.
                 let declaration = declaration.replace(",var(", ", var(");
-                let declaration = if declaration.contains("deg") {
-                    normalize_angle_calc(&normalize_negative_calc(&declaration))
-                } else {
-                    normalize_angle_calc(&normalize_negative_calc(&normalize_signed_length_calc(
-                        &declaration,
-                    )))
-                };
+                let declaration = stillwind_css::fold_calc_expressions(&declaration);
                 ordered.push(declaration);
             }
         }
@@ -1887,68 +1858,6 @@ fn combine_declarations_with_order(
         declarations.push(';');
     }
     declarations
-}
-
-fn normalize_negative_calc(value: &str) -> String {
-    let mut normalized = value.to_owned();
-    for number in 0..=1000 {
-        let compact = format!("calc({number}* -1)");
-        let spaced = format!("calc({number} * -1)");
-        normalized = normalized.replace(&compact, &spaced);
-        normalized = normalized.replace(
-            &format!("calc({number}*1px*"),
-            &format!("calc({number}px * "),
-        );
-    }
-    normalized = normalized
-        .replace(")* var(", ") * var(")
-        .replace(")* calc(", ") * calc(");
-    normalized
-}
-
-fn normalize_signed_length_calc(value: &str) -> String {
-    let mut normalized = value.to_owned();
-    for unit in ["px", "rem", "em", "%", "vh", "vw"] {
-        for number in 0..=1000 {
-            normalized = normalized.replace(
-                &format!("calc({number}{unit} * -1)"),
-                &if number == 0 {
-                    format!("0{unit}")
-                } else {
-                    format!("-{number}{unit}")
-                },
-            );
-        }
-    }
-    normalized
-}
-
-fn normalize_angle_calc(value: &str) -> String {
-    let mut normalized = value.to_owned();
-    for number in 0..=1000 {
-        normalized = normalized
-            .replace(&format!("calc({number}*1deg)"), &format!("{number}deg"))
-            .replace(&format!("calc({number} * 1deg)"), &format!("{number}deg"));
-    }
-    normalized
-}
-
-fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
-    let mut output = value.to_owned();
-    let mut cursor = 0;
-    while let Some(relative) = output[cursor..].find("calc(var(--") {
-        let start = cursor + relative;
-        let Some(close) = output[start..]
-            .find(") * 0)")
-            .or_else(|| output[start..].find(")*0)"))
-        else {
-            break;
-        };
-        let end = start + close + 6;
-        output.replace_range(start..end, replacement);
-        cursor = start + replacement.len();
-    }
-    output
 }
 
 fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, usize)> {

@@ -103,7 +103,7 @@ proptest! {
         let result = compile_one_utility(&utility);
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
         let padding = format!("padding:calc(var(--spacing)*{n});");
-        let border = format!("border-width:calc({n}*1px);");
+        let border = format!("border-width:{n}px;");
         let z_index = format!("z-index:{n};");
         let css = normalize_css(&result.css);
         prop_assert!(
@@ -1103,7 +1103,7 @@ const props = style("-mt-4 duration-120 ease-standard");"#,
             .contains("margin-top:calc(var(--spacing-4) * -1);")
     );
     assert!(
-        result.css.contains("--tw-duration:calc(120*1ms);"),
+        result.css.contains("--tw-duration:120ms;"),
         "{}",
         result.css
     );
@@ -1321,7 +1321,7 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&
     assert!(
         result
             .css
-            .contains("from{opacity:0;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);}")
+            .contains("from{opacity:0;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}")
     );
     assert!(result.css.contains("animation-name:--sw-a-"));
     assert!(result.css.contains("animation-duration:"));

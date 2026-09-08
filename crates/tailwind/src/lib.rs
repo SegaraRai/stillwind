@@ -353,94 +353,7 @@ fn is_word_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
 }
 
-/// Normalizes CSS angle multiplication expressions independent of utility or property.
-fn normalize_angle_multipliers(mut declaration: &str) -> String {
-    let mut output = String::with_capacity(declaration.len());
-    while let Some(start) = declaration.find("calc(1deg*") {
-        output.push_str(&declaration[..start]);
-        let rest = &declaration[start + 10..];
-        let (negative, digits) = if let Some(rest) = rest.strip_prefix("-1*") {
-            (true, rest)
-        } else {
-            (false, rest)
-        };
-        let Some(end) = digits.find(')') else {
-            output.push_str(&declaration[start..]);
-            return output;
-        };
-        let amount = &digits[..end];
-        if amount.is_empty() || !amount.chars().all(|character| character.is_ascii_digit()) {
-            output.push_str(&declaration[start..start + 10]);
-            declaration = rest;
-            continue;
-        }
-        if negative {
-            write!(output, "calc({amount}deg * -1)").expect("writing to a String cannot fail");
-        } else {
-            output.push_str(&declaration[start..=start + 10 + end]);
-        }
-        declaration = &digits[end + 1..];
-    }
-    output.push_str(declaration);
-    output
-}
-
-/// Normalizes whitespace around signed angle products independently of the utility that produced the expression.
-fn normalize_spaced_angle_products(value: &str) -> String {
-    let mut output = value.to_owned();
-    while let Some(end) = output.find(" deg*-1)") {
-        let number_end = end;
-        let Some(space) = output[..number_end].rfind(' ') else {
-            break;
-        };
-        let number_start = space + 1;
-        let calc_start = output[..number_start].rfind("calc(");
-        let Some(calc_start) = calc_start else { break };
-        let number = &output[number_start..number_end];
-        let replacement = format!("calc({number}deg * -1)");
-        output.replace_range(calc_start..end + " deg*-1)".len(), &replacement);
-    }
-    output
-}
-
-fn normalize_zero_var_calc(value: &str, replacement: &str) -> String {
-    let mut output = value.to_owned();
-    let mut cursor = 0;
-    while let Some(relative) = output[cursor..].find("calc(var(--") {
-        let start = cursor + relative;
-        let Some(close) = output[start..]
-            .find(") * 0)")
-            .or_else(|| output[start..].find(")*0)"))
-        else {
-            break;
-        };
-        let end = start + close + 6;
-        output.replace_range(start..end, replacement);
-        cursor = start + replacement.len();
-    }
-    output
-}
-
-fn normalize_calc_var_operators(mut declaration: String) -> String {
-    let mut cursor = 0;
-    while cursor < declaration.len() {
-        let Some(relative) = declaration[cursor..].find(';') else {
-            break;
-        };
-        let end = cursor + relative;
-        let segment = &declaration[cursor..end];
-        if segment.contains("calc(var(--") {
-            let normalized = segment.replace(" * ", "*").replace('*', " * ");
-            declaration.replace_range(cursor..end, &normalized);
-            cursor += normalized.len() + 1;
-        } else {
-            cursor = end + 1;
-        }
-    }
-    declaration
-}
-
-fn normalize_var_fallbacks(value: &str) -> String {
+fn normalize_var_fallbacks(value: &str, add_missing: bool) -> String {
     let mut output = String::with_capacity(value.len());
     let mut cursor = 0;
     while let Some(relative) = value[cursor..].find("var(--") {
@@ -456,9 +369,17 @@ fn normalize_var_fallbacks(value: &str) -> String {
         };
         let expression = &value[open + 1..close];
         output.push_str(&value[start..=open]);
-        output.push_str(expression);
-        if !expression.contains(',') {
+        if let Some((name, fallback)) = expression.split_once(',') {
+            output.push_str(name.trim());
             output.push(',');
+            if !fallback.trim().is_empty() {
+                output.push_str(fallback);
+            }
+        } else if add_missing {
+            output.push_str(expression);
+            output.push(',');
+        } else {
+            output.push_str(expression);
         }
         output.push(')');
         cursor = close + 1;
@@ -486,85 +407,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         resolution.declaration
     };
     declaration = normalize_format_var_fallbacks(declaration, theme);
-    declaration = normalize_calc_var_operators(declaration);
     declaration = apply_declaration_formats(declaration, theme);
-    // Tailwind canonicalizes zero-angle conic values instead of retaining the
-    // registry's unit multiplier expression.
-    declaration = declaration
-        .replace("calc(1 deg*-1*", "calc(1deg*-1*")
-        .replace("calc(1 deg * -1 *", "calc(1deg*-1*")
-        .replace("calc(1deg * -1 *", "calc(1deg*-1*");
-    declaration = normalize_angle_multipliers(&declaration);
-    declaration = declaration.replace("calc(0 deg*-1)", "calc(0deg * -1)");
-    declaration = normalize_spaced_angle_products(&declaration);
-    if declaration.contains("deg") && declaration.contains("* -1") {
-        for number in 2..=1000 {
-            declaration = declaration.replace(
-                &format!("calc({number}deg * -1)"),
-                &format!("calc(1deg * -{number})"),
-            );
-        }
-        declaration = declaration
-            .replace("calc(1deg * -1)", "-1deg")
-            .replace("calc(0deg * -1)", "0deg");
-    }
-    if declaration.contains("-reverse") {
-        declaration = declaration
-            .replace("* -1*calc(1 - var(", " * calc(1 - var(")
-            .replace(")*-1*calc(1 - var(", ") * calc(1 - var(")
-            .replace("* -1*var(", " * var(")
-            .replace(")*-1*var(", ") * var(")
-            .replace(")*-1*", ") * ")
-            .replace("calc(calc(1px * -1) * ", "calc(-1px * ");
-    }
-    if declaration.contains("-reverse") {
-        declaration = declaration
-            .replace("calc(calc(var(--spacing) * 1)*", "calc(var(--spacing) * ")
-            .replace("px*", "px *")
-            .replace("*var(", "* var(")
-            .replace("*calc(1 - var(", "* calc(1 - var(");
-    }
     declaration = apply_zero_length_format(declaration, theme);
-    declaration = normalize_zero_var_calc(&declaration, "0");
-    declaration = declaration.replace("calc(var(--spacing) * 1)", "var(--spacing)");
-    if declaration.contains("calc(var(--spacing) * -1)") {
-        declaration = declaration
-            .replace("calc(var(--spacing) * -1)", "-1px")
-            .replace("calc(var(--spacing)*-1)", "-1px");
-    }
-    for number in 0..=1000 {
-        declaration = declaration
-            .replace(&format!("calc({number}*1%)"), &format!("{number}%"))
-            .replace(&format!("calc({number}* -1%)"), &format!("-{number}%"))
-            .replace(
-                &format!("calc({number}*-1%)"),
-                &format!("calc({number}% * -1)"),
-            )
-            .replace(
-                &format!("skewX(calc({number}*1deg))"),
-                &format!("skewX({number}deg)"),
-            )
-            .replace(
-                &format!("skewX(calc({number}*-1deg))"),
-                &format!("skewX(calc({number}deg * -1))"),
-            )
-            .replace(
-                &format!("skewY(calc({number}*-1deg))"),
-                &format!("skewY(calc({number}deg * -1))"),
-            )
-            .replace(
-                &format!("rotateX(calc({number}*-1deg))"),
-                &format!("rotateX(calc({number}deg * -1))"),
-            )
-            .replace(
-                &format!("rotateY(calc({number}*-1deg))"),
-                &format!("rotateY(calc({number}deg * -1))"),
-            )
-            .replace(
-                &format!("rotateZ(calc({number}*-1deg))"),
-                &format!("rotateZ(calc({number}deg * -1))"),
-            );
-    }
+    declaration = stillwind_css::fold_calc_expressions(&declaration);
     let nested: Vec<NestedUtilityRule> = resolution
         .nested
         .into_iter()
@@ -629,24 +474,31 @@ fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> Stri
     } else {
         &theme.declaration_formats
     };
-    for (property, format) in formats {
-        if !format.split_whitespace().any(|item| item == "zero-length") {
-            continue;
-        }
-        let prefix = format!("{property}:");
-        let mut cursor = 0;
-        while let Some(relative) = declaration[cursor..].find(&prefix) {
-            let start = cursor + relative;
-            let end = declaration[start..]
-                .find(';')
-                .map_or(declaration.len(), |offset| start + offset);
-            let segment = normalize_zero_var_calc(&declaration[start..end], "0px");
-            declaration.replace_range(start..end, &segment);
-            cursor = start + segment.len();
-            if end == declaration.len() {
-                break;
-            }
-        }
+    let ranges = declaration
+        .split_terminator(';')
+        .scan(0, |cursor, segment| {
+            let start = *cursor;
+            *cursor += segment.len() + 1;
+            Some((start, start + segment.len(), segment))
+        })
+        .filter_map(|(start, end, segment)| {
+            let property = segment.split_once(':')?.0;
+            stillwind_css::declaration_format(formats, property)
+                .is_some_and(|format| format.split_whitespace().any(|item| item == "zero-length"))
+                .then_some((start, end))
+        })
+        .collect::<Vec<_>>();
+    for (start, end) in ranges.into_iter().rev() {
+        let segment = declaration[start..end].split_once(':').map_or_else(
+            || declaration[start..end].to_owned(),
+            |(property, value)| {
+                format!(
+                    "{property}:{}",
+                    stillwind_css::format_numeric_zero(value, "px")
+                )
+            },
+        );
+        declaration.replace_range(start..end, &segment);
     }
     declaration
 }
@@ -658,7 +510,11 @@ fn normalize_format_var_fallbacks(mut declaration: String, theme: &ThemeIndex) -
         &theme.declaration_formats
     };
     for (property, format) in formats {
-        if !format.split_whitespace().any(|item| item == "var-fallback") {
+        let add_missing = format.split_whitespace().any(|item| item == "var-fallback");
+        let normalize_empty = format
+            .split_whitespace()
+            .any(|item| item == "empty-var-fallback");
+        if !add_missing && !normalize_empty {
             continue;
         }
         let prefix = format!("{property}:");
@@ -668,7 +524,7 @@ fn normalize_format_var_fallbacks(mut declaration: String, theme: &ThemeIndex) -
             let end = declaration[start..]
                 .find(';')
                 .map_or(declaration.len(), |offset| start + offset);
-            let value = normalize_var_fallbacks(&declaration[start..end]);
+            let value = normalize_var_fallbacks(&declaration[start..end], add_missing);
             declaration.replace_range(start..end, &value);
             cursor = start + value.len();
             if end == declaration.len() {
@@ -2490,7 +2346,7 @@ mod tests {
         assert!(
             resolved
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg*45);"),
+                .contains("--tw-mask-conic-position:45deg;"),
             "{resolved:?}"
         );
         let negative =
@@ -2498,7 +2354,8 @@ mod tests {
         assert!(
             negative
                 .declaration
-                .contains("--tw-mask-conic-position:calc(1deg * -45);")
+                .contains("--tw-mask-conic-position:calc(1deg * -1 * 45);"),
+            "{negative:?}"
         );
     }
 
@@ -2508,7 +2365,7 @@ mod tests {
         assert!(
             default
                 .declaration
-                .contains("--tw-gradient-position:from calc(1deg*45) in oklab;"),
+                .contains("--tw-gradient-position:from 45deg in oklab;"),
             "{default:?}"
         );
         let interpolated =
@@ -2516,7 +2373,7 @@ mod tests {
         assert!(
             interpolated
                 .declaration
-                .contains("from calc(1deg*45) in oklch increasing hue")
+                .contains("from 45deg in oklch increasing hue")
         );
     }
 
@@ -3029,13 +2886,13 @@ mod tests {
             ("break-after-page", "break-after:page;"),
             ("z-auto", "z-index:auto;"),
             ("z-73", "z-index:73;"),
-            ("-z-73", "z-index:calc(73*-1);"),
-            ("border-13", "border-width:calc(13*1px);"),
+            ("-z-73", "z-index:calc(73 * -1);"),
+            ("border-13", "border-width:13px;"),
             ("col-span-full", "grid-column:1/-1;"),
             ("row-auto", "grid-row:auto;"),
             (
                 "rounded-tl-full",
-                "border-top-left-radius:calc(infinity*1px);",
+                "border-top-left-radius:calc(infinity * 1px);",
             ),
             ("touch-pan-left", "--tw-pan-x:pan-left;"),
         ] {
@@ -3077,7 +2934,7 @@ mod tests {
             ("ring", "--tw-ring-shadow:0 0 0 1px", None),
             (
                 "rounded-se-full",
-                "border-start-end-radius:calc(infinity*1px);",
+                "border-start-end-radius:calc(infinity * 1px);",
                 None,
             ),
         ] {
@@ -3374,7 +3231,7 @@ mod tests {
         );
         assert_eq!(
             resolve_utility("scale-[0.8]", &theme).unwrap().declaration,
-            "--tw-scale-x:0.8;--tw-scale-y:0.8;--tw-scale-z:0.8;scale:var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);"
+            "scale:0.8;"
         );
     }
 

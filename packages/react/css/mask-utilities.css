@@ -351,7 +351,7 @@
   --tw-scale-x: calc(--value(integer) * 1%);
   --tw-scale-y: calc(--value(integer) * 1%);
   --tw-scale-z: calc(--value(integer) * 1%);
-  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @utility scale-x-* {
   --tw-scale-x: calc(--value(integer) * 1%);
@@ -598,10 +598,7 @@
   grid-row-end: auto;
 }
 @utility scale-* {
-  --tw-scale-x: --value([number-percentage]);
-  --tw-scale-y: --value([number-percentage]);
-  --tw-scale-z: --value([number-percentage]);
-  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+  scale: --value([number-percentage]);
 }
 @utility order-* {
   order: --value([integer]);

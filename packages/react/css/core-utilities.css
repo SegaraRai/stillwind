@@ -364,16 +364,16 @@
   perspective: var(--perspective-dramatic);
 }
 @utility perspective-near {
-  perspective: 300px;
+  perspective: var(--perspective-near);
 }
 @utility perspective-normal {
   perspective: var(--perspective-normal);
 }
 @utility perspective-midrange {
-  perspective: 500px;
+  perspective: var(--perspective-midrange);
 }
 @utility perspective-distant {
-  perspective: 800px;
+  perspective: var(--perspective-distant);
 }
 @utility perspective-origin-center {
   perspective-origin: center;
