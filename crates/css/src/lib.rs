@@ -34,9 +34,9 @@ use stillwind_source::{FileId, SourceFile, Span, Spanned};
 use thiserror::Error;
 
 /// Tailwind CSS v4.3.3 Preflight, vendored under its MIT license.
-pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../packages/react/css/preflight.css");
+pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../css/preflight.css");
 
-const TAILWIND_V4_THEME: &str = include_str!("../../../packages/react/css/theme.css");
+const TAILWIND_V4_THEME: &str = include_str!("../../../css/theme.css");
 
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for

@@ -1,4 +1,4 @@
-@import "./css/theme.css" layer(theme);
-@import "./css/preflight.css" layer(base);
-@import "./css/utilities.css" layer(utilities);
-@import "./css/builtins.css";
+@import "./theme.css" layer(theme);
+@import "./preflight.css" layer(base);
+@import "./utilities.css" layer(utilities);
+@import "./builtins.css";

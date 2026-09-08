@@ -119,24 +119,24 @@ pub struct VariantDeclaration {
 }
 
 const BUILTIN_REGISTRY_CSS: &str = concat!(
-    include_str!("../../../packages/react/css/builtins.css"),
-    include_str!("../../../packages/react/css/registry-metadata.css"),
-    include_str!("../../../packages/react/css/relationship-metadata.css"),
-    include_str!("../../../packages/react/css/layout-utilities.css"),
-    include_str!("../../../packages/react/css/spacing-sizing-utilities.css"),
-    include_str!("../../../packages/react/css/flex-grid-utilities.css"),
-    include_str!("../../../packages/react/css/typography-utilities.css"),
-    include_str!("../../../packages/react/css/backgrounds-utilities.css"),
-    include_str!("../../../packages/react/css/borders-utilities.css"),
-    include_str!("../../../packages/react/css/effects-utilities.css"),
-    include_str!("../../../packages/react/css/masks-utilities.css"),
-    include_str!("../../../packages/react/css/transforms-utilities.css"),
-    include_str!("../../../packages/react/css/motion-utilities.css"),
-    include_str!("../../../packages/react/css/interactivity-utilities.css"),
-    include_str!("../../../packages/react/css/svg-utilities.css"),
-    include_str!("../../../packages/react/css/interaction-variants.css"),
-    include_str!("../../../packages/react/css/selector-variants.css"),
-    include_str!("../../../packages/react/css/properties.css"),
+    include_str!("../../../css/builtins.css"),
+    include_str!("../../../css/builtins/registry-metadata.css"),
+    include_str!("../../../css/builtins/relationship-metadata.css"),
+    include_str!("../../../css/builtins/layout-utilities.css"),
+    include_str!("../../../css/builtins/spacing-sizing-utilities.css"),
+    include_str!("../../../css/builtins/flex-grid-utilities.css"),
+    include_str!("../../../css/builtins/typography-utilities.css"),
+    include_str!("../../../css/builtins/backgrounds-utilities.css"),
+    include_str!("../../../css/builtins/borders-utilities.css"),
+    include_str!("../../../css/builtins/effects-utilities.css"),
+    include_str!("../../../css/builtins/masks-utilities.css"),
+    include_str!("../../../css/builtins/transforms-utilities.css"),
+    include_str!("../../../css/builtins/motion-utilities.css"),
+    include_str!("../../../css/builtins/interactivity-utilities.css"),
+    include_str!("../../../css/builtins/svg-utilities.css"),
+    include_str!("../../../css/builtins/interaction-variants.css"),
+    include_str!("../../../css/builtins/selector-variants.css"),
+    include_str!("../../../css/builtins/properties.css"),
 );
 
 struct BuiltinUtilityRegistry {
@@ -3743,77 +3743,74 @@ mod tests {
     }
 
     const REGISTRY_FILES: &[(&str, &str)] = &[
-        (
-            "builtins.css",
-            include_str!("../../../packages/react/css/builtins.css"),
-        ),
+        ("builtins.css", include_str!("../../../css/builtins.css")),
         (
             "registry-metadata.css",
-            include_str!("../../../packages/react/css/registry-metadata.css"),
+            include_str!("../../../css/builtins/registry-metadata.css"),
         ),
         (
             "relationship-metadata.css",
-            include_str!("../../../packages/react/css/relationship-metadata.css"),
+            include_str!("../../../css/builtins/relationship-metadata.css"),
         ),
         (
             "layout-utilities.css",
-            include_str!("../../../packages/react/css/layout-utilities.css"),
+            include_str!("../../../css/builtins/layout-utilities.css"),
         ),
         (
             "spacing-sizing-utilities.css",
-            include_str!("../../../packages/react/css/spacing-sizing-utilities.css"),
+            include_str!("../../../css/builtins/spacing-sizing-utilities.css"),
         ),
         (
             "flex-grid-utilities.css",
-            include_str!("../../../packages/react/css/flex-grid-utilities.css"),
+            include_str!("../../../css/builtins/flex-grid-utilities.css"),
         ),
         (
             "typography-utilities.css",
-            include_str!("../../../packages/react/css/typography-utilities.css"),
+            include_str!("../../../css/builtins/typography-utilities.css"),
         ),
         (
             "backgrounds-utilities.css",
-            include_str!("../../../packages/react/css/backgrounds-utilities.css"),
+            include_str!("../../../css/builtins/backgrounds-utilities.css"),
         ),
         (
             "borders-utilities.css",
-            include_str!("../../../packages/react/css/borders-utilities.css"),
+            include_str!("../../../css/builtins/borders-utilities.css"),
         ),
         (
             "effects-utilities.css",
-            include_str!("../../../packages/react/css/effects-utilities.css"),
+            include_str!("../../../css/builtins/effects-utilities.css"),
         ),
         (
             "masks-utilities.css",
-            include_str!("../../../packages/react/css/masks-utilities.css"),
+            include_str!("../../../css/builtins/masks-utilities.css"),
         ),
         (
             "transforms-utilities.css",
-            include_str!("../../../packages/react/css/transforms-utilities.css"),
+            include_str!("../../../css/builtins/transforms-utilities.css"),
         ),
         (
             "motion-utilities.css",
-            include_str!("../../../packages/react/css/motion-utilities.css"),
+            include_str!("../../../css/builtins/motion-utilities.css"),
         ),
         (
             "interactivity-utilities.css",
-            include_str!("../../../packages/react/css/interactivity-utilities.css"),
+            include_str!("../../../css/builtins/interactivity-utilities.css"),
         ),
         (
             "svg-utilities.css",
-            include_str!("../../../packages/react/css/svg-utilities.css"),
+            include_str!("../../../css/builtins/svg-utilities.css"),
         ),
         (
             "interaction-variants.css",
-            include_str!("../../../packages/react/css/interaction-variants.css"),
+            include_str!("../../../css/builtins/interaction-variants.css"),
         ),
         (
             "selector-variants.css",
-            include_str!("../../../packages/react/css/selector-variants.css"),
+            include_str!("../../../css/builtins/selector-variants.css"),
         ),
         (
             "properties.css",
-            include_str!("../../../packages/react/css/properties.css"),
+            include_str!("../../../css/builtins/properties.css"),
         ),
     ];
 

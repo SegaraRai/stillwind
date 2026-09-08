@@ -5,19 +5,26 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const cssRoot = path.resolve(packageRoot, "..", "..", "css");
 
 void test("the aggregate CSS entrypoint includes the built-in registry", () => {
   const css = readFileSync(path.join(packageRoot, "index.css"), "utf8");
-  assert.match(css, /@import "\.\/css\/theme\.css" layer\(theme\);/);
-  assert.match(css, /@import "\.\/css\/preflight\.css" layer\(base\);/);
-  assert.match(css, /@import "\.\/css\/utilities\.css" layer\(utilities\);/);
-  assert.match(css, /@import "\.\/css\/builtins\.css";/);
+  assert.match(css, /@import "\.\/theme\.css" layer\(theme\);/);
+  assert.match(css, /@import "\.\/preflight\.css" layer\(base\);/);
+  assert.match(css, /@import "\.\/utilities\.css" layer\(utilities\);/);
+  assert.match(css, /@import "\.\/builtins\.css";/);
+});
+
+void test("package CSS subpaths forward to the workspace CSS sources", () => {
+  for (const file of ["theme.css", "preflight.css", "utilities.css", "builtins.css"]) {
+    const css = readFileSync(path.join(packageRoot, file), "utf8");
+    assert.equal(css, `@import "../../css/${file}";\n`);
+  }
 });
 
 void test("builtins.css imports every split registry file", () => {
-  const cssRoot = path.join(packageRoot, "css");
   const css = readFileSync(path.join(cssRoot, "builtins.css"), "utf8");
-  const imports = [...css.matchAll(/@import "\.\/(.+\.css)";/g)].map((match) => match[1]);
+  const imports = [...css.matchAll(/@import "\.\/builtins\/(.+\.css)";/g)].map((match) => match[1]);
 
   assert.deepEqual(imports, [
     "registry-metadata.css",
@@ -38,5 +45,5 @@ void test("builtins.css imports every split registry file", () => {
     "selector-variants.css",
     "properties.css",
   ]);
-  assert(imports.every((file) => existsSync(path.join(cssRoot, file))));
+  assert(imports.every((file) => existsSync(path.join(cssRoot, "builtins", file))));
 });

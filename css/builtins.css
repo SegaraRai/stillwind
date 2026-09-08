@@ -1,0 +1,21 @@
+/* Stillwind's built-in registry manifest. Utility definitions are grouped by
+ * feature domain; overloads for one utility family stay in the same shard. */
+@import "./builtins/registry-metadata.css";
+@import "./builtins/relationship-metadata.css";
+
+@import "./builtins/layout-utilities.css";
+@import "./builtins/spacing-sizing-utilities.css";
+@import "./builtins/flex-grid-utilities.css";
+@import "./builtins/typography-utilities.css";
+@import "./builtins/backgrounds-utilities.css";
+@import "./builtins/borders-utilities.css";
+@import "./builtins/effects-utilities.css";
+@import "./builtins/masks-utilities.css";
+@import "./builtins/transforms-utilities.css";
+@import "./builtins/motion-utilities.css";
+@import "./builtins/interactivity-utilities.css";
+@import "./builtins/svg-utilities.css";
+
+@import "./builtins/interaction-variants.css";
+@import "./builtins/selector-variants.css";
+@import "./builtins/properties.css";
