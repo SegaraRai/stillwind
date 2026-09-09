@@ -44,8 +44,10 @@ transformation and participates in source order with the other built-in
 variants.
 */
 
-@import "./builtins/interaction-variants.css";
-@import "./builtins/selector-variants.css";
+@import "./builtins/state-variants.css";
+@import "./builtins/structural-variants.css";
+@import "./builtins/relationship-variants.css";
+@import "./builtins/conditional-variants.css";
 
 /*
 Load custom-property registrations used by the built-in utilities.

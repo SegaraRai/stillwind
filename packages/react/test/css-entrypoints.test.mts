@@ -41,8 +41,10 @@ void test("builtins.css imports every split registry file", () => {
     "motion-utilities.css",
     "interactivity-utilities.css",
     "svg-utilities.css",
-    "interaction-variants.css",
-    "selector-variants.css",
+    "state-variants.css",
+    "structural-variants.css",
+    "relationship-variants.css",
+    "conditional-variants.css",
     "properties.css",
   ]);
   assert(imports.every((file) => existsSync(path.join(cssRoot, "builtins", file))));

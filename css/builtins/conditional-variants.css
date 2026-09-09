@@ -1,0 +1,175 @@
+/* Built-in environment, responsive, and conditional variants. */
+
+@stillwind-variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+
+@stillwind-variant motion-safe {
+  @media (prefers-reduced-motion: no-preference) {
+    @slot;
+  }
+}
+
+@stillwind-variant motion-reduce {
+  @media (prefers-reduced-motion: reduce) {
+    @slot;
+  }
+}
+
+@stillwind-variant contrast-more {
+  @media (prefers-contrast: more) {
+    @slot;
+  }
+}
+
+@stillwind-variant contrast-less {
+  @media (prefers-contrast: less) {
+    @slot;
+  }
+}
+
+@stillwind-variant portrait {
+  @media (orientation: portrait) {
+    @slot;
+  }
+}
+
+@stillwind-variant landscape {
+  @media (orientation: landscape) {
+    @slot;
+  }
+}
+
+@stillwind-variant print {
+  @media print {
+    @slot;
+  }
+}
+
+@stillwind-variant forced-colors {
+  @media (forced-colors: active) {
+    @slot;
+  }
+}
+
+@stillwind-variant inverted-colors {
+  @media (inverted-colors: inverted) {
+    @slot;
+  }
+}
+
+@stillwind-variant pointer-fine {
+  @media (pointer: fine) {
+    @slot;
+  }
+}
+
+@stillwind-variant pointer-coarse {
+  @media (pointer: coarse) {
+    @slot;
+  }
+}
+
+@stillwind-variant pointer-none {
+  @media (pointer: none) {
+    @slot;
+  }
+}
+
+@stillwind-variant any-pointer-fine {
+  @media (any-pointer: fine) {
+    @slot;
+  }
+}
+
+@stillwind-variant any-pointer-coarse {
+  @media (any-pointer: coarse) {
+    @slot;
+  }
+}
+
+@stillwind-variant any-pointer-none {
+  @media (any-pointer: none) {
+    @slot;
+  }
+}
+
+@stillwind-variant noscript {
+  @media (scripting: none) {
+    @slot;
+  }
+}
+
+@stillwind-variant starting {
+  @starting-style {
+    @slot;
+  }
+}
+
+@stillwind-variant supports-* {
+  @supports (\*) {
+    @slot;
+  }
+}
+
+@stillwind-variant min-* {
+  @media (width >= --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant min-* {
+  @media (width >= --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant max-* {
+  @media (width < --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant max-* {
+  @media (width < --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant @min-* {
+  @container \{modifier\} (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant @min-* {
+  @container \{modifier\} (width >= --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant @max-* {
+  @container \{modifier\} (width < --value(--container-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant @max-* {
+  @container \{modifier\} (width < --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant @* {
+  @container \{modifier\} (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant @* {
+  @container \{modifier\} (width >= --value([length])) {
+    @slot;
+  }
+}
