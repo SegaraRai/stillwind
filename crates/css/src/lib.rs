@@ -1970,20 +1970,6 @@ pub fn parse_theme_order(css: &str) -> Vec<String> {
         .collect()
 }
 
-/// Parses the global declaration order used to sort compiled utilities and
-/// `@apply` expansions. Keeping this in the CSS registry lets the processor
-/// remain independent of individual CSS property and utility names.
-#[must_use]
-pub fn parse_property_order(css: &str) -> Vec<String> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-property-order"))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .flat_map(str::split_whitespace)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-        .collect()
-}
-
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }
@@ -4028,16 +4014,6 @@ mod tests {
         assert_eq!(
             theme.resolve_theme_references("\"--theme(--missing, initial)\""),
             Some("\"--theme(--missing, initial)\"".to_owned())
-        );
-    }
-
-    #[test]
-    fn parses_global_property_order_metadata() {
-        assert_eq!(
-            parse_property_order(
-                "@stillwind-property-order display background-color padding-inline;"
-            ),
-            vec!["display", "background-color", "padding-inline"]
         );
     }
 
