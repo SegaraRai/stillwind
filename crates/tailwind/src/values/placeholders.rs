@@ -132,3 +132,57 @@ pub(crate) fn resolve_css_placeholders(
         && !body.contains("--stillwind-builtin-shadow-color("))
     .then_some(body)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn placeholders_reject_incompatible_values_and_missing_modifiers() {
+        let theme = ThemeIndex::default();
+        assert_eq!(
+            resolve_css_placeholders(
+                "width:--value([length]);",
+                "w-*",
+                "w-[2px]",
+                None,
+                &theme,
+                CompatColorMode::Legacy
+            ),
+            Some("width:2px;".into())
+        );
+        assert_eq!(
+            resolve_css_placeholders(
+                "width:--value([length]);",
+                "w-*",
+                "w-[red]",
+                None,
+                &theme,
+                CompatColorMode::Legacy
+            ),
+            None
+        );
+        assert_eq!(
+            resolve_css_placeholders(
+                "opacity:--modifier([number]);",
+                "x-*",
+                "x-a",
+                None,
+                &theme,
+                CompatColorMode::Legacy
+            ),
+            None
+        );
+        assert_eq!(
+            resolve_css_placeholders(
+                "opacity:--alpha(.5);",
+                "x",
+                "x",
+                None,
+                &theme,
+                CompatColorMode::Legacy
+            ),
+            Some("opacity:50%;".into())
+        );
+    }
+}

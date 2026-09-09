@@ -140,3 +140,28 @@ pub(crate) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelec
         declarations,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_selector_media_supports_and_rejects_missing_slots() {
+        assert_eq!(
+            resolve_variant_body("&:hover { @slot; }"),
+            Some(VariantApplication::SelectorTemplate("&:hover".into()))
+        );
+        assert_eq!(
+            resolve_variant_body("@media (hover:hover) { @slot; }"),
+            Some(VariantApplication::Media("(hover:hover)".into()))
+        );
+        assert_eq!(
+            resolve_variant_body("@supports (display:grid) { @slot; }"),
+            Some(VariantApplication::Supports("display:grid".into()))
+        );
+        assert_eq!(resolve_variant_body("&:hover {color:red;}"), None);
+        assert!(split_variant_blocks("& { @slot; }").is_some());
+        assert!(split_variant_blocks("& {").is_none());
+        assert!(selector_rule_from_variant_body("& { @slot; } trailing").is_none());
+    }
+}

@@ -72,3 +72,46 @@ pub(crate) fn resolve_value_map_placeholders(
     }
     Some(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_maps_match_exact_keys_and_report_missing_captures() {
+        let mut body = "x:--value-map(sm: 1px, lg: calc(2px + 3px));".to_owned();
+        assert_eq!(
+            resolve_value_map_placeholders(&mut body, Some("lg")),
+            Some(())
+        );
+        assert_eq!(body, "x:calc(2px + 3px);");
+        assert_eq!(
+            resolve_value_map_placeholders(&mut "--value-map(sm:1)".into(), Some("s")),
+            None
+        );
+        assert_eq!(
+            resolve_value_map_placeholders(&mut "--value-map(sm:1)".into(), None),
+            None
+        );
+        let theme = ThemeIndex::default();
+        let mut literal = "x:--value-literal([number]);".to_owned();
+        assert_eq!(
+            resolve_literal_value_placeholders(
+                &mut literal,
+                Some("[2]"),
+                &theme,
+                CompatColorMode::Legacy
+            ),
+            Some(())
+        );
+        assert_eq!(literal, "x:2;");
+        assert_eq!(
+            resolve_theme_suffix_placeholders(
+                &mut "--stillwind-theme-suffix(invalid)".into(),
+                Some("x"),
+                &theme
+            ),
+            None
+        );
+    }
+}

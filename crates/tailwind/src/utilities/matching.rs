@@ -288,3 +288,52 @@ pub(crate) fn utility_branch_specificity(utility: &CustomUtility, name: &str) ->
     // arbitrary values among themselves.
     usize::from(utility.name == name) * 32 + typed_arbitrary * 4 + theme_domain * 2 + modifier
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn branch_merging_keeps_primary_values_and_adds_only_missing_properties() {
+        assert_eq!(
+            merge_branch_declarations("color:red;display:block;", "color:blue;width:1px;"),
+            "color:red;display:block;width:1px;"
+        );
+        assert_eq!(
+            declaration_property_names(" color:red; color:blue; width:1px;"),
+            HashSet::from(["color", "width"])
+        );
+        assert_eq!(unhinted_arbitrary_value("w-[2_px]"), Some("2 px".into()));
+        assert_eq!(unhinted_arbitrary_value("w-[length:2px]"), None);
+        assert_eq!(
+            unhinted_arbitrary_value("w-(--size)"),
+            Some("var(--size)".into())
+        );
+        assert_eq!(
+            infer_arbitrary_value_type("var(--x)", &[ValueType::Length]),
+            None
+        );
+        assert_eq!(
+            infer_arbitrary_value_type("red", &[ValueType::Length, ValueType::Color]),
+            Some(ValueType::Color)
+        );
+    }
+    #[test]
+    fn exact_branches_outrank_wildcards_and_value_types_are_deduplicated() {
+        let exact = CustomUtility {
+            name: "w-1".into(),
+            body: "width:--value([length]);x:--value([length]);".into(),
+            builtin_order: None,
+        };
+        let wildcard = CustomUtility {
+            name: "w-*".into(),
+            ..exact.clone()
+        };
+        assert_eq!(utility_value_types(&exact), vec![ValueType::Length]);
+        assert!(
+            utility_branch_specificity(&exact, "w-1")
+                > utility_branch_specificity(&wildcard, "w-1")
+        );
+        assert_eq!(matching_utilities(&[exact, wildcard], "missing").count(), 0);
+    }
+}

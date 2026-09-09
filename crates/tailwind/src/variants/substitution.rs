@@ -239,3 +239,48 @@ pub(crate) fn resolve_variant_value_domains(
         resolve_value_domains(domain, capture, theme)
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quoted_captures_and_typed_modifiers_require_complete_macros() {
+        assert_eq!(
+            substitute_quoted_variant_value(r#"&:--value("[data-x={value}]")"#, "yes"),
+            Some("&[data-x=yes]".into())
+        );
+        assert_eq!(
+            substitute_quoted_variant_value("&:--value(\"missing", "x"),
+            None
+        );
+        assert_eq!(substitute_typed_modifier("&", None, None), Some("&".into()));
+        assert_eq!(
+            substitute_typed_modifier("&", Some(BuiltinVariantModifierType::ClassIdentifier), None),
+            None
+        );
+        assert_eq!(apply_nested_selector("&:--value() { @slot; }", "div"), None);
+    }
+
+    #[test]
+    fn media_and_declarations_attach_only_to_selector_applications() {
+        let selector = VariantApplication::SelectorTemplate("&:hover".into());
+        assert_eq!(
+            attach_media(selector.clone(), "print"),
+            Some(VariantApplication::SelectorMedia {
+                selector: "&:hover".into(),
+                condition: "print".into()
+            })
+        );
+        assert!(attach_declarations(selector, vec![]).is_some());
+        assert!(attach_media(VariantApplication::StartingStyle, "print").is_none());
+        assert!(attach_declarations(VariantApplication::StartingStyle, vec![]).is_none());
+        assert!(
+            apply_nested_variant(
+                "&:--value() { @slot; }",
+                &VariantApplication::Media("print".into())
+            )
+            .is_none()
+        );
+    }
+}

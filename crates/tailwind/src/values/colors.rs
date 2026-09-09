@@ -111,3 +111,35 @@ pub(crate) fn resolve_shadow_color(
         None => shadow_with_color_override(&value, color_property, None),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compatibility_color_modes_handle_keywords_and_explicit_alpha() {
+        assert_eq!(
+            CompatColorKind::from_css("CURRENTCOLOR"),
+            CompatColorKind::CurrentColor
+        );
+        assert_eq!(
+            CompatColorKind::from_css("transparent"),
+            CompatColorKind::ModernOnlyKeyword
+        );
+        assert_eq!(CompatColorKind::from_css("red"), CompatColorKind::General);
+        assert_eq!(
+            resolve_compat_color("red, 50%", CompatColorMode::Legacy),
+            Some("color-mix(in srgb, red 50%, transparent)".into())
+        );
+        assert_eq!(
+            resolve_compat_color("red, 50%", CompatColorMode::Modern),
+            Some("color-mix(in oklab, red 50%, transparent)".into())
+        );
+        assert_eq!(
+            resolve_compat_color("inherit, 100%", CompatColorMode::Legacy),
+            Some("inherit".into())
+        );
+        assert_eq!(resolve_compat_color("red", CompatColorMode::Legacy), None);
+        assert_eq!(resolve_compat_color(", 50%", CompatColorMode::Legacy), None);
+    }
+}

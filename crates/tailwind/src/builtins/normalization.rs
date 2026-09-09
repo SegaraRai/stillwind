@@ -113,3 +113,22 @@ pub(crate) fn canonical_builtin_body(value: &str) -> String {
 pub(crate) fn is_word_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonicalization_keeps_quoted_content_and_token_boundaries() {
+        assert_eq!(
+            canonical_builtin_body("color: red; width: 1px;"),
+            "color:red;width:1px;"
+        );
+        assert_eq!(
+            canonical_builtin_body("content: 'a  b'; font: bold 12px serif;"),
+            "content:'a  b';font:bold 12px serif;"
+        );
+        assert!(is_word_character('%'));
+        assert!(!is_word_character(';'));
+    }
+}

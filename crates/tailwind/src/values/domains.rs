@@ -108,3 +108,35 @@ pub(crate) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str
     let (namespace, suffix) = domain.split_once("-*")?;
     Some((ThemeNamespace::parse(namespace)?, suffix))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn domain_lists_keep_function_commas_and_typed_capture_boundaries() {
+        assert_eq!(
+            split_domains("[length], --spacing-*, f(a,b)"),
+            vec!["[length]", " --spacing-*", " f(a,b)"]
+        );
+        assert_eq!(
+            theme_domain_pattern("--color-*"),
+            Some((ThemeNamespace::Color, ""))
+        );
+        assert_eq!(theme_domain_pattern("--missing-*"), None);
+        let theme = ThemeIndex::default();
+        assert_eq!(
+            resolve_value_domains("[length]", Some("[2px]"), &theme),
+            Some("2px".into())
+        );
+        assert_eq!(
+            resolve_value_domains("[length]", Some("[red]"), &theme),
+            None
+        );
+        assert_eq!(
+            resolve_literal_value_domains("[number]", Some("[2]"), &theme),
+            Some("2".into())
+        );
+        assert_eq!(resolve_value_domains("[number]", None, &theme), None);
+    }
+}

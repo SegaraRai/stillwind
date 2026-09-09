@@ -151,3 +151,42 @@ pub(crate) fn split_css_declarations(body: &str) -> Vec<&str> {
     }
     declarations
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn declarations_split_outside_strings_and_functions_only() {
+        assert_eq!(
+            split_css_declarations("content:'a;b';x:f(a;b);last:1"),
+            vec!["content:'a;b';", "x:f(a;b);", "last:1"]
+        );
+        assert_eq!(split_css_declarations(" "), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn unmatched_dynamic_branch_cannot_emit_static_supporting_declarations() {
+        let theme = ThemeIndex::default();
+        assert!(
+            resolve_css_declarations(
+                "display:block;width:--value([length]);",
+                "w-*",
+                "w-[red]",
+                None,
+                &theme
+            )
+            .is_none()
+        );
+        let resolved = resolve_css_declarations(
+            "width:--value([length]);color:--value([color]);",
+            "x-*",
+            "x-[red]",
+            None,
+            &theme,
+        )
+        .unwrap();
+        assert_eq!(resolved.base, "color:red;");
+        assert!(resolved.compat_modern.is_empty());
+    }
+}

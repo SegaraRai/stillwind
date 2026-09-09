@@ -231,3 +231,14 @@ pub(crate) fn css_length_sort_key(value: &str) -> f64 {
     }
     f64::INFINITY
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn length_sort_keys_normalize_rem_to_pixels() {
+        assert!((css_length_sort_key("1rem") - 16.0).abs() < f64::EPSILON);
+        assert!((css_length_sort_key("8px") - 8.0).abs() < f64::EPSILON);
+    }
+}

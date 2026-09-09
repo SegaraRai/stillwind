@@ -135,3 +135,33 @@ pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) ->
     }
     (!projected.is_empty()).then_some(projected)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animation_projection_keeps_only_mapped_properties_and_rejects_variants() {
+        let theme = ThemeIndex::default();
+        assert_eq!(
+            project_animation_option_utility("[transition-duration:120ms]", &theme).as_deref(),
+            Some("animation-duration:120ms;")
+        );
+        assert_eq!(
+            resolve_animation_option("[transition-timing-function:linear]", &theme).as_deref(),
+            Some("animation-timing-function:linear;")
+        );
+        for candidate in [
+            "hover:[transition-duration:120ms]",
+            "![transition-duration:120ms]",
+            "-[transition-duration:120ms]",
+            "[color:red]",
+            "missing",
+        ] {
+            assert!(
+                resolve_animation_option(candidate, &theme).is_none(),
+                "{candidate}"
+            );
+        }
+    }
+}

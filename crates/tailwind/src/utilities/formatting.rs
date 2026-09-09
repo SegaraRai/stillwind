@@ -155,3 +155,70 @@ pub(crate) fn normalize_var_fallbacks(value: &str, add_missing: bool) -> String 
     output.push_str(&value[cursor..]);
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn important_handles_multiple_declarations_and_empty_input() {
+        assert_eq!(
+            important("color:red;width:1px;"),
+            "color:red!important;width:1px!important;"
+        );
+        assert_eq!(important(""), "");
+    }
+
+    #[test]
+    fn fallback_normalization_preserves_nonempty_and_malformed_values() {
+        assert_eq!(normalize_var_fallbacks("var(--x)", true), "var(--x,)");
+        assert_eq!(normalize_var_fallbacks("var(--x,  )", false), "var(--x,)");
+        assert_eq!(
+            normalize_var_fallbacks("var(--x, red)", true),
+            "var(--x, red)"
+        );
+        assert_eq!(normalize_var_fallbacks("var(--x", true), "var(--x");
+        assert_eq!(normalize_var_fallbacks("var(--x)", false), "var(--x)");
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn fallback_insertion_is_idempotent(name in "[a-z]{1,20}") {
+            let once = normalize_var_fallbacks(&format!("var(--{name})"), true);
+            proptest::prop_assert_eq!(normalize_var_fallbacks(&once, true), once);
+        }
+    }
+
+    #[test]
+    fn authored_formats_only_change_matching_properties() {
+        let theme = ThemeIndex {
+            declaration_formats: [
+                ("width".into(), "zero-length".into()),
+                ("grid-row".into(), "slash-space-span".into()),
+                ("color".into(), "var-fallback".into()),
+            ]
+            .into(),
+            ..ThemeIndex::default()
+        };
+        assert_eq!(
+            apply_zero_length_format("width:0;height:0;".into(), &theme),
+            "width:0px;height:0;"
+        );
+        assert_eq!(
+            apply_declaration_formats("grid-row:span 2/span 2;".into(), &theme),
+            "grid-row:span 2 / span 2;"
+        );
+        assert_eq!(
+            apply_declaration_formats("grid-row:1/2;".into(), &theme),
+            "grid-row:1/2;"
+        );
+        assert_eq!(
+            normalize_format_var_fallbacks("color:var(--x);width:var(--w);".into(), &theme),
+            "color:var(--x,);width:var(--w);"
+        );
+        assert_eq!(
+            finalize_declaration("width:calc(1px + 2px);".into(), true, &theme),
+            "width:3px!important;"
+        );
+    }
+}

@@ -228,3 +228,42 @@ pub fn compare_variant_sequences(
         Ordering::Equal
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sorting_compares_magnitudes_only_within_the_same_unit() {
+        assert_eq!(numeric_dimension("12.5rem"), Some((12.5, "rem")));
+        assert_eq!(numeric_dimension("auto"), None);
+        assert_eq!(
+            compare_sort_values("2px", "10px", BuiltinVariantSortDirection::Ascending),
+            Ordering::Less
+        );
+        assert_eq!(
+            compare_sort_values("2px", "10px", BuiltinVariantSortDirection::Descending),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_sort_values("2rem", "10px", BuiltinVariantSortDirection::Descending),
+            Ordering::Greater
+        );
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn same_unit_numeric_comparison_is_antisymmetric(a in 0u16..1000, b in 0u16..1000) {
+            let left = format!("{a}px");
+            let right = format!("{b}px");
+            proptest::prop_assert_eq!(
+                compare_sort_values(&left, &right, BuiltinVariantSortDirection::Ascending),
+                a.cmp(&b)
+            );
+            proptest::prop_assert_eq!(
+                compare_sort_values(&left, &right, BuiltinVariantSortDirection::Ascending),
+                compare_sort_values(&right, &left, BuiltinVariantSortDirection::Ascending).reverse()
+            );
+        }
+    }
+}

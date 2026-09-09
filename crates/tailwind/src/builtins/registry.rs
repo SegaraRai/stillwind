@@ -144,3 +144,28 @@ pub(crate) fn animation_option_property_mappings() -> &'static BTreeMap<String, 
     static MAPPINGS: OnceLock<BTreeMap<String, String>> = OnceLock::new();
     MAPPINGS.get_or_init(|| parse_animation_option_property_mappings(BUILTIN_REGISTRY_CSS))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn arbitrary_property_order_prefers_exact_patterns_and_sorts_unknowns_last() {
+        assert_eq!(
+            arbitrary_property_order("unregistered-property"),
+            arbitrary_property_order("*")
+        );
+        assert!(
+            arbitrary_property_order("background-color")
+                < arbitrary_property_order("background-image")
+        );
+        assert!(
+            arbitrary_property_order("background-image")
+                < arbitrary_property_order("unregistered-property")
+        );
+        let wildcard = arbitrary_property_order("--tw-gradient-custom");
+        assert_ne!(wildcard, usize::MAX);
+        assert!(arbitrary_property_order("--tw-gradient-position") > wildcard);
+        assert_eq!(arbitrary_property_order("--tw-gradient-other"), wildcard);
+    }
+}

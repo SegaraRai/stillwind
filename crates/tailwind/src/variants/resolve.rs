@@ -269,3 +269,35 @@ pub(crate) fn attribute_variant_selector(
         format!("[{prefix}-{value}]")
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn modifiers_and_attribute_captures_preserve_nested_syntax() {
+        assert_eq!(
+            split_variant_modifier("[x/y]/group"),
+            ("[x/y]", Some("group"))
+        );
+        assert_eq!(split_variant_modifier("[x/y]"), ("[x/y]", None));
+        assert_eq!(decode_variant_capture("[a_b]"), "a b");
+        assert_eq!(
+            attribute_variant_selector("aria", "checked", true),
+            Some("[aria-checked=\"true\"]".into())
+        );
+        assert_eq!(
+            attribute_variant_selector("data", "open", false),
+            Some("[data-open]".into())
+        );
+        assert_eq!(
+            attribute_variant_selector("data", "[state=on]", false),
+            Some("[data-state=\"on\"]".into())
+        );
+        assert_eq!(attribute_variant_selector("data", "state=", false), None);
+        assert!(matches!(
+            parse_nested_variant("[&:hover]").kind,
+            VariantKind::Arbitrary(_)
+        ));
+    }
+}

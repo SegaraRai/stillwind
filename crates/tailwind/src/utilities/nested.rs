@@ -106,3 +106,29 @@ pub(crate) fn split_utility_selector(body: &str) -> Option<(Option<String>, &str
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splits_conditions_and_rejects_trailing_selector_rules() {
+        let (base, nested) =
+            split_nested_conditions("color:red;@media (width > 1px) { color:blue; }").unwrap();
+        assert_eq!(base, "color:red;");
+        assert_eq!(
+            nested,
+            vec![(
+                NestedUtilityAtRule::Media,
+                "(width > 1px)".into(),
+                "color:blue;".into()
+            )]
+        );
+        assert_eq!(
+            split_utility_selector("x:1; &:hover {color:red;}"),
+            Some((Some("&:hover".into()), "color:red;", Some("x:1;")))
+        );
+        assert_eq!(split_utility_selector("& {x:1;} trailing"), None);
+        assert!(split_nested_conditions("@media x {").is_none());
+    }
+}

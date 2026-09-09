@@ -119,3 +119,53 @@ pub(crate) fn typed_css_variable(namespace: ThemeNamespace, value: &str) -> Opti
             .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint))))
     .then_some(variable.name)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fractions_reject_zero_negative_and_overflowing_denominators() {
+        assert_eq!(fraction_value("1/2"), Some("calc(1 / 2 * 100%)".into()));
+        assert_eq!(fraction_value("0/3"), Some("calc(0 / 3 * 100%)".into()));
+        for value in ["1/0", "-1/2", "1/65536", "1/2/3", "half"] {
+            assert_eq!(fraction_value(value), None);
+        }
+        assert_eq!(axis_size_value("screen", "vh"), Some("100vh".into()));
+        assert_eq!(axis_size_value("full", "vw"), Some("100%".into()));
+        assert_eq!(axis_size_value("nope", "vh"), None);
+    }
+
+    #[test]
+    fn arbitrary_values_and_variables_must_match_namespace_types() {
+        assert_eq!(
+            typed_theme_arbitrary(ThemeNamespace::Spacing, "[length:2px]"),
+            Some("2px".into())
+        );
+        assert_eq!(
+            typed_theme_arbitrary(ThemeNamespace::Spacing, "[time:2s]"),
+            None
+        );
+        assert_eq!(
+            typed_css_variable(ThemeNamespace::Color, "(color:--x)"),
+            Some("--x")
+        );
+        assert_eq!(
+            typed_css_variable(ThemeNamespace::Color, "(length:--x)"),
+            None
+        );
+        let theme = ThemeIndex::default();
+        assert_eq!(theme_value(ThemeNamespace::Color, "missing", &theme), None);
+        assert_eq!(
+            theme_value_literal(ThemeNamespace::Color, "[red]", &theme),
+            Some("red".into())
+        );
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn valid_fraction_components_are_never_reversed(a in 0u16..1000, b in 1u16..1000) {
+            proptest::prop_assert_eq!(fraction_value(&format!("{a}/{b}")), Some(format!("calc({a} / {b} * 100%)")));
+        }
+    }
+}
