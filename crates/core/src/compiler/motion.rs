@@ -173,4 +173,36 @@ mod tests {
         );
         assert!(diagnostics.is_empty());
     }
+
+    #[test]
+    fn motion_variants_report_the_exact_source_span_through_compilation() {
+        for (definition, code) in [
+            (
+                "style.animation({ from: 'hover:opacity-0' })",
+                "SHANIMATION003",
+            ),
+            (
+                "style.viewTransition({ old: 'hover:opacity-0' })",
+                "SHMOTION001",
+            ),
+        ] {
+            let source = SourceFile::new(
+                FileId(1),
+                "motion.tsx",
+                format!("import {{ style }} from 'stillwind/react'; const motion = {definition};"),
+            );
+            let theme = SourceFile::new(FileId(2), "theme", "");
+            let result = Compiler::compile_react(&source, &theme);
+            let errors = result
+                .diagnostics
+                .iter()
+                .filter(|error| error.code == code)
+                .collect::<Vec<_>>();
+            assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
+            assert_eq!(
+                source.slice(errors[0].labels[0].span).unwrap(),
+                "hover:opacity-0"
+            );
+        }
+    }
 }

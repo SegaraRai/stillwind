@@ -200,3 +200,51 @@ impl DesignSystemQuery {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
+        let snapshot = DesignSystemSnapshot::from_source(
+            &stillwind_source::SourceFile::new(
+                FileId(1),
+                "theme",
+                "@import 'tailwindcss'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
+            ),
+            crate::CompilerOptions::default(),
+        )
+        .unwrap();
+        let query = DesignSystemQuery::new(snapshot.clone());
+        for (prefix, expected) in [
+            ("bg-br", "bg-brand"),
+            ("tab", "tablet:"),
+            ("hov", "hover:"),
+            ("hover:bg-br", "hover:bg-brand"),
+            ("hover:tab", "hover:tablet:"),
+        ] {
+            let items = query.complete_candidate(CompletionInput {
+                prefix: prefix.into(),
+            });
+            assert!(
+                items.iter().any(|item| item.label == expected),
+                "{prefix}: {items:?}"
+            );
+            assert!(
+                items
+                    .iter()
+                    .all(|item| item.label.starts_with(prefix)
+                        && item.revision == snapshot.revision())
+            );
+            assert!(items.windows(2).all(|pair| pair[0].label < pair[1].label));
+        }
+        assert!(
+            query
+                .complete_candidate(CompletionInput {
+                    prefix: "missing:bg-br".into()
+                })
+                .is_empty()
+        );
+    }
+}

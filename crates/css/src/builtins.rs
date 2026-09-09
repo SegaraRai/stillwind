@@ -93,4 +93,31 @@ mod tests {
         assert!(selected.contains("@keyframes ping"));
         assert!(!selected.contains("@keyframes bounce"));
     }
+
+    #[test]
+    fn all_keyframes_are_complete_ordered_and_exclude_theme_declarations() {
+        let css = tailwind_v4_keyframes();
+        let blocks = crate::blocks::extract_named_blocks(&css, "@keyframes");
+        assert_eq!(
+            blocks
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<_>>(),
+            ["spin", "ping", "pulse", "bounce"]
+        );
+        assert_eq!(css.matches('@').count(), 4);
+        assert!(blocks[0].1.contains("rotate(360deg)"));
+        assert!(blocks[3].1.contains("50%"));
+        assert_eq!(css.matches('{').count(), css.matches('}').count());
+        assert!(!css.contains("--animate-"));
+        assert_eq!(
+            css,
+            tailwind_v4_keyframes_for(&[
+                "spin".into(),
+                "ping".into(),
+                "pulse".into(),
+                "bounce".into()
+            ])
+        );
+    }
 }

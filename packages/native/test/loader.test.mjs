@@ -66,3 +66,65 @@ void test("native loader accepts partial and reversed batches", async () => {
   assert.match(loader.generateReactTypes(), /brand/);
   assert.throws(() => loader.provideMany([]), /after completion/);
 });
+
+void test("native watch reload reports compilation errors without publishing a partial revision", async () => {
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const initial = new NativeDesignSystemLoader();
+  initial.provide(0, "theme", "@utility brand { color:red; }");
+  const session = new NativeProjectSession(initial, true);
+  const source =
+    "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion('both'));";
+  const output = JSON.parse(session.compile(JSON.stringify([{ path: "motion.tsx", source }])));
+  assert.deepEqual(output.modules[0].diagnostics, []);
+  const before = session.css();
+  const invalid = new NativeDesignSystemLoader();
+  invalid.provide(0, "theme", "");
+  assert.throws(() => session.reload(invalid), /CSS reload compilation failed.*SH001/s);
+  assert.equal(session.css(), before);
+  const recovered = new NativeDesignSystemLoader();
+  recovered.provide(0, "theme", "@utility brand { color:blue; }");
+  assert.equal(JSON.parse(session.reload(recovered)).cssChanged, true);
+  assert.notEqual(session.css(), before);
+});
+
+void test("native sessions join supplied type facts with another module's asset metadata", async () => {
+  const { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } =
+    await import("../index.js");
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "theme", "");
+  const producer = {
+    path: "producer.tsx",
+    source: "import { style } from 'stillwind/react'; export const marker = style.ref('shared');",
+  };
+  const consumer = {
+    path: "consumer.tsx",
+    source:
+      "import { style } from 'stillwind/react'; import { marker } from './producer'; const props = style(marker);",
+  };
+  const summary = JSON.parse(summarizeReact(producer.source, producer.path));
+  const start = consumer.source.lastIndexOf("marker");
+  const session = new NativeProjectSession(loader, true);
+  const without = JSON.parse(session.compile(JSON.stringify([consumer, producer])));
+  assert.ok(without.modules[0].diagnostics.length > 0);
+  const withFacts = JSON.parse(
+    session.compile(
+      JSON.stringify([
+        {
+          ...consumer,
+          type_facts: [{ start, end: start + "marker".length, value: summary.exports.marker }],
+        },
+        producer,
+      ]),
+    ),
+  );
+  assert.deepEqual(
+    withFacts.modules.map((module) => module.path),
+    [consumer.path, producer.path],
+  );
+  assert.ok(
+    withFacts.modules.every((module) => module.diagnostics.length === 0),
+    JSON.stringify(withFacts),
+  );
+  assert.match(withFacts.modules[0].code, /s_shared_/);
+  assert.doesNotMatch(withFacts.modules[0].code, /style\(marker\)/);
+});

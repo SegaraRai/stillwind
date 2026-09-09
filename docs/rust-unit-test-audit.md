@@ -99,3 +99,17 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+
+## 除外対象の追加検証
+
+以下の経路も追加検証した。Rustのテストは対応する実装ファイル内に置き、
+Nodeバインディングの契約は `packages/native/test/loader.test.mjs` から公開APIを呼び出す。
+
+- `tailwind_v4_keyframes`: 全4定義の順序、入れ子の本体、閉じ括弧、theme宣言の除外、名前指定版との整合。
+- `ProjectSession::reload`: Watchで一部モジュールの再コンパイルが失敗した際、旧snapshot・CSS・全artifact・依存情報を維持。Buildでロード失敗した際はartifactと全依存indexを消去。双方とも後続の正常reloadで復旧。
+- `DesignSystemQuery::complete_candidate`: theme token、breakpoint、variant、variant付きprefix、未知のvariant、重複のない整列、revisionの一致。
+- motion生成: アニメーション／view transition定義にvariantを記載すると、それぞれ `SHANIMATION003` / `SHMOTION001` と正確なソースspanを返す。
+- `NativeProjectSession::reload`: `ReloadCompilation` のエラーをNodeに返し、以前のCSSを維持し、正常reloadで復旧。
+- `ProvidedTypeScriptFacts::update` → `NativeProjectSession::compile`: consumerをproducerより先に渡し、非空の型情報と別モジュールのassetラベルを統合。型情報なしの失敗から再compileで回復し、変換コードにもラベルが残ることを確認。
+
+追加後の検証: Rust 323件成功・既存1件ignored、Node 5件成功。Rust fmt・Clippy、`vp run --filter @stillwind/native check`（ネイティブ再ビルド・型チェック・Nodeテスト）も成功。実装の変更はなく、テスト込み最大717行。
