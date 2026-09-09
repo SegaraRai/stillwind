@@ -139,7 +139,26 @@ impl ProjectSession {
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> SessionUpdate {
         let old_css = self.css();
         let module_id = analysis.module_id.clone();
-        let compiled = ModuleCompiler::new(self.current.clone()).compile(&analysis);
+        let mut compiled = ModuleCompiler::new(self.current.clone()).compile(&analysis);
+        let mut symbols: BTreeMap<_, _> = self
+            .artifacts
+            .iter()
+            .filter(|(id, _)| *id != &module_id)
+            .flat_map(|(_, artifact)| artifact.symbols.iter())
+            .map(|symbol| (symbol.name.as_str(), symbol.identity.as_str()))
+            .collect();
+        for symbol in &compiled.symbols {
+            if symbols
+                .insert(&symbol.name, &symbol.identity)
+                .is_some_and(|identity| identity != symbol.identity)
+            {
+                compiled.diagnostics.push(crate::CompileDiagnostic::new(
+                    "SHSYMBOL001",
+                    format!("generated identifier collision: {}", symbol.name),
+                    analysis.source.full_span(),
+                ));
+            }
+        }
         self.analyses.insert(module_id.clone(), analysis);
         let mut update = SessionUpdate::default();
         if compiled.is_success() {

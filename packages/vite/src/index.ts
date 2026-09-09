@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 import {
   compileReact,
-  compileReactProject,
-  generateReactTypes,
-  renderReactStylesheet,
+  NativeDesignSystemLoader,
+  NativeProjectSession,
   summarizeReact,
 } from "@stillwind/native";
 import { build } from "esbuild";
@@ -117,20 +116,6 @@ function compile(
   return JSON.parse(compileReact(source, path, theme, compilerOptions(options))) as CompilerOutput;
 }
 
-function compileProject(
-  sources: readonly ProjectSource[],
-  theme: string,
-  options: StillwindOptions,
-): ProjectCompilerOutput {
-  return JSON.parse(
-    compileReactProject(
-      JSON.stringify(sources.map(({ path, source, type_facts }) => ({ path, source, type_facts }))),
-      theme,
-      compilerOptions(options),
-    ),
-  ) as ProjectCompilerOutput;
-}
-
 function compilePlay(source: string, theme: string, options: StillwindOptions): CompilerOutput {
   // Play accepts the pleasant `export App;` shorthand in addition to regular
   // TypeScript exports. This replacement preserves byte length for source spans.
@@ -153,24 +138,6 @@ function localDependencies(source: string, path: string): string[] {
   ].filter(
     (specifier, index, all) => specifier.startsWith(".") && all.indexOf(specifier) === index,
   );
-}
-
-function findSymbolCollision(
-  symbolsByModule: ReadonlyMap<string, readonly GeneratedSymbol[]>,
-  moduleId: string,
-  next: readonly GeneratedSymbol[],
-): [GeneratedSymbol, GeneratedSymbol] | null {
-  const names = new Map<string, GeneratedSymbol>();
-  for (const [candidateId, symbols] of symbolsByModule) {
-    if (candidateId === moduleId) continue;
-    for (const symbol of symbols) names.set(symbol.name, symbol);
-  }
-  for (const symbol of next) {
-    const existing = names.get(symbol.name);
-    if (existing && existing.identity !== symbol.identity) return [existing, symbol];
-    names.set(symbol.name, symbol);
-  }
-  return null;
 }
 
 function sendJson(response: ServerResponse, value: unknown, statusCode = 200) {
@@ -317,8 +284,10 @@ function previewHtml(id: string) {
 
 /** Runs the native compiler and renders Play user modules only inside a sandboxed iframe. */
 export function stillwind(options: StillwindOptions): Plugin {
-  const cssByModule = new Map<string, string>();
-  const symbolsByModule = new Map<string, GeneratedSymbol[]>();
+  let session: NativeProjectSession;
+  let watching = false;
+  const cssFiles = new Set<string>();
+  let devServer: ViteDevServer | undefined;
   const previewBundles = new Map<string, string>();
   let projectRoot = "";
   let typeFactsService: TypeScriptFactsService | undefined;
@@ -328,6 +297,47 @@ export function stillwind(options: StillwindOptions): Plugin {
     typeFactsService = undefined;
   };
 
+  const loadDesignSystem = async (
+    resolveImport: (specifier: string, importer: string) => Promise<string>,
+  ) => {
+    const loader = new NativeDesignSystemLoader(compilerOptions(options));
+    const root = realpathSync(resolve(projectRoot, cssEntrypoint(options)));
+    cssFiles.add(root);
+    let step = JSON.parse(loader.provide(root, readFileSync(root, "utf8"))) as {
+      kind: string;
+      importer: string;
+      specifier: string;
+      sources: string[];
+    };
+    while (step.kind === "needFile") {
+      const path = realpathSync(await resolveImport(step.specifier, step.importer));
+      cssFiles.add(path);
+      step = JSON.parse(loader.provide(path, readFileSync(path, "utf8"))) as typeof step;
+    }
+    return loader;
+  };
+
+  const writeTypes = (loader: NativeDesignSystemLoader) => {
+    if (options.types === false) return;
+    const path = resolve(projectRoot, options.types ?? "src/stillwind.generated.d.ts");
+    const types = loader.generateReactTypes();
+    try {
+      if (readFileSync(path, "utf8") === types) return;
+    } catch {
+      /* First generation. */
+    }
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, types);
+  };
+
+  const invalidateCss = () => {
+    const cssModule = devServer?.moduleGraph.getModuleById(resolvedVirtualCssId);
+    if (cssModule && devServer) {
+      devServer.moduleGraph.invalidateModule(cssModule);
+      void devServer.reloadModule(cssModule);
+    }
+  };
+
   return {
     name: "stillwind",
     enforce: "pre",
@@ -335,38 +345,63 @@ export function stillwind(options: StillwindOptions): Plugin {
       return id === virtualCssId ? resolvedVirtualCssId : undefined;
     },
     load(id) {
-      if (id === resolvedVirtualCssId)
-        return renderReactStylesheet(
-          [...cssByModule.values()].join("\n"),
-          readFileSync(cssEntrypoint(options), "utf8"),
-          compilerOptions(options),
-        );
+      if (id === resolvedVirtualCssId) return session.css();
       return undefined;
     },
     configResolved(config) {
       projectRoot = config.root;
+      watching = config.command === "serve";
       closeTypeFacts();
       typeFactsService = new TypeScriptFactsService(projectRoot);
-      if (options.types === false) return;
-      const output = options.types ?? join(config.root, "src", "stillwind.generated.d.ts");
-      const path =
-        output.startsWith("/") || /^[A-Za-z]:[\\/]/.test(output)
-          ? output
-          : join(config.root, output);
-      const types = generateReactTypes(readFileSync(cssEntrypoint(options), "utf8"));
+    },
+    async buildStart() {
+      const loader = await loadDesignSystem(async (specifier, importer) => {
+        const result = await this.resolve(specifier, importer, { skipSelf: true });
+        if (!result || result.external)
+          throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+        return result.id;
+      });
+      session = new NativeProjectSession(loader, watching);
+      for (const path of cssFiles) this.addWatchFile(path);
+      writeTypes(loader);
+    },
+    async handleHotUpdate(context) {
+      if (!cssFiles.has(context.file) && !cssFiles.has(realpathSync(context.file))) return;
       try {
-        if (readFileSync(path, "utf8") === types) return;
-      } catch {
-        // The generated file is intentionally created only when it changes.
+        const loader = await loadDesignSystem(async (specifier, importer) => {
+          const result = await context.server.pluginContainer.resolveId(specifier, importer);
+          if (!result || result.external)
+            throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+          return result.id;
+        });
+        const update = JSON.parse(session.reload(loader)) as {
+          cssChanged: boolean;
+          transformedModules: string[];
+        };
+        context.server.watcher.add([...cssFiles]);
+        writeTypes(loader);
+        const modules = update.transformedModules.flatMap((path) => [
+          ...(context.server.moduleGraph.getModulesByFile(resolve(projectRoot, path)) ?? []),
+        ]);
+        const cssModule = context.server.moduleGraph.getModuleById(resolvedVirtualCssId);
+        if (update.cssChanged && cssModule) modules.push(cssModule);
+        for (const module of modules) context.server.moduleGraph.invalidateModule(module);
+        return modules;
+      } catch (error) {
+        this.warn(
+          `Stillwind CSS reload failed; retaining last successful output: ${String(error)}`,
+        );
+        return [];
       }
-      mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, types);
+    },
+    watchChange(id, change) {
+      if (change.event === "delete" && session?.remove(compilerModulePath(projectRoot, id)))
+        invalidateCss();
     },
     async transform(code, id) {
       if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined;
       if (!code.includes("stillwind/react")) {
-        cssByModule.delete(id);
-        symbolsByModule.delete(id);
+        if (session.remove(compilerModulePath(projectRoot, cleanModuleId(id)))) invalidateCss();
         return undefined;
       }
       const entryId = cleanModuleId(id);
@@ -407,11 +442,11 @@ export function stillwind(options: StillwindOptions): Plugin {
         ...source,
         type_facts: typeFacts.get(source.path) ?? [],
       }));
-      const projectOutput = compileProject(
-        typedSources,
-        readFileSync(cssEntrypoint(options), "utf8"),
-        options,
-      );
+      const previousCss = session.css();
+      const projectOutput = JSON.parse(
+        session.compile(JSON.stringify(typedSources)),
+      ) as ProjectCompilerOutput;
+      if (session.css() !== previousCss) invalidateCss();
       const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
       for (const output of projectOutput.modules) {
         const moduleId = idsByPath.get(output.path);
@@ -434,17 +469,6 @@ export function stillwind(options: StillwindOptions): Plugin {
           }
         }
         if (deniedFindings.length > 0) this.error(deniedFindings.join("\n"));
-        const collision = findSymbolCollision(symbolsByModule, moduleId, output.symbols);
-        if (collision) {
-          const [first, second] = collision;
-          this.error(
-            `Stillwind generated identifier collision: ${second.name}\n` +
-              `  ${first.kind} at ${first.source_path}:${first.start}\n` +
-              `  ${second.kind} at ${second.source_path}:${second.start}`,
-          );
-        }
-        symbolsByModule.set(moduleId, output.symbols);
-        cssByModule.set(moduleId, output.css);
       }
       const output = projectOutput.modules.find(
         (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
@@ -453,6 +477,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       return { code: finalizeReactModule(output.code), map: null };
     },
     configureServer(server: ViteDevServer) {
+      devServer = server;
       server.httpServer?.once("close", closeTypeFacts);
       server.middlewares.use("/__stillwind/compile", (request, response) => {
         if (request.method !== "POST")
