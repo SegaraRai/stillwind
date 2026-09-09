@@ -22,16 +22,6 @@
   padding: calc(var(--spacing) * 4);
   border-radius: var(--radius-lg);
 }
-@container (width >= 24rem) {
-  ._s_608536a6 {
-    display: grid;
-  }
-}
-@container (width < 28rem) {
-  ._s_608536a6 {
-    display: none;
-  }
-}
 @media (hover: hover) {
   ._s_608536a6:is(:where(.group\/menu):hover *) {
     color: var(--color-brand);
@@ -39,4 +29,14 @@
 }
 ._s_608536a6:is(:where(.peer\/field):checked ~ *) {
   text-decoration-line: underline;
+}
+@container (width < 28rem) {
+  ._s_608536a6 {
+    display: none;
+  }
+}
+@container (width >= 24rem) {
+  ._s_608536a6 {
+    display: grid;
+  }
 }

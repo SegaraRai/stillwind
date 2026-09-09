@@ -1172,7 +1172,7 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("--spacing-4:1rem;"));
-    assert!(result.css.contains("--breakpoint-md:48rem;"));
+    assert!(!result.css.contains("--breakpoint-md:48rem;"));
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(result.css.contains("background-color:color-mix(in oklab"));
     assert!(result.css.contains(":hover{"));
