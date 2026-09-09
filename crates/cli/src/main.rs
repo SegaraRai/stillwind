@@ -1,11 +1,10 @@
 //! Bundler-facing command line adapter for the Stillwind compiler.
 
-use std::{env, fs, path::Path, sync::Arc};
+use std::{env, fs, sync::Arc};
 
 use serde::Serialize;
 use stillwind_core::{
-    CompilerOptions, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
-    GeneratedClass, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
+    CompilerOptions, GeneratedClass, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
 };
 use stillwind_source::{FileId, SourceFile};
 
@@ -35,78 +34,17 @@ struct LintFindingOutput {
     end: u32,
 }
 
-fn argument(name: &str) -> Result<String, String> {
-    let mut arguments = env::args().skip(1);
-    while let Some(argument) = arguments.next() {
-        if argument == name {
-            return arguments
-                .next()
-                .ok_or_else(|| format!("missing value for {name}"));
-        }
-    }
-    Err(format!("missing required {name} argument"))
-}
+mod arguments;
+use arguments::{argument, has_flag, optional_argument};
+mod loading;
+use loading::{load_design_system, read_source};
 
-fn optional_argument(name: &str) -> Option<String> {
-    let mut arguments = env::args().skip(1);
-    while let Some(argument) = arguments.next() {
-        if argument == name {
-            return arguments.next();
-        }
-    }
-    None
-}
-
-fn has_flag(name: &str) -> bool {
-    env::args().skip(1).any(|argument| argument == name)
-}
-
-fn read_source(path: &str, id: u32) -> Result<SourceFile, String> {
-    let text = fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))?;
-    Ok(SourceFile::new(FileId(id), path, text))
-}
-
-fn load_design_system(
-    theme: &SourceFile,
-    options: CompilerOptions,
-) -> Result<DesignSystemSnapshot, String> {
-    let mut loader = DesignSystemLoader::new(options);
-    let mut step = loader.provide(0, theme.path().into(), theme.text().into());
-    loop {
-        match step {
-            DesignSystemLoadStep::Complete(result) => {
-                return result.map_err(|error| error.to_string());
-            }
-            DesignSystemLoadStep::NeedFile(requests) => {
-                let request = &requests[0];
-                let path = Path::new(request.importer.0.as_ref())
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(&request.specifier);
-                let path = fs::canonicalize(&path).map_err(|error| {
-                    format!(
-                        "cannot resolve {} imported by {}: {error}",
-                        request.specifier, request.importer.0
-                    )
-                })?;
-                let content = fs::read_to_string(&path)
-                    .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-                step = loader.provide(
-                    request.id,
-                    path.to_string_lossy().as_ref().into(),
-                    content.into(),
-                );
-            }
-        }
-    }
-}
-
-fn run() -> Result<(), String> {
+fn run() -> Result<(), CommandError> {
     let command = env::args()
         .nth(1)
-        .ok_or_else(|| "expected `compile` command".to_owned())?;
+        .ok_or_else(|| CommandError::MissingCommand)?;
     if command != "compile" {
-        return Err(format!("unknown command `{command}`; expected `compile`"));
+        return Err(CommandError::UnknownCommand { command });
     }
     let source = if let Some(text) = optional_argument("--source-text") {
         let path = optional_argument("--source-path").unwrap_or_else(|| "Play.tsx".to_owned());
@@ -117,7 +55,11 @@ fn run() -> Result<(), String> {
     let theme = if let Some(text) = optional_argument("--theme-text") {
         SourceFile::new(FileId(2), "stillwind.css", text)
     } else {
-        let path = fs::canonicalize(argument("--theme")?).map_err(|error| error.to_string())?;
+        let input = argument("--theme")?;
+        let path = fs::canonicalize(&input).map_err(|source| CommandError::ThemePath {
+            path: input,
+            source,
+        })?;
         read_source(&path.to_string_lossy(), 2)?
     };
     let options = CompilerOptions {
@@ -174,10 +116,7 @@ fn run() -> Result<(), String> {
         lint_findings,
         lint_policy: result.lint_policy,
     };
-    println!(
-        "{}",
-        serde_json::to_string(&output).map_err(|error| error.to_string())?
-    );
+    println!("{}", serde_json::to_string(&output)?);
     Ok(())
 }
 
@@ -189,4 +128,26 @@ fn main() {
         );
         std::process::exit(2);
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+enum CommandError {
+    #[error("expected `compile` command")]
+    MissingCommand,
+    #[error("unknown command `{command}`; expected `compile`")]
+    UnknownCommand { command: String },
+    #[error("{0}")]
+    Argument(#[from] arguments::ArgumentError),
+    #[error("{0}")]
+    File(#[from] loading::FileLoadError),
+    #[error("cannot resolve theme {path}: {source}")]
+    ThemePath {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Options(#[from] stillwind_core::CompilerOptionsError),
+    #[error("{0}")]
+    Output(#[from] serde_json::Error),
 }

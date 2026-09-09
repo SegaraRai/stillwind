@@ -124,12 +124,13 @@ pub struct CompiledModule {
 impl CompiledModule {
     /// # Errors
     /// Returns invalid or overlapping source-transform spans.
-    pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, String> {
+    pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, ModuleTransformError> {
         crate::CompileResult {
             transforms: self.code_transforms.clone(),
             ..crate::CompileResult::default()
         }
         .apply_to_source(source)
+        .map_err(ModuleTransformError::from)
     }
 
     pub fn is_success(&self) -> bool {
@@ -274,3 +275,7 @@ impl ModuleCompiler {
         }
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct ModuleTransformError(#[from] pub crate::TransformError);

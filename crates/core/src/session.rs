@@ -221,7 +221,7 @@ impl ProjectSession {
     pub fn reload(
         &mut self,
         result: Result<DesignSystemSnapshot, DesignSystemLoadError>,
-    ) -> Result<SessionUpdate, DesignSystemLoadError> {
+    ) -> Result<SessionUpdate, SessionReloadError> {
         let snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -231,7 +231,7 @@ impl ProjectSession {
                     self.stylesheet = ProjectStylesheet::default();
                     self.reindex();
                 }
-                return Err(error);
+                return Err(error.into());
             }
         };
         let old_css = self.css();
@@ -299,3 +299,7 @@ impl ProjectSession {
         }
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct SessionReloadError(#[from] pub DesignSystemLoadError);

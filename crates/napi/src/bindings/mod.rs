@@ -1,6 +1,7 @@
 //! Node-API surface for running the Stillwind compiler inside Vite.
 
 mod session;
+pub use session::NativeSessionError;
 
 use std::collections::{BTreeMap, BTreeSet};
 

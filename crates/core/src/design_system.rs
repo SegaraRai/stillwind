@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use stillwind_css::{ThemeError, ThemeIndex};
+use stillwind_css::ThemeIndex;
 use stillwind_source::SourceFile;
 
 use crate::CompilerOptions;
@@ -65,19 +65,21 @@ impl DesignSystemSnapshot {
     ///
     /// # Errors
     /// Returns invalid CSS or invalid resolved configuration.
-    pub fn from_source(source: &SourceFile, options: CompilerOptions) -> Result<Self, ThemeError> {
+    pub fn from_source(
+        source: &SourceFile,
+        options: CompilerOptions,
+    ) -> Result<Self, DesignSystemError> {
         match crate::DesignSystemLoader::new(options).provide(
             0,
             crate::CssSourceName::from(source.path()),
             source.text().into(),
         ) {
             crate::DesignSystemLoadStep::Complete(result) => {
-                result.map_err(|error| ThemeError::Parse(error.to_string()))
+                result.map_err(DesignSystemError::Load)
             }
-            crate::DesignSystemLoadStep::NeedFile(request) => Err(ThemeError::Parse(format!(
-                "host must resolve {} imported by {} using DesignSystemLoader",
-                request[0].specifier, request[0].importer.0
-            ))),
+            crate::DesignSystemLoadStep::NeedFile(request) => {
+                Err(DesignSystemError::UnresolvedImports { requests: request })
+            }
         }
     }
 
@@ -86,7 +88,7 @@ impl DesignSystemSnapshot {
         theme: ThemeIndex,
         mut config: CompilerOptions,
         sources: crate::CssSourceGraph,
-    ) -> Result<Self, ThemeError> {
+    ) -> Result<Self, crate::CompilerOptionsError> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
         if let Some(prefix) = &theme.config.prefix {
             config.prefix.clone_from(prefix);
@@ -94,7 +96,7 @@ impl DesignSystemSnapshot {
         if let Some(prefix) = &theme.config.tailwind_prefix {
             config.tailwind_prefix.clone_from(prefix);
         }
-        config.validate().map_err(ThemeError::Parse)?;
+        config.validate()?;
         let config_hash = Fingerprint::of(format!("{config:?}"));
         let ordering = Fingerprint::of(format!(
             "{:?}{:?}",
@@ -286,4 +288,14 @@ impl DesignSystemSnapshot {
     pub fn render_stylesheet(&self, module_css: &str) -> String {
         crate::render_stylesheet(self.theme(), module_css, self.config())
     }
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum DesignSystemError {
+    #[error("{0}")]
+    Load(#[from] crate::DesignSystemLoadError),
+    #[error("host must resolve CSS imports using DesignSystemLoader: {requests:?}")]
+    UnresolvedImports {
+        requests: Vec<crate::CssFileRequest>,
+    },
 }

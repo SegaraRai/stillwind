@@ -36,3 +36,30 @@ fn cli_compiles_a_react_module_to_layered_css_and_macro_free_code() {
     assert!(!code.contains("style(\"bg-accent"));
     assert_eq!(value["diagnostics"], serde_json::json!([]));
 }
+
+#[test]
+fn cli_reports_typed_argument_and_option_failures() {
+    for (args, expected) in [
+        (vec!["compile", "--source"], "missing value for --source"),
+        (
+            vec![
+                "compile",
+                "--source-text",
+                "",
+                "--theme-text",
+                "",
+                "--prefix",
+                "bad",
+            ],
+            "prefix must start with `--` and end with `-`",
+        ),
+        (vec!["unknown"], "unknown command `unknown`"),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&output.stderr).contains(expected));
+    }
+}

@@ -16,17 +16,19 @@ mod design_system;
 pub use analysis::*;
 mod loader;
 pub use design_system::{
-    DefinitionFingerprints, DesignSystemRevision, DesignSystemSnapshot, Fingerprint,
+    DefinitionFingerprints, DesignSystemError, DesignSystemRevision, DesignSystemSnapshot,
+    Fingerprint,
 };
 pub use loader::{
-    CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
-    CssSourceMapping, CssSourceName, DesignSystemLoadError, DesignSystemLoadStep,
+    CssDependencyKind, CssFileInput, CssFileRequest, CssImportError, CssSource, CssSourceEdge,
+    CssSourceGraph, CssSourceMapping, CssSourceName, DesignSystemLoadError, DesignSystemLoadStep,
     DesignSystemLoader, DesignSystemOptions,
 };
 
 mod compiler;
 pub use compiler::{
-    CompileResult, Compiler, CompilerOptions, GeneratedClass, GeneratedSymbol, PropsTransform,
+    CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
+    GeneratedClass, GeneratedSymbol, PropsTransform, TransformError,
 };
 pub(crate) use compiler::{render_react_types, render_stylesheet};
 

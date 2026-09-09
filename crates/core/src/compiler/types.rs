@@ -62,17 +62,22 @@ impl CompilerOptions {
     /// # Errors
     ///
     /// Returns an error when a prefix is malformed or both namespaces are identical.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), CompilerOptionsError> {
         for (name, value) in [
             ("prefix", self.prefix.as_str()),
             ("tailwindPrefix", self.tailwind_prefix.as_str()),
         ] {
             if !value.starts_with("--") || !value.ends_with('-') || value.len() < 4 {
-                return Err(format!("{name} must start with `--` and end with `-`"));
+                return Err(CompilerOptionsError::InvalidPrefix {
+                    option: name,
+                    value: value.into(),
+                });
             }
         }
         if self.prefix == self.tailwind_prefix {
-            return Err("prefix and tailwindPrefix must be different".to_owned());
+            return Err(CompilerOptionsError::ConflictingPrefixes {
+                prefix: self.prefix.clone(),
+            });
         }
         Ok(())
     }
@@ -97,18 +102,21 @@ impl CompileResult {
     ///
     /// Returns an error when a transform targets another file or overlaps a
     /// previously applied source span.
-    pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, String> {
+    pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, TransformError> {
         let mut transforms = self.transforms.clone();
         transforms.sort_by_key(|transform| std::cmp::Reverse(transform.call_span.start.0));
 
         let mut output = source.text().to_owned();
         let mut previous_start = u32::MAX;
         for transform in transforms {
-            if source.slice(transform.call_span).is_err()
-                || transform.call_span.end.0 > previous_start
-                || transform.call_span.end.0 as usize > output.len()
-            {
-                return Err("invalid or overlapping stillwind transform plan".to_owned());
+            source
+                .slice(transform.call_span)
+                .map_err(TransformError::InvalidSpan)?;
+            if transform.call_span.end.0 > previous_start {
+                return Err(TransformError::Overlap {
+                    span: transform.call_span,
+                    previous_start,
+                });
             }
             let start = transform.call_span.start.0 as usize;
             let end = transform.call_span.end.0 as usize;
@@ -117,4 +125,20 @@ impl CompileResult {
         }
         Ok(output)
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum CompilerOptionsError {
+    #[error("{option} must start with `--` and end with `-`")]
+    InvalidPrefix { option: &'static str, value: String },
+    #[error("prefix and tailwindPrefix must be different")]
+    ConflictingPrefixes { prefix: String },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum TransformError {
+    #[error("invalid stillwind transform span: {0}")]
+    InvalidSpan(#[source] stillwind_source::SourceError),
+    #[error("overlapping stillwind transform span {span:?}, previous start {previous_start}")]
+    Overlap { span: Span, previous_start: u32 },
 }

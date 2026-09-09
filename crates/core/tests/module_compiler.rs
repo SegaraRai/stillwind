@@ -28,8 +28,8 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
         assert_eq!(compiled.css.to_css(), legacy.module_css, "{candidates}");
         assert_eq!(compiled.to_legacy(&snapshot), legacy, "{candidates}");
         assert_eq!(
-            compiled.apply_to_source(&source),
-            legacy.apply_to_source(&source)
+            compiled.apply_to_source(&source).unwrap(),
+            legacy.apply_to_source(&source).unwrap()
         );
     }
 }

@@ -175,3 +175,23 @@ fn generates_theme_backed_react_type_augmentations() {
     assert!(output.contains("declare module \"stillwind/react\""));
     assert!(output.contains("\"bg-accent\": true"));
 }
+
+#[test]
+fn project_api_preserves_json_and_configuration_errors() {
+    use std::error::Error;
+    use stillwind_napi::{
+        BindingApiError, compile_react_project_json, compile_react_project_json_with_options,
+    };
+    let error = compile_react_project_json("{", "").unwrap_err();
+    let BindingApiError::Json(cause) = &error else {
+        panic!("expected JSON error")
+    };
+    assert_eq!(cause.line(), 1);
+    let options = stillwind_core::CompilerOptions {
+        prefix: "invalid".into(),
+        ..stillwind_core::CompilerOptions::default()
+    };
+    let error = compile_react_project_json_with_options("[]", "", &options).unwrap_err();
+    assert!(matches!(error, BindingApiError::DesignSystem(_)));
+    assert!(error.source().is_some());
+}

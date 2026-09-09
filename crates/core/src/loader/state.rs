@@ -1,8 +1,9 @@
 use super::{
     Arc, BTreeMap, CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge,
-    CssSourceGraph, CssSourceName, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
-    DesignSystemOptions, DesignSystemSnapshot, ExpandedSource, FileId, Node, SourceFile, imports,
+    CssSourceGraph, CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
+    DesignSystemSnapshot, ExpandedSource, FileId, Node, SourceFile, imports,
 };
+
 impl DesignSystemLoader {
     pub fn new(options: DesignSystemOptions) -> Self {
         Self {
@@ -30,9 +31,7 @@ impl DesignSystemLoader {
         files: impl IntoIterator<Item = CssFileInput>,
     ) -> DesignSystemLoadStep {
         if self.terminal {
-            return DesignSystemLoadStep::Complete(Err(Self::protocol(
-                "provide called after completion",
-            )));
+            return DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::AlreadyComplete));
         }
         match self.accept_many(files.into_iter().collect()) {
             Ok(step) => step,
@@ -43,30 +42,19 @@ impl DesignSystemLoader {
         }
     }
 
-    fn protocol(message: impl Into<String>) -> DesignSystemLoadError {
-        DesignSystemLoadError::Protocol {
-            message: message.into(),
-        }
-    }
-
     fn accept_many(
         &mut self,
         files: Vec<CssFileInput>,
     ) -> Result<DesignSystemLoadStep, DesignSystemLoadError> {
         let initial = self.nodes.is_empty();
         if initial && files.len() != 1 {
-            return Err(Self::protocol(
-                "initial provide must contain exactly one file (conventionally ID 0)",
-            ));
+            return Err(DesignSystemLoadError::InvalidInitialBatch { count: files.len() });
         }
         // Validate against requests issued before this batch, including duplicates.
         let mut ids = std::collections::BTreeSet::new();
         for file in &files {
             if !ids.insert(file.id) || (!initial && !self.pending.contains_key(&file.id)) {
-                return Err(Self::protocol(format!(
-                    "unknown or duplicate request ID {}",
-                    file.id
-                )));
+                return Err(DesignSystemLoadError::UnknownOrDuplicateRequest { id: file.id });
             }
         }
         for file in files {
@@ -100,8 +88,8 @@ impl DesignSystemLoader {
         let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str());
         let mut theme = stillwind_css::parse_tailwind_theme(&source).map_err(|error| {
             DesignSystemLoadError::InvalidCss {
-                source: name.clone(),
-                message: error.to_string(),
+                name: name.clone(),
+                cause: error,
             }
         })?;
         for token in &mut theme.tokens {
@@ -120,10 +108,7 @@ impl DesignSystemLoader {
             self.options.clone(),
             std::mem::take(&mut self.graph),
         )
-        .map_err(|error| DesignSystemLoadError::InvalidCss {
-            source: name,
-            message: error.to_string(),
-        })?;
+        .map_err(DesignSystemLoadError::InvalidOptions)?;
         self.terminal = true;
         Ok(DesignSystemLoadStep::Complete(Ok(snapshot)))
     }
@@ -135,24 +120,21 @@ impl DesignSystemLoader {
     ) -> Result<usize, DesignSystemLoadError> {
         if let Some(&index) = self.known.get(&name) {
             if self.graph.sources[index].source.text() != content.as_ref() {
-                return Err(Self::protocol(format!(
-                    "conflicting content for {}",
-                    name.0
-                )));
+                return Err(DesignSystemLoadError::ConflictingContent { name: name.clone() });
             }
             return Ok(index);
         }
-        let imports = imports(&content).map_err(|message| DesignSystemLoadError::InvalidCss {
-            source: name.clone(),
-            message,
+        let imports = imports(&content).map_err(|cause| DesignSystemLoadError::InvalidImport {
+            name: name.clone(),
+            cause,
         })?;
         let index = self.nodes.len();
-        let id = u32::try_from(index + 1).map_err(|_| Self::protocol("too many CSS sources"))?;
+        let id = u32::try_from(index + 1).map_err(|_| DesignSystemLoadError::SourceIdExhausted)?;
         let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content));
         stillwind_css::parse_tailwind_theme(&source).map_err(|error| {
             DesignSystemLoadError::InvalidCss {
-                source: name.clone(),
-                message: error.to_string(),
+                name: name.clone(),
+                cause: error,
             }
         })?;
         let mut requests = Vec::new();
@@ -225,4 +207,36 @@ impl DesignSystemLoader {
         cache.insert(index, output.clone());
         output
     }
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum DesignSystemLoadError {
+    #[error("CSS request IDs exhausted")]
+    RequestIdExhausted,
+    #[error("too many CSS sources")]
+    SourceIdExhausted,
+    #[error("provide called after completion")]
+    AlreadyComplete,
+    #[error("initial provide must contain exactly one file (conventionally ID 0), got {count}")]
+    InvalidInitialBatch { count: usize },
+    #[error("unknown or duplicate request ID {id}")]
+    UnknownOrDuplicateRequest { id: u32 },
+    #[error("conflicting content for {}", .name.0)]
+    ConflictingContent { name: CssSourceName },
+    #[error("{}: {cause}", .name.0)]
+    InvalidCss {
+        name: CssSourceName,
+        #[source]
+        cause: stillwind_css::ThemeError,
+    },
+    #[error("{}: {cause}", .name.0)]
+    InvalidImport {
+        name: CssSourceName,
+        #[source]
+        cause: super::CssImportError,
+    },
+    #[error("{0}")]
+    InvalidOptions(#[from] crate::CompilerOptionsError),
+    #[error("CSS import cycle: {chain:?}")]
+    Cycle { chain: Vec<CssFileRequest> },
 }

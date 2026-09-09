@@ -40,6 +40,16 @@ or fewer, preferably 400 where they can be divided naturally. Generated files
 are exempt. Module entry points collect shared types and exports; substantial
 implementation and test support belong in focused sibling files.
 
+## Error ownership
+
+Use `thiserror` for structured errors, retaining variant-specific data and typed
+causes through `#[source]` / `#[from]`. Define an error beside the operation that
+produces it and re-export it through `mod.rs` / `lib.rs`; do not introduce a
+central `errors.rs`. A fallible operation normally returns its own module's
+error, or a parent-exported error when a finer distinction adds no value.
+`Result<_, String>` is not used. Format messages at diagnostic, CLI, and N-API
+boundaries; N-API entry points use the runtime's required `napi::Result`.
+
 ## Architecture
 
 ```text

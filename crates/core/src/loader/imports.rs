@@ -16,7 +16,7 @@ fn is_framework(name: &str) -> bool {
 }
 
 /// Tokenization skips comments, strings and nested blocks, and decodes CSS escapes.
-pub(super) fn imports(css: &str) -> Result<Vec<Import>, String> {
+pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
     let mut parser = Parser::new(css);
     let mut imports = Vec::new();
     loop {
@@ -36,7 +36,10 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, String> {
                     while nested.next_including_whitespace_and_comments().is_ok() {}
                     Ok::<_, cssparser::ParseError<()>>(())
                 })
-                .map_err(|error| format!("invalid CSS block: {error:?}"))?;
+                .map_err(|error| CssImportError::Block {
+                    offset: start,
+                    kind: error.kind,
+                })?;
             continue;
         }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
@@ -44,7 +47,10 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, String> {
         }
         let specifier = parser
             .expect_url_or_string()
-            .map_err(|error| format!("invalid @import: {error:?}"))?
+            .map_err(|error| CssImportError::Specifier {
+                offset: start,
+                kind: error.kind,
+            })?
             .to_string();
         let tail_start = parser.position();
         loop {
@@ -60,7 +66,10 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, String> {
             continue;
         }
         let tail = parser.slice(tail_start..parser.position());
-        let wrappers = import_wrappers(tail.strip_suffix(';').unwrap_or(tail))?;
+        let wrappers = import_wrappers(
+            tail.strip_suffix(';').unwrap_or(tail),
+            tail_start.byte_index(),
+        )?;
         imports.push(Import {
             start,
             end: parser.position().byte_index(),
@@ -71,15 +80,15 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, String> {
     Ok(imports)
 }
 
-fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
+fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImportError> {
     let mut parser = Parser::new(tail);
     let mut wrappers = Vec::new();
     while !parser.is_exhausted() {
         let state = parser.state();
-        match parser
-            .next()
-            .map_err(|error| format!("invalid import modifiers: {error:?}"))?
-        {
+        match parser.next().map_err(|error| CssImportError::Modifiers {
+            offset: base_offset + state.position().byte_index(),
+            kind: error.kind,
+        })? {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
                 wrappers.push("@layer".into());
             }
@@ -95,7 +104,10 @@ fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
                             nested.slice_from(start).trim().to_owned(),
                         )
                     })
-                    .map_err(|error| format!("invalid import modifier: {error:?}"))?;
+                    .map_err(|error| CssImportError::ModifierBlock {
+                        offset: base_offset + state.position().byte_index(),
+                        kind: error.kind,
+                    })?;
                 wrappers.push(if layer {
                     format!("@layer {condition}")
                 } else {
@@ -112,4 +124,28 @@ fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
         }
     }
     Ok(wrappers)
+}
+
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+pub enum CssImportError {
+    #[error("invalid CSS block at byte {offset}: {kind:?}")]
+    Block {
+        offset: usize,
+        kind: cssparser::ParseErrorKind<()>,
+    },
+    #[error("invalid @import at byte {offset}: {kind}")]
+    Specifier {
+        offset: usize,
+        kind: cssparser::BasicParseErrorKind,
+    },
+    #[error("invalid import modifiers at byte {offset}: {kind}")]
+    Modifiers {
+        offset: usize,
+        kind: cssparser::BasicParseErrorKind,
+    },
+    #[error("invalid import modifier at byte {offset}: {kind:?}")]
+    ModifierBlock {
+        offset: usize,
+        kind: cssparser::ParseErrorKind<()>,
+    },
 }

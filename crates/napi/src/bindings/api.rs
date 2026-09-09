@@ -4,6 +4,7 @@ use super::{
     Fingerprint, IdentityId, ModuleCompiler, OxcSourceAnalyzer, ProjectBindingOutput,
     ProjectModuleOutput, ProjectSource, Result, SourceAnalyzer, SourceFile, TypeFacts, napi,
 };
+
 /// Compiles a source buffer and returns the serializable compiler result.
 ///
 /// Kept independent of Node-API so the same contract has an ordinary Rust E2E
@@ -16,7 +17,7 @@ pub fn compile_react_json(
     source: &str,
     source_path: &str,
     theme: &str,
-) -> std::result::Result<String, serde_json::Error> {
+) -> std::result::Result<String, BindingApiError> {
     compile_react_json_with_options(source, source_path, theme, &CompilerOptions::default())
 }
 
@@ -25,11 +26,11 @@ pub fn compile_react_json_with_options(
     source_path: &str,
     theme: &str,
     options: &CompilerOptions,
-) -> std::result::Result<String, serde_json::Error> {
+) -> std::result::Result<String, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source);
     let theme = SourceFile::new(FileId(2), "stillwind.css", theme);
     let result = Compiler::compile_react_with_options(&source, &theme, options);
-    serde_json::to_string(&binding_output(result, &source, &theme))
+    serde_json::to_string(&binding_output(result, &source, &theme)).map_err(BindingApiError::Json)
 }
 
 pub(super) fn binding_output(
@@ -140,7 +141,7 @@ pub(super) fn binding_output(
 pub fn compile_react_project_json(
     sources_json: &str,
     theme: &str,
-) -> std::result::Result<String, String> {
+) -> std::result::Result<String, BindingApiError> {
     compile_react_project_json_with_options(sources_json, theme, &CompilerOptions::default())
 }
 
@@ -148,9 +149,8 @@ pub fn compile_react_project_json_with_options(
     sources_json: &str,
     theme: &str,
     options: &CompilerOptions,
-) -> std::result::Result<String, String> {
-    let input: Vec<ProjectSource> =
-        serde_json::from_str(sources_json).map_err(|error| error.to_string())?;
+) -> std::result::Result<String, BindingApiError> {
+    let input: Vec<ProjectSource> = serde_json::from_str(sources_json)?;
     let sources = input
         .into_iter()
         .enumerate()
@@ -178,7 +178,7 @@ pub fn compile_react_project_json_with_options(
         .map(|asset| (asset.identity, asset.metadata))
         .collect::<BTreeMap<IdentityId, AssetMetadata>>();
     let snapshot = DesignSystemSnapshot::from_source(&theme, options.clone())
-        .map_err(|error| error.to_string())?;
+        .map_err(BindingApiError::DesignSystem)?;
     let compiler = ModuleCompiler::new(snapshot.clone());
     let mut results = sources
         .iter()
@@ -216,7 +216,7 @@ pub fn compile_react_project_json_with_options(
             }
         })
         .collect();
-    serde_json::to_string(&ProjectBindingOutput { modules }).map_err(|error| error.to_string())
+    serde_json::to_string(&ProjectBindingOutput { modules }).map_err(BindingApiError::Json)
 }
 
 /// Extracts the versioned cross-module summary for a React source module.
@@ -227,9 +227,10 @@ pub fn compile_react_project_json_with_options(
 pub fn summarize_react_json(
     source: &str,
     source_path: &str,
-) -> std::result::Result<String, serde_json::Error> {
+) -> std::result::Result<String, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source);
     serde_json::to_string(&Compiler::analyze_javascript(&source).summary)
+        .map_err(BindingApiError::Json)
 }
 
 /// Native Node entrypoint used by `@stillwind/vite`.
@@ -270,7 +271,7 @@ pub fn compile_react_project(
 ) -> Result<String> {
     let options = parse_options(options_json.as_deref())?;
     compile_react_project_json_with_options(&sources_json, &theme, &options)
-        .map_err(Error::from_reason)
+        .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Wraps project module CSS fragments in one shared theme/base stylesheet.
@@ -290,12 +291,14 @@ pub fn render_react_stylesheet(
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
-pub(super) fn parse_options(options_json: Option<&str>) -> Result<CompilerOptions> {
+pub(super) fn parse_options(
+    options_json: Option<&str>,
+) -> std::result::Result<CompilerOptions, BindingApiError> {
     let options = options_json.map_or_else(
         || Ok(CompilerOptions::default()),
-        |value| serde_json::from_str(value).map_err(|error| Error::from_reason(error.to_string())),
+        |value| serde_json::from_str(value).map_err(BindingApiError::Json),
     )?;
-    options.validate().map_err(Error::from_reason)?;
+    options.validate()?;
     Ok(options)
 }
 
@@ -323,4 +326,20 @@ pub fn generate_react_types(theme: String) -> Result<String> {
 #[napi(js_name = "foldCalcExpressions")]
 pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BindingApiError {
+    #[error("{0}")]
+    Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    DesignSystem(#[from] stillwind_core::DesignSystemError),
+    #[error("{0}")]
+    Options(#[from] stillwind_core::CompilerOptionsError),
+}
+
+impl From<BindingApiError> for Error {
+    fn from(error: BindingApiError) -> Self {
+        Self::from_reason(error.to_string())
+    }
 }

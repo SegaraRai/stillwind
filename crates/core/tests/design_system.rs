@@ -33,7 +33,7 @@ fn loader_traverses_opaque_names_in_authored_order_and_reuses_sources() {
     assert_eq!(snapshot.render_stylesheet(""), flat.render_stylesheet(""));
     assert!(matches!(
         loader.provide(0, "extra".into(), "".into()),
-        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::AlreadyComplete))
     ));
 }
 
@@ -55,7 +55,7 @@ fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
     conflict.provide(0, "root".into(), css.into());
     assert!(matches!(
         conflict.provide(1, "root".into(), "".into()),
-        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::ConflictingContent { .. }))
     ));
     let mut invalid = DesignSystemLoader::new(CompilerOptions::default());
     assert!(matches!(
@@ -311,7 +311,7 @@ fn loader_validates_batches_against_previously_issued_ids() {
         let mut loader = DesignSystemLoader::new(CompilerOptions::default());
         assert!(matches!(
             loader.provide_many(files),
-            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::InvalidInitialBatch { .. }))
         ));
     }
     for files in [
@@ -325,7 +325,10 @@ fn loader_validates_batches_against_previously_issued_ids() {
         loader.provide(0, "root".into(), "@import 'a'; @import 'b';".into());
         assert!(matches!(
             loader.provide_many(files),
-            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+            DesignSystemLoadStep::Complete(Err(
+                DesignSystemLoadError::UnknownOrDuplicateRequest { .. }
+                    | DesignSystemLoadError::ConflictingContent { .. }
+            ))
         ));
     }
     let mut loader = DesignSystemLoader::new(CompilerOptions::default());
@@ -335,6 +338,8 @@ fn loader_validates_batches_against_previously_issued_ids() {
     loader.provide(1, "a".into(), "".into());
     assert!(matches!(
         loader.provide(1, "a".into(), "".into()),
-        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::UnknownOrDuplicateRequest {
+            id: 1
+        }))
     ));
 }

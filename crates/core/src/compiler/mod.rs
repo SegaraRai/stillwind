@@ -90,6 +90,7 @@ mod react_types;
 pub(crate) use react_types::class_name;
 pub(crate) use react_types::render_react_types;
 mod api;
+pub use api::CompilerThemeError;
 mod pipeline;
 #[cfg(test)]
 mod tests;

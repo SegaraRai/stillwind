@@ -48,9 +48,7 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
     let old_css = session.css();
     assert!(
         session
-            .reload(Err(DesignSystemLoadError::Protocol {
-                message: "failed attempt".into()
-            }))
+            .reload(Err(DesignSystemLoadError::RequestIdExhausted))
             .is_err()
     );
     assert_eq!(session.css(), old_css);

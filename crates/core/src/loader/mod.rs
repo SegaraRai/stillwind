@@ -9,6 +9,7 @@ use crate::{CompilerOptions, DesignSystemSnapshot};
 mod protocol;
 pub use protocol::*;
 mod state;
+pub use state::DesignSystemLoadError;
 #[derive(Clone, Debug)]
 struct Import {
     start: usize,
@@ -38,6 +39,7 @@ pub struct DesignSystemLoader {
 mod expansion;
 use expansion::ExpandedSource;
 mod imports;
+pub use imports::CssImportError;
 use imports::imports;
 #[cfg(test)]
 mod tests;

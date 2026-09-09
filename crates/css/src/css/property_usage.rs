@@ -1,6 +1,6 @@
 use super::{
-    BTreeSet, CustomPropertyUsage, ParserOptions, Property, StyleSheet, ThemeError, Visit,
-    VisitTypes, Visitor, custom_property_references, strip_blocks, strip_css_comments, visit_types,
+    BTreeSet, CustomPropertyUsage, ParserOptions, Property, StyleSheet, Visit, VisitTypes, Visitor,
+    custom_property_references, strip_blocks, strip_css_comments, visit_types,
 };
 
 /// Returns custom properties used by declarations and values, excluding names
@@ -54,7 +54,7 @@ pub fn referenced_custom_properties(css: &str) -> BTreeSet<String> {
 ///
 /// Returns an error when the emitted stylesheet cannot be parsed, including
 /// with Lightning CSS error recovery enabled.
-pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, ThemeError> {
+pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyUsageError> {
     struct UsageVisitor {
         usage: CustomPropertyUsage,
     }
@@ -97,7 +97,7 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, ThemeErro
             ..ParserOptions::default()
         },
     )
-    .map_err(|error| ThemeError::Parse(error.to_string()))?;
+    .map_err(|error| PropertyUsageError(error.into_owned()))?;
     let mut visitor = UsageVisitor {
         usage: CustomPropertyUsage::default(),
     };
@@ -107,3 +107,9 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, ThemeErro
     }
     Ok(visitor.usage)
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("CSS parse error: {0}")]
+pub struct PropertyUsageError(
+    #[source] pub lightningcss::error::Error<lightningcss::error::ParserError<'static>>,
+);

@@ -65,10 +65,10 @@ impl NativeDesignSystemLoader {
 }
 
 impl NativeDesignSystemLoader {
-    fn completed(&self) -> Result<DesignSystemSnapshot> {
+    fn completed(&self) -> std::result::Result<DesignSystemSnapshot, NativeSessionError> {
         self.snapshot
             .clone()
-            .ok_or_else(|| Error::from_reason("CSS load is incomplete"))
+            .ok_or(NativeSessionError::IncompleteCssLoad)
     }
 }
 
@@ -138,10 +138,10 @@ impl NativeProjectSession {
             .reload(Ok(loader.completed()?))
             .map_err(|error| Error::from_reason(error.to_string()))?;
         if !update.diagnostics.is_empty() {
-            return Err(Error::from_reason(format!(
-                "CSS reload compilation failed: {:?}",
-                update.diagnostics
-            )));
+            return Err(NativeSessionError::ReloadCompilation {
+                diagnostics: update.diagnostics,
+            }
+            .into());
         }
         Ok(json!({"cssChanged":update.css_changed,"transformedModules":update.transformed_modules}).to_string())
     }
@@ -195,5 +195,21 @@ impl NativeProjectSession {
         }
         serde_json::to_string(&ProjectBindingOutput { modules })
             .map_err(|error| Error::from_reason(error.to_string()))
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum NativeSessionError {
+    #[error("CSS load is incomplete")]
+    IncompleteCssLoad,
+    #[error("CSS reload compilation failed: {diagnostics:?}")]
+    ReloadCompilation {
+        diagnostics: BTreeMap<String, Vec<stillwind_core::CompileDiagnostic>>,
+    },
+}
+
+impl From<NativeSessionError> for Error {
+    fn from(error: NativeSessionError) -> Self {
+        Self::from_reason(error.to_string())
     }
 }

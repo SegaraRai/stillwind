@@ -7,10 +7,10 @@ use super::{
     framework_imports, matching_brace, strip_framework_directives,
 };
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 pub enum ThemeError {
     #[error("CSS parse error: {0}")]
-    Parse(String),
+    Parse(#[source] lightningcss::error::Error<lightningcss::error::ParserError<'static>>),
     #[error("unterminated @theme block")]
     UnterminatedTheme,
 }
@@ -23,7 +23,7 @@ pub enum ThemeError {
 /// `@theme` block has no closing brace.
 pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     StyleSheet::parse(source.text(), ParserOptions::default())
-        .map_err(|error| ThemeError::Parse(error.to_string()))?;
+        .map_err(|error| ThemeError::Parse(error.into_owned()))?;
 
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     theme.custom_css = strip_framework_directives(source.text());
@@ -56,7 +56,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         &strip_framework_directives(source.text()),
         ParserOptions::default(),
     )
-    .map_err(|error| ThemeError::Parse(error.to_string()))?;
+    .map_err(|error| ThemeError::Parse(error.into_owned()))?;
     let imports = framework_imports(source.text());
     let mut tokens = if imports.theme_layer.is_some() {
         extract_theme_tokens(FileId(0), TAILWIND_V4_THEME)?.tokens

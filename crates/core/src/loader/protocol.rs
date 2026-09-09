@@ -1,3 +1,4 @@
+use super::DesignSystemLoadError;
 use super::{Arc, CompilerOptions, DesignSystemSnapshot, FileId, SourceFile};
 pub type DesignSystemOptions = CompilerOptions;
 
@@ -48,33 +49,6 @@ pub struct CssSourceMapping {
     pub file: FileId,
     pub source_start: usize,
 }
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DesignSystemLoadError {
-    RequestIdExhausted,
-    InvalidCss {
-        source: CssSourceName,
-        message: String,
-    },
-    Protocol {
-        message: String,
-    },
-    Cycle {
-        chain: Vec<CssFileRequest>,
-    },
-}
-
-impl std::fmt::Display for DesignSystemLoadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::RequestIdExhausted => f.write_str("CSS request IDs exhausted"),
-            Self::InvalidCss { source, message } => write!(f, "{}: {message}", source.0),
-            Self::Protocol { message } => write!(f, "CSS loader protocol error: {message}"),
-            Self::Cycle { chain } => write!(f, "CSS import cycle: {chain:?}"),
-        }
-    }
-}
-impl std::error::Error for DesignSystemLoadError {}
 
 #[derive(Debug)]
 pub enum DesignSystemLoadStep {

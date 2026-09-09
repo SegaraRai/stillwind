@@ -21,9 +21,10 @@ impl Compiler {
     /// unterminated `@theme` block.
     pub fn read_theme(
         source: &SourceFile,
-    ) -> Result<stillwind_css::ThemeIndex, stillwind_css::ThemeError> {
+    ) -> Result<stillwind_css::ThemeIndex, CompilerThemeError> {
         DesignSystemSnapshot::from_source(source, CompilerOptions::default())
             .map(|snapshot| snapshot.theme().clone())
+            .map_err(CompilerThemeError::from)
     }
 
     /// Generates a module augmentation containing the theme-backed utility vocabulary.
@@ -31,9 +32,7 @@ impl Compiler {
     /// # Errors
     ///
     /// Returns an error when the CSS theme cannot be parsed.
-    pub fn generate_react_types(
-        theme_source: &SourceFile,
-    ) -> Result<String, stillwind_css::ThemeError> {
+    pub fn generate_react_types(theme_source: &SourceFile) -> Result<String, CompilerThemeError> {
         let theme = Self::read_theme(theme_source)?;
         Ok(render_react_types(&theme))
     }
@@ -47,9 +46,10 @@ impl Compiler {
         theme_source: &SourceFile,
         module_css: &str,
         options: &CompilerOptions,
-    ) -> Result<String, stillwind_css::ThemeError> {
+    ) -> Result<String, CompilerThemeError> {
         DesignSystemSnapshot::from_source(theme_source, options.clone())
             .map(|snapshot| snapshot.render_stylesheet(module_css))
+            .map_err(CompilerThemeError::from)
     }
 
     /// Compiles the first static React subset into CSS.
@@ -140,3 +140,7 @@ impl Compiler {
             .to_legacy(&snapshot)
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct CompilerThemeError(#[from] pub crate::DesignSystemError);
