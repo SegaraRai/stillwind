@@ -4,40 +4,40 @@
 
 @stillwind-utility mask-y-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
   --tw-mask-top: linear-gradient(
     to top,
     var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
     var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
-  );
-  --tw-mask-bottom: linear-gradient(
-    to bottom,
-    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
-    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
   --tw-mask-bottom-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-y-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
   --tw-mask-top: linear-gradient(
     to top,
     var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
     var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
-  );
-  --tw-mask-bottom: linear-gradient(
-    to bottom,
-    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
-    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-top-from-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
   --tw-mask-bottom-from-color: --value(--color-*, current, inherit, transparent, [color]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-y-from-* {
@@ -49,15 +49,15 @@
     to top,
     var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
     var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
-  );
-  --tw-mask-bottom: linear-gradient(
-    to bottom,
-    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
-    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-top-from-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-bottom-from-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
@@ -109,40 +109,40 @@
 
 @stillwind-utility mask-y-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
   --tw-mask-top: linear-gradient(
     to top,
     var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
     var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
-  );
-  --tw-mask-bottom: linear-gradient(
-    to bottom,
-    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
-    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
   --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-y-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
   --tw-mask-top: linear-gradient(
     to top,
     var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
     var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
-  );
-  --tw-mask-bottom: linear-gradient(
-    to bottom,
-    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
-    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-top-to-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
+  );
   --tw-mask-bottom-to-color: --value(--color-*, current, inherit, transparent, [color]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-y-to-* {
@@ -154,15 +154,15 @@
     to top,
     var(--tw-mask-top-from-color, black) var(--tw-mask-top-from-position, 0%),
     var(--tw-mask-top-to-color, transparent) var(--tw-mask-top-to-position, 100%)
-  );
-  --tw-mask-bottom: linear-gradient(
-    to bottom,
-    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
-    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-top-to-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
+  );
+  --tw-mask-bottom: linear-gradient(
+    to bottom,
+    var(--tw-mask-bottom-from-color, black) var(--tw-mask-bottom-from-position, 0%),
+    var(--tw-mask-bottom-to-color, transparent) var(--tw-mask-bottom-to-position, 100%)
   );
   --tw-mask-bottom-to-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
@@ -214,40 +214,40 @@
 
 @stillwind-utility mask-x-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
-  --tw-mask-left: linear-gradient(
-    to left,
-    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
-    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
-  );
   --tw-mask-right: linear-gradient(
     to right,
     var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
     var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
   );
   --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
-  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-x-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
-  --tw-mask-left: linear-gradient(
-    to left,
-    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
-    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
-  );
   --tw-mask-right: linear-gradient(
     to right,
     var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
     var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-from-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
   );
   --tw-mask-left-from-color: --value(--color-*, current, inherit, transparent, [color]);
-  --tw-mask-right-from-color: --value(--color-*, current, inherit, transparent, [color]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-x-from-* {
@@ -255,24 +255,24 @@
   mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
-  --tw-mask-left: linear-gradient(
-    to left,
-    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
-    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
-  );
   --tw-mask-right: linear-gradient(
     to right,
     var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
     var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-from-color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
   );
   --tw-mask-left-from-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
-  --tw-mask-right-from-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
 }
 
 @stillwind-utility mask-r-from-* {
@@ -319,40 +319,40 @@
 
 @stillwind-utility mask-x-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
-  --tw-mask-left: linear-gradient(
-    to left,
-    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
-    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
-  );
   --tw-mask-right: linear-gradient(
     to right,
     var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
     var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
   );
   --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
-  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-x-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
-  mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
-  --tw-mask-left: linear-gradient(
-    to left,
-    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
-    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
-  );
   --tw-mask-right: linear-gradient(
     to right,
     var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
     var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
+  );
+  --tw-mask-right-to-color: --value(--color-*, current, inherit, transparent, [color]);
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
   );
   --tw-mask-left-to-color: --value(--color-*, current, inherit, transparent, [color]);
-  --tw-mask-right-to-color: --value(--color-*, current, inherit, transparent, [color]);
+  mask-composite: intersect;
 }
 
 @stillwind-utility mask-x-to-* {
@@ -360,21 +360,21 @@
   mask-composite: intersect;
   --tw-mask-linear:
     var(--tw-mask-left), var(--tw-mask-right), var(--tw-mask-bottom), var(--tw-mask-top);
-  --tw-mask-left: linear-gradient(
-    to left,
-    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
-    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
-  );
   --tw-mask-right: linear-gradient(
     to right,
     var(--tw-mask-right-from-color, black) var(--tw-mask-right-from-position, 0%),
     var(--tw-mask-right-to-color, transparent) var(--tw-mask-right-to-position, 100%)
   );
-  --tw-mask-left-to-color: --compat-color(
+  --tw-mask-right-to-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
-  --tw-mask-right-to-color: --compat-color(
+  --tw-mask-left: linear-gradient(
+    to left,
+    var(--tw-mask-left-from-color, black) var(--tw-mask-left-from-position, 0%),
+    var(--tw-mask-left-to-color, transparent) var(--tw-mask-left-to-position, 100%)
+  );
+  --tw-mask-left-to-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );

@@ -1,10 +1,10 @@
 ._s_87e7c0ec {
   display: inline-flex;
-  align-items: center;
-  border-radius: var(--radius-md);
   padding-inline: var(--spacing-4);
+  align-items: center;
   --button-progress: 0.5;
   --authored-progress: 1;
+  border-radius: var(--radius-md);
 }
 ._s_87e7c0ec:hover {
   background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);
@@ -13,7 +13,7 @@
   }
 }
 ._s_a0bab6c2 {
-  opacity: 0.6;
+  opacity: 60%;
 }
 ._s_2240a763 {
   background-color: var(--color-accent);

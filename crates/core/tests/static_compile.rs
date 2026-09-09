@@ -45,6 +45,14 @@ fn fixture_case_for_candidate<'a>(fixture: &'a str, candidate: &str) -> &'a str 
         .unwrap_or_else(|| panic!("fixture case for `{candidate}` must exist"))
 }
 
+fn fixture_case_named<'a>(fixture: &'a str, name: &str) -> &'a str {
+    fixture
+        .split("## `")
+        .skip(1)
+        .find(|section| section.starts_with(&format!("{name}`")))
+        .unwrap_or_else(|| panic!("fixture case `{name}` must exist"))
+}
+
 fn css_rule(css: &str, class_name: &str) -> String {
     let selector = format!(".{class_name}");
     let start = css
@@ -119,8 +127,8 @@ proptest! {
     fn negative_z_property_acceptance_and_css(n in 1_u16..10_000) {
         let result = compile_one_utility(&format!("-z-{n}"));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-        let z_index = format!("z-index:calc({n}*-1);");
-        prop_assert!(normalize_css(&result.css).contains(&z_index));
+        let z_index = format!("z-index:-{n};");
+        prop_assert!(normalize_css(&result.css).contains(&z_index), "{}", result.css);
     }
 
     #[test]
@@ -377,6 +385,75 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
 }
 
 #[test]
+fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
+    let fixture =
+        include_str!("../../../fixtures/tailwind-v4/cases/theme-shadow-tokens.fixture.md");
+    let configured_cases = [
+        (
+            "theme-shadow-tokens.custom-default-size-overrides",
+            ["shadow-lg", "inset-shadow-sm", "drop-shadow-sm"],
+        ),
+        (
+            "theme-shadow-tokens.custom-alternate-size-overrides",
+            ["shadow-xs", "inset-shadow-xs", "drop-shadow-xs"],
+        ),
+    ];
+
+    for (case_name, candidates) in configured_cases {
+        let section = fixture_case_named(fixture, case_name);
+        let input_css = fixture_code_block(section, "Input CSS", "css").unwrap();
+        let expected_css = fixture_code_block(section, "Expected CSS", "css").unwrap();
+        for candidate in candidates {
+            let component = SourceFile::new(
+                FileId(1),
+                "src/Fixture.tsx",
+                format!(
+                    "import {{ style }} from \"stillwind/react\"; const props = style({candidate:?});"
+                ),
+            );
+            let result = Compiler::compile_react(
+                &component,
+                &SourceFile::new(FileId(2), "stillwind.css", input_css.clone()),
+            );
+            assert!(result.diagnostics.is_empty(), "{case_name}: {candidate}");
+            let class_name = &result.classes[0].class_name;
+            let selector = tailwind_class_selector(candidate);
+            let actual = css_rule(&result.css, class_name).replace(class_name, &selector);
+            let expected = css_rule(&expected_css, &selector);
+            assert_eq!(
+                minify_css(&actual),
+                minify_css(&expected),
+                "{case_name}: {candidate}"
+            );
+        }
+    }
+
+    let removed = fixture_case_named(fixture, "theme-shadow-tokens.namespace-removal");
+    let input_css = fixture_code_block(removed, "Input CSS", "css").unwrap();
+    let candidates = fixture_code_block(removed, "Candidates", "text").unwrap();
+    let result = Compiler::compile_react(
+        &SourceFile::new(
+            FileId(3),
+            "src/Fixture.tsx",
+            format!(
+                "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
+            ),
+        ),
+        &SourceFile::new(FileId(4), "stillwind.css", input_css),
+    );
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.classes.is_empty(), "{}", result.css);
+    assert_eq!(
+        result
+            .lint_findings
+            .iter()
+            .filter(|finding| finding.rule == "unknown-utility")
+            .count(),
+        6
+    );
+}
+
+#[test]
 fn framework_imports_gate_baseline_layers() {
     let component = SourceFile::new(
         FileId(1),
@@ -600,7 +677,13 @@ const props = style("outline-hidden");"#,
     let result = Compiler::compile_react(&component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("@media (forced-colors:active){._s_"));
+    assert!(
+        result.css.contains(
+            "@media (forced-colors:active){outline-offset:2px;outline:2px solid transparent;}"
+        ),
+        "{}",
+        result.css
+    );
     assert!(result.css.contains("outline:2px solid transparent;"));
 }
 
@@ -641,7 +724,7 @@ const props = style("starting:opacity-0");"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@starting-style{._s_"));
-    assert!(result.css.contains("{opacity:0;}"));
+    assert!(result.css.contains("{opacity:0%;}"), "{}", result.css);
 }
 
 #[test]
@@ -673,7 +756,7 @@ export function SaveButton() {
     assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("@layer base"));
-    assert!(result.css.contains("._s_bc6dda5a{display:inline-flex;align-items:center;border-radius:var(--radius-md);background-color:var(--color-accent);padding-inline:var(--spacing-4);text-align:center;}"));
+    assert!(result.css.contains("._s_bc6dda5a{display:inline-flex;padding-inline:var(--spacing-4);align-items:center;text-align:center;background-color:var(--color-accent);border-radius:var(--radius-md);}"), "{}", result.css);
 }
 
 #[test]
@@ -768,7 +851,7 @@ const props = style("bg-accent", loading && "opacity-60");"#,
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
     assert!(result.css.contains("background-color:var(--color-accent);"));
-    assert!(result.css.contains("opacity:0.6;"));
+    assert!(result.css.contains("opacity:60%;"), "{}", result.css);
 }
 
 #[test]
@@ -1072,7 +1155,7 @@ const props = style(
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(result.css.contains("padding-inline:var(--spacing-4);"));
     assert!(result.css.contains(":hover{background-color:color-mix("));
-    assert!(result.css.contains("opacity:0.6;"));
+    assert!(result.css.contains("opacity:60%;"), "{}", result.css);
     assert!(
         result.transforms[0]
             .replacement
@@ -1321,7 +1404,9 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&
     assert!(
         result
             .css
-            .contains("from{opacity:0;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}")
+            .contains("from{opacity:0%;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}"),
+        "{}",
+        result.css
     );
     assert!(result.css.contains("animation-name:--sw-a-"));
     assert!(result.css.contains("animation-duration:"));

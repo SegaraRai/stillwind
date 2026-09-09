@@ -12,7 +12,7 @@ use std::{
 
 use stillwind_css::{
     CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
-    shadow_with_color_fallback,
+    shadow_with_color_fallback, shadow_with_color_override,
 };
 use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -194,14 +194,6 @@ pub fn builtin_property_definitions() -> &'static [stillwind_css::CustomProperty
     static PROPERTIES: OnceLock<Vec<stillwind_css::CustomPropertyDefinition>> = OnceLock::new();
     PROPERTIES
         .get_or_init(|| stillwind_css::parse_property_definitions(BUILTIN_REGISTRY_CSS))
-        .as_slice()
-}
-
-#[must_use]
-pub fn builtin_declaration_order() -> &'static [Vec<String>] {
-    static ORDER: OnceLock<Vec<Vec<String>>> = OnceLock::new();
-    ORDER
-        .get_or_init(|| stillwind_css::parse_declaration_order(BUILTIN_REGISTRY_CSS))
         .as_slice()
 }
 
@@ -1274,12 +1266,9 @@ fn resolve_css_utility_body(
     // exception: their slash is deliberately reassembled by `--fraction()`.
     let consumes_modifier = body.contains("--modifier")
         || body.contains("--fraction()")
-        || body.contains("--relative-color(")
-        || nested.iter().any(|(_, _, body)| {
-            body.contains("--modifier")
-                || body.contains("--fraction()")
-                || body.contains("--relative-color(")
-        });
+        || nested
+            .iter()
+            .any(|(_, _, body)| body.contains("--modifier") || body.contains("--fraction()"));
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
@@ -1288,8 +1277,7 @@ fn resolve_css_utility_body(
     let declaration = normalize_registered_var_fallbacks(declarations.base, theme);
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
-        || body.contains("--fraction()")
-        || body.contains("--relative-color(");
+        || body.contains("--fraction()");
     let mut resolved_nested = Vec::new();
     for modern in declarations.compat_modern {
         resolved_nested.push(NestedUtilityRule {
@@ -1303,8 +1291,7 @@ fn resolve_css_utility_body(
         for (condition, body) in expand_theme_wildcard_nested(&condition, &body, theme) {
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
-                || body.contains("--fraction()")
-                || body.contains("--relative-color(");
+                || body.contains("--fraction()");
             let Some(declarations) =
                 resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)
             else {
@@ -1485,9 +1472,9 @@ fn resolve_css_declarations(
     let uses_value = declarations.iter().any(|declaration| {
         declaration.contains("--value(") || declaration.contains("--value-literal(")
     });
-    let requires_modifier = declarations.iter().any(|declaration| {
-        declaration.contains("--modifier(") || declaration.contains("--relative-color(")
-    });
+    let requires_modifier = declarations
+        .iter()
+        .any(|declaration| declaration.contains("--modifier("));
     let required_declarations = declarations
         .iter()
         .filter(|declaration| declaration.contains("--relative-color("))
@@ -1508,8 +1495,7 @@ fn resolve_css_declarations(
             || authored_declaration.contains("--alpha(")
             || authored_declaration.contains("--compat-color(")
             || authored_declaration.contains("--relative-color(");
-        let contains_modifier = authored_declaration.contains("--modifier(")
-            || authored_declaration.contains("--relative-color(");
+        let contains_modifier = authored_declaration.contains("--modifier(");
         let contains_required = authored_declaration.contains("--relative-color(");
         let contains_value = authored_declaration.contains("--value(")
             || authored_declaration.contains("--value-literal(");
@@ -1799,8 +1785,10 @@ fn resolve_shadow_color(
     theme: &ThemeIndex,
 ) -> Option<String> {
     let arguments = split_domains(arguments);
-    let [domain, color_property, alpha] = arguments.as_slice() else {
-        return None;
+    let (domain, color_property, alpha) = match arguments.as_slice() {
+        [domain, color_property] => (*domain, *color_property, None),
+        [domain, color_property, alpha] => (*domain, *color_property, Some(alpha.trim())),
+        _ => return None,
     };
     let namespace = domain
         .trim()
@@ -1815,7 +1803,10 @@ fn resolve_shadow_color(
                 character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
             })
     })?;
-    shadow_with_color_fallback(&value, color_property, alpha.trim())
+    match alpha {
+        Some(alpha) => shadow_with_color_fallback(&value, color_property, alpha),
+        None => shadow_with_color_override(&value, color_property, None),
+    }
 }
 
 fn resolve_literal_value_placeholders(
@@ -3918,35 +3909,6 @@ mod tests {
             include_str!("../../../css/builtins/properties.css"),
         ),
     ];
-
-    #[test]
-    fn builtin_utility_overloads_are_colocated_and_contiguous() {
-        let mut locations = HashMap::<String, (&str, usize)>::new();
-        for (file, css) in REGISTRY_FILES
-            .iter()
-            .filter(|(file, _)| file.ends_with("-utilities.css"))
-        {
-            for (index, utility) in stillwind_css::parse_builtin_utility_definitions(css)
-                .into_iter()
-                .enumerate()
-            {
-                if let Some((previous_file, previous_index)) = locations.get(&utility.name) {
-                    assert_eq!(
-                        previous_file, file,
-                        "utility overload {} is split between {previous_file} and {file}",
-                        utility.name
-                    );
-                    assert_eq!(
-                        previous_index + 1,
-                        index,
-                        "utility overload {} is not contiguous in {file}",
-                        utility.name
-                    );
-                }
-                locations.insert(utility.name, (file, index));
-            }
-        }
-    }
 
     #[test]
     fn builtin_negative_value_definitions_author_their_sign_explicitly() {

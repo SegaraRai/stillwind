@@ -389,23 +389,44 @@ fn property_value(property: &str, value: &str) -> bool {
     CssProperty::from_name(property).is_some_and(|property| property.accepts(value))
 }
 
-/// Rewrites one box-shadow colour with a custom-property override and CSS
-/// Color 5 relative-colour fallback. This is the semantic operation Tailwind
-/// uses for `shadow-*/opacity` families, while the parser owns the shadow
-/// grammar.
+/// Rewrites box-shadow colours with a custom-property override and CSS Color 5
+/// relative-colour fallback. This is the semantic operation Tailwind uses for
+/// `shadow-*/opacity` families, while the parser owns the shadow grammar.
 #[must_use]
 pub fn shadow_with_color_fallback(
     value: &str,
     color_property: &str,
     alpha: &str,
 ) -> Option<String> {
+    shadow_with_color_override(value, color_property, Some(alpha))
+}
+
+/// Rewrites every shadow in a comma-separated shadow list so a utility color
+/// can override the authored color. When `alpha` is present, the authored
+/// color is additionally converted to Tailwind's relative-color fallback.
+#[must_use]
+pub fn shadow_with_color_override(
+    value: &str,
+    color_property: &str,
+    alpha: Option<&str>,
+) -> Option<String> {
+    split_top_level_commas(value)
+        .into_iter()
+        .map(|shadow| rewrite_shadow_color(shadow, color_property, alpha))
+        .collect::<Option<Vec<_>>>()
+        .map(|shadows| shadows.join(", "))
+}
+
+fn rewrite_shadow_color(value: &str, color_property: &str, alpha: Option<&str>) -> Option<String> {
     let shadow = BoxShadow::parse_string(value).ok()?;
     if let Some((base, color)) = trailing_top_level_css_component(value)
         && CssColor::parse_string(color).is_ok()
     {
-        return Some(format!(
-            "{base} var({color_property}, oklab(from {color} l a b / {alpha}))"
-        ));
+        let fallback = alpha.map_or_else(
+            || color.to_owned(),
+            |alpha| format!("oklab(from {color} l a b / {alpha})"),
+        );
+        return Some(format!("{base} var({color_property}, {fallback})"));
     }
 
     // The fallback remains grammar-driven for shadows whose colour is not
@@ -416,9 +437,43 @@ pub fn shadow_with_color_fallback(
     let without_color = serialized
         .strip_suffix(&format!(" {color}"))
         .unwrap_or(&serialized);
-    Some(format!(
-        "{without_color} var({color_property}, oklab(from {color} l a b / {alpha}))"
-    ))
+    let fallback = alpha.map_or_else(
+        || color.clone(),
+        |alpha| format!("oklab(from {color} l a b / {alpha})"),
+    );
+    Some(format!("{without_color} var({color_property}, {fallback})"))
+}
+
+fn split_top_level_commas(value: &str) -> Vec<&str> {
+    let mut components = Vec::new();
+    let mut start = 0;
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in value.char_indices() {
+        if let Some(current_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == current_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                components.push(value[start..index].trim());
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    components.push(value[start..].trim());
+    components
 }
 
 /// Serializes a theme color as an sRGB fallback with the requested alpha.
@@ -979,10 +1034,6 @@ pub struct ThemeIndex {
     pub utilities: Vec<CustomUtility>,
     pub variants: Vec<CustomVariant>,
     pub properties: Vec<CustomPropertyDefinition>,
-    /// CSS-authored declaration precedence groups. Each group lists property
-    /// patterns from lower to higher precedence and is interpreted generically
-    /// by consumers (no framework property table required).
-    pub declaration_order: Vec<Vec<String>>,
     /// Utility names whose declarations provide compatibility marker classes.
     pub marker_utilities: BTreeSet<String>,
     /// Generic serialization formats attached to CSS declarations.
@@ -1179,12 +1230,6 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
 #[must_use]
 pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_property_definitions(css)
-}
-
-/// Parses compiler-owned declaration precedence metadata.
-#[must_use]
-pub fn parse_declaration_order(css: &str) -> Vec<Vec<String>> {
-    extract_declaration_order(css)
 }
 
 /// Extracts compatibility marker utility names declared by CSS metadata.
@@ -2027,7 +2072,6 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     theme.utilities = extract_custom_utilities(source.text());
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
-    theme.declaration_order = extract_declaration_order(source.text());
     theme.marker_utilities = extract_marker_utilities(source.text());
     theme.declaration_formats = extract_declaration_formats(source.text());
     theme.relationship_patterns = extract_relationship_patterns(source.text());
@@ -2078,7 +2122,6 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         utilities: extract_custom_utilities(source.text()),
         variants: extract_custom_variants(source.text()),
         properties: extract_property_definitions(source.text()),
-        declaration_order: extract_declaration_order(source.text()),
         marker_utilities: extract_marker_utilities(source.text()),
         declaration_formats: extract_declaration_formats(source.text()),
         relationship_patterns: extract_relationship_patterns(source.text()),
@@ -2159,7 +2202,6 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeErro
         utilities: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
-        declaration_order: Vec::new(),
         marker_utilities: BTreeSet::new(),
         declaration_formats: BTreeMap::new(),
         relationship_patterns: BTreeSet::new(),
@@ -2664,26 +2706,6 @@ fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility
         .collect()
 }
 
-fn extract_declaration_order(css: &str) -> Vec<Vec<String>> {
-    extract_named_blocks(&strip_css_comments(css), "@stillwind-order")
-        .into_iter()
-        .flat_map(|(_, body)| {
-            body.split(';')
-                .filter_map(|entry| {
-                    let (_, properties) = entry.split_once(':')?;
-                    let group = properties
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|property| !property.is_empty())
-                        .map(|property| property.replace("[*]", "*"))
-                        .collect::<Vec<_>>();
-                    (!group.is_empty()).then_some(group)
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect()
-}
-
 fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-marker"))
@@ -3134,6 +3156,21 @@ mod tests {
     }
 
     #[test]
+    fn rewrites_each_authored_colour_in_a_shadow_list() {
+        assert_eq!(
+            shadow_with_color_override(
+                "0 0 1px rgb(255 0 0 / 0.4), 0 0 3px rgb(0 0 255 / 0.2)",
+                "--tw-shadow-color",
+                None,
+            ),
+            Some(
+                "0 0 1px var(--tw-shadow-color, rgb(255 0 0 / 0.4)), 0 0 3px var(--tw-shadow-color, rgb(0 0 255 / 0.2))"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
     fn expands_compact_utility_families_without_enumerating_values() {
         let utilities = parse_utility_definitions(
             "@utility-family value=--value(--spacing-*, --spacing(), [length]) { inset: inset; inset-x: inset-inline; }",
@@ -3384,24 +3421,6 @@ mod tests {
         );
         assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
         assert_eq!(theme.tokens[2].kind, ThemeTokenKind::Custom);
-    }
-
-    #[test]
-    fn parses_declaration_order_metadata_from_css() {
-        let groups = parse_declaration_order(
-            "@stillwind-order { margin: margin, margin-inline, margin-[*]; border: border, border-[*]-style; }",
-        );
-        assert_eq!(
-            groups,
-            vec![
-                vec![
-                    "margin".to_owned(),
-                    "margin-inline".to_owned(),
-                    "margin-*".to_owned()
-                ],
-                vec!["border".to_owned(), "border-*-style".to_owned()],
-            ]
-        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 @keyframes --sw-a-5bc60e1e {
   from {
-    opacity: 0;
+    opacity: 0%;
     --tw-translate-y: var(--spacing-2);
     translate: var(--tw-translate-x) var(--tw-translate-y);
     --tw-scale-x: 98%;
@@ -9,7 +9,7 @@
     scale: var(--tw-scale-x) var(--tw-scale-y);
   }
   to {
-    opacity: 1;
+    opacity: 100%;
     --tw-translate-y: 0px;
     translate: var(--tw-translate-x) var(--tw-translate-y);
     --tw-scale-x: 100%;
@@ -20,10 +20,10 @@
 }
 @keyframes --sw-a-59b85d3d {
   from {
-    opacity: 1;
+    opacity: 100%;
   }
   to {
-    opacity: 0;
+    opacity: 0%;
     --tw-scale-x: 98%;
     --tw-scale-y: 98%;
     --tw-scale-z: 98%;

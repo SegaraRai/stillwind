@@ -1904,33 +1904,23 @@ fn prepend_missing_declarations(
 
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
-    combine_declarations_with_order(
-        utilities,
-        stillwind_tailwind::builtin_declaration_order(),
-        stillwind_tailwind::builtin_declaration_formats(),
-    )
+    combine_declarations_with_formats(utilities, stillwind_tailwind::builtin_declaration_formats())
 }
 
 fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
     theme: &stillwind_css::ThemeIndex,
 ) -> String {
-    let order = if theme.declaration_order.is_empty() {
-        stillwind_tailwind::builtin_declaration_order()
-    } else {
-        theme.declaration_order.as_slice()
-    };
     let formats = if theme.declaration_formats.is_empty() {
         stillwind_tailwind::builtin_declaration_formats()
     } else {
         &theme.declaration_formats
     };
-    combine_declarations_with_order(utilities, order, formats)
+    combine_declarations_with_formats(utilities, formats)
 }
 
-fn combine_declarations_with_order(
+fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
-    order: &[Vec<String>],
     formats: &std::collections::BTreeMap<String, String>,
 ) -> String {
     let mut declarations = String::new();
@@ -1981,28 +1971,6 @@ fn combine_declarations_with_order(
                 utility_declarations.push(declaration);
             }
         }
-        // A resolved utility can contain several typed overload branches. Keep
-        // their internal property cascade canonical without allowing property
-        // metadata to reorder declarations across utility boundaries.
-        for group in 0..order.len() {
-            let positions = utility_declarations
-                .iter()
-                .enumerate()
-                .filter_map(|(index, declaration)| {
-                    (declaration_order(declaration, order).is_some_and(|(name, _)| name == group))
-                        .then_some(index)
-                })
-                .collect::<Vec<_>>();
-            let mut declarations_for_family = positions
-                .iter()
-                .map(|index| utility_declarations[*index].clone())
-                .collect::<Vec<_>>();
-            declarations_for_family
-                .sort_by_key(|declaration| declaration_order(declaration, order).unwrap().1);
-            for (index, declaration) in positions.into_iter().zip(declarations_for_family) {
-                utility_declarations[index] = declaration;
-            }
-        }
         ordered.extend(utility_declarations);
     }
     for declaration in ordered {
@@ -2037,18 +2005,6 @@ fn order_builtin_utilities(mut utilities: Vec<&CompiledUtility>) -> Vec<&Compile
         utilities[position] = utility;
     }
     utilities
-}
-
-fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, usize)> {
-    let property = declaration.split_once(':').map(|(property, _)| property)?;
-    order.iter().enumerate().find_map(|(group, patterns)| {
-        patterns.iter().enumerate().find_map(|(rank, pattern)| {
-            let matched = pattern
-                .strip_suffix('*')
-                .map_or(property == pattern, |prefix| property.starts_with(prefix));
-            matched.then_some((group, rank))
-        })
-    })
 }
 
 #[allow(clippy::too_many_lines)]

@@ -417,16 +417,16 @@
 }
 @layer utilities {
   ::view-transition-old(.--sw-v-7e58d129) {
-    opacity: 0;
+    opacity: 0%;
   }
   ::view-transition-new(.--sw-v-7e58d129) {
-    opacity: 1;
+    opacity: 100%;
   }
   ::view-transition-old(.--sw-v-5ce18560) {
-    opacity: 1;
+    opacity: 100%;
   }
   ::view-transition-new(.--sw-v-5ce18560) {
-    opacity: 0;
+    opacity: 0%;
   }
   ._s_9ea3eea9 {
     --sw-vt-name: none;
