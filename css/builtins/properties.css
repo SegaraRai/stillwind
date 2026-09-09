@@ -859,3 +859,8 @@
   inherits: false;
   activation: declared;
 }
+
+/* Arbitrary properties not assigned a family-specific position are emitted
+ * after all built-in utilities, matching Tailwind's unknown-property bucket. */
+@stillwind-arbitrary-property --tw-*;
+@stillwind-arbitrary-property *;

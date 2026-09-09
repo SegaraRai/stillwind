@@ -1,29 +1,10 @@
 /* Built-in typography utilities. */
 
-/* MARK: Line clamp */
-
-@stillwind-utility line-clamp-none {
-  overflow: visible;
-  display: block;
-  -webkit-box-orient: horizontal;
-  -webkit-line-clamp: unset;
-}
-
-@stillwind-utility line-clamp-* {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: --value([integer]);
-}
-
-@stillwind-utility line-clamp-* {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: --value(integer);
-}
-
 /* MARK: `list-style` */
+
+@stillwind-arbitrary-property list-style-position;
+@stillwind-arbitrary-property list-style-type;
+@stillwind-arbitrary-property list-style-image;
 
 @stillwind-utility list-inside {
   list-style-position: inside;
@@ -137,14 +118,6 @@
 
 @stillwind-utility break-after-right {
   break-after: right;
-}
-
-/* MARK: .truncate */
-
-@stillwind-utility truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* MARK: `text-align` */
@@ -298,6 +271,8 @@
 
 /* MARK: `text-wrap` */
 
+@stillwind-arbitrary-property text-wrap;
+
 @stillwind-utility text-balance {
   text-wrap: balance;
 }
@@ -315,6 +290,9 @@
 }
 
 /* MARK: `overflow-wrap` and `word-break` */
+
+@stillwind-arbitrary-property overflow-wrap;
+@stillwind-arbitrary-property word-break;
 
 @stillwind-utility break-normal {
   overflow-wrap: normal;
@@ -374,6 +352,8 @@
 
 /* MARK: `white-space` */
 
+@stillwind-arbitrary-property white-space;
+
 @stillwind-utility whitespace-break-spaces {
   white-space: break-spaces;
 }
@@ -409,6 +389,8 @@
 }
 
 /* MARK: `color` */
+
+@stillwind-arbitrary-property color;
 
 @stillwind-utility text-* {
   color: --value(--color-*, current, inherit, transparent);
@@ -571,6 +553,12 @@
 }
 
 /* MARK: `text-decoration` */
+
+@stillwind-arbitrary-property text-decoration-line;
+@stillwind-arbitrary-property text-decoration-color;
+@stillwind-arbitrary-property text-decoration-style;
+@stillwind-arbitrary-property text-decoration-thickness;
+@stillwind-arbitrary-property text-underline-offset;
 
 @stillwind-utility line-through {
   text-decoration-line: line-through;

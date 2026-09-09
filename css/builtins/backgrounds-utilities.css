@@ -2,6 +2,8 @@
 
 /* MARK: `background-color` */
 
+@stillwind-arbitrary-property background-color;
+
 @stillwind-utility bg-* {
   background-color: --value(--color-*, current, inherit, transparent, [color]);
 }
@@ -14,6 +16,9 @@
 }
 
 /* MARK: `background-image` */
+
+@stillwind-arbitrary-property background-image;
+@stillwind-arbitrary-property --tw-gradient-*;
 
 @stillwind-utility bg-none {
   background-image: none;
@@ -345,6 +350,8 @@
 
 /* MARK: `background-size` */
 
+@stillwind-arbitrary-property background-size;
+
 @stillwind-utility bg-auto {
   background-size: auto;
 }
@@ -367,6 +374,8 @@
 
 /* MARK: `background-attachment` */
 
+@stillwind-arbitrary-property background-attachment;
+
 @stillwind-utility bg-fixed {
   background-attachment: fixed;
 }
@@ -380,6 +389,8 @@
 }
 
 /* MARK: `background-clip` */
+
+@stillwind-arbitrary-property background-clip;
 
 @stillwind-utility bg-clip-border {
   background-clip: border-box;
@@ -398,6 +409,8 @@
 }
 
 /* MARK: `background-position` */
+
+@stillwind-arbitrary-property background-position;
 
 @stillwind-utility bg-position-* {
   background-position: --value([position]);
@@ -445,6 +458,8 @@
 
 /* MARK: `background-repeat` */
 
+@stillwind-arbitrary-property background-repeat;
+
 @stillwind-utility bg-no-repeat {
   background-repeat: no-repeat;
 }
@@ -470,6 +485,8 @@
 }
 
 /* MARK: `background-origin` */
+
+@stillwind-arbitrary-property background-origin;
 
 @stillwind-utility bg-origin-border {
   background-origin: border-box;

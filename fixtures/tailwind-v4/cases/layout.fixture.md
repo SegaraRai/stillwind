@@ -58,3 +58,65 @@ grid grid-cols-3 gap-4 inline-flex items-center justify-between px-4 -mt-2 size-
   }
 }
 ```
+
+## `layout.box-model-property-interactions`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+m-40 mx-20 ml-10 p-40 px-20 pl-10 size-40 w-20 h-16 block-10 inline-8
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities {
+  .m-40 {
+    margin: calc(var(--spacing) * 40);
+  }
+  .mx-20 {
+    margin-inline: calc(var(--spacing) * 20);
+  }
+  .ml-10 {
+    margin-left: calc(var(--spacing) * 10);
+  }
+  .size-40 {
+    width: calc(var(--spacing) * 40);
+    height: calc(var(--spacing) * 40);
+  }
+  .h-16 {
+    height: calc(var(--spacing) * 16);
+  }
+  .w-20 {
+    width: calc(var(--spacing) * 20);
+  }
+  .p-40 {
+    padding: calc(var(--spacing) * 40);
+  }
+  .px-20 {
+    padding-inline: calc(var(--spacing) * 20);
+  }
+  .pl-10 {
+    padding-left: calc(var(--spacing) * 10);
+  }
+  .block-10 {
+    block-size: calc(var(--spacing) * 10);
+  }
+  .inline-8 {
+    inline-size: calc(var(--spacing) * 8);
+  }
+}
+```

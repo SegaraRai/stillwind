@@ -37,6 +37,10 @@ export default defineConfig({
         command: "node tailwind-parity.mts",
         dependsOn: ["@stillwind/native#build"],
       },
+      "tailwind:property-order": {
+        command: "node tailwind-property-order.mts",
+        dependsOn: ["@stillwind/native#build"],
+      },
       "tailwind:parity:analyze": {
         command: "node tailwind-parity.mts --analyze --quiet --summary-only",
         dependsOn: ["@stillwind/native#build"],

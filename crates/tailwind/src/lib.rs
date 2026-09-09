@@ -146,6 +146,7 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
 struct BuiltinUtilityRegistry {
     builtin_exact: HashMap<String, Vec<CustomUtility>>,
     wildcards: Vec<CustomUtility>,
+    arbitrary_property_order: Vec<stillwind_css::BuiltinArbitraryPropertyOrder>,
 }
 
 fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
@@ -162,6 +163,8 @@ fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
             .into_iter()
             .map(normalize)
             .collect::<Vec<_>>();
+        let arbitrary_property_order =
+            stillwind_css::parse_builtin_arbitrary_property_order(BUILTIN_REGISTRY_CSS);
         let mut builtin_exact = HashMap::<String, Vec<CustomUtility>>::new();
         let mut wildcards = Vec::new();
         for utility in builtins {
@@ -177,8 +180,24 @@ fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
         BuiltinUtilityRegistry {
             builtin_exact,
             wildcards,
+            arbitrary_property_order,
         }
     })
+}
+
+fn arbitrary_property_order(property: &str) -> usize {
+    builtin_utilities()
+        .arbitrary_property_order
+        .iter()
+        .filter_map(|entry| {
+            let prefix = entry.pattern.strip_suffix('*');
+            let matches = prefix.map_or(entry.pattern == property, |prefix| {
+                property.starts_with(prefix)
+            });
+            matches.then_some((prefix.map_or(usize::MAX, str::len), entry.builtin_order))
+        })
+        .max_by_key(|(specificity, _)| *specificity)
+        .map_or(usize::MAX, |(_, order)| order)
 }
 
 fn builtin_variants() -> &'static [CustomVariant] {
@@ -429,7 +448,9 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     let candidate = parse_candidate(raw)?;
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
-            UtilityResolution::plain(format!("{property}:{value};"))
+            let mut resolution = UtilityResolution::plain(format!("{property}:{value};"));
+            resolution.builtin_order = Some(arbitrary_property_order(property));
+            resolution
         }
         Utility::Named { name, modifier } => {
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
@@ -2310,6 +2331,44 @@ mod tests {
         "time",
         "url",
     ];
+
+    #[test]
+    fn derives_arbitrary_property_order_from_builtin_css() {
+        let transform = resolve_utility("transform-gpu", &ThemeIndex::default())
+            .expect("transform utility")
+            .builtin_order
+            .expect("built-in order");
+        let margin = resolve_utility("[margin:0]", &ThemeIndex::default())
+            .expect("arbitrary margin")
+            .builtin_order
+            .expect("built-in order");
+        let margin_left = resolve_utility("[margin-left:1px]", &ThemeIndex::default())
+            .expect("arbitrary margin-left")
+            .builtin_order
+            .expect("derived order");
+        let all = resolve_utility("[all:unset]", &ThemeIndex::default())
+            .expect("arbitrary all")
+            .builtin_order
+            .expect("derived order");
+        let background = resolve_utility("[background:red]", &ThemeIndex::default())
+            .expect("arbitrary background")
+            .builtin_order
+            .expect("derived order");
+        let translate_variable = resolve_utility("[--tw-translate-x:1px]", &ThemeIndex::default())
+            .expect("positioned Tailwind variable")
+            .builtin_order
+            .expect("declared order");
+        let unknown_tailwind_variable = resolve_utility("[--tw-unknown:1]", &ThemeIndex::default())
+            .expect("fallback Tailwind variable")
+            .builtin_order
+            .expect("declared order");
+        assert!(margin < margin_left && margin_left < transform);
+        assert!(translate_variable < transform);
+        assert!(transform < all, "transform={transform}, all={all}");
+        assert!(transform < unknown_tailwind_variable);
+        assert!(unknown_tailwind_variable < background);
+        assert_eq!(background, all);
+    }
 
     fn property_references(syntax: &str) -> Vec<&str> {
         let mut references = Vec::new();

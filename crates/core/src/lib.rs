@@ -1924,10 +1924,9 @@ fn combine_declarations_with_formats(
     formats: &std::collections::BTreeMap<String, String>,
 ) -> String {
     let mut declarations = String::new();
-    let mut composed = Vec::<(String, String)>::new();
-    let mut ordered = Vec::new();
+    let mut composed = std::collections::HashMap::<String, usize>::new();
+    let mut ordered = Vec::<String>::new();
     for utility in order_builtin_utilities(utilities.to_vec()) {
-        let mut utility_declarations = Vec::new();
         for declaration in utility.declaration.split_terminator(';') {
             let compose_space = declaration
                 .split_once(':')
@@ -1939,13 +1938,13 @@ fn combine_declarations_with_formats(
                 });
             if compose_space {
                 if let Some((property, value)) = declaration.split_once(':') {
-                    if let Some((_, existing)) =
-                        composed.iter_mut().find(|(name, _)| name == property)
-                    {
+                    if let Some(index) = composed.get(property).copied() {
+                        let existing = &mut ordered[index];
                         existing.push(' ');
                         existing.push_str(value);
                     } else {
-                        composed.push((property.to_owned(), value.to_owned()));
+                        composed.insert(property.to_owned(), ordered.len());
+                        ordered.push(declaration.to_owned());
                     }
                 }
             } else if !declaration.is_empty() {
@@ -1968,19 +1967,12 @@ fn combine_declarations_with_formats(
                 // declaration values.
                 let declaration = declaration.replace(",var(", ", var(");
                 let declaration = stillwind_css::fold_calc_expressions(&declaration);
-                utility_declarations.push(declaration);
+                ordered.push(declaration);
             }
         }
-        ordered.extend(utility_declarations);
     }
     for declaration in ordered {
         declarations.push_str(&declaration);
-        declarations.push(';');
-    }
-    for (property, value) in composed {
-        declarations.push_str(&property);
-        declarations.push(':');
-        declarations.push_str(&value);
         declarations.push(';');
     }
     declarations
@@ -2576,6 +2568,36 @@ mod tests {
         assert_eq!(
             actual,
             "margin:1rem;margin-inline:0.75rem;margin-left:0.5rem;"
+        );
+    }
+
+    #[test]
+    fn keeps_composed_properties_at_their_cascade_position() {
+        let declarations = [
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "all:unset;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(usize::MAX),
+                candidate: "[all:unset]".to_owned(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(1),
+                candidate: "skew-x-6".to_owned(),
+            },
+        ];
+
+        let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
+        assert_eq!(
+            actual,
+            "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);all:unset;"
         );
     }
 

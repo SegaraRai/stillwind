@@ -195,3 +195,68 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
   }
 }
 ```
+
+## `borders.shorthand-logical-physical-interactions`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+border-8 border-x-4 border-l-2 rounded-3xl rounded-s-xl rounded-ss-sm
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme {
+  :root, :host {
+    --radius-sm: 0.25rem;
+    --radius-xl: 0.75rem;
+    --radius-3xl: 1.5rem;
+  }
+}
+@layer utilities {
+  .rounded-3xl {
+    border-radius: var(--radius-3xl);
+  }
+  .rounded-s-xl {
+    border-start-start-radius: var(--radius-xl);
+    border-end-start-radius: var(--radius-xl);
+  }
+  .rounded-ss-sm {
+    border-start-start-radius: var(--radius-sm);
+  }
+  .border-8 {
+    border-style: var(--tw-border-style);
+    border-width: 8px;
+  }
+  .border-x-4 {
+    border-inline-style: var(--tw-border-style);
+    border-inline-width: 4px;
+  }
+  .border-l-2 {
+    border-left-style: var(--tw-border-style);
+    border-left-width: 2px;
+  }
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+    }
+  }
+}
+```

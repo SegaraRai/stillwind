@@ -5,6 +5,7 @@ import { compileReact, foldCalcExpressions } from "@stillwind/native";
 import { transform } from "lightningcss";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
+import { verifyPropertyOrderParity } from "./lib/property-order-parity.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
 
 const root = resolve(import.meta.dirname, "..");
@@ -351,4 +352,11 @@ if (failures.length > 0) {
     console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   }
   process.exitCode = 1;
+}
+
+if (failures.length === 0 && limit === 0 && offset === 0 && !candidateFilter) {
+  const propertyOrder = verifyPropertyOrderParity(fixtureRoot, { fileFilter });
+  console.log(
+    `Tailwind property-order parity: ${propertyOrder.constraints} interfering-property constraints across ${propertyOrder.candidates} candidates in ${propertyOrder.cases} fixture cases.`,
+  );
 }

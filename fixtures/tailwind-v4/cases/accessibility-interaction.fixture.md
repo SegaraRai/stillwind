@@ -121,3 +121,49 @@ sr-only not-sr-only pointer-events-none pointer-events-auto select-none select-t
   }
 }
 ```
+
+## `interaction.scroll-spacing-property-interactions`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+scroll-m-40 scroll-mx-20 scroll-ml-10 scroll-p-40 scroll-px-20 scroll-pl-10
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities {
+  .scroll-m-40 {
+    scroll-margin: calc(var(--spacing) * 40);
+  }
+  .scroll-mx-20 {
+    scroll-margin-inline: calc(var(--spacing) * 20);
+  }
+  .scroll-ml-10 {
+    scroll-margin-left: calc(var(--spacing) * 10);
+  }
+  .scroll-p-40 {
+    scroll-padding: calc(var(--spacing) * 40);
+  }
+  .scroll-px-20 {
+    scroll-padding-inline: calc(var(--spacing) * 20);
+  }
+  .scroll-pl-10 {
+    scroll-padding-left: calc(var(--spacing) * 10);
+  }
+}
+```

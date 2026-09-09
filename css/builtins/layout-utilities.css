@@ -40,7 +40,34 @@
   visibility: visible;
 }
 
+/* MARK: Screen reader visibility */
+
+@stillwind-utility sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@stillwind-utility not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+
 /* MARK: `position` */
+
+@stillwind-arbitrary-property position;
 
 @stillwind-utility absolute {
   position: absolute;
@@ -63,6 +90,18 @@
 }
 
 /* MARK: `inset` and related utilities */
+
+@stillwind-arbitrary-property inset;
+@stillwind-arbitrary-property inset-inline;
+@stillwind-arbitrary-property inset-block;
+@stillwind-arbitrary-property inset-inline-start;
+@stillwind-arbitrary-property inset-inline-end;
+@stillwind-arbitrary-property inset-block-start;
+@stillwind-arbitrary-property inset-block-end;
+@stillwind-arbitrary-property top;
+@stillwind-arbitrary-property right;
+@stillwind-arbitrary-property bottom;
+@stillwind-arbitrary-property left;
 
 @stillwind-utility inset-auto {
   inset: auto;
@@ -404,7 +443,34 @@
   box-sizing: content-box;
 }
 
+/* MARK: Line clamp */
+
+/* This typography utility is ordered here because its leading overflow/display
+ * declarations participate in the layout cascade. */
+@stillwind-utility line-clamp-none {
+  overflow: visible;
+  display: block;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: unset;
+}
+
+@stillwind-utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value([integer]);
+}
+
+@stillwind-utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value(integer);
+}
+
 /* MARK: `display` */
+
+@stillwind-arbitrary-property display;
 
 @stillwind-utility block {
   display: block;
@@ -556,7 +622,21 @@
   columns: --value(integer, [integer]);
 }
 
+/* MARK: .truncate */
+
+/* This typography utility is ordered here because overflow must precede the
+ * axis-specific overflow utilities below. */
+@stillwind-utility truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* MARK: `overflow` */
+
+@stillwind-arbitrary-property overflow;
+@stillwind-arbitrary-property overflow-x;
+@stillwind-arbitrary-property overflow-y;
 
 @stillwind-utility overflow-auto {
   overflow: auto;

@@ -2,6 +2,8 @@
 
 /* MARK: `transform-origin` */
 
+@stillwind-arbitrary-property transform-origin;
+
 @stillwind-utility origin-bottom {
   transform-origin: bottom;
 }
@@ -43,6 +45,9 @@
 }
 
 /* MARK: `translate` */
+
+@stillwind-arbitrary-property translate;
+@stillwind-arbitrary-property --tw-translate-*;
 
 @stillwind-utility translate-3d {
   translate: var(--tw-translate-x) var(--tw-translate-y) var(--tw-translate-z);
@@ -158,6 +163,9 @@
 
 /* MARK: `scale` */
 
+@stillwind-arbitrary-property scale;
+@stillwind-arbitrary-property --tw-scale-*;
+
 @stillwind-utility scale-3d {
   scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
@@ -216,6 +224,9 @@
 
 /* MARK: `rotate` */
 
+@stillwind-arbitrary-property rotate;
+@stillwind-arbitrary-property --tw-rotate-*;
+
 @stillwind-utility rotate-none {
   rotate: none;
 }
@@ -265,6 +276,8 @@
 }
 
 /* MARK: Skew */
+
+@stillwind-arbitrary-property --tw-skew-*;
 
 @stillwind-utility skew-[initial] {
   --tw-skew-x: skewX(initial);
@@ -336,6 +349,8 @@
 }
 
 /* MARK: `transform` */
+
+@stillwind-arbitrary-property transform;
 
 @stillwind-utility transform {
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)

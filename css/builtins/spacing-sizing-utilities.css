@@ -2,6 +2,8 @@
 
 /* MARK: `margin` */
 
+@stillwind-arbitrary-property margin;
+
 @stillwind-utility m-auto {
   margin: auto;
 }
@@ -57,6 +59,8 @@
     );
   }
 }
+
+@stillwind-arbitrary-property margin-inline;
 
 @stillwind-utility mx-auto {
   margin-inline: auto;
@@ -114,6 +118,8 @@
   }
 }
 
+@stillwind-arbitrary-property margin-block;
+
 @stillwind-utility my-auto {
   margin-block: auto;
 }
@@ -125,6 +131,8 @@
 @stillwind-utility -my-* {
   margin-block: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property margin-inline-start;
 
 @stillwind-utility ms-auto {
   margin-inline-start: auto;
@@ -138,6 +146,8 @@
   margin-inline-start: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property margin-inline-end;
+
 @stillwind-utility me-auto {
   margin-inline-end: auto;
 }
@@ -149,6 +159,8 @@
 @stillwind-utility -me-* {
   margin-inline-end: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property margin-block-start;
 
 @stillwind-utility mbs-auto {
   margin-block-start: auto;
@@ -162,6 +174,8 @@
   margin-block-start: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property margin-block-end;
+
 @stillwind-utility mbe-auto {
   margin-block-end: auto;
 }
@@ -173,6 +187,8 @@
 @stillwind-utility -mbe-* {
   margin-block-end: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property margin-top;
 
 @stillwind-utility mt-auto {
   margin-top: auto;
@@ -186,6 +202,8 @@
   margin-top: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property margin-right;
+
 @stillwind-utility mr-auto {
   margin-right: auto;
 }
@@ -198,6 +216,8 @@
   margin-right: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property margin-bottom;
+
 @stillwind-utility mb-auto {
   margin-bottom: auto;
 }
@@ -209,6 +229,8 @@
 @stillwind-utility -mb-* {
   margin-bottom: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property margin-left;
 
 @stillwind-utility ml-auto {
   margin-left: auto;
@@ -227,6 +249,8 @@
 }
 
 /* MARK: `aspect-ratio` */
+
+@stillwind-arbitrary-property aspect-ratio;
 
 @stillwind-utility aspect-square {
   aspect-ratio: 1 / 1;
@@ -309,6 +333,10 @@
 
 /* MARK: `height`, `max-height`, and `min-height` */
 
+@stillwind-arbitrary-property height;
+@stillwind-arbitrary-property max-height;
+@stillwind-arbitrary-property min-height;
+
 @stillwind-utility h-* {
   height: --value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]);
 }
@@ -338,6 +366,10 @@
 }
 
 /* MARK: `width`, `max-width`, and `min-width` */
+
+@stillwind-arbitrary-property width;
+@stillwind-arbitrary-property max-width;
+@stillwind-arbitrary-property min-width;
 
 @stillwind-utility w-* {
   width: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
@@ -369,45 +401,67 @@
 
 /* MARK: `padding` */
 
+@stillwind-arbitrary-property padding;
+
 @stillwind-utility p-* {
   padding: --value(--spacing-*, --spacing(), [length-percentage]);
 }
+
+@stillwind-arbitrary-property padding-inline;
 
 @stillwind-utility px-* {
   padding-inline: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
+@stillwind-arbitrary-property padding-block;
+
 @stillwind-utility py-* {
   padding-block: --value(--spacing-*, --spacing(), [length-percentage]);
 }
+
+@stillwind-arbitrary-property padding-inline-start;
 
 @stillwind-utility ps-* {
   padding-inline-start: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property padding-inline-end;
+
 @stillwind-utility pe-* {
   padding-inline-end: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property padding-block-start;
 
 @stillwind-utility pbs-* {
   padding-block-start: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property padding-block-end;
+
 @stillwind-utility pbe-* {
   padding-block-end: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property padding-top;
 
 @stillwind-utility pt-* {
   padding-top: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
+@stillwind-arbitrary-property padding-right;
+
 @stillwind-utility pr-* {
   padding-right: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
+@stillwind-arbitrary-property padding-bottom;
+
 @stillwind-utility pb-* {
   padding-bottom: --value(--spacing-*, --spacing(), [length-percentage]);
 }
+
+@stillwind-arbitrary-property padding-left;
 
 @stillwind-utility pl-* {
   padding-left: --value(--spacing-*, --spacing(), [length-percentage]);

@@ -964,11 +964,20 @@
 
 /* MARK: `mask-image` */
 
+@stillwind-arbitrary-property mask-image;
+@stillwind-arbitrary-property --tw-mask-*;
+
 @stillwind-utility mask-none {
   mask-image: none;
 }
 
+@stillwind-utility mask-* {
+  mask-image: --value([image]);
+}
+
 /* MARK: `mask-composite` */
+
+@stillwind-arbitrary-property mask-composite;
 
 @stillwind-utility mask-add {
   mask-composite: add;
@@ -988,6 +997,8 @@
 
 /* MARK: `mask-mode` */
 
+@stillwind-arbitrary-property mask-mode;
+
 @stillwind-utility mask-alpha {
   mask-mode: alpha;
 }
@@ -1002,6 +1013,8 @@
 
 /* MARK: `mask-type` */
 
+@stillwind-arbitrary-property mask-type;
+
 @stillwind-utility mask-type-alpha {
   mask-type: alpha;
 }
@@ -1011,6 +1024,8 @@
 }
 
 /* MARK: `mask-size` */
+
+@stillwind-arbitrary-property mask-size;
 
 @stillwind-utility mask-auto {
   mask-size: auto;
@@ -1029,6 +1044,8 @@
 }
 
 /* MARK: `mask-clip` */
+
+@stillwind-arbitrary-property mask-clip;
 
 @stillwind-utility mask-clip-border {
   mask-clip: border-box;
@@ -1059,6 +1076,8 @@
 }
 
 /* MARK: `mask-position` */
+
+@stillwind-arbitrary-property mask-position;
 
 @stillwind-utility mask-bottom {
   mask-position: bottom;
@@ -1106,6 +1125,8 @@
 
 /* MARK: `mask-repeat` */
 
+@stillwind-arbitrary-property mask-repeat;
+
 @stillwind-utility mask-no-repeat {
   mask-repeat: no-repeat;
 }
@@ -1131,6 +1152,8 @@
 }
 
 /* MARK: `mask-origin` */
+
+@stillwind-arbitrary-property mask-origin;
 
 @stillwind-utility mask-origin-border {
   mask-origin: border-box;

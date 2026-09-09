@@ -1121,6 +1121,12 @@ pub struct CustomUtility {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BuiltinArbitraryPropertyOrder {
+    pub pattern: String,
+    pub builtin_order: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomVariant {
     pub name: String,
     pub selector: String,
@@ -1189,12 +1195,31 @@ pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
 /// global source order.
 #[must_use]
 pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
-    extract_named_utility_blocks(css, "@stillwind-utility")
+    extract_named_blocks_with_offsets(css, "@stillwind-utility")
         .into_iter()
-        .enumerate()
-        .map(|(builtin_order, mut utility)| {
-            utility.builtin_order = Some(builtin_order);
-            utility
+        .filter_map(|(builtin_order, header, body)| {
+            if header.starts_with("-family") {
+                return None;
+            }
+            let name = header.split_whitespace().next()?.to_owned();
+            Some(CustomUtility {
+                name,
+                body,
+                builtin_order: Some(builtin_order),
+            })
+        })
+        .collect()
+}
+
+/// Parses explicit cascade positions for arbitrary-property candidates.
+/// Patterns use an exact property name or a trailing `*` prefix wildcard.
+#[must_use]
+pub fn parse_builtin_arbitrary_property_order(css: &str) -> Vec<BuiltinArbitraryPropertyOrder> {
+    extract_order_statements(css, "@stillwind-arbitrary-property")
+        .into_iter()
+        .map(|(builtin_order, pattern)| BuiltinArbitraryPropertyOrder {
+            pattern,
+            builtin_order,
         })
         .collect()
 }
@@ -2837,6 +2862,13 @@ fn strip_css_comments(css: &str) -> String {
 }
 
 fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
+    extract_named_blocks_with_offsets(css, directive)
+        .into_iter()
+        .map(|(_, header, body)| (header, body))
+        .collect()
+}
+
+fn extract_named_blocks_with_offsets(css: &str, directive: &str) -> Vec<(usize, String, String)> {
     let mut blocks = Vec::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find(directive) {
@@ -2861,10 +2893,29 @@ fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
                 _ => {}
             }
         }
-        blocks.push((header, css[open + 1..close].trim().to_owned()));
+        blocks.push((start, header, css[open + 1..close].trim().to_owned()));
         cursor = close + 1;
     }
     blocks
+}
+
+fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
+    let mut statements = Vec::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find(directive) {
+        let start = cursor + relative;
+        let value_start = start + directive.len();
+        let Some(relative_end) = css[value_start..].find(';') else {
+            break;
+        };
+        let end = value_start + relative_end;
+        let pattern = css[value_start..end].trim();
+        if !pattern.is_empty() && !pattern.chars().any(char::is_whitespace) {
+            statements.push((start, pattern.to_owned()));
+        }
+        cursor = end + 1;
+    }
+    statements
 }
 
 fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
@@ -3050,7 +3101,10 @@ mod tests {
         assert_eq!(user_utilities[0].builtin_order, None);
         assert_eq!(builtin_utilities.len(), 1);
         assert_eq!(builtin_utilities[0].name, "builtin-*");
-        assert_eq!(builtin_utilities[0].builtin_order, Some(0));
+        assert_eq!(
+            builtin_utilities[0].builtin_order,
+            css.find("@stillwind-utility")
+        );
 
         let user_variants = parse_variant_definitions(css);
         let builtin_variants = parse_builtin_variant_definitions(css);
@@ -3060,6 +3114,25 @@ mod tests {
         assert_eq!(builtin_variants.len(), 1);
         assert_eq!(builtin_variants[0].name, "builtin-state");
         assert_eq!(builtin_variants[0].builtin_order, Some(0));
+    }
+
+    #[test]
+    fn shares_source_order_between_utilities_and_arbitrary_properties() {
+        let css = "@stillwind-arbitrary-property margin;\
+                   @stillwind-utility m-* { margin:--value([length]); }\
+                   @stillwind-arbitrary-property --tw-*;\
+                   @stillwind-arbitrary-property *;";
+        let utility = parse_builtin_utility_definitions(css)
+            .into_iter()
+            .next()
+            .expect("utility");
+        let properties = parse_builtin_arbitrary_property_order(css);
+
+        assert_eq!(properties.len(), 3);
+        assert!(properties[0].builtin_order < utility.builtin_order.unwrap());
+        assert!(utility.builtin_order.unwrap() < properties[1].builtin_order);
+        assert_eq!(properties[1].pattern, "--tw-*");
+        assert_eq!(properties[2].pattern, "*");
     }
 
     #[test]

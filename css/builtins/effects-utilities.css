@@ -2,6 +2,8 @@
 
 /* MARK: `opacity` */
 
+@stillwind-arbitrary-property opacity;
+
 @stillwind-utility opacity-* {
   opacity: --value([number-percentage]);
 }
@@ -85,6 +87,11 @@
 }
 
 /* MARK: `box-shadow` */
+
+@stillwind-arbitrary-property box-shadow;
+@stillwind-arbitrary-property --tw-shadow*;
+@stillwind-arbitrary-property --tw-ring-*;
+@stillwind-arbitrary-property --tw-inset-*;
 
 @stillwind-utility shadow-initial {
   --tw-shadow-color: initial;
@@ -283,6 +290,17 @@
 
 /* MARK: `filter` */
 
+@stillwind-arbitrary-property --tw-blur;
+@stillwind-arbitrary-property --tw-brightness;
+@stillwind-arbitrary-property --tw-contrast;
+@stillwind-arbitrary-property --tw-drop-shadow*;
+@stillwind-arbitrary-property --tw-grayscale;
+@stillwind-arbitrary-property --tw-hue-rotate;
+@stillwind-arbitrary-property --tw-invert;
+@stillwind-arbitrary-property --tw-saturate;
+@stillwind-arbitrary-property --tw-sepia;
+@stillwind-arbitrary-property filter;
+
 @stillwind-utility blur-none {
   filter: blur(0);
 }
@@ -476,7 +494,14 @@
     var(--tw-drop-shadow,);
 }
 
+@stillwind-utility filter-none {
+  filter: none;
+}
+
 /* MARK: `backdrop-filter` */
+
+@stillwind-arbitrary-property --tw-backdrop-*;
+@stillwind-arbitrary-property backdrop-filter;
 
 @stillwind-utility backdrop-blur-none {
   --tw-backdrop-blur: ;

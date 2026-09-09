@@ -132,6 +132,8 @@
 
 /* MARK: `flex` */
 
+@stillwind-arbitrary-property flex;
+
 @stillwind-utility flex-1 {
   flex: 1 1 0%;
 }
@@ -156,6 +158,8 @@
   flex: --value(integer, [flex]);
 }
 
+@stillwind-arbitrary-property flex-shrink;
+
 @stillwind-utility shrink {
   flex-shrink: 1;
 }
@@ -168,6 +172,8 @@
   flex-shrink: --value(number, [number]);
 }
 
+@stillwind-arbitrary-property flex-grow;
+
 @stillwind-utility grow {
   flex-grow: 1;
 }
@@ -179,6 +185,8 @@
 @stillwind-utility grow-* {
   flex-grow: --value(number, [number]);
 }
+
+@stillwind-arbitrary-property flex-basis;
 
 @stillwind-utility basis-auto {
   flex-basis: auto;
@@ -324,6 +332,8 @@
 
 /* MARK: `place-content` and `place-items` */
 
+@stillwind-arbitrary-property place-content;
+
 @stillwind-utility place-content-around {
   place-content: space-around;
 }
@@ -364,6 +374,8 @@
   place-content: stretch;
 }
 
+@stillwind-arbitrary-property place-items;
+
 @stillwind-utility place-items-baseline {
   place-items: baseline;
 }
@@ -393,6 +405,8 @@
 }
 
 /* MARK: `align-content` and `align-items` */
+
+@stillwind-arbitrary-property align-content;
 
 @stillwind-utility content-around {
   align-content: space-around;
@@ -438,6 +452,8 @@
   align-content: stretch;
 }
 
+@stillwind-arbitrary-property align-items;
+
 @stillwind-utility items-baseline {
   align-items: baseline;
 }
@@ -471,6 +487,8 @@
 }
 
 /* MARK: `justify-content` and `justify-items` */
+
+@stillwind-arbitrary-property justify-content;
 
 @stillwind-utility justify-around {
   justify-content: space-around;
@@ -516,6 +534,8 @@
   justify-content: stretch;
 }
 
+@stillwind-arbitrary-property justify-items;
+
 @stillwind-utility justify-items-center {
   justify-items: center;
 }
@@ -546,13 +566,19 @@
 
 /* MARK: `gap` */
 
+@stillwind-arbitrary-property gap;
+
 @stillwind-utility gap-* {
   gap: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property column-gap;
+
 @stillwind-utility gap-x-* {
   column-gap: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property row-gap;
 
 @stillwind-utility gap-y-* {
   row-gap: --value(--spacing-*, --spacing(), [length]);

@@ -53,6 +53,10 @@ export default defineConfig({
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:parity:all"],
       },
+      "tailwind:property-order": {
+        command: "",
+        dependsOn: ["@stillwind/tools#tailwind:property-order"],
+      },
       "tailwind:parity:analyze": {
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:parity:analyze"],

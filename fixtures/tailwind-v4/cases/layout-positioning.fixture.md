@@ -80,3 +80,46 @@ relative absolute sticky inset-0 top-4 -left-px z-10 z-[100] isolate overflow-hi
   }
 }
 ```
+
+## `layout.inset-and-overflow-property-interactions`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+inset-40 inset-x-20 left-10 overflow-hidden overflow-x-auto
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities {
+  .inset-40 {
+    inset: calc(var(--spacing) * 40);
+  }
+  .inset-x-20 {
+    inset-inline: calc(var(--spacing) * 20);
+  }
+  .left-10 {
+    left: calc(var(--spacing) * 10);
+  }
+  .overflow-hidden {
+    overflow: hidden;
+  }
+  .overflow-x-auto {
+    overflow-x: auto;
+  }
+}
+```
