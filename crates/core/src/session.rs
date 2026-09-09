@@ -307,11 +307,9 @@ impl ProjectSession {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::{FileId, SourceFile};
-
-    use crate::{CompilerOptions, OxcSourceAnalyzer, SourceAnalyzer};
-
     use super::*;
+    use crate::{CompilerOptions, OxcSourceAnalyzer, SourceAnalyzer};
+    use stillwind_source::{FileId, SourceFile};
 
     #[test]
     fn removing_one_module_does_not_drop_rules_shared_by_another() {
