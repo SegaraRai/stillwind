@@ -1,49 +1,49 @@
 /* Built-in functional selector and attribute variants. */
 
-@stillwind-variant in-* {
-  :where(:root) & {
+@stillwind-variant in-* (value: [variant]) {
+  :where(:--value()) & {
     @slot;
   }
 }
 
-@stillwind-variant has-* {
-  &:has(:root) {
+@stillwind-variant has-* (value: [variant]) {
+  &:has(:--value()) {
     @slot;
   }
 }
 
-@stillwind-variant aria-* {
-  &[aria-\*="true"] {
+@stillwind-variant aria-* (value: [aria]) {
+  &:--value() {
     @slot;
   }
 }
 
-@stillwind-variant data-* {
-  &[data-\*] {
+@stillwind-variant data-* (value: [data]) {
+  &:--value() {
     @slot;
   }
 }
 
-@stillwind-variant nth-* {
-  &:nth-child(0n) {
+@stillwind-variant nth-* (value: [nth]) {
+  &:--value(":nth-child({value})") {
     @slot;
   }
 }
 
-@stillwind-variant nth-last-* {
-  &:nth-last-child(0n) {
+@stillwind-variant nth-last-* (value: [nth]) {
+  &:--value(":nth-last-child({value})") {
     @slot;
   }
 }
 
-@stillwind-variant nth-of-type-* {
-  &:nth-of-type(0n) {
+@stillwind-variant nth-of-type-* (value: [nth]) {
+  &:--value(":nth-of-type({value})") {
     @slot;
   }
 }
 
-@stillwind-variant nth-last-of-type-* {
-  &:nth-last-of-type(0n) {
+@stillwind-variant nth-last-of-type-* (value: [nth]) {
+  &:--value(":nth-last-of-type({value})") {
     @slot;
   }
 }

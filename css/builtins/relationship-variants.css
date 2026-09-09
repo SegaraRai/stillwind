@@ -1,24 +1,24 @@
 /* Built-in child and inter-element relationship variants. */
 
-@stillwind-variant * {
+@stillwind-variant \* {
   :is(& > *) {
     @slot;
   }
 }
 
-@stillwind-variant ** {
+@stillwind-variant \*\* {
   :is(& *) {
     @slot;
   }
 }
 
-@stillwind-variant not-* {
-  &:not(:root) {
+@stillwind-variant not-* (value: [variant], group: not) {
+  &:not(:--value()) {
     @slot;
   }
 }
 
-@stillwind-variant not-hover (group: not-*) {
+@stillwind-variant not-hover (group: not) {
   &:not(:hover) {
     @slot;
   }
@@ -28,14 +28,26 @@
   }
 }
 
-@stillwind-variant group-* {
-  &:is(:where(.group\/\{modifier\}):--value() *) {
+@stillwind-variant group-* (value: [variant]) {
+  &:is(:where(.group):--value() *) {
     @slot;
   }
 }
 
-@stillwind-variant peer-* {
-  &:is(:where(.peer\/\{modifier\}):--value() ~ *) {
+@stillwind-variant group-* (value: [variant], modifier: [class-identifier]) {
+  &:is(:where(:--modifier(".group\/{modifier}")):--value() *) {
+    @slot;
+  }
+}
+
+@stillwind-variant peer-* (value: [variant]) {
+  &:is(:where(.peer):--value() ~ *) {
+    @slot;
+  }
+}
+
+@stillwind-variant peer-* (value: [variant], modifier: [class-identifier]) {
+  &:is(:where(:--modifier(".peer\/{modifier}")):--value() ~ *) {
     @slot;
   }
 }

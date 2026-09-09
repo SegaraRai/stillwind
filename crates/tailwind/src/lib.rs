@@ -12,8 +12,9 @@ use std::{
 };
 
 use stillwind_css::{
-    BuiltinVariantSortDirection, CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace,
-    ValueDomain, ValueType, shadow_with_color_fallback, shadow_with_color_override,
+    BuiltinVariantModifierType, BuiltinVariantSortDirection, BuiltinVariantValueType,
+    CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
+    shadow_with_color_fallback, shadow_with_color_override,
 };
 use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -124,7 +125,6 @@ pub struct VariantDeclaration {
 }
 
 const BUILTIN_REGISTRY_CSS: &str = concat!(
-    include_str!("../../../css/builtins.css"),
     include_str!("../../../css/builtins/registry-metadata.css"),
     include_str!("../../../css/builtins/relationship-metadata.css"),
     include_str!("../../../css/builtins/layout-utilities.css"),
@@ -145,6 +145,7 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../css/builtins/dynamic-selector-variants.css"),
     include_str!("../../../css/builtins/conditional-variants.css"),
     include_str!("../../../css/builtins/properties.css"),
+    include_str!("../../../css/builtins.css"),
 );
 
 struct BuiltinUtilityRegistry {
@@ -215,12 +216,13 @@ fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
     builtin_variants()
         .iter()
         .filter_map(|variant| {
-            if variant.name == value {
+            if !variant.wildcard && variant.name == value {
                 return Some((usize::MAX, variant));
             }
             variant
-                .name
-                .strip_suffix('*')
+                .wildcard
+                .then(|| variant.name.strip_suffix('*'))
+                .flatten()
                 .filter(|prefix| !prefix.is_empty() && value.starts_with(prefix))
                 .map(|prefix| (prefix.len(), variant))
         })
@@ -823,37 +825,6 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
 }
 
-fn with_hover_media(application: VariantApplication) -> VariantApplication {
-    match application {
-        VariantApplication::Compound(applications) => {
-            VariantApplication::Compound(applications.into_iter().map(with_hover_media).collect())
-        }
-        VariantApplication::SelectorTemplate(selector) if selector.contains(":hover") => {
-            VariantApplication::SelectorMedia {
-                selector,
-                condition: "(hover: hover)".to_owned(),
-            }
-        }
-        VariantApplication::SelectorRule {
-            selector,
-            declarations,
-        } if selector.contains(":hover") => VariantApplication::SelectorMediaRule {
-            selector,
-            declarations,
-            condition: "(hover: hover)".to_owned(),
-        },
-        application => application,
-    }
-}
-
-fn with_builtin_hover_media(value: &str, application: VariantApplication) -> VariantApplication {
-    if value == "hover" || value.starts_with("group-hover") || value.starts_with("peer-hover") {
-        with_hover_media(application)
-    } else {
-        application
-    }
-}
-
 /// Whether a Tailwind candidate uses a relationship primitive for which
 /// projects may prefer Stillwind's typed handle API.
 #[must_use]
@@ -911,10 +882,10 @@ fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<Variant
     if let Some(application) = resolve_registered_variant_from(&theme.variants, value, theme) {
         return Some(application);
     }
-    theme.imports.builtins.then(|| {
-        resolve_registered_variant_from(builtin_variants(), value, theme)
-            .map(|application| with_builtin_hover_media(value, application))
-    })?
+    theme
+        .imports
+        .builtins
+        .then(|| resolve_registered_variant_from(builtin_variants(), value, theme))?
 }
 
 fn resolve_registered_variant_from(
@@ -925,13 +896,228 @@ fn resolve_registered_variant_from(
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(custom, capture)| {
-            let body = substitute_variant_capture(&custom.body, capture)?;
-            let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
-            resolve_variant_body(&body).or_else(|| {
-                substitute_variant_capture(&custom.selector, capture)
-                    .map(VariantApplication::SelectorTemplate)
-            })
+            resolve_registered_variant_candidate(custom, capture, value, theme)
         })
+}
+
+fn resolve_registered_variant_candidate(
+    custom: &CustomVariant,
+    capture: Option<&str>,
+    value: &str,
+    theme: &ThemeIndex,
+) -> Option<VariantApplication> {
+    if let Some(value_type) = custom.value_type {
+        return resolve_typed_variant(custom, value_type, capture?, theme);
+    }
+    let body = substitute_variant_capture(&custom.body, capture)?;
+    let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
+    resolve_variant_body(&body).or_else(|| {
+        substitute_variant_capture(&custom.selector, capture)
+            .map(VariantApplication::SelectorTemplate)
+    })
+}
+
+fn resolve_typed_variant(
+    custom: &CustomVariant,
+    value_type: BuiltinVariantValueType,
+    capture: &str,
+    theme: &ThemeIndex,
+) -> Option<VariantApplication> {
+    let (capture, modifier) = split_variant_modifier(capture);
+    let body = substitute_typed_modifier(&custom.body, custom.modifier_type, modifier)?;
+    match value_type {
+        BuiltinVariantValueType::Variant => {
+            let inner = parse_nested_variant(capture);
+            let application = resolve_variant(&inner, theme)?;
+            apply_nested_variant(&body, &application)
+        }
+        BuiltinVariantValueType::Aria => {
+            let value = attribute_variant_selector("aria", capture, true)?;
+            resolve_variant_body(&body.replace(":--value()", &value))
+        }
+        BuiltinVariantValueType::Data => {
+            let value = attribute_variant_selector("data", capture, false)?;
+            resolve_variant_body(&body.replace(":--value()", &value))
+        }
+        BuiltinVariantValueType::Nth | BuiltinVariantValueType::SupportsCondition => {
+            let value = decode_variant_capture(capture);
+            if !value_type.accepts_css(&value) {
+                return None;
+            }
+            let body = if value_type == BuiltinVariantValueType::Nth {
+                substitute_quoted_variant_value(&body, &value)?
+            } else {
+                body.replace("--value()", &value)
+            };
+            resolve_variant_body(&body)
+        }
+    }
+}
+
+fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
+    let mut depth = 0_u32;
+    for (index, character) in value.char_indices() {
+        match character {
+            '[' | '(' => depth += 1,
+            ']' | ')' => depth = depth.saturating_sub(1),
+            '/' if depth == 0 => return (&value[..index], Some(&value[index + 1..])),
+            _ => {}
+        }
+    }
+    (value, None)
+}
+
+fn decode_variant_capture(value: &str) -> String {
+    value
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .map_or_else(|| value.replace('_', " "), decode_arbitrary)
+}
+
+fn parse_nested_variant(value: &str) -> Variant {
+    let raw = value.to_owned();
+    let kind = value
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .map_or_else(
+            || VariantKind::Named(value.to_owned()),
+            |value| VariantKind::Arbitrary(decode_arbitrary(value)),
+        );
+    Variant { kind, raw }
+}
+
+fn attribute_variant_selector(prefix: &str, capture: &str, default_true: bool) -> Option<String> {
+    let arbitrary = capture
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'));
+    let value = arbitrary.map_or_else(|| capture.to_owned(), decode_arbitrary);
+    if value.is_empty() {
+        return None;
+    }
+    if let Some((name, expected)) = value.split_once('=') {
+        if name.is_empty() || expected.is_empty() {
+            return None;
+        }
+        return Some(format!(
+            "[{prefix}-{name}=\"{}\"]",
+            expected.replace('"', r#"\""#)
+        ));
+    }
+    Some(if default_true {
+        format!("[{prefix}-{value}=\"true\"]")
+    } else {
+        format!("[{prefix}-{value}]")
+    })
+}
+
+fn substitute_typed_modifier(
+    body: &str,
+    modifier_type: Option<BuiltinVariantModifierType>,
+    modifier: Option<&str>,
+) -> Option<String> {
+    let Some(modifier_type) = modifier_type else {
+        return Some(body.to_owned());
+    };
+    let modifier = modifier_type.serialize(modifier?)?;
+    substitute_quoted_macro(body, ":--modifier(\"", "{modifier}", &modifier)
+}
+
+fn substitute_quoted_variant_value(body: &str, value: &str) -> Option<String> {
+    substitute_quoted_macro(body, ":--value(\"", "{value}", value)
+}
+
+fn substitute_quoted_macro(
+    body: &str,
+    prefix: &str,
+    placeholder: &str,
+    value: &str,
+) -> Option<String> {
+    let start = body.find(prefix)?;
+    let template_start = start + prefix.len();
+    let template_end = body[template_start..].find("\")")? + template_start;
+    let template = &body[template_start..template_end];
+    let replacement = template.replace(placeholder, value);
+    let mut result = body.to_owned();
+    result.replace_range(start..template_end + 2, &replacement);
+    Some(result)
+}
+
+fn apply_nested_variant(body: &str, inner: &VariantApplication) -> Option<VariantApplication> {
+    match inner {
+        VariantApplication::Compound(applications) => applications
+            .iter()
+            .map(|application| apply_nested_variant(body, application))
+            .collect::<Option<Vec<_>>>()
+            .map(VariantApplication::Compound),
+        VariantApplication::SelectorSuffix(suffix) => {
+            apply_nested_selector(body, &format!("&{suffix}"))
+        }
+        VariantApplication::SelectorTemplate(selector) => apply_nested_selector(body, selector),
+        VariantApplication::SelectorMedia {
+            selector,
+            condition,
+        } => attach_media(apply_nested_selector(body, selector)?, condition),
+        VariantApplication::SelectorRule {
+            selector,
+            declarations,
+        } => attach_declarations(apply_nested_selector(body, selector)?, declarations.clone()),
+        VariantApplication::SelectorMediaRule {
+            selector,
+            declarations,
+            condition,
+        } => attach_media(
+            attach_declarations(apply_nested_selector(body, selector)?, declarations.clone())?,
+            condition,
+        ),
+        VariantApplication::Media(_)
+        | VariantApplication::Container(_)
+        | VariantApplication::Supports(_)
+        | VariantApplication::StartingStyle => None,
+    }
+}
+
+fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
+    let fragment = selector.strip_prefix('&')?;
+    resolve_variant_body(&body.replace(":--value()", fragment))
+}
+
+fn attach_media(application: VariantApplication, condition: &str) -> Option<VariantApplication> {
+    match application {
+        VariantApplication::SelectorTemplate(selector) => Some(VariantApplication::SelectorMedia {
+            selector,
+            condition: condition.to_owned(),
+        }),
+        VariantApplication::SelectorRule {
+            selector,
+            declarations,
+        } => Some(VariantApplication::SelectorMediaRule {
+            selector,
+            declarations,
+            condition: condition.to_owned(),
+        }),
+        _ => None,
+    }
+}
+
+fn attach_declarations(
+    application: VariantApplication,
+    declarations: Vec<VariantDeclaration>,
+) -> Option<VariantApplication> {
+    match application {
+        VariantApplication::SelectorTemplate(selector) => Some(VariantApplication::SelectorRule {
+            selector,
+            declarations,
+        }),
+        VariantApplication::SelectorMedia {
+            selector,
+            condition,
+        } => Some(VariantApplication::SelectorMediaRule {
+            selector,
+            declarations,
+            condition,
+        }),
+        _ => None,
+    }
 }
 
 fn registered_variant_candidates<'a, 'b>(
@@ -940,12 +1126,16 @@ fn registered_variant_candidates<'a, 'b>(
 ) -> Vec<(&'a CustomVariant, Option<&'b str>)> {
     let mut candidates = Vec::new();
     for variant in variants.iter().rev() {
-        if variant.name == value {
+        if !variant.wildcard && variant.name == value {
             candidates.push((variant, None));
         }
     }
     for variant in variants.iter().rev() {
-        let Some(prefix) = variant.name.strip_suffix('*') else {
+        let Some(prefix) = variant
+            .wildcard
+            .then(|| variant.name.strip_suffix('*'))
+            .flatten()
+        else {
             continue;
         };
         if prefix.is_empty() {
@@ -957,7 +1147,10 @@ fn registered_variant_candidates<'a, 'b>(
         // Attribute variants with bracket payloads use the dedicated
         // `aria-[name=value]` / `data-[name=value]` grammar below; their
         // wildcard CSS bodies are for simple names only.
-        if (variant.name == "aria-*" || variant.name == "data-*") && capture.starts_with('[') {
+        if variant.value_type.is_none()
+            && (variant.name == "aria-*" || variant.name == "data-*")
+            && capture.starts_with('[')
+        {
             continue;
         }
         if !capture.is_empty() {
@@ -3165,6 +3358,18 @@ mod tests {
             ))
         );
         assert_eq!(
+            resolve_variant(
+                &parse_candidate(r"group-hover/menu\:open:flex")
+                    .unwrap()
+                    .variants[0],
+                &theme
+            ),
+            Some(VariantApplication::SelectorMedia {
+                selector: r"&:is(:where(.group\/menu\:open):hover *)".to_owned(),
+                condition: "(hover: hover)".to_owned(),
+            })
+        );
+        assert_eq!(
             resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
             Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
         );
@@ -3327,6 +3532,23 @@ mod tests {
                 "&:nth-child(3n+1)".to_owned()
             ))
         );
+        assert_eq!(resolve("nth-[not-an-nth]:flex"), None);
+        assert_eq!(
+            resolve("in-focus:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                ":where(:focus) &".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve("has-checked:flex"),
+            Some(VariantApplication::SelectorTemplate(
+                "&:has(:checked)".to_owned()
+            ))
+        );
+        assert_eq!(
+            resolve("supports-[display:grid]:flex"),
+            Some(VariantApplication::Supports("display:grid".to_owned()))
+        );
         assert_eq!(
             resolve("aria-checked:flex"),
             Some(VariantApplication::SelectorTemplate(
@@ -3334,9 +3556,9 @@ mod tests {
             ))
         );
         assert_eq!(
-            resolve("has-checked:flex"),
+            resolve("data-[state=open]:flex"),
             Some(VariantApplication::SelectorTemplate(
-                "&:has(:checked)".to_owned()
+                "&[data-state=\"open\"]".to_owned()
             ))
         );
         assert_eq!(
@@ -4085,7 +4307,6 @@ mod tests {
     }
 
     const REGISTRY_FILES: &[(&str, &str)] = &[
-        ("builtins.css", include_str!("../../../css/builtins.css")),
         (
             "registry-metadata.css",
             include_str!("../../../css/builtins/registry-metadata.css"),
@@ -4166,6 +4387,7 @@ mod tests {
             "properties.css",
             include_str!("../../../css/builtins/properties.css"),
         ),
+        ("builtins.css", include_str!("../../../css/builtins.css")),
     ];
 
     #[test]
@@ -4274,12 +4496,7 @@ mod tests {
         let candidates = registered_variant_candidates(std::slice::from_ref(definition), value);
         let matched = !candidates.is_empty();
         let resolved = candidates.into_iter().find_map(|(custom, capture)| {
-            let body = substitute_variant_capture(&custom.body, capture)?;
-            let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
-            resolve_variant_body(&body).or_else(|| {
-                substitute_variant_capture(&custom.selector, capture)
-                    .map(VariantApplication::SelectorTemplate)
-            })
+            resolve_registered_variant_candidate(custom, capture, value, theme)
         });
         (matched, resolved)
     }
@@ -4294,12 +4511,7 @@ mod tests {
             registered_variant_candidates(std::slice::from_ref(custom), value)
                 .into_iter()
                 .find_map(|(custom, capture)| {
-                    let body = substitute_variant_capture(&custom.body, capture)?;
-                    let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
-                    resolve_variant_body(&body).or_else(|| {
-                        substitute_variant_capture(&custom.selector, capture)
-                            .map(VariantApplication::SelectorTemplate)
-                    })
+                    resolve_registered_variant_candidate(custom, capture, value, theme)
                 })
         };
         definitions
@@ -4313,9 +4525,7 @@ mod tests {
                     .iter()
                     .enumerate()
                     .rev()
-                    .filter(|(index, (_, custom))| {
-                        Some(*index) != excluded && custom.name.ends_with('*')
-                    })
+                    .filter(|(index, (_, custom))| Some(*index) != excluded && custom.wildcard)
                     .find_map(|(_, (_, custom))| resolve(custom))
             })
     }

@@ -1,7 +1,7 @@
 /* Built-in environment, responsive, and conditional variants. */
 
-@stillwind-variant supports-* {
-  @supports (\*) {
+@stillwind-variant supports-* (value: [supports-condition]) {
+  @supports (--value()) {
     @slot;
   }
 }
