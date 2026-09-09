@@ -77,15 +77,18 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
   }
 });
 
-void test("Vite resolves sibling CSS imports concurrently and preserves authored order", async () => {
+void test("Vite supplies ready CSS and discovers nested imports before a slow sibling finishes", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
   const css = path.join(root, "root.css");
   const first = path.join(root, "first.css");
   const second = path.join(root, "second.css");
+  const child = path.join(root, "child.css");
+  const resolutions = new Map<string, number>();
   writeFileSync(css, "@import 'parallel-first'; @import 'parallel-second';");
   writeFileSync(first, ".first { color: red; }");
-  writeFileSync(second, ".second { color: blue; }");
+  writeFileSync(second, "@import 'parallel-child'; .second { color: blue; }");
+  writeFileSync(child, ".child { color: green; }");
   const plugin = stillwind({ css, types: false });
   let releaseFirst: (() => void) | undefined;
   const server = await createServer({
@@ -96,10 +99,15 @@ void test("Vite resolves sibling CSS imports concurrently and preserves authored
         name: "parallel-css-test",
         enforce: "pre",
         async resolveId(specifier) {
+          if (specifier.startsWith("parallel-"))
+            resolutions.set(specifier, (resolutions.get(specifier) ?? 0) + 1);
           if (specifier === "parallel-first") {
             await new Promise<void>((resolve, reject) => {
               const timeout = setTimeout(
-                () => reject(new Error("sibling import was not started concurrently")),
+                () =>
+                  reject(
+                    new Error("nested import was not started before the slow sibling finished"),
+                  ),
                 5000,
               );
               releaseFirst = () => {
@@ -109,10 +117,11 @@ void test("Vite resolves sibling CSS imports concurrently and preserves authored
             });
             return first;
           }
-          if (specifier === "parallel-second") {
+          if (specifier === "parallel-second") return second;
+          if (specifier === "parallel-child") {
             assert.ok(releaseFirst);
             releaseFirst();
-            return second;
+            return child;
           }
           return null;
         },
@@ -133,10 +142,60 @@ void test("Vite resolves sibling CSS imports concurrently and preserves authored
     assert.equal(typeof output, "string");
     if (typeof output !== "string") throw new Error("expected CSS");
     assert.ok(output.includes(".first"));
-    assert.ok(output.indexOf(".first") < output.indexOf(".second"));
+    assert.ok(output.indexOf(".first") < output.indexOf(".child"));
+    assert.ok(output.indexOf(".child") < output.indexOf(".second"));
+    assert.deepEqual(
+      [...resolutions.entries()],
+      [
+        ["parallel-first", 1],
+        ["parallel-second", 1],
+        ["parallel-child", 1],
+      ],
+    );
   } finally {
     releaseFirst?.();
     await server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("Vite rejects a failed CSS load without waiting for or leaking late read failures", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
+  const css = path.join(root, "root.css");
+  writeFileSync(css, "@import 'failed'; @import 'late';");
+  const plugin = stillwind({ css, types: false });
+  const buildStart = plugin.buildStart;
+  if (typeof buildStart !== "function") throw new Error("expected buildStart hook");
+  let releaseLate!: () => void;
+  const late = new Promise<void>((resolve) => {
+    releaseLate = resolve;
+  });
+  let lateFinished = false;
+  try {
+    await assert.rejects(
+      async () =>
+        buildStart.call(
+          {
+            async resolve(specifier: string) {
+              if (specifier === "failed") throw new Error("first CSS resolution failed");
+              await late;
+              lateFinished = true;
+              throw new Error("late CSS resolution failed");
+            },
+          } as unknown as ThisParameterType<typeof buildStart>,
+          {} as Parameters<typeof buildStart>[0],
+        ),
+      /first CSS resolution failed/,
+    );
+    assert.equal(lateFinished, false);
+    releaseLate();
+    // Allow the late resolver rejection and its handler to run. Node's test runner
+    // also reports any unhandled rejection, including one occurring after the test.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(lateFinished, true);
+  } finally {
+    releaseLate();
     rmSync(root, { recursive: true, force: true });
   }
 });

@@ -304,21 +304,42 @@ export function stillwind(options: StillwindOptions): Plugin {
     const loader = new NativeDesignSystemLoader(compilerOptions(options));
     const root = realpathSync(resolve(projectRoot, cssEntrypoint(options)));
     cssFiles.add(root);
-    let step = JSON.parse(loader.provide(0, root, await readFile(root, "utf8"))) as {
-      kind: string;
-      requests: { id: number; importer: string; specifier: string }[];
-      sources: string[];
-    };
-    while (step.kind === "needFile") {
-      const files = await Promise.all(
-        step.requests.map(async (request) => {
-          const name = await realpath(await resolveImport(request.specifier, request.importer));
-          cssFiles.add(name);
-          return { id: request.id, name, content: await readFile(name, "utf8") };
-        }),
-      );
-      step = JSON.parse(loader.provideMany(files)) as typeof step;
-    }
+    type LoadStep =
+      | { kind: "needFile"; requests: { id: number; importer: string; specifier: string }[] }
+      | { kind: "complete" };
+    const initial = JSON.parse(loader.provide(0, root, await readFile(root, "utf8"))) as LoadStep;
+    await new Promise<void>((resolveLoad, rejectLoad) => {
+      const started = new Set<number>();
+      let stopped = false;
+      const fail = (error: unknown) => {
+        stopped = true;
+        rejectLoad(error);
+      };
+      const advance = (step: LoadStep) => {
+        if (step.kind === "complete") {
+          stopped = true;
+          resolveLoad();
+          return;
+        }
+        for (const request of step.requests) {
+          // NeedFile repeats outstanding IDs, including reads already in flight.
+          if (started.has(request.id)) continue;
+          started.add(request.id);
+          const read = async () => {
+            const name = await realpath(await resolveImport(request.specifier, request.importer));
+            if (stopped) return;
+            cssFiles.add(name);
+            const content = await readFile(name, "utf8");
+            if (stopped) return;
+            // JS callbacks serialize provide/step processing; I/O remains concurrent.
+            advance(JSON.parse(loader.provide(request.id, name, content)) as LoadStep);
+          };
+          // Handle every rejection, including reads finishing after another read failed.
+          void read().catch(fail);
+        }
+      };
+      advance(initial);
+    });
     return loader;
   };
 

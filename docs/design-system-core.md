@@ -35,7 +35,8 @@ An async host may read the list concurrently and submit a batch, or supply any
 subset as reads finish. Ready files are parsed immediately and can expose more
 requests before earlier reads finish. Track in-flight IDs to avoid scheduling
 repeated outstanding requests twice. Import expansion always follows authored
-order. Duplicate or unknown response IDs are errors. An empty batch after the
+order. Duplicate or unknown response IDs are errors. Request ID exhaustion
+returns terminal `Complete(Err(RequestIdExhausted))`; `u32::MAX` is never issued. An empty batch after the
 root simply returns the current outstanding list.
 
 Source names are opaque identities. A filesystem host should canonicalize the
@@ -142,8 +143,11 @@ artifacts while retaining source analyses.
 a session from a completed loader, then call `compile`, `css`,
 `remove` and `reload`. `loader.generateReactTypes()` uses the same snapshot.
 
-Vite resolves and reads each request batch concurrently through its resolver,
-registers supplied files for watching, and uses the native session for CSS
+Vite resolves and reads outstanding requests concurrently, supplying each file
+as soon as it is ready. Newly discovered imports start while earlier reads are
+still pending; an ID is scheduled only once. After an error, late reads cannot
+feed the stopped loader, and their rejections remain handled. Vite registers
+supplied files for watching and uses the native session for CSS
 contributions and symbol collision checks. CSS reload errors report a warning and keep the active development
 output. Source graph traversal and the TypeScript checker stay in the host.
 The CLI implements the same loader protocol with synchronous filesystem I/O.
