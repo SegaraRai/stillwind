@@ -235,7 +235,7 @@
 
 @stillwind-utility text-* {
   font-size: --value(--text-*);
-  line-height: var(--tw-leading, --text-line-height());
+  line-height: var(--tw-leading, --stillwind-theme-suffix(--text-*, --line-height));
 }
 
 @stillwind-utility text-* {

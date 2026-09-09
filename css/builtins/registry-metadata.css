@@ -18,3 +18,27 @@
 @stillwind-format --tw-mask-*-to-position zero-length;
 @stillwind-format-functions color-mix linear-gradient;
 @stillwind-omit-token-prefix --shadow- --tw-shadow:;
+
+/* Theme namespace types used by arbitrary values and CSS-variable hints. */
+@stillwind-theme-namespace --animate-* [animation];
+@stillwind-theme-namespace --aspect-ratio-* [ratio];
+@stillwind-theme-namespace --blur-* [length];
+@stillwind-theme-namespace --breakpoint-* [length];
+@stillwind-theme-namespace --color-* [color];
+@stillwind-theme-namespace --container-* [length];
+@stillwind-theme-namespace --drop-shadow-* [shadow];
+@stillwind-theme-namespace --ease-* [easing];
+@stillwind-theme-namespace --font-* [font-family];
+@stillwind-theme-namespace --font-stretch-* [percentage];
+@stillwind-theme-namespace --font-weight-* [font-weight];
+@stillwind-theme-namespace --inset-shadow-* [shadow];
+@stillwind-theme-namespace --leading-* [number] [length];
+@stillwind-theme-namespace --perspective-* [length];
+@stillwind-theme-namespace --radius-* [length];
+@stillwind-theme-namespace --shadow-* [shadow];
+@stillwind-theme-namespace --spacing-* [length];
+@stillwind-theme-namespace --text-* [font-size];
+@stillwind-theme-namespace --text-shadow-* [shadow];
+@stillwind-theme-namespace --tracking-* [length];
+@stillwind-theme-namespace --z-index-* [z-index];
+@stillwind-theme-namespace --duration-* [time];

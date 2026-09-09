@@ -1282,7 +1282,19 @@ pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
 /// global source order.
 #[must_use]
 pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
-    extract_named_blocks_with_offsets(css, "@stillwind-utility")
+    parse_ordered_utility_definitions(css, "@stillwind-utility")
+}
+
+/// Parses compiler-owned animation option definitions. These use the same
+/// value-domain language as utilities without making the core know utility
+/// spellings or CSS property projections.
+#[must_use]
+pub fn parse_builtin_animation_option_definitions(css: &str) -> Vec<CustomUtility> {
+    parse_ordered_utility_definitions(css, "@stillwind-animation-option")
+}
+
+fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
+    extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
             if header.starts_with("-family") {
@@ -1294,6 +1306,45 @@ pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
                 body,
                 builtin_order: Some(builtin_order),
             })
+        })
+        .collect()
+}
+
+/// Parses source-to-target declaration mappings used when an ordinary utility
+/// is accepted as an animation option.
+#[must_use]
+pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<String, String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-animation-option-property"))
+        .filter_map(|segment| segment.split_once(';').map(|(mapping, _)| mapping.trim()))
+        .filter_map(|mapping| mapping.split_once(':'))
+        .map(|(source, target)| (source.trim().to_owned(), target.trim().to_owned()))
+        .filter(|(source, target)| !source.is_empty() && !target.is_empty())
+        .collect()
+}
+
+/// Parses the CSS-authored type set for each Tailwind theme namespace.
+#[must_use]
+pub fn parse_theme_namespace_types(css: &str) -> BTreeMap<ThemeNamespace, Vec<ValueType>> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-theme-namespace"))
+        .filter_map(|segment| {
+            segment
+                .split_once(';')
+                .map(|(definition, _)| definition.trim())
+        })
+        .filter_map(|definition| {
+            let mut parts = definition.split_whitespace();
+            let namespace = parts
+                .next()?
+                .strip_prefix("--")?
+                .strip_suffix("-*")
+                .and_then(ThemeNamespace::parse)?;
+            let types = parts
+                .filter_map(|value| value.strip_prefix('[')?.strip_suffix(']'))
+                .filter_map(ValueType::from_hint)
+                .collect::<Vec<_>>();
+            (!types.is_empty()).then_some((namespace, types))
         })
         .collect()
 }
@@ -2041,15 +2092,8 @@ impl ThemeIndex {
                             ..
                         }
                 )
-                && css.contains(&token.value.value)
-                && matches!(
-                    token.name.value.as_str(),
-                    "--breakpoint-sm"
-                        | "--breakpoint-md"
-                        | "--breakpoint-lg"
-                        | "--breakpoint-xl"
-                        | "--breakpoint-2xl"
-                );
+                && token.name.value.is_ascii()
+                && css.contains(&token.value.value);
             if matches!(token.mode, ThemeTokenMode::Static)
                 || (!matches!(token.mode, ThemeTokenMode::Inline)
                     && (custom_property_references(css).contains(&token.name.value)
@@ -3309,6 +3353,27 @@ mod tests {
         assert!(utility.builtin_order.unwrap() < properties[1].builtin_order);
         assert_eq!(properties[1].pattern, "--tw-*");
         assert_eq!(properties[2].pattern, "*");
+    }
+
+    #[test]
+    fn parses_animation_options_and_namespace_type_metadata() {
+        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
+                   @stillwind-animation-option-property transition-duration: animation-duration;\
+                   @stillwind-theme-namespace --duration-* [time];\
+                   @stillwind-theme-namespace --leading-* [number] [length];";
+        let options = parse_builtin_animation_option_definitions(css);
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0].name, "duration-*");
+        assert_eq!(
+            parse_animation_option_property_mappings(css).get("transition-duration"),
+            Some(&"animation-duration".to_owned())
+        );
+        let namespaces = parse_theme_namespace_types(css);
+        assert_eq!(namespaces[&ThemeNamespace::Duration], vec![ValueType::Time]);
+        assert_eq!(
+            namespaces[&ThemeNamespace::Leading],
+            vec![ValueType::Number, ValueType::Length]
+        );
     }
 
     #[test]

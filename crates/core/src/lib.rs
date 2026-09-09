@@ -1191,78 +1191,16 @@ fn resolve_motion_options(
 ) -> String {
     let mut declaration = String::new();
     for option in lex_utilities(options) {
-        match option.value.raw.as_str() {
-            "none" | "forwards" | "backwards" | "both" => {
-                write!(
-                    &mut declaration,
-                    "animation-fill-mode:{};",
-                    option.value.raw
-                )
-                .expect("writing to a String cannot fail");
-            }
-            "running" | "paused" => {
-                write!(
-                    &mut declaration,
-                    "animation-play-state:{};",
-                    option.value.raw
-                )
-                .expect("writing to a String cannot fail");
-            }
-            "normal" | "reverse" | "alternate" | "alternate-reverse" => {
-                write!(
-                    &mut declaration,
-                    "animation-direction:{};",
-                    option.value.raw
-                )
-                .expect("writing to a String cannot fail");
-            }
-            "infinite" => declaration.push_str("animation-iteration-count:infinite;"),
-            value
-                if value
-                    .strip_prefix("duration-")
-                    .and_then(|name| theme.token_in(stillwind_css::ThemeNamespace::Duration, name))
-                    .is_some() =>
-            {
-                let token = value
-                    .strip_prefix("duration-")
-                    .and_then(|name| theme.token_in(stillwind_css::ThemeNamespace::Duration, name))
-                    .expect("duration token was checked above");
-                let value = if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
-                    token.value.value.clone()
-                } else {
-                    format!("var({})", token.name.value)
-                };
-                write!(&mut declaration, "animation-duration:{value};")
-                    .expect("writing to a String cannot fail");
-            }
-            value => match resolve_utility(value, theme) {
-                Some(utility) if utility.variants.is_empty() => {
-                    let animation = utility
-                        .declaration
-                        .split(';')
-                        .filter(|part| {
-                            part.starts_with("transition-duration:")
-                                || part.starts_with("transition-timing-function:")
-                        })
-                        .collect::<Vec<_>>()
-                        .join(";");
-                    if animation.is_empty() {
-                        diagnostics.push(CompileError::new(
-                            "SHANIMATION002",
-                            format!("unknown animation option `{value}`"),
-                            option.span,
-                        ));
-                    } else {
-                        declaration.push_str(&animation.replace("transition-", "animation-"));
-                        declaration.push(';');
-                    }
-                }
-                _ => diagnostics.push(CompileError::new(
-                    "SHANIMATION002",
-                    format!("unknown animation option `{value}`"),
-                    option.span,
-                )),
-            },
+        if let Some(resolved) =
+            stillwind_tailwind::resolve_animation_option(&option.value.raw, theme)
+        {
+            declaration.push_str(&resolved);
+        } else {
+            diagnostics.push(CompileError::new(
+                "SHANIMATION002",
+                format!("unknown animation option `{}`", option.value.raw),
+                option.span,
+            ));
         }
     }
     declaration

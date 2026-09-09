@@ -342,7 +342,14 @@
 @stillwind-arbitrary-property min-height;
 
 @stillwind-utility h-* {
-  height: --value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]);
+  height: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-height(),
+    [length]
+  );
 }
 
 @stillwind-utility h-* {
@@ -354,7 +361,14 @@
 }
 
 @stillwind-utility max-h-* {
-  max-height: --value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]);
+  max-height: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-height(),
+    [length]
+  );
 }
 
 @stillwind-utility max-h-* {
@@ -362,7 +376,14 @@
 }
 
 @stillwind-utility min-h-* {
-  min-height: --value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]);
+  min-height: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-height(),
+    [length]
+  );
 }
 
 @stillwind-utility min-h-* {
@@ -376,7 +397,14 @@
 @stillwind-arbitrary-property min-width;
 
 @stillwind-utility w-* {
-  width: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
+  width: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-width(),
+    [length]
+  );
 }
 
 @stillwind-utility w-* {
@@ -388,7 +416,14 @@
 }
 
 @stillwind-utility max-w-* {
-  max-width: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
+  max-width: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-width(),
+    [length]
+  );
 }
 
 @stillwind-utility max-w-* {
@@ -396,7 +431,14 @@
 }
 
 @stillwind-utility min-w-* {
-  min-width: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
+  min-width: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-width(),
+    [length]
+  );
 }
 
 @stillwind-utility min-w-* {
@@ -476,13 +518,27 @@
 @stillwind-arbitrary-property block-size;
 
 @stillwind-utility block-* {
-  block-size: --value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]);
+  block-size: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-height(),
+    [length]
+  );
 }
 
 @stillwind-arbitrary-property inline-size;
 
 @stillwind-utility inline-* {
-  inline-size: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
+  inline-size: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-width(),
+    [length]
+  );
 }
 
 @stillwind-arbitrary-property max-block-size;
@@ -497,7 +553,7 @@
     --spacing(),
     --container-*,
     --fraction(),
-    --height(),
+    --stillwind-builtin-height(),
     [length]
   );
 }
@@ -514,7 +570,7 @@
     --spacing(),
     --container-*,
     --fraction(),
-    --width(),
+    --stillwind-builtin-width(),
     [length]
   );
 }
@@ -527,7 +583,7 @@
     --spacing(),
     --container-*,
     --fraction(),
-    --height(),
+    --stillwind-builtin-height(),
     [length]
   );
 }
@@ -540,7 +596,7 @@
     --spacing(),
     --container-*,
     --fraction(),
-    --width(),
+    --stillwind-builtin-width(),
     [length]
   );
 }

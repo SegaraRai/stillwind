@@ -211,7 +211,14 @@
 }
 
 @stillwind-utility basis-* {
-  flex-basis: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
+  flex-basis: --value(
+    --spacing-*,
+    --spacing(),
+    --container-*,
+    --fraction(),
+    --stillwind-builtin-width(),
+    [length]
+  );
 }
 
 @stillwind-utility basis-* {

@@ -111,7 +111,7 @@
 }
 
 @stillwind-utility shadow-* {
-  --tw-shadow: --relative-color(--shadow-*, --tw-shadow-color);
+  --tw-shadow: --stillwind-builtin-shadow-color(--shadow-*, --tw-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
@@ -252,7 +252,7 @@
 }
 
 @stillwind-utility inset-shadow-* {
-  --tw-inset-shadow: --relative-color(--inset-shadow-*, --tw-inset-shadow-color);
+  --tw-inset-shadow: --stillwind-builtin-shadow-color(--inset-shadow-*, --tw-inset-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
@@ -270,7 +270,7 @@
  * extension for this CSS Color 5 relative-colour operation. */
 @stillwind-utility inset-shadow-* {
   --tw-inset-shadow-alpha: --alpha(--modifier());
-  --tw-inset-shadow: --relative-color(
+  --tw-inset-shadow: --stillwind-builtin-shadow-color(
     --inset-shadow-*,
     --tw-inset-shadow-color,
     --alpha(--modifier())
@@ -381,7 +381,9 @@
 }
 
 @stillwind-utility drop-shadow-* {
-  --tw-drop-shadow-size: drop-shadow(--relative-color(--drop-shadow-*, --tw-drop-shadow-color));
+  --tw-drop-shadow-size: drop-shadow(
+    --stillwind-builtin-shadow-color(--drop-shadow-*, --tw-drop-shadow-color)
+  );
   --tw-drop-shadow: drop-shadow(--value(--drop-shadow-*));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)

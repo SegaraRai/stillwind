@@ -6,7 +6,7 @@
 
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fmt::Write,
     sync::OnceLock,
 };
@@ -212,6 +212,28 @@ fn builtin_variants() -> &'static [CustomVariant] {
         .as_slice()
 }
 
+fn builtin_animation_options() -> &'static [CustomUtility] {
+    static OPTIONS: OnceLock<Vec<CustomUtility>> = OnceLock::new();
+    OPTIONS
+        .get_or_init(|| {
+            stillwind_css::parse_builtin_animation_option_definitions(BUILTIN_REGISTRY_CSS)
+                .into_iter()
+                .map(|mut option| {
+                    option.body = canonical_builtin_body(&option.body);
+                    option
+                })
+                .collect()
+        })
+        .as_slice()
+}
+
+fn animation_option_property_mappings() -> &'static BTreeMap<String, String> {
+    static MAPPINGS: OnceLock<BTreeMap<String, String>> = OnceLock::new();
+    MAPPINGS.get_or_init(|| {
+        stillwind_css::parse_animation_option_property_mappings(BUILTIN_REGISTRY_CSS)
+    })
+}
+
 fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
     builtin_variants()
         .iter()
@@ -242,11 +264,7 @@ fn bare_builtin_variant(value: &str, theme: &ThemeIndex) -> Option<&'static Cust
         let Some(namespace) = sort.key.as_deref().and_then(variant_sort_namespace) else {
             return false;
         };
-        let name = match namespace {
-            ThemeNamespace::Container => value.strip_prefix('@').unwrap_or(value),
-            _ => value,
-        };
-        theme.token_in(namespace, name).is_some()
+        theme.token_in(namespace, value).is_some()
     })
 }
 
@@ -281,22 +299,6 @@ fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
         .unwrap_or(usize::MAX)
 }
 
-fn width_condition(application: &VariantApplication) -> Option<&str> {
-    let condition = match application {
-        VariantApplication::Media(condition)
-        | VariantApplication::Container(condition)
-        | VariantApplication::SelectorMedia { condition, .. }
-        | VariantApplication::SelectorMediaRule { condition, .. } => condition.as_str(),
-        _ => return None,
-    };
-    let condition = condition.strip_prefix("(width ")?.strip_suffix(')')?;
-    if let Some(value) = condition.strip_prefix(">= ") {
-        Some(value)
-    } else {
-        condition.strip_prefix("< ")
-    }
-}
-
 fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
     let split = value
         .find(|character: char| !character.is_ascii_digit() && character != '.')
@@ -305,7 +307,7 @@ fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
     Some((number.parse().ok()?, unit))
 }
 
-fn compare_width_values(
+fn compare_sort_values(
     left: &str,
     right: &str,
     direction: BuiltinVariantSortDirection,
@@ -324,10 +326,42 @@ fn compare_width_values(
     }
 }
 
-fn compare_variants_in_group(left: &Variant, right: &Variant, theme: &ThemeIndex) -> Ordering {
-    if let (Some(left_inner), Some(right_inner)) =
-        (compound_inner_variant(left), compound_inner_variant(right))
+fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
+    let VariantKind::Named(value) = &variant.kind else {
+        return None;
+    };
+    let definition = builtin_variant_for_order(variant, theme)?;
+    let sort = definition.sort.as_ref()?;
+    let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
+    let capture = if definition.wildcard {
+        let prefix = definition.name.strip_suffix('*')?;
+        value.strip_prefix(prefix).or(sort.bare.then_some(value))?
+    } else if sort.bare {
+        value
+    } else {
+        return None;
+    };
+    let capture = split_variant_modifier(capture).0;
+    if let Some(arbitrary) = capture
+        .strip_prefix('[')
+        .and_then(|capture| capture.strip_suffix(']'))
     {
+        let arbitrary = decode_arbitrary(arbitrary);
+        return theme_arbitrary_types(namespace)
+            .iter()
+            .any(|value_type| value_type.accepts(&arbitrary))
+            .then_some(arbitrary);
+    }
+    theme
+        .token_in(namespace, capture)
+        .map(|token| token.value.value.clone())
+}
+
+fn compare_variants_in_group(left: &Variant, right: &Variant, theme: &ThemeIndex) -> Ordering {
+    if let (Some(left_inner), Some(right_inner)) = (
+        compound_inner_variant(left, theme),
+        compound_inner_variant(right, theme),
+    ) {
         let comparison = compare_variant_sequences(&[left_inner], &[right_inner], theme);
         if comparison != Ordering::Equal {
             return comparison;
@@ -336,30 +370,38 @@ fn compare_variants_in_group(left: &Variant, right: &Variant, theme: &ThemeIndex
     let direction = builtin_variant_for_order(left, theme)
         .and_then(|variant| variant.sort.as_ref())
         .and_then(|sort| sort.direction);
-    let left_application = resolve_variant(left, theme);
-    let right_application = resolve_variant(right, theme);
     if let Some(direction) = direction
-        && let (Some(left), Some(right)) = (left_application.as_ref(), right_application.as_ref())
-        && let (Some(left_value), Some(right_value)) =
-            (width_condition(left), width_condition(right))
+        && let (Some(left_value), Some(right_value)) = (
+            variant_sort_value(left, theme),
+            variant_sort_value(right, theme),
+        )
     {
-        return compare_width_values(left_value, right_value, direction)
-            .then_with(|| left_value.cmp(right_value));
+        return compare_sort_values(&left_value, &right_value, direction)
+            .then_with(|| left_value.cmp(&right_value));
     }
     left.raw.cmp(&right.raw)
 }
 
-fn compound_inner_variant(variant: &Variant) -> Option<Variant> {
+fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Variant> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    let inner = ["not-", "group-", "peer-", "in-", "has-"]
+    let capture = compound_variant_capture(&theme.variants, value).or_else(|| {
+        theme
+            .imports
+            .builtins
+            .then(|| compound_variant_capture(builtin_variants(), value))?
+    })?;
+    Some(parse_nested_variant(split_variant_modifier(&capture).0))
+}
+
+fn compound_variant_capture(variants: &[CustomVariant], value: &str) -> Option<String> {
+    registered_variant_candidates(variants, value)
         .into_iter()
-        .find_map(|prefix| value.strip_prefix(prefix))?;
-    parse_candidate(&format!("{inner}:__variant_order"))?
-        .variants
-        .into_iter()
-        .next()
+        .find_map(|(variant, capture)| {
+            (variant.value_type == Some(BuiltinVariantValueType::Variant))
+                .then(|| capture.map(str::to_owned))?
+        })
 }
 
 /// Compares variant stacks using the canonical ordering declared by the
@@ -475,6 +517,11 @@ pub fn builtin_theme_order() -> &'static Vec<String> {
 fn builtin_function_formats() -> &'static BTreeSet<String> {
     static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
     FORMATS.get_or_init(|| stillwind_css::parse_function_formats(BUILTIN_REGISTRY_CSS))
+}
+
+fn builtin_theme_namespace_types() -> &'static BTreeMap<ThemeNamespace, Vec<ValueType>> {
+    static TYPES: OnceLock<BTreeMap<ThemeNamespace, Vec<ValueType>>> = OnceLock::new();
+    TYPES.get_or_init(|| stillwind_css::parse_theme_namespace_types(BUILTIN_REGISTRY_CSS))
 }
 
 const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
@@ -688,6 +735,57 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     })
 }
 
+/// Resolves one animation option from the CSS-authored option registry. As a
+/// compatibility path, ordinary utilities may project declarations through
+/// CSS-authored property mappings without exposing their names to Rust.
+#[must_use]
+pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
+    let candidate = parse_candidate(raw)?;
+    if candidate.important || candidate.negative || !candidate.variants.is_empty() {
+        return None;
+    }
+    let Utility::Named { name, modifier } = &candidate.utility else {
+        return project_animation_option_utility(raw, theme);
+    };
+    if let Some(resolution) = resolve_css_utility_branches(
+        matching_utilities(builtin_animation_options(), name),
+        name,
+        modifier.as_ref(),
+        theme,
+    ) {
+        return (resolution.selector.is_none()
+            && resolution.nested.is_empty()
+            && resolution.additional.is_empty())
+        .then(|| finalize_declaration(resolution.declaration, false, theme));
+    }
+    project_animation_option_utility(raw, theme)
+}
+
+fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
+    let utility = resolve_utility(raw, theme)?;
+    if !utility.candidate.variants.is_empty()
+        || utility.selector.is_some()
+        || !utility.nested.is_empty()
+        || !utility.additional.is_empty()
+    {
+        return None;
+    }
+    let mappings = animation_option_property_mappings();
+    let mut projected = String::new();
+    for declaration in utility
+        .declaration
+        .split(';')
+        .filter(|part| !part.is_empty())
+    {
+        let (property, value) = declaration.split_once(':')?;
+        let Some(target) = mappings.get(property) else {
+            continue;
+        };
+        write!(&mut projected, "{target}:{value};").ok()?;
+    }
+    (!projected.is_empty()).then_some(projected)
+}
+
 fn finalize_declaration(declaration: String, is_important: bool, theme: &ThemeIndex) -> String {
     let declaration = if is_important {
         important(&declaration)
@@ -809,20 +907,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if let Some(application) = resolve_registered_variant(value, theme) {
         return Some(application);
     }
-    for (prefix, attribute) in [("aria-[", "aria"), ("data-[", "data")] {
-        if let Some(value) = value
-            .strip_prefix(prefix)
-            .and_then(|value| value.strip_suffix(']'))
-            && let Some((name, expected)) = value.split_once('=')
-        {
-            return Some(VariantApplication::SelectorTemplate(format!(
-                "&[{attribute}-{name}=\"{expected}\"]"
-            )));
-        }
-    }
-    theme
-        .token_in(ThemeNamespace::Breakpoint, value)
-        .map(|token| VariantApplication::Media(format!("(width >= {})", token.value.value)))
+    resolve_bare_registered_variant(value, theme)
 }
 
 /// Whether a Tailwind candidate uses a relationship primitive for which
@@ -886,6 +971,19 @@ fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<Variant
         .imports
         .builtins
         .then(|| resolve_registered_variant_from(builtin_variants(), value, theme))?
+}
+
+fn resolve_bare_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
+    theme.imports.builtins.then(|| {
+        builtin_variants().iter().find_map(|variant| {
+            let sort = variant.sort.as_ref().filter(|sort| sort.bare)?;
+            let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
+            theme.token_in(namespace, value)?;
+            let prefix = variant.name.strip_suffix('*')?;
+            let expanded = format!("{prefix}{value}");
+            resolve_registered_variant_candidate(variant, Some(value), &expanded, theme)
+        })
+    })?
 }
 
 fn resolve_registered_variant_from(
@@ -1144,15 +1242,6 @@ fn registered_variant_candidates<'a, 'b>(
         let Some(capture) = value.strip_prefix(prefix) else {
             continue;
         };
-        // Attribute variants with bracket payloads use the dedicated
-        // `aria-[name=value]` / `data-[name=value]` grammar below; their
-        // wildcard CSS bodies are for simple names only.
-        if variant.value_type.is_none()
-            && (variant.name == "aria-*" || variant.name == "data-*")
-            && capture.starts_with('[')
-        {
-            continue;
-        }
         if !capture.is_empty() {
             candidates.push((variant, Some(capture)));
         }
@@ -1236,14 +1325,10 @@ fn resolve_variant_value_domains(
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
-        if let Some(namespace) = domain
-            .strip_prefix("--")
-            .and_then(|domain| domain.strip_suffix("-*"))
-            .and_then(ThemeNamespace::parse)
-        {
+        if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
             return capture.and_then(|name| {
                 theme
-                    .token_in(namespace, name)
+                    .token_in(namespace, &format!("{name}{suffix}"))
                     .map(|token| token.value.value.clone())
             });
         }
@@ -1874,7 +1959,7 @@ fn resolve_css_declarations(
             || declaration.contains("--modifier-none()")
             || declaration.contains("--alpha(")
             || declaration.contains("--compat-color(")
-            || declaration.contains("--relative-color(")
+            || declaration.contains("--stillwind-builtin-shadow-color(")
     });
     let uses_value = declarations.iter().any(|declaration| {
         declaration.contains("--value(") || declaration.contains("--value-literal(")
@@ -1884,7 +1969,7 @@ fn resolve_css_declarations(
         .any(|declaration| declaration.contains("--modifier("));
     let required_declarations = declarations
         .iter()
-        .filter(|declaration| declaration.contains("--relative-color("))
+        .filter(|declaration| declaration.contains("--stillwind-builtin-shadow-color("))
         .count();
     let mut resolved_placeholder = false;
     let mut resolved_value = false;
@@ -1901,9 +1986,9 @@ fn resolve_css_declarations(
             || authored_declaration.contains("--modifier-none()")
             || authored_declaration.contains("--alpha(")
             || authored_declaration.contains("--compat-color(")
-            || authored_declaration.contains("--relative-color(");
+            || authored_declaration.contains("--stillwind-builtin-shadow-color(");
         let contains_modifier = authored_declaration.contains("--modifier(");
-        let contains_required = authored_declaration.contains("--relative-color(");
+        let contains_required = authored_declaration.contains("--stillwind-builtin-shadow-color(");
         let contains_value = authored_declaration.contains("--value(")
             || authored_declaration.contains("--value-literal(");
         if let Some(declaration) = resolve_css_placeholders(
@@ -2009,7 +2094,7 @@ fn resolve_css_placeholders(
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_owned();
     resolve_literal_value_placeholders(&mut body, capture, theme, compat_color_mode)?;
-    resolve_text_line_height_placeholders(&mut body, capture, theme)?;
+    resolve_theme_suffix_placeholders(&mut body, capture, theme)?;
     resolve_value_map_placeholders(&mut body, capture)?;
     while let Some(start) = body.find("--value(") {
         let open = start + "--value".len();
@@ -2098,22 +2183,22 @@ fn resolve_css_placeholders(
         let replacement = resolve_compat_color(&body[open + 1..end], compat_color_mode)?;
         body.replace_range(start..=end, &replacement);
     }
-    while let Some(start) = body.find("--relative-color(") {
-        let open = start + "--relative-color".len();
+    while let Some(start) = body.find("--stillwind-builtin-shadow-color(") {
+        let open = start + "--stillwind-builtin-shadow-color".len();
         let end = closing_parenthesis(&body, open)?;
         let replacement = resolve_shadow_color(&body[open + 1..end], capture, theme)?;
         body.replace_range(start..=end, &replacement);
     }
     (!body.contains("--value(")
         && !body.contains("--value-literal(")
-        && !body.contains("--text-line-height()")
+        && !body.contains("--stillwind-theme-suffix(")
         && !body.contains("--value-map(")
         && !body.contains("--modifier(")
         && !body.contains("--modifier-map(")
         && !body.contains("--modifier-none()")
         && !body.contains("--alpha(")
         && !body.contains("--compat-color(")
-        && !body.contains("--relative-color("))
+        && !body.contains("--stillwind-builtin-shadow-color("))
     .then_some(body)
 }
 
@@ -2236,18 +2321,27 @@ fn resolve_literal_value_placeholders(
     Some(())
 }
 
-fn resolve_text_line_height_placeholders(
+fn resolve_theme_suffix_placeholders(
     body: &mut String,
     capture: Option<&str>,
     theme: &ThemeIndex,
 ) -> Option<()> {
-    while let Some(start) = body.find("--text-line-height()") {
+    while let Some(start) = body.find("--stillwind-theme-suffix(") {
+        let open = start + "--stillwind-theme-suffix".len();
+        let end = closing_parenthesis(body, open)?;
+        let arguments = split_domains(&body[open + 1..end]);
+        let [domain, suffix] = arguments.as_slice() else {
+            return None;
+        };
+        let (namespace, domain_suffix) = theme_domain_pattern(domain.trim())?;
         let capture = capture?;
-        let token = theme.token_in(ThemeNamespace::Text, &format!("{capture}--line-height"))?;
-        body.replace_range(
-            start..start + "--text-line-height()".len(),
-            &format!("var({})", token.name.value),
-        );
+        let suffix = suffix.trim().strip_prefix("--")?;
+        let value = theme_value(
+            namespace,
+            &format!("{capture}{domain_suffix}--{suffix}"),
+            theme,
+        )?;
+        body.replace_range(start..=end, &value);
     }
     Some(())
 }
@@ -2429,18 +2523,15 @@ fn resolve_value_domains(
         if domain == "--fraction()" {
             return capture.and_then(fraction_value);
         }
-        if domain == "--width()" {
+        if domain == "--stillwind-builtin-width()" {
             return capture.and_then(|capture| axis_size_value(capture, "vw"));
         }
-        if domain == "--height()" {
+        if domain == "--stillwind-builtin-height()" {
             return capture.and_then(|capture| axis_size_value(capture, "vh"));
         }
-        if let Some(namespace) = domain
-            .strip_prefix("--")
-            .and_then(|domain| domain.strip_suffix("-*"))
-            .and_then(ThemeNamespace::parse)
-        {
-            return capture.and_then(|capture| theme_value(namespace, capture, theme));
+        if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
+            return capture
+                .and_then(|capture| theme_value(namespace, &format!("{capture}{suffix}"), theme));
         }
         if !domain.starts_with('[') && !domain.starts_with("--") {
             return capture.filter(|value| *value == domain).map(|value| {
@@ -2474,12 +2565,10 @@ fn resolve_literal_value_domains(
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
-        let namespace = domain
-            .strip_prefix("--")
-            .and_then(|domain| domain.strip_suffix("-*"))
-            .and_then(ThemeNamespace::parse);
-        if let Some(namespace) = namespace {
-            return capture.and_then(|capture| theme_value_literal(namespace, capture, theme));
+        if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
+            return capture.and_then(|capture| {
+                theme_value_literal(namespace, &format!("{capture}{suffix}"), theme)
+            });
         }
         resolve_value_domains(domain, capture, theme)
     })
@@ -2502,6 +2591,12 @@ fn split_domains(value: &str) -> Vec<&str> {
     }
     domains.push(&value[start..]);
     domains
+}
+
+fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
+    let domain = domain.strip_prefix("--")?;
+    let (namespace, suffix) = domain.split_once("-*")?;
+    Some((ThemeNamespace::parse(namespace)?, suffix))
 }
 
 fn theme_value(namespace: ThemeNamespace, value: &str, theme: &ThemeIndex) -> Option<String> {
@@ -2572,30 +2667,9 @@ fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<Strin
 }
 
 fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
-    match namespace {
-        ThemeNamespace::Color => &[ValueType::Color],
-        ThemeNamespace::Spacing
-        | ThemeNamespace::Radius
-        | ThemeNamespace::Blur
-        | ThemeNamespace::Breakpoint
-        | ThemeNamespace::Container
-        | ThemeNamespace::Perspective
-        | ThemeNamespace::Tracking => &[ValueType::Length],
-        ThemeNamespace::AspectRatio => &[ValueType::Ratio],
-        ThemeNamespace::Animate => &[ValueType::Animation],
-        ThemeNamespace::DropShadow
-        | ThemeNamespace::InsetShadow
-        | ThemeNamespace::Shadow
-        | ThemeNamespace::TextShadow => &[ValueType::Shadow],
-        ThemeNamespace::Ease => &[ValueType::Easing],
-        ThemeNamespace::Font => &[ValueType::FontFamily],
-        ThemeNamespace::FontWeight => &[ValueType::FontWeight],
-        ThemeNamespace::Leading => &[ValueType::Number, ValueType::Length],
-        ThemeNamespace::FontStretch => &[ValueType::Percentage],
-        ThemeNamespace::Text => &[ValueType::FontSize],
-        ThemeNamespace::Duration => &[ValueType::Time],
-        ThemeNamespace::ZIndex => &[ValueType::ZIndex],
-    }
+    builtin_theme_namespace_types()
+        .get(&namespace)
+        .map_or(&[], Vec::as_slice)
 }
 
 fn fraction_value(value: &str) -> Option<String> {
@@ -2839,6 +2913,58 @@ mod tests {
             "@stillwind-marker group; @stillwind-marker peer; @theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn resolves_animation_options_from_css_registry_metadata() {
+        let mut theme = theme();
+        theme.tokens.extend(
+            parse_tailwind_theme(&SourceFile::new(
+                FileId(2),
+                "motion-theme.css",
+                "@theme { --duration-normal: 180ms; --ease-standard: cubic-bezier(.2, 0, 0, 1); }",
+            ))
+            .unwrap()
+            .tokens,
+        );
+        assert_eq!(
+            resolve_animation_option("both", &theme).as_deref(),
+            Some("animation-fill-mode:both;")
+        );
+        assert_eq!(
+            resolve_animation_option("duration-normal", &theme).as_deref(),
+            Some("animation-duration:var(--duration-normal);")
+        );
+        assert_eq!(
+            resolve_animation_option("duration-120", &theme).as_deref(),
+            Some("animation-duration:120ms;")
+        );
+        assert_eq!(
+            resolve_animation_option("ease-standard", &theme).as_deref(),
+            Some("animation-timing-function:var(--ease-standard);")
+        );
+        assert_eq!(
+            resolve_animation_option("[transition-duration:75ms]", &theme).as_deref(),
+            Some("animation-duration:75ms;")
+        );
+    }
+
+    #[test]
+    fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
+        let theme = parse_tailwind_theme(&SourceFile::new(
+            FileId(2),
+            "typography-theme.css",
+            "@theme { --text-copy: 1rem; --text-copy--line-height: 1.5; }",
+        ))
+        .unwrap();
+        assert_eq!(
+            resolve_utility("text-copy", &theme)
+                .map(|utility| utility.declaration)
+                .as_deref(),
+            Some(
+                "font-size:var(--text-copy);line-height:var(--tw-leading,var(--text-copy--line-height));"
+            )
+        );
     }
 
     #[test]
