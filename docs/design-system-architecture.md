@@ -267,7 +267,9 @@ error.
 IDs starting at 1 and increasing monotonically. The initial `provide_many` must
 contain exactly one root file, conventionally ID 0. `provide` is a single-file
 wrapper around `provide_many`; subsequent responses must match outstanding IDs.
-Unknown or duplicate response IDs are protocol errors.
+Unknown or duplicate response IDs are protocol errors. Attempting to allocate
+`u32::MAX` terminates with `Complete(Err(RequestIdExhausted))` rather than
+wrapping the counter or returning a partially allocated request list.
 
 Hosts may supply any subset in any order as reads finish, or read a whole batch
 in parallel and call `provide_many` once. A partially supplied batch does not

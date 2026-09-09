@@ -111,6 +111,7 @@ impl ExpandedSource {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DesignSystemLoadError {
+    RequestIdExhausted,
     InvalidCss {
         source: CssSourceName,
         message: String,
@@ -126,6 +127,7 @@ pub enum DesignSystemLoadError {
 impl std::fmt::Display for DesignSystemLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::RequestIdExhausted => f.write_str("CSS request IDs exhausted"),
             Self::InvalidCss { source, message } => write!(f, "{}: {message}", source.0),
             Self::Protocol { message } => write!(f, "CSS loader protocol error: {message}"),
             Self::Cycle { chain } => write!(f, "CSS import cycle: {chain:?}"),
@@ -331,7 +333,7 @@ impl DesignSystemLoader {
             let id = self.next_id;
             self.next_id = id
                 .checked_add(1)
-                .ok_or_else(|| Self::protocol("CSS request IDs exhausted"))?;
+                .ok_or(DesignSystemLoadError::RequestIdExhausted)?;
             requests.push(CssFileRequest {
                 id,
                 importer: name.clone(),
@@ -512,4 +514,45 @@ fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
         }
     }
     Ok(wrappers)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_id_exhaustion_is_terminal_and_never_emits_max_or_wraps() {
+        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        loader.next_id = u32::MAX - 1;
+        let DesignSystemLoadStep::NeedFile(requests) =
+            loader.provide(0, "root".into(), "@import 'last';".into())
+        else {
+            panic!("expected last usable request ID");
+        };
+        assert_eq!(requests[0].id, u32::MAX - 1);
+        assert!(matches!(
+            loader.provide(u32::MAX - 1, "last".into(), "@import 'overflow';".into()),
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::RequestIdExhausted))
+        ));
+        assert_eq!(loader.next_id, u32::MAX);
+        assert!(matches!(
+            loader.provide_many([]),
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+        ));
+    }
+
+    #[test]
+    fn exhausted_batch_finishes_with_error_instead_of_returning_partial_requests() {
+        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        loader.next_id = u32::MAX - 1;
+        assert!(matches!(
+            loader.provide(
+                0,
+                "root".into(),
+                "@import 'last'; @import 'overflow';".into()
+            ),
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::RequestIdExhausted))
+        ));
+        assert_eq!(loader.next_id, u32::MAX);
+    }
 }
