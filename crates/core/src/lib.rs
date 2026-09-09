@@ -3,11 +3,13 @@
 mod analysis;
 mod module_compiler;
 mod query;
+mod session;
 pub use module_compiler::*;
 pub use query::{
     CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
     DesignSystemQuery,
 };
+pub use session::*;
 mod design_system;
 pub use analysis::*;
 mod loader;
