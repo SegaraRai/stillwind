@@ -62,6 +62,16 @@ struct ExpandedSource {
 }
 
 impl ExpandedSource {
+    fn append_import(&mut self, other: &Self, wrappers: &[String]) {
+        for wrapper in wrappers {
+            self.text.push_str(wrapper);
+            self.text.push('{');
+        }
+        self.append(other);
+        for _ in wrappers {
+            self.text.push('}');
+        }
+    }
     fn append_source(&mut self, source: &SourceFile, range: std::ops::Range<usize>) {
         let start = self.text.len();
         self.text.push_str(&source.text()[range.clone()]);
@@ -134,6 +144,7 @@ struct Import {
     start: usize,
     end: usize,
     specifier: String,
+    wrappers: Vec<String>,
 }
 
 struct Frame {
@@ -213,7 +224,10 @@ impl DesignSystemLoader {
                 return Err(DesignSystemLoadError::Cycle { chain });
             }
             if let Some(parent) = self.stack.last_mut() {
-                parent.output.append(&self.expanded[&name]);
+                parent.output.append_import(
+                    &self.expanded[&name],
+                    &parent.imports[parent.next - 1].wrappers,
+                );
             }
         } else {
             let imports =
@@ -278,7 +292,9 @@ impl DesignSystemLoader {
                 .append_source(source, frame.cursor..source.text().len());
             let frame = self.stack.pop().expect("active frame");
             if let Some(parent) = self.stack.last_mut() {
-                parent.output.append(&frame.output);
+                parent
+                    .output
+                    .append_import(&frame.output, &parent.imports[parent.next - 1].wrappers);
                 self.expanded.insert(frame.name, frame.output);
             } else {
                 let source = SourceFile::new(
@@ -345,6 +361,21 @@ fn imports(css: &str) -> Result<Vec<Import>, String> {
         let Ok(token) = parser.next_including_whitespace_and_comments() else {
             break;
         };
+        if matches!(
+            token,
+            Token::CurlyBracketBlock
+                | Token::ParenthesisBlock
+                | Token::SquareBracketBlock
+                | Token::Function(_)
+        ) {
+            parser
+                .parse_nested_block(|nested| {
+                    while nested.next_including_whitespace_and_comments().is_ok() {}
+                    Ok::<_, cssparser::ParseError<'_, ()>>(())
+                })
+                .map_err(|error| format!("invalid CSS block: {error:?}"))?;
+            continue;
+        }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
             continue;
         }
@@ -353,12 +384,9 @@ fn imports(css: &str) -> Result<Vec<Import>, String> {
             .map_err(|error| format!("invalid @import: {error:?}"))?
             .to_string();
         let tail_start = parser.position();
-        let mut tail_end = tail_start;
         loop {
-            let position = parser.position();
             match parser.next_including_whitespace_and_comments() {
                 Ok(Token::Semicolon) => {
-                    tail_end = position;
                     break;
                 }
                 Ok(_) => (),
@@ -368,14 +396,58 @@ fn imports(css: &str) -> Result<Vec<Import>, String> {
         if is_framework(&specifier) {
             continue;
         }
-        if !parser.slice(tail_start..tail_end).trim().is_empty() {
-            return Err("conditional/layered external @import is not supported for design-system definitions".into());
-        }
+        let tail = parser.slice(tail_start..parser.position());
+        let wrappers = import_wrappers(tail.strip_suffix(';').unwrap_or(tail))?;
         imports.push(Import {
             start,
             end: parser.position().byte_index(),
             specifier,
+            wrappers,
         });
     }
     Ok(imports)
+}
+
+fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
+    let mut input = ParserInput::new(tail);
+    let mut parser = Parser::new(&mut input);
+    let mut wrappers = Vec::new();
+    while !parser.is_exhausted() {
+        let state = parser.state();
+        match parser
+            .next()
+            .map_err(|error| format!("invalid import modifiers: {error:?}"))?
+        {
+            Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
+                wrappers.push("@layer".into());
+            }
+            Token::Function(name)
+                if name.eq_ignore_ascii_case("layer") || name.eq_ignore_ascii_case("supports") =>
+            {
+                let layer = name.eq_ignore_ascii_case("layer");
+                let condition = parser
+                    .parse_nested_block(|nested| {
+                        let start = nested.position();
+                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, cssparser::ParseError<'_, ()>>(
+                            nested.slice_from(start).trim().to_owned(),
+                        )
+                    })
+                    .map_err(|error| format!("invalid import modifier: {error:?}"))?;
+                wrappers.push(if layer {
+                    format!("@layer {condition}")
+                } else {
+                    format!("@supports ({condition})")
+                });
+            }
+            _ => {
+                wrappers.push(format!(
+                    "@media {}",
+                    tail[state.position().byte_index()..].trim()
+                ));
+                break;
+            }
+        }
+    }
+    Ok(wrappers)
 }

@@ -174,3 +174,24 @@ fn imported_token_spans_refer_to_the_original_supplied_buffer() {
     assert_eq!(child.source.slice(token.value.span).unwrap(), "blue");
     assert!(!snapshot.sources().mappings.is_empty());
 }
+
+#[test]
+fn imported_styles_retain_layer_supports_and_media_conditions() {
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+    assert!(matches!(
+        loader.provide(
+            "root".into(),
+            "@import 'child' layer(components) supports(display: grid) screen and (width > 40rem);"
+                .into()
+        ),
+        DesignSystemLoadStep::NeedFile(_)
+    ));
+    let step = loader.provide("child".into(), ".card { display: grid; }".into());
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = step else {
+        panic!("{step:?}")
+    };
+    let css = snapshot.render_stylesheet("");
+    assert!(css.contains("@layer components"), "{css}");
+    assert!(css.contains("@supports (display: grid)"), "{css}");
+    assert!(css.contains("@media screen and (width > 40rem)"), "{css}");
+}
