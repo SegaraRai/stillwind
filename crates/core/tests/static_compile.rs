@@ -750,6 +750,33 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
 }
 
 #[test]
+fn breakpoint_variants_inline_queries_without_emitting_lookup_tokens() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Fixture.tsx",
+        "import { style } from \"stillwind/react\"; const props = style(\"foo:grid 東京:flex\");",
+    );
+    let result = Compiler::compile_react(
+        &component,
+        &SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            "@import \"tailwindcss/utilities\" layer(utilities); @theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
+        ),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("@media (width >= 60rem)"),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("@media (width >= 70rem)"));
+    assert!(!result.css.contains("--breakpoint-foo:"));
+    assert!(!result.css.contains("--breakpoint-東京:"));
+}
+
+#[test]
 fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
     let component = SourceFile::new(
         FileId(1),

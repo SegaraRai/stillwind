@@ -2083,21 +2083,9 @@ impl ThemeIndex {
             required.extend(custom_property_references(&tailwind_v4_preflight()));
         }
         for token in &tokens {
-            let referenced_by_value = token.name.span.file != FileId(0)
-                && matches!(
-                    token.kind,
-                    ThemeTokenKind::Scale(ThemeNamespace::Breakpoint)
-                        | ThemeTokenKind::Token {
-                            namespace: ThemeNamespace::Breakpoint,
-                            ..
-                        }
-                )
-                && token.name.value.is_ascii()
-                && css.contains(&token.value.value);
             if matches!(token.mode, ThemeTokenMode::Static)
                 || (!matches!(token.mode, ThemeTokenMode::Inline)
-                    && (custom_property_references(css).contains(&token.name.value)
-                        || referenced_by_value))
+                    && custom_property_references(css).contains(&token.name.value))
             {
                 required.insert(token.name.value.clone());
             }
@@ -3660,6 +3648,25 @@ mod tests {
                 .any(|token| token.name.value == "--color-alias")
         );
         assert_eq!(theme.value("color", "alias"), Some("var(--brand)"));
+    }
+
+    #[test]
+    fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
+        let source = SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
+        );
+        let theme = parse_theme(&source).unwrap();
+        let required = theme.tokens_required_by(
+            "@media (width >= 60rem) {} @media (width >= 70rem) {}",
+            false,
+        );
+
+        assert!(required.is_empty());
+        let referenced = theme.tokens_required_by("width:var(--breakpoint-foo);", false);
+        assert_eq!(referenced.len(), 1);
+        assert_eq!(referenced[0].name.value, "--breakpoint-foo");
     }
 
     #[test]
