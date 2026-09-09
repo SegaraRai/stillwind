@@ -1,3 +1,5 @@
+//! Cross-module identities, finite candidate values, and module summaries.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! Cross-module identities, finite candidate values, and module summaries.
 
 mod assets;
 mod identity;

@@ -1,3 +1,5 @@
+//! Source buffers, spans, line indexes, and diagnostics used by every compiler pass.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! Source buffers, spans, line indexes, and diagnostics used by every compiler pass.
 
 mod diagnostics;
 mod lint;

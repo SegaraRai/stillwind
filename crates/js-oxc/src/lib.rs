@@ -1,3 +1,5 @@
+//! Oxc-backed JS/TS/JSX parsing and import-bound macro extraction.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! Oxc-backed JS/TS/JSX parsing and import-bound macro extraction.
 
 mod ast;
 mod bindings;

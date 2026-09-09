@@ -1,3 +1,5 @@
+//! Stillwind's small, source-spanned utility-string lexer.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! Stillwind's small, source-spanned utility-string lexer.
 
 mod lexer;
 mod syntax;

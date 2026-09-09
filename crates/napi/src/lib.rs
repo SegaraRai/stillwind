@@ -1,3 +1,5 @@
+//! Node-API surface for the Stillwind compiler.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! Node-API surface for the Stillwind compiler.
 
 mod api;
 mod output;

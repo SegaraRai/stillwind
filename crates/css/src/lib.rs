@@ -1,3 +1,5 @@
+//! CSS theme parsing, definition registration, and value validation.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! CSS theme parsing, definition registration, and value validation.
 
 mod blocks;
 mod builtins;

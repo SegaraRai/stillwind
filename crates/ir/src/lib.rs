@@ -1,3 +1,5 @@
+//! Language-neutral intermediate representation shared by all source frontends.
+
 #![cfg_attr(
     not(test),
     deny(
@@ -9,7 +11,6 @@
         clippy::unimplemented
     )
 )]
-//! Language-neutral intermediate representation shared by all source frontends.
 
 mod model;
 
