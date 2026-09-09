@@ -36,3 +36,19 @@ export declare function summarizeReact(
 export declare function generateReactTypes(theme: string): string;
 /** Canonicalizes constant calc() subexpressions with Stillwind's CSS value parser. */
 export declare function foldCalcExpressions(css: string): string;
+
+/** Caller-driven CSS loading. Names are opaque; the host resolves each request. */
+export declare class NativeDesignSystemLoader {
+  constructor(optionsJson?: string | null);
+  provide(name: string, content: string): string;
+  generateReactTypes(): string;
+}
+
+/** Owns snapshot revisions, module artifacts and shared CSS contributions. */
+export declare class NativeProjectSession {
+  constructor(loader: NativeDesignSystemLoader, watch: boolean);
+  reload(loader: NativeDesignSystemLoader): string;
+  compile(sourcesJson: string): string;
+  css(): string;
+  remove(module: string): boolean;
+}

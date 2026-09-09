@@ -32,3 +32,5 @@ export const renderReactStylesheet = binding.renderReactStylesheet;
 export const summarizeReact = binding.summarizeReact;
 export const generateReactTypes = binding.generateReactTypes;
 export const foldCalcExpressions = binding.foldCalcExpressions;
+export const NativeDesignSystemLoader = binding.NativeDesignSystemLoader;
+export const NativeProjectSession = binding.NativeProjectSession;

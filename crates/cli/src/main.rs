@@ -1,9 +1,12 @@
 //! Bundler-facing command line adapter for the Stillwind compiler.
 
-use std::{env, fs};
+use std::{env, fs, path::Path, sync::Arc};
 
 use serde::Serialize;
-use stillwind_core::{Compiler, CompilerOptions, GeneratedClass};
+use stillwind_core::{
+    CompilerOptions, DesignSystemLoadStep, DesignSystemLoader, GeneratedClass, ModuleCompiler,
+    OxcSourceAnalyzer, SourceAnalyzer,
+};
 use stillwind_source::{FileId, SourceFile};
 
 #[derive(Serialize)]
@@ -88,7 +91,35 @@ fn run() -> Result<(), String> {
         forbid_tailwind_relationships: has_flag("--forbid-tailwind-relationships"),
     };
     options.validate()?;
-    let result = Compiler::compile_react_with_options(&source, &theme, &options);
+    let mut loader = DesignSystemLoader::new(options);
+    let mut step = loader.provide(theme.path().into(), theme.text().into());
+    let snapshot = loop {
+        match step {
+            DesignSystemLoadStep::Complete(result) => {
+                break result.map_err(|error| error.to_string())?;
+            }
+            DesignSystemLoadStep::NeedFile(request) => {
+                let path = Path::new(request.importer.0.as_ref())
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(&request.specifier);
+                let path = fs::canonicalize(&path).map_err(|error| {
+                    format!(
+                        "cannot resolve {} imported by {}: {error}",
+                        request.specifier, request.importer.0
+                    )
+                })?;
+                let content = fs::read_to_string(&path)
+                    .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+                step = loader.provide(path.to_string_lossy().as_ref().into(), content.into());
+            }
+        }
+    };
+    let analysis =
+        OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source.clone())), None);
+    let result = ModuleCompiler::new(snapshot.clone())
+        .compile(&analysis)
+        .to_legacy(&snapshot);
     let diagnostics = result
         .diagnostics
         .iter()
