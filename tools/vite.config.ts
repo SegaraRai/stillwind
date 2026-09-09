@@ -49,6 +49,12 @@ export default defineConfig({
         command: "node tailwind-numeric-domain-audit.mts",
         dependsOn: ["@stillwind/native#build"],
       },
+      "builtins:order": {
+        command: "node sort-builtin-utilities.mts",
+      },
+      "builtins:order:write": {
+        command: "node sort-builtin-utilities.mts --write",
+      },
       "tailwind:extract": {
         command: "node extract-tailwind-v4-registrations.ts",
       },

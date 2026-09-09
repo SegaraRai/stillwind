@@ -19,6 +19,8 @@ use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_c
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
     pub candidate: Candidate,
+    /// Source order of the matched `@stillwind-utility`.
+    pub builtin_order: Option<usize>,
     pub declaration: String,
     pub selector: Option<String>,
     pub nested: Vec<NestedUtilityRule>,
@@ -63,6 +65,7 @@ struct UtilityResolution {
     selector: Option<String>,
     nested: Vec<NestedUtilityRule>,
     additional: Vec<ResolvedUtilityTarget>,
+    builtin_order: Option<usize>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -84,6 +87,7 @@ impl UtilityResolution {
             selector: None,
             nested: Vec::new(),
             additional: Vec::new(),
+            builtin_order: None,
         }
     }
 }
@@ -154,7 +158,7 @@ fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
             utility.body = canonical_builtin_body(&utility.body);
             utility
         };
-        let builtins = stillwind_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
+        let builtins = stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS)
             .into_iter()
             .map(normalize)
             .collect::<Vec<_>>();
@@ -180,7 +184,7 @@ fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
 fn builtin_variants() -> &'static [CustomVariant] {
     static VARIANTS: OnceLock<Vec<CustomVariant>> = OnceLock::new();
     VARIANTS
-        .get_or_init(|| stillwind_css::parse_variant_definitions(BUILTIN_REGISTRY_CSS))
+        .get_or_init(|| stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS))
         .as_slice()
 }
 
@@ -203,7 +207,7 @@ pub fn builtin_declaration_order() -> &'static [Vec<String>] {
 
 #[must_use]
 pub fn builtin_utility_names() -> Vec<String> {
-    stillwind_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS)
+    stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS)
         .into_iter()
         .map(|utility| utility.name)
         .collect()
@@ -212,7 +216,7 @@ pub fn builtin_utility_names() -> Vec<String> {
 #[must_use]
 pub fn builtin_utility_token_prefixes() -> Vec<(String, String)> {
     let mut entries = Vec::new();
-    for utility in stillwind_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS) {
+    for utility in stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS) {
         let Some(prefix) = utility.name.strip_suffix('*') else {
             continue;
         };
@@ -231,7 +235,7 @@ pub fn builtin_utility_token_prefixes() -> Vec<(String, String)> {
 
 #[must_use]
 pub fn builtin_variant_names() -> Vec<String> {
-    stillwind_css::parse_variant_definitions(BUILTIN_REGISTRY_CSS)
+    stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS)
         .into_iter()
         .map(|variant| variant.name)
         .collect()
@@ -468,6 +472,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     let selector = resolution.selector;
     Some(ResolvedUtility {
         candidate,
+        builtin_order: resolution.builtin_order,
         declaration,
         selector,
         nested,
@@ -1068,21 +1073,36 @@ fn resolve_css_utility_branches<'a>(
                 (
                     utility_branch_specificity(utility, name),
                     utility.name == name,
+                    utility_value_types(utility),
                     resolution,
                 )
             })
         })
         .collect::<Vec<_>>();
-    branches.sort_by_key(|(specificity, _, _)| std::cmp::Reverse(*specificity));
-    let has_exact = branches.iter().any(|(_, exact, _)| *exact);
+    branches.sort_by_key(|(specificity, _, _, _)| std::cmp::Reverse(*specificity));
+    let has_exact = branches.iter().any(|(_, exact, _, _)| *exact);
     if has_exact {
         // An exact registration defines the complete utility. Wildcard
         // overloads are alternative candidate grammar branches, not a source
         // of extra declarations for a spelling that has an exact definition.
-        branches.retain(|(_, exact, _)| *exact);
+        branches.retain(|(_, exact, _, _)| *exact);
+    } else if let Some(arbitrary) = unhinted_arbitrary_value(name) {
+        let available = branches
+            .iter()
+            .flat_map(|(_, _, domains, _)| domains.iter().copied())
+            .collect::<Vec<_>>();
+        let selected = infer_arbitrary_value_type(&arbitrary, &available).or_else(|| {
+            branches
+                .iter()
+                .min_by_key(|(_, _, _, resolution)| resolution.builtin_order)
+                .and_then(|(_, _, domains, _)| domains.first().copied())
+        });
+        if let Some(selected) = selected {
+            branches.retain(|(_, _, domains, _)| domains.contains(&selected));
+        }
     }
-    let (_, _, mut resolution) = branches.first()?.clone();
-    for (_, _, branch) in branches.into_iter().skip(1) {
+    let (_, _, _, mut resolution) = branches.first()?.clone();
+    for (_, _, _, branch) in branches.into_iter().skip(1) {
         // Overloads with a shared selector form one declaration list. CSS
         // fallbacks authored within one overload intentionally retain their
         // order, while competing overloads cannot overwrite a more-specific
@@ -1102,6 +1122,73 @@ fn resolve_css_utility_branches<'a>(
         }
     }
     Some(resolution)
+}
+
+fn utility_value_types(utility: &CustomUtility) -> Vec<stillwind_css::ValueType> {
+    let mut types = Vec::new();
+    let mut rest = utility.body.as_str();
+    while let Some(start) = rest.find('[') {
+        rest = &rest[start + 1..];
+        let Some(end) = rest.find(']') else {
+            break;
+        };
+        if let Some(value_type) = stillwind_css::ValueType::from_hint(&rest[..end])
+            && !types.contains(&value_type)
+        {
+            types.push(value_type);
+        }
+        rest = &rest[end + 1..];
+    }
+    types
+}
+
+fn unhinted_arbitrary_value(name: &str) -> Option<String> {
+    if let Some(start) = name.rfind("-[")
+        && let Some(value) = name[start + 2..].strip_suffix(']')
+    {
+        let (hint, value) = value.split_once(':').unwrap_or(("", value));
+        return hint.is_empty().then(|| decode_arbitrary(value));
+    }
+    let start = name.rfind("-(")?;
+    let variable = name[start + 2..].strip_suffix(')')?;
+    variable
+        .starts_with("--")
+        .then(|| format!("var({variable})"))
+}
+
+fn infer_arbitrary_value_type(
+    value: &str,
+    available: &[stillwind_css::ValueType],
+) -> Option<stillwind_css::ValueType> {
+    use stillwind_css::ValueType;
+
+    if value.contains("var(")
+        || value.starts_with("--")
+        || matches!(
+            value.trim(),
+            "initial" | "inherit" | "unset" | "revert" | "revert-layer"
+        )
+    {
+        return None;
+    }
+    [
+        ValueType::Image,
+        ValueType::Color,
+        ValueType::Percentage,
+        ValueType::Position,
+        ValueType::BackgroundSize,
+        ValueType::Length,
+        ValueType::Url,
+    ]
+    .into_iter()
+    .filter(|value_type| available.contains(value_type))
+    .find(|value_type| value_type.accepts(value))
+    .or_else(|| {
+        available
+            .iter()
+            .copied()
+            .find(|value_type| value_type.accepts(value))
+    })
 }
 
 fn merge_nested_rules(primary: &mut Vec<NestedUtilityRule>, secondary: Vec<NestedUtilityRule>) {
@@ -1262,6 +1349,7 @@ fn resolve_css_utility_body(
             selector: None,
             nested: Vec::new(),
             additional,
+            builtin_order: utility.builtin_order,
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
@@ -1269,6 +1357,7 @@ fn resolve_css_utility_body(
             selector,
             nested: resolved_nested,
             additional: Vec::new(),
+            builtin_order: utility.builtin_order,
         })
     }
 }
@@ -2332,7 +2421,7 @@ mod tests {
     fn simple_utility_domains_follow_csswg_formal_syntax() {
         let mut checked = BTreeSet::new();
         let mut failures = Vec::new();
-        for utility in stillwind_css::parse_utility_definitions(BUILTIN_REGISTRY_CSS) {
+        for utility in stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS) {
             for declaration in utility.body.split(';') {
                 let Some((property, value)) = declaration.split_once(':') else {
                     continue;
@@ -2643,6 +2732,26 @@ mod tests {
     #[test]
     fn resolves_ambiguous_backgrounds_through_typed_utility_branches() {
         let theme = theme();
+        assert_eq!(
+            resolve_utility("bg-[10px]", &theme).unwrap().declaration,
+            "background-position:10px;"
+        );
+        assert_eq!(
+            resolve_utility("bg-[20%_30%]", &theme).unwrap().declaration,
+            "background-position:20% 30%;"
+        );
+        assert_eq!(
+            resolve_utility("bg-[10px_auto]", &theme)
+                .unwrap()
+                .declaration,
+            "background-size:10px auto;"
+        );
+        assert_eq!(
+            resolve_utility("bg-[var(--surface)]", &theme)
+                .unwrap()
+                .declaration,
+            "background-color:var(--surface);"
+        );
         assert_eq!(
             resolve_utility("bg-[color:rebeccapurple]", &theme)
                 .unwrap()
@@ -3129,6 +3238,17 @@ mod tests {
 
     #[test]
     fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
+        let unmodified = resolve_utility("shadow-red-500", &theme()).unwrap();
+        assert_eq!(
+            unmodified.declaration,
+            "--tw-shadow-color:oklch(63.7% 0.237 25.331);"
+        );
+        assert!(unmodified.nested.iter().any(|rule| {
+            rule.declaration.contains(
+                "--tw-shadow-color:color-mix(in oklab, var(--color-red-500) var(--tw-shadow-alpha), transparent);",
+            )
+        }));
+
         let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
         assert!(resolved.declaration.contains(
             "--tw-shadow-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
@@ -3140,6 +3260,32 @@ mod tests {
                     "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha), transparent);",
                 )
         }));
+    }
+
+    #[test]
+    fn resolves_directional_radius_theme_values() {
+        let theme = theme();
+        for candidate in [
+            "rounded-s-sm",
+            "rounded-ss-sm",
+            "rounded-e-sm",
+            "rounded-se-sm",
+            "rounded-ee-sm",
+            "rounded-es-sm",
+            "rounded-t-sm",
+            "rounded-l-sm",
+            "rounded-tl-sm",
+            "rounded-r-sm",
+            "rounded-tr-sm",
+            "rounded-b-sm",
+            "rounded-br-sm",
+            "rounded-bl-sm",
+        ] {
+            assert!(
+                resolve_utility(candidate, &theme).is_some(),
+                "{candidate} must resolve from --radius-sm"
+            );
+        }
     }
 
     #[test]
@@ -3774,32 +3920,30 @@ mod tests {
     ];
 
     #[test]
-    fn builtin_utility_families_are_colocated_and_contiguous() {
+    fn builtin_utility_overloads_are_colocated_and_contiguous() {
         let mut locations = HashMap::<String, (&str, usize)>::new();
         for (file, css) in REGISTRY_FILES
             .iter()
             .filter(|(file, _)| file.ends_with("-utilities.css"))
         {
-            for (index, utility) in stillwind_css::parse_utility_definitions(css)
+            for (index, utility) in stillwind_css::parse_builtin_utility_definitions(css)
                 .into_iter()
                 .enumerate()
             {
-                // Positive and negative registrations are one family. Keep the
-                // wildcard marker so related exact exceptions may sit inside
-                // the surrounding alphabetical feature cluster.
-                let family = utility.name.trim_start_matches('-');
-                if let Some((previous_file, previous_index)) = locations.get(family) {
+                if let Some((previous_file, previous_index)) = locations.get(&utility.name) {
                     assert_eq!(
                         previous_file, file,
-                        "utility family {family} is split between {previous_file} and {file}"
+                        "utility overload {} is split between {previous_file} and {file}",
+                        utility.name
                     );
                     assert_eq!(
                         previous_index + 1,
                         index,
-                        "utility family {family} is not contiguous in {file}"
+                        "utility overload {} is not contiguous in {file}",
+                        utility.name
                     );
                 }
-                locations.insert(family.to_owned(), (file, index));
+                locations.insert(utility.name, (file, index));
             }
         }
     }
@@ -3811,7 +3955,7 @@ mod tests {
                 !css.contains("--inset()"),
                 "{file} must express keyword domains in CSS instead of a Rust inset helper"
             );
-            for utility in stillwind_css::parse_utility_definitions(css) {
+            for utility in stillwind_css::parse_builtin_utility_definitions(css) {
                 if utility.name.starts_with('-')
                     && (utility.body.contains("--value(") || utility.body.contains("--value-map("))
                 {
@@ -3830,7 +3974,7 @@ mod tests {
         let mut definitions = Vec::new();
         for (file, css) in REGISTRY_FILES {
             let mut occurrences = HashMap::<String, usize>::new();
-            for mut utility in stillwind_css::parse_utility_definitions(css) {
+            for mut utility in stillwind_css::parse_builtin_utility_definitions(css) {
                 utility.body = canonical_builtin_body(&utility.body);
                 let occurrence = occurrences.entry(utility.name.clone()).or_default();
                 *occurrence += 1;
@@ -3844,7 +3988,7 @@ mod tests {
         let mut definitions = Vec::new();
         for (file, css) in REGISTRY_FILES {
             let mut occurrences = HashMap::<String, usize>::new();
-            for variant in stillwind_css::parse_variant_definitions(css) {
+            for variant in stillwind_css::parse_builtin_variant_definitions(css) {
                 let occurrence = occurrences.entry(variant.name.clone()).or_default();
                 *occurrence += 1;
                 definitions.push((format!("{file}:{}#{occurrence}", variant.name), variant));

@@ -33,6 +33,7 @@ export default defineConfig({
       },
       check: {
         command: "vp check",
+        dependsOn: ["@stillwind/tools#builtins:order"],
       },
       "ts7-shadow:poc": {
         command: "node experiments/ts7-shadow-checker/src/index.mjs",
@@ -64,6 +65,14 @@ export default defineConfig({
       "tailwind:registry-audit": {
         command: "",
         dependsOn: ["@stillwind/tools#tailwind:registry-audit"],
+      },
+      "builtins:order": {
+        command: "",
+        dependsOn: ["@stillwind/tools#builtins:order"],
+      },
+      "builtins:order:write": {
+        command: "",
+        dependsOn: ["@stillwind/tools#builtins:order:write"],
       },
     },
   },

@@ -1,425 +1,435 @@
-/* Built-in typography utilities. Related utility overloads are kept adjacent. */
+/* Built-in typography utilities. */
 
-/* Vertical-alignment utilities share the same typed CSS value family. */
-@utility align-* {
-  vertical-align: --value([vertical-align]);
-}
+/* MARK: Line clamp */
 
-@utility align-baseline {
-  vertical-align: baseline;
-}
-
-@utility align-bottom {
-  vertical-align: bottom;
-}
-
-@utility align-middle {
-  vertical-align: middle;
-}
-
-@utility align-sub {
-  vertical-align: sub;
-}
-
-@utility align-super {
-  vertical-align: super;
-}
-
-@utility align-text-bottom {
-  vertical-align: text-bottom;
-}
-
-@utility align-text-top {
-  vertical-align: text-top;
-}
-
-@utility align-top {
-  vertical-align: top;
-}
-
-@utility antialiased {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-@utility break-after-all {
-  break-after: all;
-}
-
-@utility break-after-auto {
-  break-after: auto;
-}
-
-@utility break-after-avoid {
-  break-after: avoid;
-}
-
-@utility break-after-avoid-page {
-  break-after: avoid-page;
-}
-
-@utility break-after-column {
-  break-after: column;
-}
-
-@utility break-after-left {
-  break-after: left;
-}
-
-@utility break-after-page {
-  break-after: page;
-}
-
-@utility break-after-right {
-  break-after: right;
-}
-
-@utility break-all {
-  word-break: break-all;
-}
-
-@utility break-before-all {
-  break-before: all;
-}
-
-@utility break-before-auto {
-  break-before: auto;
-}
-
-@utility break-before-avoid {
-  break-before: avoid;
-}
-
-@utility break-before-avoid-page {
-  break-before: avoid-page;
-}
-
-@utility break-before-column {
-  break-before: column;
-}
-
-@utility break-before-left {
-  break-before: left;
-}
-
-@utility break-before-page {
-  break-before: page;
-}
-
-@utility break-before-right {
-  break-before: right;
-}
-
-@utility break-inside-auto {
-  break-inside: auto;
-}
-
-@utility break-inside-avoid {
-  break-inside: avoid;
-}
-
-@utility break-inside-avoid-column {
-  break-inside: avoid-column;
-}
-
-@utility break-inside-avoid-page {
-  break-inside: avoid-page;
-}
-
-@utility break-keep {
-  word-break: keep-all;
-}
-
-@utility break-normal {
-  overflow-wrap: normal;
-  word-break: normal;
-}
-
-@utility break-words {
-  overflow-wrap: break-word;
-}
-
-@utility capitalize {
-  text-transform: capitalize;
-}
-
-@utility decoration-* {
-  text-decoration-thickness: calc(--value(integer) * 1px);
-}
-
-@utility decoration-* {
-  text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
-}
-
-@utility decoration-* {
-  text-decoration-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
-}
-
-@utility decoration-auto {
-  text-decoration-thickness: auto;
-}
-
-@utility decoration-dashed {
-  text-decoration-style: dashed;
-}
-
-@utility decoration-dotted {
-  text-decoration-style: dotted;
-}
-
-@utility decoration-double {
-  text-decoration-style: double;
-}
-
-@utility decoration-from-font {
-  text-decoration-thickness: from-font;
-}
-
-@utility decoration-solid {
-  text-decoration-style: solid;
-}
-
-@utility decoration-wavy {
-  text-decoration-style: wavy;
-}
-
-@utility diagonal-fractions {
-  --tw-numeric-fraction: diagonal-fractions;
-  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
-    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
-}
-
-@utility font-* {
-  font-family: --value(--font-*);
-}
-
-@utility font-bold {
-  --tw-font-weight: var(--font-weight-bold);
-  font-weight: var(--font-weight-bold);
-}
-
-@utility font-features-* {
-  font-feature-settings: --value([font-feature-settings]);
-}
-
-@utility font-medium {
-  --tw-font-weight: var(--font-weight-medium);
-  font-weight: var(--font-weight-medium);
-}
-
-@utility font-semibold {
-  --tw-font-weight: var(--font-weight-semibold);
-  font-weight: var(--font-weight-semibold);
-}
-
-@utility font-stretch-* {
-  font-stretch: --value(percentage);
-}
-
-@utility font-stretch-* {
-  font-stretch: --value(--font-stretch-*);
-}
-
-@utility font-stretch-* {
-  font-stretch: --value([font-stretch]);
-}
-
-@utility font-stretch-condensed {
-  font-stretch: condensed;
-}
-
-@utility font-stretch-expanded {
-  font-stretch: expanded;
-}
-
-@utility font-stretch-extra-condensed {
-  font-stretch: extra-condensed;
-}
-
-@utility font-stretch-extra-expanded {
-  font-stretch: extra-expanded;
-}
-
-@utility font-stretch-normal {
-  font-stretch: normal;
-}
-
-@utility font-stretch-semi-condensed {
-  font-stretch: semi-condensed;
-}
-
-@utility font-stretch-semi-expanded {
-  font-stretch: semi-expanded;
-}
-
-@utility font-stretch-ultra-condensed {
-  font-stretch: ultra-condensed;
-}
-
-@utility font-stretch-ultra-expanded {
-  font-stretch: ultra-expanded;
-}
-
-@utility hyphens-auto {
-  -webkit-hyphens: auto;
-  hyphens: auto;
-}
-
-@utility hyphens-manual {
-  -webkit-hyphens: manual;
-  hyphens: manual;
-}
-
-@utility hyphens-none {
-  -webkit-hyphens: none;
-  hyphens: none;
-}
-
-@utility indent-* {
-  text-indent: --value(--spacing-*, --spacing(), --fraction(), [length]);
-}
-
-@utility -indent-* {
-  text-indent: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
-}
-
-@utility italic {
-  font-style: italic;
-}
-
-@utility leading-* {
-  --tw-leading: --value(--leading-*);
-  line-height: --value(--leading-*);
-}
-
-@utility leading-* {
-  --tw-leading: --value(--leading-*, --spacing(), number, [length]);
-  line-height: --value(--leading-*, --spacing(), number, [length]);
-}
-
-@utility leading-0 {
-  --tw-leading: 0px;
-  line-height: 0;
-}
-
-@utility leading-none {
-  --tw-leading: 1;
-  line-height: 1;
-}
-
-@utility line-clamp-* {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: --value([integer]);
-}
-
-@utility line-clamp-* {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: --value(integer);
-}
-
-@utility line-clamp-none {
+@stillwind-utility line-clamp-none {
   overflow: visible;
   display: block;
   -webkit-box-orient: horizontal;
   -webkit-line-clamp: unset;
 }
 
-@utility line-through {
-  text-decoration-line: line-through;
+@stillwind-utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value([integer]);
 }
 
-@utility lining-nums {
-  --tw-numeric-figure: lining-nums;
-  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
-    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+@stillwind-utility line-clamp-* {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value(integer);
 }
 
-@utility list-* {
-  list-style-type: --value([list-style-type]);
-}
+/* MARK: `list-style` */
 
-@utility list-decimal {
-  list-style-type: decimal;
-}
-
-@utility list-disc {
-  list-style-type: disc;
-}
-
-@utility list-image-* {
-  list-style-image: --value([list-style-image]);
-}
-
-@utility list-image-none {
-  list-style-image: none;
-}
-
-@utility list-inside {
+@stillwind-utility list-inside {
   list-style-position: inside;
 }
 
-@utility list-item {
-  display: list-item;
-}
-
-@utility list-none {
-  list-style-type: none;
-}
-
-@utility list-outside {
+@stillwind-utility list-outside {
   list-style-position: outside;
 }
 
-@utility lowercase {
-  text-transform: lowercase;
+@stillwind-utility list-decimal {
+  list-style-type: decimal;
 }
 
-@utility no-underline {
-  text-decoration-line: none;
+@stillwind-utility list-disc {
+  list-style-type: disc;
 }
 
-@utility normal-case {
-  text-transform: none;
+@stillwind-utility list-none {
+  list-style-type: none;
 }
 
-@utility normal-nums {
-  font-variant-numeric: normal;
+@stillwind-utility list-* {
+  list-style-type: --value([list-style-type]);
 }
 
-@utility not-italic {
-  font-style: normal;
+@stillwind-utility list-image-none {
+  list-style-image: none;
 }
 
-@utility oldstyle-nums {
-  --tw-numeric-figure: oldstyle-nums;
-  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
-    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+@stillwind-utility list-image-* {
+  list-style-image: --value([list-style-image]);
 }
 
-@utility ordinal {
-  --tw-ordinal: ordinal;
-  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
-    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+/* MARK: Breaks */
+
+@stillwind-utility break-before-all {
+  break-before: all;
 }
 
-@utility overline {
-  text-decoration-line: overline;
+@stillwind-utility break-before-auto {
+  break-before: auto;
 }
 
-@utility placeholder-* {
+@stillwind-utility break-before-avoid {
+  break-before: avoid;
+}
+
+@stillwind-utility break-before-avoid-page {
+  break-before: avoid-page;
+}
+
+@stillwind-utility break-before-column {
+  break-before: column;
+}
+
+@stillwind-utility break-before-left {
+  break-before: left;
+}
+
+@stillwind-utility break-before-page {
+  break-before: page;
+}
+
+@stillwind-utility break-before-right {
+  break-before: right;
+}
+
+@stillwind-utility break-inside-auto {
+  break-inside: auto;
+}
+
+@stillwind-utility break-inside-avoid {
+  break-inside: avoid;
+}
+
+@stillwind-utility break-inside-avoid-column {
+  break-inside: avoid-column;
+}
+
+@stillwind-utility break-inside-avoid-page {
+  break-inside: avoid-page;
+}
+
+@stillwind-utility break-after-all {
+  break-after: all;
+}
+
+@stillwind-utility break-after-auto {
+  break-after: auto;
+}
+
+@stillwind-utility break-after-avoid {
+  break-after: avoid;
+}
+
+@stillwind-utility break-after-avoid-page {
+  break-after: avoid-page;
+}
+
+@stillwind-utility break-after-column {
+  break-after: column;
+}
+
+@stillwind-utility break-after-left {
+  break-after: left;
+}
+
+@stillwind-utility break-after-page {
+  break-after: page;
+}
+
+@stillwind-utility break-after-right {
+  break-after: right;
+}
+
+/* MARK: .truncate */
+
+@stillwind-utility truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* MARK: `text-align` */
+
+@stillwind-utility text-center {
+  text-align: center;
+}
+
+@stillwind-utility text-end {
+  text-align: end;
+}
+
+@stillwind-utility text-justify {
+  text-align: justify;
+}
+
+@stillwind-utility text-left {
+  text-align: left;
+}
+
+@stillwind-utility text-right {
+  text-align: right;
+}
+
+@stillwind-utility text-start {
+  text-align: start;
+}
+
+/* MARK: `text-indent` */
+
+@stillwind-utility indent-* {
+  text-indent: --value(--spacing-*, --spacing(), --fraction(), [length]);
+}
+
+@stillwind-utility -indent-* {
+  text-indent: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+}
+
+/* MARK: `vertical-align` */
+
+/* Vertical-alignment utilities share the same typed CSS value family. */
+@stillwind-utility align-baseline {
+  vertical-align: baseline;
+}
+
+@stillwind-utility align-bottom {
+  vertical-align: bottom;
+}
+
+@stillwind-utility align-middle {
+  vertical-align: middle;
+}
+
+@stillwind-utility align-sub {
+  vertical-align: sub;
+}
+
+@stillwind-utility align-super {
+  vertical-align: super;
+}
+
+@stillwind-utility align-text-bottom {
+  vertical-align: text-bottom;
+}
+
+@stillwind-utility align-text-top {
+  vertical-align: text-top;
+}
+
+@stillwind-utility align-top {
+  vertical-align: top;
+}
+
+@stillwind-utility align-* {
+  vertical-align: --value([vertical-align]);
+}
+
+/* MARK: Fonts */
+
+@stillwind-utility font-* {
+  font-family: --value(--font-*);
+}
+
+@stillwind-utility font-features-* {
+  font-feature-settings: --value([font-feature-settings]);
+}
+
+@stillwind-utility text-* {
+  font-size: --value(--text-*, [length]);
+}
+
+@stillwind-utility text-* {
+  font-size: --value(--text-*);
+}
+
+@stillwind-utility text-* {
+  font-size: --value(--text-*);
+  line-height: var(--tw-leading, --text-line-height());
+}
+
+@stillwind-utility text-* {
+  font-size: --value(--text-*);
+  line-height: --modifier(--leading-*, --spacing(), [length]);
+}
+
+/* MARK: `line-height` */
+
+@stillwind-utility leading-0 {
+  --tw-leading: 0px;
+  line-height: 0;
+}
+
+@stillwind-utility leading-none {
+  --tw-leading: 1;
+  line-height: 1;
+}
+
+@stillwind-utility leading-* {
+  --tw-leading: --value(--leading-*);
+  line-height: --value(--leading-*);
+}
+
+@stillwind-utility leading-* {
+  --tw-leading: --value(--leading-*, --spacing(), number, [length]);
+  line-height: --value(--leading-*, --spacing(), number, [length]);
+}
+
+/* MARK: `font-weight` */
+
+@stillwind-utility font-bold {
+  --tw-font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-bold);
+}
+
+@stillwind-utility font-medium {
+  --tw-font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-medium);
+}
+
+@stillwind-utility font-semibold {
+  --tw-font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* MARK: `letter-spacing` */
+
+@stillwind-utility tracking-* {
+  --tw-tracking: --value(--tracking-*);
+  letter-spacing: --value(--tracking-*);
+}
+
+/* MARK: `text-wrap` */
+
+@stillwind-utility text-balance {
+  text-wrap: balance;
+}
+
+@stillwind-utility text-nowrap {
+  text-wrap: nowrap;
+}
+
+@stillwind-utility text-pretty {
+  text-wrap: pretty;
+}
+
+@stillwind-utility text-wrap {
+  text-wrap: wrap;
+}
+
+/* MARK: `overflow-wrap` and `word-break` */
+
+@stillwind-utility break-normal {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@stillwind-utility break-words {
+  overflow-wrap: break-word;
+}
+
+@stillwind-utility wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+@stillwind-utility wrap-break-word {
+  overflow-wrap: break-word;
+}
+
+@stillwind-utility wrap-normal {
+  overflow-wrap: normal;
+}
+
+@stillwind-utility break-all {
+  word-break: break-all;
+}
+
+@stillwind-utility break-keep {
+  word-break: keep-all;
+}
+
+/* MARK: `text-overflow` */
+
+@stillwind-utility text-clip {
+  text-overflow: clip;
+}
+
+@stillwind-utility text-ellipsis {
+  text-overflow: ellipsis;
+}
+
+/* MARK: `hyphens` */
+
+@stillwind-utility hyphens-auto {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
+
+@stillwind-utility hyphens-manual {
+  -webkit-hyphens: manual;
+  hyphens: manual;
+}
+
+@stillwind-utility hyphens-none {
+  -webkit-hyphens: none;
+  hyphens: none;
+}
+
+/* MARK: `white-space` */
+
+@stillwind-utility whitespace-break-spaces {
+  white-space: break-spaces;
+}
+
+@stillwind-utility whitespace-normal {
+  white-space: normal;
+}
+
+@stillwind-utility whitespace-nowrap {
+  white-space: nowrap;
+}
+
+@stillwind-utility whitespace-pre {
+  white-space: pre;
+}
+
+@stillwind-utility whitespace-pre-line {
+  white-space: pre-line;
+}
+
+@stillwind-utility whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+/* MARK: `tab-size` */
+
+@stillwind-utility tab-* {
+  tab-size: --value(integer, [integer]);
+}
+
+@stillwind-utility tab-* {
+  tab-size: --value([tab-size]);
+}
+
+/* MARK: `color` */
+
+@stillwind-utility text-* {
+  color: --value(--color-*, current, inherit, transparent);
+}
+
+@stillwind-utility text-* {
+  color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+/* MARK: `color` of placeholders */
+
+@stillwind-utility placeholder-* {
   &::placeholder {
     color: --value(--color-*, current, inherit, transparent, [color]);
   }
 }
 
-@utility placeholder-* {
+@stillwind-utility placeholder-* {
   &::placeholder {
     color: --compat-color(
       --value-literal(--color-*, current, inherit, transparent, [color]),
@@ -428,195 +438,231 @@
   }
 }
 
-@utility proportional-nums {
+/* MARK: `text-transform` */
+
+@stillwind-utility capitalize {
+  text-transform: capitalize;
+}
+
+@stillwind-utility lowercase {
+  text-transform: lowercase;
+}
+
+@stillwind-utility normal-case {
+  text-transform: none;
+}
+
+@stillwind-utility uppercase {
+  text-transform: uppercase;
+}
+
+/* MARK: `font-style` */
+
+@stillwind-utility italic {
+  font-style: italic;
+}
+
+@stillwind-utility not-italic {
+  font-style: normal;
+}
+
+/* MARK: `font-stretch` */
+
+@stillwind-utility font-stretch-condensed {
+  font-stretch: condensed;
+}
+
+@stillwind-utility font-stretch-expanded {
+  font-stretch: expanded;
+}
+
+@stillwind-utility font-stretch-extra-condensed {
+  font-stretch: extra-condensed;
+}
+
+@stillwind-utility font-stretch-extra-expanded {
+  font-stretch: extra-expanded;
+}
+
+@stillwind-utility font-stretch-normal {
+  font-stretch: normal;
+}
+
+@stillwind-utility font-stretch-semi-condensed {
+  font-stretch: semi-condensed;
+}
+
+@stillwind-utility font-stretch-semi-expanded {
+  font-stretch: semi-expanded;
+}
+
+@stillwind-utility font-stretch-ultra-condensed {
+  font-stretch: ultra-condensed;
+}
+
+@stillwind-utility font-stretch-ultra-expanded {
+  font-stretch: ultra-expanded;
+}
+
+@stillwind-utility font-stretch-* {
+  font-stretch: --value(percentage);
+}
+
+@stillwind-utility font-stretch-* {
+  font-stretch: --value(--font-stretch-*);
+}
+
+@stillwind-utility font-stretch-* {
+  font-stretch: --value([font-stretch]);
+}
+
+/* MARK: `font-variant-numeric` */
+
+@stillwind-utility diagonal-fractions {
+  --tw-numeric-fraction: diagonal-fractions;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@stillwind-utility lining-nums {
+  --tw-numeric-figure: lining-nums;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@stillwind-utility oldstyle-nums {
+  --tw-numeric-figure: oldstyle-nums;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@stillwind-utility ordinal {
+  --tw-ordinal: ordinal;
+  font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
+    var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+}
+
+@stillwind-utility proportional-nums {
   --tw-numeric-spacing: proportional-nums;
   font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 
-@utility slashed-zero {
+@stillwind-utility slashed-zero {
   --tw-slashed-zero: slashed-zero;
   font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 
-@utility stacked-fractions {
+@stillwind-utility stacked-fractions {
   --tw-numeric-fraction: stacked-fractions;
   font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 
-@utility subpixel-antialiased {
-  -webkit-font-smoothing: auto;
-  -moz-osx-font-smoothing: auto;
-}
-
-@utility tab-* {
-  tab-size: --value(integer, [integer]);
-}
-
-@utility tab-* {
-  tab-size: --value([tab-size]);
-}
-
-@utility tabular-nums {
+@stillwind-utility tabular-nums {
   --tw-numeric-spacing: tabular-nums;
   font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,)
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 
-@utility text-* {
-  font-size: --value(--text-*, [length]);
+@stillwind-utility normal-nums {
+  font-variant-numeric: normal;
 }
 
-@utility text-* {
-  color: --compat-color(
+/* MARK: `text-decoration` */
+
+@stillwind-utility line-through {
+  text-decoration-line: line-through;
+}
+
+@stillwind-utility no-underline {
+  text-decoration-line: none;
+}
+
+@stillwind-utility overline {
+  text-decoration-line: overline;
+}
+
+@stillwind-utility underline {
+  text-decoration-line: underline;
+}
+
+@stillwind-utility decoration-* {
+  text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@stillwind-utility decoration-* {
+  text-decoration-color: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@utility text-* {
-  font-size: --value(--text-*);
+@stillwind-utility decoration-dashed {
+  text-decoration-style: dashed;
 }
 
-@utility text-* {
-  font-size: --value(--text-*);
-  line-height: var(--tw-leading, --text-line-height());
+@stillwind-utility decoration-dotted {
+  text-decoration-style: dotted;
 }
 
-@utility text-* {
-  font-size: --value(--text-*);
-  line-height: --modifier(--leading-*, --spacing(), [length]);
+@stillwind-utility decoration-double {
+  text-decoration-style: double;
 }
 
-@utility text-* {
-  color: --value(--color-*, current, inherit, transparent);
+@stillwind-utility decoration-solid {
+  text-decoration-style: solid;
 }
 
-@utility text-balance {
-  text-wrap: balance;
+@stillwind-utility decoration-wavy {
+  text-decoration-style: wavy;
 }
 
-@utility text-center {
-  text-align: center;
+@stillwind-utility decoration-auto {
+  text-decoration-thickness: auto;
 }
 
-@utility text-clip {
-  text-overflow: clip;
+@stillwind-utility decoration-from-font {
+  text-decoration-thickness: from-font;
 }
 
-@utility text-ellipsis {
-  text-overflow: ellipsis;
+@stillwind-utility decoration-* {
+  text-decoration-thickness: calc(--value(integer) * 1px);
 }
 
-@utility text-end {
-  text-align: end;
-}
-
-@utility text-justify {
-  text-align: justify;
-}
-
-@utility text-left {
-  text-align: left;
-}
-
-@utility text-nowrap {
-  text-wrap: nowrap;
-}
-
-@utility text-pretty {
-  text-wrap: pretty;
-}
-
-@utility text-right {
-  text-align: right;
-}
-
-@utility text-start {
-  text-align: start;
-}
-
-@utility text-wrap {
-  text-wrap: wrap;
-}
-
-@utility tracking-* {
-  --tw-tracking: --value(--tracking-*);
-  letter-spacing: --value(--tracking-*);
-}
-
-@utility truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@utility underline {
-  text-decoration-line: underline;
-}
-
-@utility -underline-offset-* {
-  text-underline-offset: calc(--value(--text-underline-offset-*, [length]) * -1);
-}
-
-@utility -underline-offset-* {
-  text-underline-offset: calc(--value(integer) * 1px * -1);
-}
-
-@utility underline-offset-* {
-  text-underline-offset: --value(--text-underline-offset-*, [length]);
-}
-
-@utility underline-offset-* {
-  text-underline-offset: calc(--value(integer) * 1px);
-}
-
-@utility underline-offset-0 {
+@stillwind-utility underline-offset-0 {
   text-underline-offset: 0px;
 }
 
-@utility underline-offset-auto {
+@stillwind-utility underline-offset-auto {
   text-underline-offset: auto;
 }
 
-@utility uppercase {
-  text-transform: uppercase;
+@stillwind-utility underline-offset-* {
+  text-underline-offset: --value(--text-underline-offset-*, [length]);
 }
 
-@utility whitespace-break-spaces {
-  white-space: break-spaces;
+@stillwind-utility underline-offset-* {
+  text-underline-offset: calc(--value(integer) * 1px);
 }
 
-@utility whitespace-normal {
-  white-space: normal;
+@stillwind-utility -underline-offset-* {
+  text-underline-offset: calc(--value(--text-underline-offset-*, [length]) * -1);
 }
 
-@utility whitespace-nowrap {
-  white-space: nowrap;
+@stillwind-utility -underline-offset-* {
+  text-underline-offset: calc(--value(integer) * 1px * -1);
 }
 
-@utility whitespace-pre {
-  white-space: pre;
+/* MARK: Font smoothing */
+
+@stillwind-utility antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@utility whitespace-pre-line {
-  white-space: pre-line;
-}
-
-@utility whitespace-pre-wrap {
-  white-space: pre-wrap;
-}
-
-@utility wrap-anywhere {
-  overflow-wrap: anywhere;
-}
-
-@utility wrap-break-word {
-  overflow-wrap: break-word;
-}
-
-@utility wrap-normal {
-  overflow-wrap: normal;
+@stillwind-utility subpixel-antialiased {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }

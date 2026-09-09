@@ -617,6 +617,8 @@ impl Compiler {
                         selector: None,
                         container: None,
                         nested: Vec::new(),
+                        builtin_order: None,
+                        candidate: String::new(),
                     });
                     continue;
                 }
@@ -645,6 +647,8 @@ impl Compiler {
                                     selector: None,
                                     container: None,
                                     nested: Vec::new(),
+                                    builtin_order: None,
+                                    candidate: String::new(),
                                 }],
                                 &theme,
                             );
@@ -1175,6 +1179,8 @@ fn resolve_animation_use(
         selector: None,
         container: None,
         nested: Vec::new(),
+        builtin_order: None,
+        candidate: String::new(),
     }
 }
 
@@ -1532,6 +1538,8 @@ fn view_transition_utility() -> CompiledUtility {
         selector: None,
         container: None,
         nested: Vec::new(),
+        builtin_order: None,
+        candidate: String::new(),
     }
 }
 
@@ -1542,6 +1550,8 @@ struct CompiledUtility {
     selector: Option<String>,
     container: Option<String>,
     nested: Vec<stillwind_tailwind::NestedUtilityRule>,
+    builtin_order: Option<usize>,
+    candidate: String,
 }
 
 fn resolve_utility(utility: &str, theme: &stillwind_css::ThemeIndex) -> Option<CompiledUtility> {
@@ -1576,6 +1586,8 @@ fn resolve_utility_targets(
                 selector: target.selector,
                 container: None,
                 nested: target.nested,
+                builtin_order: resolved.builtin_order,
+                candidate: utility.to_owned(),
             })
             .collect(),
     )
@@ -1587,22 +1599,71 @@ fn emit_utility_rules(
     utilities: &[CompiledUtility],
     theme: &stillwind_css::ThemeIndex,
 ) {
+    let utilities = order_builtin_utilities(utilities.iter().collect());
     let base = utilities
         .iter()
+        .copied()
         .filter(|utility| {
             utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
         })
         .collect::<Vec<_>>();
-    let base = combine_declarations_for_theme(&base, theme);
+    let mut plain = Vec::new();
+    for utility in base {
+        if utility.nested.iter().any(|nested| nested.inside) {
+            emit_base_utility_group(output, class_name, &plain, theme);
+            plain.clear();
+            emit_base_utility_group(output, class_name, &[utility], theme);
+        } else {
+            plain.push(utility);
+        }
+    }
+    emit_base_utility_group(output, class_name, &plain, theme);
+    for utility in utilities.iter().copied().filter(|utility| {
+        !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
+    }) {
+        let mut declaration = combine_declarations_for_theme(&[utility], theme);
+        for nested in utility.nested.iter().filter(|nested| nested.inside) {
+            insert_nested_declaration(&mut declaration, nested);
+        }
+        output.push_str(&render_utility_rule(
+            class_name,
+            utility,
+            theme,
+            &declaration,
+            None,
+        ));
+    }
+    for utility in utilities {
+        for nested in &utility.nested {
+            let nested_in_rule = nested.inside;
+            if nested_in_rule {
+                continue;
+            }
+            output.push_str(&render_utility_rule(
+                class_name,
+                utility,
+                theme,
+                &nested.declaration,
+                Some(nested),
+            ));
+        }
+    }
+}
+
+fn emit_base_utility_group(
+    output: &mut String,
+    class_name: &str,
+    utilities: &[&CompiledUtility],
+    theme: &stillwind_css::ThemeIndex,
+) {
+    let base = combine_declarations_for_theme(utilities, theme);
     if !base.is_empty() {
         let mut nested_in_rule_css = String::new();
         let mut anchored_nested = Vec::<(String, String)>::new();
         output.push('.');
         output.push_str(class_name);
         output.push('{');
-        for utility in utilities.iter().filter(|utility| {
-            utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
-        }) {
+        for utility in utilities {
             for nested in &utility.nested {
                 let nested_in_rule = nested.inside;
                 if !nested_in_rule {
@@ -1653,36 +1714,6 @@ fn emit_utility_rules(
             output.push_str(&inlined);
         }
         output.push('}');
-    }
-    for utility in utilities.iter().filter(|utility| {
-        !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
-    }) {
-        let mut declaration = combine_declarations_for_theme(&[utility], theme);
-        for nested in utility.nested.iter().filter(|nested| nested.inside) {
-            insert_nested_declaration(&mut declaration, nested);
-        }
-        output.push_str(&render_utility_rule(
-            class_name,
-            utility,
-            theme,
-            &declaration,
-            None,
-        ));
-    }
-    for utility in utilities {
-        for nested in &utility.nested {
-            let nested_in_rule = nested.inside;
-            if nested_in_rule {
-                continue;
-            }
-            output.push_str(&render_utility_rule(
-                class_name,
-                utility,
-                theme,
-                &nested.declaration,
-                Some(nested),
-            ));
-        }
     }
 }
 
@@ -1905,7 +1936,8 @@ fn combine_declarations_with_order(
     let mut declarations = String::new();
     let mut composed = Vec::<(String, String)>::new();
     let mut ordered = Vec::new();
-    for utility in utilities {
+    for utility in order_builtin_utilities(utilities.to_vec()) {
+        let mut utility_declarations = Vec::new();
         for declaration in utility.declaration.split_terminator(';') {
             let compose_space = declaration
                 .split_once(':')
@@ -1946,32 +1978,32 @@ fn combine_declarations_with_order(
                 // declaration values.
                 let declaration = declaration.replace(",var(", ", var(");
                 let declaration = stillwind_css::fold_calc_expressions(&declaration);
-                ordered.push(declaration);
+                utility_declarations.push(declaration);
             }
         }
-    }
-    // Tailwind's generated utility order is independent of the order in which
-    // candidates appear in the source. Reorder only declarations belonging to
-    // the same competing family; unrelated declarations keep their original
-    // slots and source order.
-    for group in 0..order.len() {
-        let mut positions = ordered
-            .iter()
-            .enumerate()
-            .filter_map(|(index, declaration)| {
-                (declaration_order(declaration, order).is_some_and(|(name, _)| name == group))
-                    .then_some(index)
-            })
-            .collect::<Vec<_>>();
-        let mut declarations_for_family = positions
-            .iter()
-            .map(|index| ordered[*index].clone())
-            .collect::<Vec<_>>();
-        declarations_for_family
-            .sort_by_key(|declaration| declaration_order(declaration, order).unwrap().1);
-        for (index, declaration) in positions.drain(..).zip(declarations_for_family) {
-            ordered[index] = declaration;
+        // A resolved utility can contain several typed overload branches. Keep
+        // their internal property cascade canonical without allowing property
+        // metadata to reorder declarations across utility boundaries.
+        for group in 0..order.len() {
+            let positions = utility_declarations
+                .iter()
+                .enumerate()
+                .filter_map(|(index, declaration)| {
+                    (declaration_order(declaration, order).is_some_and(|(name, _)| name == group))
+                        .then_some(index)
+                })
+                .collect::<Vec<_>>();
+            let mut declarations_for_family = positions
+                .iter()
+                .map(|index| utility_declarations[*index].clone())
+                .collect::<Vec<_>>();
+            declarations_for_family
+                .sort_by_key(|declaration| declaration_order(declaration, order).unwrap().1);
+            for (index, declaration) in positions.into_iter().zip(declarations_for_family) {
+                utility_declarations[index] = declaration;
+            }
         }
+        ordered.extend(utility_declarations);
     }
     for declaration in ordered {
         declarations.push_str(&declaration);
@@ -1984,6 +2016,27 @@ fn combine_declarations_with_order(
         declarations.push(';');
     }
     declarations
+}
+
+fn order_builtin_utilities(mut utilities: Vec<&CompiledUtility>) -> Vec<&CompiledUtility> {
+    let positions = utilities
+        .iter()
+        .enumerate()
+        .filter_map(|(index, utility)| utility.builtin_order.map(|_| index))
+        .collect::<Vec<_>>();
+    let mut builtins = positions
+        .iter()
+        .map(|index| utilities[*index])
+        .collect::<Vec<_>>();
+    builtins.sort_by(|left, right| {
+        left.builtin_order
+            .cmp(&right.builtin_order)
+            .then_with(|| left.candidate.cmp(&right.candidate))
+    });
+    for (position, utility) in positions.into_iter().zip(builtins) {
+        utilities[position] = utility;
+    }
+    utilities
 }
 
 fn declaration_order(declaration: &str, order: &[Vec<String>]) -> Option<(usize, usize)> {
@@ -2540,6 +2593,8 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
+                builtin_order: Some(2),
+                candidate: "ml-2".to_owned(),
             },
             CompiledUtility {
                 variants: Vec::new(),
@@ -2547,6 +2602,8 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
+                builtin_order: Some(1),
+                candidate: "mx-3".to_owned(),
             },
             CompiledUtility {
                 variants: Vec::new(),
@@ -2554,6 +2611,8 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
+                builtin_order: Some(0),
+                candidate: "m-4".to_owned(),
             },
         ];
 
@@ -2573,6 +2632,8 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
+                builtin_order: None,
+                candidate: String::new(),
             },
             CompiledUtility {
                 variants: Vec::new(),
@@ -2580,6 +2641,8 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
+                builtin_order: None,
+                candidate: String::new(),
             },
         ];
 
@@ -2605,5 +2668,36 @@ mod tests {
         let inline = result.css.find("margin-inline:").expect("margin axis");
         let left = result.css.find("margin-left:").expect("margin side");
         assert!(margin < inline && inline < left, "{0}", result.css);
+    }
+
+    #[test]
+    fn orders_whole_builtin_utilities_instead_of_individual_properties() {
+        let source = SourceFile::new(
+            FileId(1),
+            "App.tsx",
+            r#"import { style } from "stillwind/react"; export const props = style("h-2 w-3 size-4");"#,
+        );
+        let theme = SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
+        );
+        let result = Compiler::compile_react(&source, &theme);
+        assert!(result.diagnostics.is_empty(), "{result:?}");
+        let size_width = result
+            .css
+            .find("width:var(--spacing-4)")
+            .expect("size width");
+        let size_height = result
+            .css
+            .find("height:var(--spacing-4)")
+            .expect("size height");
+        let height = result.css.find("height:var(--spacing-2)").expect("height");
+        let width = result.css.find("width:var(--spacing-3)").expect("width");
+        assert!(
+            size_width < size_height && size_height < height && height < width,
+            "{}",
+            result.css
+        );
     }
 }

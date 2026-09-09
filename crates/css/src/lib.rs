@@ -1065,6 +1065,8 @@ impl FrameworkImports {
 pub struct CustomUtility {
     pub name: String,
     pub body: String,
+    /// Global registration order for built-in utilities (`@stillwind-utility`).
+    pub builtin_order: Option<usize>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1073,6 +1075,8 @@ pub struct CustomVariant {
     pub selector: String,
     /// Full `@variant` body. Empty for the `@custom-variant` selector shorthand.
     pub body: String,
+    /// Global registration order for built-in variants (`@stillwind-variant`).
+    pub builtin_order: Option<usize>,
 }
 
 /// One compiler-owned custom-property registration declared with
@@ -1123,11 +1127,25 @@ pub struct CustomPropertyUsage {
     pub declaration_properties: BTreeSet<String>,
 }
 
-/// Parses `@utility` definitions without requiring a complete theme stylesheet.
-/// This is used for vendored built-in registries as well as tooling.
+/// Parses user-authored `@utility` definitions without requiring a complete
+/// theme stylesheet.
 #[must_use]
 pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
     extract_custom_utilities(css)
+}
+
+/// Parses compiler-owned `@stillwind-utility` definitions and attaches their
+/// global source order.
+#[must_use]
+pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
+    extract_named_utility_blocks(css, "@stillwind-utility")
+        .into_iter()
+        .enumerate()
+        .map(|(builtin_order, mut utility)| {
+            utility.builtin_order = Some(builtin_order);
+            utility
+        })
+        .collect()
 }
 
 /// Parses `@custom-variant` and block `@variant` definitions without
@@ -1138,8 +1156,26 @@ pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
     extract_custom_variants(css)
 }
 
-/// Parses compiler-owned custom-property registrations without interpreting
-/// ordinary CSS `@property` rules.
+/// Parses compiler-owned `@stillwind-variant` definitions and attaches their
+/// global source order.
+#[must_use]
+pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
+    extract_named_blocks(&strip_css_comments(css), "@stillwind-variant")
+        .into_iter()
+        .enumerate()
+        .filter_map(|(builtin_order, (header, body))| {
+            let name = header.split_whitespace().next()?.to_owned();
+            Some(CustomVariant {
+                name,
+                selector: String::new(),
+                body,
+                builtin_order: Some(builtin_order),
+            })
+        })
+        .collect()
+}
+
+/// Parses compiler-owned custom-property registrations (`@stillwind-property`).
 #[must_use]
 pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_property_definitions(css)
@@ -2606,18 +2642,26 @@ fn strip_top_level_blocks(css: &str, directive: &str) -> String {
 
 fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
     let css = strip_css_comments(css);
-    let mut utilities = extract_named_blocks(&css, "@utility")
+    let mut utilities = extract_named_utility_blocks(&css, "@utility");
+    utilities.extend(extract_utility_families(&css));
+    utilities
+}
+
+fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
+    extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(header, body)| {
             if header.starts_with("-family") {
                 return None;
             }
             let name = header.split_whitespace().next()?.to_owned();
-            Some(CustomUtility { name, body })
+            Some(CustomUtility {
+                name,
+                body,
+                builtin_order: None,
+            })
         })
-        .collect::<Vec<_>>();
-    utilities.extend(extract_utility_families(&css));
-    utilities
+        .collect()
 }
 
 fn extract_declaration_order(css: &str) -> Vec<Vec<String>> {
@@ -2727,6 +2771,7 @@ fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                             vec![CustomUtility {
                                 name: format!("{name}-*"),
                                 body,
+                                builtin_order: None,
                             }]
                         }
                     })
@@ -2819,6 +2864,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     .trim_end_matches(')')
                     .to_owned(),
                 body: String::new(),
+                builtin_order: None,
             })
         })
         .collect::<Vec<_>>();
@@ -2831,6 +2877,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     name,
                     selector: String::new(),
                     body,
+                    builtin_order: None,
                 })
             }),
     );
@@ -2843,6 +2890,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     name,
                     selector: String::new(),
                     body,
+                    builtin_order: None,
                 })
             }),
     );
@@ -2967,6 +3015,32 @@ mod tests {
     }
 
     #[test]
+    fn separates_compiler_owned_utility_and_variant_directives_from_userland() {
+        let css = "@utility user-* { color:red; }\
+                   @stillwind-utility builtin-* { color:blue; }\
+                   @variant user-state { &:hover { @slot; } }\
+                   @stillwind-variant builtin-state { &:focus { @slot; } }";
+
+        let user_utilities = parse_utility_definitions(css);
+        let builtin_utilities = parse_builtin_utility_definitions(css);
+        assert_eq!(user_utilities.len(), 1);
+        assert_eq!(user_utilities[0].name, "user-*");
+        assert_eq!(user_utilities[0].builtin_order, None);
+        assert_eq!(builtin_utilities.len(), 1);
+        assert_eq!(builtin_utilities[0].name, "builtin-*");
+        assert_eq!(builtin_utilities[0].builtin_order, Some(0));
+
+        let user_variants = parse_variant_definitions(css);
+        let builtin_variants = parse_builtin_variant_definitions(css);
+        assert_eq!(user_variants.len(), 1);
+        assert_eq!(user_variants[0].name, "user-state");
+        assert_eq!(user_variants[0].builtin_order, None);
+        assert_eq!(builtin_variants.len(), 1);
+        assert_eq!(builtin_variants[0].name, "builtin-state");
+        assert_eq!(builtin_variants[0].builtin_order, Some(0));
+    }
+
+    #[test]
     fn validates_csswg_property_grammars_with_lightningcss_or_exceptions() {
         for (name, valid, invalid) in [
             ("padding", "calc(1rem + 50%)", "red"),
@@ -3071,10 +3145,12 @@ mod tests {
                 CustomUtility {
                     name: "inset-*".to_owned(),
                     body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                    builtin_order: None,
                 },
                 CustomUtility {
                     name: "inset-x-*".to_owned(),
                     body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                    builtin_order: None,
                 },
             ]
         );

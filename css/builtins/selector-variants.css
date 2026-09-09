@@ -1,106 +1,106 @@
-@variant * {
+@stillwind-variant * {
   :is(& > *) {
     @slot;
   }
 }
-@variant ** {
+@stillwind-variant ** {
   :is(& *) {
     @slot;
   }
 }
-@variant autofill {
+@stillwind-variant autofill {
   &:autofill {
     @slot;
   }
 }
-@variant backdrop {
+@stillwind-variant backdrop {
   &::backdrop {
     @slot;
   }
 }
-@variant details-content {
+@stillwind-variant details-content {
   &::details-content {
     @slot;
   }
 }
-@variant in-range {
+@stillwind-variant in-range {
   &:in-range {
     @slot;
   }
 }
-@variant inert {
+@stillwind-variant inert {
   &:is([inert], [inert] *) {
     @slot;
   }
 }
-@variant ltr {
+@stillwind-variant ltr {
   &:where(:dir(ltr), [dir="ltr"], [dir="ltr"] *) {
     @slot;
   }
 }
-@variant noscript {
+@stillwind-variant noscript {
   @media (scripting: none) {
     @slot;
   }
 }
-@variant out-of-range {
+@stillwind-variant out-of-range {
   &:out-of-range {
     @slot;
   }
 }
-@variant rtl {
+@stillwind-variant rtl {
   &:where(:dir(rtl), [dir="rtl"], [dir="rtl"] *) {
     @slot;
   }
 }
-@variant starting {
+@stillwind-variant starting {
   @starting-style {
     @slot;
   }
 }
-@variant supports-* {
+@stillwind-variant supports-* {
   @supports (\*) {
     @slot;
   }
 }
-@variant user-invalid {
+@stillwind-variant user-invalid {
   &:user-invalid {
     @slot;
   }
 }
-@variant user-valid {
+@stillwind-variant user-valid {
   &:user-valid {
     @slot;
   }
 }
-@variant visited {
+@stillwind-variant visited {
   &:visited {
     @slot;
   }
 }
 /* Dynamic selector variants intentionally use the same wildcard and
  * --value() placeholder syntax available to application CSS. */
-@variant aria-* {
+@stillwind-variant aria-* {
   &[aria-\*="true"] {
     @slot;
   }
 }
-@variant data-* {
+@stillwind-variant data-* {
   &[data-\*] {
     @slot;
   }
 }
-@variant has-* {
+@stillwind-variant has-* {
   &:has(:root) {
     @slot;
   }
 }
-@variant not-* {
+@stillwind-variant not-* {
   &:not(:root) {
     @slot;
   }
 }
-@variant not-hover {
+@stillwind-variant not-hover {
   &:not(:hover) {
     @slot;
   }
@@ -108,87 +108,87 @@
     @slot;
   }
 }
-@variant in-* {
+@stillwind-variant in-* {
   :where(:root) & {
     @slot;
   }
 }
-@variant nth-* {
+@stillwind-variant nth-* {
   &:nth-child(0n) {
     @slot;
   }
 }
-@variant nth-last-* {
+@stillwind-variant nth-last-* {
   &:nth-last-child(0n) {
     @slot;
   }
 }
-@variant nth-of-type-* {
+@stillwind-variant nth-of-type-* {
   &:nth-of-type(0n) {
     @slot;
   }
 }
-@variant nth-last-of-type-* {
+@stillwind-variant nth-last-of-type-* {
   &:nth-last-of-type(0n) {
     @slot;
   }
 }
-@variant min-* {
+@stillwind-variant min-* {
   @media (width >= --value(--breakpoint-*)) {
     @slot;
   }
 }
-@variant min-* {
+@stillwind-variant min-* {
   @media (width >= --value([length])) {
     @slot;
   }
 }
-@variant max-* {
+@stillwind-variant max-* {
   @media (width < --value(--breakpoint-*)) {
     @slot;
   }
 }
-@variant max-* {
+@stillwind-variant max-* {
   @media (width < --value([length])) {
     @slot;
   }
 }
-@variant @min-* {
+@stillwind-variant @min-* {
   @container \{modifier\} (width >= --value(--container-*)) {
     @slot;
   }
 }
-@variant @min-* {
+@stillwind-variant @min-* {
   @container \{modifier\} (width >= --value([length])) {
     @slot;
   }
 }
-@variant @max-* {
+@stillwind-variant @max-* {
   @container \{modifier\} (width < --value(--container-*)) {
     @slot;
   }
 }
-@variant @max-* {
+@stillwind-variant @max-* {
   @container \{modifier\} (width < --value([length])) {
     @slot;
   }
 }
-@variant @* {
+@stillwind-variant @* {
   @container \{modifier\} (width >= --value(--container-*)) {
     @slot;
   }
 }
-@variant @* {
+@stillwind-variant @* {
   @container \{modifier\} (width >= --value([length])) {
     @slot;
   }
 }
-@variant group-* {
+@stillwind-variant group-* {
   &:is(:where(.group\/\{modifier\}):--value() *) {
     @slot;
   }
 }
-@variant peer-* {
+@stillwind-variant peer-* {
   &:is(:where(.peer\/\{modifier\}):--value() ~ *) {
     @slot;
   }

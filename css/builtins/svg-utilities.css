@@ -1,35 +1,39 @@
-/* Built-in svg utilities. Related utility overloads are kept adjacent. */
+/* Built-in svg utilities. */
 
-@utility fill-* {
+/* MARK: `fill` */
+
+@stillwind-utility fill-none {
+  fill: none;
+}
+
+@stillwind-utility fill-* {
   fill: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@utility fill-* {
+@stillwind-utility fill-* {
   fill: --value(--color-*, current, inherit, transparent);
 }
 
-@utility fill-none {
-  fill: none;
+/* MARK: `stroke` */
+
+@stillwind-utility stroke-none {
+  stroke: none;
 }
 
-@utility stroke-* {
+@stillwind-utility stroke-* {
   stroke: --compat-color(
     --value-literal(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@utility stroke-* {
+@stillwind-utility stroke-* {
   stroke-width: --value(integer, [length]);
 }
 
-@utility stroke-* {
+@stillwind-utility stroke-* {
   stroke: --value(--color-*, current, inherit, transparent, [color]);
-}
-
-@utility stroke-none {
-  stroke: none;
 }

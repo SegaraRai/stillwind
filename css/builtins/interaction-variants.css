@@ -1,176 +1,176 @@
 /* Variant registrations use the same `@variant` block syntax available to
  * application CSS. The `@slot` marks the utility selector's insertion point. */
-@variant hover {
+@stillwind-variant hover {
   @media (hover: hover) {
     &:hover {
       @slot;
     }
   }
 }
-@variant focus {
+@stillwind-variant focus {
   &:focus {
     @slot;
   }
 }
-@variant focus-visible {
+@stillwind-variant focus-visible {
   &:focus-visible {
     @slot;
   }
 }
-@variant focus-within {
+@stillwind-variant focus-within {
   &:focus-within {
     @slot;
   }
 }
-@variant active {
+@stillwind-variant active {
   &:active {
     @slot;
   }
 }
-@variant disabled {
+@stillwind-variant disabled {
   &:disabled {
     @slot;
   }
 }
-@variant enabled {
+@stillwind-variant enabled {
   &:enabled {
     @slot;
   }
 }
-@variant checked {
+@stillwind-variant checked {
   &:checked {
     @slot;
   }
 }
-@variant indeterminate {
+@stillwind-variant indeterminate {
   &:indeterminate {
     @slot;
   }
 }
-@variant default {
+@stillwind-variant default {
   &:default {
     @slot;
   }
 }
-@variant invalid {
+@stillwind-variant invalid {
   &:invalid {
     @slot;
   }
 }
-@variant valid {
+@stillwind-variant valid {
   &:valid {
     @slot;
   }
 }
-@variant required {
+@stillwind-variant required {
   &:required {
     @slot;
   }
 }
-@variant optional {
+@stillwind-variant optional {
   &:optional {
     @slot;
   }
 }
-@variant read-only {
+@stillwind-variant read-only {
   &:read-only {
     @slot;
   }
 }
-@variant placeholder-shown {
+@stillwind-variant placeholder-shown {
   &:placeholder-shown {
     @slot;
   }
 }
-@variant first {
+@stillwind-variant first {
   &:first-child {
     @slot;
   }
 }
-@variant last {
+@stillwind-variant last {
   &:last-child {
     @slot;
   }
 }
-@variant only {
+@stillwind-variant only {
   &:only-child {
     @slot;
   }
 }
-@variant odd {
+@stillwind-variant odd {
   &:nth-child(odd) {
     @slot;
   }
 }
-@variant even {
+@stillwind-variant even {
   &:nth-child(even) {
     @slot;
   }
 }
-@variant first-of-type {
+@stillwind-variant first-of-type {
   &:first-of-type {
     @slot;
   }
 }
-@variant last-of-type {
+@stillwind-variant last-of-type {
   &:last-of-type {
     @slot;
   }
 }
-@variant only-of-type {
+@stillwind-variant only-of-type {
   &:only-of-type {
     @slot;
   }
 }
-@variant empty {
+@stillwind-variant empty {
   &:empty {
     @slot;
   }
 }
-@variant open {
+@stillwind-variant open {
   &:is([open], :popover-open, :open) {
     @slot;
   }
 }
-@variant target {
+@stillwind-variant target {
   &:target {
     @slot;
   }
 }
-@variant before {
+@stillwind-variant before {
   &::before {
     content: var(--tw-content);
     @slot;
   }
 }
-@variant after {
+@stillwind-variant after {
   &::after {
     content: var(--tw-content);
     @slot;
   }
 }
-@variant first-letter {
+@stillwind-variant first-letter {
   &::first-letter {
     @slot;
   }
 }
-@variant first-line {
+@stillwind-variant first-line {
   &::first-line {
     @slot;
   }
 }
-@variant placeholder {
+@stillwind-variant placeholder {
   &::placeholder {
     @slot;
   }
 }
-@variant selection {
+@stillwind-variant selection {
   & ::selection,
   &::selection {
     @slot;
   }
 }
-@variant marker {
+@stillwind-variant marker {
   & ::marker,
   &::marker {
     @slot;
@@ -182,87 +182,87 @@
     @slot;
   }
 }
-@variant file {
+@stillwind-variant file {
   &::file-selector-button {
     @slot;
   }
 }
-@variant dark {
+@stillwind-variant dark {
   @media (prefers-color-scheme: dark) {
     @slot;
   }
 }
-@variant motion-safe {
+@stillwind-variant motion-safe {
   @media (prefers-reduced-motion: no-preference) {
     @slot;
   }
 }
-@variant motion-reduce {
+@stillwind-variant motion-reduce {
   @media (prefers-reduced-motion: reduce) {
     @slot;
   }
 }
-@variant contrast-more {
+@stillwind-variant contrast-more {
   @media (prefers-contrast: more) {
     @slot;
   }
 }
-@variant contrast-less {
+@stillwind-variant contrast-less {
   @media (prefers-contrast: less) {
     @slot;
   }
 }
-@variant portrait {
+@stillwind-variant portrait {
   @media (orientation: portrait) {
     @slot;
   }
 }
-@variant landscape {
+@stillwind-variant landscape {
   @media (orientation: landscape) {
     @slot;
   }
 }
-@variant print {
+@stillwind-variant print {
   @media print {
     @slot;
   }
 }
-@variant forced-colors {
+@stillwind-variant forced-colors {
   @media (forced-colors: active) {
     @slot;
   }
 }
-@variant inverted-colors {
+@stillwind-variant inverted-colors {
   @media (inverted-colors: inverted) {
     @slot;
   }
 }
-@variant pointer-fine {
+@stillwind-variant pointer-fine {
   @media (pointer: fine) {
     @slot;
   }
 }
-@variant pointer-coarse {
+@stillwind-variant pointer-coarse {
   @media (pointer: coarse) {
     @slot;
   }
 }
-@variant pointer-none {
+@stillwind-variant pointer-none {
   @media (pointer: none) {
     @slot;
   }
 }
-@variant any-pointer-fine {
+@stillwind-variant any-pointer-fine {
   @media (any-pointer: fine) {
     @slot;
   }
 }
-@variant any-pointer-coarse {
+@stillwind-variant any-pointer-coarse {
   @media (any-pointer: coarse) {
     @slot;
   }
 }
-@variant any-pointer-none {
+@stillwind-variant any-pointer-none {
   @media (any-pointer: none) {
     @slot;
   }
