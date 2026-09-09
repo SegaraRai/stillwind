@@ -1,0 +1,107 @@
+use super::{ReactPropsParts, SourceFile};
+
+pub(super) fn render_react_props(
+    source: &SourceFile,
+    parts: &ReactPropsParts<'_>,
+) -> Option<String> {
+    let ReactPropsParts {
+        classes,
+        attributes,
+        handle_markers,
+        external_classes,
+        dynamic_handle_classes,
+        dynamic_asset_classes,
+        view_transition_style,
+    } = *parts;
+    let mut entries = Vec::new();
+    if !classes.is_empty()
+        || !handle_markers.is_empty()
+        || !external_classes.is_empty()
+        || !dynamic_handle_classes.is_empty()
+        || !dynamic_asset_classes.is_empty()
+    {
+        let mut class_names = handle_markers
+            .iter()
+            .map(|marker| format!("\"{marker}\""))
+            .collect::<Vec<_>>();
+        class_names.extend(
+            classes
+                .iter()
+                .map(|class| match class.guard {
+                    Some(guard) => source.slice(guard).ok().map(|guard| {
+                        let guard = if class.guard_when_true {
+                            guard.to_owned()
+                        } else {
+                            format!("!{guard}")
+                        };
+                        format!("{guard}&&\"{}\"", class.class_name)
+                    }),
+                    None => Some(format!("\"{}\"", class.class_name)),
+                })
+                .collect::<Option<Vec<_>>>()?,
+        );
+        class_names.extend(
+            external_classes
+                .iter()
+                .map(|value| source.slice(*value).ok().map(str::to_owned))
+                .collect::<Option<Vec<_>>>()?,
+        );
+        class_names.extend(
+            dynamic_handle_classes
+                .iter()
+                .map(|value| {
+                    source
+                        .slice(*value)
+                        .ok()
+                        .map(|value| format!("stillwindHandleClass({value})"))
+                })
+                .collect::<Option<Vec<_>>>()?,
+        );
+        class_names.extend(
+            dynamic_asset_classes
+                .iter()
+                .map(|entry| {
+                    let value = source.slice(entry.value).ok()?;
+                    let classes = entry
+                        .classes
+                        .iter()
+                        .map(|(identity, class_name)| format!("\"{identity}\":\"{class_name}\""))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    Some(format!("stillwindAssetClass({value},{{{classes}}})"))
+                })
+                .collect::<Option<Vec<_>>>()?,
+        );
+        let class_value = if external_classes.is_empty() && class_names.len() == 1 {
+            class_names.into_iter().next()?
+        } else {
+            format!("stillwindClsx({})", class_names.join(","))
+        };
+        entries.push(format!("className:{class_value}"));
+    }
+    for attribute in attributes {
+        let value = source.slice(attribute.value).ok()?;
+        entries.push(format!("\"{}\":{value}", attribute.name.value));
+    }
+    if let Some(entry) = view_transition_style {
+        let value = match (entry.value, &entry.identity) {
+            (Some(value), None) => source.slice(value).ok()?.to_owned(),
+            (None, Some(identity)) => format!("\"{identity}\""),
+            _ => return None,
+        };
+        let key = match entry.key {
+            Some(key) => source.slice(key).ok()?.to_owned(),
+            None => "undefined".to_owned(),
+        };
+        let candidates = entry
+            .candidates
+            .iter()
+            .map(|candidate| format!("\"{candidate}\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        entries.push(format!(
+            "style:stillwindViewTransitionStyle({value},{key},[{candidates}],\"--sw-vt-name\",\"--sw-vt-class\")"
+        ));
+    }
+    Some(format!("{{{}}}", entries.join(",")))
+}
