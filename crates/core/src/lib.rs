@@ -1,6 +1,8 @@
 //! Public orchestration API for the first compiler slice.
 
+mod analysis;
 mod design_system;
+pub use analysis::*;
 mod loader;
 pub use design_system::{
     DefinitionFingerprints, DesignSystemRevision, DesignSystemSnapshot, Fingerprint,
@@ -246,7 +248,8 @@ impl Compiler {
         theme_source: &SourceFile,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let parsed = Self::analyze_javascript(source);
+        let scan = OxcSourceAnalyzer.scan(std::sync::Arc::new(source.clone()));
+        let parsed = OxcSourceAnalyzer.finalize(scan, None).parsed();
         Self::compile_react_parsed(source, theme_source, parsed, options)
     }
 

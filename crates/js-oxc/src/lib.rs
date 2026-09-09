@@ -30,7 +30,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{CompileError, LintFinding, SourceFile, Span, Spanned};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
     pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,

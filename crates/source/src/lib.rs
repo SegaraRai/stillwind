@@ -232,7 +232,7 @@ impl LintFinding {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum LintDirectiveKind {
+pub enum LintDirectiveKind {
     Disable,
     Enable,
     DisableLine,
@@ -240,11 +240,11 @@ enum LintDirectiveKind {
 }
 
 #[derive(Clone, Debug)]
-struct LintDirective {
-    kind: LintDirectiveKind,
-    offset: usize,
-    line: usize,
-    rules: Vec<String>,
+pub struct LintDirective {
+    pub kind: LintDirectiveKind,
+    pub offset: usize,
+    pub line: usize,
+    pub rules: Vec<String>,
 }
 
 /// Removes lint findings suppressed by `swlint-disable*` comments.
@@ -313,7 +313,7 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
     });
 }
 
-fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
+pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
     let bytes = source.as_bytes();
     let mut comments = Vec::new();
     let mut cursor = 0;
