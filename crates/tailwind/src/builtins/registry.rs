@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, OnceLock};
 
 use stillwind_css::{
-    CustomPropertyDefinition, CustomUtility, CustomVariant,
+    BuiltinArbitraryPropertyOrder, CustomPropertyDefinition, CustomUtility, CustomVariant,
     parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
     parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
     parse_builtin_variant_definitions,
@@ -65,7 +65,7 @@ pub fn builtin_definitions() -> Arc<BuiltinDefinitions> {
 pub(crate) struct BuiltinUtilityRegistry {
     pub(crate) builtin_exact: HashMap<String, Vec<CustomUtility>>,
     pub(crate) wildcards: Vec<CustomUtility>,
-    pub(crate) arbitrary_property_order: Vec<stillwind_css::BuiltinArbitraryPropertyOrder>,
+    pub(crate) arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
 }
 
 pub(crate) fn builtin_utilities() -> &'static BuiltinUtilityRegistry {

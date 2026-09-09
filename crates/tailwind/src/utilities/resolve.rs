@@ -1,8 +1,7 @@
 use std::fmt::Write;
 
 use stillwind_css::ThemeIndex;
-use stillwind_grammar::Candidate;
-use stillwind_grammar::{Utility, parse_candidate};
+use stillwind_grammar::{Candidate, Utility, parse_candidate};
 
 use crate::builtins::registry::{
     animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,

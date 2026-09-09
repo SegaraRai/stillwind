@@ -17,9 +17,6 @@ mod utilities;
 mod utility_emission;
 mod utility_render;
 
-#[cfg(test)]
-mod tests;
-
 pub struct Compiler;
 
 pub use api::CompilerThemeError;
@@ -33,3 +30,6 @@ pub(crate) use react_types::render_react_types;
 pub(crate) use stylesheet::render_stylesheet;
 pub(crate) use utilities::{resolve_utility_targets, unresolved_utility_rule};
 pub(crate) use utility_emission::emit_utility_rules;
+
+#[cfg(test)]
+mod tests;

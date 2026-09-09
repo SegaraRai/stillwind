@@ -64,8 +64,8 @@ pub(crate) fn builtin_marker_utilities() -> &'static BTreeSet<String> {
 }
 
 #[must_use]
-pub fn builtin_declaration_formats() -> &'static std::collections::BTreeMap<String, String> {
-    static FORMATS: OnceLock<std::collections::BTreeMap<String, String>> = OnceLock::new();
+pub fn builtin_declaration_formats() -> &'static BTreeMap<String, String> {
+    static FORMATS: OnceLock<BTreeMap<String, String>> = OnceLock::new();
     FORMATS.get_or_init(|| parse_declaration_formats(BUILTIN_REGISTRY_CSS))
 }
 

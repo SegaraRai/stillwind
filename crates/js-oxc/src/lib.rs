@@ -11,7 +11,7 @@ mod state;
 mod validation;
 mod visit;
 
+pub use entry::*;
+
 #[cfg(test)]
 mod tests;
-
-pub use entry::*;
