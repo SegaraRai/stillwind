@@ -13,14 +13,14 @@ pub enum TransformError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct PropsTransform {
+pub struct SourceTransform {
     pub call_span: Span,
     pub replacement: String,
 }
 
 pub(crate) fn apply_transforms(
     source: &SourceFile,
-    transforms: &[PropsTransform],
+    transforms: &[SourceTransform],
 ) -> Result<String, TransformError> {
     let mut transforms = transforms.iter().collect::<Vec<_>>();
     transforms.sort_by_key(|transform| std::cmp::Reverse(transform.call_span.start.0));
@@ -47,14 +47,14 @@ pub(crate) fn apply_transforms(
 
 #[cfg(test)]
 mod tests {
-    use super::{PropsTransform, TransformError, apply_transforms};
+    use super::{SourceTransform, TransformError, apply_transforms};
     use std::error::Error;
     use stillwind_source::{FileId, SourceError, SourceFile, Span};
 
-    fn replacements(spans: &[Span]) -> Vec<PropsTransform> {
+    fn replacements(spans: &[Span]) -> Vec<SourceTransform> {
         spans
             .iter()
-            .map(|&call_span| PropsTransform {
+            .map(|&call_span| SourceTransform {
                 call_span,
                 replacement: "x".into(),
             })
@@ -109,7 +109,7 @@ mod tests {
         fn replacing_one_span_preserves_both_sides(prefix in "[a-z]{0,12}", suffix in "[a-z]{0,12}", replacement in "[A-Z]{0,12}") {
             let source = SourceFile::new(FileId(1), "x", format!("{prefix}é{suffix}"));
             let start = u32::try_from(prefix.len()).unwrap();
-            let transform = PropsTransform {
+            let transform = SourceTransform {
                 call_span: Span::new(FileId(1), start, start + 2),
                 replacement: replacement.clone()
             };

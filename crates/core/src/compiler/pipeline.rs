@@ -17,7 +17,7 @@ use crate::compiler::utilities::emission::emit_utility_rules;
 use crate::compiler::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
 };
-use crate::transforms::PropsTransform;
+use crate::transforms::SourceTransform;
 
 use super::Compiler;
 use super::handles::{
@@ -620,14 +620,14 @@ impl Compiler {
                     view_transition_style: view_transition_style.as_ref(),
                 },
             ) {
-                result.transforms.push(PropsTransform {
+                result.transforms.push(SourceTransform {
                     call_span: call.span,
                     replacement,
                 });
             }
         }
         for handle_definition in module.handle_definitions {
-            result.transforms.push(PropsTransform {
+            result.transforms.push(SourceTransform {
                 call_span: handle_definition.call_span,
                 replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
                     format!(
@@ -640,7 +640,7 @@ impl Compiler {
             });
         }
         for scope_definition in module.scope_definitions {
-            result.transforms.push(PropsTransform {
+            result.transforms.push(SourceTransform {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
                     format!(
@@ -653,7 +653,7 @@ impl Compiler {
             });
         }
         for animation in module.animation_declarations {
-            result.transforms.push(PropsTransform {
+            result.transforms.push(SourceTransform {
                 call_span: animation.call_span,
                 replacement: if runtime_assets.contains(&named_identity(
                     source,
@@ -670,7 +670,7 @@ impl Compiler {
             });
         }
         for transition in module.view_transition_declarations {
-            result.transforms.push(PropsTransform {
+            result.transforms.push(SourceTransform {
                 call_span: transition.call_span,
                 replacement: if runtime_assets.contains(&named_identity(
                     source,

@@ -1,17 +1,17 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_css::{ThemeError, parse_tailwind_theme};
 use stillwind_source::{FileId, SourceFile};
 
-use crate::{CompilerOptionsError, DesignSystemSnapshot};
+use crate::{CompilerOptions, CompilerOptionsError, DesignSystemSnapshot};
 
 use super::CssImportError;
 use super::expansion::ExpandedSource;
 use super::imports::{Import, imports};
 use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
-    CssSourceName, DesignSystemLoadStep, DesignSystemOptions,
+    CssSourceName, DesignSystemLoadStep,
 };
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -55,7 +55,7 @@ struct Node {
 /// Caller-driven loading with independent, monotonically increasing request IDs.
 /// `NeedFile` lists all outstanding requests; hosts may respond in any order.
 pub struct DesignSystemLoader {
-    options: DesignSystemOptions,
+    options: CompilerOptions,
     graph: CssSourceGraph,
     known: BTreeMap<CssSourceName, usize>,
     nodes: Vec<Node>,
@@ -65,7 +65,7 @@ pub struct DesignSystemLoader {
 }
 
 impl DesignSystemLoader {
-    pub fn new(options: DesignSystemOptions) -> Self {
+    pub fn new(options: CompilerOptions) -> Self {
         Self {
             options,
             graph: CssSourceGraph::default(),
@@ -111,7 +111,7 @@ impl DesignSystemLoader {
             return Err(DesignSystemLoadError::InvalidInitialBatch { count: files.len() });
         }
         // Validate against requests issued before this batch, including duplicates.
-        let mut ids = std::collections::BTreeSet::new();
+        let mut ids = BTreeSet::new();
         for file in &files {
             if !ids.insert(file.id) || (!initial && !self.pending.contains_key(&file.id)) {
                 return Err(DesignSystemLoadError::UnknownOrDuplicateRequest { id: file.id });
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn request_id_exhaustion_is_terminal_and_never_emits_max_or_wraps() {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader = DesignSystemLoader::new(CompilerOptions::default());
         loader.next_id = u32::MAX - 1;
         let DesignSystemLoadStep::NeedFile(requests) =
             loader.provide(0, "root".into(), "@import 'last';".into())
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn exhausted_batch_finishes_with_error_instead_of_returning_partial_requests() {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader = DesignSystemLoader::new(CompilerOptions::default());
         loader.next_id = u32::MAX - 1;
         assert!(matches!(
             loader.provide(

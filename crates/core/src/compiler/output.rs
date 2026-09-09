@@ -5,7 +5,7 @@ use serde::Serialize;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
 use crate::compiler::react::props::GeneratedClass;
-use crate::transforms::{PropsTransform, TransformError, apply_transforms};
+use crate::transforms::{SourceTransform, TransformError, apply_transforms};
 
 use super::symbols::GeneratedSymbol;
 
@@ -17,7 +17,7 @@ pub struct CompileResult {
     pub module_css: String,
     pub classes: Vec<GeneratedClass>,
     pub symbols: Vec<GeneratedSymbol>,
-    pub transforms: Vec<PropsTransform>,
+    pub transforms: Vec<SourceTransform>,
     pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
     pub lint_policy: BTreeMap<String, String>,

@@ -6,7 +6,8 @@ use crate::syntax::closing_parenthesis;
 
 use super::declarations::resolve_css_declarations;
 use super::nested::{
-    NestedUtilityAtRule, NestedUtilityRule, split_nested_conditions, split_utility_selector,
+    NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,
+    split_utility_selector,
 };
 use super::resolve::ResolvedUtilityTarget;
 
@@ -51,7 +52,7 @@ pub(crate) fn resolve_css_utility_body(
         || body.contains("--fraction()")
         || nested
             .iter()
-            .any(|(_, _, body)| body.contains("--modifier") || body.contains("--fraction()"));
+            .any(|rule| rule.body.contains("--modifier") || rule.body.contains("--fraction()"));
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
@@ -70,7 +71,12 @@ pub(crate) fn resolve_css_utility_body(
             inside: true,
         });
     }
-    for (at_rule, condition, body) in nested {
+    for ParsedNestedUtilityRule {
+        at_rule,
+        condition,
+        body,
+    } in nested
+    {
         for (condition, body) in expand_theme_wildcard_nested(&condition, &body, theme) {
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")

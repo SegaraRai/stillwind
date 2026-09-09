@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use stillwind_core::{
     CompileResult, Compiler, CompilerOptions, DesignSystemSnapshot, ModuleCompiler,
-    OxcSourceAnalyzer, PropsTransform, SourceAnalyzer,
+    OxcSourceAnalyzer, SourceAnalyzer, SourceTransform,
 };
 use stillwind_source::{FileId, SourceFile, Span};
 
@@ -70,7 +70,7 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
 fn invalid_transform_byte_boundaries_return_errors() {
     let source = SourceFile::new(FileId(1), "a.tsx", "日本語");
     let result = CompileResult {
-        transforms: vec![PropsTransform {
+        transforms: vec![SourceTransform {
             call_span: Span::new(FileId(1), 1, 3),
             replacement: "x".into(),
         }],

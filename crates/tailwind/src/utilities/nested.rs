@@ -20,7 +20,12 @@ pub enum NestedUtilityAtRule {
     Supports,
 }
 
-pub(crate) type ParsedNestedUtilityRule = (NestedUtilityAtRule, String, String);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ParsedNestedUtilityRule {
+    pub(crate) at_rule: NestedUtilityAtRule,
+    pub(crate) condition: String,
+    pub(crate) body: String,
+}
 
 pub(crate) fn split_nested_conditions(
     body: &str,
@@ -41,7 +46,11 @@ pub(crate) fn split_nested_conditions(
                 .trim()
                 .to_owned(),
         };
-        nested.push((at_rule, condition, body[open + 1..close].trim().to_owned()));
+        nested.push(ParsedNestedUtilityRule {
+            at_rule,
+            condition,
+            body: body[open + 1..close].trim().to_owned(),
+        });
         cursor = close + 1;
     }
     direct.push_str(&body[cursor..]);
@@ -118,11 +127,11 @@ mod tests {
         assert_eq!(base, "color:red;");
         assert_eq!(
             nested,
-            vec![(
-                NestedUtilityAtRule::Media,
-                "(width > 1px)".into(),
-                "color:blue;".into()
-            )]
+            vec![ParsedNestedUtilityRule {
+                at_rule: NestedUtilityAtRule::Media,
+                condition: "(width > 1px)".into(),
+                body: "color:blue;".into()
+            }]
         );
         assert_eq!(
             split_utility_selector("x:1; &:hover {color:red;}"),

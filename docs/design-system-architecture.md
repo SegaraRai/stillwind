@@ -258,7 +258,7 @@ pub enum CssDependencyKind {
 }
 
 impl DesignSystemLoader {
-    pub fn new(options: DesignSystemOptions) -> Self;
+    pub fn new(options: CompilerOptions) -> Self;
 
     pub fn provide(
         &mut self,
@@ -396,23 +396,23 @@ language-neutral IR consumed by compilation.
 pub struct ModuleScan {
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
-    pub source_revision: SourceRevision,
+    pub source_revision: Fingerprint,
     pub local_ir: ModuleIr,
     pub summary: ModuleSummary,
     pub type_probes: Vec<TypeProbe>,
     pub lint_directives: Vec<LintDirective>,
-    pub diagnostics: Vec<SourceDiagnostic>,
+    pub diagnostics: Vec<CompileError>,
 }
 
 pub struct ModuleAnalysis {
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
-    pub source_revision: SourceRevision,
+    pub source_revision: Fingerprint,
     pub ir: ModuleIr,
     pub summary: ModuleSummary,
     pub lint_directives: Vec<LintDirective>,
-    pub diagnostics: Vec<SourceDiagnostic>,
-    pub semantic_revision: Option<SemanticRevision>,
+    pub diagnostics: Vec<CompileError>,
+    pub semantic_revision: Option<Fingerprint>,
 }
 ```
 
@@ -468,7 +468,7 @@ pub struct CompiledModule {
     pub css: ModuleCssArtifact,
     pub classes: Vec<GeneratedClass>,
     pub symbols: Vec<GeneratedSymbol>,
-    pub diagnostics: Vec<CompileDiagnostic>,
+    pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
     pub dependencies: CompilationDependencies,
 }
@@ -494,7 +494,7 @@ pub struct CompilationDependencies {
     pub utilities: BTreeSet<UtilityDefinitionId>,
     pub variants: BTreeSet<VariantDefinitionId>,
     pub properties: BTreeSet<PropertyDefinitionId>,
-    pub assets: BTreeSet<AssetIdentity>,
+    pub assets: BTreeSet<IdentityId>,
 }
 ```
 
@@ -657,8 +657,8 @@ TypeScript semantic revision.
 The boundaries remain typed:
 
 - `DesignSystemLoadError`: the snapshot cannot be constructed;
-- `SourceDiagnostic`: source syntax or supported-expression extraction failure;
-- `CompileDiagnostic`: structured source cannot be compiled under the pinned
+- `CompileError`: source syntax, supported-expression extraction failure, or
+  structured source that cannot be compiled under the pinned
   design system;
 - `LintFinding`: advisory policy result that never changes compilation output;
 - `IntegrationDiagnostic`: TypeScript provider, host protocol, or transport

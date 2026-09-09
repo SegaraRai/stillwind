@@ -1,23 +1,26 @@
 //! Immutable styling semantics shared by compilation and editor requests.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use stillwind_css::ThemeIndex;
+use stillwind_css::{FrameworkImports, ThemeIndex};
 use stillwind_source::SourceFile;
+use stillwind_tailwind::{BuiltinDefinitions, builtin_definitions, builtin_theme_order};
 
-use crate::CompilerOptions;
 use crate::fingerprint::Fingerprint;
+use crate::{
+    CompilerOptions, CompilerOptionsError, CssFileRequest, CssSourceGraph, CssSourceName,
+    DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader, PropertyRegistry,
+    ThemeRegistry, UtilityRegistry, VariantRegistry, render_react_types, render_stylesheet,
+};
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum DesignSystemError {
     #[error("{0}")]
-    Load(#[from] crate::DesignSystemLoadError),
+    Load(#[from] DesignSystemLoadError),
     #[error("host must resolve CSS imports using DesignSystemLoader: {requests:?}")]
-    UnresolvedImports {
-        requests: Vec<crate::CssFileRequest>,
-    },
+    UnresolvedImports { requests: Vec<CssFileRequest> },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -41,14 +44,14 @@ struct DesignSystemData {
     theme: ThemeIndex,
     config: CompilerOptions,
     fingerprints: DefinitionFingerprints,
-    sources: crate::CssSourceGraph,
-    utilities: crate::UtilityRegistry,
-    variants: crate::VariantRegistry,
-    properties: crate::PropertyRegistry,
-    tokens: crate::ThemeRegistry,
-    builtins: Option<Arc<stillwind_tailwind::BuiltinDefinitions>>,
+    sources: CssSourceGraph,
+    utilities: UtilityRegistry,
+    variants: VariantRegistry,
+    properties: PropertyRegistry,
+    tokens: ThemeRegistry,
+    builtins: Option<Arc<BuiltinDefinitions>>,
     declaration_formats: BTreeMap<String, String>,
-    relationships: std::collections::BTreeSet<String>,
+    relationships: BTreeSet<String>,
 }
 
 /// A cheaply cloneable, immutable revision. All access is read-only.
@@ -66,15 +69,13 @@ impl DesignSystemSnapshot {
         source: &SourceFile,
         options: CompilerOptions,
     ) -> Result<Self, DesignSystemError> {
-        match crate::DesignSystemLoader::new(options).provide(
+        match DesignSystemLoader::new(options).provide(
             0,
-            crate::CssSourceName::from(source.path()),
+            CssSourceName::from(source.path()),
             source.text().into(),
         ) {
-            crate::DesignSystemLoadStep::Complete(result) => {
-                result.map_err(DesignSystemError::Load)
-            }
-            crate::DesignSystemLoadStep::NeedFile(request) => {
+            DesignSystemLoadStep::Complete(result) => result.map_err(DesignSystemError::Load),
+            DesignSystemLoadStep::NeedFile(request) => {
                 Err(DesignSystemError::UnresolvedImports { requests: request })
             }
         }
@@ -84,8 +85,8 @@ impl DesignSystemSnapshot {
     pub(crate) fn from_loaded_theme(
         theme: ThemeIndex,
         mut config: CompilerOptions,
-        sources: crate::CssSourceGraph,
-    ) -> Result<Self, crate::CompilerOptionsError> {
+        sources: CssSourceGraph,
+    ) -> Result<Self, CompilerOptionsError> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
         if let Some(prefix) = &theme.config.prefix {
             config.prefix.clone_from(prefix);
@@ -95,28 +96,19 @@ impl DesignSystemSnapshot {
         }
         config.validate()?;
         let config_hash = Fingerprint::of(format!("{config:?}"));
-        let ordering = Fingerprint::of(format!(
-            "{:?}{:?}",
-            theme.imports,
-            stillwind_tailwind::builtin_theme_order()
-        ));
+        let ordering = Fingerprint::of(format!("{:?}{:?}", theme.imports, builtin_theme_order()));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
-        let builtins = theme
-            .imports
-            .builtins
-            .then(stillwind_tailwind::builtin_definitions);
+        let builtins = theme.imports.builtins.then(builtin_definitions);
         let mut declaration_formats = builtins.as_ref().map_or_else(BTreeMap::new, |definitions| {
             definitions.declaration_formats.clone()
         });
         declaration_formats.extend(theme.declaration_formats.clone());
-        let mut relationships = builtins
-            .as_ref()
-            .map_or_else(std::collections::BTreeSet::new, |definitions| {
-                definitions.relationships.clone()
-            });
+        let mut relationships = builtins.as_ref().map_or_else(BTreeSet::new, |definitions| {
+            definitions.relationships.clone()
+        });
         relationships.extend(theme.relationship_patterns.clone());
         let utility_registry =
-            crate::UtilityRegistry::new(
+            UtilityRegistry::new(
                 builtins
                     .iter()
                     .flat_map(|definitions| {
@@ -131,7 +123,7 @@ impl DesignSystemSnapshot {
                     ),
             );
         let variant_registry =
-            crate::VariantRegistry::new(
+            VariantRegistry::new(
                 builtins
                     .iter()
                     .flat_map(|definitions| {
@@ -146,7 +138,7 @@ impl DesignSystemSnapshot {
                     ),
             );
         let property_registry =
-            crate::PropertyRegistry::new(
+            PropertyRegistry::new(
                 builtins
                     .iter()
                     .flat_map(|definitions| {
@@ -160,7 +152,7 @@ impl DesignSystemSnapshot {
                         }),
                     ),
             );
-        let token_registry = crate::ThemeRegistry::new(
+        let token_registry = ThemeRegistry::new(
             theme
                 .active_tokens()
                 .iter()
@@ -245,34 +237,34 @@ impl DesignSystemSnapshot {
     pub fn config(&self) -> &CompilerOptions {
         &self.inner.config
     }
-    pub fn sources(&self) -> &crate::CssSourceGraph {
+    pub fn sources(&self) -> &CssSourceGraph {
         &self.inner.sources
     }
-    pub fn utilities(&self) -> &crate::UtilityRegistry {
+    pub fn utilities(&self) -> &UtilityRegistry {
         &self.inner.utilities
     }
     pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
         &self.inner.declaration_formats
     }
-    pub fn relationships(&self) -> &std::collections::BTreeSet<String> {
+    pub fn relationships(&self) -> &BTreeSet<String> {
         &self.inner.relationships
     }
-    pub fn imports(&self) -> &stillwind_css::FrameworkImports {
+    pub fn imports(&self) -> &FrameworkImports {
         &self.inner.theme.imports
     }
     pub fn lint_policy(&self) -> &BTreeMap<String, String> {
         &self.inner.theme.config.lint_rules
     }
-    pub fn variants(&self) -> &crate::VariantRegistry {
+    pub fn variants(&self) -> &VariantRegistry {
         &self.inner.variants
     }
-    pub fn properties(&self) -> &crate::PropertyRegistry {
+    pub fn properties(&self) -> &PropertyRegistry {
         &self.inner.properties
     }
-    pub fn tokens(&self) -> &crate::ThemeRegistry {
+    pub fn tokens(&self) -> &ThemeRegistry {
         &self.inner.tokens
     }
-    pub fn builtins(&self) -> Option<&Arc<stillwind_tailwind::BuiltinDefinitions>> {
+    pub fn builtins(&self) -> Option<&Arc<BuiltinDefinitions>> {
         self.inner.builtins.as_ref()
     }
     pub(crate) fn theme(&self) -> &ThemeIndex {
@@ -280,9 +272,9 @@ impl DesignSystemSnapshot {
     }
 
     pub fn generate_react_types(&self) -> String {
-        crate::render_react_types(self.theme())
+        render_react_types(self.theme())
     }
     pub fn render_stylesheet(&self, module_css: &str) -> String {
-        crate::render_stylesheet(self.theme(), module_css, self.config())
+        render_stylesheet(self.theme(), module_css, self.config())
     }
 }

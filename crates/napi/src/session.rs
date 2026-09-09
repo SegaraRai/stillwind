@@ -9,12 +9,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use stillwind_core::{
-    CompileDiagnostic, CssFileInput, DesignSystemLoadStep, DesignSystemLoader,
-    DesignSystemSnapshot, Fingerprint, ModuleScan, OxcSourceAnalyzer, ProjectSession, SessionMode,
-    SourceAnalyzer, TypeFacts, TypeFactsUpdate, TypeScriptFactsProvider,
+    CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot, Fingerprint,
+    ModuleId, ModuleScan, OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer,
+    TypeFacts, TypeFactsUpdate, TypeScriptFactsProvider,
 };
 use stillwind_semantic::TypeFact;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CompileError, FileId, SourceFile};
 
 use super::api::{binding_output, parse_options};
 use super::output::BindingOutput;
@@ -25,7 +25,7 @@ pub enum NativeSessionError {
     IncompleteCssLoad,
     #[error("CSS reload compilation failed: {diagnostics:?}")]
     ReloadCompilation {
-        diagnostics: BTreeMap<String, Vec<CompileDiagnostic>>,
+        diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
     },
 }
 
@@ -251,11 +251,29 @@ impl NativeProjectSession {
             }
             result.css.clone_from(&result.module_css);
             modules.push(ProjectModuleOutput {
-                path: scan.module_id,
+                path: scan.module_id.0,
                 output: binding_output(result, &scan.source, &theme),
             });
         }
         serde_json::to_string(&ProjectBindingOutput { modules })
             .map_err(|error| Error::from_reason(error.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stillwind_core::SessionUpdate;
+
+    #[test]
+    fn module_ids_remain_strings_in_host_json() {
+        let update = SessionUpdate {
+            transformed_modules: [ModuleId::from("src/entry.tsx")].into(),
+            ..SessionUpdate::default()
+        };
+        assert_eq!(
+            json!({ "transformedModules": update.transformed_modules }),
+            json!({ "transformedModules": ["src/entry.tsx"] })
+        );
     }
 }

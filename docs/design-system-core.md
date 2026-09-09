@@ -8,9 +8,9 @@ and fixtures, and delegate to the same snapshot and module compilation pipeline.
 ## Loading CSS
 
 ```rust
-use stillwind_core::{DesignSystemLoader, DesignSystemLoadStep, DesignSystemOptions};
+use stillwind_core::{DesignSystemLoader, DesignSystemLoadStep, CompilerOptions};
 
-let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+let mut loader = DesignSystemLoader::new(CompilerOptions::default());
 let mut step = loader.provide(0, root_name, root_content);
 let snapshot = loop {
     match step {

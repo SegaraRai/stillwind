@@ -11,13 +11,39 @@ use stillwind_source::{
 
 use crate::Fingerprint;
 
-pub type ModuleId = String;
+/// Host-provided module identity, preserving the source path verbatim.
+///
+/// ```compile_fail
+/// use stillwind_core::ModuleId;
+/// let module: ModuleId = String::from("entry.tsx");
+/// ```
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
+#[serde(transparent)]
+pub struct ModuleId(pub String);
 
-pub type SourceRevision = Fingerprint;
+impl ModuleId {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
-pub type SemanticRevision = Fingerprint;
+impl From<String> for ModuleId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
 
-pub type SourceDiagnostic = CompileError;
+impl From<&str> for ModuleId {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl std::borrow::Borrow<str> for ModuleId {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct TypeProbe {
@@ -28,12 +54,12 @@ pub struct TypeProbe {
 pub struct ModuleScan {
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
-    pub source_revision: SourceRevision,
+    pub source_revision: Fingerprint,
     pub local_ir: ModuleIr,
     pub summary: ModuleSummary,
     pub type_probes: Vec<TypeProbe>,
     pub lint_directives: Vec<LintDirective>,
-    pub diagnostics: Vec<SourceDiagnostic>,
+    pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
 }
 
@@ -42,13 +68,13 @@ pub struct ModuleAnalysis {
     pub external_assets: BTreeSet<IdentityId>,
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
-    pub source_revision: SourceRevision,
+    pub source_revision: Fingerprint,
     pub ir: ModuleIr,
     pub summary: ModuleSummary,
     pub lint_directives: Vec<LintDirective>,
-    pub diagnostics: Vec<SourceDiagnostic>,
+    pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
-    pub semantic_revision: Option<SemanticRevision>,
+    pub semantic_revision: Option<Fingerprint>,
     pub integration_diagnostics: Vec<IntegrationDiagnostic>,
     pub frontend_kind: String,
 }
@@ -57,8 +83,8 @@ pub struct ModuleAnalysis {
 pub struct TypeFacts {
     pub schema: u32,
     pub module_id: ModuleId,
-    pub source_revision: SourceRevision,
-    pub semantic_revision: SemanticRevision,
+    pub source_revision: Fingerprint,
+    pub semantic_revision: Fingerprint,
     pub facts: Vec<TypeFact>,
     pub assets: BTreeMap<IdentityId, AssetMetadata>,
 }
@@ -95,7 +121,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     fn scan(&self, source: Arc<SourceFile>) -> ModuleScan {
         let parsed = stillwind_js_oxc::parse(&source);
         ModuleScan {
-            module_id: source.path().to_owned(),
+            module_id: source.path().into(),
             source_revision: Fingerprint::of(source.text()),
             type_probes: parsed
                 .type_probes

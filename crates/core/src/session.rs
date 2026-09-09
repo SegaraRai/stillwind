@@ -2,9 +2,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use stillwind_semantic::IdentityId;
+use stillwind_source::CompileError;
+
 use crate::{
-    AssetIdentity, CompileDiagnostic, CompiledModule, DesignSystemLoadError, DesignSystemSnapshot,
-    GeneratedRule, ModuleAnalysis, ModuleCompiler, ModuleCssArtifact, ModuleId, RuleKey,
+    CompiledModule, DesignSystemLoadError, DesignSystemSnapshot, GeneratedRule, ModuleAnalysis,
+    ModuleCompiler, ModuleCssArtifact, ModuleId, RuleKey,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -25,7 +28,7 @@ pub struct ProjectStylesheet {
 
 impl ProjectStylesheet {
     pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
-        self.remove(&module);
+        self.remove(module.as_str());
         for rule in &artifact.rules {
             self.rules
                 .entry(rule.key.clone())
@@ -89,14 +92,14 @@ pub struct DependencyIndex {
     pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
     pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
     pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub assets: BTreeMap<AssetIdentity, BTreeSet<ModuleId>>,
+    pub assets: BTreeMap<IdentityId, BTreeSet<ModuleId>>,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct SessionUpdate {
     pub css_changed: bool,
     pub transformed_modules: BTreeSet<ModuleId>,
-    pub diagnostics: BTreeMap<ModuleId, Vec<CompileDiagnostic>>,
+    pub diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
 }
 
 /// Exclusive mutation is the actor boundary. A host can put this in a mutex;
@@ -173,7 +176,7 @@ impl ProjectSession {
                 .insert(&symbol.name, &symbol.identity)
                 .is_some_and(|identity| identity != symbol.identity)
             {
-                compiled.diagnostics.push(CompileDiagnostic::new(
+                compiled.diagnostics.push(CompileError::new(
                     "SHSYMBOL001",
                     format!("generated identifier collision: {}", symbol.name),
                     analysis.source.full_span(),
@@ -197,7 +200,7 @@ impl ProjectSession {
                 .diagnostics
                 .insert(module_id.clone(), compiled.diagnostics);
             if self.mode == SessionMode::Build {
-                self.stylesheet.remove(&module_id);
+                self.stylesheet.remove(module_id.as_str());
                 self.artifacts.remove(&module_id);
             }
         }

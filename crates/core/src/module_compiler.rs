@@ -11,20 +11,21 @@ use stillwind_source::{CompileError, LintFinding, SourceFile};
 use crate::transforms::apply_transforms;
 use crate::{
     CompileResult, Compiler, DesignSystemSnapshot, Fingerprint, GeneratedClass, GeneratedSymbol,
-    ModuleAnalysis, PropsTransform, TransformError,
+    ModuleAnalysis, ModuleId, SourceTransform, TransformError,
 };
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
 pub struct ModuleTransformError(#[from] pub TransformError);
 
-pub type SourceTransform = PropsTransform;
-
-pub type CompileDiagnostic = CompileError;
-
-pub type RuleKey = Fingerprint;
-
-pub type AssetIdentity = IdentityId;
+/// Content identity of one generated CSS rule.
+///
+/// ```compile_fail
+/// use stillwind_core::{Fingerprint, RuleKey};
+/// let rule: RuleKey = Fingerprint::of(".x{}");
+/// ```
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct RuleKey(pub Fingerprint);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
@@ -72,7 +73,7 @@ impl ModuleCssArtifact {
                     .expect("generated CSS block is valid");
                 let end = parser.position().byte_index();
                 rules.push(GeneratedRule {
-                    key: Fingerprint::of(&css[start..end]),
+                    key: RuleKey(Fingerprint::of(&css[start..end])),
                     prelude: css[start..body_start - 1].into(),
                     body: Some(css[body_start..body_end].into()),
                 });
@@ -80,7 +81,7 @@ impl ModuleCssArtifact {
             } else if matches!(token, Token::Semicolon) {
                 let end = parser.position().byte_index();
                 rules.push(GeneratedRule {
-                    key: Fingerprint::of(&css[start..end]),
+                    key: RuleKey(Fingerprint::of(&css[start..end])),
                     prelude: css[start..end].into(),
                     body: None,
                 });
@@ -89,7 +90,7 @@ impl ModuleCssArtifact {
         }
         if start < css.len() {
             rules.push(GeneratedRule {
-                key: Fingerprint::of(&css[start..]),
+                key: RuleKey(Fingerprint::of(&css[start..])),
                 prelude: css[start..].into(),
                 body: None,
             });
@@ -103,7 +104,7 @@ pub struct ModuleArtifactKey {
     pub compiler_version: String,
     pub design_system: Fingerprint,
     pub source_revision: Fingerprint,
-    pub module_id: String,
+    pub module_id: ModuleId,
     pub source_file_id: u32,
     pub frontend_kind: String,
     pub adapter_mode: String,
@@ -117,7 +118,7 @@ pub struct CompilationDependencies {
     pub utilities: BTreeSet<String>,
     pub variants: BTreeSet<String>,
     pub properties: BTreeSet<String>,
-    pub assets: BTreeSet<AssetIdentity>,
+    pub assets: BTreeSet<IdentityId>,
 }
 
 #[derive(Clone, Debug)]
@@ -127,7 +128,7 @@ pub struct CompiledModule {
     pub css: ModuleCssArtifact,
     pub classes: Vec<GeneratedClass>,
     pub symbols: Vec<GeneratedSymbol>,
-    pub diagnostics: Vec<CompileDiagnostic>,
+    pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
     pub dependencies: CompilationDependencies,
 }
@@ -297,7 +298,7 @@ mod tests {
             let artifact = ModuleCssArtifact::from_css(css);
             assert_eq!(artifact.to_css(), css);
             for rule in artifact.rules {
-                assert_eq!(rule.key, Fingerprint::of(rule.to_css()));
+                assert_eq!(rule.key, RuleKey(Fingerprint::of(rule.to_css())));
             }
         }
     }

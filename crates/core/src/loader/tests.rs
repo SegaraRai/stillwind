@@ -2,14 +2,14 @@
 
 use stillwind_source::{FileId, SourceFile};
 
-use crate::DesignSystemSnapshot;
+use crate::{CompilerOptions, DesignSystemSnapshot};
 
 use super::*;
 
 #[test]
 fn parse_failures_keep_source_identity_and_typed_cause() {
     use std::error::Error;
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
     let DesignSystemLoadStep::Complete(Err(error)) =
         loader.provide(0, "opaque".into(), "@import 123;".into())
     else {
@@ -25,7 +25,7 @@ fn parse_failures_keep_source_identity_and_typed_cause() {
             .downcast_ref::<CssImportError>()
             .is_some()
     );
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
     let DesignSystemLoadStep::Complete(Err(error)) =
         loader.provide(0, "opaque".into(), "@theme {".into())
     else {
@@ -47,15 +47,14 @@ fn parse_failures_keep_source_identity_and_typed_cause() {
 fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening() {
     use crate::{CompilerOptionsError, DesignSystemError};
     let source = SourceFile::new(FileId(1), "root", "@import 'child';");
-    let error =
-        DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap_err();
+    let error = DesignSystemSnapshot::from_source(&source, CompilerOptions::default()).unwrap_err();
     assert!(
         matches!(error, DesignSystemError::UnresolvedImports { requests } if requests.len() == 1 && requests[0].id == 1 && requests[0].specifier == "child")
     );
     let source = SourceFile::new(FileId(1), "root", "");
-    let options = DesignSystemOptions {
+    let options = CompilerOptions {
         prefix: "bad".into(),
-        ..DesignSystemOptions::default()
+        ..CompilerOptions::default()
     };
     assert!(matches!(
         DesignSystemSnapshot::from_source(&source, options),

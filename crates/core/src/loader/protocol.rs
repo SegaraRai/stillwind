@@ -2,11 +2,9 @@ use std::sync::Arc;
 
 use stillwind_source::{FileId, SourceFile};
 
-use crate::{CompilerOptions, DesignSystemSnapshot};
+use crate::DesignSystemSnapshot;
 
 use super::state::DesignSystemLoadError;
-
-pub type DesignSystemOptions = CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct CssSourceName(pub Arc<str>);
