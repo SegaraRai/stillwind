@@ -1,19 +1,13 @@
-/* Built-in attribute and inter-element relationship variants. */
+/* Built-in child and inter-element relationship variants. */
 
-@stillwind-variant aria-* {
-  &[aria-\*="true"] {
+@stillwind-variant * {
+  :is(& > *) {
     @slot;
   }
 }
 
-@stillwind-variant data-* {
-  &[data-\*] {
-    @slot;
-  }
-}
-
-@stillwind-variant has-* {
-  &:has(:root) {
+@stillwind-variant ** {
+  :is(& *) {
     @slot;
   }
 }
@@ -24,17 +18,12 @@
   }
 }
 
-@stillwind-variant not-hover {
+@stillwind-variant not-hover (group: not-*) {
   &:not(:hover) {
     @slot;
   }
-  @media not (hover: hover) {
-    @slot;
-  }
-}
 
-@stillwind-variant in-* {
-  :where(:root) & {
+  @media not (hover: hover) {
     @slot;
   }
 }

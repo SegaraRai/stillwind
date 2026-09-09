@@ -1,7 +1,7 @@
 /* Built-in environment, responsive, and conditional variants. */
 
-@stillwind-variant dark {
-  @media (prefers-color-scheme: dark) {
+@stillwind-variant supports-* {
+  @supports (\*) {
     @slot;
   }
 }
@@ -30,6 +30,66 @@
   }
 }
 
+@stillwind-variant max-* (sort: --breakpoint-*, direction: desc) {
+  @media (width < --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant max-* (sort: --breakpoint-*, direction: desc) {
+  @media (width < --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant min-* (sort: --breakpoint-*, direction: asc, bare: true) {
+  @media (width >= --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant min-* (sort: --breakpoint-*, direction: asc, bare: true) {
+  @media (width >= --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant @max-* (sort: --container-*, direction: desc) {
+  @container \{modifier\} (width < --value(--container-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant @max-* (sort: --container-*, direction: desc) {
+  @container \{modifier\} (width < --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant @* (group: container-min, sort: --container-*, direction: asc, bare: true) {
+  @container \{modifier\} (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant @* (group: container-min, sort: --container-*, direction: asc, bare: true) {
+  @container \{modifier\} (width >= --value([length])) {
+    @slot;
+  }
+}
+
+@stillwind-variant @min-* (group: container-min, sort: --container-*, direction: asc) {
+  @container \{modifier\} (width >= --value(--container-*)) {
+    @slot;
+  }
+}
+
+@stillwind-variant @min-* (group: container-min, sort: --container-*, direction: asc) {
+  @container \{modifier\} (width >= --value([length])) {
+    @slot;
+  }
+}
+
 @stillwind-variant portrait {
   @media (orientation: portrait) {
     @slot;
@@ -38,6 +98,30 @@
 
 @stillwind-variant landscape {
   @media (orientation: landscape) {
+    @slot;
+  }
+}
+
+@stillwind-variant ltr {
+  &:where(:dir(ltr), [dir="ltr"], [dir="ltr"] *) {
+    @slot;
+  }
+}
+
+@stillwind-variant rtl {
+  &:where(:dir(rtl), [dir="rtl"], [dir="rtl"] *) {
+    @slot;
+  }
+}
+
+@stillwind-variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+
+@stillwind-variant starting {
+  @starting-style {
     @slot;
   }
 }
@@ -60,8 +144,8 @@
   }
 }
 
-@stillwind-variant pointer-fine {
-  @media (pointer: fine) {
+@stillwind-variant pointer-none {
+  @media (pointer: none) {
     @slot;
   }
 }
@@ -72,20 +156,8 @@
   }
 }
 
-@stillwind-variant pointer-none {
-  @media (pointer: none) {
-    @slot;
-  }
-}
-
-@stillwind-variant any-pointer-fine {
-  @media (any-pointer: fine) {
-    @slot;
-  }
-}
-
-@stillwind-variant any-pointer-coarse {
-  @media (any-pointer: coarse) {
+@stillwind-variant pointer-fine {
+  @media (pointer: fine) {
     @slot;
   }
 }
@@ -96,80 +168,20 @@
   }
 }
 
+@stillwind-variant any-pointer-coarse {
+  @media (any-pointer: coarse) {
+    @slot;
+  }
+}
+
+@stillwind-variant any-pointer-fine {
+  @media (any-pointer: fine) {
+    @slot;
+  }
+}
+
 @stillwind-variant noscript {
   @media (scripting: none) {
-    @slot;
-  }
-}
-
-@stillwind-variant starting {
-  @starting-style {
-    @slot;
-  }
-}
-
-@stillwind-variant supports-* {
-  @supports (\*) {
-    @slot;
-  }
-}
-
-@stillwind-variant min-* {
-  @media (width >= --value(--breakpoint-*)) {
-    @slot;
-  }
-}
-
-@stillwind-variant min-* {
-  @media (width >= --value([length])) {
-    @slot;
-  }
-}
-
-@stillwind-variant max-* {
-  @media (width < --value(--breakpoint-*)) {
-    @slot;
-  }
-}
-
-@stillwind-variant max-* {
-  @media (width < --value([length])) {
-    @slot;
-  }
-}
-
-@stillwind-variant @min-* {
-  @container \{modifier\} (width >= --value(--container-*)) {
-    @slot;
-  }
-}
-
-@stillwind-variant @min-* {
-  @container \{modifier\} (width >= --value([length])) {
-    @slot;
-  }
-}
-
-@stillwind-variant @max-* {
-  @container \{modifier\} (width < --value(--container-*)) {
-    @slot;
-  }
-}
-
-@stillwind-variant @max-* {
-  @container \{modifier\} (width < --value([length])) {
-    @slot;
-  }
-}
-
-@stillwind-variant @* {
-  @container \{modifier\} (width >= --value(--container-*)) {
-    @slot;
-  }
-}
-
-@stillwind-variant @* {
-  @container \{modifier\} (width >= --value([length])) {
     @slot;
   }
 }

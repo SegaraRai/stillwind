@@ -1134,6 +1134,22 @@ pub struct CustomVariant {
     pub body: String,
     /// Global registration order for built-in variants (`@stillwind-variant`).
     pub builtin_order: Option<usize>,
+    /// Optional ordering behavior authored in the built-in definition header.
+    pub sort: Option<BuiltinVariantSort>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BuiltinVariantSortDirection {
+    Ascending,
+    Descending,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct BuiltinVariantSort {
+    pub group: Option<String>,
+    pub key: Option<String>,
+    pub direction: Option<BuiltinVariantSortDirection>,
+    pub bare: bool,
 }
 
 /// One compiler-owned custom-property registration declared with
@@ -1240,15 +1256,48 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
         .into_iter()
         .enumerate()
         .filter_map(|(builtin_order, (header, body))| {
-            let name = header.split_whitespace().next()?.to_owned();
+            let (name, sort) = parse_builtin_variant_header(&header)?;
             Some(CustomVariant {
                 name,
                 selector: String::new(),
                 body,
                 builtin_order: Some(builtin_order),
+                sort,
             })
         })
         .collect()
+}
+
+fn parse_builtin_variant_header(header: &str) -> Option<(String, Option<BuiltinVariantSort>)> {
+    let name_end = header.find(char::is_whitespace).unwrap_or(header.len());
+    let name = header[..name_end].to_owned();
+    if name.is_empty() {
+        return None;
+    }
+    let arguments = header[name_end..].trim();
+    if arguments.is_empty() {
+        return Some((name, None));
+    }
+    let arguments = arguments.strip_prefix('(')?.strip_suffix(')')?;
+    let mut sort = BuiltinVariantSort::default();
+    for descriptor in arguments.split(',') {
+        let (key, value) = descriptor.trim().split_once(':')?;
+        let value = value.trim();
+        match key.trim() {
+            "group" => sort.group = Some(value.to_owned()),
+            "sort" => sort.key = Some(value.to_owned()),
+            "direction" => {
+                sort.direction = Some(match value {
+                    "asc" => BuiltinVariantSortDirection::Ascending,
+                    "desc" => BuiltinVariantSortDirection::Descending,
+                    _ => return None,
+                });
+            }
+            "bare" => sort.bare = value.parse().ok()?,
+            _ => return None,
+        }
+    }
+    Some((name, Some(sort)))
 }
 
 /// Parses compiler-owned custom-property registrations (`@stillwind-property`).
@@ -2938,6 +2987,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     .to_owned(),
                 body: String::new(),
                 builtin_order: None,
+                sort: None,
             })
         })
         .collect::<Vec<_>>();
@@ -2951,6 +3001,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     selector: String::new(),
                     body,
                     builtin_order: None,
+                    sort: None,
                 })
             }),
     );
@@ -2964,6 +3015,7 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     selector: String::new(),
                     body,
                     builtin_order: None,
+                    sort: None,
                 })
             }),
     );
@@ -3133,6 +3185,29 @@ mod tests {
         assert!(utility.builtin_order.unwrap() < properties[1].builtin_order);
         assert_eq!(properties[1].pattern, "--tw-*");
         assert_eq!(properties[2].pattern, "*");
+    }
+
+    #[test]
+    fn parses_builtin_variant_sort_options() {
+        let variants = parse_builtin_variant_definitions(
+            "@stillwind-variant max-* (sort: --breakpoint-*, direction: desc) { @slot; }\
+             @stillwind-variant min-* (group: responsive-min, sort: --breakpoint-*, direction: asc, bare: true) { @slot; }",
+        );
+
+        assert_eq!(variants.len(), 2);
+        assert_eq!(
+            variants[0].sort.as_ref().unwrap().key.as_deref(),
+            Some("--breakpoint-*")
+        );
+        assert_eq!(
+            variants[0].sort.as_ref().unwrap().direction,
+            Some(BuiltinVariantSortDirection::Descending)
+        );
+        assert_eq!(
+            variants[1].sort.as_ref().unwrap().group.as_deref(),
+            Some("responsive-min")
+        );
+        assert!(variants[1].sort.as_ref().unwrap().bare);
     }
 
     #[test]

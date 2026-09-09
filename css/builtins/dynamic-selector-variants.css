@@ -1,0 +1,49 @@
+/* Built-in functional selector and attribute variants. */
+
+@stillwind-variant in-* {
+  :where(:root) & {
+    @slot;
+  }
+}
+
+@stillwind-variant has-* {
+  &:has(:root) {
+    @slot;
+  }
+}
+
+@stillwind-variant aria-* {
+  &[aria-\*="true"] {
+    @slot;
+  }
+}
+
+@stillwind-variant data-* {
+  &[data-\*] {
+    @slot;
+  }
+}
+
+@stillwind-variant nth-* {
+  &:nth-child(0n) {
+    @slot;
+  }
+}
+
+@stillwind-variant nth-last-* {
+  &:nth-last-child(0n) {
+    @slot;
+  }
+}
+
+@stillwind-variant nth-of-type-* {
+  &:nth-of-type(0n) {
+    @slot;
+  }
+}
+
+@stillwind-variant nth-last-of-type-* {
+  &:nth-last-of-type(0n) {
+    @slot;
+  }
+}

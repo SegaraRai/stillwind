@@ -41,9 +41,10 @@ void test("builtins.css imports every split registry file", () => {
     "motion-utilities.css",
     "interactivity-utilities.css",
     "svg-utilities.css",
-    "state-variants.css",
-    "structural-variants.css",
     "relationship-variants.css",
+    "structural-variants.css",
+    "state-variants.css",
+    "dynamic-selector-variants.css",
     "conditional-variants.css",
     "properties.css",
   ]);

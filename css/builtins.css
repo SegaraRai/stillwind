@@ -44,9 +44,10 @@ transformation and participates in source order with the other built-in
 variants.
 */
 
-@import "./builtins/state-variants.css";
-@import "./builtins/structural-variants.css";
 @import "./builtins/relationship-variants.css";
+@import "./builtins/structural-variants.css";
+@import "./builtins/state-variants.css";
+@import "./builtins/dynamic-selector-variants.css";
 @import "./builtins/conditional-variants.css";
 
 /*
@@ -57,3 +58,11 @@ value, and activation conditions for a generated standard @property rule.
 */
 
 @import "./builtins/properties.css";
+
+/*
+Arbitrary properties not assigned a family-specific position are emitted
+after all built-in utilities, matching Tailwind's unknown-property bucket.
+*/
+
+@stillwind-arbitrary-property --tw-*;
+@stillwind-arbitrary-property *;

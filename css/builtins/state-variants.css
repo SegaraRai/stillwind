@@ -1,5 +1,119 @@
 /* Built-in element state and interaction variants. */
 
+@stillwind-variant visited {
+  &:visited {
+    @slot;
+  }
+}
+
+@stillwind-variant target {
+  &:target {
+    @slot;
+  }
+}
+
+@stillwind-variant open {
+  &:is([open], :popover-open, :open) {
+    @slot;
+  }
+}
+
+@stillwind-variant default {
+  &:default {
+    @slot;
+  }
+}
+
+@stillwind-variant checked {
+  &:checked {
+    @slot;
+  }
+}
+
+@stillwind-variant indeterminate {
+  &:indeterminate {
+    @slot;
+  }
+}
+
+@stillwind-variant placeholder-shown {
+  &:placeholder-shown {
+    @slot;
+  }
+}
+
+@stillwind-variant autofill {
+  &:autofill {
+    @slot;
+  }
+}
+
+@stillwind-variant optional {
+  &:optional {
+    @slot;
+  }
+}
+
+@stillwind-variant required {
+  &:required {
+    @slot;
+  }
+}
+
+@stillwind-variant valid {
+  &:valid {
+    @slot;
+  }
+}
+
+@stillwind-variant invalid {
+  &:invalid {
+    @slot;
+  }
+}
+
+@stillwind-variant user-valid {
+  &:user-valid {
+    @slot;
+  }
+}
+
+@stillwind-variant user-invalid {
+  &:user-invalid {
+    @slot;
+  }
+}
+
+@stillwind-variant in-range {
+  &:in-range {
+    @slot;
+  }
+}
+
+@stillwind-variant out-of-range {
+  &:out-of-range {
+    @slot;
+  }
+}
+
+@stillwind-variant read-only {
+  &:read-only {
+    @slot;
+  }
+}
+
+@stillwind-variant empty {
+  &:empty {
+    @slot;
+  }
+}
+
+@stillwind-variant focus-within {
+  &:focus-within {
+    @slot;
+  }
+}
+
 @stillwind-variant hover {
   @media (hover: hover) {
     &:hover {
@@ -20,20 +134,8 @@
   }
 }
 
-@stillwind-variant focus-within {
-  &:focus-within {
-    @slot;
-  }
-}
-
 @stillwind-variant active {
   &:active {
-    @slot;
-  }
-}
-
-@stillwind-variant disabled {
-  &:disabled {
     @slot;
   }
 }
@@ -44,110 +146,14 @@
   }
 }
 
-@stillwind-variant checked {
-  &:checked {
-    @slot;
-  }
-}
-
-@stillwind-variant indeterminate {
-  &:indeterminate {
-    @slot;
-  }
-}
-
-@stillwind-variant default {
-  &:default {
-    @slot;
-  }
-}
-
-@stillwind-variant invalid {
-  &:invalid {
-    @slot;
-  }
-}
-
-@stillwind-variant valid {
-  &:valid {
-    @slot;
-  }
-}
-
-@stillwind-variant required {
-  &:required {
-    @slot;
-  }
-}
-
-@stillwind-variant optional {
-  &:optional {
-    @slot;
-  }
-}
-
-@stillwind-variant read-only {
-  &:read-only {
-    @slot;
-  }
-}
-
-@stillwind-variant placeholder-shown {
-  &:placeholder-shown {
-    @slot;
-  }
-}
-
-@stillwind-variant open {
-  &:is([open], :popover-open, :open) {
-    @slot;
-  }
-}
-
-@stillwind-variant target {
-  &:target {
-    @slot;
-  }
-}
-
-@stillwind-variant autofill {
-  &:autofill {
-    @slot;
-  }
-}
-
-@stillwind-variant in-range {
-  &:in-range {
+@stillwind-variant disabled {
+  &:disabled {
     @slot;
   }
 }
 
 @stillwind-variant inert {
   &:is([inert], [inert] *) {
-    @slot;
-  }
-}
-
-@stillwind-variant out-of-range {
-  &:out-of-range {
-    @slot;
-  }
-}
-
-@stillwind-variant user-invalid {
-  &:user-invalid {
-    @slot;
-  }
-}
-
-@stillwind-variant user-valid {
-  &:user-valid {
-    @slot;
-  }
-}
-
-@stillwind-variant visited {
-  &:visited {
     @slot;
   }
 }

@@ -84,6 +84,105 @@ fn normalize_css(css: &str) -> String {
         .collect()
 }
 
+fn skip_css_trivia(css: &str, mut cursor: usize) -> usize {
+    loop {
+        while css[cursor..]
+            .chars()
+            .next()
+            .is_some_and(char::is_whitespace)
+        {
+            cursor += css[cursor..].chars().next().unwrap().len_utf8();
+        }
+        if css[cursor..].starts_with("/*")
+            && let Some(end) = css[cursor + 2..].find("*/")
+        {
+            cursor += end + 4;
+            continue;
+        }
+        return cursor;
+    }
+}
+
+fn closing_css_brace(css: &str, open: usize) -> usize {
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for (offset, character) in css[open..].char_indices() {
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return open + offset;
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("CSS block must close");
+}
+
+fn collect_class_rule_signatures(
+    css: &str,
+    contexts: &mut Vec<String>,
+    signatures: &mut Vec<String>,
+) {
+    let mut cursor = 0;
+    while cursor < css.len() {
+        cursor = skip_css_trivia(css, cursor);
+        if cursor >= css.len() {
+            break;
+        }
+        let semicolon = css[cursor..].find(';').map(|offset| cursor + offset);
+        let open = css[cursor..].find('{').map(|offset| cursor + offset);
+        if semicolon.is_some_and(|semicolon| open.is_none_or(|open| semicolon < open)) {
+            cursor = semicolon.unwrap() + 1;
+            continue;
+        }
+        let Some(open) = open else {
+            break;
+        };
+        let close = closing_css_brace(css, open);
+        let header = css[cursor..open].trim();
+        let body = &css[open + 1..close];
+        if header.starts_with('@') {
+            let is_layer = header.starts_with("@layer ");
+            if !is_layer {
+                contexts.push(normalize_css(header));
+            }
+            collect_class_rule_signatures(body, contexts, signatures);
+            if !is_layer {
+                contexts.pop();
+            }
+        } else if header.contains(".CLASS") {
+            signatures.push(format!(
+                "{}|{}|{}",
+                contexts.join(">"),
+                normalize_css(header),
+                normalize_css(body)
+            ));
+        }
+        cursor = close + 1;
+    }
+}
+
+fn class_rule_signatures(css: &str) -> Vec<String> {
+    let mut signatures = Vec::new();
+    collect_class_rule_signatures(css, &mut Vec::new(), &mut signatures);
+    signatures
+}
+
 fn compile_one_utility(utility: &str) -> stillwind_core::CompileResult {
     Compiler::compile_react(
         &SourceFile::new(
@@ -345,6 +444,57 @@ fn matches_tailwind_fixture_rules_after_minification() {
             minify_css(&actual),
             minify_css(&expected),
             "{fixture_name}: {candidate}"
+        );
+    }
+}
+
+#[test]
+fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
+    let fixture = include_str!("../../../fixtures/tailwind-v4/cases/variant-order.fixture.md");
+    for case_name in [
+        "variant-order.states",
+        "variant-order.conditions",
+        "variant-order.mixed",
+    ] {
+        let section = fixture_case_named(fixture, case_name);
+        let candidates = fixture_code_block(section, "Candidates", "text")
+            .expect("fixture must provide candidates");
+        let input_css = fixture_code_block(section, "Input CSS", "css")
+            .expect("fixture must provide input CSS");
+        let expected_css = fixture_code_block(section, "Expected CSS", "css")
+            .expect("fixture must provide expected CSS");
+        let component = SourceFile::new(
+            FileId(1),
+            "src/VariantOrder.tsx",
+            format!(
+                "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
+            ),
+        );
+        let result = Compiler::compile_react(
+            &component,
+            &SourceFile::new(FileId(2), "stillwind.css", input_css),
+        );
+        assert!(
+            result.diagnostics.is_empty(),
+            "{case_name}: {:#?}",
+            result.diagnostics
+        );
+        assert_eq!(result.classes.len(), 1, "{case_name}");
+
+        let mut expected = expected_css;
+        for candidate in candidates.split_whitespace() {
+            expected = expected.replace(
+                &format!(".{}", tailwind_class_selector(candidate)),
+                ".CLASS",
+            );
+        }
+        let actual = result
+            .css
+            .replace(&format!(".{}", result.classes[0].class_name), ".CLASS");
+        assert_eq!(
+            class_rule_signatures(&actual),
+            class_rule_signatures(&expected),
+            "Tailwind variant generation order mismatch for {case_name}\nStillwind: {actual}\nTailwind: {expected}"
         );
     }
 }

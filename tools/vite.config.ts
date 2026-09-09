@@ -30,8 +30,7 @@ export default defineConfig({
         command: "node verify-tailwind-v4-value-grammar.ts",
       },
       "tailwind:parity": {
-        command:
-          "cargo test -p stillwind-core --test static_compile matches_tailwind_fixture_rules_after_minification",
+        command: "cargo test -p stillwind-core --test static_compile matches_tailwind_",
       },
       "tailwind:parity:all": {
         command: "node tailwind-parity.mts",

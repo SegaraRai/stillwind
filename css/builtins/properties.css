@@ -865,7 +865,9 @@ The compiler lowers only used `@stillwind-property` definitions to standard
   activation: declared;
 }
 
-/* Arbitrary properties not assigned a family-specific position are emitted
- * after all built-in utilities, matching Tailwind's unknown-property bucket. */
+/*
+Arbitrary properties not assigned a family-specific position are emitted
+after all built-in utilities, matching Tailwind's unknown-property bucket.
+*/
 @stillwind-arbitrary-property --tw-*;
 @stillwind-arbitrary-property *;

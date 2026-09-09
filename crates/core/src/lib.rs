@@ -1618,9 +1618,21 @@ fn emit_utility_rules(
         }
     }
     emit_base_utility_group(output, class_name, &plain, theme);
-    for utility in utilities.iter().copied().filter(|utility| {
-        !utility.variants.is_empty() || utility.selector.is_some() || utility.container.is_some()
-    }) {
+    let mut variant_utilities = utilities
+        .iter()
+        .copied()
+        .filter(|utility| {
+            !utility.variants.is_empty()
+                || utility.selector.is_some()
+                || utility.container.is_some()
+        })
+        .collect::<Vec<_>>();
+    variant_utilities.sort_by(|left, right| {
+        stillwind_tailwind::compare_variant_sequences(&left.variants, &right.variants, theme)
+            .then_with(|| left.builtin_order.cmp(&right.builtin_order))
+            .then_with(|| left.candidate.cmp(&right.candidate))
+    });
+    for utility in variant_utilities {
         let mut declaration = combine_declarations_for_theme(&[utility], theme);
         for nested in utility.nested.iter().filter(|nested| nested.inside) {
             insert_nested_declaration(&mut declaration, nested);

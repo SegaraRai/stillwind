@@ -5,14 +5,15 @@
 //! CSS-first theme into standard CSS declarations and wrappers.
 
 use std::{
+    cmp::Ordering,
     collections::{BTreeSet, HashMap},
     fmt::Write,
     sync::OnceLock,
 };
 
 use stillwind_css::{
-    CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueDomain, ValueType,
-    shadow_with_color_fallback, shadow_with_color_override,
+    BuiltinVariantSortDirection, CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace,
+    ValueDomain, ValueType, shadow_with_color_fallback, shadow_with_color_override,
 };
 use stillwind_grammar::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -138,9 +139,10 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../css/builtins/motion-utilities.css"),
     include_str!("../../../css/builtins/interactivity-utilities.css"),
     include_str!("../../../css/builtins/svg-utilities.css"),
-    include_str!("../../../css/builtins/state-variants.css"),
-    include_str!("../../../css/builtins/structural-variants.css"),
     include_str!("../../../css/builtins/relationship-variants.css"),
+    include_str!("../../../css/builtins/structural-variants.css"),
+    include_str!("../../../css/builtins/state-variants.css"),
+    include_str!("../../../css/builtins/dynamic-selector-variants.css"),
     include_str!("../../../css/builtins/conditional-variants.css"),
     include_str!("../../../css/builtins/properties.css"),
 );
@@ -207,6 +209,195 @@ fn builtin_variants() -> &'static [CustomVariant] {
     VARIANTS
         .get_or_init(|| stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS))
         .as_slice()
+}
+
+fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
+    builtin_variants()
+        .iter()
+        .filter_map(|variant| {
+            if variant.name == value {
+                return Some((usize::MAX, variant));
+            }
+            variant
+                .name
+                .strip_suffix('*')
+                .filter(|prefix| !prefix.is_empty() && value.starts_with(prefix))
+                .map(|prefix| (prefix.len(), variant))
+        })
+        .max_by_key(|(specificity, _)| *specificity)
+        .map(|(_, variant)| variant)
+}
+
+fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
+    ThemeNamespace::parse(key.strip_prefix("--")?.strip_suffix("-*")?)
+}
+
+fn bare_builtin_variant(value: &str, theme: &ThemeIndex) -> Option<&'static CustomVariant> {
+    builtin_variants().iter().find(|variant| {
+        let Some(sort) = variant.sort.as_ref().filter(|sort| sort.bare) else {
+            return false;
+        };
+        let Some(namespace) = sort.key.as_deref().and_then(variant_sort_namespace) else {
+            return false;
+        };
+        let name = match namespace {
+            ThemeNamespace::Container => value.strip_prefix('@').unwrap_or(value),
+            _ => value,
+        };
+        theme.token_in(namespace, name).is_some()
+    })
+}
+
+fn builtin_variant_for_order(
+    variant: &Variant,
+    theme: &ThemeIndex,
+) -> Option<&'static CustomVariant> {
+    let VariantKind::Named(value) = &variant.kind else {
+        return None;
+    };
+    direct_builtin_variant(value).or_else(|| bare_builtin_variant(value, theme))
+}
+
+fn variant_group(variant: &CustomVariant) -> &str {
+    variant
+        .sort
+        .as_ref()
+        .and_then(|sort| sort.group.as_deref())
+        .unwrap_or(&variant.name)
+}
+
+fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
+    let Some(variant) = builtin_variant_for_order(variant, theme) else {
+        return usize::MAX;
+    };
+    let group = variant_group(variant);
+    builtin_variants()
+        .iter()
+        .filter(|candidate| variant_group(candidate) == group)
+        .filter_map(|candidate| candidate.builtin_order)
+        .min()
+        .unwrap_or(usize::MAX)
+}
+
+fn width_condition(application: &VariantApplication) -> Option<&str> {
+    let condition = match application {
+        VariantApplication::Media(condition)
+        | VariantApplication::Container(condition)
+        | VariantApplication::SelectorMedia { condition, .. }
+        | VariantApplication::SelectorMediaRule { condition, .. } => condition.as_str(),
+        _ => return None,
+    };
+    let condition = condition.strip_prefix("(width ")?.strip_suffix(')')?;
+    if let Some(value) = condition.strip_prefix(">= ") {
+        Some(value)
+    } else {
+        condition.strip_prefix("< ")
+    }
+}
+
+fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
+    let split = value
+        .find(|character: char| !character.is_ascii_digit() && character != '.')
+        .unwrap_or(value.len());
+    let (number, unit) = value.split_at(split);
+    Some((number.parse().ok()?, unit))
+}
+
+fn compare_width_values(
+    left: &str,
+    right: &str,
+    direction: BuiltinVariantSortDirection,
+) -> Ordering {
+    match (numeric_dimension(left), numeric_dimension(right)) {
+        (Some((left_number, left_unit)), Some((right_number, right_unit))) => {
+            left_unit.cmp(right_unit).then_with(|| {
+                let order = left_number.total_cmp(&right_number);
+                match direction {
+                    BuiltinVariantSortDirection::Ascending => order,
+                    BuiltinVariantSortDirection::Descending => order.reverse(),
+                }
+            })
+        }
+        _ => left.cmp(right),
+    }
+}
+
+fn compare_variants_in_group(left: &Variant, right: &Variant, theme: &ThemeIndex) -> Ordering {
+    if let (Some(left_inner), Some(right_inner)) =
+        (compound_inner_variant(left), compound_inner_variant(right))
+    {
+        let comparison = compare_variant_sequences(&[left_inner], &[right_inner], theme);
+        if comparison != Ordering::Equal {
+            return comparison;
+        }
+    }
+    let direction = builtin_variant_for_order(left, theme)
+        .and_then(|variant| variant.sort.as_ref())
+        .and_then(|sort| sort.direction);
+    let left_application = resolve_variant(left, theme);
+    let right_application = resolve_variant(right, theme);
+    if let Some(direction) = direction
+        && let (Some(left), Some(right)) = (left_application.as_ref(), right_application.as_ref())
+        && let (Some(left_value), Some(right_value)) =
+            (width_condition(left), width_condition(right))
+    {
+        return compare_width_values(left_value, right_value, direction)
+            .then_with(|| left_value.cmp(right_value));
+    }
+    left.raw.cmp(&right.raw)
+}
+
+fn compound_inner_variant(variant: &Variant) -> Option<Variant> {
+    let VariantKind::Named(value) = &variant.kind else {
+        return None;
+    };
+    let inner = ["not-", "group-", "peer-", "in-", "has-"]
+        .into_iter()
+        .find_map(|prefix| value.strip_prefix(prefix))?;
+    parse_candidate(&format!("{inner}:__variant_order"))?
+        .variants
+        .into_iter()
+        .next()
+}
+
+/// Compares variant stacks using the canonical ordering declared by the
+/// built-in CSS registry. This mirrors Tailwind's order-bit comparison while
+/// leaving utility/property ordering independent.
+#[must_use]
+pub fn compare_variant_sequences(
+    left: &[Variant],
+    right: &[Variant],
+    theme: &ThemeIndex,
+) -> Ordering {
+    let mut left_orders = left
+        .iter()
+        .map(|variant| variant_order(variant, theme))
+        .collect::<Vec<_>>();
+    let mut right_orders = right
+        .iter()
+        .map(|variant| variant_order(variant, theme))
+        .collect::<Vec<_>>();
+    left_orders.sort_unstable_by(|left, right| right.cmp(left));
+    right_orders.sort_unstable_by(|left, right| right.cmp(left));
+    left_orders.dedup();
+    right_orders.dedup();
+    left_orders.cmp(&right_orders).then_with(|| {
+        for order in left_orders {
+            let left_variant = left
+                .iter()
+                .find(|variant| variant_order(variant, theme) == order);
+            let right_variant = right
+                .iter()
+                .find(|variant| variant_order(variant, theme) == order);
+            if let (Some(left_variant), Some(right_variant)) = (left_variant, right_variant) {
+                let comparison = compare_variants_in_group(left_variant, right_variant, theme);
+                if comparison != Ordering::Equal {
+                    return comparison;
+                }
+            }
+        }
+        Ordering::Equal
+    })
 }
 
 /// Compiler-owned property definitions exposed by the built-in CSS entrypoint.
@@ -3952,16 +4143,20 @@ mod tests {
             include_str!("../../../css/builtins/svg-utilities.css"),
         ),
         (
-            "state-variants.css",
-            include_str!("../../../css/builtins/state-variants.css"),
+            "relationship-variants.css",
+            include_str!("../../../css/builtins/relationship-variants.css"),
         ),
         (
             "structural-variants.css",
             include_str!("../../../css/builtins/structural-variants.css"),
         ),
         (
-            "relationship-variants.css",
-            include_str!("../../../css/builtins/relationship-variants.css"),
+            "state-variants.css",
+            include_str!("../../../css/builtins/state-variants.css"),
+        ),
+        (
+            "dynamic-selector-variants.css",
+            include_str!("../../../css/builtins/dynamic-selector-variants.css"),
         ),
         (
             "conditional-variants.css",
