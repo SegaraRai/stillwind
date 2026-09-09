@@ -31,6 +31,15 @@ refactor in a new work session.
     reports the new diagnostics. An initial load or non-watch build has no such
     fallback.
 
+## Rust module layout
+
+Directory-backed modules use `module/mod.rs`, rather than a sibling `module.rs`.
+Keep `lib.rs` and `mod.rs` at 200 lines or fewer, aiming for 100 where a natural
+responsibility split permits it. Other handwritten Rust files stay at 800 lines
+or fewer, preferably 400 where they can be divided naturally. Generated files
+are exempt. Module entry points collect shared types and exports; substantial
+implementation and test support belong in focused sibling files.
+
 ## Architecture
 
 ```text

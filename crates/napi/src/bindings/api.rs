@@ -1,85 +1,9 @@
-//! Node-API surface for running the Stillwind compiler inside Vite.
-
-mod session;
-
-use std::collections::{BTreeMap, BTreeSet};
-
-use napi::{Error, Result};
-use napi_derive::napi;
-use serde::{Deserialize, Serialize};
-use stillwind_core::{CompileResult, Compiler, CompilerOptions, GeneratedClass, GeneratedSymbol};
-use stillwind_core::{
-    DesignSystemSnapshot, Fingerprint, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer, TypeFacts,
+use super::{
+    AssetMetadata, BTreeMap, BTreeSet, BindingDiagnostic, BindingLintFinding, BindingMapping,
+    BindingOutput, CompileResult, Compiler, CompilerOptions, DesignSystemSnapshot, Error, FileId,
+    Fingerprint, IdentityId, ModuleCompiler, OxcSourceAnalyzer, ProjectBindingOutput,
+    ProjectModuleOutput, ProjectSource, Result, SourceAnalyzer, SourceFile, TypeFacts, napi,
 };
-use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
-use stillwind_source::{FileId, SourceFile};
-
-#[derive(Serialize)]
-struct BindingOutput {
-    css: String,
-    code: Option<String>,
-    mappings: Vec<BindingMapping>,
-    classes: Vec<GeneratedClass>,
-    symbols: Vec<GeneratedSymbol>,
-    diagnostics: Vec<BindingDiagnostic>,
-    lint_findings: Vec<BindingLintFinding>,
-    lint_policy: std::collections::BTreeMap<String, String>,
-}
-
-#[derive(Serialize)]
-struct BindingMapping {
-    original_start: u32,
-    original_end: u32,
-    generated_start: u32,
-    generated_end: u32,
-}
-
-#[derive(Deserialize)]
-struct ProjectSource {
-    path: String,
-    source: String,
-    #[serde(default)]
-    type_facts: Vec<TypeFact>,
-}
-
-#[derive(Serialize)]
-struct ProjectBindingOutput {
-    modules: Vec<ProjectModuleOutput>,
-}
-
-#[derive(Serialize)]
-struct ProjectModuleOutput {
-    path: String,
-    #[serde(flatten)]
-    output: BindingOutput,
-}
-
-#[derive(Serialize)]
-struct BindingDiagnostic {
-    code: String,
-    message: String,
-    file: String,
-    start: u32,
-    end: u32,
-    start_utf16: u32,
-    end_utf16: u32,
-    start_line: u32,
-    start_column: u32,
-    end_line: u32,
-    end_column: u32,
-    notes: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct BindingLintFinding {
-    rule: String,
-    message: String,
-    file: String,
-    start: u32,
-    end: u32,
-    notes: Vec<String>,
-}
-
 /// Compiles a source buffer and returns the serializable compiler result.
 ///
 /// Kept independent of Node-API so the same contract has an ordinary Rust E2E
@@ -108,7 +32,11 @@ pub fn compile_react_json_with_options(
     serde_json::to_string(&binding_output(result, &source, &theme))
 }
 
-fn binding_output(result: CompileResult, source: &SourceFile, theme: &SourceFile) -> BindingOutput {
+pub(super) fn binding_output(
+    result: CompileResult,
+    source: &SourceFile,
+    theme: &SourceFile,
+) -> BindingOutput {
     let code = result.apply_to_source(source).ok();
     let mut transforms = result.transforms.iter().collect::<Vec<_>>();
     transforms.sort_by_key(|transform| transform.call_span.start.0);
@@ -362,7 +290,7 @@ pub fn render_react_stylesheet(
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
-fn parse_options(options_json: Option<&str>) -> Result<CompilerOptions> {
+pub(super) fn parse_options(options_json: Option<&str>) -> Result<CompilerOptions> {
     let options = options_json.map_or_else(
         || Ok(CompilerOptions::default()),
         |value| serde_json::from_str(value).map_err(|error| Error::from_reason(error.to_string())),

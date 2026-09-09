@@ -27,3 +27,7 @@ blake3.workspace = true
 
 [lints]
 workspace = true
+
+[[test]]
+name = "static_compile"
+path = "tests/static_compile/mod.rs"

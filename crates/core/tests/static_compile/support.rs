@@ -1,13 +1,6 @@
-use lightningcss::{
-    printer::PrinterOptions,
-    stylesheet::{ParserOptions, StyleSheet},
-};
-use proptest::prelude::*;
-use std::{fs, path::Path};
-use stillwind_core::Compiler;
-use stillwind_source::{FileId, SourceFile};
+use super::*;
 
-fn fixture_candidates(fixture: &str, case_name: &str) -> String {
+pub(super) fn fixture_candidates(fixture: &str, case_name: &str) -> String {
     let case_start = fixture
         .find(&format!("## `{case_name}`"))
         .expect("fixture case must exist");
@@ -25,13 +18,13 @@ fn fixture_candidates(fixture: &str, case_name: &str) -> String {
         .join(" ")
 }
 
-fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<String> {
+pub(super) fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<String> {
     let marker = format!("### {heading}\n\n```{language}\n");
     let start = section.find(&marker)? + marker.len();
     Some(section[start..].split_once("\n```")?.0.trim().to_owned())
 }
 
-fn fixture_case_for_candidate<'a>(fixture: &'a str, candidate: &str) -> &'a str {
+pub(super) fn fixture_case_for_candidate<'a>(fixture: &'a str, candidate: &str) -> &'a str {
     fixture
         .split("## `")
         .skip(1)
@@ -45,7 +38,7 @@ fn fixture_case_for_candidate<'a>(fixture: &'a str, candidate: &str) -> &'a str 
         .unwrap_or_else(|| panic!("fixture case for `{candidate}` must exist"))
 }
 
-fn fixture_case_named<'a>(fixture: &'a str, name: &str) -> &'a str {
+pub(super) fn fixture_case_named<'a>(fixture: &'a str, name: &str) -> &'a str {
     fixture
         .split("## `")
         .skip(1)
@@ -53,7 +46,7 @@ fn fixture_case_named<'a>(fixture: &'a str, name: &str) -> &'a str {
         .unwrap_or_else(|| panic!("fixture case `{name}` must exist"))
 }
 
-fn css_rule(css: &str, class_name: &str) -> String {
+pub(super) fn css_rule(css: &str, class_name: &str) -> String {
     let selector = format!(".{class_name}");
     let start = css
         .find(&selector)
@@ -78,13 +71,13 @@ fn css_rule(css: &str, class_name: &str) -> String {
     panic!("CSS rule must close");
 }
 
-fn normalize_css(css: &str) -> String {
+pub(super) fn normalize_css(css: &str) -> String {
     css.chars()
         .filter(|character| !character.is_whitespace())
         .collect()
 }
 
-fn skip_css_trivia(css: &str, mut cursor: usize) -> usize {
+pub(super) fn skip_css_trivia(css: &str, mut cursor: usize) -> usize {
     loop {
         while css[cursor..]
             .chars()
@@ -103,7 +96,7 @@ fn skip_css_trivia(css: &str, mut cursor: usize) -> usize {
     }
 }
 
-fn closing_css_brace(css: &str, open: usize) -> usize {
+pub(super) fn closing_css_brace(css: &str, open: usize) -> usize {
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;
@@ -133,7 +126,7 @@ fn closing_css_brace(css: &str, open: usize) -> usize {
     panic!("CSS block must close");
 }
 
-fn collect_class_rule_signatures(
+pub(super) fn collect_class_rule_signatures(
     css: &str,
     contexts: &mut Vec<String>,
     signatures: &mut Vec<String>,
@@ -177,13 +170,13 @@ fn collect_class_rule_signatures(
     }
 }
 
-fn class_rule_signatures(css: &str) -> Vec<String> {
+pub(super) fn class_rule_signatures(css: &str) -> Vec<String> {
     let mut signatures = Vec::new();
     collect_class_rule_signatures(css, &mut Vec::new(), &mut signatures);
     signatures
 }
 
-fn compile_one_utility(utility: &str) -> stillwind_core::CompileResult {
+pub(super) fn compile_one_utility(utility: &str) -> stillwind_core::CompileResult {
     Compiler::compile_react(
         &SourceFile::new(
             FileId(91),
@@ -200,7 +193,7 @@ fn compile_one_utility(utility: &str) -> stillwind_core::CompileResult {
     )
 }
 
-fn tailwind_class_selector(candidate: &str) -> String {
+pub(super) fn tailwind_class_selector(candidate: &str) -> String {
     candidate
         .chars()
         .flat_map(|character| match character {
@@ -211,7 +204,7 @@ fn tailwind_class_selector(candidate: &str) -> String {
         .collect()
 }
 
-fn minify_css(css: &str) -> String {
+pub(super) fn minify_css(css: &str) -> String {
     let sheet = StyleSheet::parse(css, ParserOptions::default()).expect("CSS must parse");
     sheet
         .to_css(PrinterOptions {
@@ -221,22 +214,3 @@ fn minify_css(css: &str) -> String {
         .expect("CSS must serialize")
         .code
 }
-
-#[path = "static_compile/acceptance.rs"]
-mod acceptance;
-#[path = "static_compile/motion.rs"]
-mod motion;
-#[path = "static_compile/numeric.rs"]
-mod numeric;
-#[path = "static_compile/parity.rs"]
-mod parity;
-#[path = "static_compile/react.rs"]
-mod react;
-#[path = "static_compile/refs.rs"]
-mod refs;
-#[path = "static_compile/theme.rs"]
-mod theme;
-#[path = "static_compile/utilities.rs"]
-mod utilities;
-#[path = "static_compile/variants.rs"]
-mod variants;
