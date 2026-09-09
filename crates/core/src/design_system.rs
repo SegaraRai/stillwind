@@ -51,6 +51,11 @@ struct DesignSystemData {
     config: CompilerOptions,
     fingerprints: DefinitionFingerprints,
     sources: crate::CssSourceGraph,
+    utilities: crate::UtilityRegistry,
+    variants: crate::VariantRegistry,
+    properties: crate::PropertyRegistry,
+    tokens: crate::ThemeRegistry,
+    builtins: Option<Arc<stillwind_tailwind::BuiltinDefinitions>>,
 }
 
 impl DesignSystemSnapshot {
@@ -73,6 +78,7 @@ impl DesignSystemSnapshot {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // Resolve and fingerprint one immutable set of semantic registries.
     pub(crate) fn from_loaded_theme(
         theme: ThemeIndex,
         mut config: CompilerOptions,
@@ -93,6 +99,61 @@ impl DesignSystemSnapshot {
             stillwind_tailwind::builtin_theme_order()
         ));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
+        let builtins = theme
+            .imports
+            .builtins
+            .then(stillwind_tailwind::builtin_definitions);
+        let utility_registry =
+            crate::UtilityRegistry::new(
+                builtins
+                    .iter()
+                    .flat_map(|definitions| {
+                        definitions.utilities.iter().map(|definition| {
+                            (definition.name.clone(), Arc::new(definition.clone()))
+                        })
+                    })
+                    .chain(
+                        theme.utilities.iter().map(|definition| {
+                            (definition.name.clone(), Arc::new(definition.clone()))
+                        }),
+                    ),
+            );
+        let variant_registry =
+            crate::VariantRegistry::new(
+                builtins
+                    .iter()
+                    .flat_map(|definitions| {
+                        definitions.variants.iter().map(|definition| {
+                            (definition.name.clone(), Arc::new(definition.clone()))
+                        })
+                    })
+                    .chain(
+                        theme.variants.iter().map(|definition| {
+                            (definition.name.clone(), Arc::new(definition.clone()))
+                        }),
+                    ),
+            );
+        let property_registry =
+            crate::PropertyRegistry::new(
+                builtins
+                    .iter()
+                    .flat_map(|definitions| {
+                        definitions.properties.iter().map(|definition| {
+                            (definition.name.clone(), Arc::new(definition.clone()))
+                        })
+                    })
+                    .chain(
+                        theme.properties.iter().map(|definition| {
+                            (definition.name.clone(), Arc::new(definition.clone()))
+                        }),
+                    ),
+            );
+        let token_registry = crate::ThemeRegistry::new(
+            theme
+                .active_tokens()
+                .iter()
+                .map(|token| (token.name.value.clone(), Arc::new((*token).clone()))),
+        );
         let theme_tokens = theme
             .tokens
             .iter()
@@ -103,36 +164,6 @@ impl DesignSystemSnapshot {
                         "{:?}:{:?}:{}",
                         token.kind, token.mode, token.value.value
                     )),
-                )
-            })
-            .collect();
-        let utilities = theme
-            .utilities
-            .iter()
-            .map(|definition| {
-                (
-                    definition.name.clone(),
-                    Fingerprint::of(format!("{definition:?}")),
-                )
-            })
-            .collect();
-        let variants = theme
-            .variants
-            .iter()
-            .map(|definition| {
-                (
-                    definition.name.clone(),
-                    Fingerprint::of(format!("{definition:?}")),
-                )
-            })
-            .collect();
-        let properties = theme
-            .properties
-            .iter()
-            .map(|definition| {
-                (
-                    definition.name.clone(),
-                    Fingerprint::of(format!("{definition:?}")),
                 )
             })
             .collect();
@@ -156,11 +187,26 @@ impl DesignSystemSnapshot {
             theme.authored_properties,
             theme.custom_css
         ));
+        let content = Fingerprint::of(format!(
+            "{}|{}",
+            content.0,
+            builtins
+                .as_ref()
+                .map_or("", |definitions| definitions.source)
+        ));
+        let utilities = utility_registry.fingerprints();
+        let variants = variant_registry.fingerprints();
+        let properties = property_registry.fingerprints();
         Ok(Self {
             inner: Arc::new(DesignSystemData {
                 revision: DesignSystemRevision(NEXT_REVISION.fetch_add(1, Ordering::Relaxed)),
                 theme,
                 sources,
+                utilities: utility_registry,
+                variants: variant_registry,
+                properties: property_registry,
+                tokens: token_registry,
+                builtins,
                 config,
                 fingerprints: DefinitionFingerprints {
                     content,
@@ -187,6 +233,21 @@ impl DesignSystemSnapshot {
     }
     pub fn sources(&self) -> &crate::CssSourceGraph {
         &self.inner.sources
+    }
+    pub fn utilities(&self) -> &crate::UtilityRegistry {
+        &self.inner.utilities
+    }
+    pub fn variants(&self) -> &crate::VariantRegistry {
+        &self.inner.variants
+    }
+    pub fn properties(&self) -> &crate::PropertyRegistry {
+        &self.inner.properties
+    }
+    pub fn tokens(&self) -> &crate::ThemeRegistry {
+        &self.inner.tokens
+    }
+    pub fn builtins(&self) -> Option<&Arc<stillwind_tailwind::BuiltinDefinitions>> {
+        self.inner.builtins.as_ref()
     }
     pub(crate) fn theme(&self) -> &ThemeIndex {
         &self.inner.theme

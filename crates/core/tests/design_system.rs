@@ -122,3 +122,27 @@ fn snapshot_validates_css_resolved_configuration() {
             .is_err()
     );
 }
+
+#[test]
+fn resolved_registries_include_selected_builtins_and_authored_overloads() {
+    let snapshot = DesignSystemSnapshot::from_source(
+        &SourceFile::new(
+            FileId(1),
+            "root",
+            "@utility custom { color: red; } @utility custom { background: blue; }",
+        ),
+        CompilerOptions::default(),
+    )
+    .unwrap();
+    assert!(snapshot.utilities().get("flex").is_some());
+    assert_eq!(snapshot.utilities().get("custom").unwrap().len(), 2);
+    assert!(snapshot.fingerprints().utilities.contains_key("flex"));
+    assert!(snapshot.builtins().is_some());
+    let unselected = DesignSystemSnapshot::from_source(
+        &SourceFile::new(FileId(1), "root", "@import 'stillwind/theme.css';"),
+        CompilerOptions::default(),
+    )
+    .unwrap();
+    assert!(unselected.builtins().is_none());
+    assert!(unselected.utilities().get("flex").is_none());
+}

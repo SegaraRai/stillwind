@@ -8,7 +8,7 @@ use std::{
     cmp::Ordering,
     collections::{BTreeMap, BTreeSet, HashMap},
     fmt::Write,
-    sync::OnceLock,
+    sync::{Arc, OnceLock},
 };
 
 use stillwind_css::{
@@ -147,6 +147,27 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../css/builtins/properties.css"),
     include_str!("../../../css/builtins.css"),
 );
+
+/// Process-wide immutable definitions retained by each selected design system.
+#[derive(Debug)]
+pub struct BuiltinDefinitions {
+    pub utilities: Vec<CustomUtility>,
+    pub variants: Vec<CustomVariant>,
+    pub properties: Vec<stillwind_css::CustomPropertyDefinition>,
+    pub source: &'static str,
+}
+
+pub fn builtin_definitions() -> Arc<BuiltinDefinitions> {
+    static DEFINITIONS: OnceLock<Arc<BuiltinDefinitions>> = OnceLock::new();
+    Arc::clone(DEFINITIONS.get_or_init(|| {
+        Arc::new(BuiltinDefinitions {
+            utilities: stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS),
+            variants: stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS),
+            properties: builtin_property_definitions().to_vec(),
+            source: BUILTIN_REGISTRY_CSS,
+        })
+    }))
+}
 
 struct BuiltinUtilityRegistry {
     builtin_exact: HashMap<String, Vec<CustomUtility>>,
@@ -455,9 +476,10 @@ pub fn builtin_property_definitions() -> &'static [stillwind_css::CustomProperty
 
 #[must_use]
 pub fn builtin_utility_names() -> Vec<String> {
-    stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS)
-        .into_iter()
-        .map(|utility| utility.name)
+    builtin_definitions()
+        .utilities
+        .iter()
+        .map(|utility| utility.name.clone())
         .collect()
 }
 
@@ -483,9 +505,10 @@ pub fn builtin_utility_token_prefixes() -> Vec<(String, String)> {
 
 #[must_use]
 pub fn builtin_variant_names() -> Vec<String> {
-    stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS)
-        .into_iter()
-        .map(|variant| variant.name)
+    builtin_definitions()
+        .variants
+        .iter()
+        .map(|variant| variant.name.clone())
         .collect()
 }
 

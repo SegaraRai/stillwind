@@ -2,6 +2,7 @@
 use std::collections::BTreeSet;
 
 use cssparser::{Parser, ParserInput, Token};
+use stillwind_ir::StyleInput;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
 use crate::{
@@ -184,6 +185,24 @@ impl ModuleCompiler {
         };
         let theme = self.design_system.theme();
         let dependencies = CompilationDependencies {
+            candidates: module
+                .ir
+                .style_calls
+                .iter()
+                .flat_map(|call| &call.inputs)
+                .filter_map(|input| match input {
+                    StyleInput::UtilityString(value)
+                    | StyleInput::ConditionalUtilityString { value, .. }
+                    | StyleInput::SelectorUtilityString { value, .. }
+                    | StyleInput::ConditionalSelectorUtilityString { value, .. }
+                    | StyleInput::HandleSelectorUtilityString { value, .. }
+                    | StyleInput::ConditionalHandleSelectorUtilityString { value, .. }
+                    | StyleInput::ContainerQuery { value, .. } => Some(value.value.as_str()),
+                    _ => None,
+                })
+                .flat_map(str::split_whitespace)
+                .map(str::to_owned)
+                .collect(),
             // Conservative definition dependencies are safe for full invalidation.
             theme_tokens: theme
                 .tokens_required_by(&result.module_css, false)
@@ -217,12 +236,16 @@ impl ModuleCompiler {
                 .iter()
                 .map(|asset| format!("{:?}", asset.identity))
                 .collect(),
-            ..CompilationDependencies::default()
         };
         let success = diagnostics.is_empty();
         CompiledModule {
             key: ModuleArtifactKey {
-                compiler_version: env!("CARGO_PKG_VERSION").into(),
+                compiler_version: concat!(
+                    env!("CARGO_PKG_VERSION"),
+                    "+",
+                    env!("STILLWIND_COMPILER_FINGERPRINT")
+                )
+                .into(),
                 design_system: self.design_system.fingerprints().content.clone(),
                 source_revision: module.source_revision.clone(),
                 module_id: module.module_id.clone(),

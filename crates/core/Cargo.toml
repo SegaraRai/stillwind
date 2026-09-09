@@ -22,5 +22,8 @@ stillwind-source = { path = "../source" }
 lightningcss.workspace = true
 proptest.workspace = true
 
+[build-dependencies]
+blake3.workspace = true
+
 [lints]
 workspace = true
