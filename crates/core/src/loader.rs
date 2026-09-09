@@ -2,7 +2,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cssparser::{Parser, ParserInput, Token};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceFile, Span};
 
 use crate::{CompilerOptions, DesignSystemSnapshot};
 
@@ -45,6 +45,57 @@ pub struct CssSourceEdge {
 pub struct CssSourceGraph {
     pub sources: Vec<CssSource>,
     pub edges: Vec<CssSourceEdge>,
+    pub mappings: Vec<CssSourceMapping>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CssSourceMapping {
+    pub generated: std::ops::Range<usize>,
+    pub file: FileId,
+    pub source_start: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ExpandedSource {
+    text: String,
+    mappings: Vec<CssSourceMapping>,
+}
+
+impl ExpandedSource {
+    fn append_source(&mut self, source: &SourceFile, range: std::ops::Range<usize>) {
+        let start = self.text.len();
+        self.text.push_str(&source.text()[range.clone()]);
+        self.mappings.push(CssSourceMapping {
+            generated: start..self.text.len(),
+            file: source.id(),
+            source_start: range.start,
+        });
+    }
+    fn append(&mut self, other: &Self) {
+        let offset = self.text.len();
+        self.text.push_str(&other.text);
+        self.mappings
+            .extend(other.mappings.iter().map(|mapping| CssSourceMapping {
+                generated: mapping.generated.start + offset..mapping.generated.end + offset,
+                file: mapping.file,
+                source_start: mapping.source_start,
+            }));
+    }
+    fn original_span(&self, span: Span) -> Option<Span> {
+        let start = span.start.0 as usize;
+        let end = span.end.0 as usize;
+        self.mappings
+            .iter()
+            .find(|mapping| mapping.generated.start <= start && end <= mapping.generated.end)
+            .map(|mapping| {
+                let start = mapping.source_start + start - mapping.generated.start;
+                Span::new(
+                    mapping.file,
+                    u32::try_from(start).expect("source offset"),
+                    u32::try_from(start + span.len() as usize).expect("source offset"),
+                )
+            })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -90,7 +141,7 @@ struct Frame {
     imports: Vec<Import>,
     next: usize,
     cursor: usize,
-    output: String,
+    output: ExpandedSource,
 }
 
 /// One outstanding request; dropping this value cancels the load.
@@ -98,7 +149,7 @@ pub struct DesignSystemLoader {
     options: DesignSystemOptions,
     graph: CssSourceGraph,
     known: BTreeMap<CssSourceName, usize>,
-    expanded: BTreeMap<CssSourceName, String>,
+    expanded: BTreeMap<CssSourceName, ExpandedSource>,
     stack: Vec<Frame>,
     pending: Option<CssFileRequest>,
     terminal: bool,
@@ -162,7 +213,7 @@ impl DesignSystemLoader {
                 return Err(DesignSystemLoadError::Cycle { chain });
             }
             if let Some(parent) = self.stack.last_mut() {
-                parent.output.push_str(&self.expanded[&name]);
+                parent.output.append(&self.expanded[&name]);
             }
         } else {
             let imports =
@@ -193,7 +244,7 @@ impl DesignSystemLoader {
                 imports,
                 next: 0,
                 cursor: 0,
-                output: String::new(),
+                output: ExpandedSource::default(),
             });
         }
         if let Some(request) = request {
@@ -211,7 +262,7 @@ impl DesignSystemLoader {
             if let Some(import) = frame.imports.get(frame.next) {
                 frame
                     .output
-                    .push_str(&source.text()[frame.cursor..import.start]);
+                    .append_source(source, frame.cursor..import.start);
                 frame.cursor = import.end;
                 frame.next += 1;
                 let request = CssFileRequest {
@@ -222,19 +273,36 @@ impl DesignSystemLoader {
                 self.pending = Some(request.clone());
                 return Ok(DesignSystemLoadStep::NeedFile(request));
             }
-            frame.output.push_str(&source.text()[frame.cursor..]);
+            frame
+                .output
+                .append_source(source, frame.cursor..source.text().len());
             let frame = self.stack.pop().expect("active frame");
             if let Some(parent) = self.stack.last_mut() {
-                parent.output.push_str(&frame.output);
+                parent.output.append(&frame.output);
                 self.expanded.insert(frame.name, frame.output);
             } else {
-                let source = SourceFile::new(FileId(0), frame.name.0.clone(), frame.output);
-                let theme = stillwind_css::parse_tailwind_theme(&source).map_err(|error| {
+                let source = SourceFile::new(
+                    FileId(u32::MAX),
+                    frame.name.0.clone(),
+                    frame.output.text.as_str(),
+                );
+                let mut theme = stillwind_css::parse_tailwind_theme(&source).map_err(|error| {
                     DesignSystemLoadError::InvalidCss {
                         source: frame.name.clone(),
                         message: error.to_string(),
                     }
                 })?;
+                for token in &mut theme.tokens {
+                    if token.name.span.file == source.id() {
+                        if let Some(span) = frame.output.original_span(token.name.span) {
+                            token.name.span = span;
+                        }
+                        if let Some(span) = frame.output.original_span(token.value.span) {
+                            token.value.span = span;
+                        }
+                    }
+                }
+                self.graph.mappings = frame.output.mappings;
                 let snapshot = DesignSystemSnapshot::from_loaded_theme(
                     theme,
                     self.options.clone(),

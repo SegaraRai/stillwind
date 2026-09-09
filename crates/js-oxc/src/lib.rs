@@ -1,7 +1,8 @@
 //! Oxc-backed JS/TS/JSX parsing and the first import-bound `style()` extractor.
 
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     path::Path,
 };
 
@@ -32,6 +33,7 @@ use stillwind_source::{CompileError, LintFinding, SourceFile, Span, Spanned};
 
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
+    pub type_probes: Vec<Span>,
     pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
     pub module: ModuleIr,
@@ -83,6 +85,12 @@ pub fn parse_with_type_facts(
     }
 
     ParsedJavaScript {
+        type_probes: extractor
+            .type_probes
+            .into_inner()
+            .into_iter()
+            .map(|(start, end)| Span::new(source.id(), start, end))
+            .collect(),
         diagnostics,
         lint_findings,
         summary,
@@ -132,6 +140,7 @@ struct MacroExtractor<'a> {
     re_exports: Vec<ReExport>,
     export_symbols: Vec<(SymbolId, String)>,
     type_facts: HashMap<(u32, u32), ExportedValue>,
+    type_probes: RefCell<BTreeSet<(u32, u32)>>,
     imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }
 
@@ -183,6 +192,7 @@ impl<'a> MacroExtractor<'a> {
                 .map(|fact| ((fact.start, fact.end), fact.value.clone()))
                 .collect(),
             imported_assets,
+            type_probes: RefCell::default(),
         }
     }
 
@@ -357,6 +367,7 @@ impl<'a> MacroExtractor<'a> {
 
     fn handle_references(&self, expression: &Expression<'a>) -> Option<Vec<HandleDefinition>> {
         let span = expression.span();
+        self.type_probes.borrow_mut().insert((span.start, span.end));
         if let Some(ExportedValue::Refs(alternatives)) =
             self.type_facts.get(&(span.start, span.end))
         {
@@ -403,6 +414,7 @@ impl<'a> MacroExtractor<'a> {
 
     fn scope_references(&self, expression: &Expression<'a>) -> Option<Vec<ScopeDefinition>> {
         let span = expression.span();
+        self.type_probes.borrow_mut().insert((span.start, span.end));
         if let Some(ExportedValue::Scopes(value)) = self.type_facts.get(&(span.start, span.end)) {
             return value
                 .finite_candidates()?
@@ -442,6 +454,7 @@ impl<'a> MacroExtractor<'a> {
 
     fn animation_references(&self, expression: &Expression<'a>) -> Option<Vec<AssetReference>> {
         let span = expression.span();
+        self.type_probes.borrow_mut().insert((span.start, span.end));
         if let Some(ExportedValue::Animations(value)) = self.type_facts.get(&(span.start, span.end))
         {
             return value
@@ -467,6 +480,7 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
     ) -> Option<Vec<AssetReference>> {
         let span = expression.span();
+        self.type_probes.borrow_mut().insert((span.start, span.end));
         if let Some(ExportedValue::ViewTransitions(value)) =
             self.type_facts.get(&(span.start, span.end))
         {

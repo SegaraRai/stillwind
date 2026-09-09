@@ -33,3 +33,18 @@ fn analysis_is_design_system_independent_and_rejects_stale_facts() {
     assert_eq!(accepted.semantic_revision, Some(facts.semantic_revision));
     assert_eq!(accepted.ir, local.ir);
 }
+
+#[test]
+fn scan_reports_expression_probes_for_non_local_asset_values() {
+    let source = Arc::new(SourceFile::new(
+        FileId(1),
+        "consumer.tsx",
+        "import { style } from 'stillwind/react'; import { target } from './producer'; const x = style(target);",
+    ));
+    let scan = OxcSourceAnalyzer.scan(source.clone());
+    assert!(
+        scan.type_probes
+            .iter()
+            .any(|probe| source.slice(probe.span).unwrap() == "target")
+    );
+}

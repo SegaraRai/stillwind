@@ -19,8 +19,9 @@ pub use design_system::{
     DefinitionFingerprints, DesignSystemRevision, DesignSystemSnapshot, Fingerprint,
 };
 pub use loader::{
-    CssDependencyKind, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph, CssSourceName,
-    DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
+    CssDependencyKind, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph, CssSourceMapping,
+    CssSourceName, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
+    DesignSystemOptions,
 };
 
 use std::{
@@ -207,7 +208,8 @@ impl Compiler {
     pub fn read_theme(
         source: &SourceFile,
     ) -> Result<stillwind_css::ThemeIndex, stillwind_css::ThemeError> {
-        stillwind_css::parse_tailwind_theme(source)
+        DesignSystemSnapshot::from_source(source, CompilerOptions::default())
+            .map(|snapshot| snapshot.theme().clone())
     }
 
     /// Generates a module augmentation containing the theme-backed utility vocabulary.
@@ -312,7 +314,22 @@ impl Compiler {
                 };
             }
         };
-        Self::compile_with_snapshot(source, parsed, &snapshot)
+        let analysis = ModuleAnalysis {
+            module_id: source.path().into(),
+            source: std::sync::Arc::new(source.clone()),
+            source_revision: Fingerprint::of(source.text()),
+            ir: parsed.module,
+            summary: parsed.summary,
+            lint_directives: stillwind_source::collect_lint_directives(source.text()),
+            diagnostics: parsed.diagnostics,
+            lint_findings: parsed.lint_findings,
+            semantic_revision: None,
+            integration_diagnostics: Vec::new(),
+            frontend_kind: "oxc".into(),
+        };
+        ModuleCompiler::new(snapshot.clone())
+            .compile(&analysis)
+            .to_legacy(&snapshot)
     }
 
     #[allow(clippy::too_many_lines)]

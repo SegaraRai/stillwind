@@ -146,3 +146,31 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     assert!(unselected.builtins().is_none());
     assert!(unselected.utilities().get("flex").is_none());
 }
+
+#[test]
+fn imported_token_spans_refer_to_the_original_supplied_buffer() {
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+    loader.provide(
+        "root".into(),
+        "@import 'child'; @theme { --color-root: red; }".into(),
+    );
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+        "child id".into(),
+        "/* 日本語 */ @theme { --color-child: blue; }".into(),
+    ) else {
+        panic!("expected snapshot")
+    };
+    let token = &snapshot.tokens().get("--color-child").unwrap()[0];
+    let child = snapshot
+        .sources()
+        .sources
+        .iter()
+        .find(|source| source.name.0.as_ref() == "child id")
+        .unwrap();
+    assert_eq!(
+        child.source.slice(token.name.span).unwrap(),
+        "--color-child"
+    );
+    assert_eq!(child.source.slice(token.value.span).unwrap(), "blue");
+    assert!(!snapshot.sources().mappings.is_empty());
+}

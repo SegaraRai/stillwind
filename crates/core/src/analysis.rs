@@ -92,10 +92,9 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             module_id: source.path().to_owned(),
             source_revision: Fingerprint::of(source.text()),
             type_probes: parsed
-                .module
-                .style_calls
-                .iter()
-                .map(|call| TypeProbe { span: call.span })
+                .type_probes
+                .into_iter()
+                .map(|span| TypeProbe { span })
                 .collect(),
             lint_directives: collect_lint_directives(source.text()),
             source,
@@ -168,6 +167,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
 impl ModuleAnalysis {
     pub(crate) fn parsed(&self) -> stillwind_js_oxc::ParsedJavaScript {
         stillwind_js_oxc::ParsedJavaScript {
+            type_probes: Vec::new(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),
             module: self.ir.clone(),
