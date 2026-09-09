@@ -1,4 +1,4 @@
-use super::FrameworkImports;
+use super::theme_types::FrameworkImports;
 
 /// Extracts only Stillwind's compatible Tailwind entry points.  This is kept
 /// independent from fixtures: it understands ordinary CSS import syntax and

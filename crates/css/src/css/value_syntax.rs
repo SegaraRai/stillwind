@@ -1,4 +1,10 @@
-use super::{CssProperty, Image, Parse, ParserOptions, Property, PropertyId, is_css_string};
+use lightningcss::properties::{Property, PropertyId};
+use lightningcss::stylesheet::ParserOptions;
+use lightningcss::traits::Parse;
+use lightningcss::values::image::Image;
+
+use super::colors::is_css_string;
+use super::properties::CssProperty;
 
 pub(super) fn contains_custom_property_reference(value: &str) -> bool {
     let mut cursor = value;

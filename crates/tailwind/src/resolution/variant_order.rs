@@ -1,8 +1,15 @@
-use super::{
-    BuiltinVariantSortDirection, BuiltinVariantValueType, CustomVariant, Ordering, ThemeIndex,
-    ThemeNamespace, Variant, VariantKind, builtin_variants, decode_arbitrary, parse_nested_variant,
-    registered_variant_candidates, split_variant_modifier, theme_arbitrary_types,
+use std::cmp::Ordering;
+
+use stillwind_css::{
+    BuiltinVariantSortDirection, BuiltinVariantValueType, CustomVariant, ThemeIndex, ThemeNamespace,
 };
+use stillwind_grammar::{Variant, VariantKind};
+
+use super::arbitrary::decode_arbitrary;
+use super::registry::builtin_variants;
+use super::theme_values::theme_arbitrary_types;
+use super::variant_substitution::registered_variant_candidates;
+use super::variants::{parse_nested_variant, split_variant_modifier};
 
 pub(super) fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
     builtin_variants()

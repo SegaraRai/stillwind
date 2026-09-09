@@ -1,13 +1,20 @@
-use super::{
-    BTreeSet, CustomPropertyUsage, ParserOptions, Property, StyleSheet, Visit, VisitTypes, Visitor,
-    custom_property_references, strip_blocks, strip_css_comments, visit_types,
-};
+use std::collections::BTreeSet;
+
+use lightningcss::error::{Error, ParserError};
+use lightningcss::properties::Property;
+use lightningcss::properties::custom::Variable;
+use lightningcss::stylesheet::{ParserOptions, StyleSheet};
+use lightningcss::visit_types;
+use lightningcss::visitor::{Visit, VisitTypes, Visitor};
+
+use super::blocks::strip_css_comments;
+use super::definitions::CustomPropertyUsage;
+use super::directives::strip_blocks;
+use super::theme_references::custom_property_references;
 
 #[derive(Debug, thiserror::Error)]
 #[error("CSS parse error: {0}")]
-pub struct PropertyUsageError(
-    #[source] pub lightningcss::error::Error<lightningcss::error::ParserError<'static>>,
-);
+pub struct PropertyUsageError(#[source] pub Error<ParserError<'static>>);
 
 /// Returns custom properties used by declarations and values, excluding names
 /// that occur only inside ordinary authored `@property` registration blocks.
@@ -85,10 +92,7 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyU
             property.visit_children(self)
         }
 
-        fn visit_variable(
-            &mut self,
-            variable: &mut lightningcss::properties::custom::Variable<'i>,
-        ) -> Result<(), Self::Error> {
+        fn visit_variable(&mut self, variable: &mut Variable<'i>) -> Result<(), Self::Error> {
             self.usage
                 .referenced
                 .insert(variable.name.ident.0.as_ref().to_owned());

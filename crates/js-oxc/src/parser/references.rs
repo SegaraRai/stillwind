@@ -1,8 +1,11 @@
-use super::{
-    AssetReference, CallExpression, ExportedValue, Expression, GetSpan, HandleDefinition,
-    IdentityId, ImportDeclaration, MacroExtractor, RefAlternative, ScopeDefinition, Span, Spanned,
-    SymbolicValue,
-};
+use oxc::ast::ast::{CallExpression, Expression, ImportDeclaration};
+use oxc::span::GetSpan;
+
+use stillwind_ir::{AssetReference, HandleDefinition, ScopeDefinition};
+use stillwind_semantic::{ExportedValue, IdentityId, RefAlternative, SymbolicValue};
+use stillwind_source::{Span, Spanned};
+
+use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn source_span(&self, span: oxc::span::Span) -> Span {

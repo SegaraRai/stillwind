@@ -1,9 +1,15 @@
-use super::{
-    NestedUtilityRule, ResolvedUtility, ThemeIndex, Utility, UtilityResolution, Write,
+use std::fmt::Write;
+
+use stillwind_css::ThemeIndex;
+use stillwind_grammar::{Utility, parse_candidate};
+
+use super::formatting::finalize_declaration;
+use super::nested::matching_utilities;
+use super::registry::{
     animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
-    finalize_declaration, matching_utilities, parse_candidate, resolve_css_utility_branches,
-    resolve_named_utility,
 };
+use super::types::{NestedUtilityRule, ResolvedUtility, UtilityResolution};
+use super::utility_matching::{resolve_css_utility_branches, resolve_named_utility};
 
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]

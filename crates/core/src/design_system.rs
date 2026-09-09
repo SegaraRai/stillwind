@@ -1,12 +1,8 @@
 //! Immutable styling semantics shared by compilation and editor requests.
 
-use std::{
-    collections::BTreeMap,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
-};
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use stillwind_css::ThemeIndex;
 use stillwind_source::SourceFile;

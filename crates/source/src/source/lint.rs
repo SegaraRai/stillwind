@@ -1,4 +1,7 @@
-use super::{LintFinding, SourceFile};
+use std::collections::BTreeSet;
+
+use super::diagnostics::LintFinding;
+use super::text::SourceFile;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LintDirectiveKind {
@@ -39,7 +42,7 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
             .map_or(source.full_span(), |label| label.span);
         let finding_offset = span.start.0 as usize;
         let finding_line = line_starts.partition_point(|start| *start <= finding_offset);
-        let mut disabled = std::collections::BTreeSet::new();
+        let mut disabled = BTreeSet::new();
         let mut disabled_all = false;
         let mut suppressed = false;
         for directive in &directives {

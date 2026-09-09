@@ -1,7 +1,7 @@
-use super::{
-    ThemeIndex, ThemeNamespace, ValueDomain, axis_size_value, decode_arbitrary, fraction_value,
-    parse_css_variable, theme_value, theme_value_literal,
-};
+use stillwind_css::{ThemeIndex, ThemeNamespace, ValueDomain};
+
+use super::arbitrary::{decode_arbitrary, parse_css_variable};
+use super::theme_values::{axis_size_value, fraction_value, theme_value, theme_value_literal};
 
 pub(super) fn resolve_value_domains(
     domains: &str,

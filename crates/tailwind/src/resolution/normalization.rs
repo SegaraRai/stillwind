@@ -1,4 +1,5 @@
-use super::{builtin_function_formats, closing_parenthesis};
+use super::metadata::builtin_function_formats;
+use super::nested::closing_parenthesis;
 
 /// Removes non-semantic whitespace from vendored declarations.
 ///

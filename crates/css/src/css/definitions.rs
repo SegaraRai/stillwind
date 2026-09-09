@@ -1,4 +1,9 @@
-use super::{BTreeSet, Ident, Parse, ParserOptions, PrinterOptions, StyleSheet, ToCss};
+use std::collections::BTreeSet;
+
+use lightningcss::printer::PrinterOptions;
+use lightningcss::stylesheet::{ParserOptions, StyleSheet};
+use lightningcss::traits::{Parse, ToCss};
+use lightningcss::values::ident::Ident;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomPropertyDefinition {

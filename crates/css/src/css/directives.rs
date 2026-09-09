@@ -1,7 +1,9 @@
-use super::{
-    BTreeSet, CustomPropertyActivation, CustomPropertyDefinition, StillwindConfig,
-    extract_named_blocks, parse_import_path, strip_css_comments,
-};
+use std::collections::BTreeSet;
+
+use super::blocks::{extract_named_blocks, strip_css_comments};
+use super::definitions::{CustomPropertyActivation, CustomPropertyDefinition};
+use super::imports::parse_import_path;
+use super::theme_types::StillwindConfig;
 
 pub(super) fn strip_framework_directives(css: &str) -> String {
     let css = strip_framework_imports(css);

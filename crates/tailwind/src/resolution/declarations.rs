@@ -1,6 +1,8 @@
-use super::{
-    CompatColorMode, ResolvedCssDeclarations, ThemeIndex, Value, resolve_css_placeholders,
-};
+use stillwind_css::ThemeIndex;
+use stillwind_grammar::Value;
+
+use super::placeholders::resolve_css_placeholders;
+use super::types::{CompatColorMode, ResolvedCssDeclarations};
 
 /// Resolves each declaration independently. `@utility` overloads are often
 /// intentionally broad: a single body can expose both colour and length

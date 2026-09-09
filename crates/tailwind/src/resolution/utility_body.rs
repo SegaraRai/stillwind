@@ -1,8 +1,11 @@
-use super::{
-    COMPAT_COLOR_SUPPORT, CustomUtility, NestedUtilityAtRule, NestedUtilityRule,
-    ResolvedUtilityTarget, ThemeIndex, ThemeNamespace, UtilityResolution, Value,
-    builtin_property_definitions, closing_parenthesis, resolve_css_declarations,
-    split_nested_conditions, split_utility_selector,
+use stillwind_css::{CustomUtility, ThemeIndex, ThemeNamespace};
+use stillwind_grammar::Value;
+
+use super::declarations::resolve_css_declarations;
+use super::metadata::{COMPAT_COLOR_SUPPORT, builtin_property_definitions};
+use super::nested::{closing_parenthesis, split_nested_conditions, split_utility_selector};
+use super::types::{
+    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtilityTarget, UtilityResolution,
 };
 
 pub(super) fn resolve_css_utility_body(

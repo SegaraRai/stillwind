@@ -1,8 +1,12 @@
-use super::{
-    BTreeMap, BTreeSet, CustomPropertyDefinition, CustomUtility, CustomVariant, FrameworkImports,
-    Spanned, StillwindConfig, ThemeNamespace, ThemeTokenKind, custom_property_references,
-    resolve_theme_references, tailwind_v4_preflight,
-};
+use std::collections::{BTreeMap, BTreeSet};
+
+use stillwind_source::Spanned;
+
+use super::builtins::tailwind_v4_preflight;
+use super::definitions::{CustomPropertyDefinition, CustomUtility, CustomVariant};
+use super::theme_domains::{ThemeNamespace, ThemeTokenKind};
+use super::theme_references::{custom_property_references, resolve_theme_references};
+use super::theme_types::{FrameworkImports, StillwindConfig};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeTokenMode {

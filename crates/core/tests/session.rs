@@ -4,7 +4,7 @@ use stillwind_core::{
     CompilerOptions, DesignSystemLoadError, DesignSystemSnapshot, ModuleAnalysis,
     OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer,
 };
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CompileError, FileId, SourceFile};
 
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
@@ -73,13 +73,11 @@ fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
         let mut session = ProjectSession::new(snapshot("red"), mode);
         session.update_module(module("a.tsx", "flex"));
         let mut invalid = module("a.tsx", "block");
-        invalid
-            .diagnostics
-            .push(stillwind_source::CompileError::new(
-                "TEST",
-                "invalid",
-                invalid.source.full_span(),
-            ));
+        invalid.diagnostics.push(CompileError::new(
+            "TEST",
+            "invalid",
+            invalid.source.full_span(),
+        ));
         let update = session.update_module(invalid);
         assert!(!update.diagnostics.is_empty());
         assert_eq!(

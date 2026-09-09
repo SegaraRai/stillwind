@@ -1,4 +1,4 @@
-use super::ValueType;
+use super::values::ValueType;
 
 pub(super) fn is_css_wide_keyword(value: &str) -> bool {
     matches!(

@@ -1,4 +1,7 @@
-use super::{Arc, Deserialize, Range, Serialize};
+use std::ops::Range;
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SourceError {

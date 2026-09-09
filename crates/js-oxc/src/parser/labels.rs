@@ -1,4 +1,4 @@
-use super::Spanned;
+use stillwind_source::Spanned;
 
 pub(super) fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)

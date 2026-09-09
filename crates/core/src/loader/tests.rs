@@ -1,3 +1,7 @@
+use stillwind_source::{FileId, SourceFile};
+
+use crate::DesignSystemSnapshot;
+
 use super::*;
 
 #[test]

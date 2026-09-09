@@ -1,7 +1,8 @@
-use super::{
-    find_at_rule_block, order_builtin_utilities, parse_candidate, prepend_missing_declarations,
-    resolve_utility,
-};
+use stillwind_grammar::parse_candidate;
+
+use super::css_blocks::find_at_rule_block;
+use super::declaration_order::{order_builtin_utilities, prepend_missing_declarations};
+use super::utilities::resolve_utility;
 
 pub(super) fn expand_authored_directives(css: &str, theme: &stillwind_css::ThemeIndex) -> String {
     let mut output = css.to_owned();

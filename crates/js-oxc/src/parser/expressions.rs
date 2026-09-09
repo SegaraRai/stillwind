@@ -1,7 +1,14 @@
-use super::{
-    ArrayExpressionElement, AttributeEntry, CompileError, Expression, GetSpan, LogicalOperator,
-    MacroExtractor, ObjectExpression, ObjectPropertyKind, PropertyKey, PropertyKind, StyleInput,
+use oxc::ast::ast::{
+    ArrayExpressionElement, Expression, ObjectExpression, ObjectPropertyKind, PropertyKey,
+    PropertyKind,
 };
+use oxc::span::GetSpan;
+use oxc::syntax::operator::LogicalOperator;
+
+use stillwind_ir::{AttributeEntry, StyleInput};
+use stillwind_source::CompileError;
+
+use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn collect_style_expression(

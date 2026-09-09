@@ -1,4 +1,8 @@
-use super::{BTreeMap, BTreeSet, CustomUtility, Write, extract_named_blocks, strip_css_comments};
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write;
+
+use super::blocks::{extract_named_blocks, strip_css_comments};
+use super::definitions::CustomUtility;
 
 pub(super) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
     let css = strip_css_comments(css);

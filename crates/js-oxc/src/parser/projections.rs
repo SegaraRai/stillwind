@@ -1,8 +1,10 @@
-use super::{
-    CallExpression, CompileError, Expression, GetSpan, HandleDefinition, HandleProjection,
-    HandleUse, MacroExtractor, ScopeDefinition, ScopeUse, Span, Spanned, StaticMemberExpression,
-    StringLiteral, StyleInput,
-};
+use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression, StringLiteral};
+use oxc::span::GetSpan;
+
+use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition, StyleInput};
+use stillwind_source::{CompileError, Span, Spanned};
+
+use super::state::{HandleUse, MacroExtractor, ScopeUse};
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn collect_handle_projection(

@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    CompiledModule, DesignSystemLoadError, DesignSystemSnapshot, GeneratedRule, ModuleAnalysis,
-    ModuleCompiler, ModuleId, RuleKey,
+    AssetIdentity, CompileDiagnostic, CompiledModule, DesignSystemLoadError, DesignSystemSnapshot,
+    GeneratedRule, ModuleAnalysis, ModuleCompiler, ModuleCssArtifact, ModuleId, RuleKey,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -24,7 +24,7 @@ pub struct ProjectStylesheet {
 }
 
 impl ProjectStylesheet {
-    pub fn replace(&mut self, module: ModuleId, artifact: &crate::ModuleCssArtifact) {
+    pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
         self.remove(&module);
         for rule in &artifact.rules {
             self.rules
@@ -89,14 +89,14 @@ pub struct DependencyIndex {
     pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
     pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
     pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub assets: BTreeMap<crate::AssetIdentity, BTreeSet<ModuleId>>,
+    pub assets: BTreeMap<AssetIdentity, BTreeSet<ModuleId>>,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct SessionUpdate {
     pub css_changed: bool,
     pub transformed_modules: BTreeSet<ModuleId>,
-    pub diagnostics: BTreeMap<ModuleId, Vec<crate::CompileDiagnostic>>,
+    pub diagnostics: BTreeMap<ModuleId, Vec<CompileDiagnostic>>,
 }
 
 /// Exclusive mutation is the actor boundary. A host can put this in a mutex;
@@ -173,7 +173,7 @@ impl ProjectSession {
                 .insert(&symbol.name, &symbol.identity)
                 .is_some_and(|identity| identity != symbol.identity)
             {
-                compiled.diagnostics.push(crate::CompileDiagnostic::new(
+                compiled.diagnostics.push(CompileDiagnostic::new(
                     "SHSYMBOL001",
                     format!("generated identifier collision: {}", symbol.name),
                     analysis.source.full_span(),

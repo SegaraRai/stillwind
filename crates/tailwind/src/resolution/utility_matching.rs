@@ -1,9 +1,13 @@
 use std::collections::HashSet;
 
-use super::{
-    CustomUtility, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, UtilityResolution, Value,
-    builtin_utilities, decode_arbitrary, matching_utilities, resolve_css_utility_body,
-};
+use stillwind_css::{CustomUtility, ThemeIndex, ValueType};
+use stillwind_grammar::Value;
+
+use super::arbitrary::decode_arbitrary;
+use super::nested::matching_utilities;
+use super::registry::builtin_utilities;
+use super::types::{NestedUtilityRule, ResolvedUtilityTarget, UtilityResolution};
+use super::utility_body::resolve_css_utility_body;
 
 pub(super) fn resolve_named_utility(
     name: &str,
@@ -138,7 +142,7 @@ pub(super) fn resolve_css_utility_branches<'a>(
     Some(resolution)
 }
 
-pub(super) fn utility_value_types(utility: &CustomUtility) -> Vec<stillwind_css::ValueType> {
+pub(super) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
     let mut types = Vec::new();
     let mut rest = utility.body.as_str();
     while let Some(start) = rest.find('[') {
@@ -146,7 +150,7 @@ pub(super) fn utility_value_types(utility: &CustomUtility) -> Vec<stillwind_css:
         let Some(end) = rest.find(']') else {
             break;
         };
-        if let Some(value_type) = stillwind_css::ValueType::from_hint(&rest[..end])
+        if let Some(value_type) = ValueType::from_hint(&rest[..end])
             && !types.contains(&value_type)
         {
             types.push(value_type);
@@ -172,10 +176,8 @@ pub(super) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
 
 pub(super) fn infer_arbitrary_value_type(
     value: &str,
-    available: &[stillwind_css::ValueType],
-) -> Option<stillwind_css::ValueType> {
-    use stillwind_css::ValueType;
-
+    available: &[ValueType],
+) -> Option<ValueType> {
     if value.contains("var(")
         || value.starts_with("--")
         || matches!(

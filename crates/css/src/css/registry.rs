@@ -1,11 +1,21 @@
-use super::{
-    BTreeMap, BTreeSet, BuiltinArbitraryPropertyOrder, BuiltinVariantModifierType,
-    BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType,
-    CustomPropertyDefinition, CustomUtility, CustomVariant, ThemeNamespace, ValueType,
-    extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
-    extract_marker_utilities, extract_named_blocks, extract_named_blocks_with_offsets,
-    extract_order_statements, extract_property_definitions, strip_css_comments,
+use std::collections::{BTreeMap, BTreeSet};
+
+use super::blocks::{
+    extract_named_blocks, extract_named_blocks_with_offsets, extract_order_statements,
+    strip_css_comments,
 };
+use super::definitions::{
+    BuiltinArbitraryPropertyOrder, BuiltinVariantModifierType, BuiltinVariantSort,
+    BuiltinVariantSortDirection, BuiltinVariantValueType, CustomPropertyDefinition, CustomUtility,
+    CustomVariant,
+};
+use super::directives::extract_property_definitions;
+use super::theme_domains::ThemeNamespace;
+use super::utility_definitions::{
+    extract_custom_utilities, extract_declaration_formats, extract_marker_utilities,
+};
+use super::values::ValueType;
+use super::variants::extract_custom_variants;
 
 /// Parses user-authored `@utility` definitions without requiring a complete
 /// theme stylesheet.

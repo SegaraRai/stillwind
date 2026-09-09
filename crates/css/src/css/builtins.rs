@@ -1,4 +1,5 @@
-use super::{TAILWIND_V4_PREFLIGHT, TAILWIND_V4_THEME, matching_brace};
+use super::catalog::{TAILWIND_V4_PREFLIGHT, TAILWIND_V4_THEME};
+use super::theme_declarations::matching_brace;
 
 /// Browser-ready Preflight with Tailwind's build-time `--theme()` calls
 /// lowered to standard `var()` calls.

@@ -1,20 +1,28 @@
 //! Public orchestration API for the first compiler slice.
 
 mod analysis;
+mod compiler;
+mod design_system;
+mod loader;
 mod module_compiler;
 mod query;
 mod registry;
 mod session;
-pub use module_compiler::*;
-pub use query::{
-    CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
-    DesignSystemQuery,
+
+pub(crate) use compiler::{
+    class_name, emit_utility_rules, render_react_types, render_stylesheet, resolve_utility_targets,
+    unresolved_utility_rule,
 };
-pub use registry::*;
-pub use session::*;
-mod design_system;
-pub use analysis::*;
-mod loader;
+
+pub use analysis::{
+    IntegrationDiagnostic, ModuleAnalysis, ModuleId, ModuleScan, OxcSourceAnalyzer,
+    SemanticRevision, SourceAnalyzer, SourceDiagnostic, SourceRevision, TypeFacts, TypeFactsUpdate,
+    TypeProbe, TypeScriptFactsProvider,
+};
+pub use compiler::{
+    CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
+    GeneratedClass, GeneratedSymbol, PropsTransform, TransformError,
+};
 pub use design_system::{
     DefinitionFingerprints, DesignSystemError, DesignSystemRevision, DesignSystemSnapshot,
     Fingerprint,
@@ -24,14 +32,19 @@ pub use loader::{
     CssSourceGraph, CssSourceMapping, CssSourceName, DesignSystemLoadError, DesignSystemLoadStep,
     DesignSystemLoader, DesignSystemOptions,
 };
-
-mod compiler;
-pub use compiler::{
-    CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
-    GeneratedClass, GeneratedSymbol, PropsTransform, TransformError,
+pub use module_compiler::{
+    AssetIdentity, CompilationDependencies, CompileDiagnostic, CompiledModule, GeneratedRule,
+    ModuleArtifactKey, ModuleCompiler, ModuleCssArtifact, ModuleTransformError, RuleKey,
+    SourceTransform,
 };
-
-pub(crate) use compiler::{
-    class_name, emit_utility_rules, render_react_types, render_stylesheet, resolve_utility_targets,
-    unresolved_utility_rule,
+pub use query::{
+    CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
+    DesignSystemQuery,
+};
+pub use registry::{
+    DefinitionRegistry, PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry,
+};
+pub use session::{
+    DependencyIndex, ProjectSession, ProjectStylesheet, SessionMode, SessionReloadError,
+    SessionUpdate,
 };

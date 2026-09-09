@@ -1,8 +1,11 @@
-use super::{
-    COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE, CompatColorMode, ThemeIndex,
-    ThemeNamespace, shadow_with_color_fallback, shadow_with_color_override, split_domains,
-    theme_value_literal,
+use stillwind_css::{
+    ThemeIndex, ThemeNamespace, shadow_with_color_fallback, shadow_with_color_override,
 };
+
+use super::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
+use super::theme_values::theme_value_literal;
+use super::types::CompatColorMode;
+use super::value_domains::split_domains;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum CompatColorKind {

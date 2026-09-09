@@ -1,4 +1,6 @@
-use super::{CustomVariant, extract_named_blocks, parse_variant_name, strip_css_comments};
+use super::blocks::{extract_named_blocks, strip_css_comments};
+use super::definitions::CustomVariant;
+use super::registry::parse_variant_name;
 
 pub(super) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
     let css = strip_css_comments(css);

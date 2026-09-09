@@ -1,21 +1,27 @@
-use super::{CompiledUtility, prepend_missing_declarations};
+use stillwind_css::{ThemeIndex, fold_calc_expressions, normalize_serialized_declaration};
+use stillwind_tailwind::{
+    NestedUtilityAtRule, NestedUtilityRule, VariantApplication, resolve_variant,
+};
+
+use super::declaration_order::prepend_missing_declarations;
+use super::utilities::CompiledUtility;
 
 pub(super) fn render_utility_rule(
     class_name: &str,
     utility: &CompiledUtility,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     declaration: &str,
-    nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
+    nested_rule: Option<&NestedUtilityRule>,
 ) -> String {
-    let declaration = stillwind_css::fold_calc_expressions(declaration);
-    let declaration = stillwind_css::normalize_serialized_declaration(&declaration);
+    let declaration = fold_calc_expressions(declaration);
+    let declaration = normalize_serialized_declaration(&declaration);
     let mut paths = vec![Vec::new()];
     for variant in &utility.variants {
-        let Some(application) = stillwind_tailwind::resolve_variant(variant, theme) else {
+        let Some(application) = resolve_variant(variant, theme) else {
             continue;
         };
         let alternatives = match application {
-            stillwind_tailwind::VariantApplication::Compound(applications) => applications,
+            VariantApplication::Compound(applications) => applications,
             application => vec![application],
         };
         paths = paths
@@ -41,8 +47,8 @@ pub(super) fn render_utility_rule_path(
     class_name: &str,
     utility: &CompiledUtility,
     declaration: &str,
-    nested_rule: Option<&stillwind_tailwind::NestedUtilityRule>,
-    applications: &[stillwind_tailwind::VariantApplication],
+    nested_rule: Option<&NestedUtilityRule>,
+    applications: &[VariantApplication],
 ) -> String {
     let mut declaration = declaration.to_owned();
     let class_selector = format!(".{class_name}");
@@ -56,28 +62,28 @@ pub(super) fn render_utility_rule_path(
     let mut starting_style = false;
     for application in applications {
         match application {
-            stillwind_tailwind::VariantApplication::Compound(_) => unreachable!(),
-            stillwind_tailwind::VariantApplication::SelectorSuffix(suffix) => {
+            VariantApplication::Compound(_) => unreachable!(),
+            VariantApplication::SelectorSuffix(suffix) => {
                 selector.push_str(suffix);
             }
-            stillwind_tailwind::VariantApplication::SelectorTemplate(template) => {
+            VariantApplication::SelectorTemplate(template) => {
                 selector = template.replace('&', &selector);
             }
-            stillwind_tailwind::VariantApplication::SelectorRule {
+            VariantApplication::SelectorRule {
                 selector: template,
                 declarations,
             } => {
                 selector = template.replace('&', &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
             }
-            stillwind_tailwind::VariantApplication::SelectorMedia {
+            VariantApplication::SelectorMedia {
                 selector: template,
                 condition,
             } => {
                 selector = template.replace('&', &selector);
                 media.push(condition.clone());
             }
-            stillwind_tailwind::VariantApplication::SelectorMediaRule {
+            VariantApplication::SelectorMediaRule {
                 selector: template,
                 declarations,
                 condition,
@@ -86,16 +92,16 @@ pub(super) fn render_utility_rule_path(
                 prepend_missing_declarations(&mut declaration, declarations);
                 media.push(condition.clone());
             }
-            stillwind_tailwind::VariantApplication::Media(condition) => {
+            VariantApplication::Media(condition) => {
                 media.push(condition.clone());
             }
-            stillwind_tailwind::VariantApplication::Container(condition) => {
+            VariantApplication::Container(condition) => {
                 containers.push(condition.clone());
             }
-            stillwind_tailwind::VariantApplication::Supports(condition) => {
+            VariantApplication::Supports(condition) => {
                 supports.push(condition.clone());
             }
-            stillwind_tailwind::VariantApplication::StartingStyle => {
+            VariantApplication::StartingStyle => {
                 starting_style = true;
             }
         }
@@ -103,10 +109,10 @@ pub(super) fn render_utility_rule_path(
     let mut rule = format!("{selector}{{{declaration}}}");
     if let Some(nested) = nested_rule {
         rule = match nested.at_rule {
-            stillwind_tailwind::NestedUtilityAtRule::Media => {
+            NestedUtilityAtRule::Media => {
                 format!("@media {}{{{rule}}}", nested.condition)
             }
-            stillwind_tailwind::NestedUtilityAtRule::Supports => {
+            NestedUtilityAtRule::Supports => {
                 format!("@supports ({}){{{rule}}}", nested.condition)
             }
         };

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 
 use stillwind_core::{GeneratedClass, GeneratedSymbol};
@@ -11,7 +13,7 @@ pub struct BindingOutput {
     pub symbols: Vec<GeneratedSymbol>,
     pub diagnostics: Vec<BindingDiagnostic>,
     pub lint_findings: Vec<BindingLintFinding>,
-    pub lint_policy: std::collections::BTreeMap<String, String>,
+    pub lint_policy: BTreeMap<String, String>,
 }
 
 #[derive(Serialize)]

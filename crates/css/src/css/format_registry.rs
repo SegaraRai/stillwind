@@ -1,4 +1,6 @@
-use super::{BTreeSet, extract_relationship_patterns};
+use std::collections::BTreeSet;
+
+use super::utility_definitions::extract_relationship_patterns;
 
 pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
     css.split('@')

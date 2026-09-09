@@ -1,9 +1,7 @@
 //! Single-module analysis and versioned optional TypeScript facts.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use stillwind_ir::ModuleIr;
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};

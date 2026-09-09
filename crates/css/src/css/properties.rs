@@ -1,7 +1,12 @@
-use super::{
-    Length, NumberOrPercentage, Parse, ParserOptions, Position, Property, PropertyId,
-    is_css_wide_keyword, webref_property,
-};
+use lightningcss::properties::{Property, PropertyId};
+use lightningcss::stylesheet::ParserOptions;
+use lightningcss::traits::Parse;
+use lightningcss::values::length::Length;
+use lightningcss::values::percentage::NumberOrPercentage;
+use lightningcss::values::position::Position;
+
+use super::catalog::webref_property;
+use super::domains::is_css_wide_keyword;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum CssPropertyGrammar {

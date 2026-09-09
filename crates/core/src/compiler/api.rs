@@ -1,8 +1,18 @@
-use super::{
-    AssetMetadata, BTreeMap, BTreeSet, CompileError, CompileResult, Compiler, CompilerOptions,
-    DesignSystemSnapshot, Fingerprint, IdentityId, ModuleAnalysis, ModuleCompiler,
-    OxcSourceAnalyzer, SourceAnalyzer, SourceFile, TypeFact, render_react_types,
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
+
+use stillwind_js_oxc::{ParsedJavaScript, parse, parse_with_type_facts};
+use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
+use stillwind_source::{CompileError, SourceFile, collect_lint_directives};
+
+use crate::{
+    DesignSystemSnapshot, Fingerprint, ModuleAnalysis, ModuleCompiler, OxcSourceAnalyzer,
+    SourceAnalyzer,
 };
+
+use super::Compiler;
+use super::react_types::render_react_types;
+use super::types::{CompileResult, CompilerOptions};
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
@@ -10,11 +20,11 @@ pub struct CompilerThemeError(#[from] pub crate::DesignSystemError);
 
 impl Compiler {
     pub fn check_javascript(source: &SourceFile) -> Vec<CompileError> {
-        stillwind_js_oxc::parse(source).diagnostics
+        parse(source).diagnostics
     }
 
-    pub fn analyze_javascript(source: &SourceFile) -> stillwind_js_oxc::ParsedJavaScript {
-        stillwind_js_oxc::parse(source)
+    pub fn analyze_javascript(source: &SourceFile) -> ParsedJavaScript {
+        parse(source)
     }
 
     /// Reads the project's CSS-first theme surface.
@@ -72,7 +82,7 @@ impl Compiler {
         theme_source: &SourceFile,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let scan = OxcSourceAnalyzer.scan(std::sync::Arc::new(source.clone()));
+        let scan = OxcSourceAnalyzer.scan(Arc::new(source.clone()));
         let parsed = OxcSourceAnalyzer.finalize(scan, None).parsed();
         Self::compile_react_parsed(source, theme_source, parsed, options)
     }
@@ -101,7 +111,7 @@ impl Compiler {
         assets: &BTreeMap<IdentityId, AssetMetadata>,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let parsed = stillwind_js_oxc::parse_with_type_facts(source, type_facts, assets);
+        let parsed = parse_with_type_facts(source, type_facts, assets);
         Self::compile_react_parsed(source, theme_source, parsed, options)
     }
 
@@ -109,7 +119,7 @@ impl Compiler {
     fn compile_react_parsed(
         source: &SourceFile,
         theme_source: &SourceFile,
-        parsed: stillwind_js_oxc::ParsedJavaScript,
+        parsed: ParsedJavaScript,
         options: &CompilerOptions,
     ) -> CompileResult {
         let snapshot = match DesignSystemSnapshot::from_source(theme_source, options.clone()) {
@@ -128,11 +138,11 @@ impl Compiler {
         let analysis = ModuleAnalysis {
             external_assets: BTreeSet::new(),
             module_id: source.path().into(),
-            source: std::sync::Arc::new(source.clone()),
+            source: Arc::new(source.clone()),
             source_revision: Fingerprint::of(source.text()),
             ir: parsed.module,
             summary: parsed.summary,
-            lint_directives: stillwind_source::collect_lint_directives(source.text()),
+            lint_directives: collect_lint_directives(source.text()),
             diagnostics: parsed.diagnostics,
             lint_findings: parsed.lint_findings,
             semantic_revision: None,

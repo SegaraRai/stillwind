@@ -1,4 +1,6 @@
-use super::{CustomUtility, NestedUtilityAtRule, ParsedNestedUtilityRule};
+use stillwind_css::CustomUtility;
+
+use super::types::{NestedUtilityAtRule, ParsedNestedUtilityRule};
 
 pub(super) fn split_nested_conditions(
     body: &str,

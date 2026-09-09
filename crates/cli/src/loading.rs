@@ -1,9 +1,9 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use stillwind_core::{
-    CompilerOptions, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
+    CompilerOptions, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep,
+    DesignSystemLoader, DesignSystemSnapshot,
 };
 use stillwind_source::{FileId, SourceFile};
 
@@ -17,12 +17,12 @@ pub(super) enum FileLoadError {
     },
     #[error("cannot resolve {} imported by {}: {source}", .request.specifier, .request.importer.0)]
     Resolve {
-        request: stillwind_core::CssFileRequest,
+        request: CssFileRequest,
         #[source]
         source: std::io::Error,
     },
     #[error("{0}")]
-    Load(#[from] stillwind_core::DesignSystemLoadError),
+    Load(#[from] DesignSystemLoadError),
 }
 
 pub(super) fn read_source(path: &str, id: u32) -> Result<SourceFile, FileLoadError> {

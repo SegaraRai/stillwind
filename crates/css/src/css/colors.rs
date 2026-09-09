@@ -1,4 +1,7 @@
-use super::{BoxShadow, CssColor, Parse, PrinterOptions, ToCss};
+use lightningcss::printer::PrinterOptions;
+use lightningcss::properties::box_shadow::BoxShadow;
+use lightningcss::traits::{Parse, ToCss};
+use lightningcss::values::color::CssColor;
 
 /// Rewrites box-shadow colours with a custom-property override and CSS Color 5
 /// relative-colour fallback. This is the semantic operation Tailwind uses for

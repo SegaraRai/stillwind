@@ -1,11 +1,17 @@
-use super::{
-    CompilerOptions, expand_authored_directives, extract_authored_keyframes,
-    render_used_properties, without_keyframes,
+use stillwind_css::{
+    ThemeIndex, ThemeNamespace, ThemeTokenKind, tailwind_v4_keyframes_for, tailwind_v4_preflight,
 };
+use stillwind_source::FileId;
+use stillwind_tailwind::{builtin_omit_token_prefixes, builtin_theme_order};
+
+use super::authored_directives::expand_authored_directives;
+use super::keyframes::{extract_authored_keyframes, without_keyframes};
+use super::properties::render_used_properties;
+use super::types::CompilerOptions;
 
 #[allow(clippy::too_many_lines)]
 pub(crate) fn render_stylesheet(
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     utility_css: &str,
     options: &CompilerOptions,
 ) -> String {
@@ -22,22 +28,21 @@ pub(crate) fn render_stylesheet(
         let mut required_tokens = theme.tokens_required_by_with_omit_rules(
             &used_css,
             imports.base_layer.is_some(),
-            stillwind_tailwind::builtin_omit_token_prefixes(),
+            builtin_omit_token_prefixes(),
         );
         required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
-        let theme_order = stillwind_tailwind::builtin_theme_order();
+        let theme_order = builtin_theme_order();
         if !theme_order.is_empty()
             && required_tokens
                 .iter()
-                .any(|token| token.name.span.file != stillwind_source::FileId(0))
+                .any(|token| token.name.span.file != FileId(0))
         {
             required_tokens.sort_by_key(|token| {
                 let namespace = match token.kind {
-                    stillwind_css::ThemeTokenKind::Scale(namespace)
-                    | stillwind_css::ThemeTokenKind::Token { namespace, .. } => {
+                    ThemeTokenKind::Scale(namespace) | ThemeTokenKind::Token { namespace, .. } => {
                         Some(namespace.css_name())
                     }
-                    stillwind_css::ThemeTokenKind::Custom => None,
+                    ThemeTokenKind::Custom => None,
                 };
                 let rank = namespace
                     .and_then(|name| theme_order.iter().position(|item| item == name))
@@ -48,8 +53,8 @@ pub(crate) fn render_stylesheet(
         let animations = required_tokens
             .iter()
             .filter_map(|token| match &token.kind {
-                stillwind_css::ThemeTokenKind::Token {
-                    namespace: stillwind_css::ThemeNamespace::Animate,
+                ThemeTokenKind::Token {
+                    namespace: ThemeNamespace::Animate,
                     ..
                 } => token
                     .value
@@ -75,8 +80,7 @@ pub(crate) fn render_stylesheet(
                 css.push(';');
             }
             css.push_str("}}");
-            keyframes_css =
-                options.rewrite_generated(&stillwind_css::tailwind_v4_keyframes_for(&animations));
+            keyframes_css = options.rewrite_generated(&tailwind_v4_keyframes_for(&animations));
             css.push('\n');
         }
     }
@@ -84,7 +88,7 @@ pub(crate) fn render_stylesheet(
         css.push_str("@layer ");
         css.push_str(layer);
         css.push('{');
-        css.push_str(&options.rewrite_generated(&stillwind_css::tailwind_v4_preflight()));
+        css.push_str(&options.rewrite_generated(&tailwind_v4_preflight()));
         css.push('}');
     }
     if let Some(layer) = &imports.utilities_layer {

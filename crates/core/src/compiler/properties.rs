@@ -1,17 +1,23 @@
-use super::{BTreeSet, CompilerOptions, Write};
+use std::collections::BTreeSet;
+use std::fmt::Write;
+
+use stillwind_css::{ThemeIndex, custom_property_usage};
+use stillwind_tailwind::builtin_property_definitions;
+
+use super::types::CompilerOptions;
 
 #[allow(clippy::too_many_lines)]
 pub(super) fn render_used_properties(
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     css: &str,
     options: &CompilerOptions,
 ) -> String {
-    let usage = stillwind_css::custom_property_usage(css)
+    let usage = custom_property_usage(css)
         .expect("compiler and authored CSS were validated before property rendering");
     let builtin_properties = theme
         .imports
         .builtins
-        .then(stillwind_tailwind::builtin_property_definitions)
+        .then(builtin_property_definitions)
         .unwrap_or_default();
     let definitions = builtin_properties.iter().chain(&theme.properties);
     let mut required = definitions

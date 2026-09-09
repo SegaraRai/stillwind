@@ -1,8 +1,17 @@
-use super::{
-    Arc, BTreeMap, BTreeSet, CustomUtility, CustomVariant, HashMap, OnceLock,
-    builtin_declaration_formats, builtin_property_definitions, builtin_relationship_patterns,
-    canonical_builtin_body,
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::sync::{Arc, OnceLock};
+
+use stillwind_css::{
+    CustomPropertyDefinition, CustomUtility, CustomVariant,
+    parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
+    parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
+    parse_builtin_variant_definitions,
 };
+
+use super::metadata::{
+    builtin_declaration_formats, builtin_property_definitions, builtin_relationship_patterns,
+};
+use super::normalization::canonical_builtin_body;
 
 pub(super) const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../../css/builtins/registry-metadata.css"),
@@ -33,7 +42,7 @@ pub(super) const BUILTIN_REGISTRY_CSS: &str = concat!(
 pub struct BuiltinDefinitions {
     pub utilities: Vec<CustomUtility>,
     pub variants: Vec<CustomVariant>,
-    pub properties: Vec<stillwind_css::CustomPropertyDefinition>,
+    pub properties: Vec<CustomPropertyDefinition>,
     pub source: &'static str,
     pub declaration_formats: BTreeMap<String, String>,
     pub relationships: BTreeSet<String>,
@@ -43,8 +52,8 @@ pub fn builtin_definitions() -> Arc<BuiltinDefinitions> {
     static DEFINITIONS: OnceLock<Arc<BuiltinDefinitions>> = OnceLock::new();
     Arc::clone(DEFINITIONS.get_or_init(|| {
         Arc::new(BuiltinDefinitions {
-            utilities: stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS),
-            variants: stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS),
+            utilities: parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS),
+            variants: parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS),
             properties: builtin_property_definitions().to_vec(),
             source: BUILTIN_REGISTRY_CSS,
             declaration_formats: builtin_declaration_formats().clone(),
@@ -69,12 +78,11 @@ pub(super) fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
             utility.body = canonical_builtin_body(&utility.body);
             utility
         };
-        let builtins = stillwind_css::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS)
+        let builtins = parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS)
             .into_iter()
             .map(normalize)
             .collect::<Vec<_>>();
-        let arbitrary_property_order =
-            stillwind_css::parse_builtin_arbitrary_property_order(BUILTIN_REGISTRY_CSS);
+        let arbitrary_property_order = parse_builtin_arbitrary_property_order(BUILTIN_REGISTRY_CSS);
         let mut builtin_exact = HashMap::<String, Vec<CustomUtility>>::new();
         let mut wildcards = Vec::new();
         for utility in builtins {
@@ -113,7 +121,7 @@ pub(super) fn arbitrary_property_order(property: &str) -> usize {
 pub(super) fn builtin_variants() -> &'static [CustomVariant] {
     static VARIANTS: OnceLock<Vec<CustomVariant>> = OnceLock::new();
     VARIANTS
-        .get_or_init(|| stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS))
+        .get_or_init(|| parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS))
         .as_slice()
 }
 
@@ -121,7 +129,7 @@ pub(super) fn builtin_animation_options() -> &'static [CustomUtility] {
     static OPTIONS: OnceLock<Vec<CustomUtility>> = OnceLock::new();
     OPTIONS
         .get_or_init(|| {
-            stillwind_css::parse_builtin_animation_option_definitions(BUILTIN_REGISTRY_CSS)
+            parse_builtin_animation_option_definitions(BUILTIN_REGISTRY_CSS)
                 .into_iter()
                 .map(|mut option| {
                     option.body = canonical_builtin_body(&option.body);
@@ -134,7 +142,5 @@ pub(super) fn builtin_animation_options() -> &'static [CustomUtility] {
 
 pub(super) fn animation_option_property_mappings() -> &'static BTreeMap<String, String> {
     static MAPPINGS: OnceLock<BTreeMap<String, String>> = OnceLock::new();
-    MAPPINGS.get_or_init(|| {
-        stillwind_css::parse_animation_option_property_mappings(BUILTIN_REGISTRY_CSS)
-    })
+    MAPPINGS.get_or_init(|| parse_animation_option_property_mappings(BUILTIN_REGISTRY_CSS))
 }

@@ -1,7 +1,10 @@
-use super::{
-    AssetKind, BTreeSet, Candidates, ExportedValue, HandleProjection, IdentityId, SourceFile,
-    Spanned, asset_identity, ref_symbol_name,
-};
+use std::collections::BTreeSet;
+
+use stillwind_ir::HandleProjection;
+use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId};
+use stillwind_source::{SourceFile, Spanned};
+
+use super::symbols::{asset_identity, ref_symbol_name};
 
 pub(super) fn render_handle_projection(
     handle: &stillwind_ir::HandleDefinition,

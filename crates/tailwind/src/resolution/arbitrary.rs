@@ -1,4 +1,4 @@
-use super::Write;
+use std::fmt::Write;
 
 pub(super) struct CssVariable<'a> {
     pub(super) hint: Option<&'a str>,

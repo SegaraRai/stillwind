@@ -1,4 +1,8 @@
-use super::{Variant, parse_candidate};
+use stillwind_css::ThemeIndex;
+use stillwind_grammar::{Variant, parse_candidate};
+use stillwind_tailwind::{NestedUtilityRule, ResolvedUtilityTarget};
+
+use crate::query::CandidateResolver;
 
 pub(super) fn view_transition_utility() -> CompiledUtility {
     CompiledUtility {
@@ -18,15 +22,12 @@ pub(crate) struct CompiledUtility {
     pub(super) declaration: String,
     pub(super) selector: Option<String>,
     pub(super) container: Option<String>,
-    pub(super) nested: Vec<stillwind_tailwind::NestedUtilityRule>,
+    pub(super) nested: Vec<NestedUtilityRule>,
     pub(super) builtin_order: Option<usize>,
     pub(super) candidate: String,
 }
 
-pub(super) fn resolve_utility(
-    utility: &str,
-    theme: &stillwind_css::ThemeIndex,
-) -> Option<CompiledUtility> {
+pub(super) fn resolve_utility(utility: &str, theme: &ThemeIndex) -> Option<CompiledUtility> {
     resolve_utility_targets(utility, theme)?.into_iter().next()
 }
 
@@ -40,10 +41,10 @@ pub(crate) fn unresolved_utility_rule(raw: &str) -> &'static str {
 
 pub(crate) fn resolve_utility_targets(
     utility: &str,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
 ) -> Option<Vec<CompiledUtility>> {
-    let resolved = crate::query::CandidateResolver::resolve(utility, theme)?;
-    let mut targets = vec![stillwind_tailwind::ResolvedUtilityTarget {
+    let resolved = CandidateResolver::resolve(utility, theme)?;
+    let mut targets = vec![ResolvedUtilityTarget {
         declaration: resolved.declaration,
         selector: resolved.selector,
         nested: resolved.nested,

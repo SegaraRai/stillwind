@@ -1,10 +1,15 @@
-use super::{
-    BuiltinVariantValueType, CustomVariant, ThemeIndex, Utility, Value, Variant,
-    VariantApplication, VariantKind, apply_nested_variant, builtin_marker_utilities,
-    builtin_relationship_patterns, builtin_variants, decode_arbitrary, parse_candidate,
-    registered_variant_candidates, resolve_variant_body, resolve_variant_css_placeholders,
+use stillwind_css::{BuiltinVariantValueType, CustomVariant, ThemeIndex};
+use stillwind_grammar::{Utility, Value, Variant, VariantKind, parse_candidate};
+
+use super::arbitrary::decode_arbitrary;
+use super::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
+use super::registry::builtin_variants;
+use super::types::VariantApplication;
+use super::variant_body::resolve_variant_body;
+use super::variant_order::variant_sort_namespace;
+use super::variant_substitution::{
+    apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
     substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
-    variant_sort_namespace,
 };
 
 #[must_use]

@@ -1,4 +1,6 @@
-use super::{CssSourceMapping, SourceFile, Span};
+use stillwind_source::{SourceFile, Span};
+
+use super::protocol::CssSourceMapping;
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct ExpandedSource {

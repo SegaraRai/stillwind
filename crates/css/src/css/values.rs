@@ -1,8 +1,23 @@
-use super::{
-    Angle, AnglePercentage, BackgroundSize, BorderSideWidth, BoxShadow, CSSNumber, CssColor,
-    EasingFunction, Image, Length, LengthPercentage, NumberOrPercentage, Parse, Percentage,
-    Position, Ratio, Time, Url, contains_custom_property_reference, content_value,
-    gradient_arguments, is_css_wide_keyword, property_value, transform_function_arguments,
+use lightningcss::properties::background::BackgroundSize;
+use lightningcss::properties::border::BorderSideWidth;
+use lightningcss::properties::box_shadow::BoxShadow;
+use lightningcss::traits::Parse;
+use lightningcss::values::angle::{Angle, AnglePercentage};
+use lightningcss::values::color::CssColor;
+use lightningcss::values::easing::EasingFunction;
+use lightningcss::values::image::Image;
+use lightningcss::values::length::{Length, LengthPercentage};
+use lightningcss::values::number::CSSNumber;
+use lightningcss::values::percentage::{NumberOrPercentage, Percentage};
+use lightningcss::values::position::Position;
+use lightningcss::values::ratio::Ratio;
+use lightningcss::values::time::Time;
+use lightningcss::values::url::Url;
+
+use super::domains::is_css_wide_keyword;
+use super::value_syntax::{
+    contains_custom_property_reference, content_value, gradient_arguments, property_value,
+    transform_function_arguments,
 };
 
 /// A CSS value type accepted by a typed `--value([type])` domain.

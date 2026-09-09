@@ -1,6 +1,8 @@
-use super::{
-    FileId, Span, Spanned, ThemeNamespace, ThemeToken, ThemeTokenKind, ThemeTokenMode, offset,
-};
+use stillwind_source::{FileId, Span, Spanned};
+
+use super::theme_domains::{ThemeNamespace, ThemeTokenKind};
+use super::theme_index::{ThemeToken, ThemeTokenMode};
+use super::theme_parser::offset;
 
 pub(super) fn extract_theme_declarations(
     file: FileId,

@@ -1,16 +1,29 @@
-use super::{
-    BTreeMap, BTreeSet, FileId, FrameworkImports, ParserOptions, SourceFile, StillwindConfig,
-    StyleSheet, TAILWIND_V4_THEME, ThemeIndex, ThemeTokenMode, extract_authored_property_names,
-    extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
-    extract_marker_utilities, extract_property_definitions, extract_relationship_patterns,
-    extract_stillwind_config, extract_theme_declarations, framework_imports, matching_brace,
+use std::collections::{BTreeMap, BTreeSet};
+
+use lightningcss::error::{Error, ParserError};
+use lightningcss::stylesheet::{ParserOptions, StyleSheet};
+
+use stillwind_source::{FileId, SourceFile};
+
+use super::catalog::TAILWIND_V4_THEME;
+use super::directives::{
+    extract_authored_property_names, extract_property_definitions, extract_stillwind_config,
     strip_framework_directives,
 };
+use super::imports::framework_imports;
+use super::theme_declarations::{extract_theme_declarations, matching_brace};
+use super::theme_index::{ThemeIndex, ThemeTokenMode};
+use super::theme_types::{FrameworkImports, StillwindConfig};
+use super::utility_definitions::{
+    extract_custom_utilities, extract_declaration_formats, extract_marker_utilities,
+    extract_relationship_patterns,
+};
+use super::variants::extract_custom_variants;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
     #[error("CSS parse error: {0}")]
-    Parse(#[source] lightningcss::error::Error<lightningcss::error::ParserError<'static>>),
+    Parse(#[source] Error<ParserError<'static>>),
     #[error("unterminated @theme block")]
     UnterminatedTheme,
 }

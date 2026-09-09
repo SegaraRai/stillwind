@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_core::{Fingerprint, OxcSourceAnalyzer, SourceAnalyzer, TypeFacts};
@@ -19,7 +20,7 @@ fn analysis_is_design_system_independent_and_rejects_stale_facts() {
         source_revision: Fingerprint::of("stale"),
         semantic_revision: Fingerprint::of("checker revision"),
         facts: vec![],
-        assets: std::collections::BTreeMap::default(),
+        assets: BTreeMap::default(),
     };
     let rejected = OxcSourceAnalyzer.finalize(scan.clone(), Some(&facts));
     assert_eq!(local.ir, rejected.ir);

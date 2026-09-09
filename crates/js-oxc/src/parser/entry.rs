@@ -1,8 +1,17 @@
-use super::{
-    Allocator, AssetMetadata, BTreeMap, CompileError, IdentityId, LintFinding, MacroExtractor,
-    ModuleIr, ModuleSummary, Parser, Path, SemanticBuilder, SourceFile, SourceType, Span, TypeFact,
-    Visit,
-};
+use std::collections::BTreeMap;
+use std::path::Path;
+
+use oxc::allocator::Allocator;
+use oxc::ast_visit::Visit;
+use oxc::parser::Parser;
+use oxc::semantic::SemanticBuilder;
+use oxc::span::SourceType;
+
+use stillwind_ir::{AdapterKind, ModuleIr};
+use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
+use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
+
+use super::state::MacroExtractor;
 
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
@@ -68,7 +77,7 @@ pub fn parse_with_type_facts(
         lint_findings,
         summary,
         module: ModuleIr {
-            adapter: stillwind_ir::AdapterKind::React,
+            adapter: AdapterKind::React,
             style_calls: extractor.style_calls,
             handle_definitions: extractor.handle_definitions,
             scope_definitions: extractor.scope_definitions,

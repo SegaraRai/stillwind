@@ -1,4 +1,4 @@
-use super::CompiledUtility;
+use super::utilities::CompiledUtility;
 
 pub(super) fn prepend_missing_declarations(
     declaration: &mut String,

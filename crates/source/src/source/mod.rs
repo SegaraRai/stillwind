@@ -1,15 +1,12 @@
 //! Source buffers, spans, line indexes, and diagnostics used by every compiler pass.
 
-use std::{ops::Range, sync::Arc};
-
-use serde::{Deserialize, Serialize};
-
-mod text;
-pub use text::*;
 mod diagnostics;
-pub use diagnostics::*;
 mod lint;
-pub use lint::*;
+mod text;
 
 #[cfg(test)]
 mod tests;
+
+pub use diagnostics::*;
+pub use lint::*;
+pub use text::*;

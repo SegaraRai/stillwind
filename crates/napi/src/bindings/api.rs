@@ -1,18 +1,27 @@
-use super::{
-    AssetMetadata, BTreeMap, BTreeSet, BindingDiagnostic, BindingLintFinding, BindingMapping,
-    BindingOutput, CompileResult, Compiler, CompilerOptions, DesignSystemSnapshot, Error, FileId,
-    Fingerprint, IdentityId, ModuleCompiler, OxcSourceAnalyzer, ProjectBindingOutput,
-    ProjectModuleOutput, ProjectSource, Result, SourceAnalyzer, SourceFile, TypeFacts, napi,
+use std::collections::{BTreeMap, BTreeSet};
+
+use napi::Error;
+use napi_derive::napi;
+
+use stillwind_core::{
+    CompileResult, Compiler, CompilerOptions, CompilerOptionsError, DesignSystemError,
+    DesignSystemSnapshot, Fingerprint, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
+    TypeFacts,
 };
+use stillwind_semantic::{AssetMetadata, IdentityId};
+use stillwind_source::{FileId, SourceFile};
+
+use super::output::{BindingDiagnostic, BindingLintFinding, BindingMapping, BindingOutput};
+use super::session::{ProjectBindingOutput, ProjectModuleOutput, ProjectSource};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BindingApiError {
     #[error("{0}")]
     Json(#[from] serde_json::Error),
     #[error("{0}")]
-    DesignSystem(#[from] stillwind_core::DesignSystemError),
+    DesignSystem(#[from] DesignSystemError),
     #[error("{0}")]
-    Options(#[from] stillwind_core::CompilerOptionsError),
+    Options(#[from] CompilerOptionsError),
 }
 
 impl From<BindingApiError> for Error {
@@ -33,7 +42,7 @@ pub fn compile_react_json(
     source: &str,
     source_path: &str,
     theme: &str,
-) -> std::result::Result<String, BindingApiError> {
+) -> Result<String, BindingApiError> {
     compile_react_json_with_options(source, source_path, theme, &CompilerOptions::default())
 }
 
@@ -42,7 +51,7 @@ pub fn compile_react_json_with_options(
     source_path: &str,
     theme: &str,
     options: &CompilerOptions,
-) -> std::result::Result<String, BindingApiError> {
+) -> Result<String, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source);
     let theme = SourceFile::new(FileId(2), "stillwind.css", theme);
     let result = Compiler::compile_react_with_options(&source, &theme, options);
@@ -157,7 +166,7 @@ pub(super) fn binding_output(
 pub fn compile_react_project_json(
     sources_json: &str,
     theme: &str,
-) -> std::result::Result<String, BindingApiError> {
+) -> Result<String, BindingApiError> {
     compile_react_project_json_with_options(sources_json, theme, &CompilerOptions::default())
 }
 
@@ -165,7 +174,7 @@ pub fn compile_react_project_json_with_options(
     sources_json: &str,
     theme: &str,
     options: &CompilerOptions,
-) -> std::result::Result<String, BindingApiError> {
+) -> Result<String, BindingApiError> {
     let input: Vec<ProjectSource> = serde_json::from_str(sources_json)?;
     let sources = input
         .into_iter()
@@ -240,10 +249,7 @@ pub fn compile_react_project_json_with_options(
 /// # Errors
 ///
 /// Returns an error only when serializing the summary fails.
-pub fn summarize_react_json(
-    source: &str,
-    source_path: &str,
-) -> std::result::Result<String, BindingApiError> {
+pub fn summarize_react_json(source: &str, source_path: &str) -> Result<String, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source);
     serde_json::to_string(&Compiler::analyze_javascript(&source).summary)
         .map_err(BindingApiError::Json)
@@ -263,7 +269,7 @@ pub fn compile_react(
     source_path: Option<String>,
     theme: String,
     options_json: Option<String>,
-) -> Result<String> {
+) -> napi::Result<String> {
     let options = parse_options(options_json.as_deref())?;
     compile_react_json_with_options(
         &source,
@@ -284,7 +290,7 @@ pub fn compile_react_project(
     sources_json: String,
     theme: String,
     options_json: Option<String>,
-) -> Result<String> {
+) -> napi::Result<String> {
     let options = parse_options(options_json.as_deref())?;
     compile_react_project_json_with_options(&sources_json, &theme, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
@@ -300,7 +306,7 @@ pub fn render_react_stylesheet(
     module_css: String,
     theme: String,
     options_json: Option<String>,
-) -> Result<String> {
+) -> napi::Result<String> {
     let options = parse_options(options_json.as_deref())?;
     let theme = SourceFile::new(FileId(1), "stillwind.css", theme);
     Compiler::render_react_stylesheet(&theme, &module_css, &options)
@@ -309,7 +315,7 @@ pub fn render_react_stylesheet(
 
 pub(super) fn parse_options(
     options_json: Option<&str>,
-) -> std::result::Result<CompilerOptions, BindingApiError> {
+) -> Result<CompilerOptions, BindingApiError> {
     let options = options_json.map_or_else(
         || Ok(CompilerOptions::default()),
         |value| serde_json::from_str(value).map_err(BindingApiError::Json),
@@ -324,14 +330,14 @@ pub(super) fn parse_options(
 ///
 /// Returns a JavaScript error if the summary cannot be serialized.
 #[napi(js_name = "summarizeReact")]
-pub fn summarize_react(source: String, source_path: Option<String>) -> Result<String> {
+pub fn summarize_react(source: String, source_path: Option<String>) -> napi::Result<String> {
     summarize_react_json(&source, source_path.as_deref().unwrap_or("Component.tsx"))
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
 #[napi(js_name = "generateReactTypes")]
-pub fn generate_react_types(theme: String) -> Result<String> {
+pub fn generate_react_types(theme: String) -> napi::Result<String> {
     let source = SourceFile::new(FileId(2), "stillwind.css", theme);
     Compiler::generate_react_types(&source).map_err(|error| Error::from_reason(error.to_string()))
 }

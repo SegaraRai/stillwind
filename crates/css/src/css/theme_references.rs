@@ -1,4 +1,4 @@
-use super::BTreeSet;
+use std::collections::BTreeSet;
 
 pub(super) fn custom_property_references(css: &str) -> BTreeSet<String> {
     let mut references = BTreeSet::new();

@@ -2,19 +2,24 @@
 
 use std::collections::BTreeSet;
 
+use stillwind_css::{ThemeIndex, ThemeNamespace, ThemeTokenKind};
 use stillwind_grammar::{Candidate, parse_candidate};
 use stillwind_source::{FileId, LintFinding, Span};
+use stillwind_tailwind::{
+    ResolvedUtility, builtin_property_definitions, builtin_utility_token_prefixes, resolve_utility,
+    resolve_variant,
+};
 
-use crate::{DesignSystemRevision, DesignSystemSnapshot, GeneratedRule, ModuleCssArtifact};
+use crate::{
+    DesignSystemRevision, DesignSystemSnapshot, GeneratedRule, ModuleCssArtifact, class_name,
+    emit_utility_rules, resolve_utility_targets, unresolved_utility_rule,
+};
 
 pub(crate) struct CandidateResolver;
 
 impl CandidateResolver {
-    pub(crate) fn resolve(
-        raw: &str,
-        theme: &stillwind_css::ThemeIndex,
-    ) -> Option<stillwind_tailwind::ResolvedUtility> {
-        stillwind_tailwind::resolve_utility(raw, theme)
+    pub(crate) fn resolve(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
+        resolve_utility(raw, theme)
     }
 }
 
@@ -64,19 +69,19 @@ impl DesignSystemQuery {
     pub fn resolve_candidate(&self, candidate: &str) -> CandidateResolution {
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
-        let targets = crate::resolve_utility_targets(candidate, theme).filter(|_| {
+        let targets = resolve_utility_targets(candidate, theme).filter(|_| {
             parsed.as_ref().is_some_and(|parsed| {
                 parsed
                     .variants
                     .iter()
-                    .all(|variant| stillwind_tailwind::resolve_variant(variant, theme).is_some())
+                    .all(|variant| resolve_variant(variant, theme).is_some())
             })
         });
         let mut css = String::new();
         let diagnostics = if let Some(targets) = targets {
-            crate::emit_utility_rules(
+            emit_utility_rules(
                 &mut css,
-                &crate::class_name(&format!("{candidate}\0")),
+                &class_name(&format!("{candidate}\0")),
                 &targets,
                 theme,
             );
@@ -94,7 +99,7 @@ impl DesignSystemQuery {
         let properties = theme
             .properties
             .iter()
-            .chain(stillwind_tailwind::builtin_property_definitions());
+            .chain(builtin_property_definitions());
         let required_properties = properties
             .filter(|property| css.contains(&property.name))
             .map(|property| property.name.clone())
@@ -121,7 +126,7 @@ impl DesignSystemQuery {
             .map(str::to_owned)
             .collect();
         if theme.imports.builtins {
-            let token_prefixes = stillwind_tailwind::builtin_utility_token_prefixes();
+            let token_prefixes = builtin_utility_token_prefixes();
             for token in theme.active_tokens() {
                 for (prefix, namespace) in &token_prefixes {
                     if let Some(name) = token.name.value.strip_prefix(&format!("--{namespace}-")) {
@@ -151,8 +156,8 @@ impl DesignSystemQuery {
         if theme.imports.builtins {
             variant_names.extend(theme.active_tokens().iter().filter_map(
                 |token| match &token.kind {
-                    stillwind_css::ThemeTokenKind::Token {
-                        namespace: stillwind_css::ThemeNamespace::Breakpoint,
+                    ThemeTokenKind::Token {
+                        namespace: ThemeNamespace::Breakpoint,
                         name,
                     } => Some(name.clone()),
                     _ => None,
@@ -192,7 +197,7 @@ impl DesignSystemQuery {
             .into_iter()
             .map(|diagnostic| {
                 LintFinding::new(
-                    crate::unresolved_utility_rule(candidate),
+                    unresolved_utility_rule(candidate),
                     diagnostic.message,
                     Span::new(
                         FileId(0),

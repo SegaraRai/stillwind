@@ -2,6 +2,10 @@
 
 use std::{collections::BTreeMap, sync::Arc};
 
+use stillwind_css::{CustomPropertyDefinition, CustomUtility, CustomVariant, ThemeToken};
+
+use crate::Fingerprint;
+
 #[derive(Clone, Debug)]
 pub struct DefinitionRegistry<T> {
     entries: BTreeMap<String, Vec<Arc<T>>>,
@@ -28,19 +32,19 @@ impl<T> DefinitionRegistry<T> {
     }
 }
 
-pub type ThemeRegistry = DefinitionRegistry<stillwind_css::ThemeToken>;
+pub type ThemeRegistry = DefinitionRegistry<ThemeToken>;
 
-pub type UtilityRegistry = DefinitionRegistry<stillwind_css::CustomUtility>;
+pub type UtilityRegistry = DefinitionRegistry<CustomUtility>;
 
-pub type VariantRegistry = DefinitionRegistry<stillwind_css::CustomVariant>;
+pub type VariantRegistry = DefinitionRegistry<CustomVariant>;
 
-pub type PropertyRegistry = DefinitionRegistry<stillwind_css::CustomPropertyDefinition>;
+pub type PropertyRegistry = DefinitionRegistry<CustomPropertyDefinition>;
 
 impl<T: std::fmt::Debug> DefinitionRegistry<T> {
-    pub(crate) fn fingerprints(&self) -> BTreeMap<String, crate::Fingerprint> {
+    pub(crate) fn fingerprints(&self) -> BTreeMap<String, Fingerprint> {
         self.entries
             .iter()
-            .map(|(name, values)| (name.clone(), crate::Fingerprint::of(format!("{values:?}"))))
+            .map(|(name, values)| (name.clone(), Fingerprint::of(format!("{values:?}"))))
             .collect()
     }
 }

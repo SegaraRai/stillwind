@@ -1,23 +1,43 @@
-use super::{
-    AssetKind, BTreeSet, CompileError, CompileResult, CompiledUtility, Compiler,
-    DesignSystemSnapshot, DynamicAssetClassEntry, GeneratedClass, IdentityId, LintFinding,
-    PropsTransform, ReactPropsParts, SourceFile, StyleInput, ViewTransitionStyleEntry,
-    asset_symbol_name, class_name, emit_animation_definition, emit_utility_rules,
-    emit_view_transition_definition, filter_lint_findings, generated_class_symbol,
-    generated_ref_marker_symbol, generated_ref_symbol, generated_scope_marker_symbol,
-    generated_scope_symbol, generated_symbol, handle_marker_class, handle_parent_selector,
-    handle_projection_name, lex_utilities, named_identity, parse_candidate, ref_identity,
-    ref_symbol_name, render_handle_projection, render_react_props, render_stylesheet,
-    resolve_animation_use, resolve_utility_targets, runtime_projection_class, scope_identity,
-    scope_marker_class, summary_runtime_assets, symbol_name, unresolved_utility_rule,
-    view_transition_utility,
+use std::collections::BTreeSet;
+
+use stillwind_grammar::{lex_utilities, parse_candidate};
+use stillwind_ir::StyleInput;
+use stillwind_js_oxc::ParsedJavaScript;
+use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_source::{CompileError, LintFinding, SourceFile, filter_lint_findings};
+use stillwind_tailwind::{compatibility_marker_class, is_tailwind_relationship_candidate};
+
+use crate::DesignSystemSnapshot;
+
+use super::Compiler;
+use super::handles::{
+    handle_marker_class, handle_parent_selector, named_identity, ref_identity,
+    render_handle_projection, scope_identity, scope_marker_class, summary_runtime_assets,
 };
+use super::motion::{
+    emit_animation_definition, emit_view_transition_definition, resolve_animation_use,
+};
+use super::react_props::{
+    DynamicAssetClassEntry, ReactPropsParts, ViewTransitionStyleEntry, render_react_props,
+};
+use super::react_types::class_name;
+use super::stylesheet::render_stylesheet;
+use super::symbols::{
+    asset_symbol_name, generated_class_symbol, generated_ref_marker_symbol, generated_ref_symbol,
+    generated_scope_marker_symbol, generated_scope_symbol, generated_symbol,
+    handle_projection_name, ref_symbol_name, runtime_projection_class, symbol_name,
+};
+use super::types::{CompileResult, GeneratedClass, PropsTransform};
+use super::utilities::{
+    CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
+};
+use super::utility_emission::emit_utility_rules;
 
 impl Compiler {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn compile_with_snapshot(
         source: &SourceFile,
-        parsed: stillwind_js_oxc::ParsedJavaScript,
+        parsed: ParsedJavaScript,
         snapshot: &DesignSystemSnapshot,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
@@ -492,10 +512,7 @@ impl Compiler {
                 for utility in lex_utilities(&input) {
                     if (options.forbid_tailwind_relationships
                         || theme.config.lint_enabled("prefer-typed-relationships"))
-                        && stillwind_tailwind::is_tailwind_relationship_candidate(
-                            &utility.value.raw,
-                            theme,
-                        )
+                        && is_tailwind_relationship_candidate(&utility.value.raw, theme)
                     {
                         result.lint_findings.push(LintFinding::new(
                             "prefer-typed-relationships",
@@ -507,10 +524,7 @@ impl Compiler {
                         ));
                     }
                     if selector.is_none()
-                        && let Some(marker) = stillwind_tailwind::compatibility_marker_class(
-                            &utility.value.raw,
-                            theme,
-                        )
+                        && let Some(marker) = compatibility_marker_class(&utility.value.raw, theme)
                     {
                         let class = GeneratedClass {
                             class_name: marker,

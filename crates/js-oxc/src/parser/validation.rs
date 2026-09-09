@@ -1,4 +1,9 @@
-use super::{CompileError, HashSet, MacroExtractor, is_strict_ancestor};
+use std::collections::HashSet;
+
+use stillwind_source::CompileError;
+
+use super::labels::is_strict_ancestor;
+use super::state::MacroExtractor;
 
 impl MacroExtractor<'_> {
     pub(super) fn validate_handles(&mut self) {

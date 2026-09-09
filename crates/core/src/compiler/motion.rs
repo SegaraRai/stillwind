@@ -1,14 +1,18 @@
-use super::{
-    AnimationDefinition, AssetReference, CompileError, CompiledUtility, SourceFile, Spanned,
-    ViewTransitionDefinition, asset_symbol_name, combine_declarations_for_theme, lex_utilities,
-    resolve_utility, symbol_name,
-};
+use stillwind_css::ThemeIndex;
+use stillwind_grammar::lex_utilities;
+use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition};
+use stillwind_source::{CompileError, SourceFile, Spanned};
+use stillwind_tailwind::resolve_animation_option;
+
+use super::declaration_order::combine_declarations_for_theme;
+use super::symbols::{asset_symbol_name, symbol_name};
+use super::utilities::{CompiledUtility, resolve_utility};
 
 pub(super) fn emit_animation_definition(
     output: &mut String,
     source: &SourceFile,
     animation: &AnimationDefinition,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
     output.push_str("@keyframes ");
@@ -45,7 +49,7 @@ pub(super) fn emit_animation_definition(
 pub(super) fn resolve_animation_use(
     animation: &AssetReference,
     options: &Spanned<String>,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) -> CompiledUtility {
     let mut declaration = format!(
@@ -66,14 +70,12 @@ pub(super) fn resolve_animation_use(
 
 pub(super) fn resolve_motion_options(
     options: &Spanned<String>,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) -> String {
     let mut declaration = String::new();
     for option in lex_utilities(options) {
-        if let Some(resolved) =
-            stillwind_tailwind::resolve_animation_option(&option.value.raw, theme)
-        {
+        if let Some(resolved) = resolve_animation_option(&option.value.raw, theme) {
             declaration.push_str(&resolved);
         } else {
             diagnostics.push(CompileError::new(
@@ -90,7 +92,7 @@ pub(super) fn emit_view_transition_definition(
     output: &mut String,
     source: &SourceFile,
     transition: &ViewTransitionDefinition,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
     let name = symbol_name(source, "view-transition", &transition.name);
@@ -122,7 +124,7 @@ pub(super) fn emit_view_transition_definition(
 
 pub(super) fn resolve_static_utility_list(
     input: &Spanned<String>,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) -> String {
     let mut utilities = Vec::new();

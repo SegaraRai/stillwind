@@ -2,18 +2,20 @@
 
 use std::collections::BTreeSet;
 
-use cssparser::{Parser, Token};
+use cssparser::{ParseError, Parser, Token};
+
 use stillwind_ir::StyleInput;
+use stillwind_semantic::IdentityId;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
 use crate::{
     Compiler, DesignSystemSnapshot, Fingerprint, GeneratedClass, GeneratedSymbol, ModuleAnalysis,
-    PropsTransform,
+    PropsTransform, TransformError,
 };
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
-pub struct ModuleTransformError(#[from] pub crate::TransformError);
+pub struct ModuleTransformError(#[from] pub TransformError);
 
 pub type SourceTransform = PropsTransform;
 
@@ -21,7 +23,7 @@ pub type CompileDiagnostic = CompileError;
 
 pub type RuleKey = Fingerprint;
 
-pub type AssetIdentity = stillwind_semantic::IdentityId;
+pub type AssetIdentity = IdentityId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
@@ -64,7 +66,7 @@ impl ModuleCssArtifact {
                 let body_end = parser
                     .parse_nested_block(|nested| {
                         while nested.next_including_whitespace_and_comments().is_ok() {}
-                        Ok::<_, cssparser::ParseError<()>>(nested.position().byte_index())
+                        Ok::<_, ParseError<()>>(nested.position().byte_index())
                     })
                     .expect("generated CSS block is valid");
                 let end = parser.position().byte_index();

@@ -1,10 +1,17 @@
-use super::{
-    Argument, AssetKind, BindingPattern, CallExpression, CompileError, Declaration,
-    ExportAllDeclaration, ExportDeclaration, ExportFromDeclaration, ExportNamedDeclaration,
-    ExportedValue, Expression, ImportBinding, ImportDeclaration, ImportDeclarationSpecifier,
-    JSXElement, MacroExtractor, ModuleExportName, ReExport, RefAlternative, Spanned, StyleCall,
-    SymbolicValue, VariableDeclarator, Visit, walk,
+use oxc::ast::ast::{
+    Argument, BindingPattern, CallExpression, Declaration, ExportAllDeclaration, ExportDeclaration,
+    ExportFromDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration,
+    ImportDeclarationSpecifier, JSXElement, ModuleExportName, VariableDeclarator,
 };
+use oxc::ast_visit::{Visit, walk};
+
+use stillwind_ir::StyleCall;
+use stillwind_semantic::{
+    AssetKind, ExportedValue, ImportBinding, ReExport, RefAlternative, SymbolicValue,
+};
+use stillwind_source::{CompileError, Spanned};
+
+use super::state::MacroExtractor;
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
     fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {

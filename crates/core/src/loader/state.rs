@@ -1,7 +1,17 @@
-use super::{
-    Arc, BTreeMap, CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge,
-    CssSourceGraph, CssSourceName, DesignSystemLoadStep, DesignSystemOptions, DesignSystemSnapshot,
-    ExpandedSource, FileId, Import, SourceFile, imports,
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use stillwind_css::{ThemeError, parse_tailwind_theme};
+use stillwind_source::{FileId, SourceFile};
+
+use crate::{CompilerOptionsError, DesignSystemSnapshot};
+
+use super::CssImportError;
+use super::expansion::ExpandedSource;
+use super::imports::{Import, imports};
+use super::protocol::{
+    CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
+    CssSourceName, DesignSystemLoadStep, DesignSystemOptions,
 };
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -22,16 +32,16 @@ pub enum DesignSystemLoadError {
     InvalidCss {
         name: CssSourceName,
         #[source]
-        cause: stillwind_css::ThemeError,
+        cause: ThemeError,
     },
     #[error("{}: {cause}", .name.0)]
     InvalidImport {
         name: CssSourceName,
         #[source]
-        cause: super::CssImportError,
+        cause: CssImportError,
     },
     #[error("{0}")]
-    InvalidOptions(#[from] crate::CompilerOptionsError),
+    InvalidOptions(#[from] CompilerOptionsError),
     #[error("CSS import cycle: {chain:?}")]
     Cycle { chain: Vec<CssFileRequest> },
 }
@@ -136,12 +146,11 @@ impl DesignSystemLoader {
         let output = self.expand(0, &mut BTreeMap::new());
         let name = self.graph.sources[0].name.clone();
         let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str());
-        let mut theme = stillwind_css::parse_tailwind_theme(&source).map_err(|error| {
-            DesignSystemLoadError::InvalidCss {
+        let mut theme =
+            parse_tailwind_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
                 name: name.clone(),
                 cause: error,
-            }
-        })?;
+            })?;
         for token in &mut theme.tokens {
             if token.name.span.file == source.id() {
                 if let Some(span) = output.original_span(token.name.span) {
@@ -181,11 +190,9 @@ impl DesignSystemLoader {
         let index = self.nodes.len();
         let id = u32::try_from(index + 1).map_err(|_| DesignSystemLoadError::SourceIdExhausted)?;
         let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content));
-        stillwind_css::parse_tailwind_theme(&source).map_err(|error| {
-            DesignSystemLoadError::InvalidCss {
-                name: name.clone(),
-                cause: error,
-            }
+        parse_tailwind_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
+            name: name.clone(),
+            cause: error,
         })?;
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {

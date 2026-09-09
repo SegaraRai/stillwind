@@ -1,6 +1,10 @@
-use super::{
-    Arc, CompilerOptions, DesignSystemLoadError, DesignSystemSnapshot, FileId, SourceFile,
-};
+use std::sync::Arc;
+
+use stillwind_source::{FileId, SourceFile};
+
+use crate::{CompilerOptions, DesignSystemSnapshot};
+
+use super::state::DesignSystemLoadError;
 
 pub type DesignSystemOptions = CompilerOptions;
 

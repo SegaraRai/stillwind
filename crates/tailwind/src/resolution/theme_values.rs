@@ -1,7 +1,7 @@
-use super::{
-    ThemeIndex, ThemeNamespace, ValueType, builtin_theme_namespace_types, decode_arbitrary,
-    parse_css_variable,
-};
+use stillwind_css::{ThemeIndex, ThemeNamespace, ThemeTokenMode, ValueType};
+
+use super::arbitrary::{decode_arbitrary, parse_css_variable};
+use super::metadata::builtin_theme_namespace_types;
 
 pub(super) fn theme_value(
     namespace: ThemeNamespace,
@@ -15,7 +15,7 @@ pub(super) fn theme_value(
         // Unicode theme names remain valid CSS but are not utility candidates.
         _ if !value.is_ascii() => return None,
         _ if let Some(token) = theme.token_in(namespace, value) => {
-            if matches!(token.mode, stillwind_css::ThemeTokenMode::Inline) {
+            if matches!(token.mode, ThemeTokenMode::Inline) {
                 token.value.value.clone()
             } else {
                 let prefix = theme

@@ -1,4 +1,8 @@
-use super::{ThemeIndex, builtin_declaration_formats, important, normalize_var_fallbacks};
+use stillwind_css::{ThemeIndex, declaration_format, fold_calc_expressions, format_numeric_zero};
+
+use super::arbitrary::important;
+use super::metadata::builtin_declaration_formats;
+use super::normalization::normalize_var_fallbacks;
 
 pub(super) fn finalize_declaration(
     declaration: String,
@@ -13,7 +17,7 @@ pub(super) fn finalize_declaration(
     let declaration = normalize_format_var_fallbacks(declaration, theme);
     let declaration = apply_declaration_formats(declaration, theme);
     let declaration = apply_zero_length_format(declaration, theme);
-    stillwind_css::fold_calc_expressions(&declaration)
+    fold_calc_expressions(&declaration)
 }
 
 pub(super) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
@@ -56,7 +60,7 @@ pub(super) fn apply_zero_length_format(mut declaration: String, theme: &ThemeInd
         })
         .filter_map(|(start, end, segment)| {
             let property = segment.split_once(':')?.0;
-            stillwind_css::declaration_format(formats, property)
+            declaration_format(formats, property)
                 .is_some_and(|format| format.split_whitespace().any(|item| item == "zero-length"))
                 .then_some((start, end))
         })
@@ -64,12 +68,7 @@ pub(super) fn apply_zero_length_format(mut declaration: String, theme: &ThemeInd
     for (start, end) in ranges.into_iter().rev() {
         let segment = declaration[start..end].split_once(':').map_or_else(
             || declaration[start..end].to_owned(),
-            |(property, value)| {
-                format!(
-                    "{property}:{}",
-                    stillwind_css::format_numeric_zero(value, "px")
-                )
-            },
+            |(property, value)| format!("{property}:{}", format_numeric_zero(value, "px")),
         );
         declaration.replace_range(start..end, &segment);
     }

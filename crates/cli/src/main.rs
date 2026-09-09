@@ -3,10 +3,17 @@
 use std::{env, fs, sync::Arc};
 
 use serde::Serialize;
+
 use stillwind_core::{
     CompilerOptions, GeneratedClass, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
 };
 use stillwind_source::{FileId, SourceFile};
+
+mod arguments;
+mod loading;
+
+use arguments::{argument, has_flag, optional_argument};
+use loading::{load_design_system, read_source};
 
 #[derive(Serialize)]
 struct CliOutput {
@@ -33,11 +40,6 @@ struct LintFindingOutput {
     start: u32,
     end: u32,
 }
-
-mod arguments;
-use arguments::{argument, has_flag, optional_argument};
-mod loading;
-use loading::{load_design_system, read_source};
 
 #[derive(Debug, thiserror::Error)]
 enum CommandError {

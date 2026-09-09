@@ -1,9 +1,11 @@
+use std::{fs, path::Path};
+
 use lightningcss::{
     printer::PrinterOptions,
     stylesheet::{ParserOptions, StyleSheet},
 };
 use proptest::prelude::*;
-use std::{fs, path::Path};
+
 use stillwind_core::Compiler;
 use stillwind_source::{FileId, SourceFile};
 

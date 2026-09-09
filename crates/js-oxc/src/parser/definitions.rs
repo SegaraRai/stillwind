@@ -1,7 +1,11 @@
-use super::{
-    CallExpression, CompileError, Expression, GetSpan, HandleDefinition, MacroExtractor,
-    PropertyKey, ScopeDefinition, Span, Spanned, StyleInput, is_marker_label,
-};
+use oxc::ast::ast::{CallExpression, Expression, PropertyKey};
+use oxc::span::GetSpan;
+
+use stillwind_ir::{HandleDefinition, ScopeDefinition, StyleInput};
+use stillwind_source::{CompileError, Span, Spanned, normalized_module_path};
+
+use super::labels::is_marker_label;
+use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn collect_scope_definition(
@@ -41,7 +45,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         Some(ScopeDefinition {
-            module_path: stillwind_source::normalized_module_path(self.source.path()),
+            module_path: normalized_module_path(self.source.path()),
             name,
             label,
             call_span: self.source_span(call.span),

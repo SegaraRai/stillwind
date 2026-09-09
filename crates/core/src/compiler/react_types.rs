@@ -1,14 +1,18 @@
-pub(crate) fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
+use stillwind_css::{ThemeIndex, ThemeNamespace, ThemeTokenKind};
+use stillwind_tailwind::{
+    builtin_utility_names, builtin_utility_token_prefixes, builtin_variant_names,
+};
+
+pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     let mut utilities = Vec::new();
     if theme.imports.builtins {
-        utilities.extend(stillwind_tailwind::builtin_utility_names());
+        utilities.extend(builtin_utility_names());
         for token in &theme.tokens {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
             else {
                 continue;
             };
-            for (prefix, expected_namespace) in stillwind_tailwind::builtin_utility_token_prefixes()
-            {
+            for (prefix, expected_namespace) in builtin_utility_token_prefixes() {
                 if namespace == expected_namespace {
                     utilities.push(format!("{prefix}-{name}"));
                 }
@@ -24,10 +28,10 @@ pub(crate) fn render_react_types(theme: &stillwind_css::ThemeIndex) -> String {
         .join("\n");
     let mut variants = Vec::new();
     if theme.imports.builtins {
-        variants.extend(stillwind_tailwind::builtin_variant_names());
+        variants.extend(builtin_variant_names());
         variants.extend(theme.tokens.iter().filter_map(|token| {
-            if let stillwind_css::ThemeTokenKind::Token {
-                namespace: stillwind_css::ThemeNamespace::Breakpoint,
+            if let ThemeTokenKind::Token {
+                namespace: ThemeNamespace::Breakpoint,
                 name,
             } = &token.kind
             {

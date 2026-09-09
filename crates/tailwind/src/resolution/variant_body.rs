@@ -1,4 +1,5 @@
-use super::{VariantApplication, VariantDeclaration, closing_brace};
+use super::nested::closing_brace;
+use super::types::{VariantApplication, VariantDeclaration};
 
 pub(super) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {

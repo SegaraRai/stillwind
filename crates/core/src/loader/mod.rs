@@ -1,21 +1,13 @@
 //! Caller-driven CSS loading. Source identities are deliberately opaque.
-use std::{collections::BTreeMap, sync::Arc};
 
-use cssparser::{Parser, Token};
-use stillwind_source::{FileId, SourceFile, Span};
-
-use crate::{CompilerOptions, DesignSystemSnapshot};
-
-mod protocol;
-pub use protocol::*;
-mod state;
-pub use state::{DesignSystemLoadError, DesignSystemLoader};
 mod expansion;
-use expansion::ExpandedSource;
 mod imports;
+mod protocol;
+mod state;
+
 pub use imports::CssImportError;
-use imports::Import;
-use imports::imports;
+pub use protocol::*;
+pub use state::{DesignSystemLoadError, DesignSystemLoader};
 
 #[cfg(test)]
 mod tests;

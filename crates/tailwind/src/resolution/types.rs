@@ -1,4 +1,4 @@
-use super::Candidate;
+use stillwind_grammar::Candidate;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {

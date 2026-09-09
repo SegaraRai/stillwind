@@ -1,26 +1,26 @@
-use super::{Parser, Token};
+use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind, Parser, Token};
 
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum CssImportError {
     #[error("invalid CSS block at byte {offset}: {kind:?}")]
     Block {
         offset: usize,
-        kind: cssparser::ParseErrorKind<()>,
+        kind: ParseErrorKind<()>,
     },
     #[error("invalid @import at byte {offset}: {kind}")]
     Specifier {
         offset: usize,
-        kind: cssparser::BasicParseErrorKind,
+        kind: BasicParseErrorKind,
     },
     #[error("invalid import modifiers at byte {offset}: {kind}")]
     Modifiers {
         offset: usize,
-        kind: cssparser::BasicParseErrorKind,
+        kind: BasicParseErrorKind,
     },
     #[error("invalid import modifier at byte {offset}: {kind:?}")]
     ModifierBlock {
         offset: usize,
-        kind: cssparser::ParseErrorKind<()>,
+        kind: ParseErrorKind<()>,
     },
 }
 
@@ -51,7 +51,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
             parser
                 .parse_nested_block(|nested| {
                     while nested.next_including_whitespace_and_comments().is_ok() {}
-                    Ok::<_, cssparser::ParseError<()>>(())
+                    Ok::<_, ParseError<()>>(())
                 })
                 .map_err(|error| CssImportError::Block {
                     offset: start,
@@ -117,9 +117,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
                     .parse_nested_block(|nested| {
                         let start = nested.position();
                         while nested.next_including_whitespace_and_comments().is_ok() {}
-                        Ok::<_, cssparser::ParseError<()>>(
-                            nested.slice_from(start).trim().to_owned(),
-                        )
+                        Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_owned())
                     })
                     .map_err(|error| CssImportError::ModifierBlock {
                         offset: base_offset + state.position().byte_index(),

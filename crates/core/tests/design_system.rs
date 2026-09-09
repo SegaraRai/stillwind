@@ -1,5 +1,7 @@
-use stillwind_core::{CompilerOptions, DesignSystemSnapshot};
-use stillwind_core::{DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader};
+use stillwind_core::{
+    CompilerOptions, CssFileInput, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep,
+    DesignSystemLoader, DesignSystemSnapshot,
+};
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
@@ -201,15 +203,15 @@ fn imported_styles_retain_layer_supports_and_media_conditions() {
     assert!(css.contains("@media screen and (width > 40rem)"), "{css}");
 }
 
-fn input(id: u32, name: &str, content: &str) -> stillwind_core::CssFileInput {
-    stillwind_core::CssFileInput {
+fn input(id: u32, name: &str, content: &str) -> CssFileInput {
+    CssFileInput {
         id,
         name: name.into(),
         content: content.into(),
     }
 }
 
-fn requests(step: DesignSystemLoadStep) -> Vec<stillwind_core::CssFileRequest> {
+fn requests(step: DesignSystemLoadStep) -> Vec<CssFileRequest> {
     match step {
         DesignSystemLoadStep::NeedFile(requests) => requests,
         other @ DesignSystemLoadStep::Complete(_) => {

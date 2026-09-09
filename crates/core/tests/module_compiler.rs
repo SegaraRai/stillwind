@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use stillwind_core::{
-    Compiler, CompilerOptions, DesignSystemSnapshot, ModuleCompiler, OxcSourceAnalyzer,
-    SourceAnalyzer,
+    CompileResult, Compiler, CompilerOptions, DesignSystemSnapshot, ModuleCompiler,
+    OxcSourceAnalyzer, PropsTransform, SourceAnalyzer,
 };
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceFile, Span};
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
@@ -69,12 +69,12 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
 #[test]
 fn invalid_transform_byte_boundaries_return_errors() {
     let source = SourceFile::new(FileId(1), "a.tsx", "日本語");
-    let result = stillwind_core::CompileResult {
-        transforms: vec![stillwind_core::PropsTransform {
-            call_span: stillwind_source::Span::new(FileId(1), 1, 3),
+    let result = CompileResult {
+        transforms: vec![PropsTransform {
+            call_span: Span::new(FileId(1), 1, 3),
             replacement: "x".into(),
         }],
-        ..stillwind_core::CompileResult::default()
+        ..CompileResult::default()
     };
     assert!(result.apply_to_source(&source).is_err());
 }

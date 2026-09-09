@@ -1,7 +1,11 @@
-use stillwind_source::{FileId, Span};
+use stillwind_source::{FileId, SourceFile, Span, Spanned};
+
+use super::authored_directives::expand_authored_directives;
+use super::declaration_order::combine_declarations;
+use super::motion::resolve_motion_options;
+use super::utilities::CompiledUtility;
 
 use super::*;
-use super::{declaration_order::combine_declarations, motion::resolve_motion_options};
 
 #[test]
 fn expands_authored_variants_through_the_shared_registry() {

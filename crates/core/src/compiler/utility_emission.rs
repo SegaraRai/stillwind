@@ -1,6 +1,9 @@
-use super::{
-    CompiledUtility, combine_declarations_for_theme, order_builtin_utilities, render_utility_rule,
-};
+use stillwind_css::ThemeIndex;
+use stillwind_tailwind::{NestedUtilityAtRule, NestedUtilityRule, compare_variant_sequences};
+
+use super::declaration_order::{combine_declarations_for_theme, order_builtin_utilities};
+use super::utilities::CompiledUtility;
+use super::utility_render::render_utility_rule;
 
 pub(crate) fn emit_utility_rules(
     output: &mut String,
@@ -37,7 +40,7 @@ pub(crate) fn emit_utility_rules(
         })
         .collect::<Vec<_>>();
     variant_utilities.sort_by(|left, right| {
-        stillwind_tailwind::compare_variant_sequences(&left.variants, &right.variants, theme)
+        compare_variant_sequences(&left.variants, &right.variants, theme)
             .then_with(|| left.builtin_order.cmp(&right.builtin_order))
             .then_with(|| left.candidate.cmp(&right.candidate))
     });
@@ -75,7 +78,7 @@ pub(super) fn emit_base_utility_group(
     output: &mut String,
     class_name: &str,
     utilities: &[&CompiledUtility],
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
 ) {
     let base = combine_declarations_for_theme(utilities, theme);
     if !base.is_empty() {
@@ -96,14 +99,14 @@ pub(super) fn emit_base_utility_group(
                     .replace(" deg", "deg")
                     .replace("deg*-1", "deg * -1");
                 match nested.at_rule {
-                    stillwind_tailwind::NestedUtilityAtRule::Media => {
+                    NestedUtilityAtRule::Media => {
                         nested_css.push_str("@media ");
                         nested_css.push_str(&nested.condition);
                         nested_css.push('{');
                         nested_css.push_str(&nested_declaration);
                         nested_css.push('}');
                     }
-                    stillwind_tailwind::NestedUtilityAtRule::Supports => {
+                    NestedUtilityAtRule::Supports => {
                         nested_css.push_str("@supports (");
                         nested_css.push_str(&nested.condition);
                         nested_css.push_str("){\n");
@@ -138,18 +141,15 @@ pub(super) fn emit_base_utility_group(
     }
 }
 
-pub(super) fn insert_nested_declaration(
-    declaration: &mut String,
-    nested: &stillwind_tailwind::NestedUtilityRule,
-) {
+pub(super) fn insert_nested_declaration(declaration: &mut String, nested: &NestedUtilityRule) {
     let mut nested_css = String::new();
     match nested.at_rule {
-        stillwind_tailwind::NestedUtilityAtRule::Media => {
+        NestedUtilityAtRule::Media => {
             nested_css.push_str("@media ");
             nested_css.push_str(&nested.condition);
             nested_css.push('{');
         }
-        stillwind_tailwind::NestedUtilityAtRule::Supports => {
+        NestedUtilityAtRule::Supports => {
             nested_css.push_str("@supports (");
             nested_css.push_str(&nested.condition);
             nested_css.push_str("){");

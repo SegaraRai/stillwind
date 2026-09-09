@@ -1,6 +1,10 @@
-use super::{
-    CompatColorMode, ThemeIndex, closing_parenthesis, resolve_literal_value_domains,
-    resolve_value_domains, split_domains, theme_domain_pattern, theme_value,
+use stillwind_css::ThemeIndex;
+
+use super::nested::closing_parenthesis;
+use super::theme_values::theme_value;
+use super::types::CompatColorMode;
+use super::value_domains::{
+    resolve_literal_value_domains, resolve_value_domains, split_domains, theme_domain_pattern,
 };
 
 pub(super) fn resolve_literal_value_placeholders(

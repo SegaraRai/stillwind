@@ -1,4 +1,32 @@
-use super::{ReactPropsParts, SourceFile};
+use stillwind_ir::AttributeEntry;
+use stillwind_source::{SourceFile, Span};
+
+use super::types::GeneratedClass;
+
+#[derive(Clone, Debug)]
+pub(super) struct ViewTransitionStyleEntry {
+    pub(super) value: Option<Span>,
+    pub(super) identity: Option<String>,
+    pub(super) candidates: Vec<String>,
+    pub(super) key: Option<Span>,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct DynamicAssetClassEntry {
+    pub(super) value: Span,
+    pub(super) classes: Vec<(String, String)>,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ReactPropsParts<'a> {
+    pub(super) classes: &'a [GeneratedClass],
+    pub(super) attributes: &'a [AttributeEntry],
+    pub(super) handle_markers: &'a [String],
+    pub(super) external_classes: &'a [Span],
+    pub(super) dynamic_handle_classes: &'a [Span],
+    pub(super) dynamic_asset_classes: &'a [DynamicAssetClassEntry],
+    pub(super) view_transition_style: Option<&'a ViewTransitionStyleEntry>,
+}
 
 pub(super) fn render_react_props(
     source: &SourceFile,

@@ -1,20 +1,23 @@
 //! Stateful Node host binding. Resolution and I/O remain in JavaScript.
-use std::{collections::BTreeMap, sync::Arc};
 
-use napi::{Error, Result};
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use napi::Error;
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use stillwind_core::{
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot, Fingerprint, ModuleScan,
-    OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer, TypeFacts, TypeFactsUpdate,
-    TypeScriptFactsProvider,
+    CompileDiagnostic, CssFileInput, DesignSystemLoadStep, DesignSystemLoader,
+    DesignSystemSnapshot, Fingerprint, ModuleScan, OxcSourceAnalyzer, ProjectSession, SessionMode,
+    SourceAnalyzer, TypeFacts, TypeFactsUpdate, TypeScriptFactsProvider,
 };
 use stillwind_semantic::TypeFact;
 use stillwind_source::{FileId, SourceFile};
 
-use super::{BindingOutput, binding_output, parse_options};
+use super::api::{binding_output, parse_options};
+use super::output::BindingOutput;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {
@@ -22,7 +25,7 @@ pub enum NativeSessionError {
     IncompleteCssLoad,
     #[error("CSS reload compilation failed: {diagnostics:?}")]
     ReloadCompilation {
-        diagnostics: BTreeMap<String, Vec<stillwind_core::CompileDiagnostic>>,
+        diagnostics: BTreeMap<String, Vec<CompileDiagnostic>>,
     },
 }
 
@@ -68,7 +71,7 @@ pub struct NativeDesignSystemLoader {
 #[napi]
 impl NativeDesignSystemLoader {
     #[napi(constructor)]
-    pub fn new(options_json: Option<String>) -> Result<Self> {
+    pub fn new(options_json: Option<String>) -> napi::Result<Self> {
         Ok(Self {
             loader: DesignSystemLoader::new(parse_options(options_json.as_deref())?),
             snapshot: None,
@@ -76,33 +79,51 @@ impl NativeDesignSystemLoader {
     }
 
     #[napi]
-    pub fn provide(&mut self, id: u32, name: String, content: String) -> Result<String> {
+    pub fn provide(&mut self, id: u32, name: String, content: String) -> napi::Result<String> {
         self.provide_many(vec![NativeCssFileInput { id, name, content }])
     }
 
     #[napi]
-    pub fn provide_many(&mut self, files: Vec<NativeCssFileInput>) -> Result<String> {
-        match self.loader.provide_many(files.into_iter().map(|file| stillwind_core::CssFileInput {
-            id: file.id, name: file.name.as_str().into(), content: file.content.into()
-        })) {
-            DesignSystemLoadStep::NeedFile(requests) => Ok(json!({"kind":"needFile", "requests": requests.iter().map(|request| json!({"id":request.id,"importer":request.importer.0.as_ref(),"specifier":request.specifier})).collect::<Vec<_>>()}).to_string()),
+    pub fn provide_many(&mut self, files: Vec<NativeCssFileInput>) -> napi::Result<String> {
+        match self
+            .loader
+            .provide_many(files.into_iter().map(|file| CssFileInput {
+                id: file.id,
+                name: file.name.as_str().into(),
+                content: file.content.into(),
+            })) {
+            DesignSystemLoadStep::NeedFile(requests) => Ok(json!({
+              "kind": "needFile",
+              "requests": requests.iter().map(|request| json!({
+                "id": request.id,
+                "importer": request.importer.0.as_ref(),
+                "specifier": request.specifier
+              })).collect::<Vec<_>>()
+            })
+            .to_string()),
             DesignSystemLoadStep::Complete(Ok(snapshot)) => {
-                let output = json!({"kind":"complete", "revision":snapshot.revision().0.to_string(), "sources":snapshot.sources().sources.iter().map(|source| source.name.0.as_ref()).collect::<Vec<_>>()}).to_string();
+                let output = json!({
+                  "kind": "complete",
+                  "revision": snapshot.revision().0.to_string(),
+                  "sources": snapshot.sources().sources.iter().map(|source| source.name.0.as_ref()).collect::<Vec<_>>()
+                }).to_string();
                 self.snapshot = Some(snapshot);
                 Ok(output)
             }
-            DesignSystemLoadStep::Complete(Err(error)) => Err(Error::from_reason(error.to_string())),
+            DesignSystemLoadStep::Complete(Err(error)) => {
+                Err(Error::from_reason(error.to_string()))
+            }
         }
     }
 
     #[napi]
-    pub fn generate_react_types(&self) -> Result<String> {
+    pub fn generate_react_types(&self) -> napi::Result<String> {
         Ok(self.completed()?.generate_react_types())
     }
 }
 
 impl NativeDesignSystemLoader {
-    fn completed(&self) -> std::result::Result<DesignSystemSnapshot, NativeSessionError> {
+    fn completed(&self) -> Result<DesignSystemSnapshot, NativeSessionError> {
         self.snapshot
             .clone()
             .ok_or(NativeSessionError::IncompleteCssLoad)
@@ -155,7 +176,7 @@ pub struct NativeProjectSession {
 #[napi]
 impl NativeProjectSession {
     #[napi(constructor)]
-    pub fn new(loader: &NativeDesignSystemLoader, watch: bool) -> Result<Self> {
+    pub fn new(loader: &NativeDesignSystemLoader, watch: bool) -> napi::Result<Self> {
         Ok(Self {
             session: ProjectSession::new(
                 loader.completed()?,
@@ -169,7 +190,7 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> Result<String> {
+    pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> napi::Result<String> {
         let update = self
             .session
             .reload(Ok(loader.completed()?))
@@ -180,7 +201,11 @@ impl NativeProjectSession {
             }
             .into());
         }
-        Ok(json!({"cssChanged":update.css_changed,"transformedModules":update.transformed_modules}).to_string())
+        Ok(json!({
+          "cssChanged": update.css_changed,
+          "transformedModules": update.transformed_modules
+        })
+        .to_string())
     }
 
     #[napi]
@@ -194,7 +219,7 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn compile(&mut self, sources_json: String) -> Result<String> {
+    pub fn compile(&mut self, sources_json: String) -> napi::Result<String> {
         let sources: Vec<ProjectSource> = serde_json::from_str(&sources_json)
             .map_err(|error| Error::from_reason(error.to_string()))?;
         let scans: Vec<_> = sources

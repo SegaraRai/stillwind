@@ -1,4 +1,5 @@
-use super::{MathExpression, MathValue, matching_parenthesis};
+use super::math_expression::{MathExpression, MathValue};
+use super::math_folding::matching_parenthesis;
 
 pub(super) struct MathParser<'a> {
     input: &'a str,

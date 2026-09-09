@@ -1,4 +1,8 @@
-use super::{BTreeMap, CompileError, Deserialize, LintFinding, Serialize, SourceFile, Span};
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+
+use stillwind_source::{CompileError, LintFinding, SourceError, SourceFile, Span};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum CompilerOptionsError {
@@ -64,7 +68,7 @@ impl CompilerOptions {
 #[derive(Debug, thiserror::Error)]
 pub enum TransformError {
     #[error("invalid stillwind transform span: {0}")]
-    InvalidSpan(#[source] stillwind_source::SourceError),
+    InvalidSpan(#[source] SourceError),
     #[error("overlapping stillwind transform span {span:?}, previous start {previous_start}")]
     Overlap { span: Span, previous_start: u32 },
 }

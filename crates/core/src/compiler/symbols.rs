@@ -1,7 +1,8 @@
-use super::{
-    GeneratedSymbol, HandleProjection, SourceFile, Span, Spanned, handle_marker_class,
-    normalized_module_path, scope_marker_class,
-};
+use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
+use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
+
+use super::handles::{handle_marker_class, scope_marker_class};
+use super::types::GeneratedSymbol;
 
 pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static str {
     match projection {
@@ -13,7 +14,7 @@ pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static 
 }
 
 pub(super) fn runtime_projection_class(
-    handle: &stillwind_ir::HandleDefinition,
+    handle: &HandleDefinition,
     projection: &HandleProjection,
 ) -> String {
     let suffix = match projection {
@@ -53,7 +54,7 @@ pub(super) fn asset_identity(
     )
 }
 
-pub(super) fn ref_symbol_name(definition: &stillwind_ir::HandleDefinition) -> String {
+pub(super) fn ref_symbol_name(definition: &HandleDefinition) -> String {
     let identity = asset_identity(&definition.module_path, "ref", &definition.name);
     format!(
         "--sw-r-{}",
@@ -97,7 +98,7 @@ pub(super) fn generated_symbol(
     }
 }
 
-pub(super) fn generated_ref_symbol(definition: &stillwind_ir::HandleDefinition) -> GeneratedSymbol {
+pub(super) fn generated_ref_symbol(definition: &HandleDefinition) -> GeneratedSymbol {
     let identity = asset_identity(&definition.module_path, "ref", &definition.name);
     GeneratedSymbol {
         name: ref_symbol_name(definition),
@@ -109,9 +110,7 @@ pub(super) fn generated_ref_symbol(definition: &stillwind_ir::HandleDefinition) 
     }
 }
 
-pub(super) fn generated_scope_symbol(
-    definition: &stillwind_ir::ScopeDefinition,
-) -> GeneratedSymbol {
+pub(super) fn generated_scope_symbol(definition: &ScopeDefinition) -> GeneratedSymbol {
     let identity = asset_identity(&definition.module_path, "scope", &definition.name);
     GeneratedSymbol {
         name: format!(
@@ -126,9 +125,7 @@ pub(super) fn generated_scope_symbol(
     }
 }
 
-pub(super) fn generated_ref_marker_symbol(
-    definition: &stillwind_ir::HandleDefinition,
-) -> GeneratedSymbol {
+pub(super) fn generated_ref_marker_symbol(definition: &HandleDefinition) -> GeneratedSymbol {
     GeneratedSymbol {
         name: handle_marker_class(definition),
         kind: "ref-marker".to_owned(),
@@ -139,9 +136,7 @@ pub(super) fn generated_ref_marker_symbol(
     }
 }
 
-pub(super) fn generated_scope_marker_symbol(
-    definition: &stillwind_ir::ScopeDefinition,
-) -> GeneratedSymbol {
+pub(super) fn generated_scope_marker_symbol(definition: &ScopeDefinition) -> GeneratedSymbol {
     GeneratedSymbol {
         name: scope_marker_class(definition)
             .trim_start_matches('.')

@@ -1,8 +1,17 @@
-use super::{
-    AssetKind, AssetMetadata, AssetRecord, BTreeMap, HandleDefinition, HashMap, HashSet,
-    IdentityId, MacroExtractor, ModuleExportName, ModuleSummary, RefAlternative, RefCell,
-    ScopeDefinition, Scoping, SourceFile, Span, Spanned, TypeFact,
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
+use oxc::ast::ast::ModuleExportName;
+use oxc::semantic::{Scoping, SymbolId};
+
+use stillwind_ir::{
+    AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall, ViewTransitionDefinition,
 };
+use stillwind_semantic::{
+    AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
+    ReExport, RefAlternative, TypeFact,
+};
+use stillwind_source::{CompileError, SourceFile, Span, Spanned};
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn new(
@@ -164,4 +173,45 @@ impl<'a> MacroExtractor<'a> {
             ModuleExportName::StringLiteral(name) => name.value.to_string(),
         }
     }
+}
+
+pub(super) struct MacroExtractor<'a> {
+    pub(super) source: &'a SourceFile,
+    pub(super) scoping: &'a Scoping,
+    pub(super) style_symbols: HashSet<SymbolId>,
+    pub(super) handle_symbols: HashMap<SymbolId, HandleDefinition>,
+    pub(super) scope_symbols: HashMap<SymbolId, ScopeDefinition>,
+    pub(super) handle_uses: Vec<HandleUse>,
+    pub(super) scope_uses: Vec<ScopeUse>,
+    pub(super) handle_definitions: Vec<HandleDefinition>,
+    pub(super) scope_definitions: Vec<ScopeDefinition>,
+    pub(super) animation_symbols: HashMap<SymbolId, Spanned<String>>,
+    pub(super) animation_declarations: Vec<AnimationDefinition>,
+    pub(super) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
+    pub(super) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    pub(super) local_values: HashMap<SymbolId, ExportedValue>,
+    pub(super) style_calls: Vec<StyleCall>,
+    pub(super) diagnostics: Vec<CompileError>,
+    pub(super) jsx_path: Vec<usize>,
+    pub(super) next_jsx_element: usize,
+    pub(super) imports: Vec<ImportBinding>,
+    pub(super) re_exports: Vec<ReExport>,
+    pub(super) export_symbols: Vec<(SymbolId, String)>,
+    pub(super) type_facts: HashMap<(u32, u32), ExportedValue>,
+    pub(super) type_probes: RefCell<BTreeSet<(u32, u32)>>,
+    pub(super) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct HandleUse {
+    pub(super) name: String,
+    pub(super) projection: &'static str,
+    pub(super) span: Span,
+    pub(super) jsx_path: Option<Vec<usize>>,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct ScopeUse {
+    pub(super) name: String,
+    pub(super) jsx_path: Option<Vec<usize>>,
 }

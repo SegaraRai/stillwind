@@ -38,7 +38,10 @@ Keep `lib.rs` and `mod.rs` at 200 lines or fewer, aiming for 100 where a natural
 responsibility split permits it. Other handwritten Rust files stay at 800 lines
 or fewer, preferably 400 where they can be divided naturally. Generated files
 are exempt. Module entry points collect shared types and exports; substantial
-implementation and test support belong in focused sibling files.
+implementation and test support belong in focused sibling files. Outside `tests`
+directories, `mod.rs` and `lib.rs` contain no private `use` declarations. They may
+re-export public or visibility-scoped APIs with `pub use`; child modules import
+from defining siblings (`super::module::Item`) or external crates directly.
 
 ## Error ownership
 

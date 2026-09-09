@@ -1,8 +1,11 @@
-use super::{
-    AnimationDefinition, AnimationFrame, CallExpression, CompileError, Expression, GetSpan,
-    MacroExtractor, ObjectPropertyKind, PropertyKey, PropertyKind, Spanned, StyleInput,
-    ViewTransitionDefinition, is_animation_frame,
-};
+use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKey, PropertyKind};
+use oxc::span::GetSpan;
+
+use stillwind_ir::{AnimationDefinition, AnimationFrame, StyleInput, ViewTransitionDefinition};
+use stillwind_source::{CompileError, Spanned};
+
+use super::labels::is_animation_frame;
+use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn view_transition_use(
