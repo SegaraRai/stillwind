@@ -48,6 +48,119 @@
 }
 ```
 
+## `directives.apply-order-sensitive-spacing`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .spacing {
+    @apply m-4 ml-2 p-4 px-2;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities;
+@layer components {
+  .spacing {
+    margin: calc(var(--spacing) * 4);
+    margin-left: calc(var(--spacing) * 2);
+    padding: calc(var(--spacing) * 4);
+    padding-inline: calc(var(--spacing) * 2);
+  }
+}
+```
+
+## `directives.apply-order-sensitive-radius`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .radius {
+    @apply rounded-lg rounded-t-sm;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --radius-sm: 0.25rem;
+    --radius-lg: 0.5rem;
+  }
+}
+@layer utilities;
+@layer components {
+  .radius {
+    border-radius: var(--radius-lg);
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
+  }
+}
+```
+
+## `directives.apply-order-sensitive-same-property`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .opacity {
+    @apply opacity-50 opacity-75;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  .opacity {
+    opacity: 50%;
+    opacity: 75%;
+  }
+}
+```
+
 ## `directives.inline-source-brace-expansion-and-negation`
 
 ### Input CSS

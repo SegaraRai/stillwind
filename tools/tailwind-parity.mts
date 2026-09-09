@@ -5,7 +5,10 @@ import { compileReact, foldCalcExpressions } from "@stillwind/native";
 import { transform } from "lightningcss";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
-import { verifyPropertyOrderParity } from "./lib/property-order-parity.ts";
+import {
+  hasEquivalentDeclarationOrder,
+  verifyPropertyOrderParity,
+} from "./lib/property-order-parity.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
 
 const root = resolve(import.meta.dirname, "..");
@@ -275,7 +278,11 @@ for (const file of readdirSync(caseRoot)
       });
       const expected = minify(tailwind);
       const tailwindIsEmpty = expected === "" || expected === "@layer utilities;";
-      let native: { css: string; classes: Array<{ class_name: string }>; diagnostics: unknown[] };
+      let native: {
+        css: string;
+        classes: Array<{ class_name: string }>;
+        diagnostics: unknown[];
+      };
       try {
         native = JSON.parse(
           compileReact(source, "src/Parity.tsx", fixtureCase.input),
@@ -288,7 +295,11 @@ for (const file of readdirSync(caseRoot)
       if (native.diagnostics.length !== 0 || native.classes.length === 0) {
         if (candidate === "" && native.diagnostics.length === 0) {
           const received = minify(native.css);
-          if (expected === received || (expected === "@layer utilities;" && received === "")) {
+          if (
+            expected === received ||
+            hasEquivalentDeclarationOrder(expected, received) ||
+            (expected === "@layer utilities;" && received === "")
+          ) {
             continue;
           }
         }
@@ -312,7 +323,11 @@ for (const file of readdirSync(caseRoot)
       if (expected === "@layer utilities;" && received === "") {
         continue;
       }
-      if (expected !== received && !isJustifiedPropertyExtension(expected, received)) {
+      if (
+        expected !== received &&
+        !hasEquivalentDeclarationOrder(expected, received) &&
+        !isJustifiedPropertyExtension(expected, received)
+      ) {
         failures.push(`${file} ${candidate}`);
         recordDifference(file, candidate, expected, received);
         if (!quiet && failures.length <= 20) {

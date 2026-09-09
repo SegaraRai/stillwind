@@ -8,8 +8,10 @@
   "devDependencies": {
     "@stillwind/native": "workspace:*",
     "@stillwind/vite": "workspace:*",
+    "@types/css-tree": "^3.2.0",
     "@types/node": "catalog:",
     "@webref/css": "8.7.3",
+    "css-tree": "^3.2.1",
     "lightningcss": "1.33.0",
     "prettier": "^3.9.6",
     "tailwindcss": "4.3.3",

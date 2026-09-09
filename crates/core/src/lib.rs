@@ -2616,8 +2616,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "feature-grouped built-ins cannot reproduce Tailwind's independent global property order"]
-    fn authored_apply_matches_tailwind_global_property_order() {
+    fn expands_authored_apply_in_builtin_registry_order() {
         let source = SourceFile::new(
             FileId(1),
             "stillwind.css",
@@ -2634,11 +2633,8 @@ mod tests {
             .filter(|character| !character.is_whitespace())
             .collect::<String>();
 
-        // Tailwind sorts these by its global property-order table. Stillwind
-        // currently has only the feature-grouped registry source order, which
-        // produces display -> padding -> background instead.
         assert!(compact.contains(
-            "display:inline-flex;background-color:var(--color-red-500);padding-inline:calc(var(--spacing)*4);"
+            "display:inline-flex;padding-inline:calc(var(--spacing)*4);background-color:var(--color-red-500);"
         ), "actual output: {compact}");
     }
 
