@@ -8,11 +8,7 @@ mod module_compiler;
 mod query;
 mod registry;
 mod session;
-
-pub(crate) use compiler::{
-    class_name, emit_utility_rules, render_react_types, render_stylesheet, resolve_utility_targets,
-    unresolved_utility_rule,
-};
+mod transforms;
 
 pub use analysis::{
     IntegrationDiagnostic, ModuleAnalysis, ModuleId, ModuleScan, OxcSourceAnalyzer,
@@ -21,7 +17,7 @@ pub use analysis::{
 };
 pub use compiler::{
     CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
-    GeneratedClass, GeneratedSymbol, PropsTransform, TransformError,
+    GeneratedClass, GeneratedSymbol,
 };
 pub use design_system::{
     DefinitionFingerprints, DesignSystemError, DesignSystemRevision, DesignSystemSnapshot,
@@ -47,4 +43,10 @@ pub use registry::{
 pub use session::{
     DependencyIndex, ProjectSession, ProjectStylesheet, SessionMode, SessionReloadError,
     SessionUpdate,
+};
+pub use transforms::{PropsTransform, TransformError};
+
+pub(crate) use compiler::{
+    class_name, emit_utility_rules, render_react_types, render_stylesheet, resolve_utility_targets,
+    unresolved_utility_rule,
 };

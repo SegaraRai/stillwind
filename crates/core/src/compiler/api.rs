@@ -12,8 +12,9 @@ use crate::{
 };
 
 use super::Compiler;
+use super::options::CompilerOptions;
+use super::output::CompileResult;
 use super::react_types::render_react_types;
-use super::types::{CompileResult, CompilerOptions};
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]

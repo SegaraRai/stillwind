@@ -1,8 +1,20 @@
+use serde::Serialize;
+
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use super::handles::{handle_marker_class, scope_marker_class};
-use super::types::GeneratedSymbol;
+
+/// A generated CSS identifier with the canonical identity used to allocate it.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GeneratedSymbol {
+    pub name: String,
+    pub kind: String,
+    pub identity: String,
+    pub source_path: String,
+    pub start: u32,
+    pub end: u32,
+}
 
 pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static str {
     match projection {

@@ -2,8 +2,6 @@
 
 mod lexer;
 mod syntax;
-mod types;
 
-pub use lexer::*;
-pub use syntax::*;
-pub use types::*;
+pub use lexer::{UtilityToken, lex_utilities};
+pub use syntax::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};

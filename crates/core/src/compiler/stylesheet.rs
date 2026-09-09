@@ -6,8 +6,8 @@ use stillwind_tailwind::{builtin_omit_token_prefixes, builtin_theme_order};
 
 use super::authored_directives::expand_authored_directives;
 use super::keyframes::{extract_authored_keyframes, without_keyframes};
+use super::options::CompilerOptions;
 use super::properties::render_used_properties;
-use super::types::CompilerOptions;
 
 #[allow(clippy::too_many_lines)]
 pub(crate) fn render_stylesheet(

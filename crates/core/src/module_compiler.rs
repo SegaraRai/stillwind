@@ -8,9 +8,10 @@ use stillwind_ir::StyleInput;
 use stillwind_semantic::IdentityId;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
+use crate::transforms::apply_transforms;
 use crate::{
-    Compiler, DesignSystemSnapshot, Fingerprint, GeneratedClass, GeneratedSymbol, ModuleAnalysis,
-    PropsTransform, TransformError,
+    CompileResult, Compiler, DesignSystemSnapshot, Fingerprint, GeneratedClass, GeneratedSymbol,
+    ModuleAnalysis, PropsTransform, TransformError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -135,21 +136,16 @@ impl CompiledModule {
     /// # Errors
     /// Returns invalid or overlapping source-transform spans.
     pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, ModuleTransformError> {
-        crate::CompileResult {
-            transforms: self.code_transforms.clone(),
-            ..crate::CompileResult::default()
-        }
-        .apply_to_source(source)
-        .map_err(ModuleTransformError::from)
+        apply_transforms(source, &self.code_transforms).map_err(ModuleTransformError::from)
     }
 
     pub fn is_success(&self) -> bool {
         self.diagnostics.is_empty()
     }
 
-    pub fn to_legacy(&self, snapshot: &DesignSystemSnapshot) -> crate::CompileResult {
+    pub fn to_legacy(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
-        crate::CompileResult {
+        CompileResult {
             css: if self.is_success() {
                 snapshot.render_stylesheet(&module_css)
             } else {

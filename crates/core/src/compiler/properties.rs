@@ -4,7 +4,7 @@ use std::fmt::Write;
 use stillwind_css::{ThemeIndex, custom_property_usage};
 use stillwind_tailwind::builtin_property_definitions;
 
-use super::types::CompilerOptions;
+use super::options::CompilerOptions;
 
 #[allow(clippy::too_many_lines)]
 pub(super) fn render_used_properties(

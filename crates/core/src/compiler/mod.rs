@@ -5,13 +5,14 @@ mod declaration_order;
 mod handles;
 mod keyframes;
 mod motion;
+mod options;
+mod output;
 mod pipeline;
 mod properties;
 mod react_props;
 mod react_types;
 mod stylesheet;
 mod symbols;
-mod types;
 mod utilities;
 mod utility_emission;
 mod utility_render;
@@ -22,7 +23,10 @@ mod tests;
 pub struct Compiler;
 
 pub use api::CompilerThemeError;
-pub use types::*;
+pub use options::{CompilerOptions, CompilerOptionsError};
+pub use output::CompileResult;
+pub use react_props::GeneratedClass;
+pub use symbols::GeneratedSymbol;
 
 pub(crate) use react_types::class_name;
 pub(crate) use react_types::render_react_types;

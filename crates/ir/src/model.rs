@@ -1,6 +1,7 @@
 //! Language-neutral intermediate representation shared by all source frontends.
 
 use serde::{Deserialize, Serialize};
+
 use stillwind_source::{Span, Spanned};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]

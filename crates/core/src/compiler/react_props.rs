@@ -1,7 +1,15 @@
+use serde::Serialize;
+
 use stillwind_ir::AttributeEntry;
 use stillwind_source::{SourceFile, Span};
 
-use super::types::GeneratedClass;
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GeneratedClass {
+    pub class_name: String,
+    pub call_span: Span,
+    pub guard: Option<Span>,
+    pub guard_when_true: bool,
+}
 
 #[derive(Clone, Debug)]
 pub(super) struct ViewTransitionStyleEntry {

@@ -8,6 +8,7 @@ use stillwind_source::{CompileError, LintFinding, SourceFile, filter_lint_findin
 use stillwind_tailwind::{compatibility_marker_class, is_tailwind_relationship_candidate};
 
 use crate::DesignSystemSnapshot;
+use crate::transforms::PropsTransform;
 
 use super::Compiler;
 use super::handles::{
@@ -17,6 +18,8 @@ use super::handles::{
 use super::motion::{
     emit_animation_definition, emit_view_transition_definition, resolve_animation_use,
 };
+use super::output::CompileResult;
+use super::react_props::GeneratedClass;
 use super::react_props::{
     DynamicAssetClassEntry, ReactPropsParts, ViewTransitionStyleEntry, render_react_props,
 };
@@ -27,7 +30,6 @@ use super::symbols::{
     generated_scope_marker_symbol, generated_scope_symbol, generated_symbol,
     handle_projection_name, ref_symbol_name, runtime_projection_class, symbol_name,
 };
-use super::types::{CompileResult, GeneratedClass, PropsTransform};
 use super::utilities::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
 };
