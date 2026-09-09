@@ -1970,6 +1970,20 @@ pub fn parse_theme_order(css: &str) -> Vec<String> {
         .collect()
 }
 
+/// Parses the global declaration order used to sort compiled utilities and
+/// `@apply` expansions. Keeping this in the CSS registry lets the processor
+/// remain independent of individual CSS property and utility names.
+#[must_use]
+pub fn parse_property_order(css: &str) -> Vec<String> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-property-order"))
+        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
+        .flat_map(str::split_whitespace)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }
@@ -2031,6 +2045,16 @@ impl ThemeIndex {
         self.active_tokens()
             .into_iter()
             .find(|token| token.name.value == name)
+    }
+
+    /// Lowers build-time `--theme()` references in a theme-token value.
+    ///
+    /// An available token becomes a standard `var()` reference. An unavailable
+    /// token uses its authored fallback; `initial` is the sentinel Tailwind
+    /// uses to omit the containing alias altogether.
+    #[must_use]
+    pub fn resolve_theme_references(&self, value: &str) -> Option<String> {
+        resolve_theme_references(value, |name| self.custom_property(name).is_some())
     }
 
     /// Returns the effective CSS custom properties after v4 namespace resets.
@@ -2162,6 +2186,152 @@ fn custom_property_references(css: &str) -> BTreeSet<String> {
         cursor = end.max(start + 2);
     }
     references
+}
+
+fn resolve_theme_references(
+    value: &str,
+    mut is_defined: impl FnMut(&str) -> bool,
+) -> Option<String> {
+    let mut output = String::with_capacity(value.len());
+    let mut cursor = 0;
+    while let Some(start) = find_css_function(value, "--theme", cursor) {
+        output.push_str(&value[cursor..start]);
+        let open = start + "--theme".len();
+        let close = matching_css_delimiter(value, open, '(', ')')?;
+        let arguments = &value[open + 1..close];
+        let (reference, fallback) = split_css_function_arguments(arguments);
+        let reference = reference.trim();
+        if !reference.starts_with("--") {
+            return None;
+        }
+        let fallback = fallback
+            .map(str::trim)
+            .filter(|fallback| !fallback.is_empty());
+        if is_defined(reference) {
+            output.push_str("var(");
+            output.push_str(reference);
+            if let Some(fallback) = fallback.filter(|fallback| *fallback != "initial") {
+                output.push_str(", ");
+                output.push_str(fallback);
+            }
+            output.push(')');
+        } else {
+            let fallback = fallback?;
+            if fallback == "initial" {
+                return None;
+            }
+            output.push_str(fallback);
+        }
+        cursor = close + 1;
+    }
+    output.push_str(&value[cursor..]);
+    Some(output)
+}
+
+fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> {
+    let bytes = value.as_bytes();
+    let needle = format!("{name}(");
+    let mut quote = None;
+    let mut escaped = false;
+    let mut index = from;
+    while index < bytes.len() {
+        let character = bytes[index] as char;
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '/' if bytes.get(index + 1) == Some(&b'*') => {
+                let end = value[index + 2..].find("*/")?;
+                index += end + 4;
+                continue;
+            }
+            _ if bytes[index] == b'-' && value[index..].starts_with(&needle) => {
+                return Some(index);
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
+fn matching_css_delimiter(value: &str, open: usize, opener: char, closer: char) -> Option<usize> {
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    let bytes = value.as_bytes();
+    let mut index = open;
+    while index < bytes.len() {
+        let character = bytes[index] as char;
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '/' if bytes.get(index + 1) == Some(&b'*') => {
+                let end = value[index + 2..].find("*/")?;
+                index += end + 4;
+                continue;
+            }
+            _ if character == opener => depth += 1,
+            _ if character == closer => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
+fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
+    let mut stack = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in arguments.char_indices() {
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' | '[' | '{' => stack.push(character),
+            ')' | ']' | '}' => {
+                stack.pop();
+            }
+            ',' if stack.is_empty() => {
+                return (&arguments[..index], Some(&arguments[index + 1..]));
+            }
+            _ => {}
+        }
+    }
+    (arguments, None)
 }
 
 /// Returns custom properties used by declarations and values, excluding names
@@ -3162,6 +3332,9 @@ fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
         extract_named_blocks(&css, "@variant")
             .into_iter()
             .filter_map(|(header, body)| {
+                if !body.contains("@slot") {
+                    return None;
+                }
                 let (name, wildcard) = parse_variant_name(header.split_whitespace().next()?)?;
                 Some(CustomVariant {
                     name,
@@ -3828,6 +4001,43 @@ mod tests {
         assert_eq!(
             parse_omit_token_prefixes("@stillwind-omit-token-prefix --shadow- --tw-shadow:;"),
             vec![("--shadow-".to_owned(), "--tw-shadow:".to_owned())]
+        );
+    }
+
+    #[test]
+    fn resolves_theme_reference_fallbacks_generically() {
+        let source = SourceFile::new(
+            FileId(7),
+            "theme.css",
+            r"@theme { --known: blue; --alias: --theme(--known, initial); }",
+        );
+        let theme = parse_theme(&source).unwrap();
+
+        assert_eq!(
+            theme.resolve_theme_references("--theme(--known, initial)"),
+            Some("var(--known)".to_owned())
+        );
+        assert_eq!(
+            theme.resolve_theme_references("calc(1px + --theme(--missing, 2px))"),
+            Some("calc(1px + 2px)".to_owned())
+        );
+        assert_eq!(
+            theme.resolve_theme_references("--theme(--missing, initial)"),
+            None
+        );
+        assert_eq!(
+            theme.resolve_theme_references("\"--theme(--missing, initial)\""),
+            Some("\"--theme(--missing, initial)\"".to_owned())
+        );
+    }
+
+    #[test]
+    fn parses_global_property_order_metadata() {
+        assert_eq!(
+            parse_property_order(
+                "@stillwind-property-order display background-color padding-inline;"
+            ),
+            vec!["display", "background-color", "padding-inline"]
         );
     }
 

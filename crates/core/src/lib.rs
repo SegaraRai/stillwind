@@ -2012,27 +2012,11 @@ fn render_stylesheet(
             css.push_str(layer);
             css.push_str("{:root,:host{");
             for token in &required_tokens {
-                if matches!(
-                    token.name.value.as_str(),
-                    "--default-font-feature-settings"
-                        | "--default-font-variation-settings"
-                        | "--default-mono-font-feature-settings"
-                        | "--default-mono-font-variation-settings"
-                ) {
+                let Some(value) = theme.resolve_theme_references(&token.value.value) else {
                     continue;
-                }
+                };
                 css.push_str(&token.name.value);
                 css.push(':');
-                let mut value = token.value.value.replace("--theme(", "var(");
-                if token.name.value == "--default-font-family"
-                    || token.name.value == "--default-mono-font-family"
-                {
-                    value = value
-                        .trim_end_matches(", initial")
-                        .trim_end_matches(",initial")
-                        .replace(", initial)", ")")
-                        .replace(",initial)", ")");
-                }
                 css.push_str(&value);
                 css.push(';');
             }
@@ -2088,42 +2072,324 @@ fn expand_authored_directives(css: &str, theme: &stillwind_css::ThemeIndex) -> S
         };
         let end = start + end_rel;
         let candidates = output[start + 7..end].split_whitespace();
-        let mut declarations = Vec::new();
-        for candidate in candidates {
-            if let Some(resolved) = stillwind_tailwind::resolve_utility(candidate, theme) {
-                declarations.push(resolved.declaration);
-            }
-        }
-        declarations.sort_by_key(|declaration| {
-            if declaration.starts_with("background-") {
-                0
-            } else if declaration.starts_with("padding-") {
-                1
-            } else if declaration.starts_with("display:") {
-                2
-            } else {
-                3
-            }
-        });
-        let declarations = declarations.concat();
+        let mut utilities = candidates
+            .filter_map(|candidate| resolve_utility(candidate, theme))
+            .collect::<Vec<_>>();
+        utilities.sort_by(compare_applied_utilities);
+        let declarations = utilities
+            .into_iter()
+            .map(|utility| utility.declaration)
+            .collect::<String>();
         output.replace_range(start..=end, &declarations);
     }
-    while let Some(start) = output.find("@variant hover {") {
-        let open = start + "@variant hover ".len();
-        let Some(close) = matching_brace(&output, open) else {
+    while let Some((start, prelude, open, close)) = find_at_rule_block(&output, "variant") {
+        let Some(replacement) = expand_authored_variant(&prelude, &output[open + 1..close], theme)
+        else {
             break;
         };
-        let body = &output[open + 1..close];
-        let replacement = format!("&:hover {{ @media (hover: hover) {{{body}}} }}");
         output.replace_range(start..=close, &replacement);
     }
     output
 }
 
+fn compare_applied_utilities(
+    left: &CompiledUtility,
+    right: &CompiledUtility,
+) -> std::cmp::Ordering {
+    let order = stillwind_tailwind::builtin_property_order();
+    let left_sort = declaration_sort(&left.declaration, order);
+    let right_sort = declaration_sort(&right.declaration, order);
+    compare_property_indices(&left_sort.0, &right_sort.0)
+        .then_with(|| right_sort.1.cmp(&left_sort.1))
+        .then_with(|| left.candidate.cmp(&right.candidate))
+}
+
+fn declaration_sort(declaration: &str, order: &[String]) -> (Vec<usize>, usize) {
+    let mut indices = declaration
+        .split_terminator(';')
+        .filter_map(|declaration| {
+            declaration
+                .split_once(':')
+                .map(|(property, _)| property.trim())
+        })
+        .filter_map(|property| order.iter().position(|candidate| candidate == property))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    indices.sort_unstable();
+    let count = declaration.split_terminator(';').count();
+    (indices, count)
+}
+
+fn compare_property_indices(left: &[usize], right: &[usize]) -> std::cmp::Ordering {
+    for index in 0..left.len().max(right.len()) {
+        let ordering = left
+            .get(index)
+            .copied()
+            .unwrap_or(usize::MAX)
+            .cmp(&right.get(index).copied().unwrap_or(usize::MAX));
+        if !ordering.is_eq() {
+            return ordering;
+        }
+    }
+    std::cmp::Ordering::Equal
+}
+
+fn expand_authored_variant(
+    prelude: &str,
+    body: &str,
+    theme: &stillwind_css::ThemeIndex,
+) -> Option<String> {
+    let mut output = String::new();
+    for variant_sequence in split_css_top_level(prelude, ',') {
+        let candidate = parse_candidate(&format!("{}:flex", variant_sequence.trim()))?;
+        if candidate.variants.is_empty() {
+            return None;
+        }
+        let mut paths = vec![Vec::new()];
+        for variant in &candidate.variants {
+            let application = stillwind_tailwind::resolve_variant(variant, theme)?;
+            let alternatives = match application {
+                stillwind_tailwind::VariantApplication::Compound(applications) => applications,
+                application => vec![application],
+            };
+            paths = paths
+                .into_iter()
+                .flat_map(|path| {
+                    alternatives.iter().cloned().map(move |application| {
+                        let mut path = path.clone();
+                        path.push(application);
+                        path
+                    })
+                })
+                .collect();
+        }
+        for applications in &paths {
+            output.push_str(&render_authored_variant_path(body, applications));
+        }
+    }
+    Some(output)
+}
+
+fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut stack = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in value.char_indices() {
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' | '[' | '{' => stack.push(character),
+            ')' | ']' | '}' => {
+                stack.pop();
+            }
+            _ if character == separator && stack.is_empty() => {
+                parts.push(&value[start..index]);
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    parts.push(&value[start..]);
+    parts
+}
+
+fn render_authored_variant_path(
+    body: &str,
+    applications: &[stillwind_tailwind::VariantApplication],
+) -> String {
+    applications
+        .iter()
+        .fold(body.to_owned(), |body, application| match application {
+            stillwind_tailwind::VariantApplication::Compound(_) => unreachable!(),
+            stillwind_tailwind::VariantApplication::SelectorSuffix(suffix) => {
+                format!("&{suffix}{{{body}}}")
+            }
+            stillwind_tailwind::VariantApplication::SelectorTemplate(selector) => {
+                format!("{selector}{{{body}}}")
+            }
+            stillwind_tailwind::VariantApplication::SelectorRule {
+                selector,
+                declarations,
+            } => {
+                let mut body = body;
+                prepend_missing_declarations(&mut body, declarations);
+                format!("{selector}{{{body}}}")
+            }
+            stillwind_tailwind::VariantApplication::SelectorMedia {
+                selector,
+                condition,
+            } => format!("{selector}{{@media {condition}{{{body}}}}}"),
+            stillwind_tailwind::VariantApplication::SelectorMediaRule {
+                selector,
+                declarations,
+                condition,
+            } => {
+                let mut body = body;
+                prepend_missing_declarations(&mut body, declarations);
+                format!("{selector}{{@media {condition}{{{body}}}}}")
+            }
+            stillwind_tailwind::VariantApplication::Media(condition) => {
+                format!("@media {condition}{{{body}}}")
+            }
+            stillwind_tailwind::VariantApplication::Container(condition) => {
+                format!("@container {condition}{{{body}}}")
+            }
+            stillwind_tailwind::VariantApplication::Supports(condition) => {
+                format!("@supports ({condition}){{{body}}}")
+            }
+            stillwind_tailwind::VariantApplication::StartingStyle => {
+                format!("@starting-style{{{body}}}")
+            }
+        })
+}
+
+fn find_at_rule_block(css: &str, name: &str) -> Option<(usize, String, usize, usize)> {
+    let marker = format!("@{name}");
+    let bytes = css.as_bytes();
+    let mut cursor = 0;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut comment = false;
+    while cursor < bytes.len() {
+        let character = bytes[cursor] as char;
+        if comment {
+            if bytes[cursor..].starts_with(b"*/") {
+                comment = false;
+                cursor += 2;
+            } else {
+                cursor += 1;
+            }
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            cursor += 1;
+            continue;
+        }
+        match character {
+            '/' if bytes[cursor..].starts_with(b"/*") => {
+                comment = true;
+                cursor += 2;
+            }
+            '\'' | '"' => {
+                quote = Some(character);
+                cursor += 1;
+            }
+            '@' if css[cursor..].starts_with(&marker) => {
+                let after_name = cursor + marker.len();
+                if bytes.get(after_name).is_some_and(u8::is_ascii_whitespace) {
+                    let open = find_at_rule_block_open(css, after_name)?;
+                    let close = matching_brace(css, open)?;
+                    return Some((cursor, css[after_name..open].trim().to_owned(), open, close));
+                }
+                cursor = after_name;
+            }
+            _ => cursor += 1,
+        }
+    }
+    None
+}
+
+fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
+    let mut stack = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut comment = false;
+    let characters = css[from..].char_indices().collect::<Vec<_>>();
+    for (position, (offset, character)) in characters.iter().copied().enumerate() {
+        if comment {
+            if character == '*'
+                && characters
+                    .get(position + 1)
+                    .is_some_and(|(_, next)| *next == '/')
+            {
+                comment = false;
+            }
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '/' if characters
+                .get(position + 1)
+                .is_some_and(|(_, next)| *next == '*') =>
+            {
+                comment = true;
+            }
+            '\'' | '"' => quote = Some(character),
+            '(' | '[' => stack.push(character),
+            ')' | ']' => {
+                stack.pop()?;
+            }
+            '{' if stack.is_empty() => return Some(from + offset),
+            ';' if stack.is_empty() => return None,
+            _ => {}
+        }
+    }
+    None
+}
+
 fn matching_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
-    for (offset, character) in value[open..].char_indices() {
+    let mut quote = None;
+    let mut escaped = false;
+    let mut comment = false;
+    let characters = value[open..].char_indices().collect::<Vec<_>>();
+    for (position, (offset, character)) in characters.iter().copied().enumerate() {
+        if comment {
+            if character == '*'
+                && characters
+                    .get(position + 1)
+                    .is_some_and(|(_, next)| *next == '/')
+            {
+                comment = false;
+            }
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
         match character {
+            '/' if characters
+                .get(position + 1)
+                .is_some_and(|(_, next)| *next == '*') =>
+            {
+                comment = true;
+            }
+            '\'' | '"' => quote = Some(character),
             '{' => depth += 1,
             '}' => {
                 depth = depth.checked_sub(1)?;
@@ -2362,6 +2628,75 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
+
+    #[test]
+    fn expands_authored_apply_and_variants_through_shared_registries() {
+        let source = SourceFile::new(
+            FileId(1),
+            "stillwind.css",
+            r#"
+                @import "tailwindcss/theme" layer(theme);
+                @import "tailwindcss/utilities" layer(utilities);
+                .button {
+                  @apply px-4 bg-red-500 inline-flex;
+                  @variant hover { opacity: 0.8; }
+                  @variant focus { outline-width: 2px; }
+                  @variant print { color: black; }
+                }
+            "#,
+        );
+        let theme = Compiler::read_theme(&source).unwrap();
+        let expanded = expand_authored_directives(theme.custom_css(), &theme);
+        let compact = expanded
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
+
+        assert!(compact.contains(
+            "display:inline-flex;background-color:var(--color-red-500);padding-inline:calc(var(--spacing)*4);"
+        ));
+        assert!(
+            compact.contains("&:hover{@media(hover:hover){opacity:0.8;}}"),
+            "{compact}"
+        );
+        assert!(compact.contains("&:focus{outline-width:2px;}"), "{compact}");
+        assert!(compact.contains("@mediaprint{color:black;}"), "{compact}");
+    }
+
+    #[test]
+    fn resolves_default_theme_aliases_without_font_name_special_cases() {
+        let source = SourceFile::new(
+            FileId(1),
+            "stillwind.css",
+            r#"
+                @import "tailwindcss/theme" layer(theme);
+                @import "tailwindcss/preflight" layer(base);
+                @theme { --font-sans--font-feature-settings: "cv02"; }
+            "#,
+        );
+        let css =
+            Compiler::render_react_stylesheet(&source, "", &CompilerOptions::default()).unwrap();
+
+        assert!(
+            css.contains(
+                "--default-font-feature-settings:var(--font-sans--font-feature-settings);"
+            )
+        );
+        assert!(css.contains("--font-sans--font-feature-settings:\"cv02\";"));
+
+        let without_feature = SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            r#"
+                @import "tailwindcss/theme" layer(theme);
+                @import "tailwindcss/preflight" layer(base);
+            "#,
+        );
+        let css =
+            Compiler::render_react_stylesheet(&without_feature, "", &CompilerOptions::default())
+                .unwrap();
+        assert!(!css.contains("--default-font-feature-settings:"));
+    }
 
     #[test]
     fn resolves_themed_duration_as_an_animation_option_only() {
