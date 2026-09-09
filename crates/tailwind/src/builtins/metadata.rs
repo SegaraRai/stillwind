@@ -58,7 +58,7 @@ pub fn builtin_variant_names() -> Vec<String> {
 }
 
 #[must_use]
-pub(super) fn builtin_marker_utilities() -> &'static BTreeSet<String> {
+pub(crate) fn builtin_marker_utilities() -> &'static BTreeSet<String> {
     static MARKERS: OnceLock<BTreeSet<String>> = OnceLock::new();
     MARKERS.get_or_init(|| parse_marker_utilities(BUILTIN_REGISTRY_CSS))
 }
@@ -82,22 +82,24 @@ pub fn builtin_theme_order() -> &'static Vec<String> {
 }
 
 #[must_use]
-pub(super) fn builtin_function_formats() -> &'static BTreeSet<String> {
+pub(crate) fn builtin_function_formats() -> &'static BTreeSet<String> {
     static FORMATS: OnceLock<BTreeSet<String>> = OnceLock::new();
     FORMATS.get_or_init(|| parse_function_formats(BUILTIN_REGISTRY_CSS))
 }
 
-pub(super) fn builtin_theme_namespace_types() -> &'static BTreeMap<ThemeNamespace, Vec<ValueType>> {
+pub(crate) fn builtin_theme_namespace_types() -> &'static BTreeMap<ThemeNamespace, Vec<ValueType>> {
     static TYPES: OnceLock<BTreeMap<ThemeNamespace, Vec<ValueType>>> = OnceLock::new();
     TYPES.get_or_init(|| parse_theme_namespace_types(BUILTIN_REGISTRY_CSS))
 }
 
-pub(super) const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
-pub(super) const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
-pub(super) const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
+pub(crate) const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
+
+pub(crate) const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
+
+pub(crate) const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
 
 #[must_use]
-pub(super) fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
+pub(crate) fn builtin_relationship_patterns() -> &'static BTreeSet<String> {
     static PATTERNS: OnceLock<BTreeSet<String>> = OnceLock::new();
     PATTERNS.get_or_init(|| parse_relationship_patterns(BUILTIN_REGISTRY_CSS))
 }

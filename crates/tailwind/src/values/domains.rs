@@ -1,9 +1,9 @@
 use stillwind_css::{ThemeIndex, ThemeNamespace, ValueDomain};
 
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
-use super::theme_values::{axis_size_value, fraction_value, theme_value, theme_value_literal};
+use super::theme::{axis_size_value, fraction_value, theme_value, theme_value_literal};
 
-pub(super) fn resolve_value_domains(
+pub(crate) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &ThemeIndex,
@@ -68,7 +68,7 @@ pub(super) fn resolve_value_domains(
 /// Resolves a typed domain to its authored theme token value rather than a
 /// `var(--token)` reference. Tailwind uses this form for broad-gamut-safe sRGB
 /// fallbacks, while retaining the variable reference in the upgraded branch.
-pub(super) fn resolve_literal_value_domains(
+pub(crate) fn resolve_literal_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &ThemeIndex,
@@ -84,7 +84,7 @@ pub(super) fn resolve_literal_value_domains(
     })
 }
 
-pub(super) fn split_domains(value: &str) -> Vec<&str> {
+pub(crate) fn split_domains(value: &str) -> Vec<&str> {
     let mut domains = Vec::new();
     let mut start = 0;
     let mut depth = 0_u32;
@@ -103,7 +103,7 @@ pub(super) fn split_domains(value: &str) -> Vec<&str> {
     domains
 }
 
-pub(super) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
+pub(crate) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
     let domain = domain.strip_prefix("--")?;
     let (namespace, suffix) = domain.split_once("-*")?;
     Some((ThemeNamespace::parse(namespace)?, suffix))

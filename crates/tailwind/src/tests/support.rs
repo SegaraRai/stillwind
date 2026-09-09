@@ -1,3 +1,5 @@
+use crate::variants::resolve::resolve_registered_variant_candidate;
+
 use super::*;
 
 pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[

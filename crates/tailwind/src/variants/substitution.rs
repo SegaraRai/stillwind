@@ -1,12 +1,12 @@
 use stillwind_css::{BuiltinVariantModifierType, CustomVariant, ThemeIndex};
 
-use super::nested::closing_parenthesis;
-use super::value_domains::{resolve_value_domains, split_domains, theme_domain_pattern};
-use super::variant_body::resolve_variant_body;
-use super::variants::VariantApplication;
-use super::variants::VariantDeclaration;
+use crate::syntax::closing_parenthesis;
+use crate::values::domains::{resolve_value_domains, split_domains, theme_domain_pattern};
 
-pub(super) fn substitute_typed_modifier(
+use super::body::resolve_variant_body;
+use super::resolve::{VariantApplication, VariantDeclaration};
+
+pub(crate) fn substitute_typed_modifier(
     body: &str,
     modifier_type: Option<BuiltinVariantModifierType>,
     modifier: Option<&str>,
@@ -18,11 +18,11 @@ pub(super) fn substitute_typed_modifier(
     substitute_quoted_macro(body, ":--modifier(\"", "{modifier}", &modifier)
 }
 
-pub(super) fn substitute_quoted_variant_value(body: &str, value: &str) -> Option<String> {
+pub(crate) fn substitute_quoted_variant_value(body: &str, value: &str) -> Option<String> {
     substitute_quoted_macro(body, ":--value(\"", "{value}", value)
 }
 
-pub(super) fn substitute_quoted_macro(
+pub(crate) fn substitute_quoted_macro(
     body: &str,
     prefix: &str,
     placeholder: &str,
@@ -38,7 +38,7 @@ pub(super) fn substitute_quoted_macro(
     Some(result)
 }
 
-pub(super) fn apply_nested_variant(
+pub(crate) fn apply_nested_variant(
     body: &str,
     inner: &VariantApplication,
 ) -> Option<VariantApplication> {
@@ -75,12 +75,12 @@ pub(super) fn apply_nested_variant(
     }
 }
 
-pub(super) fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
+pub(crate) fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     let fragment = selector.strip_prefix('&')?;
     resolve_variant_body(&body.replace(":--value()", fragment))
 }
 
-pub(super) fn attach_media(
+pub(crate) fn attach_media(
     application: VariantApplication,
     condition: &str,
 ) -> Option<VariantApplication> {
@@ -101,7 +101,7 @@ pub(super) fn attach_media(
     }
 }
 
-pub(super) fn attach_declarations(
+pub(crate) fn attach_declarations(
     application: VariantApplication,
     declarations: Vec<VariantDeclaration>,
 ) -> Option<VariantApplication> {
@@ -122,7 +122,7 @@ pub(super) fn attach_declarations(
     }
 }
 
-pub(super) fn registered_variant_candidates<'a, 'b>(
+pub(crate) fn registered_variant_candidates<'a, 'b>(
     variants: &'a [CustomVariant],
     value: &'b str,
 ) -> Vec<(&'a CustomVariant, Option<&'b str>)> {
@@ -153,7 +153,7 @@ pub(super) fn registered_variant_candidates<'a, 'b>(
     candidates
 }
 
-pub(super) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
+pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
     if !value.contains("--value()")
         && !value.contains(r"\*")
         && !value.contains("{modifier}")
@@ -202,7 +202,7 @@ pub(super) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> 
     Some(expanded)
 }
 
-pub(super) fn resolve_variant_css_placeholders(
+pub(crate) fn resolve_variant_css_placeholders(
     body: &str,
     variant_name: &str,
     value: &str,
@@ -222,7 +222,7 @@ pub(super) fn resolve_variant_css_placeholders(
     (!body.contains("--value(")).then_some(body)
 }
 
-pub(super) fn resolve_variant_value_domains(
+pub(crate) fn resolve_variant_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &ThemeIndex,

@@ -1,3 +1,5 @@
+use crate::builtins::registry::BUILTIN_REGISTRY_CSS;
+
 use super::*;
 
 #[test]

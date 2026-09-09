@@ -1,4 +1,4 @@
-use stillwind_css::CustomUtility;
+use crate::syntax::closing_brace;
 
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -20,9 +20,9 @@ pub enum NestedUtilityAtRule {
     Supports,
 }
 
-pub(super) type ParsedNestedUtilityRule = (NestedUtilityAtRule, String, String);
+pub(crate) type ParsedNestedUtilityRule = (NestedUtilityAtRule, String, String);
 
-pub(super) fn split_nested_conditions(
+pub(crate) fn split_nested_conditions(
     body: &str,
 ) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
     let mut direct = String::with_capacity(body.len());
@@ -48,7 +48,7 @@ pub(super) fn split_nested_conditions(
     Some((direct.trim().to_owned(), nested))
 }
 
-pub(super) fn next_nested_condition(
+pub(crate) fn next_nested_condition(
     body: &str,
     cursor: usize,
 ) -> Option<(usize, NestedUtilityAtRule, &'static str)> {
@@ -69,7 +69,7 @@ pub(super) fn next_nested_condition(
     }
 }
 
-pub(super) fn split_utility_selector(body: &str) -> Option<(Option<String>, &str, Option<&str>)> {
+pub(crate) fn split_utility_selector(body: &str) -> Option<(Option<String>, &str, Option<&str>)> {
     if !body.contains('&') {
         return Some((None, body, None));
     }
@@ -105,51 +105,4 @@ pub(super) fn split_utility_selector(body: &str) -> Option<(Option<String>, &str
             (!body[..selector_start].trim().is_empty()).then_some(body[..selector_start].trim()),
         )
     })
-}
-
-pub(super) fn closing_brace(value: &str, open: usize) -> Option<usize> {
-    let mut depth = 0_u32;
-    for (offset, character) in value[open..].char_indices() {
-        match character {
-            '{' => depth += 1,
-            '}' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return Some(open + offset);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-pub(super) fn matching_utilities<'a>(
-    utilities: &'a [CustomUtility],
-    name: &'a str,
-) -> impl Iterator<Item = &'a CustomUtility> {
-    utilities.iter().rev().filter(move |utility| {
-        utility.name == name
-            || utility
-                .name
-                .strip_suffix('*')
-                .is_some_and(|prefix| name.starts_with(prefix))
-    })
-}
-
-pub(super) fn closing_parenthesis(value: &str, open: usize) -> Option<usize> {
-    let mut depth = 0_u32;
-    for (offset, character) in value[open..].char_indices() {
-        match character {
-            '(' => depth += 1,
-            ')' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return Some(open + offset);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
 }

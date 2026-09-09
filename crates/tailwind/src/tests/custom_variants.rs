@@ -1,3 +1,5 @@
+use crate::builtins::metadata::COMPAT_COLOR_SUPPORT;
+
 use super::*;
 
 #[test]

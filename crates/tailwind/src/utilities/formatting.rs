@@ -1,10 +1,21 @@
+use std::fmt::Write;
+
 use stillwind_css::{ThemeIndex, declaration_format, fold_calc_expressions, format_numeric_zero};
 
-use super::arbitrary::important;
-use super::metadata::builtin_declaration_formats;
-use super::normalization::normalize_var_fallbacks;
+use crate::builtins::metadata::builtin_declaration_formats;
+use crate::syntax::closing_parenthesis;
 
-pub(super) fn finalize_declaration(
+pub(crate) fn important(declaration: &str) -> String {
+    declaration
+        .split_terminator(';')
+        .filter(|declaration| !declaration.is_empty())
+        .fold(String::new(), |mut result, declaration| {
+            write!(result, "{declaration}!important;").expect("writing to a String cannot fail");
+            result
+        })
+}
+
+pub(crate) fn finalize_declaration(
     declaration: String,
     is_important: bool,
     theme: &ThemeIndex,
@@ -20,7 +31,7 @@ pub(super) fn finalize_declaration(
     fold_calc_expressions(&declaration)
 }
 
-pub(super) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
+pub(crate) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
         builtin_declaration_formats()
     } else {
@@ -45,7 +56,7 @@ pub(super) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIn
     declaration
 }
 
-pub(super) fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> String {
+pub(crate) fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
         builtin_declaration_formats()
     } else {
@@ -75,7 +86,7 @@ pub(super) fn apply_zero_length_format(mut declaration: String, theme: &ThemeInd
     declaration
 }
 
-pub(super) fn normalize_format_var_fallbacks(
+pub(crate) fn normalize_format_var_fallbacks(
     mut declaration: String,
     theme: &ThemeIndex,
 ) -> String {
@@ -108,4 +119,39 @@ pub(super) fn normalize_format_var_fallbacks(
         }
     }
     declaration
+}
+
+pub(crate) fn normalize_var_fallbacks(value: &str, add_missing: bool) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut cursor = 0;
+    while let Some(relative) = value[cursor..].find("var(--") {
+        let start = cursor + relative;
+        output.push_str(&value[cursor..start]);
+        let Some(open) = value[start..].find('(').map(|offset| start + offset) else {
+            output.push_str(&value[start..]);
+            return output;
+        };
+        let Some(close) = closing_parenthesis(value, open) else {
+            output.push_str(&value[start..]);
+            return output;
+        };
+        let expression = &value[open + 1..close];
+        output.push_str(&value[start..=open]);
+        if let Some((name, fallback)) = expression.split_once(',') {
+            output.push_str(name.trim());
+            output.push(',');
+            if !fallback.trim().is_empty() {
+                output.push_str(fallback);
+            }
+        } else if add_missing {
+            output.push_str(expression);
+            output.push(',');
+        } else {
+            output.push_str(expression);
+        }
+        output.push(')');
+        cursor = close + 1;
+    }
+    output.push_str(&value[cursor..]);
+    output
 }

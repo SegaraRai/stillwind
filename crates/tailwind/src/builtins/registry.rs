@@ -13,28 +13,28 @@ use super::metadata::{
 };
 use super::normalization::canonical_builtin_body;
 
-pub(super) const BUILTIN_REGISTRY_CSS: &str = concat!(
-    include_str!("../../../css/builtins/registry-metadata.css"),
-    include_str!("../../../css/builtins/relationship-metadata.css"),
-    include_str!("../../../css/builtins/layout-utilities.css"),
-    include_str!("../../../css/builtins/spacing-sizing-utilities.css"),
-    include_str!("../../../css/builtins/flex-grid-utilities.css"),
-    include_str!("../../../css/builtins/typography-utilities.css"),
-    include_str!("../../../css/builtins/backgrounds-utilities.css"),
-    include_str!("../../../css/builtins/borders-utilities.css"),
-    include_str!("../../../css/builtins/effects-utilities.css"),
-    include_str!("../../../css/builtins/masks-utilities.css"),
-    include_str!("../../../css/builtins/transforms-utilities.css"),
-    include_str!("../../../css/builtins/motion-utilities.css"),
-    include_str!("../../../css/builtins/interactivity-utilities.css"),
-    include_str!("../../../css/builtins/svg-utilities.css"),
-    include_str!("../../../css/builtins/relationship-variants.css"),
-    include_str!("../../../css/builtins/structural-variants.css"),
-    include_str!("../../../css/builtins/state-variants.css"),
-    include_str!("../../../css/builtins/dynamic-selector-variants.css"),
-    include_str!("../../../css/builtins/conditional-variants.css"),
-    include_str!("../../../css/builtins/properties.css"),
-    include_str!("../../../css/builtins.css"),
+pub(crate) const BUILTIN_REGISTRY_CSS: &str = concat!(
+    include_str!("../../../../css/builtins/registry-metadata.css"),
+    include_str!("../../../../css/builtins/relationship-metadata.css"),
+    include_str!("../../../../css/builtins/layout-utilities.css"),
+    include_str!("../../../../css/builtins/spacing-sizing-utilities.css"),
+    include_str!("../../../../css/builtins/flex-grid-utilities.css"),
+    include_str!("../../../../css/builtins/typography-utilities.css"),
+    include_str!("../../../../css/builtins/backgrounds-utilities.css"),
+    include_str!("../../../../css/builtins/borders-utilities.css"),
+    include_str!("../../../../css/builtins/effects-utilities.css"),
+    include_str!("../../../../css/builtins/masks-utilities.css"),
+    include_str!("../../../../css/builtins/transforms-utilities.css"),
+    include_str!("../../../../css/builtins/motion-utilities.css"),
+    include_str!("../../../../css/builtins/interactivity-utilities.css"),
+    include_str!("../../../../css/builtins/svg-utilities.css"),
+    include_str!("../../../../css/builtins/relationship-variants.css"),
+    include_str!("../../../../css/builtins/structural-variants.css"),
+    include_str!("../../../../css/builtins/state-variants.css"),
+    include_str!("../../../../css/builtins/dynamic-selector-variants.css"),
+    include_str!("../../../../css/builtins/conditional-variants.css"),
+    include_str!("../../../../css/builtins/properties.css"),
+    include_str!("../../../../css/builtins.css"),
 );
 
 /// Process-wide immutable definitions retained by each selected design system.
@@ -62,13 +62,13 @@ pub fn builtin_definitions() -> Arc<BuiltinDefinitions> {
     }))
 }
 
-pub(super) struct BuiltinUtilityRegistry {
-    pub(super) builtin_exact: HashMap<String, Vec<CustomUtility>>,
-    pub(super) wildcards: Vec<CustomUtility>,
-    pub(super) arbitrary_property_order: Vec<stillwind_css::BuiltinArbitraryPropertyOrder>,
+pub(crate) struct BuiltinUtilityRegistry {
+    pub(crate) builtin_exact: HashMap<String, Vec<CustomUtility>>,
+    pub(crate) wildcards: Vec<CustomUtility>,
+    pub(crate) arbitrary_property_order: Vec<stillwind_css::BuiltinArbitraryPropertyOrder>,
 }
 
-pub(super) fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
+pub(crate) fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
     static UTILITIES: OnceLock<BuiltinUtilityRegistry> = OnceLock::new();
     UTILITIES.get_or_init(|| {
         let normalize = |utility: CustomUtility| {
@@ -103,7 +103,7 @@ pub(super) fn builtin_utilities() -> &'static BuiltinUtilityRegistry {
     })
 }
 
-pub(super) fn arbitrary_property_order(property: &str) -> usize {
+pub(crate) fn arbitrary_property_order(property: &str) -> usize {
     builtin_utilities()
         .arbitrary_property_order
         .iter()
@@ -118,14 +118,14 @@ pub(super) fn arbitrary_property_order(property: &str) -> usize {
         .map_or(usize::MAX, |(_, order)| order)
 }
 
-pub(super) fn builtin_variants() -> &'static [CustomVariant] {
+pub(crate) fn builtin_variants() -> &'static [CustomVariant] {
     static VARIANTS: OnceLock<Vec<CustomVariant>> = OnceLock::new();
     VARIANTS
         .get_or_init(|| parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS))
         .as_slice()
 }
 
-pub(super) fn builtin_animation_options() -> &'static [CustomUtility] {
+pub(crate) fn builtin_animation_options() -> &'static [CustomUtility] {
     static OPTIONS: OnceLock<Vec<CustomUtility>> = OnceLock::new();
     OPTIONS
         .get_or_init(|| {
@@ -140,7 +140,7 @@ pub(super) fn builtin_animation_options() -> &'static [CustomUtility] {
         .as_slice()
 }
 
-pub(super) fn animation_option_property_mappings() -> &'static BTreeMap<String, String> {
+pub(crate) fn animation_option_property_mappings() -> &'static BTreeMap<String, String> {
     static MAPPINGS: OnceLock<BTreeMap<String, String>> = OnceLock::new();
     MAPPINGS.get_or_init(|| parse_animation_option_property_mappings(BUILTIN_REGISTRY_CSS))
 }

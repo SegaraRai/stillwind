@@ -1,18 +1,18 @@
 use stillwind_css::ThemeIndex;
 use stillwind_grammar::Value;
 
+use crate::syntax::closing_parenthesis;
+
 use super::arbitrary::alpha;
-use super::colors::CompatColorMode;
-use super::colors::{resolve_compat_color, resolve_shadow_color};
-use super::nested::closing_parenthesis;
-use super::value_domains::{resolve_value_domains, split_domains};
-use super::value_macros::{
+use super::colors::{CompatColorMode, resolve_compat_color, resolve_shadow_color};
+use super::domains::{resolve_value_domains, split_domains};
+use super::macros::{
     resolve_literal_value_placeholders, resolve_theme_suffix_placeholders,
     resolve_value_map_placeholders,
 };
 
 #[allow(clippy::too_many_lines)]
-pub(super) fn resolve_css_placeholders(
+pub(crate) fn resolve_css_placeholders(
     body: &str,
     utility_name: &str,
     name: &str,

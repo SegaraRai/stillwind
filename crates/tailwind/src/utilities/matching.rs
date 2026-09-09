@@ -3,15 +3,27 @@ use std::collections::HashSet;
 use stillwind_css::{CustomUtility, ThemeIndex, ValueType};
 use stillwind_grammar::Value;
 
-use super::arbitrary::decode_arbitrary;
-use super::nested::NestedUtilityRule;
-use super::nested::matching_utilities;
-use super::registry::builtin_utilities;
-use super::utilities::ResolvedUtilityTarget;
-use super::utility_body::UtilityResolution;
-use super::utility_body::resolve_css_utility_body;
+use crate::builtins::registry::builtin_utilities;
+use crate::values::arbitrary::decode_arbitrary;
 
-pub(super) fn resolve_named_utility(
+use super::body::{UtilityResolution, resolve_css_utility_body};
+use super::nested::NestedUtilityRule;
+use super::resolve::ResolvedUtilityTarget;
+
+pub(crate) fn matching_utilities<'a>(
+    utilities: &'a [CustomUtility],
+    name: &'a str,
+) -> impl Iterator<Item = &'a CustomUtility> {
+    utilities.iter().rev().filter(move |utility| {
+        utility.name == name
+            || utility
+                .name
+                .strip_suffix('*')
+                .is_some_and(|prefix| name.starts_with(prefix))
+    })
+}
+
+pub(crate) fn resolve_named_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -36,7 +48,7 @@ pub(super) fn resolve_named_utility(
 
 /// Resolves the same `@utility` body language for user CSS and vendored
 /// built-ins. `--value(...)` tries its comma-separated value domains in order.
-pub(super) fn resolve_user_css_utility(
+pub(crate) fn resolve_user_css_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -52,7 +64,7 @@ pub(super) fn resolve_user_css_utility(
     )
 }
 
-pub(super) fn resolve_builtin_css_utility(
+pub(crate) fn resolve_builtin_css_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -81,7 +93,7 @@ pub(super) fn resolve_builtin_css_utility(
 /// such as `bg-[url(...)]` may therefore select the image branch while a
 /// colour candidate selects the colour branch, without giving the root an
 /// implementation-specific special case.
-pub(super) fn resolve_css_utility_branches<'a>(
+pub(crate) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
     modifier: Option<&Value>,
@@ -144,7 +156,7 @@ pub(super) fn resolve_css_utility_branches<'a>(
     Some(resolution)
 }
 
-pub(super) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
+pub(crate) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
     let mut types = Vec::new();
     let mut rest = utility.body.as_str();
     while let Some(start) = rest.find('[') {
@@ -162,7 +174,7 @@ pub(super) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
     types
 }
 
-pub(super) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
+pub(crate) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
     if let Some(start) = name.rfind("-[")
         && let Some(value) = name[start + 2..].strip_suffix(']')
     {
@@ -176,7 +188,7 @@ pub(super) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
         .then(|| format!("var({variable})"))
 }
 
-pub(super) fn infer_arbitrary_value_type(
+pub(crate) fn infer_arbitrary_value_type(
     value: &str,
     available: &[ValueType],
 ) -> Option<ValueType> {
@@ -209,7 +221,7 @@ pub(super) fn infer_arbitrary_value_type(
     })
 }
 
-pub(super) fn merge_nested_rules(
+pub(crate) fn merge_nested_rules(
     primary: &mut Vec<NestedUtilityRule>,
     secondary: Vec<NestedUtilityRule>,
 ) {
@@ -229,7 +241,7 @@ pub(super) fn merge_nested_rules(
     }
 }
 
-pub(super) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
+pub(crate) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
     declaration
         .split_terminator(';')
         .filter_map(|declaration| declaration.split_once(':'))
@@ -240,7 +252,7 @@ pub(super) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
 /// Merges independent `@utility` overloads without erasing repeated fallback
 /// declarations inside either body. For example `opacity-0` keeps its static
 /// declaration instead of also gaining the generic percentage overload.
-pub(super) fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
+pub(crate) fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
     let mut properties = primary
         .split_terminator(';')
         .filter_map(|declaration| {
@@ -262,7 +274,7 @@ pub(super) fn merge_branch_declarations(primary: &str, secondary: &str) -> Strin
     merged
 }
 
-pub(super) fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
+pub(crate) fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
     let body = utility.body.as_str();
     let typed_arbitrary = body
         .matches('[')

@@ -8,11 +8,11 @@ use stillwind_css::{
 use stillwind_grammar::{Utility, VariantKind, parse_candidate};
 use stillwind_source::{FileId, SourceFile};
 
-use super::normalization::canonical_builtin_body;
-use super::theme_values::theme_arbitrary_types;
-use super::utility_body::resolve_css_utility_body;
-use super::utility_matching::resolve_css_utility_branches;
-use super::variant_substitution::registered_variant_candidates;
+use super::builtins::normalization::canonical_builtin_body;
+use super::utilities::body::resolve_css_utility_body;
+use super::utilities::matching::resolve_css_utility_branches;
+use super::values::theme::theme_arbitrary_types;
+use super::variants::substitution::registered_variant_candidates;
 use super::*;
 
 mod support;

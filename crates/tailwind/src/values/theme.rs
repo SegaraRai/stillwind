@@ -1,9 +1,10 @@
 use stillwind_css::{ThemeIndex, ThemeNamespace, ThemeTokenMode, ValueType};
 
-use super::arbitrary::{decode_arbitrary, parse_css_variable};
-use super::metadata::builtin_theme_namespace_types;
+use crate::builtins::metadata::builtin_theme_namespace_types;
 
-pub(super) fn theme_value(
+use super::arbitrary::{decode_arbitrary, parse_css_variable};
+
+pub(crate) fn theme_value(
     namespace: ThemeNamespace,
     value: &str,
     theme: &ThemeIndex,
@@ -47,7 +48,7 @@ pub(super) fn theme_value(
     Some(value)
 }
 
-pub(super) fn theme_value_literal(
+pub(crate) fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,
     theme: &ThemeIndex,
@@ -61,7 +62,7 @@ pub(super) fn theme_value_literal(
     Some(value)
 }
 
-pub(super) fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<String> {
+pub(crate) fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<String> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
     let value = decode_arbitrary(value);
@@ -74,20 +75,20 @@ pub(super) fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> O
         .then_some(value)
 }
 
-pub(super) fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
+pub(crate) fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
     builtin_theme_namespace_types()
         .get(&namespace)
         .map_or(&[], Vec::as_slice)
 }
 
-pub(super) fn fraction_value(value: &str) -> Option<String> {
+pub(crate) fn fraction_value(value: &str) -> Option<String> {
     let (numerator, denominator) = value.split_once('/')?;
     let numerator = numerator.parse::<u16>().ok()?;
     let denominator = denominator.parse::<u16>().ok()?;
     (denominator != 0).then(|| format!("calc({numerator} / {denominator} * 100%)"))
 }
 
-pub(super) fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String> {
+pub(crate) fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String> {
     let value = match value {
         "auto" => "auto".to_owned(),
         "full" => "100%".to_owned(),
@@ -107,7 +108,7 @@ pub(super) fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String
     Some(value)
 }
 
-pub(super) fn typed_css_variable(namespace: ThemeNamespace, value: &str) -> Option<&str> {
+pub(crate) fn typed_css_variable(namespace: ThemeNamespace, value: &str) -> Option<&str> {
     let variable = parse_css_variable(value)?;
     let types = theme_arbitrary_types(namespace);
     (variable.hint.is_none()

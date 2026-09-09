@@ -1,24 +1,26 @@
 use stillwind_css::{CustomUtility, ThemeIndex, ThemeNamespace};
 use stillwind_grammar::Value;
 
+use crate::builtins::metadata::{COMPAT_COLOR_SUPPORT, builtin_property_definitions};
+use crate::syntax::closing_parenthesis;
+
 use super::declarations::resolve_css_declarations;
-use super::metadata::{COMPAT_COLOR_SUPPORT, builtin_property_definitions};
-use super::nested::NestedUtilityAtRule;
-use super::nested::NestedUtilityRule;
-use super::nested::{closing_parenthesis, split_nested_conditions, split_utility_selector};
-use super::utilities::ResolvedUtilityTarget;
+use super::nested::{
+    NestedUtilityAtRule, NestedUtilityRule, split_nested_conditions, split_utility_selector,
+};
+use super::resolve::ResolvedUtilityTarget;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct UtilityResolution {
-    pub(super) declaration: String,
-    pub(super) selector: Option<String>,
-    pub(super) nested: Vec<NestedUtilityRule>,
-    pub(super) additional: Vec<ResolvedUtilityTarget>,
-    pub(super) builtin_order: Option<usize>,
+pub(crate) struct UtilityResolution {
+    pub(crate) declaration: String,
+    pub(crate) selector: Option<String>,
+    pub(crate) nested: Vec<NestedUtilityRule>,
+    pub(crate) additional: Vec<ResolvedUtilityTarget>,
+    pub(crate) builtin_order: Option<usize>,
 }
 
 impl UtilityResolution {
-    pub(super) fn plain(declaration: String) -> Self {
+    pub(crate) fn plain(declaration: String) -> Self {
         Self {
             declaration,
             selector: None,
@@ -29,7 +31,7 @@ impl UtilityResolution {
     }
 }
 
-pub(super) fn resolve_css_utility_body(
+pub(crate) fn resolve_css_utility_body(
     utility: &CustomUtility,
     name: &str,
     modifier: Option<&Value>,
@@ -133,7 +135,7 @@ pub(super) fn resolve_css_utility_body(
 /// Removes a `var()` fallback when it is exactly the registered initial value
 /// of that custom property. The registry metadata is the source of truth;
 /// no Tailwind property family is encoded here.
-pub(super) fn normalize_registered_var_fallbacks(
+pub(crate) fn normalize_registered_var_fallbacks(
     mut declaration: String,
     theme: &ThemeIndex,
 ) -> String {
@@ -179,7 +181,7 @@ pub(super) fn normalize_registered_var_fallbacks(
     declaration
 }
 
-pub(super) fn expand_theme_wildcard_nested(
+pub(crate) fn expand_theme_wildcard_nested(
     condition: &str,
     body: &str,
     theme: &ThemeIndex,
@@ -218,7 +220,7 @@ pub(super) fn expand_theme_wildcard_nested(
         .collect()
 }
 
-pub(super) fn css_length_sort_key(value: &str) -> f64 {
+pub(crate) fn css_length_sort_key(value: &str) -> f64 {
     let value = value.trim();
     for (unit, scale) in [("rem", 16.0), ("em", 16.0), ("px", 1.0)] {
         if let Some(number) = value.strip_suffix(unit)

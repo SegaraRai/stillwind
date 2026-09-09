@@ -1,17 +1,17 @@
 use std::fmt::Write;
-use stillwind_grammar::Candidate;
 
 use stillwind_css::ThemeIndex;
+use stillwind_grammar::Candidate;
 use stillwind_grammar::{Utility, parse_candidate};
 
-use super::formatting::finalize_declaration;
-use super::nested::NestedUtilityRule;
-use super::nested::matching_utilities;
-use super::registry::{
+use crate::builtins::registry::{
     animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
 };
-use super::utility_body::UtilityResolution;
-use super::utility_matching::{resolve_css_utility_branches, resolve_named_utility};
+
+use super::body::UtilityResolution;
+use super::formatting::finalize_declaration;
+use super::matching::{matching_utilities, resolve_css_utility_branches, resolve_named_utility};
+use super::nested::NestedUtilityRule;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
@@ -112,7 +112,7 @@ pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String>
     project_animation_option_utility(raw, theme)
 }
 
-pub(super) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
+pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
     let utility = resolve_utility(raw, theme)?;
     if !utility.candidate.variants.is_empty()
         || utility.selector.is_some()

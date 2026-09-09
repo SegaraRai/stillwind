@@ -1,8 +1,8 @@
-use super::nested::closing_brace;
-use super::variants::VariantApplication;
-use super::variants::VariantDeclaration;
+use crate::syntax::closing_brace;
 
-pub(super) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
+use super::resolve::{VariantApplication, VariantDeclaration};
+
+pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {
         return None;
     }
@@ -68,7 +68,7 @@ pub(super) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     }
 }
 
-pub(super) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
+pub(crate) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
     let mut blocks = Vec::new();
     let mut cursor = 0;
     while cursor < body.len() {
@@ -87,12 +87,12 @@ pub(super) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
     (!blocks.is_empty()).then_some(blocks)
 }
 
-pub(super) struct VariantSelectorRule {
-    pub(super) selector: String,
-    pub(super) declarations: Vec<VariantDeclaration>,
+pub(crate) struct VariantSelectorRule {
+    pub(crate) selector: String,
+    pub(crate) declarations: Vec<VariantDeclaration>,
 }
 
-pub(super) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
+pub(crate) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     let open = body.find('{')?;
     let close = closing_brace(body, open)?;
     if !body[close + 1..].trim().is_empty() {

@@ -1,20 +1,20 @@
 use stillwind_css::ThemeIndex;
 use stillwind_grammar::Value;
 
-use super::colors::CompatColorMode;
-use super::placeholders::resolve_css_placeholders;
+use crate::values::colors::CompatColorMode;
+use crate::values::placeholders::resolve_css_placeholders;
 
 #[derive(Clone, Debug, Default)]
-pub(super) struct ResolvedCssDeclarations {
-    pub(super) base: String,
-    pub(super) compat_modern: Vec<String>,
+pub(crate) struct ResolvedCssDeclarations {
+    pub(crate) base: String,
+    pub(crate) compat_modern: Vec<String>,
 }
 
 /// Resolves each declaration independently. `@utility` overloads are often
 /// intentionally broad: a single body can expose both colour and length
 /// forms. A failed typed placeholder must remove only the incompatible
 /// declaration, never the compatible siblings.
-pub(super) fn resolve_css_declarations(
+pub(crate) fn resolve_css_declarations(
     body: &str,
     utility_name: &str,
     name: &str,
@@ -114,7 +114,7 @@ pub(super) fn resolve_css_declarations(
 
 /// Splits a declaration list without mistaking a semicolon in a string or a
 /// function argument for a CSS declaration boundary.
-pub(super) fn split_css_declarations(body: &str) -> Vec<&str> {
+pub(crate) fn split_css_declarations(body: &str) -> Vec<&str> {
     let mut declarations = Vec::new();
     let mut start = 0;
     let mut paren_depth = 0_u32;

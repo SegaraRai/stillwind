@@ -1,13 +1,13 @@
 use stillwind_css::{BuiltinVariantValueType, CustomVariant, ThemeIndex};
 use stillwind_grammar::{Utility, Value, Variant, VariantKind, parse_candidate};
 
-use super::arbitrary::decode_arbitrary;
-use super::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
-use super::registry::builtin_variants;
+use crate::builtins::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
+use crate::builtins::registry::builtin_variants;
+use crate::values::arbitrary::decode_arbitrary;
 
-use super::variant_body::resolve_variant_body;
-use super::variant_order::variant_sort_namespace;
-use super::variant_substitution::{
+use super::body::resolve_variant_body;
+use super::order::variant_sort_namespace;
+use super::substitution::{
     apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
     substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
 };
@@ -115,7 +115,7 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
     }
 }
 
-pub(super) fn resolve_registered_variant(
+pub(crate) fn resolve_registered_variant(
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
@@ -128,7 +128,7 @@ pub(super) fn resolve_registered_variant(
         .then(|| resolve_registered_variant_from(builtin_variants(), value, theme))?
 }
 
-pub(super) fn resolve_bare_registered_variant(
+pub(crate) fn resolve_bare_registered_variant(
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
@@ -144,7 +144,7 @@ pub(super) fn resolve_bare_registered_variant(
     })?
 }
 
-pub(super) fn resolve_registered_variant_from(
+pub(crate) fn resolve_registered_variant_from(
     variants: &[CustomVariant],
     value: &str,
     theme: &ThemeIndex,
@@ -156,7 +156,7 @@ pub(super) fn resolve_registered_variant_from(
         })
 }
 
-pub(super) fn resolve_registered_variant_candidate(
+pub(crate) fn resolve_registered_variant_candidate(
     custom: &CustomVariant,
     capture: Option<&str>,
     value: &str,
@@ -173,7 +173,7 @@ pub(super) fn resolve_registered_variant_candidate(
     })
 }
 
-pub(super) fn resolve_typed_variant(
+pub(crate) fn resolve_typed_variant(
     custom: &CustomVariant,
     value_type: BuiltinVariantValueType,
     capture: &str,
@@ -210,7 +210,7 @@ pub(super) fn resolve_typed_variant(
     }
 }
 
-pub(super) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
+pub(crate) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
     let mut depth = 0_u32;
     for (index, character) in value.char_indices() {
         match character {
@@ -223,14 +223,14 @@ pub(super) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
     (value, None)
 }
 
-pub(super) fn decode_variant_capture(value: &str) -> String {
+pub(crate) fn decode_variant_capture(value: &str) -> String {
     value
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'))
         .map_or_else(|| value.replace('_', " "), decode_arbitrary)
 }
 
-pub(super) fn parse_nested_variant(value: &str) -> Variant {
+pub(crate) fn parse_nested_variant(value: &str) -> Variant {
     let raw = value.to_owned();
     let kind = value
         .strip_prefix('[')
@@ -242,7 +242,7 @@ pub(super) fn parse_nested_variant(value: &str) -> Variant {
     Variant { kind, raw }
 }
 
-pub(super) fn attribute_variant_selector(
+pub(crate) fn attribute_variant_selector(
     prefix: &str,
     capture: &str,
     default_true: bool,

@@ -1,12 +1,11 @@
 use super::metadata::builtin_function_formats;
-use super::nested::closing_parenthesis;
 
 /// Removes non-semantic whitespace from vendored declarations.
 ///
 /// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
 /// their authored serialization. Quoted values are preserved byte-for-byte.
 #[allow(clippy::too_many_lines)]
-pub(super) fn canonical_builtin_body(value: &str) -> String {
+pub(crate) fn canonical_builtin_body(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut quote = None;
     let mut escaped = false;
@@ -111,41 +110,6 @@ pub(super) fn canonical_builtin_body(value: &str) -> String {
     output.replace(",var(", ", var(")
 }
 
-pub(super) fn is_word_character(character: char) -> bool {
+pub(crate) fn is_word_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
-}
-
-pub(super) fn normalize_var_fallbacks(value: &str, add_missing: bool) -> String {
-    let mut output = String::with_capacity(value.len());
-    let mut cursor = 0;
-    while let Some(relative) = value[cursor..].find("var(--") {
-        let start = cursor + relative;
-        output.push_str(&value[cursor..start]);
-        let Some(open) = value[start..].find('(').map(|offset| start + offset) else {
-            output.push_str(&value[start..]);
-            return output;
-        };
-        let Some(close) = closing_parenthesis(value, open) else {
-            output.push_str(&value[start..]);
-            return output;
-        };
-        let expression = &value[open + 1..close];
-        output.push_str(&value[start..=open]);
-        if let Some((name, fallback)) = expression.split_once(',') {
-            output.push_str(name.trim());
-            output.push(',');
-            if !fallback.trim().is_empty() {
-                output.push_str(fallback);
-            }
-        } else if add_missing {
-            output.push_str(expression);
-            output.push(',');
-        } else {
-            output.push_str(expression);
-        }
-        output.push(')');
-        cursor = close + 1;
-    }
-    output.push_str(&value[cursor..]);
-    output
 }

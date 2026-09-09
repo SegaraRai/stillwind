@@ -2,26 +2,26 @@ use stillwind_css::{
     ThemeIndex, ThemeNamespace, shadow_with_color_fallback, shadow_with_color_override,
 };
 
-use super::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
-use super::theme_values::theme_value_literal;
+use crate::builtins::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
 
-use super::value_domains::split_domains;
+use super::domains::split_domains;
+use super::theme::theme_value_literal;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum CompatColorMode {
+pub(crate) enum CompatColorMode {
     Legacy,
     Modern,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum CompatColorKind {
+pub(crate) enum CompatColorKind {
     CurrentColor,
     ModernOnlyKeyword,
     General,
 }
 
 impl CompatColorKind {
-    pub(super) fn from_css(color: &str) -> Self {
+    pub(crate) fn from_css(color: &str) -> Self {
         if color.eq_ignore_ascii_case("currentcolor") {
             Self::CurrentColor
         } else if color.eq_ignore_ascii_case("inherit") || color.eq_ignore_ascii_case("transparent")
@@ -36,7 +36,7 @@ impl CompatColorKind {
 /// Produces the legacy Color 4 fallback for an authored color and alpha.
 /// The caller also emits the modern upgrade guarded by the capability query
 /// intrinsic to `--compat-color()`.
-pub(super) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String> {
+pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String> {
     let arguments = split_domains(arguments);
     let (color, alpha, modern_alpha) = match arguments.as_slice() {
         [color, alpha] => (*color, *alpha, None),
@@ -82,7 +82,7 @@ pub(super) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Op
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits
 /// the normal `var(--shadow-*)` reference; this intentionally reads the
 /// authored token to construct a CSS Color 5 relative colour function.
-pub(super) fn resolve_shadow_color(
+pub(crate) fn resolve_shadow_color(
     arguments: &str,
     capture: Option<&str>,
     theme: &ThemeIndex,

@@ -5,13 +5,14 @@ use stillwind_css::{
 };
 use stillwind_grammar::{Variant, VariantKind};
 
-use super::arbitrary::decode_arbitrary;
-use super::registry::builtin_variants;
-use super::theme_values::theme_arbitrary_types;
-use super::variant_substitution::registered_variant_candidates;
-use super::variants::{parse_nested_variant, split_variant_modifier};
+use crate::builtins::registry::builtin_variants;
+use crate::values::arbitrary::decode_arbitrary;
+use crate::values::theme::theme_arbitrary_types;
 
-pub(super) fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
+use super::resolve::{parse_nested_variant, split_variant_modifier};
+use super::substitution::registered_variant_candidates;
+
+pub(crate) fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
     builtin_variants()
         .iter()
         .filter_map(|variant| {
@@ -29,11 +30,11 @@ pub(super) fn direct_builtin_variant(value: &str) -> Option<&'static CustomVaria
         .map(|(_, variant)| variant)
 }
 
-pub(super) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
+pub(crate) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
     ThemeNamespace::parse(key.strip_prefix("--")?.strip_suffix("-*")?)
 }
 
-pub(super) fn bare_builtin_variant(
+pub(crate) fn bare_builtin_variant(
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<&'static CustomVariant> {
@@ -48,7 +49,7 @@ pub(super) fn bare_builtin_variant(
     })
 }
 
-pub(super) fn builtin_variant_for_order(
+pub(crate) fn builtin_variant_for_order(
     variant: &Variant,
     theme: &ThemeIndex,
 ) -> Option<&'static CustomVariant> {
@@ -58,7 +59,7 @@ pub(super) fn builtin_variant_for_order(
     direct_builtin_variant(value).or_else(|| bare_builtin_variant(value, theme))
 }
 
-pub(super) fn variant_group(variant: &CustomVariant) -> &str {
+pub(crate) fn variant_group(variant: &CustomVariant) -> &str {
     variant
         .sort
         .as_ref()
@@ -66,7 +67,7 @@ pub(super) fn variant_group(variant: &CustomVariant) -> &str {
         .unwrap_or(&variant.name)
 }
 
-pub(super) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
+pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
     let Some(variant) = builtin_variant_for_order(variant, theme) else {
         return usize::MAX;
     };
@@ -79,7 +80,7 @@ pub(super) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
         .unwrap_or(usize::MAX)
 }
 
-pub(super) fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
+pub(crate) fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
     let split = value
         .find(|character: char| !character.is_ascii_digit() && character != '.')
         .unwrap_or(value.len());
@@ -87,7 +88,7 @@ pub(super) fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
     Some((number.parse().ok()?, unit))
 }
 
-pub(super) fn compare_sort_values(
+pub(crate) fn compare_sort_values(
     left: &str,
     right: &str,
     direction: BuiltinVariantSortDirection,
@@ -106,7 +107,7 @@ pub(super) fn compare_sort_values(
     }
 }
 
-pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
+pub(crate) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
@@ -137,7 +138,7 @@ pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
         .map(|token| token.value.value.clone())
 }
 
-pub(super) fn compare_variants_in_group(
+pub(crate) fn compare_variants_in_group(
     left: &Variant,
     right: &Variant,
     theme: &ThemeIndex,
@@ -166,7 +167,7 @@ pub(super) fn compare_variants_in_group(
     left.raw.cmp(&right.raw)
 }
 
-pub(super) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Variant> {
+pub(crate) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Variant> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
@@ -179,7 +180,7 @@ pub(super) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
     Some(parse_nested_variant(split_variant_modifier(&capture).0))
 }
 
-pub(super) fn compound_variant_capture(variants: &[CustomVariant], value: &str) -> Option<String> {
+pub(crate) fn compound_variant_capture(variants: &[CustomVariant], value: &str) -> Option<String> {
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(variant, capture)| {

@@ -1,13 +1,14 @@
 use stillwind_css::ThemeIndex;
 
+use crate::syntax::closing_parenthesis;
+
 use super::colors::CompatColorMode;
-use super::nested::closing_parenthesis;
-use super::theme_values::theme_value;
-use super::value_domains::{
+use super::domains::{
     resolve_literal_value_domains, resolve_value_domains, split_domains, theme_domain_pattern,
 };
+use super::theme::theme_value;
 
-pub(super) fn resolve_literal_value_placeholders(
+pub(crate) fn resolve_literal_value_placeholders(
     body: &mut String,
     capture: Option<&str>,
     theme: &ThemeIndex,
@@ -27,7 +28,7 @@ pub(super) fn resolve_literal_value_placeholders(
     Some(())
 }
 
-pub(super) fn resolve_theme_suffix_placeholders(
+pub(crate) fn resolve_theme_suffix_placeholders(
     body: &mut String,
     capture: Option<&str>,
     theme: &ThemeIndex,
@@ -52,7 +53,7 @@ pub(super) fn resolve_theme_suffix_placeholders(
     Some(())
 }
 
-pub(super) fn resolve_value_map_placeholders(
+pub(crate) fn resolve_value_map_placeholders(
     body: &mut String,
     capture: Option<&str>,
 ) -> Option<()> {
