@@ -1,7 +1,7 @@
 /// Tailwind CSS v4.3.3 Preflight, vendored under its MIT license.
-pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../../css/preflight.css");
+pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../css/preflight.css");
 
-pub(super) const TAILWIND_V4_THEME: &str = include_str!("../../../../css/theme.css");
+pub(super) const TAILWIND_V4_THEME: &str = include_str!("../../../css/theme.css");
 
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for
@@ -13,7 +13,7 @@ pub(crate) struct WebrefPropertySyntax {
     pub href: &'static str,
 }
 
-include!("../../assets/webref-properties.rs");
+include!("../assets/webref-properties.rs");
 
 pub(super) fn webref_property(name: &str) -> Option<&'static WebrefPropertySyntax> {
     WEBREF_PROPERTIES

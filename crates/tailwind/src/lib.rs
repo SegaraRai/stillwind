@@ -4,6 +4,33 @@
 //! names, or Stillwind-only relations. It turns a parsed candidate and a
 //! CSS-first theme into standard CSS declarations and wrappers.
 
-mod resolution;
+mod arbitrary;
+mod colors;
+mod declarations;
+mod formatting;
+mod metadata;
+mod nested;
+mod normalization;
+mod placeholders;
+mod registry;
+mod theme_values;
+mod types;
+mod utilities;
+mod utility_body;
+mod utility_matching;
+mod value_domains;
+mod value_macros;
+mod variant_body;
+mod variant_order;
+mod variant_substitution;
+mod variants;
 
-pub use resolution::*;
+#[cfg(test)]
+mod tests;
+
+pub use metadata::*;
+pub use registry::*;
+pub use types::*;
+pub use utilities::*;
+pub use variant_order::*;
+pub use variants::*;

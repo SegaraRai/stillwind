@@ -1,5 +1,8 @@
 //! Node-API surface for the Stillwind compiler.
 
-mod bindings;
+mod api;
+mod output;
+mod session;
 
-pub use bindings::*;
+pub use api::*;
+pub use session::NativeSessionError;

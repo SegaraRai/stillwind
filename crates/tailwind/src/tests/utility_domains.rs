@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn resolves_every_upstream_static_utility_from_the_css_registry() {
-    let catalog =
-        include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
+    let catalog = include_str!("../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
     let candidates = catalog_section(catalog, "## Static utilities");
     let theme = theme();
 
@@ -20,8 +19,7 @@ fn resolves_every_upstream_static_utility_from_the_css_registry() {
 
 #[test]
 fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
-    let catalog =
-        include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
+    let catalog = include_str!("../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
     let roots = catalog_section(catalog, "## Functional utility roots");
     let theme = theme();
 
@@ -39,8 +37,7 @@ fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
 
 #[test]
 fn resolves_every_upstream_static_variant_from_the_css_registry() {
-    let catalog =
-        include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
+    let catalog = include_str!("../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
     let variants = catalog_section(catalog, "## Static variants");
     let theme = theme();
 

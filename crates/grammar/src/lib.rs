@@ -1,5 +1,9 @@
 //! Stillwind's small, source-spanned utility-string lexer.
 
-mod candidate;
+mod lexer;
+mod syntax;
+mod types;
 
-pub use candidate::*;
+pub use lexer::*;
+pub use syntax::*;
+pub use types::*;

@@ -240,7 +240,7 @@ fn validates_arbitrary_utilities_against_property_grammars() {
 
 #[test]
 fn matches_tailwind_unbracketed_value_grammar_catalog() {
-    let catalog = include_str!("../../../../../fixtures/tailwind-v4/catalog/value-grammar.md");
+    let catalog = include_str!("../../../../fixtures/tailwind-v4/catalog/value-grammar.md");
     let theme = theme();
     for (heading, expected) in [
         ("## Padding: accepted without brackets", true),

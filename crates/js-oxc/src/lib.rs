@@ -1,5 +1,17 @@
 //! Oxc-backed JS/TS/JSX parsing and import-bound macro extraction.
 
-mod parser;
+mod definitions;
+mod entry;
+mod expressions;
+mod labels;
+mod motion;
+mod projections;
+mod references;
+mod state;
+mod validation;
+mod visit;
 
-pub use parser::{ParsedJavaScript, parse, parse_with_type_facts};
+#[cfg(test)]
+mod tests;
+
+pub use entry::*;
