@@ -212,3 +212,52 @@ impl ThemeIndex {
             .find(|variant| variant.name == name)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::declarations::extract_theme_declarations;
+    use stillwind_source::FileId;
+
+    #[test]
+    fn resets_and_redefinitions_select_only_effective_tokens() {
+        let theme = ThemeIndex {
+            tokens: extract_theme_declarations(
+                FileId(1),
+                "--color-old:red;--color-*:initial;--color-new:blue;--color-new:green;",
+                0,
+                ThemeTokenMode::Default,
+            ),
+            ..ThemeIndex::default()
+        };
+        assert_eq!(theme.active_tokens().len(), 1);
+        assert_eq!(theme.value("color", "old"), None);
+        assert_eq!(theme.value("color", "new"), Some("green"));
+        assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
+        assert_eq!(
+            theme
+                .resolve_theme_references("--theme(--color-new)")
+                .as_deref(),
+            Some("var(--color-new)")
+        );
+    }
+
+    #[test]
+    fn transitive_token_dependencies_terminate_even_on_cycles() {
+        let theme = ThemeIndex {
+            tokens: extract_theme_declarations(
+                FileId(1),
+                "--color-a:var(--color-b);--color-b:var(--color-a);--color-unused:red;",
+                0,
+                ThemeTokenMode::Default,
+            ),
+            ..ThemeIndex::default()
+        };
+        let names = theme
+            .tokens_required_by("color:var(--color-a)", false)
+            .iter()
+            .map(|t| t.name.value.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["--color-a", "--color-b"]);
+    }
+}

@@ -55,3 +55,22 @@ pub(crate) fn transform_function_arguments(function: &str, value: &str) -> bool 
 pub(crate) fn property_value(property: &str, value: &str) -> bool {
     CssProperty::from_name(property).is_some_and(|property| property.accepts(value))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_shapes_require_valid_css_and_expected_property_grammar() {
+        assert!(contains_custom_property_reference("calc(var(--x) * 2)"));
+        assert!(!contains_custom_property_reference("var(x)"));
+        assert!(gradient_arguments("linear-gradient", "red, blue"));
+        assert!(!gradient_arguments("linear-gradient", "red / blue"));
+        assert!(content_value("'hello'"));
+        assert!(!content_value("hello"));
+        assert!(transform_function_arguments("skew", "15deg"));
+        assert!(!transform_function_arguments("skew", "red"));
+        assert!(property_value("width", "2px"));
+        assert!(!property_value("width", "red"));
+    }
+}

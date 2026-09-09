@@ -99,3 +99,76 @@ pub(crate) fn extract_authored_property_names(css: &str) -> BTreeSet<String> {
 pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_property_definitions(css)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_property_activation_and_dependency_metadata() {
+        let definitions = parse_property_definitions(
+            r#"
+                @stillwind-property --example {
+                  syntax: "*";
+                  inherits: false;
+                  activation: referenced;
+                  depends-on: --dependency-a --dependency-b;
+                  group: example-group shared-group;
+                  activate-on: text-shadow box-shadow;
+                }
+            "#,
+        );
+
+        assert_eq!(definitions.len(), 1);
+        assert_eq!(
+            definitions[0].activation,
+            CustomPropertyActivation::Referenced
+        );
+        assert_eq!(
+            definitions[0].dependencies,
+            ["--dependency-a", "--dependency-b"]
+        );
+        assert_eq!(definitions[0].groups, ["example-group", "shared-group"]);
+        assert_eq!(
+            definitions[0].activation_properties,
+            ["text-shadow", "box-shadow"]
+        );
+        assert!(!definitions[0].body.contains("activation"));
+        assert!(!definitions[0].body.contains("depends-on"));
+        assert!(!definitions[0].body.contains("group"));
+        assert!(!definitions[0].body.contains("activate-on"));
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn activation_truth_table_and_authored_names_are_explicit() {
+        for declared in [false, true] {
+            for referenced in [false, true] {
+                assert_eq!(
+                    CustomPropertyActivation::Declared.is_active(declared, referenced),
+                    declared
+                );
+                assert_eq!(
+                    CustomPropertyActivation::Referenced.is_active(declared, referenced),
+                    referenced
+                );
+                assert_eq!(
+                    CustomPropertyActivation::Either.is_active(declared, referenced),
+                    declared || referenced
+                );
+            }
+        }
+        assert_eq!(CustomPropertyActivation::parse("unknown"), None);
+        assert_eq!(
+            extract_authored_property_names(
+                "@property --x {syntax:'*';} @property nope {syntax:'*';}"
+            ),
+            BTreeSet::from(["--x".into()])
+        );
+        assert!(parse_property_definitions("@stillwind-property nope {syntax:'*';}").is_empty());
+    }
+}

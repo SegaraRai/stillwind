@@ -75,3 +75,24 @@ mod tests {
         assert_eq!(tokens[2].span, Span::new(FileId(4), 30, 35));
     }
 }
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    proptest::proptest! {
+        #[test]
+        fn token_spans_slice_back_to_the_original_input(a in "[a-z]{1,12}", b in "[a-z]{1,12}") {
+            let text = format!("  {a}\t{b} ");
+            let input = Spanned::new(
+                text.clone(),
+                Span::new(stillwind_source::FileId(1), 0, u32::try_from(text.len()).unwrap())
+            );
+            let tokens = lex_utilities(&input);
+            proptest::prop_assert_eq!(tokens.len(), 2);
+            for token in tokens {
+                proptest::prop_assert_eq!(&text[token.span.start.0 as usize..token.span.end.0 as usize], token.value.raw);
+            }
+        }
+    }
+}

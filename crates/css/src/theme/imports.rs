@@ -176,3 +176,36 @@ impl FrameworkImports {
         self.theme_layer.is_some() || self.base_layer.is_some() || self.utilities_layer.is_some()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn import_modifiers_and_framework_selection_are_independent() {
+        assert_eq!(
+            parse_import_path("'stillwind' layer(base)"),
+            Some(("stillwind", " layer(base)"))
+        );
+        assert_eq!(parse_import_path("'unclosed"), None);
+        assert_eq!(
+            import_layer("layer( reset ) prefix(tw)"),
+            Some("reset".into())
+        );
+        assert_eq!(import_layer("layer()"), None);
+        assert_eq!(import_prefix("prefix(tw)"), Some("tw".into()));
+        assert_eq!(import_prefix("prefix("), None);
+        let imports = framework_imports("@import 'stillwind/preflight.css' layer(reset);");
+        assert!(imports.has_any());
+        assert_eq!(imports.base_layer.as_deref(), Some("reset"));
+        assert_eq!(imports.theme_layer, None);
+        assert_eq!(
+            strip_framework_imports("@import 'stillwind';@import 'local.css';"),
+            "@import 'local.css';"
+        );
+        assert_eq!(
+            strip_framework_imports("@import 'unfinished'"),
+            "@import 'unfinished'"
+        );
+    }
+}

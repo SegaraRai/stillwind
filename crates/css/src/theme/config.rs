@@ -41,3 +41,20 @@ impl StillwindConfig {
             .is_some_and(|level| matches!(level.as_str(), "warn" | "deny"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_parsing_ignores_comments_and_distinguishes_disabled_rules() {
+        let config = extract_stillwind_config(
+            "/* @stillwind { prefix: nope; } */ @stillwind { prefix: 'app'; tailwind-prefix: tw; unknown: warn; quiet: off; }",
+        );
+        assert_eq!(config.prefix.as_deref(), Some("app"));
+        assert_eq!(config.tailwind_prefix.as_deref(), Some("tw"));
+        assert!(config.lint_enabled("unknown"));
+        assert!(!config.lint_enabled("quiet"));
+        assert!(!config.lint_enabled("absent"));
+    }
+}

@@ -39,3 +39,32 @@ pub(crate) fn resolve_theme_references(
     output.push_str(&value[cursor..]);
     Some(output)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defined_missing_and_initial_fallbacks_are_distinct() {
+        for (value, defined, expected) in [
+            ("--theme(--x)", true, Some("var(--x)")),
+            ("--theme(--x, initial)", true, Some("var(--x)")),
+            ("--theme(--x, red)", true, Some("var(--x, red)")),
+            ("--theme(--x, rgb(1, 2, 3))", false, Some("rgb(1, 2, 3)")),
+            ("--theme(--x, initial)", false, None),
+            ("--theme(--x)", false, None),
+            ("--theme(x)", true, None),
+            ("--theme(--x", true, None),
+        ] {
+            assert_eq!(
+                resolve_theme_references(value, |_| defined).as_deref(),
+                expected,
+                "{value}"
+            );
+        }
+        assert_eq!(
+            resolve_theme_references("'--theme(--x)'", |_| false).as_deref(),
+            Some("'--theme(--x)'")
+        );
+    }
+}

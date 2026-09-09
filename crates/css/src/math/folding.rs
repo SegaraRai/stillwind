@@ -94,3 +94,56 @@ pub fn format_numeric_zero(value: &str, unit: &str) -> String {
         folded
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn folds_trailing_numeric_factors_without_string_rewrites() {
+        assert_eq!(
+            fold_calc_expressions(
+                "left:calc(var(--spacing) * 4 * -1);right:calc(var(--spacing) * -1 * 4);"
+            ),
+            "left:calc(var(--spacing) * -4);right:calc(var(--spacing) * -4);"
+        );
+    }
+
+    #[test]
+    fn folds_calc_expressions_through_a_numeric_syntax_tree() {
+        assert_eq!(
+            fold_calc_expressions(
+                "width:calc(2 * 1px);scale:calc(125 * 1%);left:calc(var(--spacing) * 4);right:calc((2px + 3px) * -1);"
+            ),
+            "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:-5px;"
+        );
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn preserves_invalid_math_and_applies_zero_units_only_to_numeric_zero() {
+        assert_eq!(fold_calc_expressions("calc(1 +)"), "calc(1 +)");
+        assert_eq!(fold_calc_expressions("calc(1 + 2"), "calc(1 + 2");
+        assert_eq!(format_numeric_zero("calc(2 - 2)", "px"), "0px");
+        assert_eq!(format_numeric_zero("red", "px"), "red");
+        assert_eq!(format_numeric_zero("2", "px"), "2");
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn integer_arithmetic_obeys_precedence(a in -1000i32..1000, b in -1000i32..1000,c in -20i32..20) {
+            let source = format!("calc({a} + {b} * {c})");
+            proptest::prop_assert_eq!(fold_calc_expressions(&source), (a + b * c).to_string());
+        }
+
+        #[test]
+        fn folding_a_numeric_result_is_idempotent(a in -1000i32..1000, b in -1000i32..1000) {
+            let once = fold_calc_expressions(&format!("calc({a}px + {b}px)"));
+            proptest::prop_assert_eq!(fold_calc_expressions(&once), once);
+        }
+    }
+}

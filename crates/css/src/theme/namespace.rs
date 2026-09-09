@@ -116,3 +116,46 @@ impl ThemeNamespace {
         .find(|namespace| namespace.css_name() == value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn namespace_names_round_trip_and_metadata_ignores_unknown_types() {
+        for name in [
+            "animate",
+            "aspect-ratio",
+            "blur",
+            "breakpoint",
+            "color",
+            "container",
+            "drop-shadow",
+            "ease",
+            "font",
+            "font-stretch",
+            "font-weight",
+            "inset-shadow",
+            "leading",
+            "perspective",
+            "radius",
+            "shadow",
+            "spacing",
+            "text",
+            "text-shadow",
+            "tracking",
+            "z-index",
+            "duration",
+        ] {
+            assert_eq!(ThemeNamespace::parse(name).unwrap().css_name(), name);
+        }
+        assert_eq!(ThemeNamespace::parse("Color"), None);
+        let types = parse_theme_namespace_types(
+            "@stillwind-theme-namespace --duration-* [time] [unknown]; @stillwind-theme-namespace --bogus-* [length];",
+        );
+        assert_eq!(
+            types,
+            BTreeMap::from([(ThemeNamespace::Duration, vec![ValueType::Time])])
+        );
+    }
+}

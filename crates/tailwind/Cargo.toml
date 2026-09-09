@@ -11,6 +11,7 @@ stillwind-css = { path = "../css" }
 stillwind-grammar = { path = "../grammar" }
 
 [dev-dependencies]
+proptest.workspace = true
 stillwind-source = { path = "../source" }
 
 [lints]

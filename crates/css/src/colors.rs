@@ -159,3 +159,63 @@ pub fn normalize_serialized_declaration(value: &str) -> String {
         )
         .replace(":oklab(0% none none/0);", ":#0000;")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rewrites_each_authored_colour_in_a_shadow_list() {
+        assert_eq!(
+            shadow_with_color_override(
+                "0 0 1px rgb(255 0 0 / 0.4), 0 0 3px rgb(0 0 255 / 0.2)",
+                "--tw-shadow-color",
+                None,
+            ),
+            Some(
+                "0 0 1px var(--tw-shadow-color, rgb(255 0 0 / 0.4)), 0 0 3px var(--tw-shadow-color, rgb(0 0 255 / 0.2))"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn preserves_authored_shadow_colour_when_applying_an_alpha_modifier() {
+        assert_eq!(
+            shadow_with_color_fallback(
+                "inset 0 2px 4px rgb(0 0 0 / 0.05)",
+                "--tw-inset-shadow-color",
+                "50%",
+            ),
+            Some(
+                "inset 0 2px 4px var(--tw-inset-shadow-color, oklab(from rgb(0 0 0 / 0.05) l a b / 50%))"
+                    .to_owned()
+            )
+        );
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn comma_and_component_scanners_preserve_nested_and_quoted_text() {
+        assert_eq!(
+            split_top_level_commas("rgb(1, 2, 3), 'a,b', blue"),
+            vec!["rgb(1, 2, 3)", "'a,b'", "blue"]
+        );
+        assert!(is_css_string("'a b'"));
+        assert!(!is_css_string("'a"));
+        assert!(!is_css_string("a"));
+        assert_eq!(
+            trailing_top_level_css_component("0 1px rgb(1, 2, 3)"),
+            Some(("0 1px", "rgb(1, 2, 3)"))
+        );
+        assert_eq!(
+            normalize_serialized_declaration("x:oklab(0% none none/0);"),
+            "x:#0000;"
+        );
+        assert_eq!(color_with_alpha_fallback("invalid!", "50%"), None);
+    }
+}

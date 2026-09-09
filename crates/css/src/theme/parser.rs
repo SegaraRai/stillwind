@@ -177,3 +177,17 @@ pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex
         config: StillwindConfig::default(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keyframe_extraction_keeps_nested_blocks_and_ignores_other_rules() {
+        assert_eq!(
+            extract_keyframe_blocks("a{}@keyframes spin {from{x:1}to{x:2}}b{}"),
+            "@keyframes spin {from{x:1}to{x:2}}"
+        );
+        assert_eq!(extract_keyframe_blocks("@keyframes broken {"), "");
+    }
+}

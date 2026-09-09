@@ -292,3 +292,95 @@ impl ValueType {
             )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_arbitrary_values_with_lightningcss_value_parsers() {
+        for (value_type, valid, invalid) in [
+            (ValueType::Integer, "calc(4 / 2)", "1.5"),
+            (ValueType::Number, "calc(1 / 2)", "1px"),
+            (ValueType::Percentage, "12.5%", "12px"),
+            (ValueType::NumberPercentage, ".5", "1px"),
+            (ValueType::Length, "calc(1rem + 2px)", "50%"),
+            (ValueType::LengthPercentage, "calc(1rem + 50%)", "1s"),
+            (ValueType::LineWidth, "thin", "50%"),
+            (ValueType::ZIndex, "auto", "1.5"),
+            (ValueType::Angle, "0.5turn", "1s"),
+            (ValueType::AnglePercentage, "calc(90deg + 50%)", "1s"),
+            (ValueType::Time, "150ms", "1px"),
+            (ValueType::Ratio, "16 / 9", "1px"),
+            (ValueType::Easing, "cubic-bezier(.2, .8, .2, 1)", "1px"),
+            (ValueType::Color, "oklch(62% .2 280)", "12px"),
+            (ValueType::Image, "linear-gradient(red, blue)", "red"),
+            (
+                ValueType::Url,
+                "url(/hero.png)",
+                "linear-gradient(red, blue)",
+            ),
+            (ValueType::Position, "right 1rem bottom 2px", "red"),
+            (ValueType::BackgroundSize, "cover", "red"),
+            (ValueType::Shadow, "0 1px 2px #000", "1rem"),
+            (ValueType::Content, "'stillwind'", "stillwind"),
+            (
+                ValueType::LinearGradientArguments,
+                "45deg, red, blue",
+                "red / blue",
+            ),
+            (
+                ValueType::RadialGradientArguments,
+                "at 20% 30%, red, blue",
+                "red / blue",
+            ),
+            (
+                ValueType::ConicGradientArguments,
+                "from 45deg, red, blue",
+                "red / blue",
+            ),
+            (ValueType::SkewArguments, "15deg", "red"),
+            (ValueType::SkewXArguments, "15deg", "red"),
+            (ValueType::SkewYArguments, "15deg", "red"),
+            (ValueType::Animation, "spin 1s linear infinite", "1px"),
+            (ValueType::FontFamily, "ui-sans-serif, sans-serif", "12px"),
+            (ValueType::FontSize, "1rem", "red"),
+            (ValueType::FontWeight, "650", "red"),
+            (ValueType::VerticalAlign, "middle", "red"),
+            (ValueType::GridTrackSize, "minmax(0, 1fr)", "red"),
+            (ValueType::GridLine, "span 2", "1px"),
+            (ValueType::Columns, "12rem 3", "red"),
+            (ValueType::Contain, "layout paint", "red"),
+            (ValueType::Cursor, "pointer", "red"),
+            (ValueType::FontFeatureSettings, "\"liga\" 1", "liga"),
+            (ValueType::FontStretch, "125%", "red"),
+            (ValueType::GridTrackList, "repeat(3, minmax(0, 1fr))", "red"),
+            (ValueType::Flex, "1 1 0%", "red"),
+            (ValueType::ListStyleType, "disc", "1px"),
+            (ValueType::ListStyleImage, "url(icon.svg)", "red"),
+            (ValueType::TabSize, "4", "red"),
+            (ValueType::TransitionProperty, "transform", "1px"),
+            (ValueType::WillChange, "transform", "1px"),
+            (ValueType::Zoom, "125%", "red"),
+        ] {
+            assert!(value_type.accepts(valid), "{value_type:?}: {valid}");
+            assert!(!value_type.accepts(invalid), "{value_type:?}: {invalid}");
+        }
+        assert_eq!(ValueType::from_hint("length"), Some(ValueType::Length));
+        assert_eq!(
+            ValueType::from_hint("length-percentage"),
+            Some(ValueType::LengthPercentage)
+        );
+        assert_eq!(ValueType::from_hint("unknown"), None);
+        assert!(ValueType::Integer.accepts("initial"));
+        assert!(ValueType::Length.accepts("calc(var(--gutter) * 2)"));
+        assert!(!ValueType::Length.accepts("var(gutter)"));
+        assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Percentage));
+        assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Length));
+        assert!(!ValueType::Length.accepts_hint(ValueType::Percentage));
+        assert!(ValueType::ZIndex.accepts_hint(ValueType::Integer));
+        assert!(!ValueType::ZIndex.accepts_hint(ValueType::Number));
+        assert!(ValueType::LineWidth.accepts_hint(ValueType::Length));
+        assert!(ValueType::NumberPercentage.accepts_hint(ValueType::Percentage));
+    }
+}

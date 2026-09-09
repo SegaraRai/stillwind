@@ -160,3 +160,35 @@ impl<'a> MathParser<'a> {
         self.input[self.cursor..].chars().next()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_precedence_unary_percentages_and_rejects_partial_input() {
+        for (input, expected) in [
+            ("2 + 3 * 4", "14"),
+            ("(2 + 3) * 4", "20"),
+            ("- -2px", "2px"),
+            ("25% * 2", "50%"),
+            ("2rem + 3rem", "5rem"),
+        ] {
+            assert_eq!(
+                MathParser::new(input).parse().unwrap().serialize(0),
+                expected
+            );
+        }
+        for input in ["", "1 +", "(", "1 2", "1..2"] {
+            assert!(MathParser::new(input).parse().is_none(), "{input}");
+        }
+    }
+
+    #[test]
+    fn numeric_parser_leaves_the_next_operator_unconsumed() {
+        let mut parser = MathParser::new("12.5px + 1px");
+        assert_eq!(parser.parse_numeric().unwrap().serialize(0), "12.5px");
+        parser.skip_whitespace();
+        assert_eq!(parser.peek(), Some('+'));
+    }
+}

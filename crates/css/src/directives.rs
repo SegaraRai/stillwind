@@ -17,3 +17,19 @@ pub(super) fn strip_framework_directives(css: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn removes_framework_only_rules_and_preserves_authored_imports() {
+        let css =
+            "@import 'local.css';\n@theme {--x:red;}\n@utility x {color:red;}\n.a{color:blue;}";
+        let output = strip_framework_directives(css);
+        assert!(output.contains("@import 'local.css';"));
+        assert!(output.contains(".a{color:blue;}"));
+        assert!(!output.contains("@theme"));
+        assert!(!output.contains("@utility"));
+    }
+}

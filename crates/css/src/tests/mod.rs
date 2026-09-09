@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use stillwind_source::{FileId, SourceFile};
 
 use super::values::webref::webref_property;

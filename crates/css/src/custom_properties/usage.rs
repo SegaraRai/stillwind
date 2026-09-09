@@ -123,3 +123,39 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyU
     }
     Ok(visitor.usage)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_custom_property_usage_from_the_css_ast() {
+        let usage = custom_property_usage(
+            "@layer utilities { .example { --declared: var(--referenced, var(--fallback)); color: var(--color); scroll-snap-type: x var(--snap); transform: var(--transform,) } }",
+        )
+        .unwrap();
+
+        assert_eq!(usage.declared, BTreeSet::from(["--declared".to_owned()]));
+        assert!(usage.declaration_properties.contains("color"));
+        assert!(usage.declaration_properties.contains("scroll-snap-type"));
+        assert_eq!(
+            usage.referenced,
+            BTreeSet::from([
+                "--color".to_owned(),
+                "--fallback".to_owned(),
+                "--referenced".to_owned(),
+                "--snap".to_owned(),
+                "--transform".to_owned(),
+            ])
+        );
+    }
+
+    #[test]
+    fn extracts_only_var_custom_property_dependencies() {
+        let css = "--unused:red;--used:var(--source, var(--fallback));@property --ignored { syntax: '*' }";
+        assert_eq!(
+            referenced_custom_properties(css),
+            BTreeSet::from(["--source".to_owned(), "--fallback".to_owned()])
+        );
+    }
+}

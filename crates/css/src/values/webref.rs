@@ -26,3 +26,15 @@ pub(crate) fn webref_property(name: &str) -> Option<&'static WebrefPropertySynta
 pub fn csswg_formal_syntax(property: &str) -> Option<&'static str> {
     webref_property(property).map(|definition| definition.syntax)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn property_lookup_is_case_insensitive_and_rejects_unknown_names() {
+        assert_eq!(webref_property("COLOR"), webref_property("color"));
+        assert!(csswg_formal_syntax("color").unwrap().contains("color"));
+        assert_eq!(csswg_formal_syntax("not-a-real-property"), None);
+    }
+}

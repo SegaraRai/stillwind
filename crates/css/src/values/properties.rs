@@ -285,3 +285,83 @@ pub(crate) fn position_try_fallbacks(value: &str) -> bool {
         !item.is_empty() && (dashed_ident(item) || TACTICS.contains(&item))
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_anchor_positioning_with_explicit_property_exceptions() {
+        let domain = |name| CssProperty::from_name(name).unwrap();
+
+        assert!(domain("anchor-name").accepts("--card --tooltip"));
+        assert!(!domain("anchor-name").accepts("card"));
+        assert!(domain("position-anchor").accepts("--card"));
+        assert!(domain("position-anchor").accepts("auto"));
+        assert!(!domain("position-anchor").accepts("card"));
+        assert!(domain("anchor-scope").accepts("all"));
+        assert!(domain("anchor-scope").accepts("--dialog"));
+        assert!(!domain("anchor-scope").accepts("dialog"));
+        assert!(domain("position-area").accepts("top span-inline-end"));
+        assert!(!domain("position-area").accepts("middle middle"));
+        assert!(domain("position-try-fallbacks").accepts("--fallback, flip-block"));
+        assert!(!domain("position-try-fallbacks").accepts("fallback"));
+    }
+
+    #[test]
+    fn validates_csswg_property_grammars_with_lightningcss_or_exceptions() {
+        for (name, valid, invalid) in [
+            ("padding", "calc(1rem + 50%)", "red"),
+            ("margin", "auto", "red"),
+            ("border-width", "thin", "50%"),
+            ("transition-duration", "150ms", "red"),
+            ("aspect-ratio", "16 / 9", "red"),
+            ("opacity", ".5", "red"),
+            // This property was deliberately absent from the old hand-written
+            // list. Its acceptance proves the domain comes from Lightning
+            // CSS's generated property registry, not a fixture-derived list.
+            ("text-decoration-line", "underline overline", "12px"),
+            ("view-transition-name", "hero", "12px"),
+            ("contain", "layout paint", "middle"),
+            ("font-feature-settings", "\"liga\" 1", "liga"),
+            ("object-position", "left 25%", "middle middle"),
+            ("will-change", "transform, opacity", "1px"),
+            ("zoom", "125%", "red"),
+        ] {
+            let property = CssProperty::from_name(name).unwrap();
+            assert!(property.accepts(valid), "{name}: {valid}");
+            assert!(!property.accepts(invalid), "{name}: {invalid}");
+        }
+
+        assert!(webref_property("padding").is_some());
+        assert!(webref_property("grid-template-columns").is_some());
+        assert!(webref_property("view-transition-name").is_some());
+        assert!(webref_property("not-a-css-property").is_none());
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn property_grammar_helpers_reject_extra_tokens_and_reserved_identifiers() {
+        for (valid, invalid, check) in [
+            ("2 auto", "2 3 4", columns_value as fn(&str) -> bool),
+            ("layout paint", "layout layout", contain_value),
+            ("\"liga\" on", "\"liga\" on extra", font_feature_settings),
+            ("transform, opacity", "1thing", will_change),
+            ("hello-world", "inherit", custom_ident),
+            ("--x", "--", dashed_ident),
+            ("left top", "left right", position_area),
+        ] {
+            assert!(check(valid), "{valid}");
+            assert!(!check(invalid), "{invalid}");
+        }
+        assert!(dashed_ident_list("--one --two", "none"));
+        assert!(!dashed_ident_list("--one two", "none"));
+        assert!(position_try_fallbacks("--fallback"));
+        assert!(!position_try_fallbacks(""));
+        assert!(CssProperty::from_name("unknown-property-xyz").is_none());
+    }
+}

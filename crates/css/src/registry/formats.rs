@@ -105,3 +105,46 @@ pub(crate) fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
         .map(str::to_owned)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn metadata_preserves_order_deduplicates_sets_and_rejects_incomplete_entries() {
+        assert_eq!(
+            parse_function_formats("@stillwind-format-functions rgb calc rgb;"),
+            BTreeSet::from(["rgb".into(), "calc".into()])
+        );
+        assert_eq!(
+            parse_theme_order("@stillwind-theme-order color spacing;"),
+            vec!["color", "spacing"]
+        );
+        assert_eq!(
+            parse_omit_token_prefixes(
+                "@stillwind-omit-token-prefix --x- used; @stillwind-omit-token-prefix broken;"
+            ),
+            vec![("--x-".into(), "used".into())]
+        );
+        assert_eq!(
+            parse_relationship_patterns(
+                "@stillwind-relationship group-*;@stillwind-relationship group-*;"
+            ),
+            BTreeSet::from(["group-*".into()])
+        );
+        assert_eq!(parse_animation_option_property_mappings("@stillwind-animation-option-property duration: animation-duration; @stillwind-animation-option-property : bad;").len(),1);
+    }
+
+    #[test]
+    fn exact_formats_override_wildcards_and_repeated_formats_accumulate() {
+        let formats = parse_declaration_formats(
+            "@stillwind-format margin-* zero; @stillwind-format margin-top first; @stillwind-format margin-top second;",
+        );
+        assert_eq!(
+            declaration_format(&formats, "margin-top"),
+            Some("first second")
+        );
+        assert_eq!(declaration_format(&formats, "margin-left"), Some("zero"));
+        assert_eq!(declaration_format(&formats, "padding"), None);
+    }
+}

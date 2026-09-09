@@ -1,38 +1,6 @@
 use super::*;
 
 #[test]
-fn validates_csswg_property_grammars_with_lightningcss_or_exceptions() {
-    for (name, valid, invalid) in [
-        ("padding", "calc(1rem + 50%)", "red"),
-        ("margin", "auto", "red"),
-        ("border-width", "thin", "50%"),
-        ("transition-duration", "150ms", "red"),
-        ("aspect-ratio", "16 / 9", "red"),
-        ("opacity", ".5", "red"),
-        // This property was deliberately absent from the old hand-written
-        // list. Its acceptance proves the domain comes from Lightning
-        // CSS's generated property registry, not a fixture-derived list.
-        ("text-decoration-line", "underline overline", "12px"),
-        ("view-transition-name", "hero", "12px"),
-        ("contain", "layout paint", "middle"),
-        ("font-feature-settings", "\"liga\" 1", "liga"),
-        ("object-position", "left 25%", "middle middle"),
-        ("will-change", "transform, opacity", "1px"),
-        ("zoom", "125%", "red"),
-    ] {
-        let property = CssProperty::from_name(name).unwrap();
-        assert!(property.accepts(valid), "{name}: {valid}");
-        assert!(!property.accepts(invalid), "{name}: {invalid}");
-    }
-
-    assert!(webref_property("padding").is_some());
-    assert!(webref_property("grid-template-columns").is_some());
-    assert!(webref_property("view-transition-name").is_some());
-    assert!(webref_property("not-a-css-property").is_none());
-    assert!(ValueDomain::from_hint("property:padding").is_none());
-}
-
-#[test]
 fn generated_webref_snapshot_covers_every_internal_complex_value_domain() {
     for property in [
         "animation",
@@ -58,54 +26,6 @@ fn generated_webref_snapshot_covers_every_internal_complex_value_domain() {
         assert!(!definition.syntax.is_empty(), "{property}");
         assert!(definition.href.starts_with("https://"), "{property}");
     }
-}
-
-#[test]
-fn validates_anchor_positioning_with_explicit_property_exceptions() {
-    let domain = |name| CssProperty::from_name(name).unwrap();
-
-    assert!(domain("anchor-name").accepts("--card --tooltip"));
-    assert!(!domain("anchor-name").accepts("card"));
-    assert!(domain("position-anchor").accepts("--card"));
-    assert!(domain("position-anchor").accepts("auto"));
-    assert!(!domain("position-anchor").accepts("card"));
-    assert!(domain("anchor-scope").accepts("all"));
-    assert!(domain("anchor-scope").accepts("--dialog"));
-    assert!(!domain("anchor-scope").accepts("dialog"));
-    assert!(domain("position-area").accepts("top span-inline-end"));
-    assert!(!domain("position-area").accepts("middle middle"));
-    assert!(domain("position-try-fallbacks").accepts("--fallback, flip-block"));
-    assert!(!domain("position-try-fallbacks").accepts("fallback"));
-}
-
-#[test]
-fn preserves_authored_shadow_colour_when_applying_an_alpha_modifier() {
-    assert_eq!(
-            shadow_with_color_fallback(
-                "inset 0 2px 4px rgb(0 0 0 / 0.05)",
-                "--tw-inset-shadow-color",
-                "50%",
-            ),
-            Some(
-                "inset 0 2px 4px var(--tw-inset-shadow-color, oklab(from rgb(0 0 0 / 0.05) l a b / 50%))"
-                    .to_owned()
-            )
-        );
-}
-
-#[test]
-fn rewrites_each_authored_colour_in_a_shadow_list() {
-    assert_eq!(
-            shadow_with_color_override(
-                "0 0 1px rgb(255 0 0 / 0.4), 0 0 3px rgb(0 0 255 / 0.2)",
-                "--tw-shadow-color",
-                None,
-            ),
-            Some(
-                "0 0 1px var(--tw-shadow-color, rgb(255 0 0 / 0.4)), 0 0 3px var(--tw-shadow-color, rgb(0 0 255 / 0.2))"
-                    .to_owned()
-            )
-        );
 }
 
 #[test]

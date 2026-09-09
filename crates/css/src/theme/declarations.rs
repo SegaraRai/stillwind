@@ -158,3 +158,33 @@ pub(crate) fn classify_theme_token(name: &str) -> ThemeTokenKind {
     }
     ThemeTokenKind::Custom
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn declaration_extraction_keeps_value_spans_and_skips_non_declarations() {
+        let tokens = extract_theme_declarations(
+            FileId(1),
+            "--color-a: red; --spacing: .25rem;",
+            10,
+            ThemeTokenMode::Inline,
+        );
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].name.value, "--color-a");
+        assert_eq!(tokens[0].name.span.start.0, 10);
+        assert_eq!(tokens[0].value.value, "red");
+        assert_eq!(tokens[0].mode, ThemeTokenMode::Inline);
+        assert!(matches!(
+            classify_theme_token("--color-a"),
+            ThemeTokenKind::Token {
+                namespace: ThemeNamespace::Color,
+                ..
+            }
+        ));
+        assert_eq!(classify_theme_token("--unknown-a"), ThemeTokenKind::Custom);
+        assert_eq!(ThemeTokenMode::parse("static"), ThemeTokenMode::Static);
+        assert_eq!(ThemeTokenMode::parse("unknown"), ThemeTokenMode::Default);
+    }
+}

@@ -170,3 +170,28 @@ pub(crate) fn serialize_number(value: f64) -> String {
     }
     value
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn arithmetic_preserves_units_and_parenthesizes_non_associative_operands() {
+        let px = MathExpression::Value(MathValue::Dimension(3.0, "px".into()));
+        let zero = MathExpression::Value(MathValue::Number(0.0));
+        assert_eq!(
+            MathExpression::product(px.clone(), zero).serialize(0),
+            "0px"
+        );
+        assert_eq!(px.clone().negate().negate(), px);
+        let sum = MathExpression::Sum(
+            Box::new(MathExpression::Atom("a".into())),
+            Box::new(MathExpression::Atom("b".into())),
+        );
+        let quotient = MathExpression::Quotient(Box::new(px), Box::new(sum));
+        assert_eq!(quotient.serialize(0), "3px / (a + b)");
+        assert_eq!(quotient.numeric_unit(), Some("px"));
+        assert_eq!(serialize_number(-0.0), "0");
+        assert_eq!(serialize_number(0.125), ".125");
+    }
+}

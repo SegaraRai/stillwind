@@ -1335,6 +1335,7 @@ name = "stillwind-css"
 version = "0.0.0"
 dependencies = [
  "lightningcss",
+ "proptest",
  "stillwind-source",
  "thiserror",
 ]
@@ -1343,6 +1344,7 @@ dependencies = [
 name = "stillwind-grammar"
 version = "0.0.0"
 dependencies = [
+ "proptest",
  "stillwind-source",
 ]
 
@@ -1394,6 +1396,7 @@ dependencies = [
 name = "stillwind-source"
 version = "0.0.0"
 dependencies = [
+ "proptest",
  "serde",
  "thiserror",
 ]
@@ -1402,6 +1405,7 @@ dependencies = [
 name = "stillwind-tailwind"
 version = "0.0.0"
 dependencies = [
+ "proptest",
  "stillwind-css",
  "stillwind-grammar",
  "stillwind-source",

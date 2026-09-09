@@ -21,3 +21,17 @@ pub(crate) fn custom_property_references(css: &str) -> BTreeSet<String> {
     }
     references
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deduplicates_names_and_stops_at_css_delimiters() {
+        assert_eq!(
+            custom_property_references("var(--x, --fallback_2) --x --"),
+            BTreeSet::from(["--x".into(), "--fallback_2".into()])
+        );
+        assert!(custom_property_references("color:red").is_empty());
+    }
+}

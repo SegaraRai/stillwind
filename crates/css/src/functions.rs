@@ -108,3 +108,37 @@ pub(super) fn split_css_function_arguments(arguments: &str) -> (&str, Option<&st
     }
     (arguments, None)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ignores_quoted_and_commented_functions_and_handles_unclosed_input() {
+        let value = "'--theme(fake)' /* --theme(no) */ --theme(--yes)";
+        assert_eq!(
+            find_css_function(value, "--theme", 0),
+            value.rfind("--theme")
+        );
+        assert_eq!(find_css_function("/* never closed", "--theme", 0), None);
+        assert_eq!(
+            matching_css_delimiter("(a(')') /* ) */)", 0, '(', ')'),
+            Some(15)
+        );
+        assert_eq!(matching_css_delimiter("(a", 0, '(', ')'), None);
+    }
+
+    #[test]
+    fn splits_only_the_first_unquoted_top_level_comma() {
+        assert_eq!(
+            split_css_function_arguments("var(--a, red), rgb(1, 2, 3)"),
+            ("var(--a, red)", Some(" rgb(1, 2, 3)"))
+        );
+        assert_eq!(split_css_function_arguments("'a,b'"), ("'a,b'", None));
+        assert_eq!(
+            split_css_function_arguments("[a,b],x,y"),
+            ("[a,b]", Some("x,y"))
+        );
+        assert_eq!(split_css_function_arguments(""), ("", None));
+    }
+}

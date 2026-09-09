@@ -8,7 +8,8 @@ pub(super) fn strip_css_comments(css: &str) -> String {
     while let Some(start) = remaining.find("/*") {
         output.push_str(&remaining[..start]);
         let Some(end) = remaining[start + 2..].find("*/") else {
-            break;
+            output.push_str(&remaining[start..]);
+            return output;
         };
         remaining = &remaining[start + 2 + end + 2..];
     }
@@ -211,4 +212,39 @@ pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn named_blocks_retain_source_offsets_and_nested_bodies() {
+        let css = "x @utility foo { color:red; &:hover {color:blue;} }";
+        let blocks = extract_named_blocks_with_offsets(css, "@utility");
+        assert_eq!(
+            blocks,
+            vec![(2, "foo".into(), "color:red; &:hover {color:blue;}".into())]
+        );
+        assert_eq!(extract_named_blocks(css, "@missing"), vec![]);
+        assert_eq!(
+            extract_order_statements("@order a; @order bad name; @order b-*;", "@order"),
+            vec![(0, "a".into()), (27, "b-*".into())]
+        );
+    }
+
+    #[test]
+    fn stripping_preserves_surroundings_and_malformed_blocks() {
+        assert_eq!(strip_css_comments("a/* one */b/*two*/c"), "abc");
+        assert_eq!(strip_css_comments("a/* unclosed"), "a/* unclosed");
+        assert_eq!(strip_blocks("a @theme { x {y} } b", "@theme"), "a  b");
+        assert_eq!(strip_blocks("a @theme { x", "@theme"), "a @theme { x");
+        assert_eq!(find_block_open("x-{modifier} { y }"), Some(13));
+        assert_eq!(
+            strip_top_level_blocks("@variant a {x} .a { @variant b {y} }", "@variant"),
+            " .a { @variant b {y} }"
+        );
+        assert_eq!(matching_brace("{ '}' {x} }", 0), Some(10));
+        assert_eq!(matching_brace("{x", 0), None);
+    }
 }

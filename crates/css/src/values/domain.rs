@@ -37,3 +37,23 @@ impl ValueDomain {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keyword_and_hint_boundaries_do_not_admit_unknown_domains() {
+        for keyword in ["initial", "inherit", "unset", "revert", "revert-layer"] {
+            assert!(is_css_wide_keyword(keyword));
+        }
+        assert!(!is_css_wide_keyword("initially"));
+        assert_eq!(ValueDomain::from_hint("unknown"), None);
+        assert!(ValueDomain::from_hint("property:padding").is_none());
+        let domain = ValueDomain::from_hint("length-percentage").unwrap();
+        assert!(domain.accepts("2px"));
+        assert!(domain.accepts_hint("percentage"));
+        assert!(!domain.accepts_hint("time"));
+        assert!(!domain.accepts_hint("unknown"));
+    }
+}

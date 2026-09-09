@@ -90,6 +90,7 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
 fn balanced(value: &str) -> bool {
     let mut delimiters = Vec::new();
     let mut escaped = false;
+    let mut quote = None;
     for character in value.chars() {
         if escaped {
             escaped = false;
@@ -99,6 +100,16 @@ fn balanced(value: &str) -> bool {
             escaped = true;
             continue;
         }
+        if let Some(active) = quote {
+            if character == active {
+                quote = None;
+            }
+            continue;
+        }
+        if matches!(character, '\'' | '"') {
+            quote = Some(character);
+            continue;
+        }
         match character {
             '[' => delimiters.push(']'),
             '(' => delimiters.push(')'),
@@ -106,7 +117,7 @@ fn balanced(value: &str) -> bool {
             _ => {}
         }
     }
-    delimiters.is_empty() && !escaped
+    delimiters.is_empty() && !escaped && quote.is_none()
 }
 
 fn parse_utility(raw: &str) -> Option<Utility> {
@@ -153,6 +164,7 @@ fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) 
     let mut start = 0;
     let mut depth = 0_u32;
     let mut escaped = false;
+    let mut quote = None;
     for (index, character) in value.char_indices() {
         if escaped {
             escaped = false;
@@ -160,6 +172,16 @@ fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) 
         }
         if character == '\\' {
             escaped = true;
+            continue;
+        }
+        if let Some(active) = quote {
+            if character == active {
+                quote = None;
+            }
+            continue;
+        }
+        if matches!(character, '\'' | '"') {
+            quote = Some(character);
             continue;
         }
         match character {
@@ -181,6 +203,7 @@ fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) 
 fn split_once_top_level(value: &str, delimiter: char) -> (&str, Option<&str>) {
     let mut depth = 0_u32;
     let mut escaped = false;
+    let mut quote = None;
     for (index, character) in value.char_indices() {
         if escaped {
             escaped = false;
@@ -188,6 +211,16 @@ fn split_once_top_level(value: &str, delimiter: char) -> (&str, Option<&str>) {
         }
         if character == '\\' {
             escaped = true;
+            continue;
+        }
+        if let Some(active) = quote {
+            if character == active {
+                quote = None;
+            }
+            continue;
+        }
+        if matches!(character, '\'' | '"') {
+            quote = Some(character);
             continue;
         }
         match character {
@@ -408,6 +441,48 @@ mod tests {
                 },
                 "{raw}"
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn top_level_splitting_respects_quotes_escapes_and_nested_brackets() {
+        assert_eq!(
+            split_top_level("hover:[&:focus]:x", ':'),
+            (vec!["hover".into(), "[&:focus]".into()], Some("x"))
+        );
+        assert_eq!(split_once_top_level("a/[b/c]", '/'), ("a", Some("[b/c]")));
+        assert!(balanced("[f(']')]"));
+        assert!(!balanced("[x)"));
+        assert_eq!(decode_arbitrary(r"a_b\_c"), "a b_c");
+    }
+
+    #[test]
+    fn quoted_delimiters_do_not_end_values_or_create_variants_and_modifiers() {
+        let candidate = parse_candidate(r#"hover:content-["']:)/"]/50"#).unwrap();
+        assert_eq!(candidate.variants.len(), 1);
+        assert_eq!(
+            candidate.utility,
+            Utility::Named {
+                name: r#"content-["']:)/"]"#.into(),
+                modifier: Some(Value::Named("50".into())),
+            }
+        );
+        assert!(parse_candidate("content-['unterminated]").is_none());
+        assert!(parse_candidate(r"content-['it\'s]']").is_some());
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn valid_named_candidates_keep_their_original_spelling(name in "[a-z]{1,12}-[0-9]{1,4}") {
+            let candidate = parse_candidate(&name).unwrap();
+            proptest::prop_assert!(!candidate.important);
+            proptest::prop_assert!(!candidate.negative);
+            proptest::prop_assert_eq!(candidate.utility, Utility::Named{name, modifier:None});
         }
     }
 }

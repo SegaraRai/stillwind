@@ -157,3 +157,57 @@ pub(crate) fn parse_utility_family_header(header: &str) -> Option<String> {
         Some(value.to_owned())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn named_and_ordered_utilities_preserve_bodies_and_exclude_family_headers() {
+        let css = "@utility user { color:red; } @stillwind-utility builtin {color:blue;}";
+        let users = parse_utility_definitions(css);
+        let builtins = parse_builtin_utility_definitions(css);
+        assert_eq!(users[0].name, "user");
+        assert_eq!(users[0].builtin_order, None);
+        assert_eq!(builtins[0].body, "color:blue;");
+        assert_eq!(builtins[0].builtin_order, css.find("@stillwind-utility"));
+        assert!(
+            parse_ordered_utility_definitions(
+                "@stillwind-utility-family x {x:y;}",
+                "@stillwind-utility"
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            parse_marker_utilities("@stillwind-marker group; @stillwind-marker group;"),
+            BTreeSet::from(["group".into()])
+        );
+    }
+
+    #[test]
+    fn family_expansion_preserves_alias_and_property_order_and_skips_empty_entries() {
+        let utilities = extract_utility_families(
+            "@utility-family value=--value(number) { x,y: width,height; bad; empty: ; }",
+        );
+        assert_eq!(utilities.len(), 2);
+        assert_eq!(
+            utilities
+                .iter()
+                .map(|u| u.name.as_str())
+                .collect::<Vec<_>>(),
+            ["x-*", "y-*"]
+        );
+        assert!(
+            utilities
+                .iter()
+                .all(|u| u.body == "width:--value(number);height:--value(number);")
+        );
+        for header in ["", "value=   ", "number"] {
+            assert!(parse_utility_family_header(header).is_none());
+        }
+        assert_eq!(
+            parse_utility_family_header("value=  calc(--value(number) * -1) ").as_deref(),
+            Some("calc(--value(number) * -1)")
+        );
+    }
+}

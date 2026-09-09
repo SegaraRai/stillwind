@@ -271,3 +271,94 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
     );
     variants
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_class_identifier_modifiers_for_css_selectors() {
+        let kind = BuiltinVariantModifierType::ClassIdentifier;
+        assert_eq!(kind.serialize("menu").as_deref(), Some("menu"));
+        assert_eq!(
+            kind.serialize(r"menu\:open").as_deref(),
+            Some(r"menu\:open")
+        );
+        assert_eq!(kind.serialize("not an identifier"), None);
+    }
+
+    #[test]
+    fn validates_nth_and_supports_conditions_through_lightning_css() {
+        assert!(BuiltinVariantValueType::Nth.accepts_css("3n + 1"));
+        assert!(BuiltinVariantValueType::Nth.accepts_css("odd"));
+        assert!(!BuiltinVariantValueType::Nth.accepts_css("not-an-nth"));
+        assert!(BuiltinVariantValueType::SupportsCondition.accepts_css("display: grid"));
+    }
+
+    #[test]
+    fn parses_typed_variant_values_modifiers_and_literal_asterisks() {
+        let variants = parse_builtin_variant_definitions(
+            r"@stillwind-variant \* { :is(& > *) { @slot; } }
+               @stillwind-variant group-* (value: [variant], modifier: [class-identifier]) { @slot; }
+               @stillwind-variant supports-* (value: [supports-condition]) { @slot; }",
+        );
+
+        assert_eq!(variants.len(), 3);
+        assert_eq!(variants[0].name, "*");
+        assert!(!variants[0].wildcard);
+        assert!(variants[1].wildcard);
+        assert_eq!(
+            variants[1].value_type,
+            Some(BuiltinVariantValueType::Variant)
+        );
+        assert_eq!(
+            variants[1].modifier_type,
+            Some(BuiltinVariantModifierType::ClassIdentifier)
+        );
+        assert_eq!(
+            variants[2].value_type,
+            Some(BuiltinVariantValueType::SupportsCondition)
+        );
+    }
+
+    #[test]
+    fn parses_builtin_variant_sort_options() {
+        let variants = parse_builtin_variant_definitions(
+            "@stillwind-variant max-* (sort: --breakpoint-*, direction: desc) { @slot; }\
+             @stillwind-variant min-* (group: responsive-min, sort: --breakpoint-*, direction: asc, bare: true) { @slot; }",
+        );
+
+        assert_eq!(variants.len(), 2);
+        assert_eq!(
+            variants[0].sort.as_ref().unwrap().key.as_deref(),
+            Some("--breakpoint-*")
+        );
+        assert_eq!(
+            variants[0].sort.as_ref().unwrap().direction,
+            Some(BuiltinVariantSortDirection::Descending)
+        );
+        assert_eq!(
+            variants[1].sort.as_ref().unwrap().group.as_deref(),
+            Some("responsive-min")
+        );
+        assert!(variants[1].sort.as_ref().unwrap().bare);
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn variant_names_and_sort_headers_reject_invalid_metadata() {
+        assert_eq!(
+            parse_variant_name(r"literal\*"),
+            Some(("literal*".into(), false))
+        );
+        assert_eq!(parse_variant_name("min-*"), Some(("min-*".into(), true)));
+        assert_eq!(parse_variant_name(""), None);
+        assert!(parse_builtin_variant_header("min-* (direction: sideways)").is_none());
+        assert!(parse_builtin_variant_header("min-* (unknown: x)").is_none());
+        assert!(parse_builtin_variant_header("min-* (bare: maybe)").is_none());
+    }
+}
