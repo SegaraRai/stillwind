@@ -2,11 +2,10 @@ use std::collections::HashSet;
 
 use stillwind_source::CompileError;
 
-use super::labels::is_strict_ancestor;
-use super::state::MacroExtractor;
+use crate::state::MacroExtractor;
 
 impl MacroExtractor<'_> {
-    pub(super) fn validate_handles(&mut self) {
+    pub(crate) fn validate_handles(&mut self) {
         let names = self
             .handle_uses
             .iter()
@@ -83,7 +82,7 @@ impl MacroExtractor<'_> {
         self.validate_scoped_refs();
     }
 
-    pub(super) fn validate_scoped_refs(&mut self) {
+    pub(crate) fn validate_scoped_refs(&mut self) {
         for definition in self
             .handle_definitions
             .iter()
@@ -155,4 +154,8 @@ impl MacroExtractor<'_> {
             }
         }
     }
+}
+
+fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
+    ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
 }

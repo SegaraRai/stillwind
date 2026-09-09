@@ -1,13 +1,13 @@
-use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression, StringLiteral};
+use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression};
 use oxc::span::GetSpan;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition, StyleInput};
-use stillwind_source::{CompileError, Span, Spanned};
+use stillwind_source::{CompileError, Span};
 
-use super::state::{HandleUse, MacroExtractor, ScopeUse};
+use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    pub(super) fn collect_handle_projection(
+    pub(crate) fn collect_handle_projection(
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
@@ -88,7 +88,7 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    pub(super) fn collect_container_query_projection(
+    pub(crate) fn collect_container_query_projection(
         &mut self,
         call: &CallExpression<'a>,
         member: &StaticMemberExpression<'a>,
@@ -128,7 +128,7 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
-    pub(super) fn record_handle_use(
+    pub(crate) fn record_handle_use(
         &mut self,
         handle: &HandleDefinition,
         projection: &'static str,
@@ -142,20 +142,24 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
-    pub(super) fn record_scope_use(&mut self, scope: &ScopeDefinition) {
+    pub(crate) fn record_scope_use(&mut self, scope: &ScopeDefinition) {
         self.scope_uses.push(ScopeUse {
             name: scope.name.value.clone(),
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
     }
+}
 
-    pub(super) fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {
-        let literal_span = self.source_span(literal.span);
-        let content_span = Span::new(
-            literal_span.file,
-            literal_span.start.0 + 1,
-            literal_span.end.0.saturating_sub(1),
-        );
-        Spanned::new(literal.value.to_string(), content_span)
-    }
+#[derive(Clone, Debug)]
+pub(crate) struct HandleUse {
+    pub(crate) name: String,
+    pub(crate) projection: &'static str,
+    pub(crate) span: Span,
+    pub(crate) jsx_path: Option<Vec<usize>>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ScopeUse {
+    pub(crate) name: String,
+    pub(crate) jsx_path: Option<Vec<usize>>,
 }

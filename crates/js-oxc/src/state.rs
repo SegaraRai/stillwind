@@ -9,9 +9,11 @@ use stillwind_ir::{
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
-    ReExport, RefAlternative, TypeFact,
+    ReExport, TypeFact,
 };
-use stillwind_source::{CompileError, SourceFile, Span, Spanned};
+use stillwind_source::{CompileError, SourceFile, Spanned};
+
+use super::refs::projections::{HandleUse, ScopeUse};
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn new(
@@ -49,61 +51,6 @@ impl<'a> MacroExtractor<'a> {
             imported_assets,
             type_probes: RefCell::default(),
         }
-    }
-
-    pub(super) fn imported_scope(&self, identity: &IdentityId) -> ScopeDefinition {
-        if let Some(scope) = self
-            .scope_definitions
-            .iter()
-            .find(|scope| self.identity(AssetKind::Scope, &scope.name) == *identity)
-        {
-            return scope.clone();
-        }
-        let span = Span::new(self.source.id(), identity.start, identity.end);
-        let metadata = self.imported_assets.get(identity);
-        ScopeDefinition {
-            module_path: identity.module_path.clone(),
-            name: Spanned::new(identity.binding_name.clone(), span),
-            label: metadata
-                .and_then(|metadata| metadata.label.clone())
-                .map(|label| Spanned::new(label, span)),
-            call_span: span,
-        }
-    }
-
-    pub(super) fn imported_ref(&self, alternative: &RefAlternative) -> Option<HandleDefinition> {
-        let span = Span::new(
-            self.source.id(),
-            alternative.reference.start,
-            alternative.reference.end,
-        );
-        let metadata = self.imported_assets.get(&alternative.reference);
-        let scope = match &alternative.permitted_scopes {
-            None => None,
-            Some(scopes) => {
-                let candidates = scopes.finite_candidates()?;
-                if candidates.len() != 1 {
-                    return None;
-                }
-                Some(self.imported_scope(candidates.first()?))
-            }
-        };
-        let mut definition = self
-            .handle_definitions
-            .iter()
-            .find(|handle| self.identity(AssetKind::Ref, &handle.name) == alternative.reference)
-            .cloned()
-            .unwrap_or_else(|| HandleDefinition {
-                module_path: alternative.reference.module_path.clone(),
-                name: Spanned::new(alternative.reference.binding_name.clone(), span),
-                label: metadata
-                    .and_then(|metadata| metadata.label.clone())
-                    .map(|label| Spanned::new(label, span)),
-                scope: None,
-                call_span: span,
-            });
-        definition.scope = scope;
-        Some(definition)
     }
 
     pub(super) fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
@@ -200,18 +147,4 @@ pub(super) struct MacroExtractor<'a> {
     pub(super) type_facts: HashMap<(u32, u32), ExportedValue>,
     pub(super) type_probes: RefCell<BTreeSet<(u32, u32)>>,
     pub(super) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
-}
-
-#[derive(Clone, Debug)]
-pub(super) struct HandleUse {
-    pub(super) name: String,
-    pub(super) projection: &'static str,
-    pub(super) span: Span,
-    pub(super) jsx_path: Option<Vec<usize>>,
-}
-
-#[derive(Clone, Debug)]
-pub(super) struct ScopeUse {
-    pub(super) name: String,
-    pub(super) jsx_path: Option<Vec<usize>>,
 }

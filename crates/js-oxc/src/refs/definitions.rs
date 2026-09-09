@@ -4,11 +4,10 @@ use oxc::span::GetSpan;
 use stillwind_ir::{HandleDefinition, ScopeDefinition, StyleInput};
 use stillwind_source::{CompileError, Span, Spanned, normalized_module_path};
 
-use super::labels::is_marker_label;
-use super::state::MacroExtractor;
+use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    pub(super) fn collect_scope_definition(
+    pub(crate) fn collect_scope_definition(
         &mut self,
         name: Spanned<String>,
         call: &CallExpression<'a>,
@@ -52,7 +51,7 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
-    pub(super) fn collect_ref_definition(
+    pub(crate) fn collect_ref_definition(
         &mut self,
         name: Spanned<String>,
         call: &CallExpression<'a>,
@@ -119,7 +118,7 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
-    pub(super) fn handle_tagged_selector(
+    pub(crate) fn handle_tagged_selector(
         &mut self,
         key: &PropertyKey<'a>,
     ) -> Option<(Vec<HandleDefinition>, Spanned<String>)> {
@@ -173,7 +172,7 @@ impl<'a> MacroExtractor<'a> {
         Some((handles, selector))
     }
 
-    pub(super) fn collect_dynamic_handle_attachment(
+    pub(crate) fn collect_dynamic_handle_attachment(
         &mut self,
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
@@ -208,4 +207,12 @@ impl<'a> MacroExtractor<'a> {
         }
         false
     }
+}
+
+fn is_marker_label(label: &Spanned<String>) -> bool {
+    !label.value.is_empty()
+        && label
+            .value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
