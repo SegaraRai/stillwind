@@ -23,7 +23,7 @@ version = "0.0.0"
 [workspace.dependencies]
 blake3 = "1.8.7"
 lightningcss = { version = "1.0.0-alpha.72", default-features = false, features = ["visitor"] }
-oxc = { version = "0.147.0", features = ["ast_visit", "semantic"] }
+oxc = { version = "0.149.0", features = ["ast_visit", "semantic"] }
 napi = { version = "3.12.2", default-features = false, features = ["napi8"] }
 napi-build = "2.4.1"
 napi-derive = "3.6.3"

@@ -1,7 +1,7 @@
 //! Snapshot-pinned compilation and structured, independently owned CSS rules.
 use std::collections::BTreeSet;
 
-use cssparser::{Parser, ParserInput, Token};
+use cssparser::{Parser, Token};
 use stillwind_ir::StyleInput;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
@@ -46,8 +46,7 @@ impl ModuleCssArtifact {
     /// Lossless boundary between the existing emitter and rule ownership. CSS
     /// tokenization keeps braces inside strings, functions and comments intact.
     pub(crate) fn from_css(css: &str) -> Self {
-        let mut input = ParserInput::new(css);
-        let mut parser = Parser::new(&mut input);
+        let mut parser = Parser::new(css);
         let mut start = 0;
         let mut rules = Vec::new();
         while let Ok(token) = parser.next_including_whitespace_and_comments() {
@@ -57,7 +56,7 @@ impl ModuleCssArtifact {
                 let body_end = parser
                     .parse_nested_block(|nested| {
                         while nested.next_including_whitespace_and_comments().is_ok() {}
-                        Ok::<_, cssparser::ParseError<'_, ()>>(nested.position().byte_index())
+                        Ok::<_, cssparser::ParseError<()>>(nested.position().byte_index())
                     })
                     .expect("generated CSS block is valid");
                 let end = parser.position().byte_index();

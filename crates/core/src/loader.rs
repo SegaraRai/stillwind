@@ -1,7 +1,7 @@
 //! Caller-driven CSS loading. Source identities are deliberately opaque.
 use std::{collections::BTreeMap, sync::Arc};
 
-use cssparser::{Parser, ParserInput, Token};
+use cssparser::{Parser, Token};
 use stillwind_source::{FileId, SourceFile, Span};
 
 use crate::{CompilerOptions, DesignSystemSnapshot};
@@ -417,8 +417,7 @@ fn is_framework(name: &str) -> bool {
 
 /// Tokenization skips comments, strings and nested blocks, and decodes CSS escapes.
 fn imports(css: &str) -> Result<Vec<Import>, String> {
-    let mut input = ParserInput::new(css);
-    let mut parser = Parser::new(&mut input);
+    let mut parser = Parser::new(css);
     let mut imports = Vec::new();
     loop {
         let start = parser.position().byte_index();
@@ -435,7 +434,7 @@ fn imports(css: &str) -> Result<Vec<Import>, String> {
             parser
                 .parse_nested_block(|nested| {
                     while nested.next_including_whitespace_and_comments().is_ok() {}
-                    Ok::<_, cssparser::ParseError<'_, ()>>(())
+                    Ok::<_, cssparser::ParseError<()>>(())
                 })
                 .map_err(|error| format!("invalid CSS block: {error:?}"))?;
             continue;
@@ -473,8 +472,7 @@ fn imports(css: &str) -> Result<Vec<Import>, String> {
 }
 
 fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
-    let mut input = ParserInput::new(tail);
-    let mut parser = Parser::new(&mut input);
+    let mut parser = Parser::new(tail);
     let mut wrappers = Vec::new();
     while !parser.is_exhausted() {
         let state = parser.state();
@@ -493,7 +491,7 @@ fn import_wrappers(tail: &str) -> Result<Vec<String>, String> {
                     .parse_nested_block(|nested| {
                         let start = nested.position();
                         while nested.next_including_whitespace_and_comments().is_ok() {}
-                        Ok::<_, cssparser::ParseError<'_, ()>>(
+                        Ok::<_, cssparser::ParseError<()>>(
                             nested.slice_from(start).trim().to_owned(),
                         )
                     })
