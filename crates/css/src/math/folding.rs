@@ -1,7 +1,7 @@
-use super::math_expression::{MathExpression, MathValue};
-use super::math_parser::MathParser;
+use super::expression::{MathExpression, MathValue};
+use super::parser::MathParser;
 
-pub(super) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
+pub(crate) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;

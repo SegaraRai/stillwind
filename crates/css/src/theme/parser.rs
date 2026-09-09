@@ -5,20 +5,20 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_source::{FileId, SourceFile};
 
-use super::catalog::TAILWIND_V4_THEME;
-use super::directives::{
-    extract_authored_property_names, extract_property_definitions, extract_stillwind_config,
-    strip_framework_directives,
+use crate::blocks::matching_brace;
+use crate::builtins::TAILWIND_V4_THEME;
+use crate::custom_properties::registration::{
+    extract_authored_property_names, extract_property_definitions,
 };
-use super::imports::framework_imports;
-use super::theme_declarations::{extract_theme_declarations, matching_brace};
-use super::theme_index::{ThemeIndex, ThemeTokenMode};
-use super::theme_types::{FrameworkImports, StillwindConfig};
-use super::utility_definitions::{
-    extract_custom_utilities, extract_declaration_formats, extract_marker_utilities,
-    extract_relationship_patterns,
-};
-use super::variants::extract_custom_variants;
+use crate::directives::strip_framework_directives;
+use crate::registry::formats::{extract_declaration_formats, extract_relationship_patterns};
+use crate::registry::utilities::{extract_custom_utilities, extract_marker_utilities};
+use crate::registry::variants::extract_custom_variants;
+
+use super::config::{StillwindConfig, extract_stillwind_config};
+use super::declarations::extract_theme_declarations;
+use super::imports::{FrameworkImports, framework_imports};
+use super::index::{ThemeIndex, ThemeTokenMode};
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
@@ -102,7 +102,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
     })
 }
 
-pub(super) fn extract_keyframe_blocks(css: &str) -> String {
+pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("@keyframes ") {
@@ -133,11 +133,11 @@ pub(super) fn extract_keyframe_blocks(css: &str) -> String {
     output
 }
 
-pub(super) fn offset(value: usize) -> u32 {
+pub(crate) fn offset(value: usize) -> u32 {
     u32::try_from(value).expect("stillwind source files must be smaller than 4 GiB")
 }
 
-pub(super) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeError> {
+pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeError> {
     let mut tokens = Vec::new();
     let mut cursor = 0;
 

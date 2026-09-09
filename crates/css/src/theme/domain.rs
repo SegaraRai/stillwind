@@ -1,3 +1,33 @@
+use std::collections::BTreeMap;
+
+use crate::values::validation::ValueType;
+
+/// Parses the CSS-authored type set for each Tailwind theme namespace.
+#[must_use]
+pub fn parse_theme_namespace_types(css: &str) -> BTreeMap<ThemeNamespace, Vec<ValueType>> {
+    css.split('@')
+        .filter_map(|segment| segment.strip_prefix("stillwind-theme-namespace"))
+        .filter_map(|segment| {
+            segment
+                .split_once(';')
+                .map(|(definition, _)| definition.trim())
+        })
+        .filter_map(|definition| {
+            let mut parts = definition.split_whitespace();
+            let namespace = parts
+                .next()?
+                .strip_prefix("--")?
+                .strip_suffix("-*")
+                .and_then(ThemeNamespace::parse)?;
+            let types = parts
+                .filter_map(|value| value.strip_prefix('[')?.strip_suffix(']'))
+                .filter_map(ValueType::from_hint)
+                .collect::<Vec<_>>();
+            (!types.is_empty()).then_some((namespace, types))
+        })
+        .collect()
+}
+
 /// Tailwind v4 theme namespaces that participate in built-in utility and
 /// variant resolution. Unknown custom properties remain available as authored
 /// CSS but never accidentally create a utility.

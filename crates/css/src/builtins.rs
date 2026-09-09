@@ -1,5 +1,4 @@
-use super::catalog::{TAILWIND_V4_PREFLIGHT, TAILWIND_V4_THEME};
-use super::theme_declarations::matching_brace;
+use super::blocks::matching_brace;
 
 /// Browser-ready Preflight with Tailwind's build-time `--theme()` calls
 /// lowered to standard `var()` calls.
@@ -62,3 +61,8 @@ pub fn tailwind_v4_keyframes_for(names: &[String]) -> String {
     }
     output
 }
+
+/// Tailwind CSS v4.3.3 Preflight, vendored under its MIT license.
+pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../css/preflight.css");
+
+pub(super) const TAILWIND_V4_THEME: &str = include_str!("../../../css/theme.css");

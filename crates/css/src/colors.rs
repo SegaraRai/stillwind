@@ -148,3 +148,14 @@ pub(super) fn is_css_string(value: &str) -> bool {
         && value.len() >= quote.len_utf8() * 2
         && !value[..value.len() - quote.len_utf8()].ends_with('\\')
 }
+
+/// Canonicalizes serializer-only transparent color spellings emitted by CSS
+/// color conversion. This is independent of any utility or framework name.
+pub fn normalize_serialized_declaration(value: &str) -> String {
+    value
+        .replace(
+            "oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0)",
+            "#0000",
+        )
+        .replace(":oklab(0% none none/0);", ":#0000;")
+}

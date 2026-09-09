@@ -7,10 +7,16 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::visit_types;
 use lightningcss::visitor::{Visit, VisitTypes, Visitor};
 
-use super::blocks::strip_css_comments;
-use super::definitions::CustomPropertyUsage;
-use super::directives::strip_blocks;
-use super::theme_references::custom_property_references;
+use crate::blocks::{strip_blocks, strip_css_comments};
+
+use super::references::custom_property_references;
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CustomPropertyUsage {
+    pub declared: BTreeSet<String>,
+    pub referenced: BTreeSet<String>,
+    pub declaration_properties: BTreeSet<String>,
+}
 
 #[derive(Debug, thiserror::Error)]
 #[error("CSS parse error: {0}")]

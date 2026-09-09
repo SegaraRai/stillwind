@@ -5,11 +5,11 @@ use lightningcss::values::length::Length;
 use lightningcss::values::percentage::NumberOrPercentage;
 use lightningcss::values::position::Position;
 
-use super::catalog::webref_property;
-use super::domains::is_css_wide_keyword;
+use super::domain::is_css_wide_keyword;
+use super::webref::webref_property;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum CssPropertyGrammar {
+pub(crate) enum CssPropertyGrammar {
     LightningCss,
     Columns,
     Contain,
@@ -24,7 +24,7 @@ pub(super) enum CssPropertyGrammar {
     PositionTryFallbacks,
 }
 
-pub(super) const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
+pub(crate) const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
     // These established properties are not represented by the current
     // Lightning CSS property table. Keep their grammar exceptions explicit
     // and covered by acceptance/rejection tests.
@@ -128,7 +128,7 @@ impl CssProperty {
     }
 }
 
-pub(super) fn columns_value(value: &str) -> bool {
+pub(crate) fn columns_value(value: &str) -> bool {
     let values = value.split_whitespace().collect::<Vec<_>>();
     if values.is_empty() || values.len() > 2 {
         return false;
@@ -147,7 +147,7 @@ pub(super) fn columns_value(value: &str) -> bool {
     width || count
 }
 
-pub(super) fn contain_value(value: &str) -> bool {
+pub(crate) fn contain_value(value: &str) -> bool {
     const SINGLE: &[&str] = &["none", "strict", "content"];
     const COMPONENTS: &[&str] = &["size", "inline-size", "layout", "style", "paint"];
     let values = value.split_whitespace().collect::<Vec<_>>();
@@ -158,7 +158,7 @@ pub(super) fn contain_value(value: &str) -> bool {
             && values.windows(2).all(|pair| pair[0] != pair[1]))
 }
 
-pub(super) fn font_feature_settings(value: &str) -> bool {
+pub(crate) fn font_feature_settings(value: &str) -> bool {
     let value = value.trim();
     value == "normal"
         || value.split(',').all(|feature| {
@@ -178,7 +178,7 @@ pub(super) fn font_feature_settings(value: &str) -> bool {
         })
 }
 
-pub(super) fn will_change(value: &str) -> bool {
+pub(crate) fn will_change(value: &str) -> bool {
     let value = value.trim();
     value == "auto"
         || value.split(',').all(|item| {
@@ -187,7 +187,7 @@ pub(super) fn will_change(value: &str) -> bool {
         })
 }
 
-pub(super) fn custom_ident(value: &str) -> bool {
+pub(crate) fn custom_ident(value: &str) -> bool {
     value
         .chars()
         .next()
@@ -203,12 +203,12 @@ pub(super) fn custom_ident(value: &str) -> bool {
         })
 }
 
-pub(super) fn dashed_ident_list(value: &str, keyword: &str) -> bool {
+pub(crate) fn dashed_ident_list(value: &str, keyword: &str) -> bool {
     let value = value.trim();
     value == keyword || (!value.is_empty() && value.split_whitespace().all(dashed_ident))
 }
 
-pub(super) fn dashed_ident(value: &str) -> bool {
+pub(crate) fn dashed_ident(value: &str) -> bool {
     let Some(rest) = value.strip_prefix("--") else {
         return false;
     };
@@ -220,7 +220,7 @@ pub(super) fn dashed_ident(value: &str) -> bool {
         })
 }
 
-pub(super) fn position_area(value: &str) -> bool {
+pub(crate) fn position_area(value: &str) -> bool {
     const HORIZONTAL: &[&str] = &[
         "left",
         "center",
@@ -278,7 +278,7 @@ pub(super) fn position_area(value: &str) -> bool {
         })
 }
 
-pub(super) fn position_try_fallbacks(value: &str) -> bool {
+pub(crate) fn position_try_fallbacks(value: &str) -> bool {
     const TACTICS: &[&str] = &["flip-block", "flip-inline", "flip-start", "flip-end"];
     value.split(',').all(|item| {
         let item = item.trim();

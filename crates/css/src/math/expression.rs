@@ -1,12 +1,12 @@
 #[derive(Clone, Debug, PartialEq)]
-pub(super) enum MathValue {
+pub(crate) enum MathValue {
     Number(f64),
     Dimension(f64, String),
     Percentage(f64),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) enum MathExpression {
+pub(crate) enum MathExpression {
     Value(MathValue),
     Atom(String),
     Sum(Box<Self>, Box<Self>),
@@ -16,7 +16,7 @@ pub(super) enum MathExpression {
 }
 
 impl MathExpression {
-    pub(super) fn negate(self) -> Self {
+    pub(crate) fn negate(self) -> Self {
         match self {
             Self::Value(MathValue::Number(value)) => Self::Value(MathValue::Number(-value)),
             Self::Value(MathValue::Dimension(value, unit)) => {
@@ -28,7 +28,7 @@ impl MathExpression {
         }
     }
 
-    pub(super) fn product(left: Self, right: Self) -> Self {
+    pub(crate) fn product(left: Self, right: Self) -> Self {
         if let (
             Self::Product(value, coefficient),
             Self::Value(MathValue::Number(right_coefficient)),
@@ -72,7 +72,7 @@ impl MathExpression {
         }
     }
 
-    pub(super) fn sum(left: Self, right: Self) -> Self {
+    pub(crate) fn sum(left: Self, right: Self) -> Self {
         match (left, right) {
             (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
                 Self::Value(MathValue::Number(left + right))
@@ -91,7 +91,7 @@ impl MathExpression {
         }
     }
 
-    pub(super) fn numeric_unit(&self) -> Option<&str> {
+    pub(crate) fn numeric_unit(&self) -> Option<&str> {
         match self {
             Self::Value(MathValue::Dimension(_, unit)) => Some(unit),
             Self::Product(left, right) | Self::Quotient(left, right) | Self::Sum(left, right) => {
@@ -102,7 +102,7 @@ impl MathExpression {
         }
     }
 
-    pub(super) fn precedence(&self) -> u8 {
+    pub(crate) fn precedence(&self) -> u8 {
         match self {
             Self::Sum(..) => 1,
             Self::Product(..) | Self::Quotient(..) => 2,
@@ -111,7 +111,7 @@ impl MathExpression {
         }
     }
 
-    pub(super) fn serialize(&self, parent_precedence: u8) -> String {
+    pub(crate) fn serialize(&self, parent_precedence: u8) -> String {
         let precedence = self.precedence();
         let value = match self {
             Self::Value(MathValue::Number(value)) => serialize_number(*value),
@@ -155,7 +155,7 @@ impl MathExpression {
     }
 }
 
-pub(super) fn serialize_number(value: f64) -> String {
+pub(crate) fn serialize_number(value: f64) -> String {
     if value == 0.0 {
         return "0".to_owned();
     }

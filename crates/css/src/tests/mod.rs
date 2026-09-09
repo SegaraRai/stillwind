@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use stillwind_source::{FileId, SourceFile};
 
-use super::catalog::webref_property;
+use super::values::webref::webref_property;
 use super::*;
 
 mod directives;

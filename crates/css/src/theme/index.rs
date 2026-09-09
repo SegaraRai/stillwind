@@ -2,11 +2,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_source::Spanned;
 
-use super::builtins::tailwind_v4_preflight;
-use super::definitions::{CustomPropertyDefinition, CustomUtility, CustomVariant};
-use super::theme_domains::{ThemeNamespace, ThemeTokenKind};
-use super::theme_references::{custom_property_references, resolve_theme_references};
-use super::theme_types::{FrameworkImports, StillwindConfig};
+use crate::builtins::tailwind_v4_preflight;
+use crate::custom_properties::references::custom_property_references;
+use crate::custom_properties::registration::CustomPropertyDefinition;
+use crate::registry::utilities::CustomUtility;
+use crate::registry::variants::CustomVariant;
+
+use super::config::StillwindConfig;
+use super::domain::{ThemeNamespace, ThemeTokenKind};
+use super::imports::FrameworkImports;
+use super::references::resolve_theme_references;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeTokenMode {

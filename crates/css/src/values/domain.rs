@@ -1,6 +1,6 @@
-use super::values::ValueType;
+use super::validation::ValueType;
 
-pub(super) fn is_css_wide_keyword(value: &str) -> bool {
+pub(crate) fn is_css_wide_keyword(value: &str) -> bool {
     matches!(
         value.trim(),
         "initial" | "inherit" | "unset" | "revert" | "revert-layer"

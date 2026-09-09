@@ -75,3 +75,140 @@ pub(super) fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize
     }
     statements
 }
+
+pub(super) fn strip_blocks(css: &str, directive: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    while let Some(relative) = css[cursor..].find(directive) {
+        let start = cursor + relative;
+        output.push_str(&css[cursor..start]);
+        let Some(open_relative) = find_block_open(&css[start..]) else {
+            output.push_str(&css[start..]);
+            break;
+        };
+        let open = start + open_relative;
+        let mut depth = 1_u32;
+        let mut close = open + 1;
+        let body = &css[open + 1..];
+        let mut offset = 0;
+        while offset < body.len() {
+            if body[offset..].starts_with("{modifier}") {
+                offset += "{modifier}".len();
+                continue;
+            }
+            let character = body[offset..].chars().next().unwrap();
+            match character {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = open + 1 + offset;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            offset += character.len_utf8();
+        }
+        if depth != 0 {
+            // Preserve malformed input for the parser instead of advancing past EOF.
+            output.push_str(&css[start..]);
+            return output;
+        }
+        cursor = close.saturating_add(1);
+    }
+    if cursor < css.len() {
+        output.push_str(&css[cursor..]);
+    }
+    output
+}
+
+pub(super) fn find_block_open(value: &str) -> Option<usize> {
+    let mut offset = 0;
+    while offset < value.len() {
+        if value[offset..].starts_with("{modifier}") {
+            offset += "{modifier}".len();
+            continue;
+        }
+        let character = value[offset..].chars().next()?;
+        if character == '{' {
+            return Some(offset);
+        }
+        offset += character.len_utf8();
+    }
+    None
+}
+
+pub(super) fn strip_top_level_blocks(css: &str, directive: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    let mut depth = 0_u32;
+    while cursor < css.len() {
+        if depth == 0 && css[cursor..].starts_with(directive) {
+            let Some(open_rel) = css[cursor..].find('{') else {
+                break;
+            };
+            let open = cursor + open_rel;
+            let mut inner = 1_u32;
+            let mut end = open + 1;
+            for (offset, ch) in css[open + 1..].char_indices() {
+                match ch {
+                    '{' => inner += 1,
+                    '}' => {
+                        inner = inner.saturating_sub(1);
+                        if inner == 0 {
+                            end = open + 1 + offset + 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            cursor = end;
+            continue;
+        }
+        let Some(ch) = css[cursor..].chars().next() else {
+            break;
+        };
+        if ch == '{' {
+            depth += 1;
+        }
+        if ch == '}' {
+            depth = depth.saturating_sub(1);
+        }
+        output.push(ch);
+        cursor += ch.len_utf8();
+    }
+    output.push_str(&css[cursor..]);
+    output
+}
+
+pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for (offset, character) in value[open..].char_indices() {
+        if let Some(current_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == current_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}

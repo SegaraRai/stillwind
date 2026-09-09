@@ -1,10 +1,12 @@
 use stillwind_source::{FileId, Span, Spanned};
 
-use super::theme_domains::{ThemeNamespace, ThemeTokenKind};
-use super::theme_index::{ThemeToken, ThemeTokenMode};
-use super::theme_parser::offset;
+use crate::blocks::matching_brace;
 
-pub(super) fn extract_theme_declarations(
+use super::domain::{ThemeNamespace, ThemeTokenKind};
+use super::index::{ThemeToken, ThemeTokenMode};
+use super::parser::offset;
+
+pub(crate) fn extract_theme_declarations(
     file: FileId,
     body: &str,
     body_start: usize,
@@ -77,37 +79,7 @@ pub(super) fn extract_theme_declarations(
     tokens
 }
 
-pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
-    let mut depth = 0_u32;
-    let mut quote = None;
-    let mut escaped = false;
-    for (offset, character) in value[open..].char_indices() {
-        if let Some(current_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == current_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => quote = Some(character),
-            '{' => depth += 1,
-            '}' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return Some(open + offset);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-pub(super) fn classify_theme_token(name: &str) -> ThemeTokenKind {
+pub(crate) fn classify_theme_token(name: &str) -> ThemeTokenKind {
     let Some(name) = name.strip_prefix("--") else {
         return ThemeTokenKind::Custom;
     };

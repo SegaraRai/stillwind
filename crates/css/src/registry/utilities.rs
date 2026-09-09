@@ -1,17 +1,68 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fmt::Write;
 
-use super::blocks::{extract_named_blocks, strip_css_comments};
-use super::definitions::CustomUtility;
+use crate::blocks::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
 
-pub(super) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomUtility {
+    pub name: String,
+    pub body: String,
+    /// Global registration order for built-in utilities (`@stillwind-utility`).
+    pub builtin_order: Option<usize>,
+}
+
+/// Parses user-authored `@utility` definitions without requiring a complete
+/// theme stylesheet.
+#[must_use]
+pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
+    extract_custom_utilities(css)
+}
+
+/// Parses compiler-owned `@stillwind-utility` definitions and attaches their
+/// global source order.
+#[must_use]
+pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
+    parse_ordered_utility_definitions(css, "@stillwind-utility")
+}
+
+/// Parses compiler-owned animation option definitions. These use the same
+/// value-domain language as utilities without making the core know utility
+/// spellings or CSS property projections.
+#[must_use]
+pub fn parse_builtin_animation_option_definitions(css: &str) -> Vec<CustomUtility> {
+    parse_ordered_utility_definitions(css, "@stillwind-animation-option")
+}
+
+pub(crate) fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
+    extract_named_blocks_with_offsets(css, directive)
+        .into_iter()
+        .filter_map(|(builtin_order, header, body)| {
+            if header.starts_with("-family") {
+                return None;
+            }
+            let name = header.split_whitespace().next()?.to_owned();
+            Some(CustomUtility {
+                name,
+                body,
+                builtin_order: Some(builtin_order),
+            })
+        })
+        .collect()
+}
+
+/// Extracts compatibility marker utility names declared by CSS metadata.
+pub fn parse_marker_utilities(css: &str) -> BTreeSet<String> {
+    extract_marker_utilities(css)
+}
+
+pub(crate) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
     let css = strip_css_comments(css);
     let mut utilities = extract_named_utility_blocks(&css, "@utility");
     utilities.extend(extract_utility_families(&css));
     utilities
 }
 
-pub(super) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
+pub(crate) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(header, body)| {
@@ -28,44 +79,11 @@ pub(super) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<Cu
         .collect()
 }
 
-pub(super) fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
+pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-marker"))
         .filter_map(|segment| segment.split_once(';').map(|(name, _)| name.trim()))
         .filter(|name| !name.is_empty())
-        .map(str::to_owned)
-        .collect()
-}
-
-pub(super) fn extract_declaration_formats(css: &str) -> BTreeMap<String, String> {
-    let mut formats = BTreeMap::new();
-    for (property, format) in css
-        .split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-format"))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .filter_map(|value| {
-            let mut parts = value.split_whitespace();
-            Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
-        })
-    {
-        formats
-            .entry(property)
-            .and_modify(|existing: &mut String| {
-                if !existing.is_empty() {
-                    existing.push(' ');
-                }
-                existing.push_str(&format);
-            })
-            .or_insert(format);
-    }
-    formats
-}
-
-pub(super) fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-relationship"))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .filter(|value| !value.is_empty())
         .map(str::to_owned)
         .collect()
 }
@@ -82,7 +100,7 @@ pub(super) fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
 /// The value expression is authored in the CSS header, so this parser does
 /// not need a table of framework namespaces or property families. A family
 /// definition remains reviewable without enumerating concrete token values.
-pub(super) fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
+pub(crate) fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, "@utility-family")
         .into_iter()
         .flat_map(|(header, body)| {
@@ -129,7 +147,7 @@ pub(super) fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
 /// `value=--value(...)`. Headers without an authored value expression are
 /// ignored, keeping framework vocabulary and sign handling out of the parser.
 /// Negative utilities must be authored explicitly with their own `* -1`.
-pub(super) fn parse_utility_family_header(header: &str) -> Option<String> {
+pub(crate) fn parse_utility_family_header(header: &str) -> Option<String> {
     let start = header.find("value=")?;
     let value = &header[start + "value=".len()..];
     let value = value.trim();

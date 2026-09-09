@@ -1,23 +1,23 @@
-use super::math_expression::{MathExpression, MathValue};
-use super::math_folding::matching_parenthesis;
+use super::expression::{MathExpression, MathValue};
+use super::folding::matching_parenthesis;
 
-pub(super) struct MathParser<'a> {
+pub(crate) struct MathParser<'a> {
     input: &'a str,
     cursor: usize,
 }
 
 impl<'a> MathParser<'a> {
-    pub(super) fn new(input: &'a str) -> Self {
+    pub(crate) fn new(input: &'a str) -> Self {
         Self { input, cursor: 0 }
     }
 
-    pub(super) fn parse(mut self) -> Option<MathExpression> {
+    pub(crate) fn parse(mut self) -> Option<MathExpression> {
         let expression = self.parse_sum()?;
         self.skip_whitespace();
         (self.cursor == self.input.len()).then_some(expression)
     }
 
-    pub(super) fn parse_sum(&mut self) -> Option<MathExpression> {
+    pub(crate) fn parse_sum(&mut self) -> Option<MathExpression> {
         let mut expression = self.parse_product()?;
         loop {
             self.skip_whitespace();
@@ -38,7 +38,7 @@ impl<'a> MathParser<'a> {
         Some(expression)
     }
 
-    pub(super) fn parse_product(&mut self) -> Option<MathExpression> {
+    pub(crate) fn parse_product(&mut self) -> Option<MathExpression> {
         let mut expression = self.parse_unary()?;
         loop {
             self.skip_whitespace();
@@ -62,7 +62,7 @@ impl<'a> MathParser<'a> {
         Some(expression)
     }
 
-    pub(super) fn parse_unary(&mut self) -> Option<MathExpression> {
+    pub(crate) fn parse_unary(&mut self) -> Option<MathExpression> {
         self.skip_whitespace();
         if self.peek() == Some('-') && !self.input[self.cursor..].starts_with("--") {
             self.cursor += 1;
@@ -75,7 +75,7 @@ impl<'a> MathParser<'a> {
         self.parse_atom()
     }
 
-    pub(super) fn parse_atom(&mut self) -> Option<MathExpression> {
+    pub(crate) fn parse_atom(&mut self) -> Option<MathExpression> {
         self.skip_whitespace();
         if self.peek() == Some('(') {
             self.cursor += 1;
@@ -115,7 +115,7 @@ impl<'a> MathParser<'a> {
         ))
     }
 
-    pub(super) fn parse_numeric(&mut self) -> Option<MathExpression> {
+    pub(crate) fn parse_numeric(&mut self) -> Option<MathExpression> {
         let start = self.cursor;
         let mut decimal = false;
         while let Some(character) = self.peek() {
@@ -150,13 +150,13 @@ impl<'a> MathParser<'a> {
         }
     }
 
-    pub(super) fn skip_whitespace(&mut self) {
+    pub(crate) fn skip_whitespace(&mut self) {
         while self.peek().is_some_and(char::is_whitespace) {
             self.cursor += self.peek().map_or(0, char::len_utf8);
         }
     }
 
-    pub(super) fn peek(&self) -> Option<char> {
+    pub(crate) fn peek(&self) -> Option<char> {
         self.input[self.cursor..].chars().next()
     }
 }
