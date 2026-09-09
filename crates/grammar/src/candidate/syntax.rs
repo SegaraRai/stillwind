@@ -282,6 +282,3 @@ fn push_token(
         ),
     ));
 }
-
-#[cfg(test)]
-mod tests;

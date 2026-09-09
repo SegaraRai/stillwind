@@ -1,11 +1,6 @@
-use std::{collections::BTreeSet, fs, path::Path};
-
-use stillwind_css::parse_tailwind_theme;
-use stillwind_source::{FileId, SourceFile};
-
 use super::*;
 
-const SIMPLE_CSSWG_TERMS: &[&str] = &[
+pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "angle",
     "angle-percentage",
     "color",
@@ -24,7 +19,7 @@ const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "url",
 ];
 
-fn property_references(syntax: &str) -> Vec<&str> {
+pub(super) fn property_references(syntax: &str) -> Vec<&str> {
     let mut references = Vec::new();
     let mut remainder = syntax;
     while let Some(start) = remainder.find("<'") {
@@ -38,7 +33,10 @@ fn property_references(syntax: &str) -> Vec<&str> {
     references
 }
 
-fn expanded_csswg_syntax(property: &str, visited: &mut BTreeSet<String>) -> Option<String> {
+pub(super) fn expanded_csswg_syntax(
+    property: &str,
+    visited: &mut BTreeSet<String>,
+) -> Option<String> {
     if !visited.insert(property.to_owned()) {
         return Some(String::new());
     }
@@ -51,7 +49,7 @@ fn expanded_csswg_syntax(property: &str, visited: &mut BTreeSet<String>) -> Opti
     Some(expanded)
 }
 
-fn formal_terms(syntax: &str) -> BTreeSet<&str> {
+pub(super) fn formal_terms(syntax: &str) -> BTreeSet<&str> {
     let mut terms = BTreeSet::new();
     let mut remainder = syntax;
     while let Some(start) = remainder.find('<') {
@@ -75,7 +73,7 @@ fn formal_terms(syntax: &str) -> BTreeSet<&str> {
     terms
 }
 
-fn direct_value_domains(value: &str) -> Vec<ValueType> {
+pub(super) fn direct_value_domains(value: &str) -> Vec<ValueType> {
     if !value.trim_start().starts_with("--value(") {
         return Vec::new();
     }
@@ -94,13 +92,13 @@ fn direct_value_domains(value: &str) -> Vec<ValueType> {
     domains
 }
 
-fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) -> bool {
+pub(super) fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) -> bool {
     syntax.contains("&&")
         || syntax.contains("||")
         || terms.iter().any(|term| !SIMPLE_CSSWG_TERMS.contains(term))
 }
 
-fn theme() -> ThemeIndex {
+pub(super) fn theme() -> ThemeIndex {
     parse_tailwind_theme(&SourceFile::new(
             FileId(1),
             "theme.css",
@@ -109,7 +107,7 @@ fn theme() -> ThemeIndex {
         .unwrap()
 }
 
-fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
+pub(super) fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
     let start = markdown
         .find(heading)
         .and_then(|start| {
@@ -126,91 +124,94 @@ fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
         .collect()
 }
 
-const REGISTRY_FILES: &[(&str, &str)] = &[
+pub(super) const REGISTRY_FILES: &[(&str, &str)] = &[
     (
         "registry-metadata.css",
-        include_str!("../../../../css/builtins/registry-metadata.css"),
+        include_str!("../../../../../css/builtins/registry-metadata.css"),
     ),
     (
         "relationship-metadata.css",
-        include_str!("../../../../css/builtins/relationship-metadata.css"),
+        include_str!("../../../../../css/builtins/relationship-metadata.css"),
     ),
     (
         "layout-utilities.css",
-        include_str!("../../../../css/builtins/layout-utilities.css"),
+        include_str!("../../../../../css/builtins/layout-utilities.css"),
     ),
     (
         "spacing-sizing-utilities.css",
-        include_str!("../../../../css/builtins/spacing-sizing-utilities.css"),
+        include_str!("../../../../../css/builtins/spacing-sizing-utilities.css"),
     ),
     (
         "flex-grid-utilities.css",
-        include_str!("../../../../css/builtins/flex-grid-utilities.css"),
+        include_str!("../../../../../css/builtins/flex-grid-utilities.css"),
     ),
     (
         "typography-utilities.css",
-        include_str!("../../../../css/builtins/typography-utilities.css"),
+        include_str!("../../../../../css/builtins/typography-utilities.css"),
     ),
     (
         "backgrounds-utilities.css",
-        include_str!("../../../../css/builtins/backgrounds-utilities.css"),
+        include_str!("../../../../../css/builtins/backgrounds-utilities.css"),
     ),
     (
         "borders-utilities.css",
-        include_str!("../../../../css/builtins/borders-utilities.css"),
+        include_str!("../../../../../css/builtins/borders-utilities.css"),
     ),
     (
         "effects-utilities.css",
-        include_str!("../../../../css/builtins/effects-utilities.css"),
+        include_str!("../../../../../css/builtins/effects-utilities.css"),
     ),
     (
         "masks-utilities.css",
-        include_str!("../../../../css/builtins/masks-utilities.css"),
+        include_str!("../../../../../css/builtins/masks-utilities.css"),
     ),
     (
         "transforms-utilities.css",
-        include_str!("../../../../css/builtins/transforms-utilities.css"),
+        include_str!("../../../../../css/builtins/transforms-utilities.css"),
     ),
     (
         "motion-utilities.css",
-        include_str!("../../../../css/builtins/motion-utilities.css"),
+        include_str!("../../../../../css/builtins/motion-utilities.css"),
     ),
     (
         "interactivity-utilities.css",
-        include_str!("../../../../css/builtins/interactivity-utilities.css"),
+        include_str!("../../../../../css/builtins/interactivity-utilities.css"),
     ),
     (
         "svg-utilities.css",
-        include_str!("../../../../css/builtins/svg-utilities.css"),
+        include_str!("../../../../../css/builtins/svg-utilities.css"),
     ),
     (
         "relationship-variants.css",
-        include_str!("../../../../css/builtins/relationship-variants.css"),
+        include_str!("../../../../../css/builtins/relationship-variants.css"),
     ),
     (
         "structural-variants.css",
-        include_str!("../../../../css/builtins/structural-variants.css"),
+        include_str!("../../../../../css/builtins/structural-variants.css"),
     ),
     (
         "state-variants.css",
-        include_str!("../../../../css/builtins/state-variants.css"),
+        include_str!("../../../../../css/builtins/state-variants.css"),
     ),
     (
         "dynamic-selector-variants.css",
-        include_str!("../../../../css/builtins/dynamic-selector-variants.css"),
+        include_str!("../../../../../css/builtins/dynamic-selector-variants.css"),
     ),
     (
         "conditional-variants.css",
-        include_str!("../../../../css/builtins/conditional-variants.css"),
+        include_str!("../../../../../css/builtins/conditional-variants.css"),
     ),
     (
         "properties.css",
-        include_str!("../../../../css/builtins/properties.css"),
+        include_str!("../../../../../css/builtins/properties.css"),
     ),
-    ("builtins.css", include_str!("../../../../css/builtins.css")),
+    (
+        "builtins.css",
+        include_str!("../../../../../css/builtins.css"),
+    ),
 ];
 
-fn registry_utilities() -> Vec<(String, CustomUtility)> {
+pub(super) fn registry_utilities() -> Vec<(String, CustomUtility)> {
     let mut definitions = Vec::new();
     for (file, css) in REGISTRY_FILES {
         let mut occurrences = HashMap::<String, usize>::new();
@@ -224,7 +225,7 @@ fn registry_utilities() -> Vec<(String, CustomUtility)> {
     definitions
 }
 
-fn registry_variants() -> Vec<(String, CustomVariant)> {
+pub(super) fn registry_variants() -> Vec<(String, CustomVariant)> {
     let mut definitions = Vec::new();
     for (file, css) in REGISTRY_FILES {
         let mut occurrences = HashMap::<String, usize>::new();
@@ -237,14 +238,18 @@ fn registry_variants() -> Vec<(String, CustomVariant)> {
     definitions
 }
 
-fn fenced_section<'a>(section: &'a str, heading: &str, language: &str) -> Option<&'a str> {
+pub(super) fn fenced_section<'a>(
+    section: &'a str,
+    heading: &str,
+    language: &str,
+) -> Option<&'a str> {
     let after_heading = section.split_once(heading)?.1;
     let fence = format!("```{language}");
     let after_fence = after_heading.split_once(&fence)?.1;
     after_fence.split_once("```").map(|(body, _)| body.trim())
 }
 
-fn parity_cases(markdown: &str) -> Vec<(&str, Vec<&str>)> {
+pub(super) fn parity_cases(markdown: &str) -> Vec<(&str, Vec<&str>)> {
     markdown
         .split("\n## `")
         .skip(1)
@@ -258,7 +263,7 @@ fn parity_cases(markdown: &str) -> Vec<(&str, Vec<&str>)> {
         .collect()
 }
 
-fn matched_registry_utilities<'a>(
+pub(super) fn matched_registry_utilities<'a>(
     definitions: &'a [(String, CustomUtility)],
     lookup: &str,
 ) -> Vec<(usize, &'a CustomUtility)> {
@@ -286,7 +291,7 @@ fn matched_registry_utilities<'a>(
         .collect()
 }
 
-fn resolve_registry_variant(
+pub(super) fn resolve_registry_variant(
     definition: &CustomVariant,
     value: &str,
     theme: &ThemeIndex,
@@ -299,7 +304,7 @@ fn resolve_registry_variant(
     (matched, resolved)
 }
 
-fn resolve_registry_variant_branches(
+pub(super) fn resolve_registry_variant_branches(
     definitions: &[(String, CustomVariant)],
     excluded: Option<usize>,
     value: &str,
@@ -327,13 +332,3 @@ fn resolve_registry_variant_branches(
                 .find_map(|(_, (_, custom))| resolve(custom))
         })
 }
-
-mod animations;
-mod audit;
-mod custom_variants;
-mod overloads;
-mod registry;
-mod relationships;
-mod utility_domains;
-mod value_families;
-mod variants;

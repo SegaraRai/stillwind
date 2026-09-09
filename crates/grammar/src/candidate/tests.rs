@@ -1,4 +1,4 @@
-use stillwind_source::FileId;
+use stillwind_source::{FileId, Span, Spanned};
 
 use super::*;
 

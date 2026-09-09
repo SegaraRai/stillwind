@@ -227,6 +227,3 @@ pub enum SymbolicError {
         actual: AssetKind,
     },
 }
-
-#[cfg(test)]
-mod tests;
