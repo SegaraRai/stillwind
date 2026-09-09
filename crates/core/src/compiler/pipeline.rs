@@ -8,6 +8,15 @@ use stillwind_source::{CompileError, LintFinding, SourceFile, filter_lint_findin
 use stillwind_tailwind::{compatibility_marker_class, is_tailwind_relationship_candidate};
 
 use crate::DesignSystemSnapshot;
+use crate::compiler::react::props::GeneratedClass;
+use crate::compiler::react::props::{
+    DynamicAssetClassEntry, ReactPropsParts, ViewTransitionStyleEntry, render_react_props,
+};
+use crate::compiler::stylesheet::render::render_stylesheet;
+use crate::compiler::utilities::emission::emit_utility_rules;
+use crate::compiler::utilities::resolve::{
+    CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
+};
 use crate::transforms::PropsTransform;
 
 use super::Compiler;
@@ -19,21 +28,12 @@ use super::motion::{
     emit_animation_definition, emit_view_transition_definition, resolve_animation_use,
 };
 use super::output::CompileResult;
-use super::react_props::GeneratedClass;
-use super::react_props::{
-    DynamicAssetClassEntry, ReactPropsParts, ViewTransitionStyleEntry, render_react_props,
-};
-use super::react_types::class_name;
-use super::stylesheet::render_stylesheet;
+use super::symbols::class_name;
 use super::symbols::{
     asset_symbol_name, generated_class_symbol, generated_ref_marker_symbol, generated_ref_symbol,
     generated_scope_marker_symbol, generated_scope_symbol, generated_symbol,
     handle_projection_name, ref_symbol_name, runtime_projection_class, symbol_name,
 };
-use super::utilities::{
-    CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
-};
-use super::utility_emission::emit_utility_rules;
 
 impl Compiler {
     #[allow(clippy::too_many_lines)]

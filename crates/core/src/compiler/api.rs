@@ -6,6 +6,7 @@ use stillwind_js_oxc::{ParsedJavaScript, parse, parse_with_type_facts};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
 use stillwind_source::{CompileError, SourceFile, collect_lint_directives};
 
+use crate::compiler::react::declarations::render_react_types;
 use crate::{
     DesignSystemError, DesignSystemSnapshot, Fingerprint, ModuleAnalysis, ModuleCompiler,
     OxcSourceAnalyzer, SourceAnalyzer,
@@ -14,7 +15,6 @@ use crate::{
 use super::Compiler;
 use super::options::CompilerOptions;
 use super::output::CompileResult;
-use super::react_types::render_react_types;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]

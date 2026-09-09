@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use stillwind_css::{ThemeIndex, declaration_format, fold_calc_expressions};
 use stillwind_tailwind::{VariantDeclaration, builtin_declaration_formats};
 
-use super::utilities::CompiledUtility;
+use super::resolve::CompiledUtility;
 
-pub(super) fn prepend_missing_declarations(
+pub(in crate::compiler) fn prepend_missing_declarations(
     declaration: &mut String,
     supporting: &[VariantDeclaration],
 ) {
@@ -31,7 +31,7 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     combine_declarations_with_formats(utilities, builtin_declaration_formats())
 }
 
-pub(super) fn combine_declarations_for_theme(
+pub(in crate::compiler) fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
 ) -> String {
@@ -43,7 +43,7 @@ pub(super) fn combine_declarations_for_theme(
     combine_declarations_with_formats(utilities, formats)
 }
 
-pub(super) fn combine_declarations_with_formats(
+pub(in crate::compiler) fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
     formats: &BTreeMap<String, String>,
 ) -> String {
@@ -102,7 +102,7 @@ pub(super) fn combine_declarations_with_formats(
     declarations
 }
 
-pub(super) fn order_builtin_utilities(
+pub(in crate::compiler) fn order_builtin_utilities(
     mut utilities: Vec<&CompiledUtility>,
 ) -> Vec<&CompiledUtility> {
     let positions = utilities

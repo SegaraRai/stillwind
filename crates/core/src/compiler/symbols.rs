@@ -176,3 +176,8 @@ pub(super) fn generated_class_symbol(
         end: span.end.0,
     }
 }
+
+pub(crate) fn class_name(canonical_input: &str) -> String {
+    let hash = blake3::hash(canonical_input.as_bytes());
+    format!("_s_{}", &hash.to_hex()[..8])
+}

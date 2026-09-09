@@ -4,9 +4,9 @@ use serde::Serialize;
 
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
+use crate::compiler::react::props::GeneratedClass;
 use crate::transforms::{PropsTransform, TransformError, apply_transforms};
 
-use super::react_props::GeneratedClass;
 use super::symbols::GeneratedSymbol;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]

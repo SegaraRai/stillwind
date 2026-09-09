@@ -2,26 +2,17 @@
 
 use std::collections::BTreeSet;
 
-use stillwind_css::{ThemeIndex, ThemeNamespace, ThemeTokenKind};
+use stillwind_css::{ThemeNamespace, ThemeTokenKind};
 use stillwind_grammar::{Candidate, parse_candidate};
 use stillwind_source::{FileId, LintFinding, Span};
 use stillwind_tailwind::{
-    ResolvedUtility, builtin_property_definitions, builtin_utility_token_prefixes, resolve_utility,
-    resolve_variant,
+    builtin_property_definitions, builtin_utility_token_prefixes, resolve_variant,
 };
 
 use crate::{
     DesignSystemRevision, DesignSystemSnapshot, GeneratedRule, ModuleCssArtifact, class_name,
     emit_utility_rules, resolve_utility_targets, unresolved_utility_rule,
 };
-
-pub(crate) struct CandidateResolver;
-
-impl CandidateResolver {
-    pub(crate) fn resolve(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
-        resolve_utility(raw, theme)
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct CandidateDiagnostic {

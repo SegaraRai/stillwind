@@ -53,11 +53,6 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     )
 }
 
-pub(crate) fn class_name(canonical_input: &str) -> String {
-    let hash = blake3::hash(canonical_input.as_bytes());
-    format!("_s_{}", &hash.to_hex()[..8])
-}
-
 #[cfg(test)]
 mod tests {
     use super::render_react_types;

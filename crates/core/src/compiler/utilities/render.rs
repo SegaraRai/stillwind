@@ -4,9 +4,9 @@ use stillwind_tailwind::{
 };
 
 use super::declaration_order::prepend_missing_declarations;
-use super::utilities::CompiledUtility;
+use super::resolve::CompiledUtility;
 
-pub(super) fn render_utility_rule(
+pub(in crate::compiler) fn render_utility_rule(
     class_name: &str,
     utility: &CompiledUtility,
     theme: &ThemeIndex,
@@ -43,7 +43,7 @@ pub(super) fn render_utility_rule(
         .collect()
 }
 
-pub(super) fn render_utility_rule_path(
+pub(in crate::compiler) fn render_utility_rule_path(
     class_name: &str,
     utility: &CompiledUtility,
     declaration: &str,

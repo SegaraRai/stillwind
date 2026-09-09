@@ -2,11 +2,14 @@ use stillwind_css::ThemeIndex;
 use stillwind_grammar::parse_candidate;
 use stillwind_tailwind::{VariantApplication, resolve_variant};
 
-use super::css_blocks::find_at_rule_block;
-use super::declaration_order::{order_builtin_utilities, prepend_missing_declarations};
-use super::utilities::resolve_utility;
+use crate::compiler::utilities::declaration_order::{
+    order_builtin_utilities, prepend_missing_declarations,
+};
+use crate::compiler::utilities::resolve::resolve_utility;
 
-pub(super) fn expand_authored_directives(css: &str, theme: &ThemeIndex) -> String {
+use super::blocks::find_at_rule_block;
+
+pub(in crate::compiler) fn expand_authored_directives(css: &str, theme: &ThemeIndex) -> String {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
         let Some(end_rel) = output[start..].find(';') else {
@@ -33,7 +36,7 @@ pub(super) fn expand_authored_directives(css: &str, theme: &ThemeIndex) -> Strin
     output
 }
 
-pub(super) fn expand_authored_variant(
+pub(in crate::compiler) fn expand_authored_variant(
     prelude: &str,
     body: &str,
     theme: &ThemeIndex,
@@ -69,7 +72,7 @@ pub(super) fn expand_authored_variant(
     Some(output)
 }
 
-pub(super) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
+pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
     let mut stack = Vec::new();
@@ -103,7 +106,7 @@ pub(super) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
     parts
 }
 
-pub(super) fn render_authored_variant_path(
+pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
 ) -> String {

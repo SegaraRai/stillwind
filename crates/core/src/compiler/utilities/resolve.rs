@@ -2,9 +2,9 @@ use stillwind_css::ThemeIndex;
 use stillwind_grammar::{Variant, parse_candidate};
 use stillwind_tailwind::{NestedUtilityRule, ResolvedUtilityTarget};
 
-use crate::query::CandidateResolver;
+use crate::candidate::CandidateResolver;
 
-pub(super) fn view_transition_utility() -> CompiledUtility {
+pub(in crate::compiler) fn view_transition_utility() -> CompiledUtility {
     CompiledUtility {
         variants: Vec::new(),
         declaration: "--sw-vt-name:none;--sw-vt-class:none;view-transition-name:var(--sw-vt-name);view-transition-class:var(--sw-vt-class);".to_owned(),
@@ -18,16 +18,19 @@ pub(super) fn view_transition_utility() -> CompiledUtility {
 
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledUtility {
-    pub(super) variants: Vec<Variant>,
-    pub(super) declaration: String,
-    pub(super) selector: Option<String>,
-    pub(super) container: Option<String>,
-    pub(super) nested: Vec<NestedUtilityRule>,
-    pub(super) builtin_order: Option<usize>,
-    pub(super) candidate: String,
+    pub(in crate::compiler) variants: Vec<Variant>,
+    pub(in crate::compiler) declaration: String,
+    pub(in crate::compiler) selector: Option<String>,
+    pub(in crate::compiler) container: Option<String>,
+    pub(in crate::compiler) nested: Vec<NestedUtilityRule>,
+    pub(in crate::compiler) builtin_order: Option<usize>,
+    pub(in crate::compiler) candidate: String,
 }
 
-pub(super) fn resolve_utility(utility: &str, theme: &ThemeIndex) -> Option<CompiledUtility> {
+pub(in crate::compiler) fn resolve_utility(
+    utility: &str,
+    theme: &ThemeIndex,
+) -> Option<CompiledUtility> {
     resolve_utility_targets(utility, theme)?.into_iter().next()
 }
 

@@ -4,9 +4,10 @@ use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition
 use stillwind_source::{CompileError, SourceFile, Spanned};
 use stillwind_tailwind::resolve_animation_option;
 
-use super::declaration_order::combine_declarations_for_theme;
+use crate::compiler::utilities::declaration_order::combine_declarations_for_theme;
+use crate::compiler::utilities::resolve::{CompiledUtility, resolve_utility};
+
 use super::symbols::{asset_symbol_name, symbol_name};
-use super::utilities::{CompiledUtility, resolve_utility};
 
 pub(super) fn emit_animation_definition(
     output: &mut String,

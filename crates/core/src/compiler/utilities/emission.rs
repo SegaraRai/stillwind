@@ -2,8 +2,8 @@ use stillwind_css::ThemeIndex;
 use stillwind_tailwind::{NestedUtilityAtRule, NestedUtilityRule, compare_variant_sequences};
 
 use super::declaration_order::{combine_declarations_for_theme, order_builtin_utilities};
-use super::utilities::CompiledUtility;
-use super::utility_render::render_utility_rule;
+use super::render::render_utility_rule;
+use super::resolve::CompiledUtility;
 
 pub(crate) fn emit_utility_rules(
     output: &mut String,
@@ -74,7 +74,7 @@ pub(crate) fn emit_utility_rules(
     }
 }
 
-pub(super) fn emit_base_utility_group(
+pub(in crate::compiler) fn emit_base_utility_group(
     output: &mut String,
     class_name: &str,
     utilities: &[&CompiledUtility],
@@ -141,7 +141,10 @@ pub(super) fn emit_base_utility_group(
     }
 }
 
-pub(super) fn insert_nested_declaration(declaration: &mut String, nested: &NestedUtilityRule) {
+pub(in crate::compiler) fn insert_nested_declaration(
+    declaration: &mut String,
+    nested: &NestedUtilityRule,
+) {
     let mut nested_css = String::new();
     match nested.at_rule {
         NestedUtilityAtRule::Media => {

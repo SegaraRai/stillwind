@@ -1,4 +1,4 @@
-pub(super) fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
+pub(in crate::compiler) fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
     let mut output = String::new();
     for name in names {
         let needle = format!("@keyframes {name}");
@@ -31,7 +31,7 @@ pub(super) fn extract_authored_keyframes(css: &str, names: &[String]) -> String 
     output
 }
 
-pub(super) fn without_keyframes(css: &str) -> String {
+pub(in crate::compiler) fn without_keyframes(css: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("@keyframes ") {

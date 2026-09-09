@@ -4,10 +4,10 @@ use std::fmt::Write;
 use stillwind_css::{ThemeIndex, custom_property_usage};
 use stillwind_tailwind::builtin_property_definitions;
 
-use super::options::CompilerOptions;
+use crate::compiler::options::CompilerOptions;
 
 #[allow(clippy::too_many_lines)]
-pub(super) fn render_used_properties(
+pub(in crate::compiler) fn render_used_properties(
     theme: &ThemeIndex,
     css: &str,
     options: &CompilerOptions,

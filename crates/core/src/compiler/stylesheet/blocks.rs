@@ -1,4 +1,7 @@
-pub(super) fn find_at_rule_block(css: &str, name: &str) -> Option<(usize, String, usize, usize)> {
+pub(in crate::compiler) fn find_at_rule_block(
+    css: &str,
+    name: &str,
+) -> Option<(usize, String, usize, usize)> {
     let marker = format!("@{name}");
     let bytes = css.as_bytes();
     let mut cursor = 0;
@@ -51,7 +54,7 @@ pub(super) fn find_at_rule_block(css: &str, name: &str) -> Option<(usize, String
     None
 }
 
-pub(super) fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
+pub(in crate::compiler) fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
     let mut stack = Vec::new();
     let mut quote = None;
     let mut escaped = false;
@@ -98,7 +101,7 @@ pub(super) fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
     None
 }
 
-pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
+pub(in crate::compiler) fn matching_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;
