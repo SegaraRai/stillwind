@@ -1,64 +1,8 @@
-use stillwind_source::{FileId, SourceFile, Span, Spanned};
+//! Integration of frontend/theme loading, registries and final compiler output.
 
-use super::authored_directives::expand_authored_directives;
-use super::declaration_order::combine_declarations;
-use super::motion::resolve_motion_options;
-use super::utilities::CompiledUtility;
+use stillwind_source::{FileId, SourceFile};
 
-use super::*;
-
-#[test]
-fn expands_authored_variants_through_the_shared_registry() {
-    let source = SourceFile::new(
-        FileId(1),
-        "stillwind.css",
-        r#"
-                @import "tailwindcss/theme" layer(theme);
-                @import "tailwindcss/utilities" layer(utilities);
-                .button {
-                  @variant hover { opacity: 0.8; }
-                  @variant focus { outline-width: 2px; }
-                  @variant print { color: black; }
-                }
-            "#,
-    );
-    let theme = Compiler::read_theme(&source).unwrap();
-    let expanded = expand_authored_directives(theme.custom_css(), &theme);
-    let compact = expanded
-        .chars()
-        .filter(|character| !character.is_whitespace())
-        .collect::<String>();
-
-    assert!(
-        compact.contains("&:hover{@media(hover:hover){opacity:0.8;}}"),
-        "{compact}"
-    );
-    assert!(compact.contains("&:focus{outline-width:2px;}"), "{compact}");
-    assert!(compact.contains("@mediaprint{color:black;}"), "{compact}");
-}
-
-#[test]
-fn expands_authored_apply_in_builtin_registry_order() {
-    let source = SourceFile::new(
-        FileId(1),
-        "stillwind.css",
-        r#"
-                @import "tailwindcss/theme" layer(theme);
-                @import "tailwindcss/utilities" layer(utilities);
-                .button { @apply px-4 bg-red-500 inline-flex; }
-            "#,
-    );
-    let theme = Compiler::read_theme(&source).unwrap();
-    let expanded = expand_authored_directives(theme.custom_css(), &theme);
-    let compact = expanded
-        .chars()
-        .filter(|character| !character.is_whitespace())
-        .collect::<String>();
-
-    assert!(compact.contains(
-            "display:inline-flex;padding-inline:calc(var(--spacing)*4);background-color:var(--color-red-500);"
-        ), "actual output: {compact}");
-}
+use super::{Compiler, CompilerOptions};
 
 #[test]
 fn resolves_default_theme_aliases_without_font_name_special_cases() {
@@ -92,27 +36,6 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
 }
 
 #[test]
-fn resolves_themed_duration_as_an_animation_option_only() {
-    let source = SourceFile::new(
-        FileId(1),
-        "stillwind.css",
-        "@theme { --duration-normal: 180ms; }",
-    );
-    let theme = Compiler::read_theme(&source).unwrap();
-    let options = Spanned::new(
-        "duration-normal both".to_owned(),
-        Span::new(FileId(2), 0, 20),
-    );
-    let mut diagnostics = Vec::new();
-
-    assert_eq!(
-        resolve_motion_options(&options, &theme, &mut diagnostics),
-        "animation-duration:var(--duration-normal);animation-fill-mode:both;"
-    );
-    assert!(diagnostics.is_empty());
-}
-
-#[test]
 fn exposes_the_first_frontends_through_one_compiler_api() {
     let js = SourceFile::new(FileId(1), "App.tsx", "export const App = () => <main />;");
     let css = SourceFile::new(
@@ -125,19 +48,6 @@ fn exposes_the_first_frontends_through_one_compiler_api() {
     let theme = Compiler::read_theme(&css).unwrap();
     assert_eq!(theme.value("color", "accent"), Some("red"));
     assert!(theme.token("color", "red-500").is_some());
-}
-
-#[test]
-fn generates_types_from_the_css_theme_vocabulary() {
-    let css = SourceFile::new(
-        FileId(2),
-        "stillwind.css",
-        "@theme { --color-accent: red; --spacing-4: 1rem; }",
-    );
-    let types = Compiler::generate_react_types(&css).unwrap();
-
-    assert!(types.contains("\"bg-accent\": true"));
-    assert!(types.contains("\"px-4\": true"));
 }
 
 #[test]
@@ -206,102 +116,6 @@ fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
     assert!(css.contains("@property --internal-translate-y"));
     assert!(css.contains("@property --internal-translate-z"));
     assert!(!css.contains("@property --internal-gradient-from"));
-}
-
-#[test]
-fn orders_conflicting_shorthands_like_tailwind() {
-    let declarations = [
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "margin-left:0.5rem;".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: Some(2),
-            candidate: "ml-2".to_owned(),
-        },
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "margin-inline:0.75rem;".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: Some(1),
-            candidate: "mx-3".to_owned(),
-        },
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "margin:1rem;".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: Some(0),
-            candidate: "m-4".to_owned(),
-        },
-    ];
-
-    let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
-    assert_eq!(
-        actual,
-        "margin:1rem;margin-inline:0.75rem;margin-left:0.5rem;"
-    );
-}
-
-#[test]
-fn keeps_composed_properties_at_their_cascade_position() {
-    let declarations = [
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "all:unset;".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: Some(usize::MAX),
-            candidate: "[all:unset]".to_owned(),
-        },
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: Some(1),
-            candidate: "skew-x-6".to_owned(),
-        },
-    ];
-
-    let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
-    assert_eq!(
-        actual,
-        "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);all:unset;"
-    );
-}
-
-#[test]
-fn keeps_unrelated_declarations_stable() {
-    let declarations = [
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "color:red;display:block;".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: None,
-            candidate: String::new(),
-        },
-        CompiledUtility {
-            variants: Vec::new(),
-            declaration: "opacity:0.5;".to_owned(),
-            selector: None,
-            container: None,
-            nested: Vec::new(),
-            builtin_order: None,
-            candidate: String::new(),
-        },
-    ];
-
-    let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
-    assert_eq!(actual, "color:red;display:block;opacity:0.5;");
 }
 
 #[test]

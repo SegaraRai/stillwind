@@ -1,13 +1,18 @@
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+use stillwind_css::{ThemeIndex, declaration_format, fold_calc_expressions};
+use stillwind_tailwind::{VariantDeclaration, builtin_declaration_formats};
+
 use super::utilities::CompiledUtility;
 
 pub(super) fn prepend_missing_declarations(
     declaration: &mut String,
-    supporting: &[stillwind_tailwind::VariantDeclaration],
+    supporting: &[VariantDeclaration],
 ) {
     let declared = declaration
         .split_terminator(';')
         .filter_map(|declaration| declaration.split_once(':').map(|(name, _)| name.trim()))
-        .collect::<std::collections::BTreeSet<_>>();
+        .collect::<BTreeSet<_>>();
     let supporting = supporting
         .iter()
         .filter(|candidate| !declared.contains(candidate.property.as_str()))
@@ -22,16 +27,16 @@ pub(super) fn prepend_missing_declarations(
 }
 
 #[cfg(test)]
-pub(super) fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
-    combine_declarations_with_formats(utilities, stillwind_tailwind::builtin_declaration_formats())
+fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
+    combine_declarations_with_formats(utilities, builtin_declaration_formats())
 }
 
 pub(super) fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
 ) -> String {
     let formats = if theme.declaration_formats.is_empty() {
-        stillwind_tailwind::builtin_declaration_formats()
+        builtin_declaration_formats()
     } else {
         &theme.declaration_formats
     };
@@ -40,16 +45,16 @@ pub(super) fn combine_declarations_for_theme(
 
 pub(super) fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
-    formats: &std::collections::BTreeMap<String, String>,
+    formats: &BTreeMap<String, String>,
 ) -> String {
     let mut declarations = String::new();
-    let mut composed = std::collections::HashMap::<String, usize>::new();
+    let mut composed = HashMap::<String, usize>::new();
     let mut ordered = Vec::<String>::new();
     for utility in order_builtin_utilities(utilities.to_vec()) {
         for declaration in utility.declaration.split_terminator(';') {
             let compose_space = declaration
                 .split_once(':')
-                .and_then(|(property, _)| stillwind_css::declaration_format(formats, property))
+                .and_then(|(property, _)| declaration_format(formats, property))
                 .is_some_and(|format| {
                     format
                         .split_whitespace()
@@ -69,12 +74,12 @@ pub(super) fn combine_declarations_with_formats(
             } else if !declaration.is_empty() {
                 let declaration = if let Some((property, value)) = declaration.split_once(':')
                     && value.is_empty()
-                    && stillwind_css::declaration_format(formats, property)
+                    && declaration_format(formats, property)
                         .is_some_and(|format| format == "empty-space")
                 {
                     format!("{property}: ")
                 } else if let Some((property, value)) = declaration.split_once(':')
-                    && stillwind_css::declaration_format(formats, property).is_some_and(|format| {
+                    && declaration_format(formats, property).is_some_and(|format| {
                         format.split_whitespace().any(|item| item == "comma-space")
                     })
                 {
@@ -85,7 +90,7 @@ pub(super) fn combine_declarations_with_formats(
                 // Keep fallback `var()` comma spacing generic across all
                 // declaration values.
                 let declaration = declaration.replace(",var(", ", var(");
-                let declaration = stillwind_css::fold_calc_expressions(&declaration);
+                let declaration = fold_calc_expressions(&declaration);
                 ordered.push(declaration);
             }
         }
@@ -118,4 +123,105 @@ pub(super) fn order_builtin_utilities(
         utilities[position] = utility;
     }
     utilities
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn orders_conflicting_shorthands_like_tailwind() {
+        let declarations = [
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "margin-left:0.5rem;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(2),
+                candidate: "ml-2".to_owned(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "margin-inline:0.75rem;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(1),
+                candidate: "mx-3".to_owned(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "margin:1rem;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(0),
+                candidate: "m-4".to_owned(),
+            },
+        ];
+
+        let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
+        assert_eq!(
+            actual,
+            "margin:1rem;margin-inline:0.75rem;margin-left:0.5rem;"
+        );
+    }
+
+    #[test]
+    fn keeps_composed_properties_at_their_cascade_position() {
+        let declarations = [
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "all:unset;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(usize::MAX),
+                candidate: "[all:unset]".to_owned(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: Some(1),
+                candidate: "skew-x-6".to_owned(),
+            },
+        ];
+
+        let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
+        assert_eq!(
+            actual,
+            "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);all:unset;"
+        );
+    }
+
+    #[test]
+    fn keeps_unrelated_declarations_stable() {
+        let declarations = [
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "color:red;display:block;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: None,
+                candidate: String::new(),
+            },
+            CompiledUtility {
+                variants: Vec::new(),
+                declaration: "opacity:0.5;".to_owned(),
+                selector: None,
+                container: None,
+                nested: Vec::new(),
+                builtin_order: None,
+                candidate: String::new(),
+            },
+        ];
+
+        let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
+        assert_eq!(actual, "color:red;display:block;opacity:0.5;");
+    }
 }

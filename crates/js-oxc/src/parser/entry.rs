@@ -98,3 +98,20 @@ fn lint_rule_for_code(code: &str) -> Option<&'static str> {
         _ => return None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stillwind_source::FileId;
+
+    #[test]
+    fn accepts_typescript_jsx() {
+        let source = SourceFile::new(
+            FileId(1),
+            "Button.tsx",
+            "const Button = ({ loading }: { loading: boolean }) => <button>{loading}</button>;",
+        );
+
+        assert!(parse(&source).diagnostics.is_empty());
+    }
+}

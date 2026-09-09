@@ -145,3 +145,31 @@ pub(super) fn resolve_static_utility_list(
     }
     combine_declarations_for_theme(&utilities.iter().collect::<Vec<_>>(), theme)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Compiler;
+    use stillwind_source::{FileId, SourceFile, Span};
+
+    #[test]
+    fn resolves_themed_duration_as_an_animation_option_only() {
+        let source = SourceFile::new(
+            FileId(1),
+            "stillwind.css",
+            "@theme { --duration-normal: 180ms; }",
+        );
+        let theme = Compiler::read_theme(&source).unwrap();
+        let options = Spanned::new(
+            "duration-normal both".to_owned(),
+            Span::new(FileId(2), 0, 20),
+        );
+        let mut diagnostics = Vec::new();
+
+        assert_eq!(
+            resolve_motion_options(&options, &theme, &mut diagnostics),
+            "animation-duration:var(--duration-normal);animation-fill-mode:both;"
+        );
+        assert!(diagnostics.is_empty());
+    }
+}

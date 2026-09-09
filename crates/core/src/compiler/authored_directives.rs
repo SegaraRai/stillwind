@@ -150,3 +150,63 @@ pub(super) fn render_authored_variant_path(
             }
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Compiler;
+    use stillwind_source::{FileId, SourceFile};
+
+    #[test]
+    fn expands_authored_variants_through_the_shared_registry() {
+        let source = SourceFile::new(
+            FileId(1),
+            "stillwind.css",
+            r#"
+                @import "tailwindcss/theme" layer(theme);
+                @import "tailwindcss/utilities" layer(utilities);
+                .button {
+                  @variant hover { opacity: 0.8; }
+                  @variant focus { outline-width: 2px; }
+                  @variant print { color: black; }
+                }
+            "#,
+        );
+        let theme = Compiler::read_theme(&source).unwrap();
+        let expanded = expand_authored_directives(theme.custom_css(), &theme);
+        let compact = expanded
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
+
+        assert!(
+            compact.contains("&:hover{@media(hover:hover){opacity:0.8;}}"),
+            "{compact}"
+        );
+        assert!(compact.contains("&:focus{outline-width:2px;}"), "{compact}");
+        assert!(compact.contains("@mediaprint{color:black;}"), "{compact}");
+    }
+
+    #[test]
+    fn expands_authored_apply_in_builtin_registry_order() {
+        let source = SourceFile::new(
+            FileId(1),
+            "stillwind.css",
+            r#"
+                @import "tailwindcss/theme" layer(theme);
+                @import "tailwindcss/utilities" layer(utilities);
+                .button { @apply px-4 bg-red-500 inline-flex; }
+            "#,
+        );
+        let theme = Compiler::read_theme(&source).unwrap();
+        let expanded = expand_authored_directives(theme.custom_css(), &theme);
+        let compact = expanded
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
+
+        assert!(compact.contains(
+            "display:inline-flex;padding-inline:calc(var(--spacing)*4);background-color:var(--color-red-500);"
+        ), "actual output: {compact}");
+    }
+}

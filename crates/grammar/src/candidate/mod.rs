@@ -1,6 +1,7 @@
+mod lexer;
 mod syntax;
+mod types;
 
-#[cfg(test)]
-mod tests;
-
+pub use lexer::*;
 pub use syntax::*;
+pub use types::*;

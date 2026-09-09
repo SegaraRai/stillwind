@@ -1,3 +1,5 @@
+//! Integration of import/theme errors with loader and snapshot error propagation.
+
 use stillwind_source::{FileId, SourceFile};
 
 use crate::DesignSystemSnapshot;

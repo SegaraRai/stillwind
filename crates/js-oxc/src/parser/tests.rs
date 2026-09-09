@@ -1,19 +1,8 @@
+//! Integration of import binding, declarations, reference resolution and module summaries.
+use super::entry::parse;
 use stillwind_ir::StyleInput;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
-
-use super::*;
-
-#[test]
-fn accepts_typescript_jsx() {
-    let source = SourceFile::new(
-        FileId(1),
-        "Button.tsx",
-        "const Button = ({ loading }: { loading: boolean }) => <button>{loading}</button>;",
-    );
-
-    assert!(parse(&source).diagnostics.is_empty());
-}
 
 #[test]
 fn extracts_only_an_import_bound_style_call_with_literal_spans() {
@@ -135,56 +124,4 @@ export const selected = enabled ? alias : second;"#,
 
     let parsed = parse(&source);
     assert!(!parsed.summary.exports.contains_key("selected"));
-}
-
-#[test]
-fn extracts_aria_and_data_attributes_with_value_expression_spans() {
-    let source = SourceFile::new(
-        FileId(1),
-        "Button.tsx",
-        r#"import { style } from "stillwind/react";
-const props = style({ "aria-busy": loading, "data-state": state });"#,
-    );
-
-    let parsed = parse(&source);
-
-    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-    let Some(StyleInput::Attributes(entries)) = parsed.module.style_calls[0].inputs.first() else {
-        panic!("the first input should be an attribute object");
-    };
-    assert_eq!(entries.len(), 2);
-    assert_eq!(entries[0].name.value, "aria-busy");
-    assert_eq!(source.slice(entries[0].value).unwrap(), "loading");
-    assert_eq!(entries[1].name.value, "data-state");
-    assert_eq!(source.slice(entries[1].value).unwrap(), "state");
-}
-
-#[test]
-fn flattens_arrays_and_retains_element_local_selectors() {
-    let source = SourceFile::new(
-        FileId(1),
-        "Button.tsx",
-        r#"import { style } from "stillwind/react";
-declare const loading: boolean;
-const props = style(["px-4", loading && "opacity-60"], { "&:hover": "bg-accent" });"#,
-    );
-
-    let parsed = parse(&source);
-
-    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-    assert!(matches!(
-        parsed.module.style_calls[0].inputs[0],
-        StyleInput::UtilityString(_)
-    ));
-    assert!(matches!(
-        parsed.module.style_calls[0].inputs[1],
-        StyleInput::ConditionalUtilityString { .. }
-    ));
-    let Some(StyleInput::SelectorUtilityString { selector, value }) =
-        parsed.module.style_calls[0].inputs.get(2)
-    else {
-        panic!("the selector should be preserved in the style IR");
-    };
-    assert_eq!(selector.value, "&:hover");
-    assert_eq!(value.value, "bg-accent");
 }

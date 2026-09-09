@@ -57,3 +57,23 @@ pub(crate) fn class_name(canonical_input: &str) -> String {
     let hash = blake3::hash(canonical_input.as_bytes());
     format!("_s_{}", &hash.to_hex()[..8])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::render_react_types;
+    use crate::Compiler;
+    use stillwind_source::{FileId, SourceFile};
+    #[test]
+    fn generates_types_from_the_css_theme_vocabulary() {
+        let css = SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            "@theme { --color-accent: red; --spacing-4: 1rem; }",
+        );
+        let theme = Compiler::read_theme(&css).unwrap();
+        let types = render_react_types(&theme);
+
+        assert!(types.contains("\"bg-accent\": true"));
+        assert!(types.contains("\"px-4\": true"));
+    }
+}
