@@ -1,10 +1,12 @@
+use stillwind_css::ThemeIndex;
 use stillwind_grammar::parse_candidate;
+use stillwind_tailwind::{VariantApplication, resolve_variant};
 
 use super::css_blocks::find_at_rule_block;
 use super::declaration_order::{order_builtin_utilities, prepend_missing_declarations};
 use super::utilities::resolve_utility;
 
-pub(super) fn expand_authored_directives(css: &str, theme: &stillwind_css::ThemeIndex) -> String {
+pub(super) fn expand_authored_directives(css: &str, theme: &ThemeIndex) -> String {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
         let Some(end_rel) = output[start..].find(';') else {
@@ -34,7 +36,7 @@ pub(super) fn expand_authored_directives(css: &str, theme: &stillwind_css::Theme
 pub(super) fn expand_authored_variant(
     prelude: &str,
     body: &str,
-    theme: &stillwind_css::ThemeIndex,
+    theme: &ThemeIndex,
 ) -> Option<String> {
     let mut output = String::new();
     for variant_sequence in split_css_top_level(prelude, ',') {
@@ -44,9 +46,9 @@ pub(super) fn expand_authored_variant(
         }
         let mut paths = vec![Vec::new()];
         for variant in &candidate.variants {
-            let application = stillwind_tailwind::resolve_variant(variant, theme)?;
+            let application = resolve_variant(variant, theme)?;
             let alternatives = match application {
-                stillwind_tailwind::VariantApplication::Compound(applications) => applications,
+                VariantApplication::Compound(applications) => applications,
                 application => vec![application],
             };
             paths = paths
@@ -103,19 +105,19 @@ pub(super) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
 
 pub(super) fn render_authored_variant_path(
     body: &str,
-    applications: &[stillwind_tailwind::VariantApplication],
+    applications: &[VariantApplication],
 ) -> String {
     applications
         .iter()
         .fold(body.to_owned(), |body, application| match application {
-            stillwind_tailwind::VariantApplication::Compound(_) => unreachable!(),
-            stillwind_tailwind::VariantApplication::SelectorSuffix(suffix) => {
+            VariantApplication::Compound(_) => unreachable!(),
+            VariantApplication::SelectorSuffix(suffix) => {
                 format!("&{suffix}{{{body}}}")
             }
-            stillwind_tailwind::VariantApplication::SelectorTemplate(selector) => {
+            VariantApplication::SelectorTemplate(selector) => {
                 format!("{selector}{{{body}}}")
             }
-            stillwind_tailwind::VariantApplication::SelectorRule {
+            VariantApplication::SelectorRule {
                 selector,
                 declarations,
             } => {
@@ -123,11 +125,11 @@ pub(super) fn render_authored_variant_path(
                 prepend_missing_declarations(&mut body, declarations);
                 format!("{selector}{{{body}}}")
             }
-            stillwind_tailwind::VariantApplication::SelectorMedia {
+            VariantApplication::SelectorMedia {
                 selector,
                 condition,
             } => format!("{selector}{{@media {condition}{{{body}}}}}"),
-            stillwind_tailwind::VariantApplication::SelectorMediaRule {
+            VariantApplication::SelectorMediaRule {
                 selector,
                 declarations,
                 condition,
@@ -136,16 +138,16 @@ pub(super) fn render_authored_variant_path(
                 prepend_missing_declarations(&mut body, declarations);
                 format!("{selector}{{@media {condition}{{{body}}}}}")
             }
-            stillwind_tailwind::VariantApplication::Media(condition) => {
+            VariantApplication::Media(condition) => {
                 format!("@media {condition}{{{body}}}")
             }
-            stillwind_tailwind::VariantApplication::Container(condition) => {
+            VariantApplication::Container(condition) => {
                 format!("@container {condition}{{{body}}}")
             }
-            stillwind_tailwind::VariantApplication::Supports(condition) => {
+            VariantApplication::Supports(condition) => {
                 format!("@supports ({condition}){{{body}}}")
             }
-            stillwind_tailwind::VariantApplication::StartingStyle => {
+            VariantApplication::StartingStyle => {
                 format!("@starting-style{{{body}}}")
             }
         })

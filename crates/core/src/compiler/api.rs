@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use stillwind_css::ThemeIndex;
 use stillwind_js_oxc::{ParsedJavaScript, parse, parse_with_type_facts};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
 use stillwind_source::{CompileError, SourceFile, collect_lint_directives};
 
 use crate::{
-    DesignSystemSnapshot, Fingerprint, ModuleAnalysis, ModuleCompiler, OxcSourceAnalyzer,
-    SourceAnalyzer,
+    DesignSystemError, DesignSystemSnapshot, Fingerprint, ModuleAnalysis, ModuleCompiler,
+    OxcSourceAnalyzer, SourceAnalyzer,
 };
 
 use super::Compiler;
@@ -16,7 +17,7 @@ use super::types::{CompileResult, CompilerOptions};
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
-pub struct CompilerThemeError(#[from] pub crate::DesignSystemError);
+pub struct CompilerThemeError(#[from] pub DesignSystemError);
 
 impl Compiler {
     pub fn check_javascript(source: &SourceFile) -> Vec<CompileError> {
@@ -33,9 +34,7 @@ impl Compiler {
     ///
     /// Returns an error when the stylesheet is invalid or contains an
     /// unterminated `@theme` block.
-    pub fn read_theme(
-        source: &SourceFile,
-    ) -> Result<stillwind_css::ThemeIndex, CompilerThemeError> {
+    pub fn read_theme(source: &SourceFile) -> Result<ThemeIndex, CompilerThemeError> {
         DesignSystemSnapshot::from_source(source, CompilerOptions::default())
             .map(|snapshot| snapshot.theme().clone())
             .map_err(CompilerThemeError::from)
