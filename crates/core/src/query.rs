@@ -112,24 +112,23 @@ impl DesignSystemQuery {
     pub fn complete_candidate(&self, input: CompletionInput) -> Vec<CompletionItem> {
         let prefix = input.prefix;
         let theme = self.design_system.theme();
-        let mut vocabulary = BTreeSet::new();
+        let mut vocabulary: BTreeSet<_> = self
+            .design_system
+            .utilities()
+            .names()
+            .filter(|name| !name.contains('*'))
+            .map(str::to_owned)
+            .collect();
         if theme.imports.builtins {
-            vocabulary.extend(stillwind_tailwind::builtin_utility_names());
+            let token_prefixes = stillwind_tailwind::builtin_utility_token_prefixes();
             for token in theme.active_tokens() {
-                for (prefix, namespace) in stillwind_tailwind::builtin_utility_token_prefixes() {
+                for (prefix, namespace) in &token_prefixes {
                     if let Some(name) = token.name.value.strip_prefix(&format!("--{namespace}-")) {
                         vocabulary.insert(format!("{prefix}-{name}"));
                     }
                 }
             }
         }
-        vocabulary.extend(
-            theme
-                .utilities
-                .iter()
-                .filter(|utility| !utility.name.contains('*'))
-                .map(|utility| utility.name.clone()),
-        );
         let (variants, partial) = prefix
             .rsplit_once(':')
             .map_or((String::new(), prefix.as_str()), |(variants, partial)| {
@@ -139,19 +138,26 @@ impl DesignSystemQuery {
             .into_iter()
             .filter(|label| label.starts_with(partial))
             .map(|label| format!("{variants}{label}"))
-            .filter(|label| crate::resolve_utility_targets(label, theme).is_some())
+            .filter(|label| self.resolve_candidate(label).diagnostics.is_empty())
             .collect();
-        let mut variant_names = BTreeSet::new();
+        let mut variant_names: BTreeSet<_> = self
+            .design_system
+            .variants()
+            .names()
+            .filter(|name| !name.contains('*'))
+            .map(str::to_owned)
+            .collect();
         if theme.imports.builtins {
-            variant_names.extend(stillwind_tailwind::builtin_variant_names());
+            variant_names.extend(theme.active_tokens().iter().filter_map(
+                |token| match &token.kind {
+                    stillwind_css::ThemeTokenKind::Token {
+                        namespace: stillwind_css::ThemeNamespace::Breakpoint,
+                        name,
+                    } => Some(name.clone()),
+                    _ => None,
+                },
+            ));
         }
-        variant_names.extend(
-            theme
-                .variants
-                .iter()
-                .filter(|variant| !variant.wildcard)
-                .map(|variant| variant.name.clone()),
-        );
         for variant in variant_names {
             if variant.starts_with(partial) {
                 completions.insert(format!("{variants}{variant}:"));

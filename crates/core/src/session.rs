@@ -84,7 +84,7 @@ pub struct DependencyIndex {
     pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
     pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
     pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub assets: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub assets: BTreeMap<crate::AssetIdentity, BTreeSet<ModuleId>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -277,11 +277,17 @@ impl ProjectSession {
                     &artifact.dependencies.properties,
                     &mut self.dependencies.properties,
                 ),
-                (&artifact.dependencies.assets, &mut self.dependencies.assets),
             ] {
                 for entry in entries {
                     index.entry(entry.clone()).or_default().insert(id.clone());
                 }
+            }
+            for asset in &artifact.dependencies.assets {
+                self.dependencies
+                    .assets
+                    .entry(asset.clone())
+                    .or_default()
+                    .insert(id.clone());
             }
             for candidate in &artifact.dependencies.candidates {
                 self.dependencies

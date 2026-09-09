@@ -12,6 +12,21 @@ fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     let resolved = query.resolve_candidate("hover:brand");
     assert!(resolved.diagnostics.is_empty());
     assert_eq!(resolved.revision, snapshot.revision());
+    let source = SourceFile::new(
+        FileId(2),
+        "a.tsx",
+        "import { style } from 'stillwind/react'; const x = style('hover:brand');",
+    );
+    let analysis = stillwind_core::SourceAnalyzer::finalize(
+        &stillwind_core::OxcSourceAnalyzer,
+        stillwind_core::SourceAnalyzer::scan(
+            &stillwind_core::OxcSourceAnalyzer,
+            std::sync::Arc::new(source),
+        ),
+        None,
+    );
+    let compiled = stillwind_core::ModuleCompiler::new(snapshot.clone()).compile(&analysis);
+    assert_eq!(resolved.generated_rules, compiled.css.rules);
     assert!(
         query
             .hover_candidate("brand")

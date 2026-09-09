@@ -1,5 +1,8 @@
 //! Single-module analysis and versioned optional TypeScript facts.
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use stillwind_ir::ModuleIr;
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
@@ -34,6 +37,7 @@ pub struct ModuleScan {
 
 #[derive(Clone, Debug)]
 pub struct ModuleAnalysis {
+    pub external_assets: BTreeSet<IdentityId>,
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
     pub source_revision: SourceRevision,
@@ -149,6 +153,29 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             },
         );
         ModuleAnalysis {
+            external_assets: facts.map_or_else(BTreeSet::new, |facts| {
+                let mut assets: BTreeSet<_> = facts.assets.keys().cloned().collect();
+                for fact in &facts.facts {
+                    match &fact.value {
+                        stillwind_semantic::ExportedValue::Refs(alternatives) => {
+                            for alternative in alternatives {
+                                assets.insert(alternative.reference.clone());
+                                if let Some(scopes) = &alternative.permitted_scopes {
+                                    assets.extend(
+                                        scopes.finite_candidates().into_iter().flatten().cloned(),
+                                    );
+                                }
+                            }
+                        }
+                        stillwind_semantic::ExportedValue::Scopes(value)
+                        | stillwind_semantic::ExportedValue::Animations(value)
+                        | stillwind_semantic::ExportedValue::ViewTransitions(value) => {
+                            assets.extend(value.finite_candidates().into_iter().flatten().cloned());
+                        }
+                    }
+                }
+                assets
+            }),
             module_id: scan.module_id,
             source: scan.source,
             source_revision: scan.source_revision,

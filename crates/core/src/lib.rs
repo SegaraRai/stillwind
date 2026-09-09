@@ -173,7 +173,7 @@ impl CompileResult {
         let mut output = source.text().to_owned();
         let mut previous_start = u32::MAX;
         for transform in transforms {
-            if transform.call_span.file != source.id()
+            if source.slice(transform.call_span).is_err()
                 || transform.call_span.end.0 > previous_start
                 || transform.call_span.end.0 as usize > output.len()
             {
@@ -234,15 +234,8 @@ impl Compiler {
         module_css: &str,
         options: &CompilerOptions,
     ) -> Result<String, stillwind_css::ThemeError> {
-        let theme = Self::read_theme(theme_source)?;
-        let mut options = options.clone();
-        if let Some(prefix) = &theme.config.prefix {
-            options.prefix.clone_from(prefix);
-        }
-        if let Some(prefix) = &theme.config.tailwind_prefix {
-            options.tailwind_prefix.clone_from(prefix);
-        }
-        Ok(render_stylesheet(&theme, module_css, &options))
+        DesignSystemSnapshot::from_source(theme_source, options.clone())
+            .map(|snapshot| snapshot.render_stylesheet(module_css))
     }
 
     /// Compiles the first static React subset into CSS.
@@ -315,6 +308,7 @@ impl Compiler {
             }
         };
         let analysis = ModuleAnalysis {
+            external_assets: BTreeSet::new(),
             module_id: source.path().into(),
             source: std::sync::Arc::new(source.clone()),
             source_revision: Fingerprint::of(source.text()),

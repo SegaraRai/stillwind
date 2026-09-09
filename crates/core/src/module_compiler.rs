@@ -13,6 +13,7 @@ use crate::{
 pub type SourceTransform = PropsTransform;
 pub type CompileDiagnostic = CompileError;
 pub type RuleKey = Fingerprint;
+pub type AssetIdentity = stillwind_semantic::IdentityId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
@@ -106,7 +107,7 @@ pub struct CompilationDependencies {
     pub utilities: BTreeSet<String>,
     pub variants: BTreeSet<String>,
     pub properties: BTreeSet<String>,
-    pub assets: BTreeSet<String>,
+    pub assets: BTreeSet<AssetIdentity>,
 }
 
 #[derive(Clone, Debug)]
@@ -253,7 +254,8 @@ impl ModuleCompiler {
                 .summary
                 .assets
                 .iter()
-                .map(|asset| format!("{:?}", asset.identity))
+                .map(|asset| asset.identity.clone())
+                .chain(module.external_assets.iter().cloned())
                 .collect(),
         };
         let success = diagnostics.is_empty();

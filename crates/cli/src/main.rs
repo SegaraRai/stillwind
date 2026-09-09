@@ -82,7 +82,8 @@ fn run() -> Result<(), String> {
     let theme = if let Some(text) = optional_argument("--theme-text") {
         SourceFile::new(FileId(2), "stillwind.css", text)
     } else {
-        read_source(&argument("--theme")?, 2)?
+        let path = fs::canonicalize(argument("--theme")?).map_err(|error| error.to_string())?;
+        read_source(&path.to_string_lossy(), 2)?
     };
     let options = CompilerOptions {
         prefix: optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned()),
