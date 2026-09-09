@@ -4,8 +4,14 @@ use stillwind_css::{
 
 use super::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
 use super::theme_values::theme_value_literal;
-use super::types::CompatColorMode;
+
 use super::value_domains::split_domains;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CompatColorMode {
+    Legacy,
+    Modern,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum CompatColorKind {

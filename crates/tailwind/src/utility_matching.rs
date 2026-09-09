@@ -4,9 +4,11 @@ use stillwind_css::{CustomUtility, ThemeIndex, ValueType};
 use stillwind_grammar::Value;
 
 use super::arbitrary::decode_arbitrary;
+use super::nested::NestedUtilityRule;
 use super::nested::matching_utilities;
 use super::registry::builtin_utilities;
-use super::types::{NestedUtilityRule, ResolvedUtilityTarget, UtilityResolution};
+use super::utilities::ResolvedUtilityTarget;
+use super::utility_body::UtilityResolution;
 use super::utility_body::resolve_css_utility_body;
 
 pub(super) fn resolve_named_utility(

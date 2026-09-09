@@ -1,9 +1,10 @@
 use stillwind_css::{BuiltinVariantModifierType, CustomVariant, ThemeIndex};
 
 use super::nested::closing_parenthesis;
-use super::types::{VariantApplication, VariantDeclaration};
 use super::value_domains::{resolve_value_domains, split_domains, theme_domain_pattern};
 use super::variant_body::resolve_variant_body;
+use super::variants::VariantApplication;
+use super::variants::VariantDeclaration;
 
 pub(super) fn substitute_typed_modifier(
     body: &str,

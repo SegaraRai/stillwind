@@ -3,10 +3,31 @@ use stillwind_grammar::Value;
 
 use super::declarations::resolve_css_declarations;
 use super::metadata::{COMPAT_COLOR_SUPPORT, builtin_property_definitions};
+use super::nested::NestedUtilityAtRule;
+use super::nested::NestedUtilityRule;
 use super::nested::{closing_parenthesis, split_nested_conditions, split_utility_selector};
-use super::types::{
-    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtilityTarget, UtilityResolution,
-};
+use super::utilities::ResolvedUtilityTarget;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct UtilityResolution {
+    pub(super) declaration: String,
+    pub(super) selector: Option<String>,
+    pub(super) nested: Vec<NestedUtilityRule>,
+    pub(super) additional: Vec<ResolvedUtilityTarget>,
+    pub(super) builtin_order: Option<usize>,
+}
+
+impl UtilityResolution {
+    pub(super) fn plain(declaration: String) -> Self {
+        Self {
+            declaration,
+            selector: None,
+            nested: Vec::new(),
+            additional: Vec::new(),
+            builtin_order: None,
+        }
+    }
+}
 
 pub(super) fn resolve_css_utility_body(
     utility: &CustomUtility,

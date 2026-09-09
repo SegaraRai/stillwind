@@ -1,6 +1,26 @@
 use stillwind_css::CustomUtility;
 
-use super::types::{NestedUtilityAtRule, ParsedNestedUtilityRule};
+/// A conditional declaration authored inside a CSS `@utility` body.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NestedUtilityRule {
+    pub at_rule: NestedUtilityAtRule,
+    pub condition: String,
+    pub declaration: String,
+    /// Whether the conditional was authored inside the utility's selector
+    /// block (or as a CSS `@supports` declaration, which is nested by CSS).
+    /// This preserves placement from the CSS source instead of classifying
+    /// declarations by Tailwind property names.
+    pub inside: bool,
+}
+
+/// The CSS conditional wrapper associated with a nested utility declaration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NestedUtilityAtRule {
+    Media,
+    Supports,
+}
+
+pub(super) type ParsedNestedUtilityRule = (NestedUtilityAtRule, String, String);
 
 pub(super) fn split_nested_conditions(
     body: &str,

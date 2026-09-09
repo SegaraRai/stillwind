@@ -14,7 +14,6 @@ mod normalization;
 mod placeholders;
 mod registry;
 mod theme_values;
-mod types;
 mod utilities;
 mod utility_body;
 mod utility_matching;
@@ -29,8 +28,8 @@ mod variants;
 mod tests;
 
 pub use metadata::*;
+pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use registry::*;
-pub use types::*;
 pub use utilities::*;
 pub use variant_order::*;
 pub use variants::*;

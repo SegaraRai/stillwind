@@ -2,9 +2,9 @@ use stillwind_css::ThemeIndex;
 use stillwind_grammar::Value;
 
 use super::arbitrary::alpha;
+use super::colors::CompatColorMode;
 use super::colors::{resolve_compat_color, resolve_shadow_color};
 use super::nested::closing_parenthesis;
-use super::types::CompatColorMode;
 use super::value_domains::{resolve_value_domains, split_domains};
 use super::value_macros::{
     resolve_literal_value_placeholders, resolve_theme_suffix_placeholders,

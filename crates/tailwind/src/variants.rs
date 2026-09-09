@@ -4,13 +4,43 @@ use stillwind_grammar::{Utility, Value, Variant, VariantKind, parse_candidate};
 use super::arbitrary::decode_arbitrary;
 use super::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
 use super::registry::builtin_variants;
-use super::types::VariantApplication;
+
 use super::variant_body::resolve_variant_body;
 use super::variant_order::variant_sort_namespace;
 use super::variant_substitution::{
     apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
     substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VariantApplication {
+    Compound(Vec<VariantApplication>),
+    SelectorSuffix(&'static str),
+    SelectorTemplate(String),
+    SelectorRule {
+        selector: String,
+        declarations: Vec<VariantDeclaration>,
+    },
+    SelectorMedia {
+        selector: String,
+        condition: String,
+    },
+    SelectorMediaRule {
+        selector: String,
+        declarations: Vec<VariantDeclaration>,
+        condition: String,
+    },
+    Media(String),
+    Container(String),
+    Supports(String),
+    StartingStyle,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariantDeclaration {
+    pub property: String,
+    pub value: String,
+}
 
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {

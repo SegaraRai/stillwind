@@ -1,8 +1,8 @@
 use stillwind_css::ThemeIndex;
 
+use super::colors::CompatColorMode;
 use super::nested::closing_parenthesis;
 use super::theme_values::theme_value;
-use super::types::CompatColorMode;
 use super::value_domains::{
     resolve_literal_value_domains, resolve_value_domains, split_domains, theme_domain_pattern,
 };

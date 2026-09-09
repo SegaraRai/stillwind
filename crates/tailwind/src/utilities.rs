@@ -1,15 +1,38 @@
 use std::fmt::Write;
+use stillwind_grammar::Candidate;
 
 use stillwind_css::ThemeIndex;
 use stillwind_grammar::{Utility, parse_candidate};
 
 use super::formatting::finalize_declaration;
+use super::nested::NestedUtilityRule;
 use super::nested::matching_utilities;
 use super::registry::{
     animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
 };
-use super::types::{NestedUtilityRule, ResolvedUtility, UtilityResolution};
+use super::utility_body::UtilityResolution;
 use super::utility_matching::{resolve_css_utility_branches, resolve_named_utility};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedUtility {
+    pub candidate: Candidate,
+    /// Source order of the matched `@stillwind-utility`.
+    pub builtin_order: Option<usize>,
+    pub declaration: String,
+    pub selector: Option<String>,
+    pub nested: Vec<NestedUtilityRule>,
+    /// Additional selector targets produced by typed `@utility` overloads.
+    /// CSS fallbacks and selector-bearing branches must never be discarded
+    /// merely because they share one candidate spelling.
+    pub additional: Vec<ResolvedUtilityTarget>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedUtilityTarget {
+    pub declaration: String,
+    pub selector: Option<String>,
+    pub nested: Vec<NestedUtilityRule>,
+}
 
 /// Resolves a candidate using only the Tailwind-compatible registry.
 #[must_use]

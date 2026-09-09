@@ -1,8 +1,14 @@
 use stillwind_css::ThemeIndex;
 use stillwind_grammar::Value;
 
+use super::colors::CompatColorMode;
 use super::placeholders::resolve_css_placeholders;
-use super::types::{CompatColorMode, ResolvedCssDeclarations};
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct ResolvedCssDeclarations {
+    pub(super) base: String,
+    pub(super) compat_modern: Vec<String>,
+}
 
 /// Resolves each declaration independently. `@utility` overloads are often
 /// intentionally broad: a single body can expose both colour and length
