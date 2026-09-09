@@ -1,5 +1,10 @@
 //! Public orchestration API for the first compiler slice.
 
+mod design_system;
+pub use design_system::{
+    DefinitionFingerprints, DesignSystemRevision, DesignSystemSnapshot, Fingerprint,
+};
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Write,
@@ -275,30 +280,36 @@ impl Compiler {
         parsed: stillwind_js_oxc::ParsedJavaScript,
         options: &CompilerOptions,
     ) -> CompileResult {
+        let snapshot = match DesignSystemSnapshot::from_source(theme_source, options.clone()) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                return CompileResult {
+                    diagnostics: vec![CompileError::new(
+                        "SHCSS001",
+                        error.to_string(),
+                        theme_source.full_span(),
+                    )],
+                    ..CompileResult::default()
+                };
+            }
+        };
+        Self::compile_with_snapshot(source, parsed, &snapshot)
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn compile_with_snapshot(
+        source: &SourceFile,
+        parsed: stillwind_js_oxc::ParsedJavaScript,
+        snapshot: &DesignSystemSnapshot,
+    ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
         let mut result = CompileResult {
             diagnostics: parsed.diagnostics,
             lint_findings: parsed.lint_findings,
             ..CompileResult::default()
         };
-        let theme = match Self::read_theme(theme_source) {
-            Ok(theme) => theme,
-            Err(error) => {
-                result.diagnostics.push(CompileError::new(
-                    "SHCSS001",
-                    error.to_string(),
-                    theme_source.full_span(),
-                ));
-                return result;
-            }
-        };
-        let mut options = options.clone();
-        if let Some(prefix) = &theme.config.prefix {
-            options.prefix.clone_from(prefix);
-        }
-        if let Some(prefix) = &theme.config.tailwind_prefix {
-            options.tailwind_prefix.clone_from(prefix);
-        }
+        let theme = snapshot.theme();
+        let options = snapshot.config();
         result.lint_policy.clone_from(&theme.config.lint_rules);
         filter_lint_findings(source, &mut result.lint_findings);
 
@@ -344,7 +355,7 @@ impl Compiler {
                 &mut utility_css,
                 source,
                 animation,
-                &theme,
+                theme,
                 &mut result.diagnostics,
             );
         }
@@ -353,7 +364,7 @@ impl Compiler {
                 &mut utility_css,
                 source,
                 transition,
-                &theme,
+                theme,
                 &mut result.diagnostics,
             );
         }
@@ -445,7 +456,7 @@ impl Compiler {
                     branch.3.push(resolve_animation_use(
                         &animation,
                         &options,
-                        &theme,
+                        theme,
                         &mut result.diagnostics,
                     ));
                     continue;
@@ -476,10 +487,10 @@ impl Compiler {
                                 &[resolve_animation_use(
                                     &animation,
                                     &options,
-                                    &theme,
+                                    theme,
                                     &mut result.diagnostics,
                                 )],
-                                &theme,
+                                theme,
                             );
                             result.symbols.push(generated_class_symbol(
                                 source,
@@ -507,12 +518,8 @@ impl Compiler {
                     branch.2.push(':');
                     branch.2.push_str(&options.value);
                     branch.2.push('\0');
-                    let mut utility = resolve_animation_use(
-                        &animation,
-                        &options,
-                        &theme,
-                        &mut result.diagnostics,
-                    );
+                    let mut utility =
+                        resolve_animation_use(&animation, &options, theme, &mut result.diagnostics);
                     utility.selector = Some(selector.value);
                     branch.3.push(utility);
                     continue;
@@ -543,12 +550,12 @@ impl Compiler {
                         let mut utility = resolve_animation_use(
                             &animation,
                             &options,
-                            &theme,
+                            theme,
                             &mut result.diagnostics,
                         );
                         utility.selector = Some(selector.value.clone());
                         if emitted_utility_classes.insert((class_name.clone(), canonical.clone())) {
-                            emit_utility_rules(&mut utility_css, &class_name, &[utility], &theme);
+                            emit_utility_rules(&mut utility_css, &class_name, &[utility], theme);
                             result.symbols.push(generated_class_symbol(
                                 source,
                                 &class_name,
@@ -577,7 +584,7 @@ impl Compiler {
                         branch.2.push_str(&utility.value.raw);
                         branch.2.push('\0');
                         if let Some(mut utilities) =
-                            resolve_utility_targets(&utility.value.raw, &theme)
+                            resolve_utility_targets(&utility.value.raw, theme)
                         {
                             {
                                 for utility in &mut utilities {
@@ -650,7 +657,7 @@ impl Compiler {
                                     builtin_order: None,
                                     candidate: String::new(),
                                 }],
-                                &theme,
+                                theme,
                             );
                             result.symbols.push(generated_class_symbol(
                                 source,
@@ -769,7 +776,7 @@ impl Compiler {
                         || theme.config.lint_enabled("prefer-typed-relationships"))
                         && stillwind_tailwind::is_tailwind_relationship_candidate(
                             &utility.value.raw,
-                            &theme,
+                            theme,
                         )
                     {
                         result.lint_findings.push(LintFinding::new(
@@ -784,7 +791,7 @@ impl Compiler {
                     if selector.is_none()
                         && let Some(marker) = stillwind_tailwind::compatibility_marker_class(
                             &utility.value.raw,
-                            &theme,
+                            theme,
                         )
                     {
                         let class = GeneratedClass {
@@ -809,7 +816,7 @@ impl Compiler {
                         .raw
                         .strip_prefix("tw:")
                         .unwrap_or(&utility.value.raw);
-                    if let Some(mut utilities) = resolve_utility_targets(resolved_input, &theme) {
+                    if let Some(mut utilities) = resolve_utility_targets(resolved_input, theme) {
                         let candidate_variants = parse_candidate(resolved_input)
                             .map(|candidate| candidate.variants)
                             .unwrap_or_default();
@@ -846,7 +853,7 @@ impl Compiler {
                 }
                 let class_name = class_name(&canonical_input);
                 if emitted_utility_classes.insert((class_name.clone(), canonical_input.clone())) {
-                    emit_utility_rules(&mut utility_css, &class_name, &utilities, &theme);
+                    emit_utility_rules(&mut utility_css, &class_name, &utilities, theme);
                     result.symbols.push(generated_class_symbol(
                         source,
                         &class_name,
@@ -959,7 +966,7 @@ impl Compiler {
         {
             let utility_css = options.rewrite_generated(&utility_css);
             result.module_css.clone_from(&utility_css);
-            result.css = render_stylesheet(&theme, &result.module_css, &options);
+            result.css = render_stylesheet(theme, &result.module_css, options);
         }
 
         for transform in &mut result.transforms {
