@@ -1,6 +1,8 @@
 //! Public orchestration API for the first compiler slice.
 
 mod analysis;
+mod module_compiler;
+pub use module_compiler::*;
 mod design_system;
 pub use analysis::*;
 mod loader;

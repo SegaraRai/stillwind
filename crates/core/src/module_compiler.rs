@@ -1,0 +1,246 @@
+//! Snapshot-pinned compilation and structured, independently owned CSS rules.
+use std::collections::BTreeSet;
+
+use cssparser::{Parser, ParserInput, Token};
+use stillwind_source::{CompileError, LintFinding, SourceFile};
+
+use crate::{
+    Compiler, DesignSystemSnapshot, Fingerprint, GeneratedClass, GeneratedSymbol, ModuleAnalysis,
+    PropsTransform,
+};
+
+pub type SourceTransform = PropsTransform;
+pub type CompileDiagnostic = CompileError;
+pub type RuleKey = Fingerprint;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedRule {
+    pub key: RuleKey,
+    /// Selector or at-rule header, including authored serialization whitespace.
+    pub prelude: String,
+    /// Declaration/nested-rule block; `None` represents an at-rule statement.
+    pub body: Option<String>,
+}
+
+impl GeneratedRule {
+    pub fn to_css(&self) -> String {
+        self.body.as_ref().map_or_else(
+            || self.prelude.clone(),
+            |body| format!("{}{{{body}}}", self.prelude),
+        )
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ModuleCssArtifact {
+    pub rules: Vec<GeneratedRule>,
+}
+
+impl ModuleCssArtifact {
+    pub fn to_css(&self) -> String {
+        self.rules.iter().map(GeneratedRule::to_css).collect()
+    }
+
+    /// Lossless boundary between the existing emitter and rule ownership. CSS
+    /// tokenization keeps braces inside strings, functions and comments intact.
+    pub(crate) fn from_css(css: &str) -> Self {
+        let mut input = ParserInput::new(css);
+        let mut parser = Parser::new(&mut input);
+        let mut start = 0;
+        let mut rules = Vec::new();
+        while let Ok(token) = parser.next_including_whitespace_and_comments() {
+            let block = matches!(token, Token::CurlyBracketBlock);
+            if block {
+                let body_start = parser.position().byte_index();
+                let body_end = parser
+                    .parse_nested_block(|nested| {
+                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, cssparser::ParseError<'_, ()>>(nested.position().byte_index())
+                    })
+                    .expect("generated CSS block is valid");
+                let end = parser.position().byte_index();
+                rules.push(GeneratedRule {
+                    key: Fingerprint::of(&css[start..end]),
+                    prelude: css[start..body_start - 1].into(),
+                    body: Some(css[body_start..body_end].into()),
+                });
+                start = end;
+            } else if matches!(token, Token::Semicolon) {
+                let end = parser.position().byte_index();
+                rules.push(GeneratedRule {
+                    key: Fingerprint::of(&css[start..end]),
+                    prelude: css[start..end].into(),
+                    body: None,
+                });
+                start = end;
+            }
+        }
+        if start < css.len() {
+            rules.push(GeneratedRule {
+                key: Fingerprint::of(&css[start..]),
+                prelude: css[start..].into(),
+                body: None,
+            });
+        }
+        Self { rules }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModuleArtifactKey {
+    pub compiler_version: String,
+    pub design_system: Fingerprint,
+    pub source_revision: Fingerprint,
+    pub module_id: String,
+    pub frontend_kind: String,
+    pub adapter_mode: String,
+    pub semantic_revision: Option<Fingerprint>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CompilationDependencies {
+    pub candidates: BTreeSet<String>,
+    pub theme_tokens: BTreeSet<String>,
+    pub utilities: BTreeSet<String>,
+    pub variants: BTreeSet<String>,
+    pub properties: BTreeSet<String>,
+    pub assets: BTreeSet<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CompiledModule {
+    pub key: ModuleArtifactKey,
+    pub code_transforms: Vec<SourceTransform>,
+    pub css: ModuleCssArtifact,
+    pub classes: Vec<GeneratedClass>,
+    pub symbols: Vec<GeneratedSymbol>,
+    pub diagnostics: Vec<CompileDiagnostic>,
+    pub lint_findings: Vec<LintFinding>,
+    pub dependencies: CompilationDependencies,
+}
+
+impl CompiledModule {
+    /// # Errors
+    /// Returns invalid or overlapping source-transform spans.
+    pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, String> {
+        crate::CompileResult {
+            transforms: self.code_transforms.clone(),
+            ..crate::CompileResult::default()
+        }
+        .apply_to_source(source)
+    }
+
+    pub fn is_success(&self) -> bool {
+        self.diagnostics.is_empty()
+    }
+
+    pub fn to_legacy(&self, snapshot: &DesignSystemSnapshot) -> crate::CompileResult {
+        let module_css = self.css.to_css();
+        crate::CompileResult {
+            css: if self.is_success() {
+                snapshot.render_stylesheet(&module_css)
+            } else {
+                String::new()
+            },
+            module_css,
+            classes: self.classes.clone(),
+            symbols: self.symbols.clone(),
+            transforms: self.code_transforms.clone(),
+            diagnostics: self.diagnostics.clone(),
+            lint_findings: self.lint_findings.clone(),
+            lint_policy: snapshot.theme().config.lint_rules.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ModuleCompiler {
+    design_system: DesignSystemSnapshot,
+}
+
+impl ModuleCompiler {
+    pub fn new(design_system: DesignSystemSnapshot) -> Self {
+        Self { design_system }
+    }
+    pub fn design_system(&self) -> &DesignSystemSnapshot {
+        &self.design_system
+    }
+
+    pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
+        let result =
+            Compiler::compile_with_snapshot(&module.source, module.parsed(), &self.design_system);
+        let mut diagnostics = result.diagnostics;
+        diagnostics.extend(module.integration_diagnostics.iter().map(|error| {
+            CompileError::new(
+                "SHFACT001",
+                error.message.clone(),
+                module.source.full_span(),
+            )
+        }));
+        let css = if diagnostics.is_empty() {
+            ModuleCssArtifact::from_css(&result.module_css)
+        } else {
+            ModuleCssArtifact::default()
+        };
+        let theme = self.design_system.theme();
+        let dependencies = CompilationDependencies {
+            // Conservative definition dependencies are safe for full invalidation.
+            theme_tokens: theme
+                .tokens_required_by(&result.module_css, false)
+                .iter()
+                .map(|token| token.name.value.clone())
+                .collect(),
+            utilities: self
+                .design_system
+                .fingerprints()
+                .utilities
+                .keys()
+                .cloned()
+                .collect(),
+            variants: self
+                .design_system
+                .fingerprints()
+                .variants
+                .keys()
+                .cloned()
+                .collect(),
+            properties: self
+                .design_system
+                .fingerprints()
+                .properties
+                .keys()
+                .cloned()
+                .collect(),
+            assets: module
+                .summary
+                .assets
+                .iter()
+                .map(|asset| format!("{:?}", asset.identity))
+                .collect(),
+            ..CompilationDependencies::default()
+        };
+        let success = diagnostics.is_empty();
+        CompiledModule {
+            key: ModuleArtifactKey {
+                compiler_version: env!("CARGO_PKG_VERSION").into(),
+                design_system: self.design_system.fingerprints().content.clone(),
+                source_revision: module.source_revision.clone(),
+                module_id: module.module_id.clone(),
+                frontend_kind: module.frontend_kind.clone(),
+                adapter_mode: format!("{:?}", module.ir.adapter),
+                semantic_revision: module.semantic_revision.clone(),
+            },
+            code_transforms: if success {
+                result.transforms
+            } else {
+                Vec::new()
+            },
+            css,
+            classes: if success { result.classes } else { Vec::new() },
+            symbols: if success { result.symbols } else { Vec::new() },
+            diagnostics,
+            lint_findings: result.lint_findings,
+            dependencies,
+        }
+    }
+}
