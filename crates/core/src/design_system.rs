@@ -56,6 +56,8 @@ struct DesignSystemData {
     properties: crate::PropertyRegistry,
     tokens: crate::ThemeRegistry,
     builtins: Option<Arc<stillwind_tailwind::BuiltinDefinitions>>,
+    declaration_formats: BTreeMap<String, String>,
+    relationships: std::collections::BTreeSet<String>,
 }
 
 impl DesignSystemSnapshot {
@@ -103,6 +105,16 @@ impl DesignSystemSnapshot {
             .imports
             .builtins
             .then(stillwind_tailwind::builtin_definitions);
+        let mut declaration_formats = builtins.as_ref().map_or_else(BTreeMap::new, |definitions| {
+            definitions.declaration_formats.clone()
+        });
+        declaration_formats.extend(theme.declaration_formats.clone());
+        let mut relationships = builtins
+            .as_ref()
+            .map_or_else(std::collections::BTreeSet::new, |definitions| {
+                definitions.relationships.clone()
+            });
+        relationships.extend(theme.relationship_patterns.clone());
         let utility_registry =
             crate::UtilityRegistry::new(
                 builtins
@@ -207,6 +219,8 @@ impl DesignSystemSnapshot {
                 properties: property_registry,
                 tokens: token_registry,
                 builtins,
+                declaration_formats,
+                relationships,
                 config,
                 fingerprints: DefinitionFingerprints {
                     content,
@@ -236,6 +250,18 @@ impl DesignSystemSnapshot {
     }
     pub fn utilities(&self) -> &crate::UtilityRegistry {
         &self.inner.utilities
+    }
+    pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
+        &self.inner.declaration_formats
+    }
+    pub fn relationships(&self) -> &std::collections::BTreeSet<String> {
+        &self.inner.relationships
+    }
+    pub fn imports(&self) -> &stillwind_css::FrameworkImports {
+        &self.inner.theme.imports
+    }
+    pub fn lint_policy(&self) -> &BTreeMap<String, String> {
+        &self.inner.theme.config.lint_rules
     }
     pub fn variants(&self) -> &crate::VariantRegistry {
         &self.inner.variants

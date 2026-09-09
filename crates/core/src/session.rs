@@ -80,6 +80,11 @@ pub enum SessionMode {
 #[derive(Clone, Debug, Default)]
 pub struct DependencyIndex {
     pub candidates: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub theme_tokens: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub assets: BTreeMap<String, BTreeSet<ModuleId>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -137,9 +142,20 @@ impl ProjectSession {
     }
 
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> SessionUpdate {
+        let backend = ModuleCompiler::new(self.current.clone());
+        if analysis.diagnostics.is_empty()
+            && analysis.integration_diagnostics.is_empty()
+            && self
+                .artifacts
+                .get(&analysis.module_id)
+                .is_some_and(|artifact| artifact.key == backend.key_for(&analysis))
+        {
+            self.analyses.insert(analysis.module_id.clone(), analysis);
+            return SessionUpdate::default();
+        }
         let old_css = self.css();
         let module_id = analysis.module_id.clone();
-        let mut compiled = ModuleCompiler::new(self.current.clone()).compile(&analysis);
+        let mut compiled = backend.compile(&analysis);
         let mut symbols: BTreeMap<_, _> = self
             .artifacts
             .iter()
@@ -244,6 +260,29 @@ impl ProjectSession {
     fn reindex(&mut self) {
         self.dependencies = DependencyIndex::default();
         for (id, artifact) in &self.artifacts {
+            for (entries, index) in [
+                (
+                    &artifact.dependencies.theme_tokens,
+                    &mut self.dependencies.theme_tokens,
+                ),
+                (
+                    &artifact.dependencies.utilities,
+                    &mut self.dependencies.utilities,
+                ),
+                (
+                    &artifact.dependencies.variants,
+                    &mut self.dependencies.variants,
+                ),
+                (
+                    &artifact.dependencies.properties,
+                    &mut self.dependencies.properties,
+                ),
+                (&artifact.dependencies.assets, &mut self.dependencies.assets),
+            ] {
+                for entry in entries {
+                    index.entry(entry.clone()).or_default().insert(id.clone());
+                }
+            }
             for candidate in &artifact.dependencies.candidates {
                 self.dependencies
                     .candidates

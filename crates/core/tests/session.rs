@@ -89,3 +89,21 @@ fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
         );
     }
 }
+
+#[test]
+fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
+    let mut session = ProjectSession::new(snapshot("red"), SessionMode::Watch);
+    session.update_module(module("a.tsx", "bg-brand"));
+    let rules = session.artifacts()["a.tsx"].css.rules.as_ptr();
+    assert!(
+        !session
+            .update_module(module("a.tsx", "bg-brand"))
+            .css_changed
+    );
+    assert_eq!(rules, session.artifacts()["a.tsx"].css.rules.as_ptr());
+    assert!(session.dependencies().candidates["bg-brand"].contains("a.tsx"));
+    assert!(session.dependencies().theme_tokens["--color-brand"].contains("a.tsx"));
+    session.remove_module("a.tsx");
+    assert!(session.dependencies().candidates.is_empty());
+    assert!(session.dependencies().theme_tokens.is_empty());
+}

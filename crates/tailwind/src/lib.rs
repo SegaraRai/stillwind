@@ -155,6 +155,8 @@ pub struct BuiltinDefinitions {
     pub variants: Vec<CustomVariant>,
     pub properties: Vec<stillwind_css::CustomPropertyDefinition>,
     pub source: &'static str,
+    pub declaration_formats: BTreeMap<String, String>,
+    pub relationships: BTreeSet<String>,
 }
 
 pub fn builtin_definitions() -> Arc<BuiltinDefinitions> {
@@ -165,6 +167,8 @@ pub fn builtin_definitions() -> Arc<BuiltinDefinitions> {
             variants: stillwind_css::parse_builtin_variant_definitions(BUILTIN_REGISTRY_CSS),
             properties: builtin_property_definitions().to_vec(),
             source: BUILTIN_REGISTRY_CSS,
+            declaration_formats: builtin_declaration_formats().clone(),
+            relationships: builtin_relationship_patterns().clone(),
         })
     }))
 }

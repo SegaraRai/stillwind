@@ -93,6 +93,7 @@ pub struct ModuleArtifactKey {
     pub design_system: Fingerprint,
     pub source_revision: Fingerprint,
     pub module_id: String,
+    pub source_file_id: u32,
     pub frontend_kind: String,
     pub adapter_mode: String,
     pub semantic_revision: Option<Fingerprint>,
@@ -167,6 +168,24 @@ impl ModuleCompiler {
         &self.design_system
     }
 
+    pub fn key_for(&self, module: &ModuleAnalysis) -> ModuleArtifactKey {
+        ModuleArtifactKey {
+            compiler_version: concat!(
+                env!("CARGO_PKG_VERSION"),
+                "+",
+                env!("STILLWIND_COMPILER_FINGERPRINT")
+            )
+            .into(),
+            design_system: self.design_system.fingerprints().content.clone(),
+            source_revision: module.source_revision.clone(),
+            module_id: module.module_id.clone(),
+            source_file_id: module.source.id().0,
+            frontend_kind: module.frontend_kind.clone(),
+            adapter_mode: format!("{:?}", module.ir.adapter),
+            semantic_revision: module.semantic_revision.clone(),
+        }
+    }
+
     pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
         let result =
             Compiler::compile_with_snapshot(&module.source, module.parsed(), &self.design_system);
@@ -239,20 +258,7 @@ impl ModuleCompiler {
         };
         let success = diagnostics.is_empty();
         CompiledModule {
-            key: ModuleArtifactKey {
-                compiler_version: concat!(
-                    env!("CARGO_PKG_VERSION"),
-                    "+",
-                    env!("STILLWIND_COMPILER_FINGERPRINT")
-                )
-                .into(),
-                design_system: self.design_system.fingerprints().content.clone(),
-                source_revision: module.source_revision.clone(),
-                module_id: module.module_id.clone(),
-                frontend_kind: module.frontend_kind.clone(),
-                adapter_mode: format!("{:?}", module.ir.adapter),
-                semantic_revision: module.semantic_revision.clone(),
-            },
+            key: self.key_for(module),
             code_transforms: if success {
                 result.transforms
             } else {
