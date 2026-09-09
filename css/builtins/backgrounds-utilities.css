@@ -30,6 +30,8 @@
 
 /* MARK: `background-image` with gradients */
 
+@stillwind-arbitrary-property --tw-gradient-position;
+
 @stillwind-utility bg-conic {
   --tw-gradient-position: in oklab;
   background-image: conic-gradient(var(--tw-gradient-stops));
@@ -265,9 +267,13 @@
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
 
+@stillwind-arbitrary-property --tw-gradient-via-stops;
+
 @stillwind-utility via-none {
   --tw-gradient-via-stops: initial;
 }
+
+@stillwind-arbitrary-property --tw-gradient-via;
 
 @stillwind-utility via-* {
   --tw-gradient-via: --value(--color-*, current, inherit, transparent);
@@ -290,9 +296,14 @@
   --tw-gradient-stops: var(--tw-gradient-via-stops);
 }
 
+@stillwind-arbitrary-property --tw-gradient-via-position;
+
 @stillwind-utility via-* {
   --tw-gradient-via-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-gradient-stops;
+@stillwind-arbitrary-property --tw-gradient-from;
 
 @stillwind-utility from-* {
   --tw-gradient-from: --value(--color-*, current, inherit, transparent);
@@ -317,9 +328,13 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-gradient-from-position;
+
 @stillwind-utility from-* {
   --tw-gradient-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-gradient-to;
 
 @stillwind-utility to-* {
   --tw-gradient-to: --value(--color-*, current, inherit, transparent);
@@ -343,6 +358,8 @@
     var(--tw-gradient-to) var(--tw-gradient-to-position)
   );
 }
+
+@stillwind-arbitrary-property --tw-gradient-to-position;
 
 @stillwind-utility to-* {
   --tw-gradient-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
@@ -501,6 +518,8 @@
 }
 
 /* MARK: `background-blend-mode` */
+
+@stillwind-arbitrary-property background-blend-mode;
 
 @stillwind-utility bg-blend-color {
   background-blend-mode: color;

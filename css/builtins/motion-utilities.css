@@ -2,6 +2,8 @@
 
 /* MARK: `animation` */
 
+@stillwind-arbitrary-property animation;
+
 @stillwind-utility animate-none {
   animation: none;
 }
@@ -61,6 +63,8 @@
   transition-duration: var(--tw-duration, var(--default-transition-duration));
 }
 
+@stillwind-arbitrary-property transition-property;
+
 @stillwind-utility transition-none {
   transition-property: none;
 }
@@ -87,6 +91,8 @@
   transition-property: --value([transition-property]);
 }
 
+@stillwind-arbitrary-property transition-behavior;
+
 @stillwind-utility transition-discrete {
   transition-behavior: allow-discrete;
 }
@@ -94,6 +100,8 @@
 @stillwind-utility transition-normal {
   transition-behavior: normal;
 }
+
+@stillwind-arbitrary-property transition-delay;
 
 @stillwind-utility delay-* {
   transition-delay: calc(--value(integer) * 1ms);
@@ -103,18 +111,26 @@
   transition-delay: --value([time]);
 }
 
+@stillwind-arbitrary-property --tw-duration;
+
 @stillwind-utility duration-initial {
   --tw-duration: initial;
 }
+
+@stillwind-arbitrary-property transition-duration;
 
 @stillwind-utility duration-* {
   --tw-duration: calc(--value(integer) * 1ms);
   transition-duration: calc(--value(integer) * 1ms);
 }
 
+@stillwind-arbitrary-property --tw-ease;
+
 @stillwind-utility ease-initial {
   --tw-ease: initial;
 }
+
+@stillwind-arbitrary-property transition-timing-function;
 
 @stillwind-utility ease-linear {
   --tw-ease: linear;

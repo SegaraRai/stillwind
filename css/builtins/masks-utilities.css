@@ -65,6 +65,9 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-top;
+@stillwind-arbitrary-property --tw-mask-top-from-position;
+
 @stillwind-utility mask-t-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -77,6 +80,8 @@
   );
   --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-top-from-color;
 
 @stillwind-utility mask-t-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -170,6 +175,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-top-to-position;
+
 @stillwind-utility mask-t-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -182,6 +189,8 @@
   );
   --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-top-to-color;
 
 @stillwind-utility mask-t-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -275,6 +284,9 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-right;
+@stillwind-arbitrary-property --tw-mask-right-from-position;
+
 @stillwind-utility mask-r-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -287,6 +299,8 @@
   );
   --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-right-from-color;
 
 @stillwind-utility mask-r-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -380,6 +394,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-right-to-position;
+
 @stillwind-utility mask-r-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -392,6 +408,8 @@
   );
   --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-right-to-color;
 
 @stillwind-utility mask-r-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -422,6 +440,9 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-bottom;
+@stillwind-arbitrary-property --tw-mask-bottom-from-position;
+
 @stillwind-utility mask-b-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -434,6 +455,8 @@
   );
   --tw-mask-bottom-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-bottom-from-color;
 
 @stillwind-utility mask-b-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -464,6 +487,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-bottom-to-position;
+
 @stillwind-utility mask-b-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -476,6 +501,8 @@
   );
   --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-bottom-to-color;
 
 @stillwind-utility mask-b-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -506,6 +533,9 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-left;
+@stillwind-arbitrary-property --tw-mask-left-from-position;
+
 @stillwind-utility mask-l-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -518,6 +548,8 @@
   );
   --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-left-from-color;
 
 @stillwind-utility mask-l-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -548,6 +580,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-left-to-position;
+
 @stillwind-utility mask-l-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -560,6 +594,8 @@
   );
   --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-left-to-color;
 
 @stillwind-utility mask-l-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -590,6 +626,9 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-linear;
+@stillwind-arbitrary-property --tw-mask-linear-position;
+
 @stillwind-utility mask-linear-[initial] {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops, var(--tw-mask-linear-position)));
@@ -618,6 +657,8 @@
 /* Mask stop utilities intentionally keep their gradient state on the element.
  * This mirrors Tailwind's composable custom-property model without a generated
  * table for every color, percentage, and spacing token. */
+@stillwind-arbitrary-property --tw-mask-linear-from-position;
+
 @stillwind-utility mask-linear-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -628,6 +669,8 @@
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
   --tw-mask-linear-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-linear-from-color;
 
 @stillwind-utility mask-linear-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -665,6 +708,8 @@
   --tw-mask-linear-from-position: --value(--spacing());
 }
 
+@stillwind-arbitrary-property --tw-mask-linear-to-position;
+
 @stillwind-utility mask-linear-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -675,6 +720,8 @@
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
   --tw-mask-linear-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-linear-to-color;
 
 @stillwind-utility mask-linear-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -712,6 +759,8 @@
   --tw-mask-linear-to-position: --value(--spacing());
 }
 
+@stillwind-arbitrary-property --tw-mask-radial;
+
 @stillwind-utility mask-radial-[initial] {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops, var(--tw-mask-radial-size)));
@@ -722,6 +771,8 @@
 @stillwind-utility mask-radial-* {
   mask-image: radial-gradient(--value([radial-gradient-arguments]));
 }
+
+@stillwind-arbitrary-property --tw-mask-radial-from-position;
 
 @stillwind-utility mask-radial-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -734,6 +785,8 @@
   --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
   --tw-mask-radial-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-radial-from-color;
 
 @stillwind-utility mask-radial-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -762,6 +815,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-radial-to-position;
+
 @stillwind-utility mask-radial-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -773,6 +828,8 @@
   --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
   --tw-mask-radial-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-radial-to-color;
 
 @stillwind-utility mask-radial-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -801,6 +858,9 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-conic;
+@stillwind-arbitrary-property --tw-mask-conic-position;
+
 @stillwind-utility mask-conic-[initial] {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops, var(--tw-mask-conic-position)));
@@ -826,6 +886,8 @@
   --tw-mask-conic-position: calc(1deg * -1 * --value(integer));
 }
 
+@stillwind-arbitrary-property --tw-mask-conic-from-position;
+
 @stillwind-utility mask-conic-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -836,6 +898,8 @@
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
   --tw-mask-conic-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-conic-from-color;
 
 @stillwind-utility mask-conic-from-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -862,6 +926,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-conic-to-position;
+
 @stillwind-utility mask-conic-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
   mask-composite: intersect;
@@ -872,6 +938,8 @@
   --tw-mask-conic: conic-gradient(var(--tw-mask-conic-stops));
   --tw-mask-conic-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
 }
+
+@stillwind-arbitrary-property --tw-mask-conic-to-color;
 
 @stillwind-utility mask-conic-to-* {
   mask-image: var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic);
@@ -898,6 +966,8 @@
   );
 }
 
+@stillwind-arbitrary-property --tw-mask-radial-shape;
+
 @stillwind-utility mask-circle {
   --tw-mask-radial-shape: circle;
 }
@@ -905,6 +975,8 @@
 @stillwind-utility mask-ellipse {
   --tw-mask-radial-shape: ellipse;
 }
+
+@stillwind-arbitrary-property --tw-mask-radial-size;
 
 @stillwind-utility mask-radial-closest-corner {
   --tw-mask-radial-size: closest-corner;
@@ -921,6 +993,8 @@
 @stillwind-utility mask-radial-farthest-side {
   --tw-mask-radial-size: farthest-side;
 }
+
+@stillwind-arbitrary-property --tw-mask-radial-position;
 
 @stillwind-utility mask-radial-at-[initial] {
   --tw-mask-radial-position: initial;

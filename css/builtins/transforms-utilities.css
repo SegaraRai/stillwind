@@ -81,6 +81,8 @@
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
+@stillwind-arbitrary-property --tw-translate-x;
+
 @stillwind-utility translate-x-0 {
   --tw-translate-x: 0px;
   translate: var(--tw-translate-x) var(--tw-translate-y);
@@ -116,6 +118,8 @@
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
+@stillwind-arbitrary-property --tw-translate-y;
+
 @stillwind-utility translate-y-0 {
   --tw-translate-y: 0px;
   translate: var(--tw-translate-x) var(--tw-translate-y);
@@ -150,6 +154,8 @@
   --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
+
+@stillwind-arbitrary-property --tw-translate-z;
 
 @stillwind-utility translate-z-* {
   --tw-translate-z: --value(--spacing-*, --spacing(), [length]);
@@ -192,6 +198,8 @@
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 
+@stillwind-arbitrary-property --tw-scale-x;
+
 @stillwind-utility scale-x-* {
   --tw-scale-x: calc(--value(integer) * 1%);
   scale: var(--tw-scale-x) var(--tw-scale-y);
@@ -202,6 +210,8 @@
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 
+@stillwind-arbitrary-property --tw-scale-y;
+
 @stillwind-utility scale-y-* {
   --tw-scale-y: calc(--value(integer) * 1%);
   scale: var(--tw-scale-x) var(--tw-scale-y);
@@ -211,6 +221,8 @@
   --tw-scale-y: calc(--value(integer) * 1% * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
+
+@stillwind-arbitrary-property --tw-scale-z;
 
 @stillwind-utility scale-z-* {
   --tw-scale-z: calc(--value(integer) * 1%);
@@ -239,6 +251,8 @@
   rotate: calc(--value(integer) * 1deg * -1);
 }
 
+@stillwind-arbitrary-property --tw-rotate-x;
+
 @stillwind-utility rotate-x-* {
   --tw-rotate-x: rotateX(calc(--value(integer) * 1deg));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
@@ -251,6 +265,8 @@
     var(--tw-skew-y);
 }
 
+@stillwind-arbitrary-property --tw-rotate-y;
+
 @stillwind-utility rotate-y-* {
   --tw-rotate-y: rotateY(calc(--value(integer) * 1deg));
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
@@ -262,6 +278,8 @@
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
+
+@stillwind-arbitrary-property --tw-rotate-z;
 
 @stillwind-utility rotate-z-* {
   --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg));
@@ -304,6 +322,8 @@
     var(--tw-skew-y);
 }
 
+@stillwind-arbitrary-property --tw-skew-x;
+
 @stillwind-utility skew-x-[initial] {
   --tw-skew-x: skewX(initial);
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
@@ -325,6 +345,8 @@
   transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
     var(--tw-skew-y);
 }
+
+@stillwind-arbitrary-property --tw-skew-y;
 
 @stillwind-utility skew-y-[initial] {
   --tw-skew-y: skewY(initial);
@@ -374,6 +396,8 @@
 
 /* MARK: `backface-visibility` */
 
+@stillwind-arbitrary-property backface-visibility;
+
 @stillwind-utility backface-hidden {
   backface-visibility: hidden;
 }
@@ -383,6 +407,8 @@
 }
 
 /* MARK: `perspective` */
+
+@stillwind-arbitrary-property perspective;
 
 @stillwind-utility perspective-distant {
   perspective: var(--perspective-distant);
@@ -411,6 +437,8 @@
 @stillwind-utility perspective-* {
   perspective: --value([length]);
 }
+
+@stillwind-arbitrary-property perspective-origin;
 
 @stillwind-utility perspective-origin-bottom {
   perspective-origin: bottom;
@@ -454,11 +482,15 @@
 
 /* MARK: `transform-style` */
 
+@stillwind-arbitrary-property transform-style;
+
 @stillwind-utility transform-3d {
   transform-style: preserve-3d;
 }
 
 /* MARK: `transform-box` */
+
+@stillwind-arbitrary-property transform-box;
 
 @stillwind-utility transform-border {
   transform-box: border-box;

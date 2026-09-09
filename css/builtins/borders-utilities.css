@@ -2,6 +2,8 @@
 
 /* MARK: `border-radius` */
 
+@stillwind-arbitrary-property border-radius;
+
 @stillwind-utility rounded-full {
   border-radius: calc(infinity * 1px);
 }
@@ -13,6 +15,8 @@
 @stillwind-utility rounded-* {
   border-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-start-radius;
 
 @stillwind-utility rounded-s-full {
   border-start-start-radius: calc(infinity * 1px);
@@ -29,6 +33,8 @@
   border-end-start-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-start-start-radius;
+
 @stillwind-utility rounded-ss-full {
   border-start-start-radius: calc(infinity * 1px);
 }
@@ -40,6 +46,8 @@
 @stillwind-utility rounded-ss-* {
   border-start-start-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-end-radius;
 
 @stillwind-utility rounded-e-full {
   border-start-end-radius: calc(infinity * 1px);
@@ -56,6 +64,8 @@
   border-end-end-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-start-end-radius;
+
 @stillwind-utility rounded-se-full {
   border-start-end-radius: calc(infinity * 1px);
 }
@@ -67,6 +77,8 @@
 @stillwind-utility rounded-se-* {
   border-start-end-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-end-end-radius;
 
 @stillwind-utility rounded-ee-full {
   border-end-end-radius: calc(infinity * 1px);
@@ -80,6 +92,8 @@
   border-end-end-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-end-start-radius;
+
 @stillwind-utility rounded-es-full {
   border-end-start-radius: calc(infinity * 1px);
 }
@@ -91,6 +105,8 @@
 @stillwind-utility rounded-es-* {
   border-end-start-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-top-radius;
 
 @stillwind-utility rounded-t-full {
   border-top-left-radius: calc(infinity * 1px);
@@ -107,6 +123,8 @@
   border-top-right-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-left-radius;
+
 @stillwind-utility rounded-l-full {
   border-top-left-radius: calc(infinity * 1px);
   border-bottom-left-radius: calc(infinity * 1px);
@@ -122,6 +140,8 @@
   border-bottom-left-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-top-left-radius;
+
 @stillwind-utility rounded-tl-full {
   border-top-left-radius: calc(infinity * 1px);
 }
@@ -133,6 +153,8 @@
 @stillwind-utility rounded-tl-* {
   border-top-left-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-right-radius;
 
 @stillwind-utility rounded-r-full {
   border-top-right-radius: calc(infinity * 1px);
@@ -149,6 +171,8 @@
   border-bottom-right-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-top-right-radius;
+
 @stillwind-utility rounded-tr-full {
   border-top-right-radius: calc(infinity * 1px);
 }
@@ -160,6 +184,8 @@
 @stillwind-utility rounded-tr-* {
   border-top-right-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-bottom-radius;
 
 @stillwind-utility rounded-b-full {
   border-bottom-right-radius: calc(infinity * 1px);
@@ -176,6 +202,8 @@
   border-bottom-left-radius: --value(--radius-*);
 }
 
+@stillwind-arbitrary-property border-bottom-right-radius;
+
 @stillwind-utility rounded-br-full {
   border-bottom-right-radius: calc(infinity * 1px);
 }
@@ -187,6 +215,8 @@
 @stillwind-utility rounded-br-* {
   border-bottom-right-radius: --value(--radius-*);
 }
+
+@stillwind-arbitrary-property border-bottom-left-radius;
 
 @stillwind-utility rounded-bl-full {
   border-bottom-left-radius: calc(infinity * 1px);
@@ -202,6 +232,9 @@
 
 /* MARK: `border` */
 
+@stillwind-arbitrary-property border-width;
+@stillwind-arbitrary-property border-style;
+
 @stillwind-utility border {
   border-style: var(--tw-border-style);
   border-width: 1px;
@@ -211,6 +244,8 @@
   border-style: var(--tw-border-style);
   border-width: 0;
 }
+
+@stillwind-arbitrary-property border-color;
 
 @stillwind-utility border-* {
   border-color: --compat-color(
@@ -233,10 +268,15 @@
   border-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-inline-width;
+@stillwind-arbitrary-property border-inline-style;
+
 @stillwind-utility border-x {
   border-inline-style: var(--tw-border-style);
   border-inline-width: 1px;
 }
+
+@stillwind-arbitrary-property border-inline-color;
 
 @stillwind-utility border-x-* {
   border-inline-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -259,10 +299,15 @@
   border-inline-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-block-width;
+@stillwind-arbitrary-property border-block-style;
+
 @stillwind-utility border-y {
   border-block-style: var(--tw-border-style);
   border-block-width: 1px;
 }
+
+@stillwind-arbitrary-property border-block-color;
 
 @stillwind-utility border-y-* {
   border-block-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -285,10 +330,15 @@
   border-block-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-inline-start-width;
+@stillwind-arbitrary-property border-inline-start-style;
+
 @stillwind-utility border-s {
   border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: 1px;
 }
+
+@stillwind-arbitrary-property border-inline-start-color;
 
 @stillwind-utility border-s-* {
   border-inline-start-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -311,10 +361,15 @@
   border-inline-start-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-inline-end-width;
+@stillwind-arbitrary-property border-inline-end-style;
+
 @stillwind-utility border-e {
   border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: 1px;
 }
+
+@stillwind-arbitrary-property border-inline-end-color;
 
 @stillwind-utility border-e-* {
   border-inline-end-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -337,10 +392,15 @@
   border-inline-end-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-block-start-width;
+@stillwind-arbitrary-property border-block-start-style;
+
 @stillwind-utility border-bs {
   border-block-start-style: var(--tw-border-style);
   border-block-start-width: 1px;
 }
+
+@stillwind-arbitrary-property border-block-start-color;
 
 @stillwind-utility border-bs-* {
   border-block-start-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -363,10 +423,15 @@
   border-block-start-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-block-end-width;
+@stillwind-arbitrary-property border-block-end-style;
+
 @stillwind-utility border-be {
   border-block-end-style: var(--tw-border-style);
   border-block-end-width: 1px;
 }
+
+@stillwind-arbitrary-property border-block-end-color;
 
 @stillwind-utility border-be-* {
   border-block-end-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -389,10 +454,15 @@
   border-block-end-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-top-width;
+@stillwind-arbitrary-property border-top-style;
+
 @stillwind-utility border-t {
   border-top-style: var(--tw-border-style);
   border-top-width: 1px;
 }
+
+@stillwind-arbitrary-property border-top-color;
 
 @stillwind-utility border-t-* {
   border-top-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -415,10 +485,15 @@
   border-top-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-right-width;
+@stillwind-arbitrary-property border-right-style;
+
 @stillwind-utility border-r {
   border-right-style: var(--tw-border-style);
   border-right-width: 1px;
 }
+
+@stillwind-arbitrary-property border-right-color;
 
 @stillwind-utility border-r-* {
   border-right-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -441,10 +516,15 @@
   border-right-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-bottom-width;
+@stillwind-arbitrary-property border-bottom-style;
+
 @stillwind-utility border-b {
   border-bottom-style: var(--tw-border-style);
   border-bottom-width: 1px;
 }
+
+@stillwind-arbitrary-property border-bottom-color;
 
 @stillwind-utility border-b-* {
   border-bottom-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -467,10 +547,15 @@
   border-bottom-width: --value([line-width]);
 }
 
+@stillwind-arbitrary-property border-left-width;
+@stillwind-arbitrary-property border-left-style;
+
 @stillwind-utility border-l {
   border-left-style: var(--tw-border-style);
   border-left-width: 1px;
 }
+
+@stillwind-arbitrary-property border-left-color;
 
 @stillwind-utility border-l-* {
   border-left-color: --value(--color-*, current, inherit, transparent, [color]);
@@ -543,11 +628,15 @@
   }
 }
 
+@stillwind-arbitrary-property --tw-divide-x-reverse;
+
 @stillwind-utility divide-x-reverse {
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 1;
   }
 }
+
+@stillwind-arbitrary-property divide-x-width;
 
 @stillwind-utility divide-x-* {
   :where(& > :not(:last-child)) {
@@ -585,11 +674,15 @@
   }
 }
 
+@stillwind-arbitrary-property --tw-divide-y-reverse;
+
 @stillwind-utility divide-y-reverse {
   :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 1;
   }
 }
+
+@stillwind-arbitrary-property divide-y-width;
 
 @stillwind-utility divide-y-* {
   :where(& > :not(:last-child)) {
@@ -636,12 +729,16 @@
   }
 }
 
+@stillwind-arbitrary-property divide-style;
+
 @stillwind-utility divide-solid {
   :where(& > :not(:last-child)) {
     --tw-border-style: solid;
     border-style: solid;
   }
 }
+
+@stillwind-arbitrary-property divide-color;
 
 @stillwind-utility divide-* {
   :where(& > :not(:last-child)) {
@@ -660,6 +757,8 @@
 
 /* MARK: `outline` */
 
+@stillwind-arbitrary-property outline-width;
+
 @stillwind-utility outline {
   outline-style: var(--tw-outline-style);
   outline-width: 1px;
@@ -674,6 +773,8 @@
   outline-style: var(--tw-outline-style);
   outline-width: calc(--value(integer) * 1px);
 }
+
+@stillwind-arbitrary-property outline-offset;
 
 @stillwind-utility outline-offset-0 {
   outline-offset: 0px;
@@ -698,6 +799,8 @@
 @stillwind-utility -outline-offset-* {
   outline-offset: calc(--value(integer) * 1px * -1);
 }
+
+@stillwind-arbitrary-property outline-color;
 
 @stillwind-utility outline-* {
   outline-color: --compat-color(
@@ -724,6 +827,8 @@
   --tw-outline-style: double;
   outline-style: double;
 }
+
+@stillwind-arbitrary-property outline;
 
 @stillwind-utility outline-hidden {
   --tw-outline-style: none;

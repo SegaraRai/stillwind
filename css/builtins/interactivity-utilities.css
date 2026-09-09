@@ -2,6 +2,8 @@
 
 /* MARK: `pointer-events` */
 
+@stillwind-arbitrary-property pointer-events;
+
 @stillwind-utility pointer-events-auto {
   pointer-events: auto;
 }
@@ -11,6 +13,8 @@
 }
 
 /* MARK: `field-sizing` */
+
+@stillwind-arbitrary-property field-sizing;
 
 @stillwind-utility field-sizing-content {
   field-sizing: content;
@@ -22,6 +26,8 @@
 
 /* MARK: `zoom` */
 
+@stillwind-arbitrary-property zoom;
+
 @stillwind-utility zoom-* {
   zoom: calc(--value(integer) * 1%);
 }
@@ -31,6 +37,8 @@
 }
 
 /* MARK: `cursor` */
+
+@stillwind-arbitrary-property cursor;
 
 @stillwind-utility cursor-alias {
   cursor: alias;
@@ -182,6 +190,8 @@
 
 /* MARK: `touch-action` */
 
+@stillwind-arbitrary-property --tw-pan-x;
+
 @stillwind-utility touch-pan-left {
   --tw-pan-x: pan-left;
   touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
@@ -196,6 +206,8 @@
   --tw-pan-x: pan-x;
   touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
 }
+
+@stillwind-arbitrary-property --tw-pan-y;
 
 @stillwind-utility touch-pan-down {
   --tw-pan-y: pan-down;
@@ -212,10 +224,14 @@
   touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
 }
 
+@stillwind-arbitrary-property --tw-pinch-zoom;
+
 @stillwind-utility touch-pinch-zoom {
   --tw-pinch-zoom: pinch-zoom;
   touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
 }
+
+@stillwind-arbitrary-property touch-action;
 
 @stillwind-utility touch-auto {
   touch-action: auto;
@@ -230,6 +246,8 @@
 }
 
 /* MARK: `resize` */
+
+@stillwind-arbitrary-property resize;
 
 @stillwind-utility resize {
   resize: both;
@@ -249,6 +267,8 @@
 
 /* MARK: Scroll Snap */
 
+@stillwind-arbitrary-property scroll-snap-type;
+
 @stillwind-utility snap-both {
   scroll-snap-type: both var(--tw-scroll-snap-strictness);
 }
@@ -265,6 +285,8 @@
   scroll-snap-type: y var(--tw-scroll-snap-strictness);
 }
 
+@stillwind-arbitrary-property --tw-scroll-snap-strictness;
+
 @stillwind-utility snap-mandatory {
   --tw-scroll-snap-strictness: mandatory;
 }
@@ -272,6 +294,8 @@
 @stillwind-utility snap-proximity {
   --tw-scroll-snap-strictness: proximity;
 }
+
+@stillwind-arbitrary-property scroll-snap-align;
 
 @stillwind-utility snap-align-none {
   scroll-snap-align: none;
@@ -289,6 +313,8 @@
   scroll-snap-align: start;
 }
 
+@stillwind-arbitrary-property scroll-snap-stop;
+
 @stillwind-utility snap-always {
   scroll-snap-stop: always;
 }
@@ -299,6 +325,8 @@
 
 /* MARK: `scroll-margin` and `scroll-padding` */
 
+@stillwind-arbitrary-property scroll-margin;
+
 @stillwind-utility scroll-m-* {
   scroll-margin: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -306,6 +334,8 @@
 @stillwind-utility -scroll-m-* {
   scroll-margin: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property scroll-margin-inline;
 
 @stillwind-utility scroll-mx-* {
   scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), [length]);
@@ -315,6 +345,8 @@
   scroll-margin-inline: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property scroll-margin-block;
+
 @stillwind-utility scroll-my-* {
   scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -322,6 +354,8 @@
 @stillwind-utility -scroll-my-* {
   scroll-margin-block: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property scroll-margin-inline-start;
 
 @stillwind-utility scroll-ms-* {
   scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
@@ -331,6 +365,8 @@
   scroll-margin-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property scroll-margin-inline-end;
+
 @stillwind-utility scroll-me-* {
   scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -338,6 +374,8 @@
 @stillwind-utility -scroll-me-* {
   scroll-margin-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property scroll-margin-block-start;
 
 @stillwind-utility scroll-mbs-* {
   scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
@@ -347,6 +385,8 @@
   scroll-margin-block-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property scroll-margin-block-end;
+
 @stillwind-utility scroll-mbe-* {
   scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -354,6 +394,8 @@
 @stillwind-utility -scroll-mbe-* {
   scroll-margin-block-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property scroll-margin-top;
 
 @stillwind-utility scroll-mt-* {
   scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), [length]);
@@ -363,6 +405,8 @@
   scroll-margin-top: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property scroll-margin-right;
+
 @stillwind-utility scroll-mr-* {
   scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -370,6 +414,8 @@
 @stillwind-utility -scroll-mr-* {
   scroll-margin-right: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
+
+@stillwind-arbitrary-property scroll-margin-bottom;
 
 @stillwind-utility scroll-mb-* {
   scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), [length]);
@@ -379,6 +425,8 @@
   scroll-margin-bottom: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property scroll-margin-left;
+
 @stillwind-utility scroll-ml-* {
   scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -387,51 +435,75 @@
   scroll-margin-left: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
 }
 
+@stillwind-arbitrary-property scroll-padding;
+
 @stillwind-utility scroll-p-* {
   scroll-padding: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property scroll-padding-inline;
 
 @stillwind-utility scroll-px-* {
   scroll-padding-inline: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property scroll-padding-block;
+
 @stillwind-utility scroll-py-* {
   scroll-padding-block: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property scroll-padding-inline-start;
 
 @stillwind-utility scroll-ps-* {
   scroll-padding-inline-start: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property scroll-padding-inline-end;
+
 @stillwind-utility scroll-pe-* {
   scroll-padding-inline-end: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property scroll-padding-block-start;
 
 @stillwind-utility scroll-pbs-* {
   scroll-padding-block-start: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property scroll-padding-block-end;
+
 @stillwind-utility scroll-pbe-* {
   scroll-padding-block-end: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property scroll-padding-top;
 
 @stillwind-utility scroll-pt-* {
   scroll-padding-top: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property scroll-padding-right;
+
 @stillwind-utility scroll-pr-* {
   scroll-padding-right: --value(--spacing-*, --spacing(), [length]);
 }
 
+@stillwind-arbitrary-property scroll-padding-bottom;
+
 @stillwind-utility scroll-pb-* {
   scroll-padding-bottom: --value(--spacing-*, --spacing(), [length]);
 }
+
+@stillwind-arbitrary-property scroll-padding-left;
 
 @stillwind-utility scroll-pl-* {
   scroll-padding-left: --value(--spacing-*, --spacing(), [length]);
 }
 
 /* MARK: Scrollbar Width, Color, and Gutter */
+
+@stillwind-arbitrary-property scrollbar-width;
 
 @stillwind-utility scrollbar-auto {
   scrollbar-width: auto;
@@ -444,6 +516,8 @@
 @stillwind-utility scrollbar-thin {
   scrollbar-width: thin;
 }
+
+@stillwind-arbitrary-property scrollbar-color;
 
 @stillwind-utility scrollbar-thumb-* {
   --tw-scrollbar-thumb: --value(--color-*, current, inherit, transparent, [color]);
@@ -471,6 +545,8 @@
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
 }
 
+@stillwind-arbitrary-property scrollbar-gutter;
+
 @stillwind-utility scrollbar-gutter-auto {
   scrollbar-gutter: auto;
 }
@@ -485,6 +561,8 @@
 
 /* MARK: `appearance` */
 
+@stillwind-arbitrary-property appearance;
+
 @stillwind-utility appearance-auto {
   appearance: auto;
 }
@@ -495,6 +573,8 @@
 
 /* MARK: `scroll-behavior` */
 
+@stillwind-arbitrary-property scroll-behavior;
+
 @stillwind-utility scroll-auto {
   scroll-behavior: auto;
 }
@@ -504,6 +584,8 @@
 }
 
 /* MARK: `caret-color` */
+
+@stillwind-arbitrary-property caret-color;
 
 @stillwind-utility caret-* {
   caret-color: --compat-color(
@@ -517,6 +599,8 @@
 }
 
 /* MARK: `accent-color` */
+
+@stillwind-arbitrary-property accent-color;
 
 @stillwind-utility accent-auto {
   accent-color: auto;
@@ -534,6 +618,8 @@
 }
 
 /* MARK: `color-scheme` */
+
+@stillwind-arbitrary-property color-scheme;
 
 @stillwind-utility scheme-dark {
   color-scheme: dark;
@@ -560,6 +646,8 @@
 }
 
 /* MARK: `forced-color-adjust` */
+
+@stillwind-arbitrary-property forced-color-adjust;
 
 @stillwind-utility forced-color-adjust-auto {
   forced-color-adjust: auto;

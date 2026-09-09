@@ -3,6 +3,8 @@
 /* MARK: .container utility */
 
 /* Container max-width rules are generated from the configured breakpoints. */
+@stillwind-arbitrary-property --tw-container-component;
+
 @stillwind-utility container {
   width: 100%;
 
@@ -12,6 +14,8 @@
 }
 
 /* MARK: `container-type` and `container-name` */
+
+@stillwind-arbitrary-property container-type;
 
 @stillwind-utility @container {
   container-type: inline-size;
@@ -27,6 +31,8 @@
 }
 
 /* MARK: `visibility` */
+
+@stillwind-arbitrary-property visibility;
 
 @stillwind-utility collapse {
   visibility: collapse;
@@ -365,6 +371,8 @@
 
 /* MARK: `isolation` */
 
+@stillwind-arbitrary-property isolation;
+
 @stillwind-utility isolate {
   isolation: isolate;
 }
@@ -374,6 +382,8 @@
 }
 
 /* MARK: `z-index` */
+
+@stillwind-arbitrary-property z-index;
 
 @stillwind-utility z-auto {
   z-index: auto;
@@ -388,6 +398,8 @@
 }
 
 /* MARK: `float` and `clear` */
+
+@stillwind-arbitrary-property float;
 
 @stillwind-utility float-end {
   float: inline-end;
@@ -408,6 +420,8 @@
 @stillwind-utility float-start {
   float: inline-start;
 }
+
+@stillwind-arbitrary-property clear;
 
 @stillwind-utility clear-both {
   clear: both;
@@ -434,6 +448,8 @@
 }
 
 /* MARK: `box-sizing` */
+
+@stillwind-arbitrary-property box-sizing;
 
 @stillwind-utility box-border {
   box-sizing: border-box;
@@ -558,6 +574,8 @@
 
 /* MARK: `table-layout` */
 
+@stillwind-arbitrary-property table-layout;
+
 @stillwind-utility table-auto {
   table-layout: auto;
 }
@@ -568,6 +586,8 @@
 
 /* MARK: `caption-side` (table) */
 
+@stillwind-arbitrary-property caption-side;
+
 @stillwind-utility caption-bottom {
   caption-side: bottom;
 }
@@ -577,6 +597,8 @@
 }
 
 /* MARK: `border-collapse` (table) */
+
+@stillwind-arbitrary-property border-collapse;
 
 @stillwind-utility border-collapse {
   border-collapse: collapse;
@@ -594,6 +616,8 @@
   border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
 }
 
+@stillwind-arbitrary-property border-spacing;
+
 @stillwind-utility border-spacing-x-* {
   --tw-border-spacing-x: --value(--spacing-*, --spacing(), [length]);
   border-spacing: var(--tw-border-spacing-x) var(--tw-border-spacing-y);
@@ -605,6 +629,8 @@
 }
 
 /* MARK: `columns` */
+
+@stillwind-arbitrary-property columns;
 
 @stillwind-utility columns-auto {
   columns: auto;
@@ -700,6 +726,8 @@
 
 /* MARK: `overscroll-behavior` */
 
+@stillwind-arbitrary-property overscroll-behavior;
+
 @stillwind-utility overscroll-auto {
   overscroll-behavior: auto;
 }
@@ -712,6 +740,8 @@
   overscroll-behavior: none;
 }
 
+@stillwind-arbitrary-property overscroll-behavior-x;
+
 @stillwind-utility overscroll-x-auto {
   overscroll-behavior-x: auto;
 }
@@ -723,6 +753,8 @@
 @stillwind-utility overscroll-x-none {
   overscroll-behavior-x: none;
 }
+
+@stillwind-arbitrary-property overscroll-behavior-y;
 
 @stillwind-utility overscroll-y-auto {
   overscroll-behavior-y: auto;
@@ -738,6 +770,8 @@
 
 /* MARK: `box-decoration-break` */
 
+@stillwind-arbitrary-property box-decoration-break;
+
 @stillwind-utility box-decoration-clone {
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
@@ -749,6 +783,8 @@
 }
 
 /* MARK: `object-fit` and `object-position` */
+
+@stillwind-arbitrary-property object-fit;
 
 @stillwind-utility object-contain {
   object-fit: contain;
@@ -769,6 +805,8 @@
 @stillwind-utility object-scale-down {
   object-fit: scale-down;
 }
+
+@stillwind-arbitrary-property object-position;
 
 @stillwind-utility object-bottom {
   object-position: bottom;
@@ -812,6 +850,8 @@
 
 /* MARK: `will-change` */
 
+@stillwind-arbitrary-property will-change;
+
 @stillwind-utility will-change-auto {
   will-change: auto;
 }
@@ -833,6 +873,8 @@
 }
 
 /* MARK: `contain` */
+
+@stillwind-arbitrary-property contain;
 
 @stillwind-utility contain-content {
   contain: content;
@@ -881,6 +923,8 @@
 }
 
 /* MARK: `content` */
+
+@stillwind-arbitrary-property content;
 
 @stillwind-utility content-none {
   --tw-content: none;

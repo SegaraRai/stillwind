@@ -1,7 +1,27 @@
-/* Stillwind's built-in registry manifest. Utility definitions are grouped by
- * feature domain; overloads for one utility family stay in the same shard. */
+/* Stillwind's built-in registry manifest. */
+
+/*
+Load the metadata required for Tailwind CSS compatibility, deterministic
+serialization, and relationship-aware linting.
+*/
+
 @import "./builtins/registry-metadata.css";
 @import "./builtins/relationship-metadata.css";
+
+/*
+Load the built-in utility definitions.
+
+Each `@stillwind-utility` describes how a candidate produces CSS, while
+`@stillwind-arbitrary-property` places an arbitrary-property candidate in the
+same source-ordered cascade. Definitions must be positioned so that interacting
+declarations produce the same computed result as Tailwind CSS. The files are
+split by feature domain, so ordering between properties that cannot affect each
+other may differ from Tailwind without changing observable behavior.
+
+Tailwind uses internal sort keys when emitted properties do not imply the
+desired position; Stillwind does not need them because the definition position
+is itself the sort key.
+*/
 
 @import "./builtins/layout-utilities.css";
 @import "./builtins/spacing-sizing-utilities.css";
@@ -16,6 +36,22 @@
 @import "./builtins/interactivity-utilities.css";
 @import "./builtins/svg-utilities.css";
 
+/*
+Load the built-in variants.
+
+Each `@stillwind-variant` defines a compiler-owned selector or conditional
+transformation and participates in source order with the other built-in
+variants.
+*/
+
 @import "./builtins/interaction-variants.css";
 @import "./builtins/selector-variants.css";
+
+/*
+Load custom-property registrations used by the built-in utilities.
+
+Each `@stillwind-property` defines the syntax, inheritance behavior, initial
+value, and activation conditions for a generated standard @property rule.
+*/
+
 @import "./builtins/properties.css";

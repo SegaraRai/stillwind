@@ -2,6 +2,8 @@
 
 /* MARK: `fill` */
 
+@stillwind-arbitrary-property fill;
+
 @stillwind-utility fill-none {
   fill: none;
 }
@@ -19,6 +21,8 @@
 
 /* MARK: `stroke` */
 
+@stillwind-arbitrary-property stroke;
+
 @stillwind-utility stroke-none {
   stroke: none;
 }
@@ -29,6 +33,8 @@
     --alpha(--modifier())
   );
 }
+
+@stillwind-arbitrary-property stroke-width;
 
 @stillwind-utility stroke-* {
   stroke-width: --value(integer, [length]);

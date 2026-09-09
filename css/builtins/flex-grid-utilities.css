@@ -2,6 +2,8 @@
 
 /* MARK: `order` */
 
+@stillwind-arbitrary-property order;
+
 @stillwind-utility order-first {
   order: -9999;
 }
@@ -24,6 +26,8 @@
 
 /* MARK: `grid-column` */
 
+@stillwind-arbitrary-property grid-column;
+
 @stillwind-utility col-auto {
   grid-column: auto;
 }
@@ -44,6 +48,8 @@
   grid-column: span --value(integer) / span --value(integer);
 }
 
+@stillwind-arbitrary-property grid-column-start;
+
 @stillwind-utility col-start-auto {
   grid-column-start: auto;
 }
@@ -59,6 +65,8 @@
 @stillwind-utility -col-start-* {
   grid-column-start: calc(--value(integer) * -1);
 }
+
+@stillwind-arbitrary-property grid-column-end;
 
 @stillwind-utility col-end-auto {
   grid-column-end: auto;
@@ -77,6 +85,8 @@
 }
 
 /* MARK: `grid-row` */
+
+@stillwind-arbitrary-property grid-row;
 
 @stillwind-utility row-auto {
   grid-row: auto;
@@ -98,6 +108,8 @@
   grid-row: span --value([integer]) / span --value([integer]);
 }
 
+@stillwind-arbitrary-property grid-row-start;
+
 @stillwind-utility row-start-auto {
   grid-row-start: auto;
 }
@@ -113,6 +125,8 @@
 @stillwind-utility -row-start-* {
   grid-row-start: calc(--value(integer) * -1);
 }
+
+@stillwind-arbitrary-property grid-row-end;
 
 @stillwind-utility row-end-auto {
   grid-row-end: auto;
@@ -206,6 +220,8 @@
 
 /* MARK: `grid-auto-columns`, `grid-auto-flow`, and `grid-auto-rows` */
 
+@stillwind-arbitrary-property grid-auto-columns;
+
 @stillwind-utility auto-cols-auto {
   grid-auto-columns: auto;
 }
@@ -226,6 +242,8 @@
   grid-auto-columns: --value([grid-track-size]);
 }
 
+@stillwind-arbitrary-property grid-auto-flow;
+
 @stillwind-utility grid-flow-col {
   grid-auto-flow: column;
 }
@@ -245,6 +263,8 @@
 @stillwind-utility grid-flow-row-dense {
   grid-auto-flow: row dense;
 }
+
+@stillwind-arbitrary-property grid-auto-rows;
 
 @stillwind-utility auto-rows-auto {
   grid-auto-rows: auto;
@@ -268,6 +288,8 @@
 
 /* MARK: `grid-template-columns` and `grid-template-rows` */
 
+@stillwind-arbitrary-property grid-template-columns;
+
 @stillwind-utility grid-cols-none {
   grid-template-columns: none;
 }
@@ -283,6 +305,8 @@
 @stillwind-utility grid-cols-* {
   grid-template-columns: --value([grid-track-list]);
 }
+
+@stillwind-arbitrary-property grid-template-rows;
 
 @stillwind-utility grid-rows-none {
   grid-template-rows: none;
@@ -302,6 +326,8 @@
 
 /* MARK: `flex-direction` and `flex-wrap` */
 
+@stillwind-arbitrary-property flex-direction;
+
 @stillwind-utility flex-col {
   flex-direction: column;
 }
@@ -317,6 +343,8 @@
 @stillwind-utility flex-row-reverse {
   flex-direction: row-reverse;
 }
+
+@stillwind-arbitrary-property flex-wrap;
 
 @stillwind-utility flex-nowrap {
   flex-wrap: nowrap;
@@ -586,6 +614,8 @@
 
 /* MARK: `place-self`, `align-self`, and `justify-self` */
 
+@stillwind-arbitrary-property place-self;
+
 @stillwind-utility place-self-auto {
   place-self: auto;
 }
@@ -613,6 +643,8 @@
 @stillwind-utility place-self-stretch {
   place-self: stretch;
 }
+
+@stillwind-arbitrary-property align-self;
 
 @stillwind-utility self-auto {
   align-self: auto;
@@ -649,6 +681,8 @@
 @stillwind-utility self-stretch {
   align-self: stretch;
 }
+
+@stillwind-arbitrary-property justify-self;
 
 @stillwind-utility justify-self-auto {
   justify-self: auto;

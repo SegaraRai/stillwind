@@ -23,6 +23,8 @@
   }
 }
 
+@stillwind-arbitrary-property --tw-space-x-reverse;
+
 @stillwind-utility space-x-reverse {
   :where(& > :not(:last-child)) {
     --tw-space-x-reverse: 1;
@@ -80,6 +82,8 @@
     margin-block: 0;
   }
 }
+
+@stillwind-arbitrary-property --tw-space-y-reverse;
 
 @stillwind-utility space-y-reverse {
   :where(& > :not(:last-child)) {
@@ -469,13 +473,19 @@
 
 /* MARK: `block-size` and `inline-size` */
 
+@stillwind-arbitrary-property block-size;
+
 @stillwind-utility block-* {
   block-size: --value(--spacing-*, --spacing(), --container-*, --fraction(), --height(), [length]);
 }
 
+@stillwind-arbitrary-property inline-size;
+
 @stillwind-utility inline-* {
   inline-size: --value(--spacing-*, --spacing(), --container-*, --fraction(), --width(), [length]);
 }
+
+@stillwind-arbitrary-property max-block-size;
 
 @stillwind-utility max-block-none {
   max-block-size: none;
@@ -492,6 +502,8 @@
   );
 }
 
+@stillwind-arbitrary-property max-inline-size;
+
 @stillwind-utility max-inline-none {
   max-inline-size: none;
 }
@@ -507,6 +519,8 @@
   );
 }
 
+@stillwind-arbitrary-property min-block-size;
+
 @stillwind-utility min-block-* {
   min-block-size: --value(
     --spacing-*,
@@ -517,6 +531,8 @@
     [length]
   );
 }
+
+@stillwind-arbitrary-property min-inline-size;
 
 @stillwind-utility min-inline-* {
   min-inline-size: --value(

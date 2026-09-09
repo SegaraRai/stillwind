@@ -40,6 +40,8 @@
 
 /* MARK: Breaks */
 
+@stillwind-arbitrary-property break-before;
+
 @stillwind-utility break-before-all {
   break-before: all;
 }
@@ -72,6 +74,8 @@
   break-before: right;
 }
 
+@stillwind-arbitrary-property break-inside;
+
 @stillwind-utility break-inside-auto {
   break-inside: auto;
 }
@@ -87,6 +91,8 @@
 @stillwind-utility break-inside-avoid-page {
   break-inside: avoid-page;
 }
+
+@stillwind-arbitrary-property break-after;
 
 @stillwind-utility break-after-all {
   break-after: all;
@@ -122,6 +128,8 @@
 
 /* MARK: `text-align` */
 
+@stillwind-arbitrary-property text-align;
+
 @stillwind-utility text-center {
   text-align: center;
 }
@@ -148,6 +156,8 @@
 
 /* MARK: `text-indent` */
 
+@stillwind-arbitrary-property text-indent;
+
 @stillwind-utility indent-* {
   text-indent: --value(--spacing-*, --spacing(), --fraction(), [length]);
 }
@@ -159,6 +169,8 @@
 /* MARK: `vertical-align` */
 
 /* Vertical-alignment utilities share the same typed CSS value family. */
+@stillwind-arbitrary-property vertical-align;
+
 @stillwind-utility align-baseline {
   vertical-align: baseline;
 }
@@ -197,13 +209,19 @@
 
 /* MARK: Fonts */
 
+@stillwind-arbitrary-property font-family;
+
 @stillwind-utility font-* {
   font-family: --value(--font-*);
 }
 
+@stillwind-arbitrary-property font-feature-settings;
+
 @stillwind-utility font-features-* {
   font-feature-settings: --value([font-feature-settings]);
 }
+
+@stillwind-arbitrary-property font-size;
 
 @stillwind-utility text-* {
   font-size: --value(--text-*, [length]);
@@ -212,6 +230,8 @@
 @stillwind-utility text-* {
   font-size: --value(--text-*);
 }
+
+@stillwind-arbitrary-property line-height;
 
 @stillwind-utility text-* {
   font-size: --value(--text-*);
@@ -247,6 +267,8 @@
 
 /* MARK: `font-weight` */
 
+@stillwind-arbitrary-property font-weight;
+
 @stillwind-utility font-bold {
   --tw-font-weight: var(--font-weight-bold);
   font-weight: var(--font-weight-bold);
@@ -263,6 +285,8 @@
 }
 
 /* MARK: `letter-spacing` */
+
+@stillwind-arbitrary-property letter-spacing;
 
 @stillwind-utility tracking-* {
   --tw-tracking: --value(--tracking-*);
@@ -325,6 +349,8 @@
 
 /* MARK: `text-overflow` */
 
+@stillwind-arbitrary-property text-overflow;
+
 @stillwind-utility text-clip {
   text-overflow: clip;
 }
@@ -334,6 +360,8 @@
 }
 
 /* MARK: `hyphens` */
+
+@stillwind-arbitrary-property hyphens;
 
 @stillwind-utility hyphens-auto {
   -webkit-hyphens: auto;
@@ -380,6 +408,8 @@
 
 /* MARK: `tab-size` */
 
+@stillwind-arbitrary-property tab-size;
+
 @stillwind-utility tab-* {
   tab-size: --value(integer, [integer]);
 }
@@ -405,6 +435,8 @@
 
 /* MARK: `color` of placeholders */
 
+@stillwind-arbitrary-property placeholder-color;
+
 @stillwind-utility placeholder-* {
   &::placeholder {
     color: --value(--color-*, current, inherit, transparent, [color]);
@@ -421,6 +453,8 @@
 }
 
 /* MARK: `text-transform` */
+
+@stillwind-arbitrary-property text-transform;
 
 @stillwind-utility capitalize {
   text-transform: capitalize;
@@ -440,6 +474,8 @@
 
 /* MARK: `font-style` */
 
+@stillwind-arbitrary-property font-style;
+
 @stillwind-utility italic {
   font-style: italic;
 }
@@ -449,6 +485,8 @@
 }
 
 /* MARK: `font-stretch` */
+
+@stillwind-arbitrary-property font-stretch;
 
 @stillwind-utility font-stretch-condensed {
   font-stretch: condensed;
@@ -548,6 +586,8 @@
     var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
 }
 
+@stillwind-arbitrary-property font-variant-numeric;
+
 @stillwind-utility normal-nums {
   font-variant-numeric: normal;
 }
@@ -644,6 +684,8 @@
 }
 
 /* MARK: Font smoothing */
+
+@stillwind-arbitrary-property -webkit-font-smoothing;
 
 @stillwind-utility antialiased {
   -webkit-font-smoothing: antialiased;
