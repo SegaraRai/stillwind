@@ -12,7 +12,8 @@ use crate::fingerprint::Fingerprint;
 use crate::{
     CompilerOptions, CompilerOptionsError, CssFileRequest, CssSourceGraph, CssSourceName,
     DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader, PropertyRegistry,
-    ThemeRegistry, UtilityRegistry, VariantRegistry, render_react_types, render_stylesheet,
+    StylesheetError, ThemeRegistry, UtilityRegistry, VariantRegistry, render_react_types,
+    render_stylesheet,
 };
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -274,7 +275,10 @@ impl DesignSystemSnapshot {
     pub fn generate_react_types(&self) -> String {
         render_react_types(self.theme())
     }
-    pub fn render_stylesheet(&self, module_css: &str) -> String {
+
+    /// # Errors
+    /// Returns an error when the assembled CSS cannot be analyzed.
+    pub fn render_stylesheet(&self, module_css: &str) -> Result<String, StylesheetError> {
         render_stylesheet(self.theme(), module_css, self.config())
     }
 }

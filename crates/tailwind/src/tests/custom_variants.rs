@@ -8,7 +8,7 @@ fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
         FileId(1),
         "theme.css",
         "@variant pressed { &:active { @slot; } }\n@variant narrow { @media (width < 40rem) { @slot; } }\n@variant decorated { &::before { content: var(--content); @slot; } }",
-    );
+    ).unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(
@@ -43,7 +43,8 @@ fn resolves_wildcard_selector_variants_from_application_css() {
         FileId(1),
         "theme.css",
         "@variant state-* { &[data-state=--value()] { @slot; } }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(
@@ -72,7 +73,7 @@ fn resolves_compat_color_value_function() {
         FileId(1),
         "theme.css",
         "@theme { --color-brand: red; --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility tone-* { color: --compat-color(--value(--color-*), --alpha(--modifier())); }",
-    );
+    ).unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
     assert_eq!(
         resolve_utility("tone-brand/50", &theme)
@@ -93,7 +94,8 @@ fn resolves_compat_color_value_function() {
         FileId(2),
         "plain.css",
         "@utility plain-tone { color: --compat-color(red, 50%); }",
-    );
+    )
+    .unwrap();
     let plain_theme = parse_tailwind_theme(&plain_source).unwrap();
     assert_eq!(
         resolve_utility("plain-tone", &plain_theme)
@@ -106,7 +108,7 @@ fn resolves_compat_color_value_function() {
         FileId(3),
         "nested.css",
         "@utility nested-tone-* { @media (width >= 1px) { color: --compat-color(red, --alpha(--modifier())); } }",
-    );
+    ).unwrap();
     let nested_theme = parse_tailwind_theme(&nested_source).unwrap();
     let nested = resolve_utility("nested-tone-brand/50", &nested_theme).unwrap();
     assert!(nested.nested.iter().any(|rule| {
@@ -121,7 +123,7 @@ fn expands_theme_wildcards_in_nested_utility_rules() {
         FileId(1),
         "theme.css",
         "@theme { --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility container { width: 100%; @media (width >= --value(--breakpoint-*)) { max-width: --value(--breakpoint-*); } }",
-    );
+    ).unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
     let utility = resolve_utility("container", &theme).unwrap();
     let conditions = utility
@@ -135,7 +137,8 @@ fn expands_theme_wildcards_in_nested_utility_rules() {
 
 #[test]
 fn resolves_container_at_variants_from_css_registry() {
-    let source = SourceFile::new(FileId(1), "theme.css", "@theme { --container-md: 40rem; }");
+    let source =
+        SourceFile::new(FileId(1), "theme.css", "@theme { --container-md: 40rem; }").unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
     let candidate = parse_candidate("@min-md:flex").unwrap();
     assert_eq!(
@@ -161,7 +164,8 @@ fn resolves_formal_variant_modifier_placeholder() {
         FileId(1),
         "theme.css",
         "@variant rel-* { :where(.peer/{modifier}) ~ & { @slot; } }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
     assert_eq!(
         resolve_variant(
@@ -180,7 +184,7 @@ fn resolves_wildcard_conditional_variants_from_css() {
         FileId(1),
         "theme.css",
         "@theme { --breakpoint-narrow: 40rem; }\n@variant narrow-* { @media (width < --value(--breakpoint-*)) { @slot; } }",
-    );
+    ).unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(

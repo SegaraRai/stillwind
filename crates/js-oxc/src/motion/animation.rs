@@ -7,6 +7,60 @@ use stillwind_source::{CompileError, Spanned};
 
 use crate::state::MacroExtractor;
 
+pub(crate) enum ParsedAnimationUse {
+    Static {
+        animation: AssetReference,
+        options: Spanned<String>,
+    },
+    Dynamic {
+        value: stillwind_source::Span,
+        animations: Vec<AssetReference>,
+        options: Spanned<String>,
+    },
+}
+
+impl ParsedAnimationUse {
+    pub(crate) fn into_style_input(self, selector: Option<Spanned<String>>) -> StyleInput {
+        match (self, selector) {
+            (Self::Static { animation, options }, None) => {
+                StyleInput::AnimationUse { animation, options }
+            }
+            (Self::Static { animation, options }, Some(selector)) => {
+                StyleInput::SelectorAnimationUse {
+                    selector,
+                    animation,
+                    options,
+                }
+            }
+            (
+                Self::Dynamic {
+                    value,
+                    animations,
+                    options,
+                },
+                None,
+            ) => StyleInput::DynamicAnimationUse {
+                value,
+                animations,
+                options,
+            },
+            (
+                Self::Dynamic {
+                    value,
+                    animations,
+                    options,
+                },
+                Some(selector),
+            ) => StyleInput::DynamicSelectorAnimationUse {
+                selector,
+                value,
+                animations,
+                options,
+            },
+        }
+    }
+}
+
 impl<'a> MacroExtractor<'a> {
     pub(crate) fn animation_references(
         &self,
@@ -34,7 +88,10 @@ impl<'a> MacroExtractor<'a> {
         }])
     }
 
-    pub(crate) fn animation_use(&mut self, expression: &Expression<'a>) -> Option<StyleInput> {
+    pub(crate) fn animation_use(
+        &mut self,
+        expression: &Expression<'a>,
+    ) -> Option<ParsedAnimationUse> {
         let Expression::CallExpression(call) = expression else {
             return None;
         };
@@ -57,12 +114,12 @@ impl<'a> MacroExtractor<'a> {
         };
         let options = self.string_literal(options);
         match animations.as_slice() {
-            [animation] => Some(StyleInput::AnimationUse {
+            [animation] => Some(ParsedAnimationUse::Static {
                 animation: animation.clone(),
                 options,
             }),
             [] => None,
-            _ => Some(StyleInput::DynamicAnimationUse {
+            _ => Some(ParsedAnimationUse::Dynamic {
                 value: self.source_span(call.span),
                 animations,
                 options,

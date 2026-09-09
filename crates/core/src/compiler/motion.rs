@@ -1,12 +1,13 @@
 use stillwind_css::ThemeIndex;
-use stillwind_grammar::lex_utilities;
 use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition};
+use stillwind_semantic::AssetKind;
 use stillwind_source::{CompileError, SourceFile, Spanned};
 use stillwind_tailwind::resolve_animation_option;
 
 use crate::compiler::utilities::declaration_order::combine_declarations_for_theme;
 use crate::compiler::utilities::resolve::{CompiledUtility, resolve_utility};
 
+use super::lexer::lex_utilities;
 use super::symbols::{asset_symbol_name, symbol_name};
 
 pub(super) fn emit_animation_definition(
@@ -17,11 +18,11 @@ pub(super) fn emit_animation_definition(
     diagnostics: &mut Vec<CompileError>,
 ) {
     output.push_str("@keyframes ");
-    output.push_str(&symbol_name(source, "animation", &animation.name));
+    output.push_str(&symbol_name(source, AssetKind::Animation, &animation.name));
     output.push('{');
     for frame in &animation.frames {
         let mut utilities = Vec::new();
-        for utility in lex_utilities(&frame.utilities) {
+        for utility in lex_utilities(&frame.utilities, diagnostics) {
             match resolve_utility(&utility.value.raw, theme) {
                 Some(utility) if utility.variants.is_empty() => utilities.push(utility),
                 Some(_) => diagnostics.push(CompileError::new(
@@ -55,7 +56,11 @@ pub(super) fn resolve_animation_use(
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        asset_symbol_name(&animation.module_path, "animation", &animation.name)
+        asset_symbol_name(
+            &animation.module_path,
+            AssetKind::Animation,
+            &animation.name
+        )
     );
     declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
     CompiledUtility {
@@ -75,7 +80,7 @@ pub(super) fn resolve_motion_options(
     diagnostics: &mut Vec<CompileError>,
 ) -> String {
     let mut declaration = String::new();
-    for option in lex_utilities(options) {
+    for option in lex_utilities(options, diagnostics) {
         if let Some(resolved) = resolve_animation_option(&option.value.raw, theme) {
             declaration.push_str(&resolved);
         } else {
@@ -96,7 +101,7 @@ pub(super) fn emit_view_transition_definition(
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
-    let name = symbol_name(source, "view-transition", &transition.name);
+    let name = symbol_name(source, AssetKind::ViewTransition, &transition.name);
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
         output.push('.');
@@ -129,7 +134,7 @@ pub(super) fn resolve_static_utility_list(
     diagnostics: &mut Vec<CompileError>,
 ) -> String {
     let mut utilities = Vec::new();
-    for utility in lex_utilities(input) {
+    for utility in lex_utilities(input, diagnostics) {
         match resolve_utility(&utility.value.raw, theme) {
             Some(utility) if utility.variants.is_empty() => utilities.push(utility),
             Some(_) => diagnostics.push(CompileError::new(
@@ -159,7 +164,8 @@ mod tests {
             FileId(1),
             "stillwind.css",
             "@theme { --duration-normal: 180ms; }",
-        );
+        )
+        .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
         let options = Spanned::new(
             "duration-normal both".to_owned(),
@@ -190,8 +196,9 @@ mod tests {
                 FileId(1),
                 "motion.tsx",
                 format!("import {{ style }} from 'stillwind/react'; const motion = {definition};"),
-            );
-            let theme = SourceFile::new(FileId(2), "theme", "");
+            )
+            .unwrap();
+            let theme = SourceFile::new(FileId(2), "theme", "").unwrap();
             let result = Compiler::compile_react(&source, &theme);
             let errors = result
                 .diagnostics

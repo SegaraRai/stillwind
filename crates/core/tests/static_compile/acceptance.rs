@@ -9,12 +9,13 @@ fn validates_ref_selector_ancestry_when_jsx_placement_is_known() {
 const trigger = style.ref();
 export const Good = () => <div {...style(trigger.anchor)}><span {...style({ [trigger`&:hover`]: "text-accent" })} /></div>;
 export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -33,12 +34,12 @@ fn resolves_a_broader_css_first_tailwind_compatibility_slice() {
         "src/ModernCard.tsx",
         r#"import { style } from "stillwind/react";
 const props = style("grid place-items-center size-10 flex-col grow border outline-2 outline-offset-2 outline-accent z-popover position-area-block-end grid-cols-3 text-3xl");"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-10: 2.5rem; --color-accent: red; --z-index-popover: 50; --text-3xl: 1.875rem; }",
-    );
+    ).unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -65,8 +66,8 @@ fn emits_tailwind_background_gradient_and_mask_declarations() {
         "src/Hero.tsx",
         r#"import { style } from "stillwind/react";
 const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue-500 mask-linear-from-0 mask-linear-to-100");"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    ).unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -100,10 +101,10 @@ fn names_symbols_from_normalized_module_paths_not_process_local_file_ids() {
     let module = r#"import { style } from "stillwind/react";
 const trigger = style.ref();
 const props = style(trigger.anchor);"#;
-    let windows = SourceFile::new(FileId(1), "src\\Menu.tsx", module);
-    let unix = SourceFile::new(FileId(1), "src/Menu.tsx", module);
-    let other = SourceFile::new(FileId(1), "src/Other.tsx", module);
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    let windows = SourceFile::new(FileId(1), "src\\Menu.tsx", module).unwrap();
+    let unix = SourceFile::new(FileId(1), "src/Menu.tsx", module).unwrap();
+    let other = SourceFile::new(FileId(1), "src/Other.tsx", module).unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let windows_result = Compiler::compile_react(&windows, &theme);
     let unix_result = Compiler::compile_react(&unix, &theme);
@@ -124,8 +125,9 @@ const first = style.ref("first");
 const second = style.ref("second");
 const selected = enabled ? first : second;
 export const props = style(selected);"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.diagnostics[0].code, "SHTS001");
@@ -142,8 +144,9 @@ const second = style.ref("second");
 const selected = enabled ? first : second;
 export const anchor = style(selected.anchor);
 export const container = style(selected.container("inline-size"));"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.diagnostics[0].code, "SHTS001");

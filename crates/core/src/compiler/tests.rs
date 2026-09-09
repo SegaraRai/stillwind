@@ -14,7 +14,8 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
                 @import "tailwindcss/preflight" layer(base);
                 @theme { --font-sans--font-feature-settings: "cv02"; }
             "#,
-    );
+    )
+    .unwrap();
     let css = Compiler::render_react_stylesheet(&source, "", &CompilerOptions::default()).unwrap();
 
     assert!(
@@ -29,7 +30,8 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
                 @import "tailwindcss/theme" layer(theme);
                 @import "tailwindcss/preflight" layer(base);
             "#,
-    );
+    )
+    .unwrap();
     let css = Compiler::render_react_stylesheet(&without_feature, "", &CompilerOptions::default())
         .unwrap();
     assert!(!css.contains("--default-font-feature-settings:"));
@@ -37,12 +39,13 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
 
 #[test]
 fn exposes_the_first_frontends_through_one_compiler_api() {
-    let js = SourceFile::new(FileId(1), "App.tsx", "export const App = () => <main />;");
+    let js = SourceFile::new(FileId(1), "App.tsx", "export const App = () => <main />;").unwrap();
     let css = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     assert!(Compiler::check_javascript(&js).is_empty());
     let theme = Compiler::read_theme(&css).unwrap();
@@ -68,7 +71,8 @@ fn emits_only_used_compiler_owned_property_registrations() {
                 }
                 .example { --example-used: 1; color: var(--example-used); }
             "#,
-    );
+    )
+    .unwrap();
 
     let css = Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
     assert!(css.contains("@property --example-used"));
@@ -89,7 +93,8 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
                 }
                 .example { color: var(--tw-shadow); }
             "#,
-    );
+    )
+    .unwrap();
 
     let css = Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
     assert_eq!(css.matches("@property --tw-shadow").count(), 1);
@@ -99,7 +104,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
 
 #[test]
 fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
     let options = CompilerOptions {
         tailwind_prefix: "--internal-".to_owned(),
         ..CompilerOptions::default()
@@ -124,12 +129,14 @@ fn makes_margin_utility_order_independent() {
         FileId(1),
         "App.tsx",
         r#"import { style } from "stillwind/react"; export const props = style("ml-2 mx-3 m-4");"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
-    );
+    )
+    .unwrap();
     let result = Compiler::compile_react(&source, &theme);
     assert!(result.diagnostics.is_empty(), "{result:?}");
     let margin = result.css.find("margin:").expect("margin shorthand");
@@ -144,12 +151,14 @@ fn orders_whole_builtin_utilities_instead_of_individual_properties() {
         FileId(1),
         "App.tsx",
         r#"import { style } from "stillwind/react"; export const props = style("h-2 w-3 size-4");"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
-    );
+    )
+    .unwrap();
     let result = Compiler::compile_react(&source, &theme);
     assert!(result.diagnostics.is_empty(), "{result:?}");
     let size_width = result

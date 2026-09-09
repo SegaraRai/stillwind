@@ -1,3 +1,4 @@
+use crate::compiler::variants::{VariantStep, variant_paths};
 use stillwind_css::{ThemeIndex, fold_calc_expressions, normalize_serialized_declaration};
 use stillwind_tailwind::{
     NestedUtilityAtRule, NestedUtilityRule, VariantApplication, resolve_variant,
@@ -50,6 +51,19 @@ pub(in crate::compiler) fn render_utility_rule_path(
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantApplication],
 ) -> String {
+    variant_paths(applications)
+        .iter()
+        .map(|path| render_utility_steps(class_name, utility, declaration, nested_rule, path))
+        .collect()
+}
+
+fn render_utility_steps(
+    class_name: &str,
+    utility: &CompiledUtility,
+    declaration: &str,
+    nested_rule: Option<&NestedUtilityRule>,
+    applications: &[VariantStep<'_>],
+) -> String {
     let mut declaration = declaration.to_owned();
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
@@ -60,48 +74,47 @@ pub(in crate::compiler) fn render_utility_rule_path(
     let mut containers = Vec::new();
     let mut supports = Vec::new();
     let mut starting_style = false;
-    for application in applications {
+    for &application in applications {
         match application {
-            VariantApplication::Compound(_) => unreachable!(),
-            VariantApplication::SelectorSuffix(suffix) => {
+            VariantStep::SelectorSuffix(suffix) => {
                 selector.push_str(suffix);
             }
-            VariantApplication::SelectorTemplate(template) => {
+            VariantStep::SelectorTemplate(template) => {
                 selector = template.replace('&', &selector);
             }
-            VariantApplication::SelectorRule {
+            VariantStep::SelectorRule {
                 selector: template,
                 declarations,
             } => {
                 selector = template.replace('&', &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
             }
-            VariantApplication::SelectorMedia {
+            VariantStep::SelectorMedia {
                 selector: template,
                 condition,
             } => {
                 selector = template.replace('&', &selector);
-                media.push(condition.clone());
+                media.push(condition.to_owned());
             }
-            VariantApplication::SelectorMediaRule {
+            VariantStep::SelectorMediaRule {
                 selector: template,
                 declarations,
                 condition,
             } => {
                 selector = template.replace('&', &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
-                media.push(condition.clone());
+                media.push(condition.to_owned());
             }
-            VariantApplication::Media(condition) => {
-                media.push(condition.clone());
+            VariantStep::Media(condition) => {
+                media.push(condition.to_owned());
             }
-            VariantApplication::Container(condition) => {
-                containers.push(condition.clone());
+            VariantStep::Container(condition) => {
+                containers.push(condition.to_owned());
             }
-            VariantApplication::Supports(condition) => {
-                supports.push(condition.clone());
+            VariantStep::Supports(condition) => {
+                supports.push(condition.to_owned());
             }
-            VariantApplication::StartingStyle => {
+            VariantStep::StartingStyle => {
                 starting_style = true;
             }
         }

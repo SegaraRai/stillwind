@@ -1,5 +1,17 @@
 //! Public orchestration API for the first compiler slice.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
+
 mod analysis;
 mod candidate;
 mod compiler;
@@ -16,7 +28,7 @@ pub use analysis::{
 };
 pub use compiler::{
     CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
-    GeneratedClass, GeneratedSymbol,
+    GeneratedClass, GeneratedSymbol, StylesheetError,
 };
 pub use design_system::{
     CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,

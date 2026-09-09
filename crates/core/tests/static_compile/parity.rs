@@ -21,8 +21,9 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
         format!(
             "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidates}\");"
         ),
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -69,10 +70,11 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidate}\");"
             ),
-        );
+        )
+        .unwrap();
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(FileId(2), "stillwind.css", input_css),
+            &SourceFile::new(FileId(2), "stillwind.css", input_css).unwrap(),
         );
         assert!(
             result.diagnostics.is_empty(),
@@ -146,10 +148,11 @@ fn matches_tailwind_fixture_rules_after_minification() {
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidate}\");"
             ),
-        );
+        )
+        .unwrap();
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(FileId(2), "stillwind.css", input_css),
+            &SourceFile::new(FileId(2), "stillwind.css", input_css).unwrap(),
         );
         assert!(
             result.diagnostics.is_empty(),
@@ -189,10 +192,11 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
             ),
-        );
+        )
+        .unwrap();
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(FileId(2), "stillwind.css", input_css),
+            &SourceFile::new(FileId(2), "stillwind.css", input_css).unwrap(),
         );
         assert!(
             result.diagnostics.is_empty(),

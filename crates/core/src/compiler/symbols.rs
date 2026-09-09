@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
+use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use super::handles::{handle_marker_class, scope_marker_class};
@@ -74,36 +75,48 @@ pub(super) fn ref_symbol_name(definition: &HandleDefinition) -> String {
     )
 }
 
-pub(super) fn symbol_name(source: &SourceFile, kind: &str, definition: &Spanned<String>) -> String {
+fn kind_name(kind: AssetKind) -> &'static str {
+    match kind {
+        AssetKind::Ref => "ref",
+        AssetKind::Scope => "scope",
+        AssetKind::Animation => "animation",
+        AssetKind::ViewTransition => "view-transition",
+    }
+}
+
+pub(super) fn symbol_name(
+    source: &SourceFile,
+    kind: AssetKind,
+    definition: &Spanned<String>,
+) -> String {
     asset_symbol_name(source.path(), kind, definition)
 }
 
 pub(super) fn asset_symbol_name(
     module_path: &str,
-    kind: &str,
+    kind: AssetKind,
     definition: &Spanned<String>,
 ) -> String {
     let prefix = match kind {
-        "ref" => "--sw-r-",
-        "scope" => "--sw-s-",
-        "animation" => "--sw-a-",
-        "view-transition" => "--sw-v-",
-        _ => unreachable!("only named Stillwind asset kinds are allocated"),
+        AssetKind::Ref => "--sw-r-",
+        AssetKind::Scope => "--sw-s-",
+        AssetKind::Animation => "--sw-a-",
+        AssetKind::ViewTransition => "--sw-v-",
     };
-    let identity = asset_identity(module_path, kind, definition);
+    let identity = asset_identity(module_path, kind_name(kind), definition);
     let hash = blake3::hash(identity.as_bytes());
     format!("{prefix}{}", &hash.to_hex()[..8])
 }
 
 pub(super) fn generated_symbol(
     source: &SourceFile,
-    kind: &str,
+    kind: AssetKind,
     definition: &Spanned<String>,
 ) -> GeneratedSymbol {
     GeneratedSymbol {
         name: symbol_name(source, kind, definition),
-        kind: kind.to_owned(),
-        identity: symbol_identity(source, kind, definition),
+        kind: kind_name(kind).to_owned(),
+        identity: symbol_identity(source, kind_name(kind), definition),
         source_path: normalized_module_path(source.path()),
         start: definition.span.start.0,
         end: definition.span.end.0,
@@ -205,19 +218,22 @@ mod tests {
 
     #[test]
     fn asset_names_distinguish_kinds_and_spans_and_keep_metadata() {
-        let source = SourceFile::new(FileId(1), r"src\x.tsx", "ref");
+        let source = SourceFile::new(FileId(1), r"src\x.tsx", "ref").unwrap();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
-            ("ref", "--sw-r-"),
-            ("scope", "--sw-s-"),
-            ("animation", "--sw-a-"),
-            ("view-transition", "--sw-v-"),
+            (AssetKind::Ref, "--sw-r-"),
+            (AssetKind::Scope, "--sw-s-"),
+            (AssetKind::Animation, "--sw-a-"),
+            (AssetKind::ViewTransition, "--sw-v-"),
         ] {
             let symbol = generated_symbol(&source, kind, &name);
             assert!(symbol.name.starts_with(prefix));
             assert_eq!(symbol.source_path, "src/x.tsx");
             assert_eq!((symbol.start, symbol.end), (0, 3));
-            assert_eq!(symbol.identity, asset_identity(source.path(), kind, &name));
+            assert_eq!(
+                symbol.identity,
+                asset_identity(source.path(), kind_name(kind), &name)
+            );
             assert_ne!(
                 symbol.name,
                 asset_symbol_name(

@@ -110,7 +110,8 @@ mod tests {
             FileId(1),
             "Button.tsx",
             "const Button = ({ loading }: { loading: boolean }) => <button>{loading}</button>;",
-        );
+        )
+        .unwrap();
 
         assert!(parse(&source).diagnostics.is_empty());
     }

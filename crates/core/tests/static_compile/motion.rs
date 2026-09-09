@@ -9,12 +9,13 @@ fn compiles_local_utility_animations_and_selector_uses() {
 const enter = style.animation({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
 const exit = style.animation({ from: "opacity-100", to: "opacity-0 scale-98" });
 const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&[data-state=closed]": exit("duration-120 ease-standard both") });"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --radius-md: .375rem; --spacing-2: .5rem; --ease-standard: ease-out; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -52,12 +53,12 @@ const heading = style("text-accent", title);
 const item = style("rounded-md", card.for(product.id));
 const image = style(title);
 const detail = style(title);"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --ease-standard: ease-out; }",
-    );
+    ).unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -102,12 +103,14 @@ fn configures_stillwind_and_tailwind_compatibility_prefixes_independently() {
         r#"import { style } from "stillwind/react";
 const card = style.viewTransition({ old: "opacity-0" });
 export const item = style("translate-x-1", card);"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-1: .25rem; }",
-    );
+    )
+    .unwrap();
     let options = stillwind_core::CompilerOptions {
         prefix: "--app-".to_owned(),
         tailwind_prefix: "--compat-".to_owned(),
@@ -136,8 +139,9 @@ fn rejects_multiple_view_transitions_on_one_element() {
 const card = style.viewTransition({ old: "opacity-0" });
 const image = style.viewTransition({ new: "opacity-100" });
 export const item = style(card, image);"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

@@ -117,11 +117,14 @@ fn respects_tailwind_theme_namespace_resets_when_resolving_utilities() {
         "background-color:var(--color-red-500);"
     );
 
-    let reset_theme = parse_tailwind_theme(&SourceFile::new(
-        FileId(1),
-        "theme.css",
-        "@theme { --color-*: initial; --color-brand: rebeccapurple; }",
-    ))
+    let reset_theme = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(1),
+            "theme.css",
+            "@theme { --color-*: initial; --color-brand: rebeccapurple; }",
+        )
+        .unwrap(),
+    )
     .unwrap();
     assert!(resolve_utility("bg-red-500", &reset_theme).is_none());
     assert_eq!(
@@ -259,7 +262,8 @@ fn prunes_only_incompatible_declarations_from_a_typed_utility_body() {
   color: --value([color]);
   width: --value([length]);
 }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(
@@ -305,7 +309,8 @@ fn resolves_typed_modifier_domains_without_accepting_other_types() {
   font-size: --value(--text-*);
   line-height: --modifier(--leading-*, --spacing(), [length]);
 }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(

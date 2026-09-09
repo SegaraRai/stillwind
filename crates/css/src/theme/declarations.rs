@@ -3,7 +3,7 @@ use stillwind_source::{FileId, Span, Spanned};
 use crate::blocks::matching_brace;
 
 use super::namespace::ThemeNamespace;
-use super::parser::offset;
+use super::parser::{ThemeError, offset};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeTokenMode {
@@ -49,7 +49,11 @@ pub(crate) fn extract_theme_declarations(
     body: &str,
     body_start: usize,
     mode: ThemeTokenMode,
-) -> Vec<ThemeToken> {
+) -> Result<Vec<ThemeToken>, ThemeError> {
+    let end = body_start
+        .checked_add(body.len())
+        .ok_or(ThemeError::InvalidOffset(body_start))?;
+    offset(end)?;
     let mut tokens = Vec::new();
     let mut cursor = 0;
     while cursor < body.len() {
@@ -104,17 +108,21 @@ pub(crate) fn extract_theme_declarations(
         tokens.push(ThemeToken {
             name: Spanned::new(
                 name.to_owned(),
-                Span::new(file, offset(name_start), offset(name_start + name.len())),
+                Span::new(file, offset(name_start)?, offset(name_start + name.len())?),
             ),
             value: Spanned::new(
                 value.to_owned(),
-                Span::new(file, offset(value_start), offset(value_start + value.len())),
+                Span::new(
+                    file,
+                    offset(value_start)?,
+                    offset(value_start + value.len())?,
+                ),
             ),
             kind: classify_theme_token(name),
             mode,
         });
     }
-    tokens
+    Ok(tokens)
 }
 
 pub(crate) fn classify_theme_token(name: &str) -> ThemeTokenKind {
@@ -161,6 +169,23 @@ pub(crate) fn classify_theme_token(name: &str) -> ThemeTokenKind {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn rejects_overflowing_base_offsets_before_token_arithmetic() {
+        assert!(matches!(
+            extract_theme_declarations(FileId(1), "--x:red;", usize::MAX, ThemeTokenMode::Default),
+            Err(ThemeError::InvalidOffset(_))
+        ));
+        assert!(matches!(
+            extract_theme_declarations(
+                FileId(1),
+                "--x:red;",
+                u32::MAX as usize,
+                ThemeTokenMode::Default
+            ),
+            Err(ThemeError::InvalidOffset(_))
+        ));
+    }
+
     use super::*;
 
     #[test]
@@ -170,7 +195,8 @@ mod tests {
             "--color-a: red; --spacing: .25rem;",
             10,
             ThemeTokenMode::Inline,
-        );
+        )
+        .unwrap();
         assert_eq!(tokens.len(), 2);
         assert_eq!(tokens[0].name.value, "--color-a");
         assert_eq!(tokens[0].name.span.start.0, 10);

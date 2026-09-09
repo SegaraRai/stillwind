@@ -9,7 +9,7 @@ use stillwind_source::{CompileError, SourceFile, collect_lint_directives};
 use crate::compiler::react::declarations::render_react_types;
 use crate::{
     DesignSystemError, DesignSystemSnapshot, Fingerprint, ModuleAnalysis, ModuleCompiler,
-    OxcSourceAnalyzer, SourceAnalyzer,
+    OxcSourceAnalyzer, SourceAnalyzer, StylesheetError,
 };
 
 use super::Compiler;
@@ -17,8 +17,12 @@ use super::options::CompilerOptions;
 use super::output::CompileResult;
 
 #[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct CompilerThemeError(#[from] pub DesignSystemError);
+pub enum CompilerThemeError {
+    #[error("{0}")]
+    DesignSystem(#[from] DesignSystemError),
+    #[error("{0}")]
+    Stylesheet(#[from] StylesheetError),
+}
 
 impl Compiler {
     pub fn check_javascript(source: &SourceFile) -> Vec<CompileError> {
@@ -61,8 +65,8 @@ impl Compiler {
         module_css: &str,
         options: &CompilerOptions,
     ) -> Result<String, CompilerThemeError> {
-        DesignSystemSnapshot::from_source(theme_source, options.clone())
-            .map(|snapshot| snapshot.render_stylesheet(module_css))
+        DesignSystemSnapshot::from_source(theme_source, options.clone())?
+            .render_stylesheet(module_css)
             .map_err(CompilerThemeError::from)
     }
 

@@ -83,12 +83,11 @@ impl MacroExtractor<'_> {
     }
 
     pub(crate) fn validate_scoped_refs(&mut self) {
-        for definition in self
+        for (definition, scope) in self
             .handle_definitions
             .iter()
-            .filter(|definition| definition.scope.is_some())
+            .filter_map(|definition| definition.scope.as_ref().map(|scope| (definition, scope)))
         {
-            let scope = definition.scope.as_ref().expect("filtered above");
             let providers = self
                 .scope_uses
                 .iter()

@@ -78,7 +78,8 @@ fn lets_user_css_override_compatibility_fallback_utility_names() {
         FileId(1),
         "theme.css",
         "@utility size-* { inline-size: --value(--spacing-*); block-size: --value(--spacing-*); }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(

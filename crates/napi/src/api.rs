@@ -17,11 +17,24 @@ use super::session::{ProjectBindingOutput, ProjectModuleOutput, ProjectSource};
 #[derive(Debug, thiserror::Error)]
 pub enum BindingApiError {
     #[error("{0}")]
+    Source(#[from] stillwind_source::SourceError),
+    #[error("source graph exceeds the 32-bit file ID limit")]
+    TooManySources,
+    #[error("{0}")]
     Json(#[from] serde_json::Error),
     #[error("{0}")]
     DesignSystem(#[from] DesignSystemError),
     #[error("{0}")]
     Options(#[from] CompilerOptionsError),
+}
+
+fn source_file_id(index: usize) -> Result<FileId, BindingApiError> {
+    let id = index
+        .checked_add(1)
+        .ok_or(BindingApiError::TooManySources)?;
+    u32::try_from(id)
+        .map(FileId)
+        .map_err(|_| BindingApiError::TooManySources)
 }
 
 impl From<BindingApiError> for Error {
@@ -52,8 +65,9 @@ pub fn compile_react_json_with_options(
     theme: &str,
     options: &CompilerOptions,
 ) -> Result<String, BindingApiError> {
-    let source = SourceFile::new(FileId(1), source_path, source);
-    let theme = SourceFile::new(FileId(2), "stillwind.css", theme);
+    let source = SourceFile::new(FileId(1), source_path, source)?;
+    let theme =
+        SourceFile::new(FileId(2), "stillwind.css", theme).map_err(BindingApiError::from)?;
     let result = Compiler::compile_react_with_options(&source, &theme, options);
     serde_json::to_string(&binding_output(result, &source, &theme)).map_err(BindingApiError::Json)
 }
@@ -180,23 +194,13 @@ pub fn compile_react_project_json_with_options(
         .into_iter()
         .enumerate()
         .map(|(index, source)| {
-            (
-                SourceFile::new(
-                    FileId(
-                        u32::try_from(index + 1).expect("source graph is smaller than u32::MAX"),
-                    ),
-                    source.path,
-                    source.source,
-                ),
+            Ok::<_, BindingApiError>((
+                SourceFile::new(source_file_id(index)?, source.path, source.source)?,
                 source.type_facts,
-            )
+            ))
         })
-        .collect::<Vec<_>>();
-    let theme = SourceFile::new(
-        FileId(u32::try_from(sources.len() + 1).expect("source graph is smaller than u32::MAX")),
-        "stillwind.css",
-        theme,
-    );
+        .collect::<Result<Vec<_>, _>>()?;
+    let theme = SourceFile::new(source_file_id(sources.len())?, "stillwind.css", theme)?;
     let assets = sources
         .iter()
         .flat_map(|(source, _)| Compiler::analyze_javascript(source).summary.assets)
@@ -250,7 +254,7 @@ pub fn compile_react_project_json_with_options(
 ///
 /// Returns an error only when serializing the summary fails.
 pub fn summarize_react_json(source: &str, source_path: &str) -> Result<String, BindingApiError> {
-    let source = SourceFile::new(FileId(1), source_path, source);
+    let source = SourceFile::new(FileId(1), source_path, source)?;
     serde_json::to_string(&Compiler::analyze_javascript(&source).summary)
         .map_err(BindingApiError::Json)
 }
@@ -308,7 +312,8 @@ pub fn render_react_stylesheet(
     options_json: Option<String>,
 ) -> napi::Result<String> {
     let options = parse_options(options_json.as_deref())?;
-    let theme = SourceFile::new(FileId(1), "stillwind.css", theme);
+    let theme =
+        SourceFile::new(FileId(1), "stillwind.css", theme).map_err(BindingApiError::from)?;
     Compiler::render_react_stylesheet(&theme, &module_css, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }
@@ -338,7 +343,8 @@ pub fn summarize_react(source: String, source_path: Option<String>) -> napi::Res
 /// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
 #[napi(js_name = "generateReactTypes")]
 pub fn generate_react_types(theme: String) -> napi::Result<String> {
-    let source = SourceFile::new(FileId(2), "stillwind.css", theme);
+    let source =
+        SourceFile::new(FileId(2), "stillwind.css", theme).map_err(BindingApiError::from)?;
     Compiler::generate_react_types(&source).map_err(|error| Error::from_reason(error.to_string()))
 }
 
@@ -366,5 +372,26 @@ mod tests {
             Err(BindingApiError::Json(_))
         ));
         assert!(parse_options(Some(r#"{"prefix":"bad"}"#)).is_err());
+    }
+}
+
+#[cfg(test)]
+mod source_limits {
+    use super::*;
+    #[test]
+    fn file_id_exhaustion_does_not_require_allocating_a_source_graph() {
+        assert_eq!(source_file_id(0).unwrap(), FileId(1));
+        assert_eq!(
+            source_file_id(u32::MAX as usize - 1).unwrap(),
+            FileId(u32::MAX)
+        );
+        assert!(matches!(
+            source_file_id(u32::MAX as usize),
+            Err(BindingApiError::TooManySources)
+        ));
+        assert!(matches!(
+            source_file_id(usize::MAX),
+            Err(BindingApiError::TooManySources)
+        ));
     }
 }

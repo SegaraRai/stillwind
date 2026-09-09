@@ -22,6 +22,8 @@ use super::index::ThemeIndex;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
+    #[error("CSS source offset {0} exceeds the 32-bit source limit")]
+    InvalidOffset(usize),
     #[error("CSS parse error: {0}")]
     Parse(#[source] Error<ParserError<'static>>),
     #[error("unterminated @theme block")]
@@ -141,8 +143,8 @@ pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
     output
 }
 
-pub(crate) fn offset(value: usize) -> u32 {
-    u32::try_from(value).expect("stillwind source files must be smaller than 4 GiB")
+pub(crate) fn offset(value: usize) -> Result<u32, ThemeError> {
+    u32::try_from(value).map_err(|_| ThemeError::InvalidOffset(value))
 }
 
 pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeError> {
@@ -166,7 +168,7 @@ pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex
             &css[open + 1..close],
             open + 1,
             mode,
-        ));
+        )?);
 
         cursor = close + 1;
     }
@@ -209,7 +211,7 @@ mod panic_regressions {
         for directive in ["@utility x", "@custom-variant x", "@stillwind-variant x"] {
             for body in ["", " color:red;", " &:hover {color:red;}"] {
                 let css = format!("{directive} {{{body}");
-                let source = SourceFile::new(FileId(1), "unclosed.css", css.as_str());
+                let source = SourceFile::new(FileId(1), "unclosed.css", css.as_str()).unwrap();
                 for result in [parse_theme(&source), parse_tailwind_theme(&source)] {
                     assert!(
                         matches!(result, Err(ThemeError::UnterminatedBlock { offset })
@@ -227,14 +229,16 @@ mod panic_regressions {
             FileId(1),
             "closed.css",
             r#"/* { */ .x { content: "{"; /* } */ &:hover { content: "}"; } }"#,
-        );
+        )
+        .unwrap();
         assert!(parse_theme(&source).is_ok());
         assert!(parse_tailwind_theme(&source).is_ok());
         let source = SourceFile::new(
             FileId(1),
             "utility.css",
             "@utility x { color:red; &:hover { color:blue; } }",
-        );
+        )
+        .unwrap();
         assert_eq!(parse_tailwind_theme(&source).unwrap().utilities.len(), 1);
     }
 }

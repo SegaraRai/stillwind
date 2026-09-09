@@ -33,17 +33,17 @@ pub(super) fn handle_marker_class(handle: &stillwind_ir::HandleDefinition) -> St
 pub(super) fn handle_parent_selector(
     handle: &stillwind_ir::HandleDefinition,
     selector: &str,
-) -> String {
+) -> Option<String> {
     let marker = handle_marker_class(handle);
     let reference = match selector.strip_prefix('&') {
         Some("") => format!(".{marker}"),
         Some(suffix) => format!(".{marker}:where({suffix})"),
-        None => unreachable!("the extractor requires ref selectors to begin with `&`"),
+        None => return None,
     };
-    match &handle.scope {
+    Some(match &handle.scope {
         Some(scope) => format!("{}:has({reference}) &", scope_marker_class(scope)),
         None => format!("{reference} &"),
-    }
+    })
 }
 
 pub(super) fn scope_marker_class(scope: &stillwind_ir::ScopeDefinition) -> String {
@@ -134,9 +134,12 @@ mod tests {
             call_span: name.span,
         };
         let marker = handle_marker_class(&handle);
-        assert_eq!(handle_parent_selector(&handle, "&"), format!(".{marker} &"));
         assert_eq!(
-            handle_parent_selector(&handle, "&:hover"),
+            handle_parent_selector(&handle, "&").unwrap(),
+            format!(".{marker} &")
+        );
+        assert_eq!(
+            handle_parent_selector(&handle, "&:hover").unwrap(),
             format!(".{marker}:where(:hover) &")
         );
         let anchor = render_handle_projection(&handle, &HandleProjection::Anchor);
@@ -165,7 +168,7 @@ mod tests {
         let scope = scope_marker_class(handle.scope.as_ref().unwrap());
         assert!(scope.starts_with(".s_ref_"));
         assert_eq!(
-            handle_parent_selector(&handle, "&"),
+            handle_parent_selector(&handle, "&").unwrap(),
             format!("{scope}:has(.{marker}) &")
         );
         handle.label = Some(name);

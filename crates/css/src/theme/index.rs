@@ -227,7 +227,8 @@ mod tests {
                 "--color-old:red;--color-*:initial;--color-new:blue;--color-new:green;",
                 0,
                 ThemeTokenMode::Default,
-            ),
+            )
+            .unwrap(),
             ..ThemeIndex::default()
         };
         assert_eq!(theme.active_tokens().len(), 1);
@@ -250,7 +251,8 @@ mod tests {
                 "--color-a:var(--color-b);--color-b:var(--color-a);--color-unused:red;",
                 0,
                 ThemeTokenMode::Default,
-            ),
+            )
+            .unwrap(),
             ..ThemeIndex::default()
         };
         let names = theme

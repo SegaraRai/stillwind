@@ -9,7 +9,7 @@ use stillwind_source::{FileId, SourceFile};
 #[test]
 fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     let snapshot = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "theme", "@utility brand { color: red; }"),
+        &SourceFile::new(FileId(1), "theme", "@utility brand { color: red; }").unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
@@ -21,7 +21,8 @@ fn queries_share_resolved_custom_definitions_and_pin_revisions() {
         FileId(2),
         "a.tsx",
         "import { style } from 'stillwind/react'; const x = style('hover:brand');",
-    );
+    )
+    .unwrap();
     let analysis = SourceAnalyzer::finalize(
         &OxcSourceAnalyzer,
         SourceAnalyzer::scan(&OxcSourceAnalyzer, Arc::new(source)),

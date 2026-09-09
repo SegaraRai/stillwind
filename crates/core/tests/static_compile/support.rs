@@ -184,12 +184,14 @@ pub(super) fn compile_one_utility(utility: &str) -> stillwind_core::CompileResul
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({utility:?});"
             ),
-        ),
+        )
+        .unwrap(),
         &SourceFile::new(
             FileId(92),
             "stillwind.css",
             "@theme { --spacing: 0.25rem; }",
-        ),
+        )
+        .unwrap(),
     )
 }
 

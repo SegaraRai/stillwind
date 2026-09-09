@@ -12,10 +12,11 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
         FileId(1),
         "src/Fixture.tsx",
         "import { style } from \"stillwind/react\"; const props = style(\"bg-brand p-4\");",
-    );
+    )
+    .unwrap();
     let result = Compiler::compile_react(
         &component,
-        &SourceFile::new(FileId(2), "stillwind.css", input_css),
+        &SourceFile::new(FileId(2), "stillwind.css", input_css).unwrap(),
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -50,10 +51,10 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
                 format!(
                     "import {{ style }} from \"stillwind/react\"; const props = style({candidate:?});"
                 ),
-            );
+            ).unwrap();
             let result = Compiler::compile_react(
                 &component,
-                &SourceFile::new(FileId(2), "stillwind.css", input_css.clone()),
+                &SourceFile::new(FileId(2), "stillwind.css", input_css.clone()).unwrap(),
             );
             assert!(result.diagnostics.is_empty(), "{case_name}: {candidate}");
             let class_name = &result.classes[0].class_name;
@@ -78,8 +79,9 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
             ),
-        ),
-        &SourceFile::new(FileId(4), "stillwind.css", input_css),
+        )
+        .unwrap(),
+        &SourceFile::new(FileId(4), "stillwind.css", input_css).unwrap(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.classes.is_empty(), "{}", result.css);
@@ -99,11 +101,12 @@ fn framework_imports_gate_baseline_layers() {
         FileId(1),
         "src/Fixture.tsx",
         "import { style } from \"stillwind/react\"; const props = style(\"p-4\");",
-    );
+    )
+    .unwrap();
     let compiler = |css| {
         Compiler::compile_react(
             &component,
-            &SourceFile::new(FileId(2), "stillwind.css", css),
+            &SourceFile::new(FileId(2), "stillwind.css", css).unwrap(),
         )
     };
 
@@ -142,12 +145,12 @@ fn framework_imports_gate_baseline_layers() {
             FileId(3),
             "src/Content.tsx",
             "import { style } from \"stillwind/react\"; const props = style(\"bg-linear-to-r\");",
-        ),
+        ).unwrap(),
         &SourceFile::new(
             FileId(4),
             "stillwind.css",
             "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities);",
-        ),
+        ).unwrap(),
     );
     assert!(content.diagnostics.is_empty());
     assert!(!content.css.contains("@property --tw-gradient-position"));

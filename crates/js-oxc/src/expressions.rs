@@ -24,7 +24,7 @@ impl<'a> MacroExtractor<'a> {
             return;
         }
         if let Some(animation) = self.animation_use(expression) {
-            inputs.push(animation);
+            inputs.push(animation.into_style_input(None));
             return;
         }
         if let Some(transition) = self.view_transition_use(expression) {
@@ -92,7 +92,11 @@ impl<'a> MacroExtractor<'a> {
                                 self.source_span(elision.span),
                             ),
                         ),
-                        _ => self.collect_style_expression(element.to_expression(), inputs),
+                        _ => {
+                            if let Some(expression) = element.as_expression() {
+                                self.collect_style_expression(expression, inputs);
+                            }
+                        }
                     }
                 }
             }
@@ -225,26 +229,7 @@ impl<'a> MacroExtractor<'a> {
                         ));
                         continue;
                     };
-                    match animation {
-                        StyleInput::AnimationUse { animation, options } => {
-                            inputs.push(StyleInput::SelectorAnimationUse {
-                                selector: name,
-                                animation,
-                                options,
-                            });
-                        }
-                        StyleInput::DynamicAnimationUse {
-                            value,
-                            animations,
-                            options,
-                        } => inputs.push(StyleInput::DynamicSelectorAnimationUse {
-                            selector: name,
-                            value,
-                            animations,
-                            options,
-                        }),
-                        _ => unreachable!("animation_use returns an animation input"),
-                    }
+                    inputs.push(animation.into_style_input(Some(name)));
                 }
                 Expression::StringLiteral(value) => {
                     inputs.push(StyleInput::SelectorUtilityString {
@@ -296,7 +281,8 @@ mod tests {
             "Button.tsx",
             r#"import { style } from "stillwind/react";
 const props = style({ "aria-busy": loading, "data-state": state });"#,
-        );
+        )
+        .unwrap();
 
         let parsed = parse(&source);
 
@@ -320,7 +306,8 @@ const props = style({ "aria-busy": loading, "data-state": state });"#,
             r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style(["px-4", loading && "opacity-60"], { "&:hover": "bg-accent" });"#,
-        );
+        )
+        .unwrap();
 
         let parsed = parse(&source);
 

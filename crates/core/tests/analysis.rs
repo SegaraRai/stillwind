@@ -6,11 +6,14 @@ use stillwind_source::{FileId, SourceFile};
 
 #[test]
 fn analysis_is_design_system_independent_and_rejects_stale_facts() {
-    let source = Arc::new(SourceFile::new(
-        FileId(1),
-        "Button.tsx",
-        "import { style } from 'stillwind/react'; export const x = style('flex');",
-    ));
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "Button.tsx",
+            "import { style } from 'stillwind/react'; export const x = style('flex');",
+        )
+        .unwrap(),
+    );
     let scan = OxcSourceAnalyzer.scan(source);
     assert_eq!(scan.local_ir.style_calls.len(), 1);
     let local = OxcSourceAnalyzer.finalize(scan.clone(), None);
@@ -42,7 +45,7 @@ fn scan_reports_expression_probes_for_non_local_asset_values() {
         FileId(1),
         "consumer.tsx",
         "import { style } from 'stillwind/react'; import { target } from './producer'; const x = style(target);",
-    ));
+    ).unwrap());
     let scan = OxcSourceAnalyzer.scan(source.clone());
     assert!(
         scan.type_probes

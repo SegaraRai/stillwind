@@ -6,7 +6,8 @@ fn extracts_block_custom_variant() {
         FileId(1),
         "fixture.css",
         "@custom-variant theme-dark { &:where([data-theme=dark] *) { @slot; } }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).expect("theme");
     assert_eq!(theme.variants.len(), 1);
     assert_eq!(theme.variants[0].name, "theme-dark");

@@ -1,19 +1,32 @@
 //! Bundler-facing command line adapter for the Stillwind compiler.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
+
 use std::{env, fs, sync::Arc};
 
 use serde::Serialize;
 
 use stillwind_core::{
-    CompilerOptions, GeneratedClass, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
+    CompilerOptions, CompilerOptionsError, GeneratedClass, ModuleCompiler, OxcSourceAnalyzer,
+    SourceAnalyzer,
 };
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceError, SourceFile};
 
 mod arguments;
 mod loading;
 
-use arguments::{argument, has_flag, optional_argument};
-use loading::{load_design_system, read_source};
+use arguments::{ArgumentError, argument, has_flag, optional_argument};
+use loading::{FileLoadError, load_design_system, read_source};
 
 #[derive(Serialize)]
 struct CliOutput {
@@ -43,14 +56,16 @@ struct LintFindingOutput {
 
 #[derive(Debug, thiserror::Error)]
 enum CommandError {
+    #[error("{0}")]
+    Source(#[from] SourceError),
     #[error("expected `compile` command")]
     MissingCommand,
     #[error("unknown command `{command}`; expected `compile`")]
     UnknownCommand { command: String },
     #[error("{0}")]
-    Argument(#[from] arguments::ArgumentError),
+    Argument(#[from] ArgumentError),
     #[error("{0}")]
-    File(#[from] loading::FileLoadError),
+    File(#[from] FileLoadError),
     #[error("cannot resolve theme {path}: {source}")]
     ThemePath {
         path: String,
@@ -58,7 +73,7 @@ enum CommandError {
         source: std::io::Error,
     },
     #[error("{0}")]
-    Options(#[from] stillwind_core::CompilerOptionsError),
+    Options(#[from] CompilerOptionsError),
     #[error("{0}")]
     Output(#[from] serde_json::Error),
 }
@@ -72,12 +87,12 @@ fn run() -> Result<(), CommandError> {
     }
     let source = if let Some(text) = optional_argument("--source-text") {
         let path = optional_argument("--source-path").unwrap_or_else(|| "Play.tsx".to_owned());
-        SourceFile::new(FileId(1), path, text)
+        SourceFile::new(FileId(1), path, text)?
     } else {
         read_source(&argument("--source")?, 1)?
     };
     let theme = if let Some(text) = optional_argument("--theme-text") {
-        SourceFile::new(FileId(2), "stillwind.css", text)
+        SourceFile::new(FileId(2), "stillwind.css", text)?
     } else {
         let input = argument("--theme")?;
         let path = fs::canonicalize(&input).map_err(|source| CommandError::ThemePath {

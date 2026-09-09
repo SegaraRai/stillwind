@@ -44,11 +44,14 @@ fn derives_arbitrary_property_order_from_builtin_css() {
 fn resolves_animation_options_from_css_registry_metadata() {
     let mut theme = theme();
     theme.tokens.extend(
-        parse_tailwind_theme(&SourceFile::new(
-            FileId(2),
-            "motion-theme.css",
-            "@theme { --duration-normal: 180ms; --ease-standard: cubic-bezier(.2, 0, 0, 1); }",
-        ))
+        parse_tailwind_theme(
+            &SourceFile::new(
+                FileId(2),
+                "motion-theme.css",
+                "@theme { --duration-normal: 180ms; --ease-standard: cubic-bezier(.2, 0, 0, 1); }",
+            )
+            .unwrap(),
+        )
         .unwrap()
         .tokens,
     );
@@ -76,11 +79,14 @@ fn resolves_animation_options_from_css_registry_metadata() {
 
 #[test]
 fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
-    let theme = parse_tailwind_theme(&SourceFile::new(
-        FileId(2),
-        "typography-theme.css",
-        "@theme { --text-copy: 1rem; --text-copy--line-height: 1.5; }",
-    ))
+    let theme = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(2),
+            "typography-theme.css",
+            "@theme { --text-copy: 1rem; --text-copy--line-height: 1.5; }",
+        )
+        .unwrap(),
+    )
     .unwrap();
     assert_eq!(
         resolve_utility("text-copy", &theme)

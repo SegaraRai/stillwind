@@ -98,9 +98,9 @@ do not change CSS, transforms or generated names.
 use stillwind_core::{ProjectSession, SessionMode};
 
 let mut session = ProjectSession::new(snapshot, SessionMode::Watch);
-let change = session.update_module(analysis);
-let css = session.css();
-session.remove_module("src/removed.tsx");
+let change = session.update_module(analysis)?;
+let css = session.css()?;
+session.remove_module("src/removed.tsx")?;
 
 // Drive a fresh loader first; keep the active snapshot pinned during loading.
 let change = session.reload(new_load_result)?;
@@ -178,3 +178,9 @@ of `cad1f5f` produces an identical example vocabulary file (SHA-256
 `858865bf08894313f3c6183e99a18921a9b6654bd167dc47772645484b86b7f7`), and the React
 type definition and TypeScript configuration are unchanged. Native and Vite
 package type checks pass.
+
+### Fallible Rust boundaries
+
+`SourceFile::new` returns `Result` and rejects buffers beyond the 32-bit source-coordinate limit. `Span::len` returns `None` for reversed spans, and `lex_utilities` returns a source error for invalid or overflowing token coordinates. Callers must propagate or handle these failures.
+
+`DesignSystemSnapshot::render_stylesheet`, `ProjectStylesheet::module_css`/`serialize`, and `ProjectSession::css`/`update_module`/`remove_module` return `Result` for stylesheet failures. Compiler entrypoints that already return diagnostic collections attach these failures as diagnostics. The Node interface continues to return the same successful JSON/string values and throws on boundary errors.

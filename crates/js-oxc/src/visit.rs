@@ -146,8 +146,8 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     "style() does not support spread arguments",
                     self.source_span(spread.span),
                 ));
-            } else {
-                self.collect_style_expression(argument.to_expression(), &mut inputs);
+            } else if let Some(expression) = argument.as_expression() {
+                self.collect_style_expression(expression, &mut inputs);
             }
         }
         self.style_calls.push(StyleCall {
@@ -177,13 +177,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 });
                 self.local_values.insert(
                     symbol_id,
-                    ExportedValue::Refs(vec![
-                        RefAlternative::new(
-                            self.identity(AssetKind::Ref, &definition.name),
-                            scopes,
-                        )
-                        .expect("extractor creates correctly typed ref relations"),
-                    ]),
+                    ExportedValue::Refs(vec![RefAlternative {
+                        reference: self.identity(AssetKind::Ref, &definition.name),
+                        permitted_scopes: scopes,
+                    }]),
                 );
                 self.handle_definitions.push(definition);
             }

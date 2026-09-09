@@ -69,7 +69,7 @@ impl DesignSystemQuery {
             })
         });
         let mut css = String::new();
-        let diagnostics = if let Some(targets) = targets {
+        let mut diagnostics = if let Some(targets) = targets {
             emit_utility_rules(
                 &mut css,
                 &class_name(&format!("{candidate}\0")),
@@ -96,10 +96,19 @@ impl DesignSystemQuery {
             .map(|property| property.name.clone())
             .collect();
         let css = self.design_system.config().rewrite_generated(&css);
+        let generated_rules = match ModuleCssArtifact::from_css(&css) {
+            Ok(artifact) => artifact.rules,
+            Err(error) => {
+                diagnostics.push(CandidateDiagnostic {
+                    message: error.to_string(),
+                });
+                Vec::new()
+            }
+        };
         CandidateResolution {
             revision: self.design_system.revision(),
             parsed,
-            generated_rules: ModuleCssArtifact::from_css(&css).rules,
+            generated_rules,
             required_properties,
             referenced_tokens,
             diagnostics,
@@ -212,7 +221,8 @@ mod tests {
                 FileId(1),
                 "theme",
                 "@import 'tailwindcss'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
-            ),
+            )
+            .unwrap(),
             crate::CompilerOptions::default(),
         )
         .unwrap();

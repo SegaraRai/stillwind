@@ -177,7 +177,8 @@ mod tests {
 
     #[test]
     fn disable_next_line_does_not_suppress_other_rules_or_later_lines() {
-        let source = SourceFile::new(FileId(1), "x", "// swlint-disable-next-line a\nx\ny");
+        let source =
+            SourceFile::new(FileId(1), "x", "// swlint-disable-next-line a\nx\ny").unwrap();
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let mut findings = vec![
             LintFinding::new("a", "", Span::new(FileId(1), x, x + 1)),
@@ -204,7 +205,7 @@ mod tests {
             ),
             ("x // swlint-disable-line a\ny", vec!["b", "a", "b"]),
         ] {
-            let source = SourceFile::new(FileId(1), "x", text);
+            let source = SourceFile::new(FileId(1), "x", text).unwrap();
             let mut findings = ['x', 'y']
                 .into_iter()
                 .flat_map(|c| {

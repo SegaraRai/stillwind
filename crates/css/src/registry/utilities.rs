@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::fmt::Write;
 
 use crate::blocks::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
 
@@ -127,8 +126,10 @@ pub(crate) fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
                         move |name| {
                             let mut body = String::new();
                             for property in &properties {
-                                write!(body, "{property}:{value};")
-                                    .expect("writing to a String cannot fail");
+                                body.push_str(property);
+                                body.push(':');
+                                body.push_str(&value);
+                                body.push(';');
                             }
                             vec![CustomUtility {
                                 name: format!("{name}-*"),

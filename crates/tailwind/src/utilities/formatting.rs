@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use stillwind_css::{ThemeIndex, declaration_format, fold_calc_expressions, format_numeric_zero};
 
 use crate::builtins::metadata::builtin_declaration_formats;
@@ -10,7 +8,8 @@ pub(crate) fn important(declaration: &str) -> String {
         .split_terminator(';')
         .filter(|declaration| !declaration.is_empty())
         .fold(String::new(), |mut result, declaration| {
-            write!(result, "{declaration}!important;").expect("writing to a String cannot fail");
+            result.push_str(declaration);
+            result.push_str("!important;");
             result
         })
 }

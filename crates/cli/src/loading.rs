@@ -5,10 +5,12 @@ use stillwind_core::{
     CompilerOptions, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep,
     DesignSystemLoader, DesignSystemSnapshot,
 };
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceError, SourceFile};
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum FileLoadError {
+    #[error("{0}")]
+    Source(#[from] SourceError),
     #[error("cannot read {}: {source}", .path.display())]
     Read {
         path: PathBuf,
@@ -30,7 +32,7 @@ pub(super) fn read_source(path: &str, id: u32) -> Result<SourceFile, FileLoadErr
         path: path.into(),
         source: error,
     })?;
-    Ok(SourceFile::new(FileId(id), path, text))
+    Ok(SourceFile::new(FileId(id), path, text)?)
 }
 
 pub(super) fn load_design_system(

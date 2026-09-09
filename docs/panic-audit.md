@@ -4,6 +4,19 @@
 
 優先度高の2系統を修正済み。Oxc引数変換10箇所は `as_expression()` で既存の診断へ分岐し、未閉鎖CSSは `ThemeError::UnterminatedBlock` を返す。ブロック抽出の逆転範囲も防御した。spread10ケース、CSSの未閉鎖・正常ネスト・文字列とコメント中の括弧、直接抽出の回帰テストを追加した。
 
+残りの棚卸し対象も修正済み。
+
+- SourceFile生成時に32-bitサイズ上限を検証し、CLI/Node/ローダーへエラーを伝播。Spanの逆転とlexer・ソースマップのoverflowもチェックする。
+- アニメーション入力とシンボル種別をenumで表現し、入力分岐を網羅的なmatchに統合。refセレクターの不正IRは診断にする。
+- 複合variantを非再帰的に展開して、Compoundを持たない描画ステップに変換する。
+- CSS描画・ルール抽出・ルール参照不整合をResult/診断で伝播する。
+- importの循環検出と展開をヒープ上の反復処理に変更し、未解決参照と不正な範囲をエラーにする。
+- ビルドスクリプトのI/OはResultで伝播。条件確認済みのOptionはパターンマッチ、Stringへの書込はpush_str等に変更する。
+
+非テストコードの `unwrap` / `expect` / `panic!` / `unreachable!` / `todo!` / `unimplemented!` はClippyで禁止し、workspaceチェックが成功した。監査で列挙した明示的な27箇所はすべて解消済み。範囲が保証される添字アクセス等は残しており、メモリ枯渇や依存ライブラリを含む任意の停止可能性までゼロと主張するものではない。
+
+検証: Rustテスト340件成功（既存のignored 1件）、Clippy警告ゼロ、format/diffチェック成功。レビューfixture 6プロジェクトとVite連携テスト6件も成功。追加回帰テストは逆転Span・u32/usize境界・不正IR・不正ソースマップ・入れ子の複合variant・2万ノードのimport順序計算・512段のimport展開を含む。
+
 以下は修正前の棚卸し記録。行番号と候補件数は調査時点のもの。
 
 対象はworkspaceの非テストRustコード。`cargo clippy --workspace --lib --bins` でテストをコンパイル対象から外し、build.rsはビルド時コードとして分離した。ソース検索、呼出元確認、既存debug rlibにリンクした独立プログラムで補完した。製品コード・既存テストの変更はしていない。

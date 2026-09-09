@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn transform_errors_preserve_wrong_file_and_utf8_causes() {
-        let source = SourceFile::new(FileId(1), "source", "éabc");
+        let source = SourceFile::new(FileId(1), "source", "éabc").unwrap();
         let error =
             apply_transforms(&source, &replacements(&[Span::new(FileId(2), 0, 2)])).unwrap_err();
         assert!(matches!(
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn overlaps_are_distinguished_from_valid_adjacent_replacements() {
-        let source = SourceFile::new(FileId(1), "source", "abcd");
+        let source = SourceFile::new(FileId(1), "source", "abcd").unwrap();
         let overlap = Span::new(FileId(1), 0, 3);
         assert!(
             matches!(apply_transforms(&source, &replacements(&[overlap, Span::new(FileId(1), 2, 4)])), Err(TransformError::Overlap { span, previous_start: 2 }) if span == overlap)
@@ -107,7 +107,7 @@ mod tests {
     proptest::proptest! {
         #[test]
         fn replacing_one_span_preserves_both_sides(prefix in "[a-z]{0,12}", suffix in "[a-z]{0,12}", replacement in "[A-Z]{0,12}") {
-            let source = SourceFile::new(FileId(1), "x", format!("{prefix}é{suffix}"));
+            let source = SourceFile::new(FileId(1), "x", format!("{prefix}é{suffix}")).unwrap();
             let start = u32::try_from(prefix.len()).unwrap();
             let transform = SourceTransform {
                 call_span: Span::new(FileId(1), start, start + 2),

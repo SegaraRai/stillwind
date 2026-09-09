@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_css::{ThemeError, parse_tailwind_theme};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceError, SourceFile};
 
 use crate::{CompilerOptions, CompilerOptionsError, DesignSystemSnapshot};
 
@@ -16,6 +16,10 @@ use super::protocol::{
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum DesignSystemLoadError {
+    #[error("inconsistent CSS source graph")]
+    InvalidGraph,
+    #[error("{0}")]
+    Source(#[from] SourceError),
     #[error("CSS request IDs exhausted")]
     RequestIdExhausted,
     #[error("too many CSS sources")]
@@ -125,27 +129,47 @@ impl DesignSystemLoader {
             };
             let index = self.accept_source(file.name.clone(), file.content)?;
             if let Some((source, import)) = parent {
-                self.nodes[source].targets[import] = Some(index);
+                *self
+                    .nodes
+                    .get_mut(source)
+                    .and_then(|node| node.targets.get_mut(import))
+                    .ok_or(DesignSystemLoadError::InvalidGraph)? = Some(index);
                 self.graph.edges.push(CssSourceEdge {
-                    request: self.nodes[source].requests[import].clone(),
+                    request: self
+                        .nodes
+                        .get(source)
+                        .and_then(|node| node.requests.get(import))
+                        .ok_or(DesignSystemLoadError::InvalidGraph)?
+                        .clone(),
                     target: file.name,
                 });
             }
         }
         // Also detect cycles in resolved subgraphs while unrelated I/O is outstanding.
-        let mut state = vec![0; self.nodes.len()];
-        self.check_cycles(0, &mut state, &mut Vec::new())?;
+        let order = self.source_order()?;
         if !self.pending.is_empty() {
             return Ok(DesignSystemLoadStep::NeedFile(
                 self.pending
                     .values()
-                    .map(|&(source, import)| self.nodes[source].requests[import].clone())
-                    .collect(),
+                    .map(|&(source, import)| {
+                        self.nodes
+                            .get(source)
+                            .and_then(|node| node.requests.get(import))
+                            .cloned()
+                            .ok_or(DesignSystemLoadError::InvalidGraph)
+                    })
+                    .collect::<Result<_, _>>()?,
             ));
         }
-        let output = self.expand(0, &mut BTreeMap::new());
-        let name = self.graph.sources[0].name.clone();
-        let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str());
+        let output = self.expand(&order)?;
+        let name = self
+            .graph
+            .sources
+            .first()
+            .ok_or(DesignSystemLoadError::InvalidGraph)?
+            .name
+            .clone();
+        let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str())?;
         let mut theme =
             parse_tailwind_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
                 name: name.clone(),
@@ -178,7 +202,15 @@ impl DesignSystemLoader {
         content: Arc<str>,
     ) -> Result<usize, DesignSystemLoadError> {
         if let Some(&index) = self.known.get(&name) {
-            if self.graph.sources[index].source.text() != content.as_ref() {
+            if self
+                .graph
+                .sources
+                .get(index)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?
+                .source
+                .text()
+                != content.as_ref()
+            {
                 return Err(DesignSystemLoadError::ConflictingContent { name: name.clone() });
             }
             return Ok(index);
@@ -189,7 +221,7 @@ impl DesignSystemLoader {
         })?;
         let index = self.nodes.len();
         let id = u32::try_from(index + 1).map_err(|_| DesignSystemLoadError::SourceIdExhausted)?;
-        let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content));
+        let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content)?);
         parse_tailwind_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
             name: name.clone(),
             cause: error,
@@ -218,57 +250,144 @@ impl DesignSystemLoader {
         Ok(index)
     }
 
-    fn check_cycles(
-        &self,
-        index: usize,
-        state: &mut [u8],
-        chain: &mut Vec<CssFileRequest>,
-    ) -> Result<(), DesignSystemLoadError> {
-        if state[index] == 1 {
-            return Err(DesignSystemLoadError::Cycle {
-                chain: chain.clone(),
-            });
-        }
-        if state[index] == 2 {
-            return Ok(());
-        }
-        state[index] = 1;
-        for (import, target) in self.nodes[index].targets.iter().enumerate() {
-            if let Some(target) = target {
-                chain.push(self.nodes[index].requests[import].clone());
-                self.check_cycles(*target, state, chain)?;
+    /// Postorder traversal using heap frames, including partially resolved graphs.
+    fn source_order(&self) -> Result<Vec<usize>, DesignSystemLoadError> {
+        let mut state = vec![0; self.nodes.len()];
+        *state
+            .first_mut()
+            .ok_or(DesignSystemLoadError::InvalidGraph)? = 1;
+        let mut frames = vec![(0, 0)];
+        let mut chain = Vec::new();
+        let mut order = Vec::new();
+        while let Some((index, next)) = frames.last_mut() {
+            let node = self
+                .nodes
+                .get(*index)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            if node.requests.len() != node.targets.len() {
+                return Err(DesignSystemLoadError::InvalidGraph);
+            }
+            let Some(target) = node.targets.get(*next) else {
+                *state
+                    .get_mut(*index)
+                    .ok_or(DesignSystemLoadError::InvalidGraph)? = 2;
+                order.push(*index);
+                frames.pop();
                 chain.pop();
+                continue;
+            };
+            let request = node
+                .requests
+                .get(*next)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            *next += 1;
+            let Some(target) = target else { continue };
+            let mark = state
+                .get_mut(*target)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            if *mark == 1 {
+                chain.push(request.clone());
+                return Err(DesignSystemLoadError::Cycle { chain });
+            }
+            if *mark == 0 {
+                *mark = 1;
+                chain.push(request.clone());
+                frames.push((*target, 0));
             }
         }
-        state[index] = 2;
-        Ok(())
+        Ok(order)
     }
 
-    fn expand(&self, index: usize, cache: &mut BTreeMap<usize, ExpandedSource>) -> ExpandedSource {
-        if let Some(output) = cache.get(&index) {
-            return output.clone();
+    fn expand(&self, order: &[usize]) -> Result<ExpandedSource, DesignSystemLoadError> {
+        let mut cache: BTreeMap<usize, ExpandedSource> = BTreeMap::new();
+        for &index in order {
+            let source = &self
+                .graph
+                .sources
+                .get(index)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?
+                .source;
+            let node = self
+                .nodes
+                .get(index)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let mut output = ExpandedSource::default();
+            let mut cursor = 0;
+            for (import, target) in node.imports.iter().zip(&node.targets) {
+                output.append_source(source, cursor..import.start)?;
+                let target = target.ok_or(DesignSystemLoadError::InvalidGraph)?;
+                let imported = cache
+                    .get(&target)
+                    .ok_or(DesignSystemLoadError::InvalidGraph)?;
+                output.append_import(imported, &import.wrappers)?;
+                cursor = import.end;
+            }
+            output.append_source(source, cursor..source.text().len())?;
+            cache.insert(index, output);
         }
-        let source = &self.graph.sources[index].source;
-        let node = &self.nodes[index];
-        let mut output = ExpandedSource::default();
-        let mut cursor = 0;
-        for (import, target) in node.imports.iter().zip(&node.targets) {
-            output.append_source(source, cursor..import.start);
-            output.append_import(
-                &self.expand(target.expect("all requests resolved"), cache),
-                &import.wrappers,
-            );
-            cursor = import.end;
-        }
-        output.append_source(source, cursor..source.text().len());
-        cache.insert(index, output.clone());
-        output
+        cache.remove(&0).ok_or(DesignSystemLoadError::InvalidGraph)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn chain_loader(depth: usize) -> DesignSystemLoader {
+        let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+        for index in 0..depth {
+            let text = if index + 1 < depth {
+                "@import 'next';"
+            } else {
+                ".x{color:red;}"
+            };
+            let source = Arc::new(
+                SourceFile::new(FileId(u32::try_from(index + 1).unwrap()), "node.css", text)
+                    .unwrap(),
+            );
+            let imports = imports(text).unwrap();
+            let requests = imports
+                .iter()
+                .map(|_| CssFileRequest {
+                    id: u32::try_from(index + 1).unwrap(),
+                    importer: "node.css".into(),
+                    specifier: "next".into(),
+                    kind: CssDependencyKind::Import,
+                })
+                .collect();
+            let targets = imports.iter().map(|_| Some(index + 1)).collect();
+            loader.nodes.push(Node {
+                imports,
+                requests,
+                targets,
+            });
+            loader.graph.sources.push(CssSource {
+                name: "node.css".into(),
+                source,
+            });
+        }
+        loader
+    }
+
+    #[test]
+    fn deep_import_graphs_use_heap_frames() {
+        let loader = chain_loader(20_000);
+        let order = loader.source_order().unwrap();
+        assert_eq!(order, (0..20_000).rev().collect::<Vec<_>>());
+        let loader = chain_loader(512);
+        let output = loader.expand(&loader.source_order().unwrap()).unwrap();
+        assert_eq!(output.text, ".x{color:red;}");
+    }
+
+    #[test]
+    fn incomplete_expansion_returns_a_graph_error() {
+        let mut loader = chain_loader(2);
+        loader.nodes[0].targets[0] = None;
+        assert!(matches!(
+            loader.expand(&loader.source_order().unwrap()),
+            Err(DesignSystemLoadError::InvalidGraph)
+        ));
+    }
 
     #[test]
     fn request_id_exhaustion_is_terminal_and_never_emits_max_or_wraps() {

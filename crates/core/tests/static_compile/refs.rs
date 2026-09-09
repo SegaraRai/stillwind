@@ -10,8 +10,9 @@ const popover = style.ref();
 const root = style(popover.anchorScope, popover.container("inline-size"));
 const trigger = style(popover.anchor, "relative");
 const panel = style(popover.position, "absolute");"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -34,8 +35,9 @@ fn reports_a_position_ref_without_an_anchor_provider() {
         r#"import { style } from "stillwind/react";
 const popover = style.ref();
 const panel = style(popover.position);"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -57,8 +59,9 @@ fn emits_named_container_rules_from_ref_queries() {
 const card = style.ref();
 const root = style(card.container("inline-size"));
 const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -81,12 +84,14 @@ fn uses_ref_tagged_selectors_as_automatically_named_parent_groups() {
 const trigger = style.ref();
 const parent = style(trigger.anchor, "inline-flex");
 const child = style({ [trigger`&:hover`]: "text-accent" });"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -106,12 +111,13 @@ fn scopes_refs_across_siblings_and_uses_readable_marker_names() {
 const menu = style.scope("menu");
 const trigger = style.ref(menu, "trigger");
 export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></section>;"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -145,12 +151,13 @@ fn rejects_a_scoped_ref_selector_target_outside_its_scope() {
 const menu = style.scope();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -173,8 +180,9 @@ fn rejects_a_scope_attached_outside_its_ref_ancestry() {
 const menu = style.scope();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

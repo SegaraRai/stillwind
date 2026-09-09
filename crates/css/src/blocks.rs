@@ -100,7 +100,9 @@ pub(super) fn strip_blocks(css: &str, directive: &str) -> String {
                 offset += "{modifier}".len();
                 continue;
             }
-            let character = body[offset..].chars().next().unwrap();
+            let Some(character) = body.get(offset..).and_then(|rest| rest.chars().next()) else {
+                break;
+            };
             match character {
                 '{' => depth += 1,
                 '}' => {

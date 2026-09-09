@@ -58,13 +58,15 @@ mod tests {
     use super::render_react_types;
     use crate::Compiler;
     use stillwind_source::{FileId, SourceFile};
+
     #[test]
     fn generates_types_from_the_css_theme_vocabulary() {
         let css = SourceFile::new(
             FileId(2),
             "stillwind.css",
             "@theme { --color-accent: red; --spacing-4: 1rem; }",
-        );
+        )
+        .unwrap();
         let theme = Compiler::read_theme(&css).unwrap();
         let types = render_react_types(&theme);
 

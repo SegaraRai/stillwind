@@ -31,8 +31,11 @@ fn loader_traverses_opaque_names_in_authored_order_and_reuses_sources() {
     };
     assert_eq!(snapshot.sources().sources.len(), 2);
     assert_eq!(snapshot.sources().edges.len(), 2);
-    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", "@theme { --color-brand: blue; } @theme { --color-brand: blue; } @theme { --color-brand: red; }"), CompilerOptions::default()).unwrap();
-    assert_eq!(snapshot.render_stylesheet(""), flat.render_stylesheet(""));
+    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", "@theme { --color-brand: blue; } @theme { --color-brand: blue; } @theme { --color-brand: red; }").unwrap(), CompilerOptions::default()).unwrap();
+    assert_eq!(
+        snapshot.render_stylesheet("").unwrap(),
+        flat.render_stylesheet("").unwrap()
+    );
     assert!(matches!(
         loader.provide(0, "extra".into(), "".into()),
         DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::AlreadyComplete))
@@ -88,7 +91,7 @@ fn loader_tokenizes_imports_and_ignores_comments_strings_and_nested_rules() {
 #[test]
 fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {
     let first = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "opaque:first", "@theme { --color-brand: red; }"),
+        &SourceFile::new(FileId(1), "opaque:first", "@theme { --color-brand: red; }").unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
@@ -97,12 +100,13 @@ fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {
             FileId(87),
             "opaque:second",
             "@theme { --color-brand: red; }",
-        ),
+        )
+        .unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
     let next = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "opaque:first", "@theme { --color-brand: blue; }"),
+        &SourceFile::new(FileId(1), "opaque:first", "@theme { --color-brand: blue; }").unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
@@ -112,7 +116,10 @@ fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {
     assert_eq!(first.fingerprints(), identical.fingerprints());
     assert_ne!(first.fingerprints().content, next.fingerprints().content);
     assert_eq!(first.fingerprints().config, next.fingerprints().config);
-    assert_eq!(first.render_stylesheet(""), pinned.render_stylesheet(""));
+    assert_eq!(
+        first.render_stylesheet("").unwrap(),
+        pinned.render_stylesheet("").unwrap()
+    );
 }
 
 #[test]
@@ -122,8 +129,11 @@ fn snapshot_validates_css_resolved_configuration() {
         ..CompilerOptions::default()
     };
     assert!(
-        DesignSystemSnapshot::from_source(&SourceFile::new(FileId(0), "root", ""), options)
-            .is_err()
+        DesignSystemSnapshot::from_source(
+            &SourceFile::new(FileId(0), "root", "").unwrap(),
+            options
+        )
+        .is_err()
     );
 }
 
@@ -134,7 +144,8 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
             FileId(1),
             "root",
             "@utility custom { color: red; } @utility custom { background: blue; }",
-        ),
+        )
+        .unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
@@ -143,7 +154,7 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     assert!(snapshot.fingerprints().utilities.contains_key("flex"));
     assert!(snapshot.builtins().is_some());
     let unselected = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "root", "@import 'stillwind/theme.css';"),
+        &SourceFile::new(FileId(1), "root", "@import 'stillwind/theme.css';").unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
@@ -197,7 +208,7 @@ fn imported_styles_retain_layer_supports_and_media_conditions() {
     let DesignSystemLoadStep::Complete(Ok(snapshot)) = step else {
         panic!("{step:?}")
     };
-    let css = snapshot.render_stylesheet("");
+    let css = snapshot.render_stylesheet("").unwrap();
     assert!(css.contains("@layer components"), "{css}");
     assert!(css.contains("@supports (display: grid)"), "{css}");
     assert!(css.contains("@media screen and (width > 40rem)"), "{css}");
@@ -256,11 +267,14 @@ fn partial_out_of_order_responses_discover_imports_without_changing_css_or_spans
         3
     );
     let batch_snapshot = complete(batched.provide_many([input(3, "c", c)]));
-    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")), CompilerOptions::default()).unwrap();
-    assert_eq!(snapshot.render_stylesheet(""), flat.render_stylesheet(""));
+    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")).unwrap(), CompilerOptions::default()).unwrap();
     assert_eq!(
-        snapshot.render_stylesheet(""),
-        batch_snapshot.render_stylesheet("")
+        snapshot.render_stylesheet("").unwrap(),
+        flat.render_stylesheet("").unwrap()
+    );
+    assert_eq!(
+        snapshot.render_stylesheet("").unwrap(),
+        batch_snapshot.render_stylesheet("").unwrap()
     );
     assert_eq!(snapshot.fingerprints(), batch_snapshot.fingerprints());
     let token = &snapshot.tokens().get("--color-child").unwrap()[0];
@@ -286,7 +300,7 @@ fn diamond_sources_reuse_unfinished_nodes_and_keep_each_import_occurrence() {
     let snapshot = complete(loader.provide(3, "leaf".into(), ".leaf { color: blue; }".into()));
     assert_eq!(snapshot.sources().sources.len(), 3);
     assert_eq!(snapshot.sources().edges.len(), 3);
-    let css = snapshot.render_stylesheet("");
+    let css = snapshot.render_stylesheet("").unwrap();
     assert_eq!(css.matches(".leaf").count(), 2);
     assert_eq!(css.matches(".shared").count(), 2);
 }

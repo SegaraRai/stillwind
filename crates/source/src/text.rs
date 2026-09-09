@@ -3,8 +3,12 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum SourceError {
+    #[error("source size or offset {0} exceeds the 32-bit source limit")]
+    TooLarge(usize),
+    #[error("invalid source byte range {start}..{end}")]
+    InvalidRange { start: usize, end: usize },
     #[error("span belongs to file {actual:?}, expected {expected:?}")]
     WrongFile { expected: FileId, actual: FileId },
     #[error("invalid source span {0:?}")]
@@ -18,8 +22,8 @@ pub fn normalized_module_path(path: &str) -> String {
     path.replace('\\', "/").trim_start_matches("./").to_owned()
 }
 
-pub(super) fn offset(value: usize) -> u32 {
-    u32::try_from(value).expect("stillwind source files must be smaller than 4 GiB")
+pub(super) fn offset(value: usize) -> Result<u32, SourceError> {
+    u32::try_from(value).map_err(|_| SourceError::TooLarge(value))
 }
 
 pub fn range_of(span: Span) -> Range<usize> {
@@ -48,8 +52,9 @@ impl Span {
         }
     }
 
-    pub const fn len(self) -> u32 {
-        self.end.0 - self.start.0
+    /// Returns `None` for a reversed span.
+    pub const fn len(self) -> Option<u32> {
+        self.end.0.checked_sub(self.start.0)
     }
 
     pub const fn is_empty(self) -> bool {
@@ -82,24 +87,33 @@ pub struct SourceFile {
     path: Arc<str>,
     text: Arc<str>,
     line_starts: Arc<[u32]>,
+    len: u32,
 }
 
 impl SourceFile {
-    pub fn new(id: FileId, path: impl Into<Arc<str>>, text: impl Into<Arc<str>>) -> Self {
+    /// # Errors
+    /// Returns an error if the text exceeds the 32-bit source coordinate limit.
+    pub fn new(
+        id: FileId,
+        path: impl Into<Arc<str>>,
+        text: impl Into<Arc<str>>,
+    ) -> Result<Self, SourceError> {
         let text = text.into();
+        let len = offset(text.len())?;
         let mut line_starts = vec![0];
         for (index, byte) in text.bytes().enumerate() {
             if byte == b'\n' {
-                line_starts.push(offset(index + 1));
+                line_starts.push(offset(index + 1)?);
             }
         }
 
-        Self {
+        Ok(Self {
             id,
             path: path.into(),
             text,
             line_starts: line_starts.into(),
-        }
+            len,
+        })
     }
 
     pub const fn id(&self) -> FileId {
@@ -115,7 +129,7 @@ impl SourceFile {
     }
 
     pub fn full_span(&self) -> Span {
-        Span::new(self.id, 0, offset(self.text.len()))
+        Span::new(self.id, 0, self.len)
     }
 
     /// Returns the original source slice for `span`.
@@ -156,10 +170,10 @@ impl SourceFile {
             self.text[line_start..byte_offset_usize]
                 .encode_utf16()
                 .count(),
-        );
+        )?;
 
         Ok(Position {
-            line: offset(line_index),
+            line: offset(line_index)?,
             utf16_column,
         })
     }
@@ -177,19 +191,29 @@ impl SourceFile {
         if byte_offset_usize > self.text.len() || !self.text.is_char_boundary(byte_offset_usize) {
             return Err(SourceError::InvalidOffset(byte_offset));
         }
-        Ok(offset(
-            self.text[..byte_offset_usize].encode_utf16().count(),
-        ))
+        offset(self.text[..byte_offset_usize].encode_utf16().count())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn reversed_spans_and_oversized_offsets_are_checked() {
+        assert_eq!(Span::new(FileId(1), 2, 1).len(), None);
+        assert_eq!(Span::new(FileId(1), 0, u32::MAX).len(), Some(u32::MAX));
+        assert_eq!(offset(u32::MAX as usize).unwrap(), u32::MAX);
+        if let Some(too_large) = (u32::MAX as usize).checked_add(1) {
+            assert!(
+                matches!(offset(too_large), Err(SourceError::TooLarge(value)) if value == too_large)
+            );
+        }
+    }
+
     use super::*;
 
     #[test]
     fn maps_byte_offsets_to_utf16_positions() {
-        let source = SourceFile::new(FileId(1), "Button.tsx", "a😀\nβ");
+        let source = SourceFile::new(FileId(1), "Button.tsx", "a😀\nβ").unwrap();
 
         assert_eq!(
             source.position(BytePos(0)).unwrap(),
@@ -234,7 +258,7 @@ mod boundary_tests {
 
     #[test]
     fn invalid_byte_boundaries_and_wrong_files_are_rejected() {
-        let source = SourceFile::new(FileId(1), "x", "a😀\r\nz");
+        let source = SourceFile::new(FileId(1), "x", "a😀\r\nz").unwrap();
         assert!(matches!(
             source.slice(Span::new(FileId(2), 0, 1)),
             Err(SourceError::WrongFile { .. })
@@ -256,7 +280,7 @@ mod boundary_tests {
         #[test]
         fn utf16_offsets_agree_with_character_boundaries(chars in proptest::collection::vec(proptest::char::any(), 0..60)) {
             let text: String = chars.into_iter().collect();
-            let source = SourceFile::new(FileId(1), "x", text.clone());
+            let source = SourceFile::new(FileId(1), "x", text.clone()).unwrap();
             for offset in text.char_indices().map(|(i, _)| i).chain(std::iter::once(text.len())) {
                 proptest::prop_assert_eq!(
                     source.utf16_offset(BytePos(u32::try_from(offset).unwrap())).unwrap(),
@@ -276,7 +300,7 @@ mod boundary_tests {
         #[test]
         fn span_lengths_and_ranges_agree(start in 0_u32..1000, len in 0_u32..1000) {
             let span = Span::new(FileId(1), start, start + len);
-            proptest::prop_assert_eq!(span.len(), len);
+            proptest::prop_assert_eq!(span.len(), Some(len));
             proptest::prop_assert_eq!(span.is_empty(), len == 0);
             proptest::prop_assert_eq!(range_of(span).len(), usize::try_from(len).unwrap());
         }

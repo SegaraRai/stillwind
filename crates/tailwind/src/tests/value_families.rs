@@ -149,11 +149,14 @@ fn resolves_text_lengths_and_additional_discrete_layout_keywords() {
         );
     }
 
-    let custom_theme = parse_tailwind_theme(&SourceFile::new(
-        FileId(2),
-        "theme.css",
-        "@theme { --font-stretch-superbold: 150%; }",
-    ))
+    let custom_theme = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(2),
+            "theme.css",
+            "@theme { --font-stretch-superbold: 150%; }",
+        )
+        .unwrap(),
+    )
     .unwrap();
     assert!(
         custom_theme

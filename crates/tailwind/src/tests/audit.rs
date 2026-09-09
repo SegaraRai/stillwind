@@ -68,7 +68,8 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
                 continue;
             }
             let source =
-                SourceFile::new(FileId(1), format!("{}#{case_index}", path.display()), input);
+                SourceFile::new(FileId(1), format!("{}#{case_index}", path.display()), input)
+                    .unwrap();
             let Ok(theme) = parse_tailwind_theme(&source) else {
                 theme_parse_failures += 1;
                 continue;

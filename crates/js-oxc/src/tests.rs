@@ -12,7 +12,8 @@ fn extracts_only_an_import_bound_style_call_with_literal_spans() {
         r#"import { style as s } from "stillwind/react";
 const props = s("px-4 text-center", "hover:bg-accent");
 function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
-    );
+    )
+    .unwrap();
 
     let parsed = parse(&source);
 
@@ -38,7 +39,8 @@ const named = style.ref("trigger");
 const scoped = style.ref(menu);
 const scopedNamed = style.ref(menu, "item");
 export const Menu = () => <div {...style(menu)}><button {...style(scoped)} /></div>;"#,
-    );
+    )
+    .unwrap();
 
     let parsed = parse(&source);
 
@@ -89,7 +91,8 @@ const trigger = style.ref(menu, "trigger");
 export { trigger as menuTrigger };
 export { sharedTransition as transition } from "./shared";
 export const Parent = () => <div {...style(menu)}><button {...style(trigger)} /></div>;"#,
-    );
+    )
+    .unwrap();
 
     let parsed = parse(&source);
 
@@ -120,7 +123,8 @@ const first = style.ref("first");
 const second = style.ref("second");
 const alias = first;
 export const selected = enabled ? alias : second;"#,
-    );
+    )
+    .unwrap();
 
     let parsed = parse(&source);
     assert!(!parsed.summary.exports.contains_key("selected"));
@@ -159,7 +163,8 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             FileId(1),
             "spread.tsx",
             format!("import {{ style }} from 'stillwind/react'; {body}"),
-        );
+        )
+        .unwrap();
         let parsed = parse(&source);
         let diagnostic = parsed
             .diagnostics

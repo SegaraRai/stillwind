@@ -1,7 +1,7 @@
 use stillwind_core::Compiler;
 use stillwind_source::{FileId, SourceFile};
 
-fn main() {
+fn main() -> Result<(), stillwind_source::SourceError> {
     let component = SourceFile::new(
         FileId(1),
         "src/SaveButton.tsx",
@@ -16,7 +16,7 @@ export function SaveButton() {
     { "aria-busy": loading, "data-state": loading ? "loading" : "idle" },
   )}>Save</button>;
 }"#,
-    );
+    )?;
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
@@ -25,7 +25,7 @@ export function SaveButton() {
   --spacing-4: 1rem;
   --radius-md: .375rem;
 }",
-    );
+    )?;
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -44,4 +44,5 @@ export function SaveButton() {
             println!("  {}: {}", diagnostic.code, diagnostic.message);
         }
     }
+    Ok(())
 }

@@ -25,7 +25,8 @@ fn resolves_theme_reference_fallbacks_generically() {
         FileId(7),
         "theme.css",
         r"@theme { --known: blue; --alias: --theme(--known, initial); }",
-    );
+    )
+    .unwrap();
     let theme = parse_theme(&source).unwrap();
 
     assert_eq!(
@@ -52,7 +53,8 @@ fn parses_block_variants_and_omits_them_from_authored_output() {
         FileId(7),
         "stillwind.css",
         "@variant pressed { &:active { @slot; } }\n.card { color: red; }",
-    );
+    )
+    .unwrap();
 
     let theme = parse_theme(&source).unwrap();
 
@@ -82,7 +84,8 @@ fn separates_compiler_property_definitions_from_authored_property_rules() {
                 }
                 .example { color: var(--authored-value); }
             "#,
-    );
+    )
+    .unwrap();
 
     let theme = parse_theme(&source).unwrap();
 

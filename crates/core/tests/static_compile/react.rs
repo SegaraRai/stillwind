@@ -10,12 +10,13 @@ fn compiles_a_real_react_style_call_against_a_css_theme() {
 export function SaveButton() {
   return <button {...style("inline-flex items-center rounded-md bg-accent px-4 text-center")}>Save</button>;
 }"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: oklch(.6 .2 250); --spacing-4: 1rem; --radius-md: .375rem; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -39,12 +40,14 @@ fn reports_an_unknown_token_at_the_utility_not_the_whole_call() {
         "src/SaveButton.tsx",
         r#"import { style } from "stillwind/react";
 const props = style("bg-accnet");"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     let finding = result
@@ -69,8 +72,9 @@ fn preserves_unparseable_tailwind_candidates_as_lint_findings() {
         "src/SaveButton.tsx",
         r#"import { style } from "stillwind/react";
 const props = style("bg-[color:red");"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"tailwindcss\";");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"tailwindcss\";").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.lint_findings[0].rule, "invalid-utility");
@@ -91,8 +95,9 @@ const second = style("text-accnet"); // swlint-disable-line unknown-utility
 const third = style("p-accnet");
 /* swlint-enable unknown-utility */
 const fourth = style("m-accnet");"#,
-    );
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.lint_findings.len(), 1);
@@ -112,12 +117,14 @@ fn emits_css_for_a_runtime_conditional_branch_without_evaluating_it() {
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60");"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -135,12 +142,14 @@ fn compiles_both_sides_of_a_static_ternary_branch() {
         r#"import { style } from "stillwind/react";
 declare const active: boolean;
 const props = style(active ? "bg-accent" : "bg-muted");"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; --color-muted: gray; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -160,12 +169,14 @@ fn plans_react_props_for_classes_a_conditional_and_an_aria_attribute() {
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading });"#,
-    );
+    )
+    .unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -190,12 +201,13 @@ fn keeps_external_classes_in_an_explicit_clsx_class_entry() {
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "&:hover": "bg-muted" });"#,
-    );
+    ).unwrap();
     let theme = SourceFile::new(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; --color-muted: gray; }",
-    );
+    )
+    .unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -227,8 +239,9 @@ fn rejects_clsx_object_form_outside_the_explicit_class_entry() {
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style({ "legacy-loading": loading });"#,
-    );
-    let theme = SourceFile::new(FileId(2), "src/styles/stillwind.css", "@theme {}");
+    )
+    .unwrap();
+    let theme = SourceFile::new(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

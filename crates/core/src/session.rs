@@ -7,12 +7,16 @@ use stillwind_source::CompileError;
 
 use crate::{
     CompiledModule, DesignSystemLoadError, DesignSystemSnapshot, GeneratedRule, ModuleAnalysis,
-    ModuleCompiler, ModuleCssArtifact, ModuleId, RuleKey,
+    ModuleCompiler, ModuleCssArtifact, ModuleId, RuleKey, StylesheetError,
 };
 
 #[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct SessionReloadError(#[from] pub DesignSystemLoadError);
+pub enum SessionReloadError {
+    #[error("{0}")]
+    Load(#[from] DesignSystemLoadError),
+    #[error("{0}")]
+    Stylesheet(#[from] StylesheetError),
+}
 
 #[derive(Clone, Debug)]
 struct RuleEntry {
@@ -62,20 +66,24 @@ impl ProjectStylesheet {
         self.rules.len()
     }
 
-    pub fn module_css(&self) -> String {
-        // Source-independent module ordering, preserving each emitter's canonical
-        // candidate order and emitting shared rules only at their first owner.
+    /// # Errors
+    /// Returns an error if a contribution refers to a missing rule.
+    pub fn module_css(&self) -> Result<String, StylesheetError> {
         let mut emitted = BTreeSet::new();
-        self.contributions
-            .values()
-            .flatten()
-            .filter(|key| emitted.insert(*key))
-            .map(|key| self.rules[key].rule.to_css())
-            .collect()
+        let mut css = String::new();
+        for key in self.contributions.values().flatten() {
+            if emitted.insert(key) {
+                let entry = self.rules.get(key).ok_or(StylesheetError::MissingRule)?;
+                css.push_str(&entry.rule.to_css());
+            }
+        }
+        Ok(css)
     }
 
-    pub fn serialize(&self, snapshot: &DesignSystemSnapshot) -> String {
-        snapshot.render_stylesheet(&self.module_css())
+    /// # Errors
+    /// Returns an error for inconsistent contributions or invalid assembled CSS.
+    pub fn serialize(&self, snapshot: &DesignSystemSnapshot) -> Result<String, StylesheetError> {
+        snapshot.render_stylesheet(&self.module_css()?)
     }
 }
 
@@ -145,11 +153,18 @@ impl ProjectSession {
     pub fn load_error(&self) -> Option<&DesignSystemLoadError> {
         self.load_error.as_ref()
     }
-    pub fn css(&self) -> String {
+    /// # Errors
+    /// Returns an error if stylesheet serialization fails.
+    pub fn css(&self) -> Result<String, StylesheetError> {
         self.stylesheet.serialize(&self.current)
     }
 
-    pub fn update_module(&mut self, analysis: ModuleAnalysis) -> SessionUpdate {
+    /// # Errors
+    /// Returns an error if stylesheet serialization fails.
+    pub fn update_module(
+        &mut self,
+        analysis: ModuleAnalysis,
+    ) -> Result<SessionUpdate, StylesheetError> {
         let backend = ModuleCompiler::new(self.current.clone());
         if analysis.diagnostics.is_empty()
             && analysis.integration_diagnostics.is_empty()
@@ -159,9 +174,9 @@ impl ProjectSession {
                 .is_some_and(|artifact| artifact.key == backend.key_for(&analysis))
         {
             self.analyses.insert(analysis.module_id.clone(), analysis);
-            return SessionUpdate::default();
+            return Ok(SessionUpdate::default());
         }
-        let old_css = self.css();
+        let old_css = self.css()?;
         let module_id = analysis.module_id.clone();
         let mut compiled = backend.compile(&analysis);
         let mut symbols: BTreeMap<_, _> = self
@@ -205,20 +220,22 @@ impl ProjectSession {
             }
         }
         self.reindex();
-        update.css_changed = old_css != self.css();
-        update
+        update.css_changed = old_css != self.css()?;
+        Ok(update)
     }
 
-    pub fn remove_module(&mut self, module: &str) -> SessionUpdate {
-        let old_css = self.css();
+    /// # Errors
+    /// Returns an error if stylesheet serialization fails.
+    pub fn remove_module(&mut self, module: &str) -> Result<SessionUpdate, StylesheetError> {
+        let old_css = self.css()?;
         self.analyses.remove(module);
         self.artifacts.remove(module);
         self.stylesheet.remove(module);
         self.reindex();
-        SessionUpdate {
-            css_changed: old_css != self.css(),
+        Ok(SessionUpdate {
+            css_changed: old_css != self.css()?,
             ..SessionUpdate::default()
-        }
+        })
     }
 
     /// Publishes an entirely rebuilt revision under the host's exclusive actor turn.
@@ -242,11 +259,11 @@ impl ProjectSession {
                 return Err(error.into());
             }
         };
-        let old_css = self.css();
+        let old_css = self.css()?;
         let mut next = Self::new(snapshot, self.mode);
         let mut update = SessionUpdate::default();
         for (id, analysis) in &self.analyses {
-            let changed = next.update_module(analysis.clone());
+            let changed = next.update_module(analysis.clone())?;
             update.diagnostics.extend(changed.diagnostics);
             if next.artifacts.get(id).map(|value| &value.code_transforms)
                 != self.artifacts.get(id).map(|value| &value.code_transforms)
@@ -260,7 +277,7 @@ impl ProjectSession {
             update.transformed_modules.clear();
             return Ok(update);
         }
-        update.css_changed = old_css != next.css();
+        update.css_changed = old_css != next.css()?;
         *self = next;
         Ok(update)
     }
@@ -311,27 +328,39 @@ impl ProjectSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CompilerOptions, OxcSourceAnalyzer, SourceAnalyzer};
+    use crate::{CompilerOptions, Fingerprint, OxcSourceAnalyzer, SourceAnalyzer};
     use stillwind_source::{FileId, SourceFile};
 
     #[test]
+    fn missing_rule_is_a_serialization_error() {
+        let mut stylesheet = ProjectStylesheet::default();
+        stylesheet
+            .contributions
+            .insert("x".into(), vec![RuleKey(Fingerprint::of("missing"))]);
+        assert!(matches!(
+            stylesheet.module_css(),
+            Err(StylesheetError::MissingRule)
+        ));
+    }
+
+    #[test]
     fn removing_one_module_does_not_drop_rules_shared_by_another() {
-        let artifact = ModuleCssArtifact::from_css(".x{color:red;}");
+        let artifact = ModuleCssArtifact::from_css(".x{color:red;}").unwrap();
         let mut stylesheet = ProjectStylesheet::default();
         stylesheet.replace("a".into(), &artifact);
         stylesheet.replace("b".into(), &artifact);
         assert_eq!(stylesheet.rule_count(), 1);
         stylesheet.remove("a");
-        assert_eq!(stylesheet.module_css(), ".x{color:red;}");
+        assert_eq!(stylesheet.module_css().unwrap(), ".x{color:red;}");
         stylesheet.remove("b");
         assert_eq!(stylesheet.rule_count(), 0);
         stylesheet.remove("absent");
-        assert_eq!(stylesheet.module_css(), "");
+        assert_eq!(stylesheet.module_css().unwrap(), "");
     }
 
     fn reload_snapshot(css: &str) -> DesignSystemSnapshot {
         DesignSystemSnapshot::from_source(
-            &SourceFile::new(FileId(2), "theme", css),
+            &SourceFile::new(FileId(2), "theme", css).unwrap(),
             CompilerOptions::default(),
         )
         .unwrap()
@@ -342,7 +371,7 @@ mod tests {
             FileId(1),
             "motion.tsx",
             "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion('both')); ",
-        );
+        ).unwrap();
         OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(source)), None)
     }
 
@@ -355,6 +384,7 @@ mod tests {
         assert!(
             session
                 .update_module(reload_module())
+                .unwrap()
                 .diagnostics
                 .is_empty()
         );
@@ -362,12 +392,19 @@ mod tests {
             FileId(3),
             "other.tsx",
             "import { style } from 'stillwind/react'; const x = style('flex');",
-        );
+        )
+        .unwrap();
         let analysis =
             OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(other)), None);
-        assert!(session.update_module(analysis).diagnostics.is_empty());
+        assert!(
+            session
+                .update_module(analysis)
+                .unwrap()
+                .diagnostics
+                .is_empty()
+        );
         let other_artifact = session.artifacts()["other.tsx"].css.to_css();
-        let before_css = session.css();
+        let before_css = session.css().unwrap();
         let revision = session.snapshot().revision();
         let before_artifact = session.artifacts()["motion.tsx"].css.to_css();
         let update = session.reload(Ok(reload_snapshot(""))).unwrap();
@@ -379,7 +416,7 @@ mod tests {
         assert!(!update.css_changed);
         assert!(update.transformed_modules.is_empty());
         assert_eq!(session.snapshot().revision(), revision);
-        assert_eq!(session.css(), before_css);
+        assert_eq!(session.css().unwrap(), before_css);
         assert_eq!(
             session.artifacts()["motion.tsx"].css.to_css(),
             before_artifact
@@ -407,6 +444,7 @@ mod tests {
         assert!(
             session
                 .update_module(reload_module())
+                .unwrap()
                 .diagnostics
                 .is_empty()
         );

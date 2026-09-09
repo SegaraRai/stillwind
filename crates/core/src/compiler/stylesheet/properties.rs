@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
-use stillwind_css::{ThemeIndex, custom_property_usage};
+use stillwind_css::{PropertyUsageError, ThemeIndex, custom_property_usage};
 use stillwind_tailwind::builtin_property_definitions;
 
 use crate::compiler::options::CompilerOptions;
@@ -11,9 +11,8 @@ pub(in crate::compiler) fn render_used_properties(
     theme: &ThemeIndex,
     css: &str,
     options: &CompilerOptions,
-) -> String {
-    let usage = custom_property_usage(css)
-        .expect("compiler and authored CSS were validated before property rendering");
+) -> Result<String, PropertyUsageError> {
+    let usage = custom_property_usage(css)?;
     let builtin_properties = theme
         .imports
         .builtins
@@ -102,5 +101,5 @@ pub(in crate::compiler) fn render_used_properties(
         }
         output.push_str("}\n");
     }
-    output
+    Ok(output)
 }

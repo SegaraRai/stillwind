@@ -35,11 +35,13 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
-        if label.as_ref().is_some_and(|label| !is_marker_label(label)) {
+        if let Some(label) = &label
+            && !is_marker_label(label)
+        {
             self.diagnostics.push(CompileError::new(
                 "SHSCOPE001",
                 "style.scope() names may contain only ASCII letters, digits, `_`, and `-`",
-                label.expect("checked above").span,
+                label.span,
             ));
             return None;
         }
@@ -106,11 +108,13 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
-        if label.as_ref().is_some_and(|label| !is_marker_label(label)) {
+        if let Some(label) = &label
+            && !is_marker_label(label)
+        {
             self.diagnostics.push(CompileError::new(
                 "SHREF001",
                 "style.ref() names may contain only ASCII letters, digits, `_`, and `-`",
-                label.expect("checked above").span,
+                label.span,
             ));
             return None;
         }

@@ -13,7 +13,8 @@ fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
 @utility -offset-* { inset: calc(--value-map(full: 100%) * -1); }
 @utility mask-* { mask-size: --value([length]); }
 @utility alpha-* { opacity: --modifier(); }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(
@@ -58,7 +59,8 @@ fn tries_overloaded_css_utility_definitions_in_reverse_source_order() {
         "theme.css",
         r"@utility token-* { width: --value([length]); }
 @utility token-* { color: --value([color]); }",
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
 
     assert_eq!(
@@ -82,7 +84,8 @@ fn preserves_css_fallbacks_and_multiple_selector_targets() {
         "theme.css",
         r#"@utility paint-* { color: red; color: color(display-p3 1 0 0); }
 @utility paint-* { &::before { content: "fallback"; } }"#,
-    );
+    )
+    .unwrap();
     let theme = parse_tailwind_theme(&source).unwrap();
     let resolved = resolve_utility("paint-card", &theme).unwrap();
 

@@ -105,7 +105,7 @@ pub(super) fn theme() -> ThemeIndex {
             FileId(1),
             "theme.css",
             "@stillwind-marker group; @stillwind-marker peer; @theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
-        ))
+        ).unwrap())
         .unwrap()
 }
 

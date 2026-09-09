@@ -6,7 +6,7 @@ use cssparser::{ParseError, Parser, Token};
 
 use stillwind_ir::StyleInput;
 use stillwind_semantic::IdentityId;
-use stillwind_source::{CompileError, LintFinding, SourceFile};
+use stillwind_source::{CompileError, FileId, LintFinding, SourceFile, Span};
 
 use crate::transforms::apply_transforms;
 use crate::{
@@ -17,6 +17,12 @@ use crate::{
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
 pub struct ModuleTransformError(#[from] pub TransformError);
+
+#[derive(Debug, thiserror::Error)]
+#[error("invalid generated CSS block at byte {offset}")]
+pub(crate) struct CssArtifactError {
+    offset: usize,
+}
 
 /// Content identity of one generated CSS rule.
 ///
@@ -57,7 +63,7 @@ impl ModuleCssArtifact {
 
     /// Lossless boundary between the existing emitter and rule ownership. CSS
     /// tokenization keeps braces inside strings, functions and comments intact.
-    pub(crate) fn from_css(css: &str) -> Self {
+    pub(crate) fn from_css(css: &str) -> Result<Self, CssArtifactError> {
         let mut parser = Parser::new(css);
         let mut start = 0;
         let mut rules = Vec::new();
@@ -70,7 +76,7 @@ impl ModuleCssArtifact {
                         while nested.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(nested.position().byte_index())
                     })
-                    .expect("generated CSS block is valid");
+                    .map_err(|_| CssArtifactError { offset: body_start })?;
                 let end = parser.position().byte_index();
                 rules.push(GeneratedRule {
                     key: RuleKey(Fingerprint::of(&css[start..end])),
@@ -95,7 +101,7 @@ impl ModuleCssArtifact {
                 body: None,
             });
         }
-        Self { rules }
+        Ok(Self { rules })
     }
 }
 
@@ -146,12 +152,7 @@ impl CompiledModule {
 
     pub fn to_legacy(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
-        CompileResult {
-            css: if self.is_success() {
-                snapshot.render_stylesheet(&module_css)
-            } else {
-                String::new()
-            },
+        let mut result = CompileResult {
             module_css,
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
@@ -159,7 +160,25 @@ impl CompiledModule {
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),
             lint_policy: snapshot.theme().config.lint_rules.clone(),
+            ..CompileResult::default()
+        };
+        if self.is_success() {
+            match snapshot.render_stylesheet(&result.module_css) {
+                Ok(css) => result.css = css,
+                Err(error) => {
+                    result.diagnostics.push(CompileError::new(
+                        "SHCSS001",
+                        error.to_string(),
+                        Span::new(FileId(self.key.source_file_id), 0, 0),
+                    ));
+                    result.module_css.clear();
+                    result.transforms.clear();
+                    result.classes.clear();
+                    result.symbols.clear();
+                }
+            }
         }
+        result
     }
 }
 
@@ -206,7 +225,17 @@ impl ModuleCompiler {
             )
         }));
         let css = if diagnostics.is_empty() {
-            ModuleCssArtifact::from_css(&result.module_css)
+            match ModuleCssArtifact::from_css(&result.module_css) {
+                Ok(css) => css,
+                Err(error) => {
+                    diagnostics.push(CompileError::new(
+                        "SHCSS001",
+                        error.to_string(),
+                        module.source.full_span(),
+                    ));
+                    ModuleCssArtifact::default()
+                }
+            }
         } else {
             ModuleCssArtifact::default()
         };
@@ -295,7 +324,7 @@ mod tests {
             "/*a*/ .x{content:'}';color:red;}\n",
             "@media print{.x{color:red;}}",
         ] {
-            let artifact = ModuleCssArtifact::from_css(css);
+            let artifact = ModuleCssArtifact::from_css(css).unwrap();
             assert_eq!(artifact.to_css(), css);
             for rule in artifact.rules {
                 assert_eq!(rule.key, RuleKey(Fingerprint::of(rule.to_css())));
@@ -307,7 +336,7 @@ mod tests {
         #[test]
         fn small_rule_serialization_is_lossless(name in "[a-z]{1,15}", value in 0u16..1000) {
             let css = format!(".{name}{{width:{value}px;}}");
-            proptest::prop_assert_eq!(ModuleCssArtifact::from_css(&css).to_css(), css);
+            proptest::prop_assert_eq!(ModuleCssArtifact::from_css(&css).unwrap().to_css(), css);
         }
     }
 }

@@ -6,6 +6,7 @@ use crate::compiler::utilities::declaration_order::{
     order_builtin_utilities, prepend_missing_declarations,
 };
 use crate::compiler::utilities::resolve::resolve_utility;
+use crate::compiler::variants::{VariantStep, variant_paths};
 
 use super::blocks::find_at_rule_block;
 
@@ -110,50 +111,53 @@ pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
 ) -> String {
-    applications
+    variant_paths(applications)
         .iter()
-        .fold(body.to_owned(), |body, application| match application {
-            VariantApplication::Compound(_) => unreachable!(),
-            VariantApplication::SelectorSuffix(suffix) => {
-                format!("&{suffix}{{{body}}}")
-            }
-            VariantApplication::SelectorTemplate(selector) => {
-                format!("{selector}{{{body}}}")
-            }
-            VariantApplication::SelectorRule {
-                selector,
-                declarations,
-            } => {
-                let mut body = body;
-                prepend_missing_declarations(&mut body, declarations);
-                format!("{selector}{{{body}}}")
-            }
-            VariantApplication::SelectorMedia {
-                selector,
-                condition,
-            } => format!("{selector}{{@media {condition}{{{body}}}}}"),
-            VariantApplication::SelectorMediaRule {
-                selector,
-                declarations,
-                condition,
-            } => {
-                let mut body = body;
-                prepend_missing_declarations(&mut body, declarations);
-                format!("{selector}{{@media {condition}{{{body}}}}}")
-            }
-            VariantApplication::Media(condition) => {
-                format!("@media {condition}{{{body}}}")
-            }
-            VariantApplication::Container(condition) => {
-                format!("@container {condition}{{{body}}}")
-            }
-            VariantApplication::Supports(condition) => {
-                format!("@supports ({condition}){{{body}}}")
-            }
-            VariantApplication::StartingStyle => {
-                format!("@starting-style{{{body}}}")
-            }
+        .map(|path| {
+            path.iter()
+                .fold(body.to_owned(), |body, application| match *application {
+                    VariantStep::SelectorSuffix(suffix) => {
+                        format!("&{suffix}{{{body}}}")
+                    }
+                    VariantStep::SelectorTemplate(selector) => {
+                        format!("{selector}{{{body}}}")
+                    }
+                    VariantStep::SelectorRule {
+                        selector,
+                        declarations,
+                    } => {
+                        let mut body = body;
+                        prepend_missing_declarations(&mut body, declarations);
+                        format!("{selector}{{{body}}}")
+                    }
+                    VariantStep::SelectorMedia {
+                        selector,
+                        condition,
+                    } => format!("{selector}{{@media {condition}{{{body}}}}}"),
+                    VariantStep::SelectorMediaRule {
+                        selector,
+                        declarations,
+                        condition,
+                    } => {
+                        let mut body = body;
+                        prepend_missing_declarations(&mut body, declarations);
+                        format!("{selector}{{@media {condition}{{{body}}}}}")
+                    }
+                    VariantStep::Media(condition) => {
+                        format!("@media {condition}{{{body}}}")
+                    }
+                    VariantStep::Container(condition) => {
+                        format!("@container {condition}{{{body}}}")
+                    }
+                    VariantStep::Supports(condition) => {
+                        format!("@supports ({condition}){{{body}}}")
+                    }
+                    VariantStep::StartingStyle => {
+                        format!("@starting-style{{{body}}}")
+                    }
+                })
         })
+        .collect()
 }
 
 #[cfg(test)]
@@ -176,7 +180,8 @@ mod tests {
                   @variant print { color: black; }
                 }
             "#,
-        );
+        )
+        .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
         let expanded = expand_authored_directives(theme.custom_css(), &theme);
         let compact = expanded
@@ -202,7 +207,8 @@ mod tests {
                 @import "tailwindcss/utilities" layer(utilities);
                 .button { @apply px-4 bg-red-500 inline-flex; }
             "#,
-        );
+        )
+        .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
         let expanded = expand_authored_directives(theme.custom_css(), &theme);
         let compact = expanded

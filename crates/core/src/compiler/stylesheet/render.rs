@@ -1,5 +1,6 @@
 use stillwind_css::{
-    ThemeIndex, ThemeNamespace, ThemeTokenKind, tailwind_v4_keyframes_for, tailwind_v4_preflight,
+    PropertyUsageError, ThemeIndex, ThemeNamespace, ThemeTokenKind, tailwind_v4_keyframes_for,
+    tailwind_v4_preflight,
 };
 use stillwind_source::FileId;
 use stillwind_tailwind::{builtin_omit_token_prefixes, builtin_theme_order};
@@ -10,12 +11,20 @@ use super::authored_directives::expand_authored_directives;
 use super::keyframes::{extract_authored_keyframes, without_keyframes};
 use super::properties::render_used_properties;
 
+#[derive(Debug, thiserror::Error)]
+pub enum StylesheetError {
+    #[error("{0}")]
+    PropertyUsage(#[from] PropertyUsageError),
+    #[error("stylesheet contribution references a missing rule")]
+    MissingRule,
+}
+
 #[allow(clippy::too_many_lines)]
 pub(crate) fn render_stylesheet(
     theme: &ThemeIndex,
     utility_css: &str,
     options: &CompilerOptions,
-) -> String {
+) -> Result<String, StylesheetError> {
     let imports = &theme.imports;
     let mut css = String::new();
     let authored_css = expand_authored_directives(&without_keyframes(theme.custom_css()), theme);
@@ -114,11 +123,11 @@ pub(crate) fn render_stylesheet(
     if !authored_keyframes.is_empty() {
         css.push_str(&authored_keyframes);
     }
-    let properties = render_used_properties(theme, &css, options);
+    let properties = render_used_properties(theme, &css, options)?;
     if !properties.is_empty() {
         css.insert_str(0, "@layer properties;\n");
         css.push('\n');
         css.push_str(&properties);
     }
-    css
+    Ok(css)
 }

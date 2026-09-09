@@ -46,12 +46,12 @@ fn parse_failures_keep_source_identity_and_typed_cause() {
 #[test]
 fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening() {
     use crate::{CompilerOptionsError, DesignSystemError};
-    let source = SourceFile::new(FileId(1), "root", "@import 'child';");
+    let source = SourceFile::new(FileId(1), "root", "@import 'child';").unwrap();
     let error = DesignSystemSnapshot::from_source(&source, CompilerOptions::default()).unwrap_err();
     assert!(
         matches!(error, DesignSystemError::UnresolvedImports { requests } if requests.len() == 1 && requests[0].id == 1 && requests[0].specifier == "child")
     );
-    let source = SourceFile::new(FileId(1), "root", "");
+    let source = SourceFile::new(FileId(1), "root", "").unwrap();
     let options = CompilerOptions {
         prefix: "bad".into(),
         ..CompilerOptions::default()

@@ -209,13 +209,18 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn css(&self) -> String {
-        self.session.css()
+    pub fn css(&self) -> napi::Result<String> {
+        self.session
+            .css()
+            .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     #[napi]
-    pub fn remove(&mut self, module: String) -> bool {
-        self.session.remove_module(&module).css_changed
+    pub fn remove(&mut self, module: String) -> napi::Result<bool> {
+        self.session
+            .remove_module(&module)
+            .map(|update| update.css_changed)
+            .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     #[napi]
@@ -225,21 +230,26 @@ impl NativeProjectSession {
         let scans: Vec<_> = sources
             .iter()
             .map(|source| {
-                OxcSourceAnalyzer.scan(Arc::new(SourceFile::new(
-                    FileId(1),
-                    source.path.as_str(),
-                    source.source.as_str(),
-                )))
+                Ok::<_, Error>(
+                    OxcSourceAnalyzer.scan(Arc::new(
+                        SourceFile::new(FileId(1), source.path.as_str(), source.source.as_str())
+                            .map_err(|error| Error::from_reason(error.to_string()))?,
+                    )),
+                )
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
         let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);
         let snapshot = self.session.snapshot();
-        let theme = SourceFile::new(FileId(2), "stillwind.css", "");
+        let theme = SourceFile::new(FileId(2), "stillwind.css", "")
+            .map_err(|error| Error::from_reason(error.to_string()))?;
         let mut modules = Vec::new();
         for scan in scans {
             let analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
-            let update = self.session.update_module(analysis);
+            let update = self
+                .session
+                .update_module(analysis)
+                .map_err(|error| Error::from_reason(error.to_string()))?;
             let mut result = self
                 .session
                 .artifacts()

@@ -6,7 +6,8 @@ fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
         FileId(7),
         "stillwind.css",
         "@theme { --color-accent: oklch(.6 .2 250); --spacing-4: 1rem; }",
-    );
+    )
+    .unwrap();
 
     let theme = parse_theme(&source).unwrap();
 
@@ -23,7 +24,7 @@ fn matches_tailwind_theme_token_emission_modes() {
         FileId(7),
         "stillwind.css",
         "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); }",
-    );
+    ).unwrap();
     let theme = parse_theme(&source).unwrap();
     let required = theme.tokens_required_by("color:var(--color-used);", false);
     assert!(
@@ -55,7 +56,8 @@ fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
         FileId(7),
         "stillwind.css",
         "@theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
-    );
+    )
+    .unwrap();
     let theme = parse_theme(&source).unwrap();
     let required = theme.tokens_required_by(
         "@media (width >= 60rem) {} @media (width >= 70rem) {}",
@@ -75,7 +77,8 @@ fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
         "stillwind.css",
         r#"@stillwind { prefix: "--app-"; lint { prefer-typed-relationships: warn; } }
 .card { color: red; }"#,
-    );
+    )
+    .unwrap();
 
     let theme = parse_theme(&source).unwrap();
 
@@ -91,7 +94,8 @@ fn applies_tailwind_defaults_and_namespace_resets() {
         FileId(7),
         "stillwind.css",
         "@theme { --color-*: initial; --color-brand: oklch(.6 .2 250); }",
-    );
+    )
+    .unwrap();
 
     let theme = parse_tailwind_theme(&source).unwrap();
 
@@ -107,11 +111,14 @@ fn applies_tailwind_defaults_and_namespace_resets() {
 
 #[test]
 fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
-    let individual = parse_tailwind_theme(&SourceFile::new(
-        FileId(7),
-        "stillwind.css",
-        "@import \"stillwind/utilities.css\" layer(utilities);",
-    ))
+    let individual = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"stillwind/utilities.css\" layer(utilities);",
+        )
+        .unwrap(),
+    )
     .unwrap();
     assert!(!individual.imports.builtins);
     assert!(individual.scale(ThemeNamespace::Spacing).is_none());
@@ -120,7 +127,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
             FileId(7),
             "stillwind.css",
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
-        ))
+        ).unwrap())
         .unwrap();
     assert!(with_builtins.imports.builtins);
     assert_eq!(
@@ -131,22 +138,23 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     );
     assert!(!with_builtins.custom_css().contains("@import"));
 
-    let aggregate = parse_tailwind_theme(&SourceFile::new(
-        FileId(7),
-        "stillwind.css",
-        "@import \"stillwind\";",
-    ))
+    let aggregate = parse_tailwind_theme(
+        &SourceFile::new(FileId(7), "stillwind.css", "@import \"stillwind\";").unwrap(),
+    )
     .unwrap();
     assert!(aggregate.imports.builtins);
     assert!(aggregate.imports.theme_layer.is_some());
     assert!(aggregate.imports.base_layer.is_some());
     assert!(aggregate.imports.utilities_layer.is_some());
 
-    let tailwind_compat = parse_tailwind_theme(&SourceFile::new(
-        FileId(7),
-        "stillwind.css",
-        "@import \"tailwindcss/utilities\" layer(utilities);",
-    ))
+    let tailwind_compat = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"tailwindcss/utilities\" layer(utilities);",
+        )
+        .unwrap(),
+    )
     .unwrap();
     assert!(tailwind_compat.imports.builtins);
     assert!(tailwind_compat.imports.utilities_layer.is_some());
@@ -154,11 +162,14 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
 
 #[test]
 fn consumes_framework_imports_but_preserves_other_css_imports() {
-    let theme = parse_tailwind_theme(&SourceFile::new(
-        FileId(7),
-        "stillwind.css",
-        "@import \"./fonts.css\"; @import \"stillwind/builtins.css\"; .card { color: red; }",
-    ))
+    let theme = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@import \"./fonts.css\"; @import \"stillwind/builtins.css\"; .card { color: red; }",
+        )
+        .unwrap(),
+    )
     .unwrap();
 
     assert!(theme.custom_css().contains("@import \"./fonts.css\";"));
@@ -168,11 +179,14 @@ fn consumes_framework_imports_but_preserves_other_css_imports() {
 
 #[test]
 fn retains_default_tokens_after_nested_theme_keyframes() {
-    let theme = parse_tailwind_theme(&SourceFile::new(
-        FileId(7),
-        "stillwind.css",
-        "@theme { --color-brand: rebeccapurple; }",
-    ))
+    let theme = parse_tailwind_theme(
+        &SourceFile::new(
+            FileId(7),
+            "stillwind.css",
+            "@theme { --color-brand: rebeccapurple; }",
+        )
+        .unwrap(),
+    )
     .unwrap();
 
     assert!(theme.token_in(ThemeNamespace::Blur, "sm").is_some());
@@ -190,7 +204,8 @@ fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
         FileId(7),
         "stillwind.css",
         "@theme { --spacing: .25rem; --color-accent: oklch(.6 .2 250); --vendor-value: 1; }",
-    );
+    )
+    .unwrap();
 
     let theme = parse_theme(&source).unwrap();
     let color = theme.token_in(ThemeNamespace::Color, "accent").unwrap();

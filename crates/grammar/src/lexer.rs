@@ -1,6 +1,6 @@
 //! Stillwind's small, source-spanned utility-string lexer.
 
-use stillwind_source::{Span, Spanned};
+use stillwind_source::{SourceError, Span, Spanned};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityToken {
@@ -9,14 +9,22 @@ pub struct UtilityToken {
 
 /// Splits one decoded utility string on Unicode whitespace while retaining a
 /// source span for every token.
-pub fn lex_utilities(input: &Spanned<String>) -> Vec<Spanned<UtilityToken>> {
+///
+/// # Errors
+/// Returns an error for reversed spans or token offsets outside the 32-bit range.
+pub fn lex_utilities(input: &Spanned<String>) -> Result<Vec<Spanned<UtilityToken>>, SourceError> {
+    let len =
+        u32::try_from(input.value.len()).map_err(|_| SourceError::TooLarge(input.value.len()))?;
+    if input.span.len().is_none() || input.span.start.0.checked_add(len).is_none() {
+        return Err(SourceError::InvalidSpan(input.span));
+    }
     let mut tokens = Vec::new();
     let mut token_start = None;
 
     for (offset, character) in input.value.char_indices() {
         if character.is_whitespace() {
             if let Some(start) = token_start.take() {
-                push_token(input, start, offset, &mut tokens);
+                push_token(input, start, offset, &mut tokens)?;
             }
         } else if token_start.is_none() {
             token_start = Some(offset);
@@ -24,10 +32,10 @@ pub fn lex_utilities(input: &Spanned<String>) -> Vec<Spanned<UtilityToken>> {
     }
 
     if let Some(start) = token_start {
-        push_token(input, start, input.value.len(), &mut tokens);
+        push_token(input, start, input.value.len(), &mut tokens)?;
     }
 
-    tokens
+    Ok(tokens)
 }
 
 fn push_token(
@@ -35,23 +43,49 @@ fn push_token(
     start: usize,
     end: usize,
     tokens: &mut Vec<Spanned<UtilityToken>>,
-) {
-    let start = u32::try_from(start).expect("utility strings must be smaller than 4 GiB");
-    let end = u32::try_from(end).expect("utility strings must be smaller than 4 GiB");
+) -> Result<(), SourceError> {
+    let start = u32::try_from(start).map_err(|_| SourceError::TooLarge(start))?;
+    let end = u32::try_from(end).map_err(|_| SourceError::TooLarge(end))?;
     tokens.push(Spanned::new(
         UtilityToken {
             raw: input.value[start as usize..end as usize].to_owned(),
         },
         Span::new(
             input.span.file,
-            input.span.start.0 + start,
-            input.span.start.0 + end,
+            input
+                .span
+                .start
+                .0
+                .checked_add(start)
+                .ok_or(SourceError::InvalidSpan(input.span))?,
+            input
+                .span
+                .start
+                .0
+                .checked_add(end)
+                .ok_or(SourceError::InvalidSpan(input.span))?,
         ),
     ));
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn rejects_reversed_and_overflowing_coordinates() {
+        for span in [
+            Span::new(FileId(1), 2, 1),
+            Span::new(FileId(1), u32::MAX, u32::MAX),
+        ] {
+            let input = Spanned::new("x".into(), span);
+            assert!(
+                matches!(lex_utilities(&input), Err(SourceError::InvalidSpan(value)) if value == span)
+            );
+        }
+        let input = Spanned::new("x".into(), Span::new(FileId(1), u32::MAX - 1, u32::MAX));
+        assert_eq!(lex_utilities(&input).unwrap()[0].span.end.0, u32::MAX);
+    }
+
     use super::*;
     use stillwind_source::FileId;
 
@@ -62,7 +96,7 @@ mod tests {
             Span::new(FileId(4), 12, 36),
         );
 
-        let tokens = lex_utilities(&input);
+        let tokens = lex_utilities(&input).unwrap();
 
         assert_eq!(
             tokens
@@ -88,7 +122,7 @@ mod boundary_tests {
                 text.clone(),
                 Span::new(stillwind_source::FileId(1), 0, u32::try_from(text.len()).unwrap())
             );
-            let tokens = lex_utilities(&input);
+            let tokens = lex_utilities(&input).unwrap();
             proptest::prop_assert_eq!(tokens.len(), 2);
             for token in tokens {
                 proptest::prop_assert_eq!(&text[token.span.start.0 as usize..token.span.end.0 as usize], token.value.raw);
