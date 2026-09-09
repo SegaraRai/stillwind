@@ -116,17 +116,3 @@ impl ThemeNamespace {
         .find(|namespace| namespace.css_name() == value)
     }
 }
-
-/// The semantic identity of one custom property in a `@theme` block.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ThemeTokenKind {
-    /// `--spacing` is a scalar used by numeric spacing utilities.
-    Scale(ThemeNamespace),
-    /// A named token such as `--color-accent` or `--breakpoint-md`.
-    Token {
-        namespace: ThemeNamespace,
-        name: String,
-    },
-    /// A property that Stillwind emits unchanged but does not use for built-ins.
-    Custom,
-}

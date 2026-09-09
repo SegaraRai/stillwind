@@ -16,9 +16,9 @@ use crate::registry::utilities::{extract_custom_utilities, extract_marker_utilit
 use crate::registry::variants::extract_custom_variants;
 
 use super::config::{StillwindConfig, extract_stillwind_config};
-use super::declarations::extract_theme_declarations;
+use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::imports::{FrameworkImports, framework_imports};
-use super::index::{ThemeIndex, ThemeTokenMode};
+use super::index::ThemeIndex;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
@@ -152,11 +152,7 @@ pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex
         };
 
         let modifier = css[theme_start + "@theme".len()..open].trim();
-        let mode = match modifier {
-            "inline" => ThemeTokenMode::Inline,
-            "static" => ThemeTokenMode::Static,
-            _ => ThemeTokenMode::Default,
-        };
+        let mode = ThemeTokenMode::parse(modifier);
         tokens.extend(extract_theme_declarations(
             file,
             &css[open + 1..close],

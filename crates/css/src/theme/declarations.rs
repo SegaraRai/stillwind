@@ -2,9 +2,47 @@ use stillwind_source::{FileId, Span, Spanned};
 
 use crate::blocks::matching_brace;
 
-use super::domain::{ThemeNamespace, ThemeTokenKind};
-use super::index::{ThemeToken, ThemeTokenMode};
+use super::namespace::ThemeNamespace;
 use super::parser::offset;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ThemeTokenMode {
+    Default,
+    Inline,
+    Static,
+}
+
+impl ThemeTokenMode {
+    pub fn parse(modifier: &str) -> Self {
+        match modifier {
+            "inline" => ThemeTokenMode::Inline,
+            "static" => ThemeTokenMode::Static,
+            _ => ThemeTokenMode::Default,
+        }
+    }
+}
+
+/// The semantic identity of one custom property in a `@theme` block.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ThemeTokenKind {
+    /// `--spacing` is a scalar used by numeric spacing utilities.
+    Scale(ThemeNamespace),
+    /// A named token such as `--color-accent` or `--breakpoint-md`.
+    Token {
+        namespace: ThemeNamespace,
+        name: String,
+    },
+    /// A property that Stillwind emits unchanged but does not use for built-ins.
+    Custom,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ThemeToken {
+    pub name: Spanned<String>,
+    pub value: Spanned<String>,
+    pub kind: ThemeTokenKind,
+    pub mode: ThemeTokenMode,
+}
 
 pub(crate) fn extract_theme_declarations(
     file: FileId,
