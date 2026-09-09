@@ -1,5 +1,10 @@
-/* Tailwind v4-compatible registrations. The compiler lowers only used
- * @stillwind-property definitions to standard @property rules. */
+/*
+Tailwind v4-compatible custom property registrations.
+
+The compiler lowers only used `@stillwind-property` definitions to standard
+`@property` rules.
+*/
+
 @stillwind-property --tw-pan-x {
   syntax: "*";
   inherits: false;

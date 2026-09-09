@@ -138,8 +138,10 @@ const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../css/builtins/motion-utilities.css"),
     include_str!("../../../css/builtins/interactivity-utilities.css"),
     include_str!("../../../css/builtins/svg-utilities.css"),
-    include_str!("../../../css/builtins/interaction-variants.css"),
-    include_str!("../../../css/builtins/selector-variants.css"),
+    include_str!("../../../css/builtins/state-variants.css"),
+    include_str!("../../../css/builtins/structural-variants.css"),
+    include_str!("../../../css/builtins/relationship-variants.css"),
+    include_str!("../../../css/builtins/conditional-variants.css"),
     include_str!("../../../css/builtins/properties.css"),
 );
 
@@ -2909,14 +2911,13 @@ mod tests {
         let theme = theme();
 
         for candidate in [
-            "container",
-            "@container",
-            "@container-normal",
             "group",
             "peer",
             "group-hover:flex",
             "peer-checked:flex",
             "@sm:flex",
+            "@max-sm:flex",
+            "@[10rem]:flex",
         ] {
             assert!(
                 is_tailwind_relationship_candidate(candidate, &theme),
@@ -2932,11 +2933,6 @@ mod tests {
             compatibility_marker_class("peer/field", &theme).as_deref(),
             Some("peer/field")
         );
-        let container = resolve_utility("container", &theme).unwrap();
-        assert_eq!(container.declaration, "width:100%;");
-        assert!(container.nested.iter().any(|rule| {
-            rule.condition == "(width>=48rem)" && rule.declaration == "max-width:48rem;"
-        }));
         assert_eq!(
             resolve_utility("@container", &theme).unwrap().declaration,
             "container-type:inline-size;"
@@ -3956,12 +3952,20 @@ mod tests {
             include_str!("../../../css/builtins/svg-utilities.css"),
         ),
         (
-            "interaction-variants.css",
-            include_str!("../../../css/builtins/interaction-variants.css"),
+            "state-variants.css",
+            include_str!("../../../css/builtins/state-variants.css"),
         ),
         (
-            "selector-variants.css",
-            include_str!("../../../css/builtins/selector-variants.css"),
+            "structural-variants.css",
+            include_str!("../../../css/builtins/structural-variants.css"),
+        ),
+        (
+            "relationship-variants.css",
+            include_str!("../../../css/builtins/relationship-variants.css"),
+        ),
+        (
+            "conditional-variants.css",
+            include_str!("../../../css/builtins/conditional-variants.css"),
         ),
         (
             "properties.css",
