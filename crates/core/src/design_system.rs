@@ -50,6 +50,7 @@ struct DesignSystemData {
     theme: ThemeIndex,
     config: CompilerOptions,
     fingerprints: DefinitionFingerprints,
+    sources: crate::CssSourceGraph,
 }
 
 impl DesignSystemSnapshot {
@@ -58,12 +59,24 @@ impl DesignSystemSnapshot {
     /// # Errors
     /// Returns invalid CSS or invalid resolved configuration.
     pub fn from_source(source: &SourceFile, options: CompilerOptions) -> Result<Self, ThemeError> {
-        Self::from_theme(stillwind_css::parse_tailwind_theme(source)?, options)
+        match crate::DesignSystemLoader::new(options).provide(
+            crate::CssSourceName::from(source.path()),
+            source.text().into(),
+        ) {
+            crate::DesignSystemLoadStep::Complete(result) => {
+                result.map_err(|error| ThemeError::Parse(error.to_string()))
+            }
+            crate::DesignSystemLoadStep::NeedFile(request) => Err(ThemeError::Parse(format!(
+                "host must resolve {} imported by {} using DesignSystemLoader",
+                request.specifier, request.importer.0
+            ))),
+        }
     }
 
-    pub(crate) fn from_theme(
+    pub(crate) fn from_loaded_theme(
         theme: ThemeIndex,
         mut config: CompilerOptions,
+        sources: crate::CssSourceGraph,
     ) -> Result<Self, ThemeError> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
         if let Some(prefix) = &theme.config.prefix {
@@ -147,6 +160,7 @@ impl DesignSystemSnapshot {
             inner: Arc::new(DesignSystemData {
                 revision: DesignSystemRevision(NEXT_REVISION.fetch_add(1, Ordering::Relaxed)),
                 theme,
+                sources,
                 config,
                 fingerprints: DefinitionFingerprints {
                     content,
@@ -170,6 +184,9 @@ impl DesignSystemSnapshot {
     }
     pub fn config(&self) -> &CompilerOptions {
         &self.inner.config
+    }
+    pub fn sources(&self) -> &crate::CssSourceGraph {
+        &self.inner.sources
     }
     pub(crate) fn theme(&self) -> &ThemeIndex {
         &self.inner.theme

@@ -1,5 +1,85 @@
 use stillwind_core::{CompilerOptions, DesignSystemSnapshot};
+use stillwind_core::{DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader};
 use stillwind_source::{FileId, SourceFile};
+
+#[test]
+fn loader_traverses_opaque_names_in_authored_order_and_reuses_sources() {
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+    let root = "not/a\\path:ROOT";
+    let step = loader.provide(
+        root.into(),
+        "@import 'one'; @import 'alias'; @theme { --color-brand: red; }".into(),
+    );
+    let DesignSystemLoadStep::NeedFile(request) = step else {
+        panic!("expected request")
+    };
+    assert_eq!(request.importer.0.as_ref(), root);
+    assert_eq!(request.specifier, "one");
+    let child = "@theme { --color-brand: blue; }";
+    let step = loader.provide("Opaque CHILD".into(), child.into());
+    let DesignSystemLoadStep::NeedFile(request) = step else {
+        panic!("expected alias request")
+    };
+    assert_eq!(request.specifier, "alias");
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) =
+        loader.provide("Opaque CHILD".into(), child.into())
+    else {
+        panic!("expected snapshot")
+    };
+    assert_eq!(snapshot.sources().sources.len(), 2);
+    assert_eq!(snapshot.sources().edges.len(), 2);
+    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", "@theme { --color-brand: blue; } @theme { --color-brand: blue; } @theme { --color-brand: red; }"), CompilerOptions::default()).unwrap();
+    assert_eq!(snapshot.render_stylesheet(""), flat.render_stylesheet(""));
+    assert!(matches!(
+        loader.provide("extra".into(), "".into()),
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+    ));
+}
+
+#[test]
+fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
+    let mut cycle = DesignSystemLoader::new(CompilerOptions::default());
+    let css = "@import 'self';";
+    assert!(matches!(
+        cycle.provide("root".into(), css.into()),
+        DesignSystemLoadStep::NeedFile(_)
+    ));
+    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Cycle { chain })) =
+        cycle.provide("root".into(), css.into())
+    else {
+        panic!("expected cycle")
+    };
+    assert_eq!(chain[0].specifier, "self");
+    let mut conflict = DesignSystemLoader::new(CompilerOptions::default());
+    conflict.provide("root".into(), css.into());
+    assert!(matches!(
+        conflict.provide("root".into(), "".into()),
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Protocol { .. }))
+    ));
+    let mut invalid = DesignSystemLoader::new(CompilerOptions::default());
+    assert!(matches!(
+        invalid.provide("broken".into(), "@theme {".into()),
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::InvalidCss { .. }))
+    ));
+}
+
+#[test]
+fn loader_tokenizes_imports_and_ignores_comments_strings_and_nested_rules() {
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+    let step = loader.provide(
+        "root".into(),
+        "/* @import 'fake'; */ @import url(\"real.css\"); .x { content: \"@import 'fake';\"; }"
+            .into(),
+    );
+    let DesignSystemLoadStep::NeedFile(request) = step else {
+        panic!("expected real import")
+    };
+    assert_eq!(request.specifier, "real.css");
+    assert!(matches!(
+        loader.provide("child".into(), "".into()),
+        DesignSystemLoadStep::Complete(Ok(_))
+    ));
+}
 
 #[test]
 fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {

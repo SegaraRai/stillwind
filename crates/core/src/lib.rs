@@ -1,8 +1,13 @@
 //! Public orchestration API for the first compiler slice.
 
 mod design_system;
+mod loader;
 pub use design_system::{
     DefinitionFingerprints, DesignSystemRevision, DesignSystemSnapshot, Fingerprint,
+};
+pub use loader::{
+    CssDependencyKind, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph, CssSourceName,
+    DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
 };
 
 use std::{

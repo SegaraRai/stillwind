@@ -2990,6 +2990,11 @@ fn strip_blocks(css: &str, directive: &str) -> String {
             }
             offset += character.len_utf8();
         }
+        if depth != 0 {
+            // Preserve malformed input for the parser instead of advancing past EOF.
+            output.push_str(&css[start..]);
+            return output;
+        }
         cursor = close.saturating_add(1);
     }
     if cursor < css.len() {
