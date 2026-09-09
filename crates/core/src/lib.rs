@@ -2,7 +2,12 @@
 
 mod analysis;
 mod module_compiler;
+mod query;
 pub use module_compiler::*;
+pub use query::{
+    CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
+    DesignSystemQuery,
+};
 mod design_system;
 pub use analysis::*;
 mod loader;
@@ -1525,7 +1530,7 @@ fn resolve_utility_targets(
     utility: &str,
     theme: &stillwind_css::ThemeIndex,
 ) -> Option<Vec<CompiledUtility>> {
-    let resolved = stillwind_tailwind::resolve_utility(utility, theme)?;
+    let resolved = query::CandidateResolver::resolve(utility, theme)?;
     let mut targets = vec![stillwind_tailwind::ResolvedUtilityTarget {
         declaration: resolved.declaration,
         selector: resolved.selector,
