@@ -1,10 +1,6 @@
-//! Cross-module identities, finite candidate values, and module summaries.
-
-use std::collections::{BTreeMap, BTreeSet};
-
+use super::identity::{AssetKind, IdentityId};
 use serde::{Deserialize, Serialize};
-
-use stillwind_source::normalized_module_path;
+use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
 pub enum SymbolicError {
@@ -13,44 +9,6 @@ pub enum SymbolicError {
         expected: AssetKind,
         actual: AssetKind,
     },
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum AssetKind {
-    Scope,
-    Ref,
-    Animation,
-    ViewTransition,
-}
-
-/// Full declaration-site identity. The generated 32-bit name is derived later;
-/// retaining this key lets the build adapter detect hash collisions.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct IdentityId {
-    pub kind: AssetKind,
-    pub module_path: String,
-    pub start: u32,
-    pub end: u32,
-    pub binding_name: String,
-}
-
-impl IdentityId {
-    pub fn new(
-        kind: AssetKind,
-        module_path: &str,
-        start: u32,
-        end: u32,
-        binding_name: impl Into<String>,
-    ) -> Self {
-        Self {
-            kind,
-            module_path: normalized_module_path(module_path),
-            start,
-            end,
-            binding_name: binding_name.into(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -169,79 +127,11 @@ impl ExportedValue {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ImportBinding {
-    pub local: String,
-    pub source: String,
-    pub imported: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ReExport {
-    pub exported: String,
-    pub source: String,
-    pub imported: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AssetMetadata {
-    pub label: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AssetRecord {
-    pub identity: IdentityId,
-    pub metadata: AssetMetadata,
-    pub call_start: u32,
-    pub call_end: u32,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ModuleSummary {
-    pub schema: u32,
-    pub module_path: String,
-    pub imports: Vec<ImportBinding>,
-    pub re_exports: Vec<ReExport>,
-    pub assets: Vec<AssetRecord>,
-    pub exports: BTreeMap<String, ExportedValue>,
-}
-
-impl ModuleSummary {
-    pub const SCHEMA: u32 = 1;
-
-    pub fn new(module_path: &str) -> Self {
-        Self {
-            schema: Self::SCHEMA,
-            module_path: normalized_module_path(module_path),
-            imports: Vec::new(),
-            re_exports: Vec::new(),
-            assets: Vec::new(),
-            exports: BTreeMap::new(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct TypeFact {
-    pub start: u32,
-    pub end: u32,
-    pub value: ExportedValue,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     fn identity(kind: AssetKind, start: u32) -> IdentityId {
         IdentityId::new(kind, r"src\Menu.tsx", start, start + 1, "asset")
-    }
-
-    #[test]
-    fn identities_are_path_stable_across_operating_systems() {
-        assert_eq!(
-            IdentityId::new(AssetKind::Ref, r"src\Menu.tsx", 4, 8, "menu"),
-            IdentityId::new(AssetKind::Ref, "src/Menu.tsx", 4, 8, "menu")
-        );
     }
 
     #[test]
