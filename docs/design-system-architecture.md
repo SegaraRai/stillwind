@@ -14,7 +14,7 @@ refactor in a new work session.
 2. `DesignSystemLoader` is a caller-driven state machine. It never reads files,
    resolves paths, performs network I/O, or chooses sync versus async I/O.
 3. The first stylesheet and every subsequently requested stylesheet enter the
-   loader through `provide(name, content)`.
+   loader through `provide(id, name, content)` or `provide_many(files)`.
 4. A source name is opaque to the compiler. The loader may compare, clone, and
    report it, but must never interpret it as a filesystem path or URL.
 5. Source analysis is single-module and design-system-independent. It does not
@@ -36,13 +36,13 @@ refactor in a new work session.
 ```text
 host configuration
       +
-provide(root_name, root_content)
+provide(0, root_name, root_content)
       │
       ▼
 DesignSystemLoader state machine
       │
-      ├─ NeedFile { importer, specifier } ──► host resolves and reads
-      │                                      host calls provide(name, content)
+      ├─ NeedFile [requests] ──► host resolves and reads concurrently or serially
+      │                         host calls provide / provide_many
       │
       └─ Complete(Result<DesignSystemSnapshot, LoadError>)
 
@@ -211,8 +211,8 @@ and choosing the `CssSourceName` supplied with the next `provide` call.
 
 ### Public state machine
 
-The initial source is supplied through the same `provide` method as imported
-sources. Construction alone does not name or load an entrypoint.
+The initial source is supplied through the same `provide` / `provide_many` API
+as imported sources. Construction alone does not name or load an entrypoint.
 
 ```rust
 pub struct DesignSystemLoader {
@@ -220,11 +220,12 @@ pub struct DesignSystemLoader {
 }
 
 pub enum DesignSystemLoadStep {
-    NeedFile(CssFileRequest),
+    NeedFile(Vec<CssFileRequest>),
     Complete(Result<DesignSystemSnapshot, DesignSystemLoadError>),
 }
 
 pub struct CssFileRequest {
+    pub id: u32,
     pub importer: CssSourceName,
     pub specifier: String,
     pub kind: CssDependencyKind,
@@ -239,9 +240,21 @@ impl DesignSystemLoader {
 
     pub fn provide(
         &mut self,
+        id: u32,
         name: CssSourceName,
         content: Arc<str>,
     ) -> DesignSystemLoadStep;
+
+    pub fn provide_many(
+        &mut self,
+        files: impl IntoIterator<Item = CssFileInput>,
+    ) -> DesignSystemLoadStep;
+}
+
+pub struct CssFileInput {
+    pub id: u32,
+    pub name: CssSourceName,
+    pub content: Arc<str>,
 }
 ```
 
@@ -250,26 +263,30 @@ or I/O error and drops the loader. External failures are not fed back into the
 state machine. Calling `provide` when no source is expected is a loader protocol
 error.
 
-Only one request is outstanding at a time. The loader may queue additional
-imports internally and return them deterministically. This makes the same core
-implementation directly usable by synchronous, asynchronous, native, Node,
-WASM, and in-memory hosts. A future batched `NeedFiles` optimization must not
-change the resolution semantics.
+`NeedFile` returns all outstanding requests, ordered by ID. The loader issues
+IDs starting at 1 and increasing monotonically. The initial `provide_many` must
+contain exactly one root file, conventionally ID 0. `provide` is a single-file
+wrapper around `provide_many`; subsequent responses must match outstanding IDs.
+Unknown or duplicate response IDs are protocol errors.
+
+Hosts may supply any subset in any order as reads finish, or read a whole batch
+in parallel and call `provide_many` once. A partially supplied batch does not
+block parsing: each supplied source is parsed immediately and its imports become
+requests in the next step. CSS expansion preserves authored import order,
+independent of response order. Hosts scheduling reads incrementally must track
+in-flight IDs because unresolved requests appear again in later steps.
 
 ### State transitions
 
 ```text
 AwaitingInitial
-  └─ provide(root_name, root_content)
-       ├─ NeedFile(request) ─────────────┐
-       │                                 │
-       │   host resolves request using   │
-       │   request.importer + specifier  │
-       │                                 │
-       ├◄─ provide(child_name, content) ─┘
-       │
-       └─ Complete(Ok(snapshot))
-          Complete(Err(load_error))
+  └─ provide(0, root_name, root_content)
+       ├─ NeedFile([requests])
+       │    └─ host resolves and reads any subset by request ID
+       │         └─ provide(id, name, content) / provide_many(files)
+       │              └─ NeedFile([remaining + newly discovered requests])
+       │                   or Complete(...)
+       └─ Complete(Ok(snapshot)) / Complete(Err(load_error))
 ```
 
 Completion is terminal. The completed loader is not reused for HMR. A reload
@@ -277,8 +294,9 @@ starts a fresh loader and produces a fresh snapshot. Dropping the loader from
 any incomplete state is safe and requires no compiler cleanup.
 
 `Complete(Err(...))` is reserved for errors the loader can determine from
-provided content, such as invalid CSS, invalid framework directives, import
-cycles, conflicting source identities, or registry-linking failures. A missing
+provided responses, such as invalid request IDs, invalid CSS, invalid framework
+directives, import cycles, conflicting source identities, or registry-linking
+failures. A missing
 or unreadable requested source remains a host error.
 
 ### Sync and async hosts
@@ -286,21 +304,24 @@ or unreadable requested source remains a host error.
 Synchronous host:
 
 ```rust
-let mut step = loader.provide(root_name, root_content);
+let mut step = loader.provide(0, root_name, root_content);
 loop {
     match step {
-        DesignSystemLoadStep::NeedFile(request) => {
+        DesignSystemLoadStep::NeedFile(requests) => {
+            let request = requests.into_iter().next().expect("outstanding request");
+            let id = request.id;
             let (name, content) = read_sync(&request)
                 .map_err(|error| HostLoadError::new(request, error))?;
-            step = loader.provide(name, content);
+            step = loader.provide(id, name, content);
         }
         DesignSystemLoadStep::Complete(result) => break result,
     }
 }
 ```
 
-An asynchronous host uses the identical loop and awaits its resolver between
-`NeedFile` and `provide`. No async runtime enters the Rust compiler core.
+An asynchronous host may resolve and read the request list concurrently, then
+call `provide_many`, or call `provide` as individual reads finish. The synchronous
+loop above needs no queue of its own. No async runtime enters the Rust core.
 
 ### Imports, cycles, and duplicate sources
 

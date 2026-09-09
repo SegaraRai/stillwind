@@ -11,22 +11,35 @@ and fixtures, and delegate to the same snapshot and module compilation pipeline.
 use stillwind_core::{DesignSystemLoader, DesignSystemLoadStep, DesignSystemOptions};
 
 let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-let mut step = loader.provide(root_name, root_content);
+let mut step = loader.provide(0, root_name, root_content);
 let snapshot = loop {
     match step {
-        DesignSystemLoadStep::NeedFile(request) => {
+        DesignSystemLoadStep::NeedFile(requests) => {
+            let request = requests.into_iter().next().expect("outstanding request");
+            let id = request.id;
             // Host operation: resolve exactly (importer, authored specifier).
             let (name, content) = host_read(&request)?;
-            step = loader.provide(name, content);
+            step = loader.provide(id, name, content);
         }
         DesignSystemLoadStep::Complete(result) => break result?,
     }
 };
 ```
 
-An async host awaits `host_read`; the loader is unchanged. Source names are
-opaque identities. A filesystem host should canonicalize the root and imported
-names consistently. A resolver or read error belongs to the host: drop the
+`NeedFile` contains every outstanding request, sorted by monotonically increasing
+IDs starting at 1. The first call supplies exactly one root file, conventionally
+ID 0. `provide(id, name, content)` wraps `provide_many(files)`, where each
+`CssFileInput` contains `id`, `name`, and `content`.
+
+An async host may read the list concurrently and submit a batch, or supply any
+subset as reads finish. Ready files are parsed immediately and can expose more
+requests before earlier reads finish. Track in-flight IDs to avoid scheduling
+repeated outstanding requests twice. Import expansion always follows authored
+order. Duplicate or unknown response IDs are errors. An empty batch after the
+root simply returns the current outstanding list.
+
+Source names are opaque identities. A filesystem host should canonicalize the
+root and imported names consistently. A resolver or read error belongs to the host: drop the
 incomplete loader. Completion is terminal, including a failed completion.
 
 Framework imports select vendored definitions. Other imports request buffers
@@ -122,14 +135,16 @@ artifacts while retaining source analyses.
 ## Node and Vite
 
 `@stillwind/native` exports `NativeDesignSystemLoader` and `NativeProjectSession`.
-`loader.provide(name, content)` returns JSON with `kind: "needFile"` (and importer
-and specifier), or `kind: "complete"` (and revision and source names). Load errors
-throw. Construct a session from a completed loader, then call `compile`, `css`,
+`loader.provide(id, name, content)` and
+`loader.provideMany([{ id, name, content }, ...])` return JSON with
+`kind: "needFile"` and `requests: [{ id, importer, specifier }, ...]`, or
+`kind: "complete"` (and revision and source names). Load errors throw. Construct
+a session from a completed loader, then call `compile`, `css`,
 `remove` and `reload`. `loader.generateReactTypes()` uses the same snapshot.
 
-Vite resolves CSS requests through its resolver, registers supplied files for
-watching, and uses the native session for CSS contributions and symbol collision
-checks. CSS reload errors report a warning and keep the active development
+Vite resolves and reads each request batch concurrently through its resolver,
+registers supplied files for watching, and uses the native session for CSS
+contributions and symbol collision checks. CSS reload errors report a warning and keep the active development
 output. Source graph traversal and the TypeScript checker stay in the host.
 The CLI implements the same loader protocol with synchronous filesystem I/O.
 
