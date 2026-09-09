@@ -40,7 +40,8 @@ export declare function foldCalcExpressions(css: string): string;
 /** Caller-driven CSS loading. Names are opaque; the host resolves each request. */
 export declare class NativeDesignSystemLoader {
   constructor(optionsJson?: string | null);
-  provide(name: string, content: string): string;
+  provide(id: number, name: string, content: string): string;
+  provideMany(files: { id: number; name: string; content: string }[]): string;
   generateReactTypes(): string;
 }
 

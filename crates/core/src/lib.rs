@@ -19,9 +19,9 @@ pub use design_system::{
     DefinitionFingerprints, DesignSystemRevision, DesignSystemSnapshot, Fingerprint,
 };
 pub use loader::{
-    CssDependencyKind, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph, CssSourceMapping,
-    CssSourceName, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
-    DesignSystemOptions,
+    CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
+    CssSourceMapping, CssSourceName, DesignSystemLoadError, DesignSystemLoadStep,
+    DesignSystemLoader, DesignSystemOptions,
 };
 
 use std::{

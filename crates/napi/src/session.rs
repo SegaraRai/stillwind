@@ -15,6 +15,13 @@ use crate::{
     ProjectBindingOutput, ProjectModuleOutput, ProjectSource, binding_output, parse_options,
 };
 
+#[napi(object)]
+pub struct NativeCssFileInput {
+    pub id: u32,
+    pub name: String,
+    pub content: String,
+}
+
 #[napi]
 pub struct NativeDesignSystemLoader {
     loader: DesignSystemLoader,
@@ -32,9 +39,16 @@ impl NativeDesignSystemLoader {
     }
 
     #[napi]
-    pub fn provide(&mut self, name: String, content: String) -> Result<String> {
-        match self.loader.provide(name.as_str().into(), content.into()) {
-            DesignSystemLoadStep::NeedFile(request) => Ok(json!({"kind":"needFile", "importer":request.importer.0.as_ref(), "specifier":request.specifier}).to_string()),
+    pub fn provide(&mut self, id: u32, name: String, content: String) -> Result<String> {
+        self.provide_many(vec![NativeCssFileInput { id, name, content }])
+    }
+
+    #[napi]
+    pub fn provide_many(&mut self, files: Vec<NativeCssFileInput>) -> Result<String> {
+        match self.loader.provide_many(files.into_iter().map(|file| stillwind_core::CssFileInput {
+            id: file.id, name: file.name.as_str().into(), content: file.content.into()
+        })) {
+            DesignSystemLoadStep::NeedFile(requests) => Ok(json!({"kind":"needFile", "requests": requests.iter().map(|request| json!({"id":request.id,"importer":request.importer.0.as_ref(),"specifier":request.specifier})).collect::<Vec<_>>()}).to_string()),
             DesignSystemLoadStep::Complete(Ok(snapshot)) => {
                 let output = json!({"kind":"complete", "revision":snapshot.revision().0.to_string(), "sources":snapshot.sources().sources.iter().map(|source| source.name.0.as_ref()).collect::<Vec<_>>()}).to_string();
                 self.snapshot = Some(snapshot);

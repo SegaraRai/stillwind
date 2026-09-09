@@ -67,6 +67,7 @@ impl DesignSystemSnapshot {
     /// Returns invalid CSS or invalid resolved configuration.
     pub fn from_source(source: &SourceFile, options: CompilerOptions) -> Result<Self, ThemeError> {
         match crate::DesignSystemLoader::new(options).provide(
+            0,
             crate::CssSourceName::from(source.path()),
             source.text().into(),
         ) {
@@ -75,7 +76,7 @@ impl DesignSystemSnapshot {
             }
             crate::DesignSystemLoadStep::NeedFile(request) => Err(ThemeError::Parse(format!(
                 "host must resolve {} imported by {} using DesignSystemLoader",
-                request.specifier, request.importer.0
+                request[0].specifier, request[0].importer.0
             ))),
         }
     }

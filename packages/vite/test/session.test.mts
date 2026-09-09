@@ -76,3 +76,67 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+void test("Vite resolves sibling CSS imports concurrently and preserves authored order", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
+  const css = path.join(root, "root.css");
+  const first = path.join(root, "first.css");
+  const second = path.join(root, "second.css");
+  writeFileSync(css, "@import 'parallel-first'; @import 'parallel-second';");
+  writeFileSync(first, ".first { color: red; }");
+  writeFileSync(second, ".second { color: blue; }");
+  const plugin = stillwind({ css, types: false });
+  let releaseFirst: (() => void) | undefined;
+  const server = await createServer({
+    configFile: false,
+    root,
+    plugins: [
+      {
+        name: "parallel-css-test",
+        enforce: "pre",
+        async resolveId(specifier) {
+          if (specifier === "parallel-first") {
+            await new Promise<void>((resolve, reject) => {
+              const timeout = setTimeout(
+                () => reject(new Error("sibling import was not started concurrently")),
+                5000,
+              );
+              releaseFirst = () => {
+                clearTimeout(timeout);
+                resolve();
+              };
+            });
+            return first;
+          }
+          if (specifier === "parallel-second") {
+            assert.ok(releaseFirst);
+            releaseFirst();
+            return second;
+          }
+          return null;
+        },
+      },
+      plugin,
+    ],
+    logLevel: "silent",
+    server: { middlewareMode: true, watch: null },
+  });
+  try {
+    await server.pluginContainer.buildStart({});
+    const load = plugin.load;
+    if (typeof load !== "function") throw new Error("expected load hook");
+    const output = await load.call(
+      server.pluginContainer as unknown as ThisParameterType<typeof load>,
+      "\0virtual:stillwind.css",
+    );
+    assert.equal(typeof output, "string");
+    if (typeof output !== "string") throw new Error("expected CSS");
+    assert.ok(output.includes(".first"));
+    assert.ok(output.indexOf(".first") < output.indexOf(".second"));
+  } finally {
+    releaseFirst?.();
+    await server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});

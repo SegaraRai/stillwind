@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, relative, resolve } from "node:path";
 
@@ -303,16 +304,20 @@ export function stillwind(options: StillwindOptions): Plugin {
     const loader = new NativeDesignSystemLoader(compilerOptions(options));
     const root = realpathSync(resolve(projectRoot, cssEntrypoint(options)));
     cssFiles.add(root);
-    let step = JSON.parse(loader.provide(root, readFileSync(root, "utf8"))) as {
+    let step = JSON.parse(loader.provide(0, root, await readFile(root, "utf8"))) as {
       kind: string;
-      importer: string;
-      specifier: string;
+      requests: { id: number; importer: string; specifier: string }[];
       sources: string[];
     };
     while (step.kind === "needFile") {
-      const path = realpathSync(await resolveImport(step.specifier, step.importer));
-      cssFiles.add(path);
-      step = JSON.parse(loader.provide(path, readFileSync(path, "utf8"))) as typeof step;
+      const files = await Promise.all(
+        step.requests.map(async (request) => {
+          const name = await realpath(await resolveImport(request.specifier, request.importer));
+          cssFiles.add(name);
+          return { id: request.id, name, content: await readFile(name, "utf8") };
+        }),
+      );
+      step = JSON.parse(loader.provideMany(files)) as typeof step;
     }
     return loader;
   };

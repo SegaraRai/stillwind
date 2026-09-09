@@ -4,8 +4,8 @@ use std::{env, fs, path::Path, sync::Arc};
 
 use serde::Serialize;
 use stillwind_core::{
-    CompilerOptions, DesignSystemLoadStep, DesignSystemLoader, GeneratedClass, ModuleCompiler,
-    OxcSourceAnalyzer, SourceAnalyzer,
+    CompilerOptions, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
+    GeneratedClass, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
 };
 use stillwind_source::{FileId, SourceFile};
 
@@ -66,6 +66,41 @@ fn read_source(path: &str, id: u32) -> Result<SourceFile, String> {
     Ok(SourceFile::new(FileId(id), path, text))
 }
 
+fn load_design_system(
+    theme: &SourceFile,
+    options: CompilerOptions,
+) -> Result<DesignSystemSnapshot, String> {
+    let mut loader = DesignSystemLoader::new(options);
+    let mut step = loader.provide(0, theme.path().into(), theme.text().into());
+    loop {
+        match step {
+            DesignSystemLoadStep::Complete(result) => {
+                return result.map_err(|error| error.to_string());
+            }
+            DesignSystemLoadStep::NeedFile(requests) => {
+                let request = &requests[0];
+                let path = Path::new(request.importer.0.as_ref())
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(&request.specifier);
+                let path = fs::canonicalize(&path).map_err(|error| {
+                    format!(
+                        "cannot resolve {} imported by {}: {error}",
+                        request.specifier, request.importer.0
+                    )
+                })?;
+                let content = fs::read_to_string(&path)
+                    .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+                step = loader.provide(
+                    request.id,
+                    path.to_string_lossy().as_ref().into(),
+                    content.into(),
+                );
+            }
+        }
+    }
+}
+
 fn run() -> Result<(), String> {
     let command = env::args()
         .nth(1)
@@ -92,30 +127,7 @@ fn run() -> Result<(), String> {
         forbid_tailwind_relationships: has_flag("--forbid-tailwind-relationships"),
     };
     options.validate()?;
-    let mut loader = DesignSystemLoader::new(options);
-    let mut step = loader.provide(theme.path().into(), theme.text().into());
-    let snapshot = loop {
-        match step {
-            DesignSystemLoadStep::Complete(result) => {
-                break result.map_err(|error| error.to_string())?;
-            }
-            DesignSystemLoadStep::NeedFile(request) => {
-                let path = Path::new(request.importer.0.as_ref())
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(&request.specifier);
-                let path = fs::canonicalize(&path).map_err(|error| {
-                    format!(
-                        "cannot resolve {} imported by {}: {error}",
-                        request.specifier, request.importer.0
-                    )
-                })?;
-                let content = fs::read_to_string(&path)
-                    .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-                step = loader.provide(path.to_string_lossy().as_ref().into(), content.into());
-            }
-        }
-    };
+    let snapshot = load_design_system(&theme, options)?;
     let analysis =
         OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source.clone())), None);
     let result = ModuleCompiler::new(snapshot.clone())
