@@ -38,20 +38,23 @@ pub(super) fn extract_named_blocks_with_offsets(
         let open = start + open_relative;
         let header = css[start + directive.len()..open].trim().to_owned();
         let mut depth = 1_u32;
-        let mut close = open;
+        let mut close = None;
         for (offset, character) in css[open + 1..].char_indices() {
             match character {
                 '{' => depth += 1,
                 '}' => {
                     depth -= 1;
                     if depth == 0 {
-                        close = open + 1 + offset;
+                        close = Some(open + 1 + offset);
                         break;
                     }
                 }
                 _ => {}
             }
         }
+        let Some(close) = close else {
+            break;
+        };
         blocks.push((start, header, css[open + 1..close].trim().to_owned()));
         cursor = close + 1;
     }
@@ -214,9 +217,56 @@ pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
     None
 }
 
+/// Detect EOF inside a block before CSS parsers implicitly close it.
+/// Strings, comments and escaped delimiters do not change block depth.
+pub(super) fn unterminated_block(css: &str) -> Option<usize> {
+    let mut openings = Vec::new();
+    let mut quote = None;
+    let mut chars = css.char_indices().peekable();
+    while let Some((offset, character)) = chars.next() {
+        if character == '\\' {
+            chars.next();
+            continue;
+        }
+        if let Some(delimiter) = quote {
+            if character == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '/' if chars.peek().is_some_and(|(_, ch)| *ch == '*') => {
+                chars.next();
+                while let Some((_, ch)) = chars.next() {
+                    if ch == '*' && chars.peek().is_some_and(|(_, ch)| *ch == '/') {
+                        chars.next();
+                        break;
+                    }
+                }
+            }
+            '{' => openings.push(offset),
+            '}' => {
+                openings.pop();
+            }
+            _ => {}
+        }
+    }
+    openings.first().copied()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn named_blocks_do_not_slice_unclosed_bodies() {
+        assert!(extract_named_blocks("@utility x {", "@utility").is_empty());
+        assert_eq!(
+            extract_named_blocks("@utility ok {color:red;} @utility missing {", "@utility"),
+            vec![("ok".into(), "color:red;".into())]
+        );
+    }
 
     #[test]
     fn named_blocks_retain_source_offsets_and_nested_bodies() {

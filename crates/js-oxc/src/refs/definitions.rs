@@ -15,7 +15,7 @@ impl<'a> MacroExtractor<'a> {
         let label = match call.arguments.as_slice() {
             [] => None,
             [argument] => {
-                if let Expression::StringLiteral(label) = argument.to_expression() {
+                if let Some(Expression::StringLiteral(label)) = argument.as_expression() {
                     Some(self.string_literal(label))
                 } else {
                     self.diagnostics.push(CompileError::new(
@@ -58,10 +58,12 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<HandleDefinition> {
         let (scope, label) = match call.arguments.as_slice() {
             [] => (None, None),
-            [argument] => match argument.to_expression() {
-                Expression::StringLiteral(label) => (None, Some(self.string_literal(label))),
+            [argument] => match argument.as_expression() {
+                Some(Expression::StringLiteral(label)) => (None, Some(self.string_literal(label))),
                 expression => {
-                    if let Some(scope) = self.scope_reference(expression) {
+                    if let Some(scope) =
+                        expression.and_then(|expression| self.scope_reference(expression))
+                    {
                         (Some(scope), None)
                     } else {
                         self.diagnostics.push(CompileError::new(
@@ -74,7 +76,10 @@ impl<'a> MacroExtractor<'a> {
                 }
             },
             [scope, label] => {
-                let Some(scope) = self.scope_reference(scope.to_expression()) else {
+                let Some(scope) = scope
+                    .as_expression()
+                    .and_then(|scope| self.scope_reference(scope))
+                else {
                     self.diagnostics.push(CompileError::new(
                         "SHREF001",
                         "the first style.ref() argument must be an identity returned by style.scope()",
@@ -82,7 +87,7 @@ impl<'a> MacroExtractor<'a> {
                     ));
                     return None;
                 };
-                let Expression::StringLiteral(label) = label.to_expression() else {
+                let Some(Expression::StringLiteral(label)) = label.as_expression() else {
                     self.diagnostics.push(CompileError::new(
                         "SHREF001",
                         "the second style.ref() argument must be a literal name",

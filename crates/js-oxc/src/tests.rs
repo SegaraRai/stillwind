@@ -125,3 +125,53 @@ export const selected = enabled ? alias : second;"#,
     let parsed = parse(&source);
     assert!(!parsed.summary.exports.contains_key("selected"));
 }
+
+#[test]
+fn spread_arguments_in_asset_macros_report_diagnostics() {
+    for (body, code) in [
+        ("const x=style.scope(...args);", "SHSCOPE001"),
+        ("const x=style.ref(...args);", "SHREF001"),
+        ("const x=style.ref(...args,'x');", "SHREF001"),
+        (
+            "const s=style.scope(); const x=style.ref(s,...args);",
+            "SHREF001",
+        ),
+        ("const x=style.animation(...args);", "SHANIMATION001"),
+        (
+            "const a=style.animation({from:'flex'}); const x=style(a(...args));",
+            "SHANIMATION002",
+        ),
+        ("const x=style.viewTransition(...args);", "SHVIEW001"),
+        (
+            "const r=style.ref(); const x=style(r.container(...args));",
+            "SHREF002",
+        ),
+        (
+            "const r=style.ref(); const x=style(r.at(...args,'flex'));",
+            "SHREF004",
+        ),
+        (
+            "const r=style.ref(); const x=style(r.at('width > 1px',...args));",
+            "SHREF004",
+        ),
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            "spread.tsx",
+            format!("import {{ style }} from 'stillwind/react'; {body}"),
+        );
+        let parsed = parse(&source);
+        let diagnostic = parsed
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == code)
+            .unwrap_or_else(|| panic!("missing {code} for {body}: {:?}", parsed.diagnostics));
+        assert!(
+            source
+                .slice(diagnostic.labels[0].span)
+                .unwrap()
+                .contains("...args"),
+            "{body}"
+        );
+    }
+}

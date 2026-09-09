@@ -5,7 +5,7 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_source::{FileId, SourceFile};
 
-use crate::blocks::matching_brace;
+use crate::blocks::{matching_brace, unterminated_block};
 use crate::builtins::TAILWIND_V4_THEME;
 use crate::custom_properties::registration::{
     extract_authored_property_names, extract_property_definitions,
@@ -26,6 +26,8 @@ pub enum ThemeError {
     Parse(#[source] Error<ParserError<'static>>),
     #[error("unterminated @theme block")]
     UnterminatedTheme,
+    #[error("unterminated CSS block at byte {offset}")]
+    UnterminatedBlock { offset: usize },
 }
 
 /// Parses and indexes source-spanned `@theme` token declarations.
@@ -35,6 +37,9 @@ pub enum ThemeError {
 /// Returns an error when Lightning CSS rejects the stylesheet or a discovered
 /// `@theme` block has no closing brace.
 pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
+    if let Some(offset) = unterminated_block(source.text()) {
+        return Err(ThemeError::UnterminatedBlock { offset });
+    }
     StyleSheet::parse(source.text(), ParserOptions::default())
         .map_err(|error| ThemeError::Parse(error.into_owned()))?;
 
@@ -61,6 +66,9 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
 /// Returns an error when the project stylesheet is invalid or contains an
 /// unterminated `@theme` block.
 pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
+    if let Some(offset) = unterminated_block(source.text()) {
+        return Err(ThemeError::UnterminatedBlock { offset });
+    }
     // Framework imports are compiler directives rather than browser CSS. Parse
     // the directive-stripped view so Tailwind's optional `prefix(...)` import
     // modifier (and other entrypoint modifiers) does not become a CSS syntax
@@ -189,5 +197,44 @@ mod tests {
             "@keyframes spin {from{x:1}to{x:2}}"
         );
         assert_eq!(extract_keyframe_blocks("@keyframes broken {"), "");
+    }
+}
+
+#[cfg(test)]
+mod panic_regressions {
+    use super::*;
+
+    #[test]
+    fn unclosed_definition_blocks_return_errors() {
+        for directive in ["@utility x", "@custom-variant x", "@stillwind-variant x"] {
+            for body in ["", " color:red;", " &:hover {color:red;}"] {
+                let css = format!("{directive} {{{body}");
+                let source = SourceFile::new(FileId(1), "unclosed.css", css.as_str());
+                for result in [parse_theme(&source), parse_tailwind_theme(&source)] {
+                    assert!(
+                        matches!(result, Err(ThemeError::UnterminatedBlock { offset })
+                        if offset == directive.len() + 1),
+                        "{css}: {result:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn closed_blocks_with_braces_in_comments_and_strings_are_accepted() {
+        let source = SourceFile::new(
+            FileId(1),
+            "closed.css",
+            r#"/* { */ .x { content: "{"; /* } */ &:hover { content: "}"; } }"#,
+        );
+        assert!(parse_theme(&source).is_ok());
+        assert!(parse_tailwind_theme(&source).is_ok());
+        let source = SourceFile::new(
+            FileId(1),
+            "utility.css",
+            "@utility x { color:red; &:hover { color:blue; } }",
+        );
+        assert_eq!(parse_tailwind_theme(&source).unwrap().utilities.len(), 1);
     }
 }

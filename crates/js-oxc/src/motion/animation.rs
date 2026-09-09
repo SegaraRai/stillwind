@@ -47,7 +47,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         }
-        let Expression::StringLiteral(options) = call.arguments[0].to_expression() else {
+        let Some(Expression::StringLiteral(options)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
                 "SHANIMATION002",
                 "an animation use requires one literal options string",
@@ -83,7 +83,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         }
-        let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
+        let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
                 "SHANIMATION001",
                 "style.animation() requires one object of static keyframe utility strings",

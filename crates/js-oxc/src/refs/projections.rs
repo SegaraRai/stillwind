@@ -42,7 +42,7 @@ impl<'a> MacroExtractor<'a> {
                     ));
                     return None;
                 };
-                let Expression::StringLiteral(value) = argument.to_expression() else {
+                let Some(Expression::StringLiteral(value)) = argument.as_expression() else {
                     self.diagnostics.push(CompileError::new(
                         "SHREF002",
                         "ref.container() requires a literal container type",
@@ -109,9 +109,9 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
-        let (Expression::StringLiteral(query), Expression::StringLiteral(value)) = (
-            call.arguments[0].to_expression(),
-            call.arguments[1].to_expression(),
+        let (Some(Expression::StringLiteral(query)), Some(Expression::StringLiteral(value))) = (
+            call.arguments[0].as_expression(),
+            call.arguments[1].as_expression(),
         ) else {
             self.diagnostics.push(CompileError::new(
                 "SHREF004",

@@ -105,7 +105,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         }
-        let Expression::ObjectExpression(object) = call.arguments[0].to_expression() else {
+        let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
                 "SHVIEW001",
                 "style.viewTransition() requires one object of static utility strings",
