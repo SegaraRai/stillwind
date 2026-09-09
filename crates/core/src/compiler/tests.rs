@@ -1,7 +1,7 @@
-use super::{declaration_order::combine_declarations, motion::resolve_motion_options};
 use stillwind_source::{FileId, Span};
 
 use super::*;
+use super::{declaration_order::combine_declarations, motion::resolve_motion_options};
 
 #[test]
 fn expands_authored_variants_through_the_shared_registry() {

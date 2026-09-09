@@ -1,18 +1,35 @@
-use super::{Import, Parser, Token};
+use super::{Parser, Token};
 
-fn is_framework(name: &str) -> bool {
-    matches!(
-        name,
-        "tailwindcss"
-            | "tailwindcss/theme"
-            | "tailwindcss/preflight"
-            | "tailwindcss/utilities"
-            | "stillwind"
-            | "stillwind/theme.css"
-            | "stillwind/preflight.css"
-            | "stillwind/utilities.css"
-            | "stillwind/builtins.css"
-    )
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+pub enum CssImportError {
+    #[error("invalid CSS block at byte {offset}: {kind:?}")]
+    Block {
+        offset: usize,
+        kind: cssparser::ParseErrorKind<()>,
+    },
+    #[error("invalid @import at byte {offset}: {kind}")]
+    Specifier {
+        offset: usize,
+        kind: cssparser::BasicParseErrorKind,
+    },
+    #[error("invalid import modifiers at byte {offset}: {kind}")]
+    Modifiers {
+        offset: usize,
+        kind: cssparser::BasicParseErrorKind,
+    },
+    #[error("invalid import modifier at byte {offset}: {kind:?}")]
+    ModifierBlock {
+        offset: usize,
+        kind: cssparser::ParseErrorKind<()>,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct Import {
+    pub(super) start: usize,
+    pub(super) end: usize,
+    pub(super) specifier: String,
+    pub(super) wrappers: Vec<String>,
 }
 
 /// Tokenization skips comments, strings and nested blocks, and decodes CSS escapes.
@@ -126,26 +143,17 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
     Ok(wrappers)
 }
 
-#[derive(Clone, Debug, PartialEq, thiserror::Error)]
-pub enum CssImportError {
-    #[error("invalid CSS block at byte {offset}: {kind:?}")]
-    Block {
-        offset: usize,
-        kind: cssparser::ParseErrorKind<()>,
-    },
-    #[error("invalid @import at byte {offset}: {kind}")]
-    Specifier {
-        offset: usize,
-        kind: cssparser::BasicParseErrorKind,
-    },
-    #[error("invalid import modifiers at byte {offset}: {kind}")]
-    Modifiers {
-        offset: usize,
-        kind: cssparser::BasicParseErrorKind,
-    },
-    #[error("invalid import modifier at byte {offset}: {kind:?}")]
-    ModifierBlock {
-        offset: usize,
-        kind: cssparser::ParseErrorKind<()>,
-    },
+fn is_framework(name: &str) -> bool {
+    matches!(
+        name,
+        "tailwindcss"
+            | "tailwindcss/theme"
+            | "tailwindcss/preflight"
+            | "tailwindcss/utilities"
+            | "stillwind"
+            | "stillwind/theme.css"
+            | "stillwind/preflight.css"
+            | "stillwind/utilities.css"
+            | "stillwind/builtins.css"
+    )
 }

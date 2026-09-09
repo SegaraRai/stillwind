@@ -3,8 +3,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
+
 use stillwind_source::normalized_module_path;
-use thiserror::Error;
+
+#[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
+pub enum SymbolicError {
+    #[error("symbolic handle kind mismatch: expected {expected:?}, got {actual:?}")]
+    KindMismatch {
+        expected: AssetKind,
+        actual: AssetKind,
+    },
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -175,16 +184,6 @@ pub struct ReExport {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ModuleSummary {
-    pub schema: u32,
-    pub module_path: String,
-    pub imports: Vec<ImportBinding>,
-    pub re_exports: Vec<ReExport>,
-    pub assets: Vec<AssetRecord>,
-    pub exports: BTreeMap<String, ExportedValue>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetMetadata {
     pub label: Option<String>,
 }
@@ -198,10 +197,13 @@ pub struct AssetRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct TypeFact {
-    pub start: u32,
-    pub end: u32,
-    pub value: ExportedValue,
+pub struct ModuleSummary {
+    pub schema: u32,
+    pub module_path: String,
+    pub imports: Vec<ImportBinding>,
+    pub re_exports: Vec<ReExport>,
+    pub assets: Vec<AssetRecord>,
+    pub exports: BTreeMap<String, ExportedValue>,
 }
 
 impl ModuleSummary {
@@ -219,11 +221,9 @@ impl ModuleSummary {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
-pub enum SymbolicError {
-    #[error("symbolic handle kind mismatch: expected {expected:?}, got {actual:?}")]
-    KindMismatch {
-        expected: AssetKind,
-        actual: AssetKind,
-    },
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct TypeFact {
+    pub start: u32,
+    pub end: u32,
+    pub value: ExportedValue,
 }

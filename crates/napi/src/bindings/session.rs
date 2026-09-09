@@ -3,17 +3,54 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use napi::{Error, Result};
 use napi_derive::napi;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+
 use stillwind_core::{
     DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot, Fingerprint, ModuleScan,
     OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer, TypeFacts, TypeFactsUpdate,
     TypeScriptFactsProvider,
 };
+use stillwind_semantic::TypeFact;
 use stillwind_source::{FileId, SourceFile};
 
-use super::{
-    ProjectBindingOutput, ProjectModuleOutput, ProjectSource, binding_output, parse_options,
-};
+use super::{BindingOutput, binding_output, parse_options};
+
+#[derive(Debug, thiserror::Error)]
+pub enum NativeSessionError {
+    #[error("CSS load is incomplete")]
+    IncompleteCssLoad,
+    #[error("CSS reload compilation failed: {diagnostics:?}")]
+    ReloadCompilation {
+        diagnostics: BTreeMap<String, Vec<stillwind_core::CompileDiagnostic>>,
+    },
+}
+
+impl From<NativeSessionError> for Error {
+    fn from(error: NativeSessionError) -> Self {
+        Self::from_reason(error.to_string())
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ProjectSource {
+    pub path: String,
+    pub source: String,
+    #[serde(default)]
+    pub type_facts: Vec<TypeFact>,
+}
+
+#[derive(Serialize)]
+pub struct ProjectBindingOutput {
+    pub modules: Vec<ProjectModuleOutput>,
+}
+
+#[derive(Serialize)]
+pub struct ProjectModuleOutput {
+    pub path: String,
+    #[serde(flatten)]
+    pub output: BindingOutput,
+}
 
 #[napi(object)]
 pub struct NativeCssFileInput {
@@ -195,21 +232,5 @@ impl NativeProjectSession {
         }
         serde_json::to_string(&ProjectBindingOutput { modules })
             .map_err(|error| Error::from_reason(error.to_string()))
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum NativeSessionError {
-    #[error("CSS load is incomplete")]
-    IncompleteCssLoad,
-    #[error("CSS reload compilation failed: {diagnostics:?}")]
-    ReloadCompilation {
-        diagnostics: BTreeMap<String, Vec<stillwind_core::CompileDiagnostic>>,
-    },
-}
-
-impl From<NativeSessionError> for Error {
-    fn from(error: NativeSessionError) -> Self {
-        Self::from_reason(error.to_string())
     }
 }

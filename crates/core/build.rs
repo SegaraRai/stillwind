@@ -1,4 +1,5 @@
 //! Content identity for compiler builds, including unpublished development builds.
+
 use std::{fs, path::Path};
 
 fn hash_tree(path: &Path, hasher: &mut blake3::Hasher) {

@@ -3,6 +3,7 @@ use super::{
     ModuleIr, ModuleSummary, Parser, Path, SemanticBuilder, SourceFile, SourceType, Span, TypeFact,
     Visit,
 };
+
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
     pub type_probes: Vec<Span>,

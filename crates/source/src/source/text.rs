@@ -1,4 +1,14 @@
-use super::{Arc, Deserialize, Error, Range, Serialize};
+use super::{Arc, Deserialize, Range, Serialize};
+
+#[derive(Debug, thiserror::Error)]
+pub enum SourceError {
+    #[error("span belongs to file {actual:?}, expected {expected:?}")]
+    WrongFile { expected: FileId, actual: FileId },
+    #[error("invalid source span {0:?}")]
+    InvalidSpan(Span),
+    #[error("invalid byte offset {0:?}")]
+    InvalidOffset(BytePos),
+}
 
 /// Canonical project-relative module path used by generated identities and caches.
 pub fn normalized_module_path(path: &str) -> String {
@@ -7,6 +17,10 @@ pub fn normalized_module_path(path: &str) -> String {
 
 pub(super) fn offset(value: usize) -> u32 {
     u32::try_from(value).expect("stillwind source files must be smaller than 4 GiB")
+}
+
+pub fn range_of(span: Span) -> Range<usize> {
+    span.start.0 as usize..span.end.0 as usize
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -164,17 +178,4 @@ impl SourceFile {
             self.text[..byte_offset_usize].encode_utf16().count(),
         ))
     }
-}
-
-#[derive(Debug, Error)]
-pub enum SourceError {
-    #[error("span belongs to file {actual:?}, expected {expected:?}")]
-    WrongFile { expected: FileId, actual: FileId },
-    #[error("invalid source span {0:?}")]
-    InvalidSpan(Span),
-    #[error("invalid byte offset {0:?}")]
-    InvalidOffset(BytePos),
-}
-pub fn range_of(span: Span) -> Range<usize> {
-    span.start.0 as usize..span.end.0 as usize
 }

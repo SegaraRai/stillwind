@@ -1,5 +1,7 @@
-use super::DesignSystemLoadError;
-use super::{Arc, CompilerOptions, DesignSystemSnapshot, FileId, SourceFile};
+use super::{
+    Arc, CompilerOptions, DesignSystemLoadError, DesignSystemSnapshot, FileId, SourceFile,
+};
+
 pub type DesignSystemOptions = CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]

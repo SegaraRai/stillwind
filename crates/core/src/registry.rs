@@ -1,4 +1,5 @@
 //! Resolved immutable lookup views, including selected built-ins and overloads.
+
 use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -28,8 +29,11 @@ impl<T> DefinitionRegistry<T> {
 }
 
 pub type ThemeRegistry = DefinitionRegistry<stillwind_css::ThemeToken>;
+
 pub type UtilityRegistry = DefinitionRegistry<stillwind_css::CustomUtility>;
+
 pub type VariantRegistry = DefinitionRegistry<stillwind_css::CustomVariant>;
+
 pub type PropertyRegistry = DefinitionRegistry<stillwind_css::CustomPropertyDefinition>;
 
 impl<T: std::fmt::Debug> DefinitionRegistry<T> {

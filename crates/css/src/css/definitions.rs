@@ -1,6 +1,23 @@
 use super::{BTreeSet, Ident, Parse, ParserOptions, PrinterOptions, StyleSheet, ToCss};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomPropertyDefinition {
+    pub name: String,
+    pub body: String,
+    pub activation: CustomPropertyActivation,
+    pub dependencies: Vec<String>,
+    pub groups: Vec<String>,
+    pub activation_properties: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CustomPropertyUsage {
+    pub declared: BTreeSet<String>,
+    pub referenced: BTreeSet<String>,
+    pub declaration_properties: BTreeSet<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomUtility {
     pub name: String,
     pub body: String,
@@ -12,6 +29,20 @@ pub struct CustomUtility {
 pub struct BuiltinArbitraryPropertyOrder {
     pub pattern: String,
     pub builtin_order: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BuiltinVariantSortDirection {
+    Ascending,
+    Descending,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct BuiltinVariantSort {
+    pub group: Option<String>,
+    pub key: Option<String>,
+    pub direction: Option<BuiltinVariantSortDirection>,
+    pub bare: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -96,20 +127,6 @@ impl BuiltinVariantModifierType {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BuiltinVariantSortDirection {
-    Ascending,
-    Descending,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BuiltinVariantSort {
-    pub group: Option<String>,
-    pub key: Option<String>,
-    pub direction: Option<BuiltinVariantSortDirection>,
-    pub bare: bool,
-}
-
 /// One compiler-owned custom-property registration declared with
 /// `@stillwind-property`. Ordinary authored `@property` rules are never added
 /// to this registry and remain untouched in the output stylesheet.
@@ -139,21 +156,4 @@ impl CustomPropertyActivation {
             Self::Either => declared || referenced,
         }
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CustomPropertyDefinition {
-    pub name: String,
-    pub body: String,
-    pub activation: CustomPropertyActivation,
-    pub dependencies: Vec<String>,
-    pub groups: Vec<String>,
-    pub activation_properties: Vec<String>,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct CustomPropertyUsage {
-    pub declared: BTreeSet<String>,
-    pub referenced: BTreeSet<String>,
-    pub declaration_properties: BTreeSet<String>,
 }

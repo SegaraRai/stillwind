@@ -5,6 +5,22 @@ use super::{
     ProjectModuleOutput, ProjectSource, Result, SourceAnalyzer, SourceFile, TypeFacts, napi,
 };
 
+#[derive(Debug, thiserror::Error)]
+pub enum BindingApiError {
+    #[error("{0}")]
+    Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    DesignSystem(#[from] stillwind_core::DesignSystemError),
+    #[error("{0}")]
+    Options(#[from] stillwind_core::CompilerOptionsError),
+}
+
+impl From<BindingApiError> for Error {
+    fn from(error: BindingApiError) -> Self {
+        Self::from_reason(error.to_string())
+    }
+}
+
 /// Compiles a source buffer and returns the serializable compiler result.
 ///
 /// Kept independent of Node-API so the same contract has an ordinary Rust E2E
@@ -326,20 +342,4 @@ pub fn generate_react_types(theme: String) -> Result<String> {
 #[napi(js_name = "foldCalcExpressions")]
 pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum BindingApiError {
-    #[error("{0}")]
-    Json(#[from] serde_json::Error),
-    #[error("{0}")]
-    DesignSystem(#[from] stillwind_core::DesignSystemError),
-    #[error("{0}")]
-    Options(#[from] stillwind_core::CompilerOptionsError),
-}
-
-impl From<BindingApiError> for Error {
-    fn from(error: BindingApiError) -> Self {
-        Self::from_reason(error.to_string())
-    }
 }

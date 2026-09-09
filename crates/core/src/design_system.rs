@@ -13,6 +13,16 @@ use stillwind_source::SourceFile;
 
 use crate::CompilerOptions;
 
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum DesignSystemError {
+    #[error("{0}")]
+    Load(#[from] crate::DesignSystemLoadError),
+    #[error("host must resolve CSS imports using DesignSystemLoader: {requests:?}")]
+    UnresolvedImports {
+        requests: Vec<crate::CssFileRequest>,
+    },
+}
+
 /// Stable, process-independent content identity (BLAKE3).
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Fingerprint(pub String);
@@ -38,12 +48,6 @@ pub struct DefinitionFingerprints {
     pub properties: BTreeMap<String, Fingerprint>,
 }
 
-/// A cheaply cloneable, immutable revision. All access is read-only.
-#[derive(Clone, Debug)]
-pub struct DesignSystemSnapshot {
-    inner: Arc<DesignSystemData>,
-}
-
 #[derive(Debug)]
 struct DesignSystemData {
     revision: DesignSystemRevision,
@@ -58,6 +62,12 @@ struct DesignSystemData {
     builtins: Option<Arc<stillwind_tailwind::BuiltinDefinitions>>,
     declaration_formats: BTreeMap<String, String>,
     relationships: std::collections::BTreeSet<String>,
+}
+
+/// A cheaply cloneable, immutable revision. All access is read-only.
+#[derive(Clone, Debug)]
+pub struct DesignSystemSnapshot {
+    inner: Arc<DesignSystemData>,
 }
 
 impl DesignSystemSnapshot {
@@ -288,14 +298,4 @@ impl DesignSystemSnapshot {
     pub fn render_stylesheet(&self, module_css: &str) -> String {
         crate::render_stylesheet(self.theme(), module_css, self.config())
     }
-}
-
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum DesignSystemError {
-    #[error("{0}")]
-    Load(#[from] crate::DesignSystemLoadError),
-    #[error("host must resolve CSS imports using DesignSystemLoader: {requests:?}")]
-    UnresolvedImports {
-        requests: Vec<crate::CssFileRequest>,
-    },
 }

@@ -3,6 +3,12 @@ use super::{
     custom_property_references, strip_blocks, strip_css_comments, visit_types,
 };
 
+#[derive(Debug, thiserror::Error)]
+#[error("CSS parse error: {0}")]
+pub struct PropertyUsageError(
+    #[source] pub lightningcss::error::Error<lightningcss::error::ParserError<'static>>,
+);
+
 /// Returns custom properties used by declarations and values, excluding names
 /// that occur only inside ordinary authored `@property` registration blocks.
 #[must_use]
@@ -107,9 +113,3 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyU
     }
     Ok(visitor.usage)
 }
-
-#[derive(Debug, thiserror::Error)]
-#[error("CSS parse error: {0}")]
-pub struct PropertyUsageError(
-    #[source] pub lightningcss::error::Error<lightningcss::error::ParserError<'static>>,
-);

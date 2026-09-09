@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::{
     CustomUtility, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, UtilityResolution, Value,
     builtin_utilities, decode_arbitrary, matching_utilities, resolve_css_utility_body,
@@ -223,7 +225,7 @@ pub(super) fn merge_nested_rules(
     }
 }
 
-pub(super) fn declaration_property_names(declaration: &str) -> std::collections::HashSet<&str> {
+pub(super) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
     declaration
         .split_terminator(';')
         .filter_map(|declaration| declaration.split_once(':'))
@@ -242,7 +244,7 @@ pub(super) fn merge_branch_declarations(primary: &str, secondary: &str) -> Strin
                 .split_once(':')
                 .map(|(property, _)| property.trim())
         })
-        .collect::<std::collections::HashSet<_>>();
+        .collect::<HashSet<_>>();
     let mut merged = primary.to_owned();
     for declaration in secondary.split_terminator(';') {
         let Some((property, _)) = declaration.split_once(':') else {

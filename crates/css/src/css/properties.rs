@@ -3,19 +3,6 @@ use super::{
     is_css_wide_keyword, webref_property,
 };
 
-/// A CSSWG-defined property whose value grammar is delegated to Lightning CSS
-/// where available, with narrow temporary exceptions where it is not.
-///
-/// The supported set is generated from W3C Webref's curated CSSWG data,
-/// rather than maintained as a partial list. It is an internal validator for
-/// named CSS value domains; property names are never part of the public
-/// `--value([type])` grammar.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CssProperty {
-    name: String,
-    grammar: CssPropertyGrammar,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum CssPropertyGrammar {
     LightningCss,
@@ -57,6 +44,19 @@ pub(super) const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
         CssPropertyGrammar::PositionTryFallbacks,
     ),
 ];
+
+/// A CSSWG-defined property whose value grammar is delegated to Lightning CSS
+/// where available, with narrow temporary exceptions where it is not.
+///
+/// The supported set is generated from W3C Webref's curated CSSWG data,
+/// rather than maintained as a partial list. It is an internal validator for
+/// named CSS value domains; property names are never part of the public
+/// `--value([type])` grammar.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CssProperty {
+    name: String,
+    grammar: CssPropertyGrammar,
+}
 
 impl CssProperty {
     /// Finds a CSSWG-defined property for an internal value-domain validator.

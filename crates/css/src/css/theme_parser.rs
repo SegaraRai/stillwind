@@ -1,13 +1,13 @@
 use super::{
-    BTreeMap, BTreeSet, Error, FileId, FrameworkImports, ParserOptions, SourceFile,
-    StillwindConfig, StyleSheet, TAILWIND_V4_THEME, ThemeIndex, ThemeTokenMode,
-    extract_authored_property_names, extract_custom_utilities, extract_custom_variants,
-    extract_declaration_formats, extract_marker_utilities, extract_property_definitions,
-    extract_relationship_patterns, extract_stillwind_config, extract_theme_declarations,
-    framework_imports, matching_brace, strip_framework_directives,
+    BTreeMap, BTreeSet, FileId, FrameworkImports, ParserOptions, SourceFile, StillwindConfig,
+    StyleSheet, TAILWIND_V4_THEME, ThemeIndex, ThemeTokenMode, extract_authored_property_names,
+    extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
+    extract_marker_utilities, extract_property_definitions, extract_relationship_patterns,
+    extract_stillwind_config, extract_theme_declarations, framework_imports, matching_brace,
+    strip_framework_directives,
 };
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
     #[error("CSS parse error: {0}")]
     Parse(#[source] lightningcss::error::Error<lightningcss::error::ParserError<'static>>),

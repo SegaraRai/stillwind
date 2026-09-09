@@ -1,4 +1,5 @@
 //! Editor requests use precisely the compiler's candidate resolution and emitter.
+
 use std::collections::BTreeSet;
 
 use stillwind_grammar::{Candidate, parse_candidate};

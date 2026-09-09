@@ -3,7 +3,6 @@
 use std::{ops::Range, sync::Arc};
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 mod text;
 pub use text::*;

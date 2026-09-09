@@ -39,6 +39,28 @@ use arguments::{argument, has_flag, optional_argument};
 mod loading;
 use loading::{load_design_system, read_source};
 
+#[derive(Debug, thiserror::Error)]
+enum CommandError {
+    #[error("expected `compile` command")]
+    MissingCommand,
+    #[error("unknown command `{command}`; expected `compile`")]
+    UnknownCommand { command: String },
+    #[error("{0}")]
+    Argument(#[from] arguments::ArgumentError),
+    #[error("{0}")]
+    File(#[from] loading::FileLoadError),
+    #[error("cannot resolve theme {path}: {source}")]
+    ThemePath {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Options(#[from] stillwind_core::CompilerOptionsError),
+    #[error("{0}")]
+    Output(#[from] serde_json::Error),
+}
+
 fn run() -> Result<(), CommandError> {
     let command = env::args()
         .nth(1)
@@ -128,26 +150,4 @@ fn main() {
         );
         std::process::exit(2);
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-enum CommandError {
-    #[error("expected `compile` command")]
-    MissingCommand,
-    #[error("unknown command `{command}`; expected `compile`")]
-    UnknownCommand { command: String },
-    #[error("{0}")]
-    Argument(#[from] arguments::ArgumentError),
-    #[error("{0}")]
-    File(#[from] loading::FileLoadError),
-    #[error("cannot resolve theme {path}: {source}")]
-    ThemePath {
-        path: String,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("{0}")]
-    Options(#[from] stillwind_core::CompilerOptionsError),
-    #[error("{0}")]
-    Output(#[from] serde_json::Error),
 }

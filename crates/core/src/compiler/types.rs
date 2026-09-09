@@ -1,41 +1,11 @@
 use super::{BTreeMap, CompileError, Deserialize, LintFinding, Serialize, SourceFile, Span};
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct GeneratedClass {
-    pub class_name: String,
-    pub call_span: Span,
-    pub guard: Option<Span>,
-    pub guard_when_true: bool,
-}
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct PropsTransform {
-    pub call_span: Span,
-    pub replacement: String,
-}
-
-/// A generated CSS identifier with the canonical identity used to allocate it.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct GeneratedSymbol {
-    pub name: String,
-    pub kind: String,
-    pub identity: String,
-    pub source_path: String,
-    pub start: u32,
-    pub end: u32,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
-pub struct CompileResult {
-    pub css: String,
-    /// Unwrapped utility rules used to assemble one stylesheet for a module graph.
-    #[serde(skip)]
-    pub module_css: String,
-    pub classes: Vec<GeneratedClass>,
-    pub symbols: Vec<GeneratedSymbol>,
-    pub transforms: Vec<PropsTransform>,
-    pub diagnostics: Vec<CompileError>,
-    pub lint_findings: Vec<LintFinding>,
-    pub lint_policy: BTreeMap<String, String>,
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum CompilerOptionsError {
+    #[error("{option} must start with `--` and end with `-`")]
+    InvalidPrefix { option: &'static str, value: String },
+    #[error("prefix and tailwindPrefix must be different")]
+    ConflictingPrefixes { prefix: String },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -91,6 +61,53 @@ impl CompilerOptions {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum TransformError {
+    #[error("invalid stillwind transform span: {0}")]
+    InvalidSpan(#[source] stillwind_source::SourceError),
+    #[error("overlapping stillwind transform span {span:?}, previous start {previous_start}")]
+    Overlap { span: Span, previous_start: u32 },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GeneratedClass {
+    pub class_name: String,
+    pub call_span: Span,
+    pub guard: Option<Span>,
+    pub guard_when_true: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct PropsTransform {
+    pub call_span: Span,
+    pub replacement: String,
+}
+
+/// A generated CSS identifier with the canonical identity used to allocate it.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GeneratedSymbol {
+    pub name: String,
+    pub kind: String,
+    pub identity: String,
+    pub source_path: String,
+    pub start: u32,
+    pub end: u32,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct CompileResult {
+    pub css: String,
+    /// Unwrapped utility rules used to assemble one stylesheet for a module graph.
+    #[serde(skip)]
+    pub module_css: String,
+    pub classes: Vec<GeneratedClass>,
+    pub symbols: Vec<GeneratedSymbol>,
+    pub transforms: Vec<PropsTransform>,
+    pub diagnostics: Vec<CompileError>,
+    pub lint_findings: Vec<LintFinding>,
+    pub lint_policy: BTreeMap<String, String>,
+}
+
 impl CompileResult {
     /// Applies source-spanned macro replacements from right to left.
     ///
@@ -125,20 +142,4 @@ impl CompileResult {
         }
         Ok(output)
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum CompilerOptionsError {
-    #[error("{option} must start with `--` and end with `-`")]
-    InvalidPrefix { option: &'static str, value: String },
-    #[error("prefix and tailwindPrefix must be different")]
-    ConflictingPrefixes { prefix: String },
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum TransformError {
-    #[error("invalid stillwind transform span: {0}")]
-    InvalidSpan(#[source] stillwind_source::SourceError),
-    #[error("overlapping stillwind transform span {span:?}, previous start {previous_start}")]
-    Overlap { span: Span, previous_start: u32 },
 }

@@ -1,7 +1,45 @@
 use super::{
-    BTreeMap, CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ThemeToken, ThemeTokenKind,
-    ThemeTokenMode, custom_property_references, resolve_theme_references, tailwind_v4_preflight,
+    BTreeMap, BTreeSet, CustomPropertyDefinition, CustomUtility, CustomVariant, FrameworkImports,
+    Spanned, StillwindConfig, ThemeNamespace, ThemeTokenKind, custom_property_references,
+    resolve_theme_references, tailwind_v4_preflight,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ThemeTokenMode {
+    Default,
+    Inline,
+    Static,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ThemeToken {
+    pub name: Spanned<String>,
+    pub value: Spanned<String>,
+    pub kind: ThemeTokenKind,
+    pub mode: ThemeTokenMode,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ThemeIndex {
+    pub tokens: Vec<ThemeToken>,
+    pub custom_css: String,
+    pub utilities: Vec<CustomUtility>,
+    pub variants: Vec<CustomVariant>,
+    pub properties: Vec<CustomPropertyDefinition>,
+    /// Utility names whose declarations provide compatibility marker classes.
+    pub marker_utilities: BTreeSet<String>,
+    /// Generic serialization formats attached to CSS declarations.
+    pub declaration_formats: BTreeMap<String, String>,
+    pub relationship_patterns: BTreeSet<String>,
+    pub authored_properties: BTreeSet<String>,
+    /// Framework layers requested by the authored Tailwind-compatible imports.
+    ///
+    /// A stylesheet without a framework import retains the historical full
+    /// Stillwind baseline. Once an official Tailwind import is present, its
+    /// selected entry points are authoritative.
+    pub imports: FrameworkImports,
+    pub config: StillwindConfig,
+}
 
 impl ThemeIndex {
     #[must_use]

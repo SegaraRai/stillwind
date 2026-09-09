@@ -1,10 +1,15 @@
 //! Mutable host orchestration; snapshots and in-flight request clones stay immutable.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     CompiledModule, DesignSystemLoadError, DesignSystemSnapshot, GeneratedRule, ModuleAnalysis,
     ModuleCompiler, ModuleId, RuleKey,
 };
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct SessionReloadError(#[from] pub DesignSystemLoadError);
 
 #[derive(Clone, Debug)]
 struct RuleEntry {
@@ -299,7 +304,3 @@ impl ProjectSession {
         }
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct SessionReloadError(#[from] pub DesignSystemLoadError);

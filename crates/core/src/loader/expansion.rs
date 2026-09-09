@@ -17,6 +17,7 @@ impl ExpandedSource {
             self.text.push('}');
         }
     }
+
     pub(super) fn append_source(&mut self, source: &SourceFile, range: std::ops::Range<usize>) {
         let start = self.text.len();
         self.text.push_str(&source.text()[range.clone()]);
@@ -26,6 +27,7 @@ impl ExpandedSource {
             source_start: range.start,
         });
     }
+
     pub(super) fn append(&mut self, other: &Self) {
         let offset = self.text.len();
         self.text.push_str(&other.text);
@@ -36,6 +38,7 @@ impl ExpandedSource {
                 source_start: mapping.source_start,
             }));
     }
+
     pub(super) fn original_span(&self, span: Span) -> Option<Span> {
         let start = span.start.0 as usize;
         let end = span.end.0 as usize;

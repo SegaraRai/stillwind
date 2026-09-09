@@ -30,8 +30,8 @@ pub use compiler::{
     CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
     GeneratedClass, GeneratedSymbol, PropsTransform, TransformError,
 };
-pub(crate) use compiler::{render_react_types, render_stylesheet};
 
 pub(crate) use compiler::{
-    class_name, emit_utility_rules, resolve_utility_targets, unresolved_utility_rule,
+    class_name, emit_utility_rules, render_react_types, render_stylesheet, resolve_utility_targets,
+    unresolved_utility_rule,
 };

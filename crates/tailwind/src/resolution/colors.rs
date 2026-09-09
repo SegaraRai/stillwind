@@ -4,6 +4,26 @@ use super::{
     theme_value_literal,
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CompatColorKind {
+    CurrentColor,
+    ModernOnlyKeyword,
+    General,
+}
+
+impl CompatColorKind {
+    pub(super) fn from_css(color: &str) -> Self {
+        if color.eq_ignore_ascii_case("currentcolor") {
+            Self::CurrentColor
+        } else if color.eq_ignore_ascii_case("inherit") || color.eq_ignore_ascii_case("transparent")
+        {
+            Self::ModernOnlyKeyword
+        } else {
+            Self::General
+        }
+    }
+}
+
 /// Produces the legacy Color 4 fallback for an authored color and alpha.
 /// The caller also emits the modern upgrade guarded by the capability query
 /// intrinsic to `--compat-color()`.
@@ -48,26 +68,6 @@ pub(super) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Op
         ));
     }
     Some(mixed)
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum CompatColorKind {
-    CurrentColor,
-    ModernOnlyKeyword,
-    General,
-}
-
-impl CompatColorKind {
-    pub(super) fn from_css(color: &str) -> Self {
-        if color.eq_ignore_ascii_case("currentcolor") {
-            Self::CurrentColor
-        } else if color.eq_ignore_ascii_case("inherit") || color.eq_ignore_ascii_case("transparent")
-        {
-            Self::ModernOnlyKeyword
-        } else {
-            Self::General
-        }
-    }
 }
 
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits

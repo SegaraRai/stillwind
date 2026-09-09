@@ -52,18 +52,6 @@ pub(super) struct UtilityResolution {
     pub(super) builtin_order: Option<usize>,
 }
 
-#[derive(Clone, Debug, Default)]
-pub(super) struct ResolvedCssDeclarations {
-    pub(super) base: String,
-    pub(super) compat_modern: Vec<String>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum CompatColorMode {
-    Legacy,
-    Modern,
-}
-
 impl UtilityResolution {
     pub(super) fn plain(declaration: String) -> Self {
         Self {
@@ -74,6 +62,18 @@ impl UtilityResolution {
             builtin_order: None,
         }
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct ResolvedCssDeclarations {
+    pub(super) base: String,
+    pub(super) compat_modern: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CompatColorMode {
+    Legacy,
+    Modern,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

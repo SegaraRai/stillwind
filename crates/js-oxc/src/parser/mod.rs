@@ -21,6 +21,7 @@ use oxc::{
     span::{GetSpan, SourceType},
     syntax::operator::LogicalOperator,
 };
+
 use stillwind_ir::{
     AnimationDefinition, AnimationFrame, AssetReference, AttributeEntry, HandleDefinition,
     HandleProjection, ModuleIr, ScopeDefinition, StyleCall, StyleInput, ViewTransitionDefinition,
@@ -35,6 +36,7 @@ mod entry;
 pub use entry::*;
 mod labels;
 use labels::{is_animation_frame, is_marker_label, is_strict_ancestor};
+
 struct MacroExtractor<'a> {
     source: &'a SourceFile,
     scoping: &'a Scoping,
@@ -82,7 +84,8 @@ mod motion;
 mod projections;
 mod references;
 mod state;
-#[cfg(test)]
-mod tests;
 mod validation;
 mod visit;
+
+#[cfg(test)]
+mod tests;

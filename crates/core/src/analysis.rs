@@ -1,4 +1,5 @@
 //! Single-module analysis and versioned optional TypeScript facts.
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
@@ -13,8 +14,11 @@ use stillwind_source::{
 use crate::Fingerprint;
 
 pub type ModuleId = String;
+
 pub type SourceRevision = Fingerprint;
+
 pub type SemanticRevision = Fingerprint;
+
 pub type SourceDiagnostic = CompileError;
 
 #[derive(Clone, Debug)]

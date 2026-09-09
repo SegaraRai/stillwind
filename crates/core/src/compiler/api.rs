@@ -4,6 +4,10 @@ use super::{
     OxcSourceAnalyzer, SourceAnalyzer, SourceFile, TypeFact, render_react_types,
 };
 
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct CompilerThemeError(#[from] pub crate::DesignSystemError);
+
 impl Compiler {
     pub fn check_javascript(source: &SourceFile) -> Vec<CompileError> {
         stillwind_js_oxc::parse(source).diagnostics
@@ -140,7 +144,3 @@ impl Compiler {
             .to_legacy(&snapshot)
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct CompilerThemeError(#[from] pub crate::DesignSystemError);

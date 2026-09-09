@@ -1,8 +1,58 @@
 use super::{
     Arc, BTreeMap, CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge,
-    CssSourceGraph, CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
-    DesignSystemSnapshot, ExpandedSource, FileId, Node, SourceFile, imports,
+    CssSourceGraph, CssSourceName, DesignSystemLoadStep, DesignSystemOptions, DesignSystemSnapshot,
+    ExpandedSource, FileId, Import, SourceFile, imports,
 };
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum DesignSystemLoadError {
+    #[error("CSS request IDs exhausted")]
+    RequestIdExhausted,
+    #[error("too many CSS sources")]
+    SourceIdExhausted,
+    #[error("provide called after completion")]
+    AlreadyComplete,
+    #[error("initial provide must contain exactly one file (conventionally ID 0), got {count}")]
+    InvalidInitialBatch { count: usize },
+    #[error("unknown or duplicate request ID {id}")]
+    UnknownOrDuplicateRequest { id: u32 },
+    #[error("conflicting content for {}", .name.0)]
+    ConflictingContent { name: CssSourceName },
+    #[error("{}: {cause}", .name.0)]
+    InvalidCss {
+        name: CssSourceName,
+        #[source]
+        cause: stillwind_css::ThemeError,
+    },
+    #[error("{}: {cause}", .name.0)]
+    InvalidImport {
+        name: CssSourceName,
+        #[source]
+        cause: super::CssImportError,
+    },
+    #[error("{0}")]
+    InvalidOptions(#[from] crate::CompilerOptionsError),
+    #[error("CSS import cycle: {chain:?}")]
+    Cycle { chain: Vec<CssFileRequest> },
+}
+
+struct Node {
+    imports: Vec<Import>,
+    requests: Vec<CssFileRequest>,
+    targets: Vec<Option<usize>>,
+}
+
+/// Caller-driven loading with independent, monotonically increasing request IDs.
+/// `NeedFile` lists all outstanding requests; hosts may respond in any order.
+pub struct DesignSystemLoader {
+    options: DesignSystemOptions,
+    graph: CssSourceGraph,
+    known: BTreeMap<CssSourceName, usize>,
+    nodes: Vec<Node>,
+    pending: BTreeMap<u32, (usize, usize)>,
+    next_id: u32,
+    terminal: bool,
+}
 
 impl DesignSystemLoader {
     pub fn new(options: DesignSystemOptions) -> Self {
@@ -209,34 +259,43 @@ impl DesignSystemLoader {
     }
 }
 
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum DesignSystemLoadError {
-    #[error("CSS request IDs exhausted")]
-    RequestIdExhausted,
-    #[error("too many CSS sources")]
-    SourceIdExhausted,
-    #[error("provide called after completion")]
-    AlreadyComplete,
-    #[error("initial provide must contain exactly one file (conventionally ID 0), got {count}")]
-    InvalidInitialBatch { count: usize },
-    #[error("unknown or duplicate request ID {id}")]
-    UnknownOrDuplicateRequest { id: u32 },
-    #[error("conflicting content for {}", .name.0)]
-    ConflictingContent { name: CssSourceName },
-    #[error("{}: {cause}", .name.0)]
-    InvalidCss {
-        name: CssSourceName,
-        #[source]
-        cause: stillwind_css::ThemeError,
-    },
-    #[error("{}: {cause}", .name.0)]
-    InvalidImport {
-        name: CssSourceName,
-        #[source]
-        cause: super::CssImportError,
-    },
-    #[error("{0}")]
-    InvalidOptions(#[from] crate::CompilerOptionsError),
-    #[error("CSS import cycle: {chain:?}")]
-    Cycle { chain: Vec<CssFileRequest> },
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_id_exhaustion_is_terminal_and_never_emits_max_or_wraps() {
+        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        loader.next_id = u32::MAX - 1;
+        let DesignSystemLoadStep::NeedFile(requests) =
+            loader.provide(0, "root".into(), "@import 'last';".into())
+        else {
+            panic!("expected last usable request ID");
+        };
+        assert_eq!(requests[0].id, u32::MAX - 1);
+        assert!(matches!(
+            loader.provide(u32::MAX - 1, "last".into(), "@import 'overflow';".into()),
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::RequestIdExhausted))
+        ));
+        assert_eq!(loader.next_id, u32::MAX);
+        assert!(matches!(
+            loader.provide_many([]),
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::AlreadyComplete))
+        ));
+    }
+
+    #[test]
+    fn exhausted_batch_finishes_with_error_instead_of_returning_partial_requests() {
+        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        loader.next_id = u32::MAX - 1;
+        assert!(matches!(
+            loader.provide(
+                0,
+                "root".into(),
+                "@import 'last'; @import 'overflow';".into()
+            ),
+            DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::RequestIdExhausted))
+        ));
+        assert_eq!(loader.next_id, u32::MAX);
+    }
 }

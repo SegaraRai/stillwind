@@ -32,7 +32,6 @@ use lightningcss::{
     visitor::{Visit, VisitTypes, Visitor},
 };
 use stillwind_source::{FileId, SourceFile, Span, Spanned};
-use thiserror::Error;
 
 mod catalog;
 pub use catalog::{TAILWIND_V4_PREFLIGHT, csswg_formal_syntax};
@@ -53,6 +52,8 @@ mod domains;
 pub use domains::*;
 mod builtins;
 pub use builtins::*;
+mod theme_domains;
+pub use theme_domains::*;
 mod theme_types;
 pub use theme_types::*;
 mod definitions;
@@ -68,6 +69,7 @@ pub use math_folding::*;
 mod format_registry;
 pub use format_registry::*;
 mod theme_index;
+pub use theme_index::*;
 
 mod theme_references;
 use theme_references::{custom_property_references, resolve_theme_references};

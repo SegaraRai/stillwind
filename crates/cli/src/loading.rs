@@ -6,6 +6,25 @@ use stillwind_core::{
     CompilerOptions, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
 use stillwind_source::{FileId, SourceFile};
+
+#[derive(Debug, thiserror::Error)]
+pub(super) enum FileLoadError {
+    #[error("cannot read {}: {source}", .path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("cannot resolve {} imported by {}: {source}", .request.specifier, .request.importer.0)]
+    Resolve {
+        request: stillwind_core::CssFileRequest,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Load(#[from] stillwind_core::DesignSystemLoadError),
+}
+
 pub(super) fn read_source(path: &str, id: u32) -> Result<SourceFile, FileLoadError> {
     let text = fs::read_to_string(path).map_err(|error| FileLoadError::Read {
         path: path.into(),
@@ -47,22 +66,4 @@ pub(super) fn load_design_system(
             }
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(super) enum FileLoadError {
-    #[error("cannot read {}: {source}", .path.display())]
-    Read {
-        path: PathBuf,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("cannot resolve {} imported by {}: {source}", .request.specifier, .request.importer.0)]
-    Resolve {
-        request: stillwind_core::CssFileRequest,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("{0}")]
-    Load(#[from] stillwind_core::DesignSystemLoadError),
 }

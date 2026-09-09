@@ -1,4 +1,5 @@
 //! Snapshot-pinned compilation and structured, independently owned CSS rules.
+
 use std::collections::BTreeSet;
 
 use cssparser::{Parser, Token};
@@ -10,9 +11,16 @@ use crate::{
     PropsTransform,
 };
 
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct ModuleTransformError(#[from] pub crate::TransformError);
+
 pub type SourceTransform = PropsTransform;
+
 pub type CompileDiagnostic = CompileError;
+
 pub type RuleKey = Fingerprint;
+
 pub type AssetIdentity = stillwind_semantic::IdentityId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -275,7 +283,3 @@ impl ModuleCompiler {
         }
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct ModuleTransformError(#[from] pub crate::TransformError);
