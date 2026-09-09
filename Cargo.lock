@@ -473,6 +473,7 @@ dependencies = [
  "pastey",
  "pathdiff",
  "smallvec",
+ "static-self",
 ]
 
 [[package]]
@@ -860,6 +861,7 @@ dependencies = [
  "precomputed-hash",
  "rustc-hash",
  "smallvec",
+ "static-self",
 ]
 
 [[package]]
@@ -1271,6 +1273,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8e2fb0f499abb4d162f2bedad68f5ef91a1682b5a03596ddb67efd37768d100"
 
 [[package]]
+name = "static-self"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6635404b73efc136af3a7956e53c53d4f34b2f16c95a15c438929add0f69412"
+dependencies = [
+ "indexmap",
+ "smallvec",
+ "static-self-derive",
+]
+
+[[package]]
+name = "static-self-derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5268c96d4b907c558a9a52d8492522d6c7b559651a5e1d8f2d551e461b9425d5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1284,6 +1308,7 @@ dependencies = [
  "serde_json",
  "stillwind-core",
  "stillwind-source",
+ "thiserror",
 ]
 
 [[package]]
@@ -1302,6 +1327,7 @@ dependencies = [
  "stillwind-semantic",
  "stillwind-source",
  "stillwind-tailwind",
+ "thiserror",
 ]
 
 [[package]]
@@ -1351,6 +1377,7 @@ dependencies = [
  "stillwind-css",
  "stillwind-semantic",
  "stillwind-source",
+ "thiserror",
 ]
 
 [[package]]
