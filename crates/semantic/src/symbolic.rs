@@ -149,3 +149,36 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn finite_values_deduplicate_and_reject_mixed_asset_kinds() {
+        let id = IdentityId::new(AssetKind::Scope, "x", 0, 1, "scope");
+        let value = SymbolicValue::finite(AssetKind::Scope, [id.clone(), id]).unwrap();
+        assert_eq!(value.finite_candidates().unwrap().len(), 1);
+        let wrong = IdentityId::new(AssetKind::Animation, "x", 0, 1, "animation");
+        assert!(SymbolicValue::finite(AssetKind::Scope, [wrong.clone()]).is_err());
+        assert!(RefAlternative::new(wrong, None).is_err());
+        let reference = IdentityId::new(AssetKind::Ref, "x", 0, 1, "ref");
+        assert!(
+            RefAlternative::new(
+                reference,
+                Some(SymbolicValue::universe(AssetKind::Animation))
+            )
+            .is_err()
+        );
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn finite_values_ignore_order_and_duplicates(offsets in proptest::collection::vec(0_u32..100, 0..12)) {
+            let identities = offsets.iter().map(|&start| IdentityId::new(AssetKind::Ref, "x", start, start + 1, "r")).collect::<Vec<_>>();
+            let forward = SymbolicValue::finite(AssetKind::Ref, identities.clone()).unwrap();
+            let reverse = SymbolicValue::finite(AssetKind::Ref, identities.iter().rev().chain(&identities).cloned()).unwrap();
+            proptest::prop_assert_eq!(forward, reverse);
+        }
+    }
+}

@@ -90,3 +90,22 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn swapped_prefixes_are_rewritten_simultaneously() {
+        let options = CompilerOptions {
+            prefix: "--tw-".into(),
+            tailwind_prefix: "--sw-".into(),
+            ..CompilerOptions::default()
+        };
+        assert!(options.validate().is_ok());
+        assert_eq!(
+            options.rewrite_generated("var(--sw-a) var(--tw-b) --other-c"),
+            "var(--tw-a) var(--sw-b) --other-c"
+        );
+    }
+}

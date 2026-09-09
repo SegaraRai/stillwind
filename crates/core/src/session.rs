@@ -304,3 +304,23 @@ impl ProjectSession {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn removing_one_module_does_not_drop_rules_shared_by_another() {
+        let artifact = ModuleCssArtifact::from_css(".x{color:red;}");
+        let mut stylesheet = ProjectStylesheet::default();
+        stylesheet.replace("a".into(), &artifact);
+        stylesheet.replace("b".into(), &artifact);
+        assert_eq!(stylesheet.rule_count(), 1);
+        stylesheet.remove("a");
+        assert_eq!(stylesheet.module_css(), ".x{color:red;}");
+        stylesheet.remove("b");
+        assert_eq!(stylesheet.rule_count(), 0);
+        stylesheet.remove("absent");
+        assert_eq!(stylesheet.module_css(), "");
+    }
+}

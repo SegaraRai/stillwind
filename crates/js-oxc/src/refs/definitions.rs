@@ -216,3 +216,25 @@ fn is_marker_label(label: &Spanned<String>) -> bool {
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stillwind_source::FileId;
+
+    #[test]
+    fn labels_allow_only_nonempty_ascii_marker_characters() {
+        for (label, expected) in [
+            ("a-b_2", true),
+            ("", false),
+            ("a b", false),
+            ("日本語", false),
+            ("a:b", false),
+        ] {
+            assert_eq!(
+                is_marker_label(&Spanned::new(label.to_owned(), Span::new(FileId(1), 0, 0))),
+                expected
+            );
+        }
+    }
+}

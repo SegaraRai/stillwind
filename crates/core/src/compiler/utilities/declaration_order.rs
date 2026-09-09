@@ -224,4 +224,23 @@ mod tests {
         let actual = combine_declarations(&declarations.iter().collect::<Vec<_>>());
         assert_eq!(actual, "color:red;display:block;opacity:0.5;");
     }
+
+    #[test]
+    fn supporting_declarations_preserve_explicit_values_and_support_order() {
+        let mut declaration = "color:red;width:1px;".into();
+        let supporting = [
+            VariantDeclaration {
+                property: "color".into(),
+                value: "blue".into(),
+            },
+            VariantDeclaration {
+                property: "display".into(),
+                value: "grid".into(),
+            },
+        ];
+        prepend_missing_declarations(&mut declaration, &supporting);
+        assert_eq!(declaration, "display:grid;color:red;width:1px;");
+        prepend_missing_declarations(&mut declaration, &supporting);
+        assert_eq!(declaration, "display:grid;color:red;width:1px;");
+    }
 }

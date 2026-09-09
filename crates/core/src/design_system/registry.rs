@@ -48,3 +48,31 @@ impl<T: std::fmt::Debug> DefinitionRegistry<T> {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overload_order_survives_grouping_and_affects_fingerprints() {
+        let registry = DefinitionRegistry::new([
+            ("x".into(), Arc::new(1)),
+            ("x".into(), Arc::new(2)),
+            ("a".into(), Arc::new(3)),
+        ]);
+        assert_eq!(
+            registry
+                .get("x")
+                .unwrap()
+                .iter()
+                .map(|v| **v)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(registry.names().collect::<Vec<_>>(), vec!["a", "x"]);
+        assert!(registry.get("missing").is_none());
+        let reversed =
+            DefinitionRegistry::new([("x".into(), Arc::new(2)), ("x".into(), Arc::new(1))]);
+        assert_ne!(registry.fingerprints()["x"], reversed.fingerprints()["x"]);
+    }
+}

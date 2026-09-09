@@ -181,3 +181,51 @@ pub(crate) fn class_name(canonical_input: &str) -> String {
     let hash = blake3::hash(canonical_input.as_bytes());
     format!("_s_{}", &hash.to_hex()[..8])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stillwind_source::FileId;
+
+    #[test]
+    fn identities_normalize_paths_and_class_names_are_content_stable() {
+        let name = Spanned::new("ref".into(), Span::new(FileId(1), 2, 5));
+        assert_eq!(
+            asset_identity(r"src\x.tsx", "ref", &name),
+            asset_identity("src/x.tsx", "ref", &name)
+        );
+        assert_ne!(
+            asset_identity("src/x.tsx", "ref", &name),
+            asset_identity("src/y.tsx", "ref", &name)
+        );
+        assert_eq!(class_name("flex"), class_name("flex"));
+        assert_ne!(class_name("flex"), class_name("grid"));
+        assert!(class_name("flex").starts_with("_s_"));
+    }
+
+    #[test]
+    fn asset_names_distinguish_kinds_and_spans_and_keep_metadata() {
+        let source = SourceFile::new(FileId(1), r"src\x.tsx", "ref");
+        let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
+        for (kind, prefix) in [
+            ("ref", "--sw-r-"),
+            ("scope", "--sw-s-"),
+            ("animation", "--sw-a-"),
+            ("view-transition", "--sw-v-"),
+        ] {
+            let symbol = generated_symbol(&source, kind, &name);
+            assert!(symbol.name.starts_with(prefix));
+            assert_eq!(symbol.source_path, "src/x.tsx");
+            assert_eq!((symbol.start, symbol.end), (0, 3));
+            assert_eq!(symbol.identity, asset_identity(source.path(), kind, &name));
+            assert_ne!(
+                symbol.name,
+                asset_symbol_name(
+                    source.path(),
+                    kind,
+                    &Spanned::new("ref".into(), Span::new(FileId(1), 1, 3))
+                )
+            );
+        }
+    }
+}

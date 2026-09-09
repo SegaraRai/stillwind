@@ -155,3 +155,31 @@ fn is_framework(name: &str) -> bool {
             | "stillwind/builtins.css"
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn imports_ignore_comments_strings_nested_rules_and_framework_entries() {
+        let css = "/* @import 'no'; */ .x{content:\"@import 'no';\";} @import 'stillwind'; @import 'a.css';";
+        let found = imports(css).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].specifier, "a.css");
+        assert_eq!(&css[found[0].start..found[0].end], "@import 'a.css';");
+        assert!(matches!(
+            imports("@import 42;"),
+            Err(CssImportError::Specifier { .. })
+        ));
+    }
+
+    #[test]
+    fn modifier_wrappers_preserve_layer_supports_and_media_order() {
+        assert_eq!(
+            import_wrappers("layer(foo) supports(display:grid) screen", 0).unwrap(),
+            vec!["@layer foo", "@supports (display:grid)", "@media screen"]
+        );
+        assert!(is_framework("tailwindcss"));
+        assert!(!is_framework("tailwindcss-custom.css"));
+    }
+}

@@ -103,4 +103,20 @@ mod tests {
             "xx"
         );
     }
+
+    proptest::proptest! {
+        #[test]
+        fn replacing_one_span_preserves_both_sides(prefix in "[a-z]{0,12}", suffix in "[a-z]{0,12}", replacement in "[A-Z]{0,12}") {
+            let source = SourceFile::new(FileId(1), "x", format!("{prefix}é{suffix}"));
+            let start = u32::try_from(prefix.len()).unwrap();
+            let transform = PropsTransform {
+                call_span: Span::new(FileId(1), start, start + 2),
+                replacement: replacement.clone()
+            };
+            proptest::prop_assert_eq!(
+                apply_transforms(&source, &[transform]).unwrap(),
+                format!("{prefix}{replacement}{suffix}")
+            );
+        }
+    }
 }

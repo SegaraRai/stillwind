@@ -227,3 +227,58 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn invalid_byte_boundaries_and_wrong_files_are_rejected() {
+        let source = SourceFile::new(FileId(1), "x", "a😀\r\nz");
+        assert!(matches!(
+            source.slice(Span::new(FileId(2), 0, 1)),
+            Err(SourceError::WrongFile { .. })
+        ));
+        assert!(source.slice(Span::new(FileId(1), 2, 5)).is_err());
+        assert!(source.position(BytePos(2)).is_err());
+        assert_eq!(source.utf16_offset(BytePos(5)).unwrap(), 3);
+        assert_eq!(
+            source.position(BytePos(7)).unwrap(),
+            Position {
+                line: 1,
+                utf16_column: 0
+            }
+        );
+        assert_eq!(source.slice(Span::new(FileId(1), 1, 5)).unwrap(), "😀");
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn utf16_offsets_agree_with_character_boundaries(chars in proptest::collection::vec(proptest::char::any(), 0..60)) {
+            let text: String = chars.into_iter().collect();
+            let source = SourceFile::new(FileId(1), "x", text.clone());
+            for offset in text.char_indices().map(|(i, _)| i).chain(std::iter::once(text.len())) {
+                proptest::prop_assert_eq!(
+                    source.utf16_offset(BytePos(u32::try_from(offset).unwrap())).unwrap(),
+                    u32::try_from(text[..offset].encode_utf16().count()).unwrap()
+                );
+            }
+        }
+
+        #[test]
+        fn path_normalization_is_idempotent(path in "[a-zA-Z0-9./\\\\_-]{0,60}") {
+            let normalized = normalized_module_path(&path);
+            proptest::prop_assert_eq!(normalized_module_path(&normalized), normalized);
+        }
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn span_lengths_and_ranges_agree(start in 0_u32..1000, len in 0_u32..1000) {
+            let span = Span::new(FileId(1), start, start + len);
+            proptest::prop_assert_eq!(span.len(), len);
+            proptest::prop_assert_eq!(span.is_empty(), len == 0);
+            proptest::prop_assert_eq!(range_of(span).len(), usize::try_from(len).unwrap());
+        }
+    }
+}

@@ -68,3 +68,18 @@ pub(crate) fn resolve_utility_targets(
             .collect(),
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unresolved_diagnostics_distinguish_syntax_from_unknown_names() {
+        assert_eq!(unresolved_utility_rule(""), "invalid-utility");
+        assert_eq!(unresolved_utility_rule("hover:["), "invalid-utility");
+        assert_eq!(
+            unresolved_utility_rule("unknown-but-valid"),
+            "unknown-utility"
+        );
+    }
+}

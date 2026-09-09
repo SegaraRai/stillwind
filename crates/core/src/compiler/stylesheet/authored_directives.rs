@@ -215,3 +215,18 @@ mod tests {
         ), "actual output: {compact}");
     }
 }
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn top_level_list_splitting_keeps_quoted_and_nested_separators() {
+        assert_eq!(
+            split_css_top_level("a,[b,c],f(x,y),'z,w'", ','),
+            vec!["a", "[b,c]", "f(x,y)", "'z,w'"]
+        );
+        assert_eq!(split_css_top_level("", ','), vec![""]);
+        assert_eq!(split_css_top_level("a,", ','), vec!["a", ""]);
+    }
+}

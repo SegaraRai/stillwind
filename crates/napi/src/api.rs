@@ -349,3 +349,22 @@ pub fn generate_react_types(theme: String) -> napi::Result<String> {
 pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_options_apply_defaults_and_keep_parse_and_validation_failures_distinct() {
+        assert_eq!(parse_options(None).unwrap(), CompilerOptions::default());
+        assert_eq!(
+            parse_options(Some("{}")).unwrap(),
+            CompilerOptions::default()
+        );
+        assert!(matches!(
+            parse_options(Some("{")),
+            Err(BindingApiError::Json(_))
+        ));
+        assert!(parse_options(Some(r#"{"prefix":"bad"}"#)).is_err());
+    }
+}

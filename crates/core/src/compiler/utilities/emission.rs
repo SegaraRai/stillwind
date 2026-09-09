@@ -175,3 +175,21 @@ pub(in crate::compiler) fn insert_nested_declaration(
     };
     declaration.insert_str(start + end + 1, &nested_css);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_declarations_follow_the_property_they_override() {
+        let mut declaration = "color:red;width:1px;".to_owned();
+        let rule = NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Media,
+            condition: "print".into(),
+            declaration: "color:blue;".into(),
+            inside: false,
+        };
+        insert_nested_declaration(&mut declaration, &rule);
+        assert_eq!(declaration, "color:red;@media print{color:blue;}width:1px;");
+    }
+}

@@ -148,3 +148,20 @@ pub(in crate::compiler) fn matching_brace(value: &str, open: usize) -> Option<us
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rule_scanning_skips_strings_comments_and_prefix_collisions() {
+        let css = "/* @apply x {} */ .x{content:'@apply x {}'} @apply-extra x {} @apply a {b{c}}";
+        let (start, name, open, close) = find_at_rule_block(css, "apply").unwrap();
+        assert_eq!(start, css.rfind("@apply a").unwrap());
+        assert_eq!(name, "a");
+        assert_eq!(&css[open..=close], "{b{c}}");
+        assert_eq!(find_at_rule_block("@apply a {", "apply"), None);
+        assert_eq!(matching_brace("{ '}' /* } */ }", 0), Some(14));
+        assert_eq!(find_at_rule_block_open("'{' {", 0), Some(4));
+    }
+}

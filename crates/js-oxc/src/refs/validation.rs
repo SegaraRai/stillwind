@@ -159,3 +159,17 @@ impl MacroExtractor<'_> {
 fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ancestry_is_strict_and_requires_the_entire_prefix() {
+        assert!(is_strict_ancestor(&[], &[1]));
+        assert!(is_strict_ancestor(&[1, 2], &[1, 2, 3]));
+        assert!(!is_strict_ancestor(&[1, 2], &[1, 2]));
+        assert!(!is_strict_ancestor(&[1, 2], &[1, 3, 2]));
+        assert!(!is_strict_ancestor(&[1], &[]));
+    }
+}

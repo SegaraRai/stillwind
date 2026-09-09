@@ -116,3 +116,62 @@ pub(super) fn summary_runtime_assets(
     }
     identities
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stillwind_ir::{HandleDefinition, ScopeDefinition};
+    use stillwind_source::{FileId, Span};
+
+    #[test]
+    fn projections_share_identity_and_scoped_selectors_bind_the_parent() {
+        let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
+        let mut handle = HandleDefinition {
+            module_path: "x".into(),
+            name: name.clone(),
+            label: None,
+            scope: None,
+            call_span: name.span,
+        };
+        let marker = handle_marker_class(&handle);
+        assert_eq!(handle_parent_selector(&handle, "&"), format!(".{marker} &"));
+        assert_eq!(
+            handle_parent_selector(&handle, "&:hover"),
+            format!(".{marker}:where(:hover) &")
+        );
+        let anchor = render_handle_projection(&handle, &HandleProjection::Anchor);
+        let reference = anchor.strip_prefix("anchor-name:").unwrap();
+        assert_eq!(
+            render_handle_projection(&handle, &HandleProjection::Position),
+            format!("position-anchor:{reference}")
+        );
+        assert_eq!(
+            render_handle_projection(&handle, &HandleProjection::Scope),
+            format!("anchor-scope:{reference}")
+        );
+        assert_eq!(
+            render_handle_projection(
+                &handle,
+                &HandleProjection::Container(Spanned::new("size".into(), name.span))
+            ),
+            format!("container-name:{reference}container-type:size;")
+        );
+        handle.scope = Some(ScopeDefinition {
+            module_path: "x".into(),
+            name: name.clone(),
+            label: Some(name.clone()),
+            call_span: name.span,
+        });
+        let scope = scope_marker_class(handle.scope.as_ref().unwrap());
+        assert!(scope.starts_with(".s_ref_"));
+        assert_eq!(
+            handle_parent_selector(&handle, "&"),
+            format!("{scope}:has(.{marker}) &")
+        );
+        handle.label = Some(name);
+        assert_eq!(
+            handle_marker_class(&handle),
+            marker.replacen("s_", "s_ref_", 1)
+        );
+    }
+}

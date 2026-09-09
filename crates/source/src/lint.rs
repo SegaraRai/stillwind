@@ -157,3 +157,72 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text::{FileId, Span};
+
+    #[test]
+    fn directives_ignore_strings_and_retain_rule_and_line_information() {
+        let directives = collect_lint_directives(
+            "'// swlint-disable fake'\n// swlint-disable-next-line a,b -- reason\nx\n/* swlint-enable a */",
+        );
+        assert_eq!(directives.len(), 2);
+        assert_eq!(directives[0].kind, LintDirectiveKind::DisableNextLine);
+        assert_eq!(directives[0].line, 1);
+        assert_eq!(directives[0].rules, vec!["a", "b"]);
+        assert_eq!(directives[1].kind, LintDirectiveKind::Enable);
+    }
+
+    #[test]
+    fn disable_next_line_does_not_suppress_other_rules_or_later_lines() {
+        let source = SourceFile::new(FileId(1), "x", "// swlint-disable-next-line a\nx\ny");
+        let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
+        let mut findings = vec![
+            LintFinding::new("a", "", Span::new(FileId(1), x, x + 1)),
+            LintFinding::new("b", "", Span::new(FileId(1), x, x + 1)),
+            LintFinding::new("a", "", Span::new(FileId(1), x + 2, x + 3)),
+        ];
+        filter_lint_findings(&source, &mut findings);
+        assert_eq!(
+            findings.iter().map(|f| f.rule).collect::<Vec<_>>(),
+            vec!["b", "a"]
+        );
+    }
+
+    #[test]
+    fn disable_enable_and_same_line_directives_have_bounded_effects() {
+        for (text, expected) in [
+            (
+                "// swlint-disable a\nx\n// swlint-enable a\ny",
+                vec!["b", "a", "b"],
+            ),
+            (
+                "// swlint-disable *\nx\n// swlint-enable\ny",
+                vec!["a", "b"],
+            ),
+            ("x // swlint-disable-line a\ny", vec!["b", "a", "b"]),
+        ] {
+            let source = SourceFile::new(FileId(1), "x", text);
+            let mut findings = ['x', 'y']
+                .into_iter()
+                .flat_map(|c| {
+                    let start = u32::try_from(text.find(c).unwrap()).unwrap();
+                    ["a", "b"].map(|rule| {
+                        LintFinding::new(rule, "", Span::new(FileId(1), start, start + 1))
+                    })
+                })
+                .collect();
+            filter_lint_findings(&source, &mut findings);
+            assert_eq!(
+                findings
+                    .iter()
+                    .map(|finding| finding.rule)
+                    .collect::<Vec<_>>(),
+                expected,
+                "{text}"
+            );
+        }
+    }
+}

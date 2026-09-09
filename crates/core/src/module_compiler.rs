@@ -281,3 +281,32 @@ impl ModuleCompiler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn artifact_roundtrip_preserves_comments_strings_and_statement_rules() {
+        for css in [
+            "",
+            "@layer base;",
+            "/*a*/ .x{content:'}';color:red;}\n",
+            "@media print{.x{color:red;}}",
+        ] {
+            let artifact = ModuleCssArtifact::from_css(css);
+            assert_eq!(artifact.to_css(), css);
+            for rule in artifact.rules {
+                assert_eq!(rule.key, Fingerprint::of(rule.to_css()));
+            }
+        }
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn small_rule_serialization_is_lossless(name in "[a-z]{1,15}", value in 0u16..1000) {
+            let css = format!(".{name}{{width:{value}px;}}");
+            proptest::prop_assert_eq!(ModuleCssArtifact::from_css(&css).to_css(), css);
+        }
+    }
+}

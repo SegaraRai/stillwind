@@ -57,3 +57,25 @@ impl ExpandedSource {
             })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stillwind_source::FileId;
+
+    #[test]
+    fn imported_wrappers_shift_mappings_without_mapping_synthetic_text() {
+        let source = SourceFile::new(FileId(7), "a.css", "color:red;");
+        let mut fragment = ExpandedSource::default();
+        fragment.append_source(&source, 0..10);
+        let mut expanded = ExpandedSource::default();
+        expanded.append_import(&fragment, &["@layer a".into()]);
+        assert_eq!(expanded.text, "@layer a{color:red;}");
+        assert_eq!(
+            expanded.original_span(Span::new(FileId(0), 9, 14)),
+            Some(Span::new(FileId(7), 0, 5))
+        );
+        assert_eq!(expanded.original_span(Span::new(FileId(0), 0, 2)), None);
+        assert_eq!(expanded.original_span(Span::new(FileId(0), 9, 20)), None);
+    }
+}

@@ -163,3 +163,18 @@ fn is_animation_frame(value: &str) -> bool {
                 .is_some_and(|number| number.trim().parse::<u8>().is_ok())
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frames_require_keywords_or_comma_separated_unsigned_percentages() {
+        for frame in ["from", "to", "0%", "100%", "0%, 50%, 100%"] {
+            assert!(is_animation_frame(frame));
+        }
+        for frame in ["", "middle", "-1%", "1.5%", "50%,", "256%"] {
+            assert!(!is_animation_frame(frame));
+        }
+    }
+}
