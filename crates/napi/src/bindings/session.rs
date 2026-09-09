@@ -11,7 +11,7 @@ use stillwind_core::{
 };
 use stillwind_source::{FileId, SourceFile};
 
-use crate::{
+use super::{
     ProjectBindingOutput, ProjectModuleOutput, ProjectSource, binding_output, parse_options,
 };
 
