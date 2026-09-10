@@ -14,6 +14,7 @@
 
 mod candidate;
 mod compiler;
+mod imports;
 mod module_compiler;
 mod options;
 mod query;
@@ -24,6 +25,7 @@ mod transforms;
 pub use compiler::{
     CompileResult, Compiler, CompilerThemeError, GeneratedClass, GeneratedSymbol, StylesheetError,
 };
+pub use imports::{ImportPlanError, plan_macro_import_removals};
 pub use module_compiler::{
     CompilationDependencies, CompiledModule, GeneratedRule, ModuleArtifactKey, ModuleCompiler,
     ModuleCssArtifact, ModuleResourceReference, ModuleTransformError, RuleKey,
