@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { AnyMap, originalPositionFor } from "@jridgewell/trace-mapping";
+
+// Rspack's default module filename template emits project-relative webpack URLs.
+// TraceMap may remove their ./ prefix, and duplicate source names gain a query hash.
+export function resolveSourceMapFile(source, mapFile, projectRoot) {
+  const name = source.split(/[?#]/)[0];
+  if (name.startsWith("webpack:///")) {
+    return path.resolve(projectRoot, decodeURIComponent(name.slice("webpack:///".length)));
+  }
+  if (name.startsWith("file:")) return fileURLToPath(name);
+  return path.resolve(path.dirname(mapFile), name);
+}
 
 export async function verifyMacroSourceMap(
   directory,

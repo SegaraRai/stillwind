@@ -2,6 +2,10 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   run: {
     tasks: {
+      "verify:source-map": {
+        command: "node --test scripts/verify-source-map.test.mjs",
+        cache: false,
+      },
       verify: { command: "node scripts/verify.mjs", cache: false },
       "verify:stillwind": { command: "node scripts/verify-stillwind.mjs", cache: false },
       "verify:adapters": { command: "node scripts/verify-adapters.mjs", cache: false },

@@ -5,8 +5,10 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
+import { TraceMap, originalPositionFor, sourceContentFor } from "@jridgewell/trace-mapping";
 import { chromium } from "playwright";
+
+import { resolveSourceMapFile } from "./verify-source-map.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(root, "../..");
@@ -125,13 +127,17 @@ try {
         line: prefix.split("\n").length,
         column: offset - prefix.lastIndexOf("\n") - 1,
       });
-      assert(origin.source?.endsWith("/static.js"), JSON.stringify(origin));
+      assert(origin.source, JSON.stringify(origin));
       assert.equal(
-        path.resolve(path.dirname(path.join(dir, "dist", cssFile)), origin.source),
+        resolveSourceMapFile(origin.source, path.join(dir, "dist", cssFile + ".map"), dir),
         path.join(dir, "static.js"),
       );
       assert.equal(origin.line, 2);
       assert.equal(origin.column, "export const props=".length);
+      assert.equal(
+        sourceContentFor(cssMap, origin.source),
+        await fs.readFile(path.join(dir, "static.js"), "utf8"),
+      );
       results.checks.push({ name: `${mode}-${stage}-css-source-map`, passed: true });
     }
     await page.goto(url);
