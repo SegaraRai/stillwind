@@ -145,6 +145,8 @@ Svelte のリアクティブ変数、store 参照、runes 等についても、�
 
 ## 5. span 検証と出力
 
+成功した変換結果には macro の import・呼び出し・値参照を残さない。変換対象外の参照や原文対応を検証できない参照が残る場合は、import を保持して成功とせず、module 全体をコンパイルエラーにする。部分的な CSS や編集計画を出力しない。converter が生成した参照も、除外できる根拠を検証するまではこの条件の対象とする。
+
 解析用の projected span と編集用の original span を区別し、安易に上書きしない。IR に両方の provenance を持たせ、compiler が読み取る式は編集元の source に対応させる。
 
 編集範囲の決定:

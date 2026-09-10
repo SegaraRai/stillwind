@@ -61,6 +61,13 @@ pub fn plan_macro_import_removals(
                     edit.call_span.file == reference.file
                         && edit.call_span.start <= reference.start
                         && reference.end <= edit.call_span.end
+                        && source
+                            .slice(Span::new(
+                                reference.file,
+                                edit.call_span.start.0,
+                                reference.start.0,
+                            ))
+                            .is_ok_and(callee_prefix)
                 }) {
                     return Err(ImportPlanError::UntransformedReference {
                         local: specifier.local.clone(),
@@ -88,7 +95,6 @@ pub fn plan_macro_import_removals(
         // and their list separators are removed; default/type bindings survive.
         let mut ranges = Vec::new();
         for (index, specifier) in import.specifiers.iter().enumerate() {
-            source.slice(specifier.span)?;
             if !removable[index] {
                 continue;
             }
@@ -159,4 +165,30 @@ fn list_comma(gap: &str) -> Option<usize> {
         }
     }
     comma
+}
+
+// A lowering removes the macro callee, but may copy argument expressions into
+// its replacement. Only the leading callee reference is therefore consumed.
+fn callee_prefix(mut prefix: &str) -> bool {
+    loop {
+        prefix = prefix.trim_start_matches(|ch: char| ch.is_whitespace() || ch == '\u{feff}');
+        if prefix.is_empty() {
+            return true;
+        }
+        if let Some(rest) = prefix.strip_prefix('(') {
+            prefix = rest;
+        } else if let Some(rest) = prefix.strip_prefix("/*") {
+            let Some(end) = rest.find("*/") else {
+                return false;
+            };
+            prefix = &rest[end + 2..];
+        } else if let Some(rest) = prefix.strip_prefix("//") {
+            let Some(end) = rest.find(['\n', '\r', '\u{2028}', '\u{2029}']) else {
+                return false;
+            };
+            prefix = &rest[end..];
+        } else {
+            return false;
+        }
+    }
 }

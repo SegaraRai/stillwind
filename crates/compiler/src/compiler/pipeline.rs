@@ -705,6 +705,21 @@ impl Compiler {
             });
         }
 
+        if result.diagnostics.is_empty()
+            && let Err(error) =
+                crate::plan_macro_import_removals(source, &parsed.ir.imports, &result.transforms)
+        {
+            let span = match &error {
+                crate::ImportPlanError::UntransformedReference { span, .. }
+                | crate::ImportPlanError::UnmappedReference { span, .. }
+                | crate::ImportPlanError::InvalidMetadata { span } => *span,
+                crate::ImportPlanError::Source(_) => source.full_span(),
+            };
+            result
+                .diagnostics
+                .push(CompileError::new("SHIMPORT001", error.to_string(), span));
+        }
+
         if !result.diagnostics.is_empty() {
             result.css.clear();
             result.classes.clear();

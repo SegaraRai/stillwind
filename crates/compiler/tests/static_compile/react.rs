@@ -1,6 +1,49 @@
 use super::*;
 
 #[test]
+fn residual_macro_references_fail_the_entire_compilation() {
+    let theme = crate::css_fixture::source(FileId(2), "theme.css", "").unwrap();
+    for suffix in ["const uncompiled = style;", "export {style};"] {
+        let component = SourceFile::new(
+            FileId(1),
+            "entry.tsx",
+            format!(
+                "import {{style}} from 'stillwind/react'; const props = style('flex'); {suffix}"
+            ),
+        )
+        .unwrap();
+        let result =
+            Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|error| error.code == "SHIMPORT001"),
+            "{:?}",
+            result.diagnostics
+        );
+        assert!(result.transforms.is_empty());
+        assert!(result.classes.is_empty());
+        assert!(result.symbols.is_empty());
+        assert!(result.css.is_empty());
+    }
+    let component = SourceFile::new(FileId(1), "entry.tsx",
+        "import {style} from 'stillwind/react'; const props = style('flex', {'aria-label': style});"
+    ).unwrap();
+    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|error| error.code == "SHIMPORT001"),
+        "{:?}",
+        result.diagnostics
+    );
+    assert!(result.transforms.is_empty());
+    assert!(result.css.is_empty());
+}
+
+#[test]
 fn compiles_a_real_react_style_call_against_a_css_theme() {
     let component = SourceFile::new(
         FileId(1),

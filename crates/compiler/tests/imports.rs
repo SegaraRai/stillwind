@@ -42,6 +42,14 @@ fn rewrite(
 fn deletion_requires_every_reference_to_be_lowered() {
     let input = "import {style as s} from 'stillwind/react'; const a = s('flex');";
     assert!(!rewrite(input, true, false).unwrap().contains("import"));
+    assert!(
+        rewrite(
+            "import {style as s} from 'stillwind/react'; const a = ( /*callee*/ s)('flex');",
+            true,
+            false
+        )
+        .is_err()
+    );
     assert!(matches!(
         rewrite(input, false, false),
         Err(stillwind_compiler::ImportPlanError::UntransformedReference { .. })
