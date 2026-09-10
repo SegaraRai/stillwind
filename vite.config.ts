@@ -14,6 +14,26 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "sourcemap:build": {
+        command:
+          "cargo build --manifest-path experiments/source-map-research/native/Cargo.toml --release --locked",
+        cache: false,
+      },
+      "sourcemap:native-test": {
+        command:
+          "cargo test --manifest-path experiments/source-map-research/native/Cargo.toml --release --locked --bin stillwind-sourcemap-research",
+        cache: false,
+      },
+      "sourcemap:research": {
+        command: "node experiments/source-map-research/run.mjs",
+        dependsOn: ["sourcemap:build"],
+        cache: false,
+      },
+      "sourcemap:acceptance": {
+        command: "node experiments/source-map-research/acceptance.mjs",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
       "crates:check": {
         command: "",
         dependsOn: ["@stillwind/tools#check"],

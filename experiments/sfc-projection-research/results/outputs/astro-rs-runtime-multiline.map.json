@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "astro-multiline.astro"
+  ],
+  "sourcesContent": [
+    "---\nimport { style } from \"stillwind/react\";\nconst props = style(\n /* 日本語 🧭 */\n 'script-multi'\n);\n---\n<div {...style(\n 'template-multi'\n)}></div>\n"
+  ],
+  "mappings": ";AACA,SAAA,aAAA;;;;;;;;;;;;;;CACA,MAAA,QAAA;;EAEA;EACA;+CAEA,IAAK,EAAA,mBAAI,MACR,iBAAA,CAAA,CAAA,CACE"
+}

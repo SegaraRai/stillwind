@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-generic.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst props = style<{label:string}>('script-generic');\n</script>\n<div {...style('template-generic')}></div>"
+  ],
+  "mappings": ";AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;sCADvC,CAAC;EAED,MAAM,AAAA,KAAK,GAAG,KAAK,CAAiB,gBAAgB;;2CAE3C,KAAK,CAAC,kBAAkB;CADzB,CAAC;"
+}

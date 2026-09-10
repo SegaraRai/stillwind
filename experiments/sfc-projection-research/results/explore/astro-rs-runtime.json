@@ -1,0 +1,14 @@
+{
+  "code": "import { render as $$render, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead, spreadAttributes as $$spreadAttributes, createMetadata as $$createMetadata } from \"astro/runtime/server/index.js\";\nimport { style } from \"stillwind/react\";\nimport * as $$module1 from \"stillwind/react\";\nexport const $$metadata = $$createMetadata(\"Case.astro\", {\n\tmodules: [{\n\t\tmodule: $$module1,\n\t\tspecifier: \"stillwind/react\",\n\t\tassert: {}\n\t}],\n\thydratedComponents: [],\n\tclientOnlyComponents: [],\n\thydrationDirectives: new Set([]),\n\thoisted: []\n});\nconst $$Case = $$createComponent(($$result, $$props, $$slots) => {\n\tconst props = style(\"script-red\");\n\treturn $$render`${$$maybeRenderHead($$result)}<div${$$spreadAttributes(style(\"template-blue\"))}></div>`;\n}, \"Case.astro\", undefined);\nexport default $$Case;\n",
+  "map": "{\"version\":3,\"names\":[],\"sources\":[\"Case.astro\"],\"sourcesContent\":[\"---\\nimport { style } from \\\"stillwind/react\\\";\\nconst props = style('script-red');\\n---\\n<div {...style('template-blue')}></div>\"],\"mappings\":\";AACA,SAAA,aAAA;;;;;;;;;;;;;;CACA,MAAA,QAAA,MAAA,aAAA;+CAEA,IAAK,EAAA,mBAAI,MAAM,gBAAA,CAAA,CAAA,CAAkB\"}",
+  "scope": "ayxz7avu",
+  "css": [],
+  "scripts": [],
+  "hydratedComponents": [],
+  "clientOnlyComponents": [],
+  "serverComponents": [],
+  "containsHead": false,
+  "propagation": false,
+  "styleError": [],
+  "diagnostics": []
+}

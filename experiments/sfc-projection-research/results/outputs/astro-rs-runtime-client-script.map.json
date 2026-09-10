@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "astro-client-script.astro"
+  ],
+  "sourcesContent": [
+    "---\nimport { style } from \"stillwind/react\";\nconst props=style('server');\n---\n<div {...props}></div>\n<script>\nimport { style as sx } from \"stillwind/react\";\nconst clientProps=sx('client');\n</script>"
+  ],
+  "mappings": ";AACA,SAAA,aAAA;;;;;;;;;;;;;;;;;;CACA,MAAA,QAAA,MAAA,SAAA;+CAEA,IAAK,EAAA,mBAAI,MAAA,CAAA,CAAO,MAAM;AACtB,EAAA,eAAA,UAAA,8DAAA"
+}

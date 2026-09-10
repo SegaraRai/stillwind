@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-two-scripts.svelte"
+  ],
+  "sourcesContent": [
+    "<script module lang=\"ts\">\nimport { style as sx } from \"stillwind/react\";\nexport const moduleProps=sx('module');\n</script><script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst props=style('instance');\n</script>\n<div {...props}></div>"
+  ],
+  "mappings": ";AAIA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;AAHvC,OAAO,EAAE,KAAK,IAAI,EAAE,QAAQ,iBAAiB;;AAC7C,MAAM,CAAC,MAAM,AAAA,WAAW,GAAC,EAAE,CAAC,QAAQ;;;sCAC3B,CAAC;EAEV,MAAM,AAAA,KAAK,GAAC,KAAK,CAAC,UAAU;;2CAEnB,KAAK;CADN,CAAC;"
+}

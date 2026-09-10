@@ -1,0 +1,22 @@
+[package]
+name = "stillwind-sourcemap-research"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "sourcemap_research_addon"
+crate-type = ["cdylib", "rlib"]
+
+[workspace]
+
+[dependencies]
+oxc_sourcemap = "=8.1.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+stillwind-source = { path = "../../../crates/source" }
+napi = { version = "=3.12.2", default-features = false, features = ["napi8"] }
+napi-derive = "=3.6.3"
+
+[build-dependencies]
+napi-build = "=2.4.1"

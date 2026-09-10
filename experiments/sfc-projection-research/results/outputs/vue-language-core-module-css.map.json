@@ -1,0 +1,151 @@
+[
+  {
+    "sourceOffsets": [
+      24
+    ],
+    "generatedOffsets": [
+      370
+    ],
+    "lengths": [
+      95
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      119
+    ],
+    "generatedOffsets": [
+      465
+    ],
+    "lengths": [
+      36
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      176
+    ],
+    "generatedOffsets": [
+      1261
+    ],
+    "lengths": [
+      3
+    ],
+    "data": {
+      "semantic": {},
+      "verification": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      176,
+      179
+    ],
+    "generatedOffsets": [
+      1266,
+      1291
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      188,
+      193
+    ],
+    "generatedOffsets": [
+      1268,
+      1288
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      188,
+      193
+    ],
+    "generatedOffsets": [
+      1272,
+      1287
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      188
+    ],
+    "generatedOffsets": [
+      1282
+    ],
+    "lengths": [
+      5
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      188
+    ],
+    "generatedOffsets": [
+      1355
+    ],
+    "lengths": [
+      5
+    ],
+    "data": {
+      "__importCompletion": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      24,
+      155
+    ],
+    "generatedOffsets": [
+      1370,
+      1382
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": {}
+    }
+  }
+]

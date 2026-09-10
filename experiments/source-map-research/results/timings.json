@@ -1,0 +1,151 @@
+{
+  "date": "2026-09-10T10:48:34.921Z",
+  "node": "v24.21.0",
+  "revision": "adc8b6a48af0fdb4d142e6281775b174fb335340",
+  "baselineHashes": {
+    "crates/compiler/src/transforms.rs": "60d8848bfa9b1bbead04ee0525fe93a49d224793abe0d2c679542a4708e2b6d0",
+    "crates/napi/src/api.rs": "dd25ae1f20cd33dae9a360efee5b53f6115c248365959dff75b8a768218a6648",
+    "crates/source/src/text.rs": "377ad308668694797fcfe839a4a7deec76d7c0e2766a5c752f019d7c15039acf",
+    "packages/host/src/css-source-map.ts": "5d23d44ee1fbcbaf1d45ea73b23cb5986bcca44fbf19218482fd46ac922734eb",
+    "packages/host/src/source-map.ts": "ac92398416edb982fe80b788051750b5e4aa5119f1d488574326c91a1f75c1b2",
+    "packages/host/src/finalize.ts": "366f5d41cce34ab21b8911d15954c29cc2b284f07c1454b10c672f90b70aeef5"
+  },
+  "checks": 1212,
+  "cssBench": [
+    {
+      "resources": 1,
+      "bytes": 168151,
+      "baselineMs": 11.79320000000007,
+      "candidateMs": 8.11010000000033
+    },
+    {
+      "resources": 64,
+      "bytes": 176899,
+      "baselineMs": 41.917399999999816,
+      "candidateMs": 8.355000000000018
+    },
+    {
+      "resources": 256,
+      "bytes": 203743,
+      "baselineMs": 149.79690000000028,
+      "candidateMs": 13.832400000000234
+    },
+    {
+      "kind": "dense-exact-no-urls",
+      "resources": 0,
+      "bytes": 198000,
+      "baselineMs": 49.637399999999616,
+      "candidateMs": 18.767899999999827
+    }
+  ],
+  "codecs": [
+    {
+      "kind": "js",
+      "tokens": 40,
+      "oxcMs": 0.002,
+      "jsMs": 0.01890000000003056,
+      "napiIncludingJsonMs": 0.0078000000003157766,
+      "processRoundtripMs": 14.72970000000032
+    },
+    {
+      "kind": "css",
+      "tokens": 600,
+      "oxcMs": 0.0058000000000000005,
+      "jsMs": 0.06629999999995562,
+      "napiIncludingJsonMs": 0.1287000000002081,
+      "processRoundtripMs": 11.173800000000028
+    },
+    {
+      "kind": "css-large",
+      "tokens": 3194,
+      "oxcMs": 0.063,
+      "jsMs": 0.16269999999985885,
+      "napiIncludingJsonMs": 0.3760000000002037,
+      "processRoundtripMs": 22.8092000000006
+    },
+    {
+      "kind": "js-dense",
+      "tokens": 230000,
+      "oxcMs": 3.2401,
+      "jsMs": 13.969200000000455,
+      "napiIncludingJsonMs": 37.79140000000007,
+      "processRoundtripMs": 79.80779999999959
+    }
+  ],
+  "nativeEmission": [
+    {
+      "edits": 0,
+      "bytes": 7,
+      "rustEmitMs": 0.001,
+      "napiIncludingJsonMs": 0.005400000000008731,
+      "hostMapOnlyMs": 0.002900000000408909,
+      "processRoundtripMs": 13.28859999999986
+    },
+    {
+      "edits": 1,
+      "bytes": 50,
+      "rustEmitMs": 0.002,
+      "napiIncludingJsonMs": 0.011499999999614374,
+      "hostMapOnlyMs": 0.008200000000215368,
+      "processRoundtripMs": 9.864800000000287
+    },
+    {
+      "edits": 25,
+      "bytes": 1082,
+      "rustEmitMs": 0.0067,
+      "napiIncludingJsonMs": 0.04599999999936699,
+      "hostMapOnlyMs": 0.037599999999656575,
+      "processRoundtripMs": 10.008499999999913
+    },
+    {
+      "edits": 1000,
+      "bytes": 43007,
+      "rustEmitMs": 0.4752,
+      "napiIncludingJsonMs": 1.4722000000001572,
+      "hostMapOnlyMs": 1.469199999999546,
+      "processRoundtripMs": 17.2511999999997
+    }
+  ],
+  "finalization": {
+    "glbDifferences": 0,
+    "lubDifferences": 29,
+    "directSegments": 58,
+    "composedSegments": 29
+  },
+  "memory": [
+    {
+      "implementation": "baseline",
+      "elapsedMs": 169.5179,
+      "peakRssKiB": 264184,
+      "outputBytes": 826,
+      "sourceBytes": 2100048
+    },
+    {
+      "implementation": "candidate",
+      "elapsedMs": 40.2932,
+      "peakRssKiB": 85736,
+      "outputBytes": 826,
+      "sourceBytes": 2100048
+    }
+  ],
+  "rustEdits": [
+    {
+      "baselineMs": 0.6658000000000001,
+      "bytes": 184700,
+      "edits": 100,
+      "fusedMs": 0.6773
+    },
+    {
+      "baselineMs": 17.0059,
+      "bytes": 227000,
+      "edits": 1000,
+      "fusedMs": 0.1676
+    },
+    {
+      "baselineMs": 322.5039,
+      "bytes": 415000,
+      "edits": 5000,
+      "fusedMs": 0.39120000000000005
+    }
+  ]
+}

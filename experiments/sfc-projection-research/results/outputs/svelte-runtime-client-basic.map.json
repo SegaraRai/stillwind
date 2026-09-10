@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-basic.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst props = style('script-basic');\n</script>\n<div {...style('template-basic')}></div>"
+  ],
+  "mappings": ";;;AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;;wDADvC,CAAC;;;CAED,MAAM,AAAA,KAAK,GAAG,KAAK,CAAC,cAAc;;;;KAEjC,GAAG;;oBAAH,GAAG,8BAAK,KAAK,CAAC,gBAAgB;oBAA9B,GAAG;;AADI,CAAC"
+}

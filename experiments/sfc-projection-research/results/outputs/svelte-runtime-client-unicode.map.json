@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-unicode.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\n// 日本語 🧭\nconst label=\"é🧭\"; import { style } from \"stillwind/react\";\nconst props = style('script-é🧭');\n</script>\n<div {...style('template-中🧭')}></div>"
+  ],
+  "mappings": ";;;AAEmB,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;;0DAF1D,CAAC;;;;CAED,MAAM,AAAA,KAAK,GAAC,KAAK;;CACjB,MAAM,AAAA,KAAK,GAAG,KAAK,CAAC,YAAY;;;;KAE/B,GAAG;;oBAAH,GAAG,8BAAK,KAAK,CAAC,cAAc;oBAA5B,GAAG;;AADI,CAAC"
+}

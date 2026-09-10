@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "vue-unicode.vue"
+  ],
+  "sourcesContent": [
+    "<script setup lang=\"ts\">\n// 日本語 🧭\nconst label=\"é🧭\"; import { style } from \"stillwind/react\";\nconst props = style('script-é🧭');\n</script>\n<template><div v-bind=\"style('template-中🧭')\"/></template>"
+  ],
+  "names": [],
+  "mappings": ";AAEmB,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAA1D,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;AADlB,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAER,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;;"
+}

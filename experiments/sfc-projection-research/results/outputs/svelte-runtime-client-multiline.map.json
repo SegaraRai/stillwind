@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-multiline.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst props = style(\n /* 日本語 🧭 */\n 'script-multi'\n);\n</script>\n<div {...style(\n 'template-multi'\n)}></div>"
+  ],
+  "mappings": ";;;AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;;4DADvC,CAAC;;;CAED,MAAM,AAAA,KAAK,GAAG,KAAK;;EAElB,cAAc;;;;;KAGd,GAAG;;oBAAH,GAAG,8BAAK,KAAK,CACb,gBAAgB;oBADhB,GAAG;;AADI,CAAC"
+}

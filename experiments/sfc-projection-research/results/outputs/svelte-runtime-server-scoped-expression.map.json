@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-scoped-expression.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst items = [{tone:'red'}];\n</script>\n{#each items as item}<div {...style('template-scope', item.tone)}></div>{/each}"
+  ],
+  "mappings": ";AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;sCADvC,CAAC;EAED,MAAM,AAAA,KAAK,MAAK,IAAI,EAAC,KAAK;;;;yCAEnB,KAAK;;;OAAI,IAAI;;4CAAU,KAAK,CAAC,gBAAgB,EAAE,IAAI,CAAC,IAAI;;;;CADvD,CAAC;"
+}

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-module-css.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nimport { css as sheet } from \"stillwind/module-css\";\nconst props = style('sheet-style');\n</script>\n<div {...props}></div>"
+  ],
+  "mappings": ";AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;AACvC,OAAO,EAAE,GAAG,IAAI,KAAK,QAAQ,sBAAsB;;;sCAFnD,CAAC;EAGD,MAAM,AAAA,KAAK,GAAG,KAAK,CAAC,aAAa;;2CAExB,KAAK;CADN,CAAC;"
+}

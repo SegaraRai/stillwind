@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "vue-scoped-expression.vue"
+  ],
+  "sourcesContent": [
+    "<script setup lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst items = [{tone:'red'}];\n</script>\n<template><div v-for=\"item in items\" v-bind=\"style('template-scope', item.tone)\"/></template>"
+  ],
+  "names": [],
+  "mappings": ";AACA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;;AACvC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;;"
+}

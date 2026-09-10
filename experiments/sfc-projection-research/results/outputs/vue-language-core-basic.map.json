@@ -1,0 +1,168 @@
+[
+  {
+    "sourceOffsets": [
+      24
+    ],
+    "generatedOffsets": [
+      370
+    ],
+    "lengths": [
+      42
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      66
+    ],
+    "generatedOffsets": [
+      412
+    ],
+    "lengths": [
+      37
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      124
+    ],
+    "generatedOffsets": [
+      1209
+    ],
+    "lengths": [
+      3
+    ],
+    "data": {
+      "semantic": {},
+      "verification": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      124,
+      127
+    ],
+    "generatedOffsets": [
+      1214,
+      1257
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      136,
+      159
+    ],
+    "generatedOffsets": [
+      1216,
+      1254
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      136,
+      141
+    ],
+    "generatedOffsets": [
+      1220,
+      1235
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      136
+    ],
+    "generatedOffsets": [
+      1230
+    ],
+    "lengths": [
+      5
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      141
+    ],
+    "generatedOffsets": [
+      1235
+    ],
+    "lengths": [
+      18
+    ],
+    "data": {
+      "verification": true,
+      "completion": true,
+      "semantic": true,
+      "navigation": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      136
+    ],
+    "generatedOffsets": [
+      1321
+    ],
+    "lengths": [
+      5
+    ],
+    "data": {
+      "__importCompletion": true
+    }
+  },
+  {
+    "sourceOffsets": [
+      24,
+      103
+    ],
+    "generatedOffsets": [
+      1336,
+      1348
+    ],
+    "lengths": [
+      0,
+      0
+    ],
+    "data": {
+      "verification": {}
+    }
+  }
+]

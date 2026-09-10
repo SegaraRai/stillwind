@@ -1,0 +1,172 @@
+{
+  "code": "/// <reference types=\"F:/Projects/shorth/experiments/sfc-projection-research/node_modules/.pnpm/@vue+language-core@3.3.11/node_modules/@vue/language-core/types/template-helpers.d.ts\" />\n/// <reference types=\"F:/Projects/shorth/experiments/sfc-projection-research/node_modules/.pnpm/@vue+language-core@3.3.11/node_modules/@vue/language-core/types/props-fallback.d.ts\" />\n\nimport { style } from \"stillwind/react\";\nconst props = style('script-red');\n// @ts-ignore\ndeclare const { defineProps, defineSlots, defineEmits, defineExpose, defineModel, defineOptions, withDefaults, }: typeof import('vue');\ntype __VLS_SetupExposed = import('vue').ShallowUnwrapRef<{\nstyle: typeof style;\n}>;\nconst __VLS_ctx = {\n...{} as import('vue').ComponentPublicInstance,\n...{} as __VLS_SetupExposed,\n};\ntype __VLS_LocalComponents = __VLS_SetupExposed;\ntype __VLS_GlobalComponents = import('vue').GlobalComponents;\nlet __VLS_components!: __VLS_LocalComponents & __VLS_GlobalComponents;\nlet __VLS_intrinsics!: import('vue/jsx-runtime').JSX.IntrinsicElements;\ntype __VLS_LocalDirectives = __VLS_SetupExposed;\nlet __VLS_directives!: __VLS_LocalDirectives & import('vue').GlobalDirectives;\n__VLS_asFunctionalElement1(__VLS_intrinsics.div)({\n...(__VLS_ctx.style('template-blue')),\n});\ntype __VLS_RootEl = \n| __VLS_Elements['div'];\n// @ts-ignore\n[style,];\nconst __VLS_export = (await import('vue')).defineComponent({\n});\nexport default {} as typeof __VLS_export;\n",
+  "extension": ".ts",
+  "mappings": [
+    {
+      "sourceOffsets": [
+        24
+      ],
+      "generatedOffsets": [
+        370
+      ],
+      "lengths": [
+        42
+      ],
+      "data": {
+        "verification": true,
+        "completion": true,
+        "semantic": true,
+        "navigation": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        66
+      ],
+      "generatedOffsets": [
+        412
+      ],
+      "lengths": [
+        35
+      ],
+      "data": {
+        "verification": true,
+        "completion": true,
+        "semantic": true,
+        "navigation": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        122
+      ],
+      "generatedOffsets": [
+        1207
+      ],
+      "lengths": [
+        3
+      ],
+      "data": {
+        "semantic": {},
+        "verification": true,
+        "navigation": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        122,
+        125
+      ],
+      "generatedOffsets": [
+        1212,
+        1254
+      ],
+      "lengths": [
+        0,
+        0
+      ],
+      "data": {
+        "verification": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        134,
+        156
+      ],
+      "generatedOffsets": [
+        1214,
+        1251
+      ],
+      "lengths": [
+        0,
+        0
+      ],
+      "data": {
+        "verification": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        134,
+        139
+      ],
+      "generatedOffsets": [
+        1218,
+        1233
+      ],
+      "lengths": [
+        0,
+        0
+      ],
+      "data": {
+        "verification": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        134
+      ],
+      "generatedOffsets": [
+        1228
+      ],
+      "lengths": [
+        5
+      ],
+      "data": {
+        "verification": true,
+        "completion": true,
+        "semantic": true,
+        "navigation": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        139
+      ],
+      "generatedOffsets": [
+        1233
+      ],
+      "lengths": [
+        17
+      ],
+      "data": {
+        "verification": true,
+        "completion": true,
+        "semantic": true,
+        "navigation": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        134
+      ],
+      "generatedOffsets": [
+        1318
+      ],
+      "lengths": [
+        5
+      ],
+      "data": {
+        "__importCompletion": true
+      }
+    },
+    {
+      "sourceOffsets": [
+        24,
+        101
+      ],
+      "generatedOffsets": [
+        1333,
+        1345
+      ],
+      "lengths": [
+        0,
+        0
+      ],
+      "data": {
+        "verification": {}
+      }
+    }
+  ]
+}

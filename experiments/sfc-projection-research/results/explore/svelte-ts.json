@@ -1,0 +1,155 @@
+{
+  "code": "///<reference types=\"svelte\" />\n;\nimport { style } from \"stillwind/react\";\nfunction $$render() {\n\n\nconst props = style('script-red');\n;\nasync () => {\n { svelteHTML.createElement(\"div\", {...style('template-blue'),}); }};\nreturn { props: {} as Record<string, never>, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst Case__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Case__SvelteComponent_ = InstanceType<typeof Case__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Case__SvelteComponent_;",
+  "map": {
+    "version": 3,
+    "sources": [
+      "Case.svelte"
+    ],
+    "names": [],
+    "mappings": ";AAAA;AACA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AADtC;AAAiB;AACsB;AACxC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAClC;AAAA,aAAS;AACT,6BAAC,CAAC,CAAC,KAAG,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,IAAG"
+  },
+  "exportedNames": {},
+  "events": {},
+  "htmlAst": {
+    "type": "Fragment",
+    "start": 0,
+    "end": 144,
+    "children": [
+      {
+        "type": "Text",
+        "start": 104,
+        "end": 105,
+        "raw": "\n",
+        "data": "\n"
+      },
+      {
+        "type": "Element",
+        "start": 105,
+        "end": 144,
+        "name": "div",
+        "attributes": [
+          {
+            "type": "Spread",
+            "start": 110,
+            "end": 137,
+            "expression": {
+              "type": "CallExpression",
+              "start": 114,
+              "end": 136,
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 9
+                },
+                "end": {
+                  "line": 5,
+                  "column": 31
+                }
+              },
+              "callee": {
+                "type": "Identifier",
+                "start": 114,
+                "end": 119,
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 9
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 14
+                  }
+                },
+                "name": "style"
+              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 120,
+                  "end": 135,
+                  "loc": {
+                    "start": {
+                      "line": 5,
+                      "column": 15
+                    },
+                    "end": {
+                      "line": 5,
+                      "column": 30
+                    }
+                  },
+                  "value": "template-blue",
+                  "raw": "'template-blue'"
+                }
+              ],
+              "optional": false
+            }
+          }
+        ],
+        "children": []
+      },
+      {
+        "start": 0,
+        "end": 104,
+        "name": "script",
+        "type": "Script",
+        "attributes": [
+          {
+            "type": "Attribute",
+            "name": "lang",
+            "value": [
+              {
+                "type": "Text",
+                "start": 13,
+                "end": 17,
+                "raw": "ts"
+              }
+            ],
+            "start": 8,
+            "end": 17
+          }
+        ],
+        "content": {
+          "type": "Text",
+          "start": 18,
+          "end": 95,
+          "value": "\nimport { style } from \"stillwind/react\";\nconst props = style('script-red');\n",
+          "raw": "\nimport { style } from \"stillwind/react\";\nconst props = style('script-red');\n"
+        }
+      }
+    ],
+    "_comments": [
+      {
+        "type": "Block",
+        "value": "",
+        "start": 55,
+        "end": 59,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 36
+          },
+          "end": {
+            "line": 2,
+            "column": 40
+          }
+        }
+      },
+      {
+        "type": "Block",
+        "value": "",
+        "start": 90,
+        "end": 94,
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 30
+          },
+          "end": {
+            "line": 3,
+            "column": 34
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "vue-multiline.vue"
+  ],
+  "sourcesContent": [
+    "<script setup lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst props = style(\n /* 日本語 🧭 */\n 'script-multi'\n);\n</script>\n<template><div v-bind=\"style(\n 'template-multi'\n)\"/></template>"
+  ],
+  "names": [],
+  "mappings": ";AACA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;;;;;;;AACvC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACnB,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACZ,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACd,CAAC;;;;;;;"
+}

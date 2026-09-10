@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": [
+    "svelte-duplicates.svelte"
+  ],
+  "sourcesContent": [
+    "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst a = style('same');\nconst b = style('same');\n</script>\n<div {...style('same')}></div>"
+  ],
+  "mappings": ";AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;sCADvC,CAAC;EAED,MAAM,AAAA,CAAC,GAAG,KAAK,CAAC,MAAM;EACtB,MAAM,AAAA,CAAC,GAAG,KAAK,CAAC,MAAM;;2CAEb,KAAK,CAAC,MAAM;CADb,CAAC;"
+}

@@ -1,0 +1,14 @@
+{
+  "code": "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\nimport { style } from \"stillwind/react\";\n\nvar root = $.from_html(`<div></div>`);\n\nexport default function Case($$anchor, $$props) {\n\t$.push($$props, false);\n\n\tconst props = style('script-red');\n\n\t$.init();\n\n\tvar div = root();\n\n\t$.attribute_effect(div, ($0) => ({ ...$0 }), [() => style('template-blue')]);\n\t$.append($$anchor, div);\n\t$.pop();\n}",
+  "map": {
+    "version": 3,
+    "names": [],
+    "sources": [
+      "Case.svelte"
+    ],
+    "sourcesContent": [
+      "<script lang=\"ts\">\nimport { style } from \"stillwind/react\";\nconst props = style('script-red');\n</script>\n<div {...style('template-blue')}></div>"
+    ],
+    "mappings": ";;;AACA,OAAO,EAAE,KAAK,QAAQ,iBAAiB;;;;gDADvC,CAAC;;;CAED,MAAM,AAAA,KAAK,GAAG,KAAK,CAAC,YAAY;;;;KAE/B,GAAG;;oBAAH,GAAG,8BAAK,KAAK,CAAC,eAAe;oBAA7B,GAAG;;AADI,CAAC"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "astro-client-script.astro"
+  ],
+  "sourcesContent": [
+    "---\nimport { style } from \"stillwind/react\";\nconst props=style('server');\n---\n<div {...props}></div>\n<script>\nimport { style as sx } from \"stillwind/react\";\nconst clientProps=sx('client');\n</script>"
+  ],
+  "mappings": ";;AAAA,AAAG;AACH,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACxC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAC5B,AAAG,AAHH;AAAA;AAIA,CAAC,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,EAAE,GAAG,CAAC;AACtB,CAAC,MAAM,AALP,CAQA,SAAS,AART;AAAA;AAAA;",
+  "names": []
+}
