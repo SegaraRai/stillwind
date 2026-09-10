@@ -106,7 +106,7 @@ export async function compileModule(
   const sources = [...sourcesById.values()];
   const typeFacts = needsTypeFacts
     ? factsService().collect(
-        sources,
+        sources.map((source) => ({ ...source, probes: summaries.get(source.path)!.type_probes })),
         new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
       )
     : new Map<string, TypeFact[]>();

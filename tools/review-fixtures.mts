@@ -4,10 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compileReactProject, renderReactStylesheet, summarizeReact } from "@stillwind/native";
-import { finalizeReactModuleWithMap, type FinalizedModuleEdit } from "@stillwind/vite";
 import { format } from "prettier";
 
-import { TypeScriptFactsService, type AssetRecord } from "../packages/vite/src/type-facts.ts";
+import {
+  TypeScriptFactsService,
+  finalizeReactModuleWithMap,
+  type FinalizedModuleEdit,
+  type ModuleSummary,
+} from "../packages/host/src/index.ts";
 import { resolveFixtureCss } from "./lib/stillwind-fixture-css.ts";
 
 type Manifest = {
@@ -80,7 +84,7 @@ function compileProject(root: string, manifest: Manifest) {
   const summaries = new Map(
     sources.map((source) => [
       source.path,
-      JSON.parse(summarizeReact(source.source, source.path)) as { assets: AssetRecord[] },
+      JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
     ]),
   );
   const service = new TypeScriptFactsService(repositoryRoot);
@@ -90,8 +94,12 @@ function compileProject(root: string, manifest: Manifest) {
   // The first collection boots the TS7 project. A second snapshot mirrors the
   // Vite integration's steady-state compilation, where imported identities are
   // available after the initial graph has opened.
-  service.collect(sources, assets);
-  const facts = service.collect(sources, assets);
+  const probeSources = sources.map((source) => ({
+    ...source,
+    probes: summaries.get(source.path)!.type_probes,
+  }));
+  service.collect(probeSources, assets);
+  const facts = service.collect(probeSources, assets);
   service.close();
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
   const output = JSON.parse(
@@ -184,7 +192,7 @@ function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: Finaliz
 }
 
 function runnableOutput(module: ModuleOutput, fixture: string) {
-  const finalized = finalizeReactModuleWithMap(module.code!, false);
+  const finalized = finalizeReactModuleWithMap(module.code!);
   const output = finalized.code;
   const runtimeImport = output.match(
     /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/react\/runtime["']/,

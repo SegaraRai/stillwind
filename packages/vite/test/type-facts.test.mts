@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { TypeScriptFactsService, type AssetRecord } from "@stillwind/host";
+import { TypeScriptFactsService, type ModuleSummary } from "@stillwind/host";
 import {
   compileReactProject,
   summarizeReact,
@@ -18,16 +18,21 @@ import { finalizeReactModule } from "../src/index.ts";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/type-facts");
 
-const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"].map((name) => ({
-  id: path.join(fixtureRoot, name),
-  path: `src/${name}`,
-  source: readFileSync(path.join(fixtureRoot, name), "utf8"),
-}));
+const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
+  .map((name) => ({
+    id: path.join(fixtureRoot, name),
+    path: `src/${name}`,
+    source: readFileSync(path.join(fixtureRoot, name), "utf8"),
+  }))
+  .map((source) => ({
+    ...source,
+    probes: (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary).type_probes,
+  }));
 
 const summaries = new Map(
   sources.map((source) => [
     source.path,
-    JSON.parse(summarizeReact(source.source, source.path)) as { assets: AssetRecord[] },
+    JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
   ]),
 );
 

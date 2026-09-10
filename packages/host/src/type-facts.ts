@@ -9,6 +9,8 @@ export interface TypeFactSource {
   id: string;
   path: string;
   source: string;
+  /** Byte spans requested by the macro frontend; unrelated expressions are not queried. */
+  probes: readonly { start: number; end: number }[];
 }
 
 export interface IdentityId {
@@ -287,7 +289,7 @@ export class TypeScriptFactsService {
       } catch (retryError) {
         throw new AggregateError(
           [firstError, retryError],
-          "TypeScript 7 checker failed before and after a clean restart",
+          `TypeScript 7 checker failed before and after a clean restart: ${String(retryError)}`,
         );
       }
     }
@@ -384,8 +386,19 @@ function factsForSource(
   identities: ReadonlyMap<string, IdentityId>,
 ): TypeFact[] {
   const expressions: Node[] = [];
+  const probes = new Set(mapping.source.probes.map(({ start, end }) => `${start}:${end}`));
+  if (probes.size === 0) return [];
   visit(sourceFile, (node) => {
-    if (isExpression(node)) expressions.push(node);
+    if (!isExpression(node)) return;
+    const start = shadowToOriginal(node.getStart(sourceFile), mapping.insertions);
+    const end = shadowToOriginal(node.end, mapping.insertions);
+    if (start === null || end === null) return;
+    if (
+      probes.has(
+        `${utf16ToByte(mapping.source.source, start)}:${utf16ToByte(mapping.source.source, end)}`,
+      )
+    )
+      expressions.push(node);
   });
   const types = checker.getTypeAtLocation(expressions);
   const facts: TypeFact[] = [];
