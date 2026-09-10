@@ -71,9 +71,9 @@ pub fn tailwind_v4_keyframes_for(names: &[String]) -> String {
 }
 
 /// Tailwind CSS v4.3.3 Preflight, vendored under its MIT license.
-pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../css/preflight.css");
+pub const TAILWIND_V4_PREFLIGHT: &str = include_str!("../../../packages/core/css/preflight.css");
 
-pub(super) const TAILWIND_V4_THEME: &str = include_str!("../../../css/theme.css");
+pub(super) const TAILWIND_V4_THEME: &str = include_str!("../../../packages/core/css/theme.css");
 
 #[cfg(test)]
 mod tests {

@@ -159,6 +159,8 @@ their tree-shakeable custom-property registrations. Authored `@theme`,
 `@utility`, `@variant`, and `@stillwind-property` definitions remain available.
 All four entry points are ordinary package CSS files; the compiler consumes the
 recognized imports while preserving unrelated CSS imports.
+Their canonical sources live in `packages/core/css` and are included in the
+`stillwind` package; exported CSS never imports files outside the package.
 `tailwindcss` imports are ordinary host-resolved imports, not aliases for Stillwind.
 The current loader preserves ordinary CSS import `layer`, `supports`, and media
 conditions. Unsupported build-time modifiers such as `prefix(...)` produce an

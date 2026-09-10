@@ -1,17 +1,17 @@
 {
   "name": "stillwind",
   "version": "0.0.0",
-  "description": "Runtime helpers and macro surface for Stillwind React",
+  "description": "CSS definitions and framework adapters for Stillwind",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./index.css",
-    "./builtins.css": "./builtins.css",
-    "./preflight.css": "./preflight.css",
+    "./builtins.css": "./css/builtins.css",
+    "./preflight.css": "./css/preflight.css",
     "./react": "./src/index.ts",
     "./react/runtime": "./src/runtime.ts",
-    "./theme.css": "./theme.css",
-    "./utilities.css": "./utilities.css"
+    "./theme.css": "./css/theme.css",
+    "./utilities.css": "./css/utilities.css"
   },
   "devDependencies": {
     "@types/node": "catalog:",

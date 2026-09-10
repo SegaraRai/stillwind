@@ -43,7 +43,7 @@ fn main() -> std::io::Result<()> {
         "../css/src",
         "../tailwind/src",
         "../js-oxc/src",
-        "../../css",
+        "../../packages/core/css",
     ] {
         hash_tree(Path::new(directory), &mut hasher)?;
     }

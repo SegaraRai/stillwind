@@ -218,7 +218,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       stillwind:
         specifier: workspace:*
-        version: link:../../packages/react
+        version: link:../../packages/core
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -255,7 +255,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       stillwind:
         specifier: workspace:*
-        version: link:../../packages/react
+        version: link:../../packages/core
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -340,7 +340,7 @@ importers:
 
   packages/native/npm/win32-x64-msvc: {}
 
-  packages/react:
+  packages/core:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -365,7 +365,7 @@ importers:
         version: 0.28.2
       stillwind:
         specifier: workspace:*
-        version: link:../react
+        version: link:../core
       typescript:
         specifier: 7.0.2
         version: 7.0.2

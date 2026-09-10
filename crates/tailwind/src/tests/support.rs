@@ -129,85 +129,88 @@ pub(super) fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a s
 pub(super) const REGISTRY_FILES: &[(&str, &str)] = &[
     (
         "registry-metadata.css",
-        include_str!("../../../../css/builtins/registry-metadata.css"),
+        include_str!("../../../../packages/core/css/builtins/registry-metadata.css"),
     ),
     (
         "relationship-metadata.css",
-        include_str!("../../../../css/builtins/relationship-metadata.css"),
+        include_str!("../../../../packages/core/css/builtins/relationship-metadata.css"),
     ),
     (
         "layout-utilities.css",
-        include_str!("../../../../css/builtins/layout-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/layout-utilities.css"),
     ),
     (
         "spacing-sizing-utilities.css",
-        include_str!("../../../../css/builtins/spacing-sizing-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/spacing-sizing-utilities.css"),
     ),
     (
         "flex-grid-utilities.css",
-        include_str!("../../../../css/builtins/flex-grid-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/flex-grid-utilities.css"),
     ),
     (
         "typography-utilities.css",
-        include_str!("../../../../css/builtins/typography-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/typography-utilities.css"),
     ),
     (
         "backgrounds-utilities.css",
-        include_str!("../../../../css/builtins/backgrounds-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/backgrounds-utilities.css"),
     ),
     (
         "borders-utilities.css",
-        include_str!("../../../../css/builtins/borders-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/borders-utilities.css"),
     ),
     (
         "effects-utilities.css",
-        include_str!("../../../../css/builtins/effects-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/effects-utilities.css"),
     ),
     (
         "masks-utilities.css",
-        include_str!("../../../../css/builtins/masks-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/masks-utilities.css"),
     ),
     (
         "transforms-utilities.css",
-        include_str!("../../../../css/builtins/transforms-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/transforms-utilities.css"),
     ),
     (
         "motion-utilities.css",
-        include_str!("../../../../css/builtins/motion-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/motion-utilities.css"),
     ),
     (
         "interactivity-utilities.css",
-        include_str!("../../../../css/builtins/interactivity-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/interactivity-utilities.css"),
     ),
     (
         "svg-utilities.css",
-        include_str!("../../../../css/builtins/svg-utilities.css"),
+        include_str!("../../../../packages/core/css/builtins/svg-utilities.css"),
     ),
     (
         "relationship-variants.css",
-        include_str!("../../../../css/builtins/relationship-variants.css"),
+        include_str!("../../../../packages/core/css/builtins/relationship-variants.css"),
     ),
     (
         "structural-variants.css",
-        include_str!("../../../../css/builtins/structural-variants.css"),
+        include_str!("../../../../packages/core/css/builtins/structural-variants.css"),
     ),
     (
         "state-variants.css",
-        include_str!("../../../../css/builtins/state-variants.css"),
+        include_str!("../../../../packages/core/css/builtins/state-variants.css"),
     ),
     (
         "dynamic-selector-variants.css",
-        include_str!("../../../../css/builtins/dynamic-selector-variants.css"),
+        include_str!("../../../../packages/core/css/builtins/dynamic-selector-variants.css"),
     ),
     (
         "conditional-variants.css",
-        include_str!("../../../../css/builtins/conditional-variants.css"),
+        include_str!("../../../../packages/core/css/builtins/conditional-variants.css"),
     ),
     (
         "properties.css",
-        include_str!("../../../../css/builtins/properties.css"),
+        include_str!("../../../../packages/core/css/builtins/properties.css"),
     ),
-    ("builtins.css", include_str!("../../../../css/builtins.css")),
+    (
+        "builtins.css",
+        include_str!("../../../../packages/core/css/builtins.css"),
+    ),
 ];
 
 pub(super) fn registry_utilities() -> Vec<(String, CustomUtility)> {
