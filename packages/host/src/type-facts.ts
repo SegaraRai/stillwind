@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 import type { Node, SourceFile } from "typescript/unstable/ast";
@@ -351,11 +352,13 @@ export class TypeScriptFactsService {
     const created: string[] = [];
     const deleted: string[] = [];
     for (const [fileName, contents] of prepared.virtualFiles) {
-      if (!this.#virtualFiles.has(fileName)) created.push(fileName);
+      if (!this.#virtualFiles.has(fileName))
+        (existsSync(fileName) ? changed : created).push(fileName);
       else if (this.#virtualFiles.get(fileName) !== contents) changed.push(fileName);
     }
     for (const fileName of this.#virtualFiles.keys()) {
-      if (!prepared.virtualFiles.has(fileName)) deleted.push(fileName);
+      if (!prepared.virtualFiles.has(fileName))
+        (existsSync(fileName) ? changed : deleted).push(fileName);
     }
     this.#virtualFiles = prepared.virtualFiles;
 

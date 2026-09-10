@@ -86,6 +86,9 @@ export async function compileModule(
       const resolved = await host.resolve(dependency.source, source.id, { skipSelf: true });
       if (!resolved || resolved.external) continue;
       const dependencyId = cleanModuleId(resolved.id);
+      // Package runtime exports do not identify their declaration files. Leave
+      // external package type resolution (for example React) to TypeScript.
+      if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyId)) continue;
       if (!/\.[cm]?[jt]sx?$/.test(dependencyId)) continue;
       let sourceResolutions = resolutions.get(source.id);
       if (!sourceResolutions) resolutions.set(source.id, (sourceResolutions = new Map()));

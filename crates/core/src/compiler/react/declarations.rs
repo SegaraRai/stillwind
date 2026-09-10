@@ -7,6 +7,7 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     let mut utilities = Vec::new();
     {
         utilities.extend(builtin_utility_names(theme));
+        utilities.extend(theme.utilities.iter().map(|utility| utility.name.clone()));
         for token in &theme.tokens {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
             else {
@@ -29,6 +30,7 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     let mut variants = Vec::new();
     {
         variants.extend(builtin_variant_names(theme));
+        variants.extend(theme.variants.iter().map(|variant| variant.name.clone()));
         variants.extend(theme.tokens.iter().filter_map(|token| {
             if let ThemeTokenKind::Token {
                 namespace: ThemeNamespace::Breakpoint,
@@ -72,5 +74,20 @@ mod tests {
 
         assert!(types.contains("\"bg-accent\": true"));
         assert!(types.contains("\"px-4\": true"));
+    }
+
+    #[test]
+    fn generates_custom_vocabulary_without_implicit_builtins() {
+        let source = stillwind_source::SourceFile::new(
+            FileId(0),
+            "custom.css",
+            "@utility brand {color:red}\n@custom-variant active (&.active);",
+        )
+        .unwrap();
+        let theme = Compiler::read_theme(&source).unwrap();
+        let types = render_react_types(&theme);
+        assert!(types.contains("\"brand\": true"));
+        assert!(types.contains("\"active\": true"));
+        assert!(!types.contains("\"flex\": true"));
     }
 }

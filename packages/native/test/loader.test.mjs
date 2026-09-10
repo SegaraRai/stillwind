@@ -10,10 +10,19 @@ void test("loads the current platform package through the public loader", async 
 void test("native sessions retain shared rules and replace CSS revisions", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const loader = new NativeDesignSystemLoader();
-  assert.deepEqual(JSON.parse(loader.provide(0, "opaque root", "@import 'tokens';")), {
-    kind: "needFile",
-    requests: [{ id: 1, importer: "opaque root", specifier: "tokens" }],
-  });
+  assert.deepEqual(
+    JSON.parse(
+      loader.provide(
+        0,
+        "opaque root",
+        "@import 'tokens'; @utility bg-brand {background-color:var(--color-brand)} @stillwind-slot utilities;",
+      ),
+    ),
+    {
+      kind: "needFile",
+      requests: [{ id: 1, importer: "opaque root", specifier: "tokens" }],
+    },
+  );
   assert.equal(
     JSON.parse(loader.provide(1, "opaque child", "@theme { --color-brand: red; }")).kind,
     "complete",
@@ -31,10 +40,15 @@ void test("native sessions retain shared rules and replace CSS revisions", async
   assert.equal(result.modules.length, 2);
   assert.ok(result.modules.every((module) => module.diagnostics.length === 0));
   const before = session.css();
+  assert.ok(before.length > 0);
   assert.equal(session.remove("a.tsx"), false);
   assert.equal(session.css(), before);
   const next = new NativeDesignSystemLoader();
-  next.provide(0, "root", "@theme { --color-brand: blue; }");
+  next.provide(
+    0,
+    "root",
+    "@theme { --color-brand: blue; } @utility bg-brand {background-color:var(--color-brand)} @stillwind-slot utilities;",
+  );
   assert.equal(JSON.parse(session.reload(next)).cssChanged, true);
   assert.notEqual(session.css(), before);
   assert.equal(session.remove("b.tsx"), true);
@@ -58,7 +72,11 @@ void test("native loader accepts partial and reversed batches", async () => {
   const done = JSON.parse(
     loader.provideMany([
       { id: 3, name: "c", content: "@theme { --color-child: green; }" },
-      { id: 1, name: "a", content: "@theme { --color-brand: red; }" },
+      {
+        id: 1,
+        name: "a",
+        content: "@theme { --color-brand: red; } @utility brand {color:var(--color-brand)}",
+      },
     ]),
   );
   assert.equal(done.kind, "complete");
@@ -70,19 +88,20 @@ void test("native loader accepts partial and reversed batches", async () => {
 void test("native watch reload reports compilation errors without publishing a partial revision", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const initial = new NativeDesignSystemLoader();
-  initial.provide(0, "theme", "@utility brand { color:red; }");
+  initial.provide(0, "theme", "@utility brand { color:red; } @stillwind-slot utilities;");
   const session = new NativeProjectSession(initial, true);
   const source =
-    "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion('both'));";
+    "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion(''));";
   const output = JSON.parse(session.compile(JSON.stringify([{ path: "motion.tsx", source }])));
   assert.deepEqual(output.modules[0].diagnostics, []);
   const before = session.css();
+  assert.ok(before.length > 0);
   const invalid = new NativeDesignSystemLoader();
   invalid.provide(0, "theme", "");
   assert.throws(() => session.reload(invalid), /CSS reload compilation failed.*SH001/s);
   assert.equal(session.css(), before);
   const recovered = new NativeDesignSystemLoader();
-  recovered.provide(0, "theme", "@utility brand { color:blue; }");
+  recovered.provide(0, "theme", "@utility brand { color:blue; } @stillwind-slot utilities;");
   assert.equal(JSON.parse(session.reload(recovered)).cssChanged, true);
   assert.notEqual(session.css(), before);
 });
