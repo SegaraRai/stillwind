@@ -96,3 +96,6 @@ pub fn from_macro_import(source: &str) -> Option<&'static FrameworkSpec> {
         .copied()
         .find(|spec| spec.macro_import == source)
 }
+/// Default host-facing request for an explicit module stylesheet value.
+/// Bundler-specific CSS requests and query conventions are separate from this default.
+pub const MODULE_CSS_IMPORT: &str = "stillwind/module-css";
