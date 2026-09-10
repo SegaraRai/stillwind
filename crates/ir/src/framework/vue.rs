@@ -5,7 +5,7 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     macro_import: "stillwind/vue",
     runtime_import: "stillwind/vue/runtime",
     class_property: "class",
-    projected_input: false,
+    projected_input: true,
     normalize,
 };
 

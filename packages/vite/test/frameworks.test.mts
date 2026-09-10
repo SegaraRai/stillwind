@@ -25,7 +25,8 @@ void test("raw SFC transforms publish immutable CSS carriers and skip framework 
     server: { middlewareMode: true, watch: null },
   });
   try {
-    const transform = plugin.transform,
+    const transform =
+        typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler,
       load = plugin.load,
       resolveId = plugin.resolveId;
     assert.ok(

@@ -5,6 +5,6 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     macro_import: "stillwind/svelte",
     runtime_import: "stillwind/svelte/runtime",
     class_property: "class",
-    projected_input: false,
+    projected_input: true,
     normalize: super::preserve,
 };

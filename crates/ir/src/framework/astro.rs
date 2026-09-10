@@ -5,6 +5,6 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     macro_import: "stillwind/astro",
     runtime_import: "stillwind/astro/runtime",
     class_property: "class",
-    projected_input: false,
+    projected_input: true,
     normalize: super::preserve,
 };

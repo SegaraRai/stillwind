@@ -32,7 +32,8 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     const source =
       "import { style } from 'stillwind/react'; export const props = style('bg-brand');";
     writeFileSync(sourcePath, source);
-    const transform = plugin.transform;
+    const transform =
+      typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
     if (typeof transform !== "function") throw new Error("expected transform hook");
     const transformed = await transform.call(
       {
@@ -270,7 +271,8 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
     await Promise.all([client.pluginContainer.buildStart({}), ssr.pluginContainer.buildStart({})]);
     const load = plugin.load;
     const hot = plugin.hotUpdate;
-    const transform = plugin.transform;
+    const transform =
+      typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
     assert.ok(
       typeof load === "function" && typeof hot === "function" && typeof transform === "function",
     );

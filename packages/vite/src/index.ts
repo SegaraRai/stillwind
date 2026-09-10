@@ -566,86 +566,89 @@ export function stillwind(options: StillwindOptions): Plugin {
         state.producers.delete(id);
       }
     },
-    async transform(code, id) {
-      const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
-      if (
-        (!sfc && !/\.[cm]?[jt]sx?$/.test(cleanModuleId(id))) ||
-        (sfc && id !== cleanModuleId(id)) ||
-        id.includes("node_modules") ||
-        id.endsWith("?stillwind-css-watch") ||
-        /[?&](?:raw|url)(?:[=&]|$)/.test(id)
-      )
-        return undefined;
-      const state = environmentState(this.environment?.name);
-      if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
-        state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
-        state.producers.delete(id);
-        return undefined;
-      }
-      await ensureSession(state, this);
-      const session = state.session!;
-      // Native needs the import identity before it renders edits. Publish its
-      // immutable CSS payload after compilation and before Vite can load it.
-      const carrierReference = String(++carrierSequence);
-      const allocatedCarrier = `${registeredCssPrefix}${carrierReference}&lang.css`;
-      const output = await compileModule(
-        session,
-        () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
-        code,
-        id,
-        projectRoot,
-        {
-          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
-          read: (id) => readFile(id, "utf8"),
-          watch: (id) => this.addWatchFile(id),
-          warn: (message) => this.warn(message),
-        },
-        {
-          stylesheetImports: sfc ? [virtualCssId, allocatedCarrier] : undefined,
-          moduleCssImport: `${moduleCssValuePrefix}${carrierReference}`,
-        },
-      );
-      if (!output?.code) return undefined;
-      state.producers.add(id);
-      const upstreamMap = this.getCombinedSourcemap?.();
-      const plan = await renderCarrier(state, output.path, {
-        placement: output.hasModuleCssImport ? "document" : "carrier",
-        resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
-        watch: (id) => this.addWatchFile(id),
-        upstream: upstreamMap
-          ? { id: cleanModuleId(id), map: JSON.stringify(upstreamMap) }
-          : undefined,
-      });
-      const css = plan.css;
-      if (sfc || output.hasModuleCssImport) carrierPayloads.set(carrierReference, css);
-      const carrier = sfc ? allocatedCarrier : carrierSpecifier(state, css);
-      const finalized = sfc
-        ? { code: output.code, removed: [], prefix: "" }
-        : finalizeReactModuleWithMap(output.code, false);
-      const imports =
-        sfc || output.hasModuleCssImport
-          ? ""
-          : `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
-      return {
-        code: imports + finalized.code,
-        meta: {
-          stillwind: {
-            coverage: plan.coverage,
-            designSystem: plan.designSystem,
-            producers: plan.producers,
+    transform: {
+      order: "pre",
+      async handler(code, id) {
+        const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
+        if (
+          (!sfc && !/\.[cm]?[jt]sx?$/.test(cleanModuleId(id))) ||
+          (sfc && id !== cleanModuleId(id)) ||
+          id.includes("node_modules") ||
+          id.endsWith("?stillwind-css-watch") ||
+          /[?&](?:raw|url)(?:[=&]|$)/.test(id)
+        )
+          return undefined;
+        const state = environmentState(this.environment?.name);
+        if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
+          state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
+          state.producers.delete(id);
+          return undefined;
+        }
+        await ensureSession(state, this);
+        const session = state.session!;
+        // Native needs the import identity before it renders edits. Publish its
+        // immutable CSS payload after compilation and before Vite can load it.
+        const carrierReference = String(++carrierSequence);
+        const allocatedCarrier = `${registeredCssPrefix}${carrierReference}&lang.css`;
+        const output = await compileModule(
+          session,
+          () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
+          code,
+          id,
+          projectRoot,
+          {
+            resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+            read: (id) => readFile(id, "utf8"),
+            watch: (id) => this.addWatchFile(id),
+            warn: (message) => this.warn(message),
           },
-        },
-        map: JSON.stringify(
-          moduleSourceMap(
-            code,
-            output.code,
-            id,
-            output.mappings,
-            finalized.removed,
-            imports + finalized.prefix,
+          {
+            stylesheetImports: sfc ? [virtualCssId, allocatedCarrier] : undefined,
+            moduleCssImport: `${moduleCssValuePrefix}${carrierReference}`,
+          },
+        );
+        if (!output?.code) return undefined;
+        state.producers.add(id);
+        const upstreamMap = this.getCombinedSourcemap?.();
+        const plan = await renderCarrier(state, output.path, {
+          placement: output.hasModuleCssImport ? "document" : "carrier",
+          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+          watch: (id) => this.addWatchFile(id),
+          upstream: upstreamMap
+            ? { id: cleanModuleId(id), map: JSON.stringify(upstreamMap) }
+            : undefined,
+        });
+        const css = plan.css;
+        if (sfc || output.hasModuleCssImport) carrierPayloads.set(carrierReference, css);
+        const carrier = sfc ? allocatedCarrier : carrierSpecifier(state, css);
+        const finalized = sfc
+          ? { code: output.code, removed: [], prefix: "" }
+          : finalizeReactModuleWithMap(output.code, false);
+        const imports =
+          sfc || output.hasModuleCssImport
+            ? ""
+            : `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
+        return {
+          code: imports + finalized.code,
+          meta: {
+            stillwind: {
+              coverage: plan.coverage,
+              designSystem: plan.designSystem,
+              producers: plan.producers,
+            },
+          },
+          map: JSON.stringify(
+            moduleSourceMap(
+              code,
+              output.code,
+              id,
+              output.mappings,
+              finalized.removed,
+              imports + finalized.prefix,
+            ),
           ),
-        ),
-      };
+        };
+      },
     },
     configureServer(server: ViteDevServer) {
       server.httpServer?.once("close", closeTypeFacts);
