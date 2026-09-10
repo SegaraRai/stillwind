@@ -28,6 +28,10 @@ export interface StillwindOptions {
   tailwindPrefix?: string;
   /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
   forbidTailwindRelationships?: boolean;
+  /** Module identity isolates generated classes. Content identity permits sharing. */
+  classIdentity?: "module" | "content";
+  /** Stable namespace shared by the project's client and server builds. */
+  classNamespace?: string;
 }
 
 interface CompilerOutput {
@@ -92,6 +96,7 @@ interface ProjectCompilerOutput {
 
 const virtualCssId = "virtual:stillwind.css";
 const resolvedVirtualCssId = `\0${virtualCssId}`;
+const moduleCssPrefix = "virtual:stillwind/module.css?css=";
 const maximumPlayPayloadBytes = 1_000_000;
 
 function cssEntrypoint(options: StillwindOptions): string {
@@ -105,6 +110,8 @@ function compilerOptions(options: StillwindOptions): string {
     prefix: options.prefix ?? "--sw-",
     tailwindPrefix: options.tailwindPrefix ?? "--tw-",
     forbidTailwindRelationships: options.forbidTailwindRelationships ?? false,
+    classIdentity: options.classIdentity ?? "module",
+    classNamespace: options.classNamespace ?? "",
   });
 }
 
@@ -288,10 +295,10 @@ export function stillwind(options: StillwindOptions): Plugin {
   let session: NativeProjectSession;
   let watching = false;
   const cssFiles = new Set<string>();
-  let devServer: ViteDevServer | undefined;
   const previewBundles = new Map<string, string>();
   let projectRoot = "";
   let typeFactsService: TypeScriptFactsService | undefined;
+  const producers = new Set<string>();
 
   const closeTypeFacts = () => {
     typeFactsService?.close();
@@ -356,22 +363,16 @@ export function stillwind(options: StillwindOptions): Plugin {
     writeFileSync(path, types);
   };
 
-  const invalidateCss = () => {
-    const cssModule = devServer?.moduleGraph.getModuleById(resolvedVirtualCssId);
-    if (cssModule && devServer) {
-      devServer.moduleGraph.invalidateModule(cssModule);
-      void devServer.reloadModule(cssModule);
-    }
-  };
-
   return {
     name: "stillwind",
     enforce: "pre",
     resolveId(id) {
-      return id === virtualCssId ? resolvedVirtualCssId : undefined;
+      return id === virtualCssId || id.startsWith(moduleCssPrefix) ? `\0${id}` : undefined;
     },
     load(id) {
-      if (id === resolvedVirtualCssId) return session.css();
+      if (id === resolvedVirtualCssId) return session.baseCss();
+      if (id.startsWith(`\0${moduleCssPrefix}`))
+        return Buffer.from(id.slice(moduleCssPrefix.length + 1), "base64url").toString("utf8");
       return undefined;
     },
     configResolved(config) {
@@ -406,8 +407,10 @@ export function stillwind(options: StillwindOptions): Plugin {
         };
         context.server.watcher.add([...cssFiles]);
         writeTypes(loader);
-        const modules = update.transformedModules.flatMap((path) => [
-          ...(context.server.moduleGraph.getModulesByFile(resolve(projectRoot, path)) ?? []),
+        // A CSS-only semantic change must also refresh the producer's payload
+        // import, even when its class names and JS transforms are unchanged.
+        const modules = [...producers].flatMap((id) => [
+          ...(context.server.moduleGraph.getModulesByFile(cleanModuleId(id)) ?? []),
         ]);
         const cssModule = context.server.moduleGraph.getModuleById(resolvedVirtualCssId);
         if (update.cssChanged && cssModule) modules.push(cssModule);
@@ -421,13 +424,16 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
     },
     watchChange(id, change) {
-      if (change.event === "delete" && session?.remove(compilerModulePath(projectRoot, id)))
-        invalidateCss();
+      if (change.event === "delete") {
+        session?.remove(compilerModulePath(projectRoot, id));
+        producers.delete(id);
+      }
     },
     async transform(code, id) {
       if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined;
       if (!code.includes("stillwind/react")) {
-        if (session.remove(compilerModulePath(projectRoot, cleanModuleId(id)))) invalidateCss();
+        session.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
+        producers.delete(id);
         return undefined;
       }
       const entryId = cleanModuleId(id);
@@ -468,11 +474,9 @@ export function stillwind(options: StillwindOptions): Plugin {
         ...source,
         type_facts: typeFacts.get(source.path) ?? [],
       }));
-      const previousCss = session.css();
       const projectOutput = JSON.parse(
         session.compile(JSON.stringify(typedSources)),
       ) as ProjectCompilerOutput;
-      if (session.css() !== previousCss) invalidateCss();
       const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
       for (const output of projectOutput.modules) {
         const moduleId = idsByPath.get(output.path);
@@ -500,10 +504,15 @@ export function stillwind(options: StillwindOptions): Plugin {
         (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
       );
       if (!output?.code) return undefined;
-      return { code: finalizeReactModule(output.code), map: null };
+      producers.add(id);
+      const css = session.moduleCss(output.path);
+      const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
+      return {
+        code: `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n${finalizeReactModule(output.code, false)}`,
+        map: null,
+      };
     },
     configureServer(server: ViteDevServer) {
-      devServer = server;
       server.httpServer?.once("close", closeTypeFacts);
       server.middlewares.use("/__stillwind/compile", (request, response) => {
         if (request.method !== "POST")

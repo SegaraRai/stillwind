@@ -7,6 +7,18 @@ use crate::{CompilerOptions, DesignSystemSnapshot};
 use super::*;
 
 #[test]
+fn tailwind_import_is_a_host_request_not_a_stillwind_alias() {
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+    let DesignSystemLoadStep::NeedFile(requests) =
+        loader.provide(0, "root.css".into(), "@import 'tailwindcss';".into())
+    else {
+        panic!("expected a real import request")
+    };
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].specifier, "tailwindcss");
+}
+
+#[test]
 fn parse_failures_keep_source_identity_and_typed_cause() {
     use std::error::Error;
     let mut loader = DesignSystemLoader::new(CompilerOptions::default());

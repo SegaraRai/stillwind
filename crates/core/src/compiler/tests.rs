@@ -10,8 +10,8 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
         FileId(1),
         "stillwind.css",
         r#"
-                @import "tailwindcss/theme" layer(theme);
-                @import "tailwindcss/preflight" layer(base);
+                @import "stillwind/theme.css" layer(theme);
+                @import "stillwind/preflight.css" layer(base);
                 @theme { --font-sans--font-feature-settings: "cv02"; }
             "#,
     )
@@ -27,8 +27,8 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
         FileId(2),
         "stillwind.css",
         r#"
-                @import "tailwindcss/theme" layer(theme);
-                @import "tailwindcss/preflight" layer(base);
+                @import "stillwind/theme.css" layer(theme);
+                @import "stillwind/preflight.css" layer(base);
             "#,
     )
     .unwrap();

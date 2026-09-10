@@ -6,6 +6,7 @@ import { generate, parse, walk, type Block, type CssNode, type Declaration } fro
 import { transform } from "lightningcss";
 
 import { parseMarkdownFixtureCases } from "./markdown-fixtures.ts";
+import { stillwindFixtureCss } from "./stillwind-fixture-css.ts";
 
 interface WebrefProperty {
   name: string;
@@ -390,7 +391,7 @@ export function verifyPropertyOrderParity(
 
       const source = `import { style } from "stillwind/react"; style(${JSON.stringify(applicable.join(" "))});`;
       const native = JSON.parse(
-        compileReact(source, "src/PropertyOrderParity.tsx", fixtureCase.input),
+        compileReact(source, "src/PropertyOrderParity.tsx", stillwindFixtureCss(fixtureCase.input)),
       ) as NativeOutput;
       if (native.diagnostics.length > 0 || native.classes.length !== 1) {
         throw new Error(

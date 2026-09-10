@@ -106,6 +106,7 @@ fn run() -> Result<(), CommandError> {
         tailwind_prefix: optional_argument("--tailwind-prefix")
             .unwrap_or_else(|| "--tw-".to_owned()),
         forbid_tailwind_relationships: has_flag("--forbid-tailwind-relationships"),
+        ..CompilerOptions::default()
     };
     options.validate()?;
     let snapshot = load_design_system(&theme, options)?;

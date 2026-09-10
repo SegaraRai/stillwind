@@ -215,6 +215,29 @@ impl NativeProjectSession {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
+    /// Stable document CSS independent of which JS modules have been visited.
+    #[napi]
+    pub fn base_css(&self) -> napi::Result<String> {
+        self.session
+            .snapshot()
+            .render_base_stylesheet()
+            .map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    /// Complete CSS for one producer, safe to transport across loader workers.
+    #[napi]
+    pub fn module_css(&self, module: String) -> napi::Result<String> {
+        let artifact = self
+            .session
+            .artifacts()
+            .get(module.as_str())
+            .ok_or_else(|| Error::from_reason(format!("Unknown Stillwind module: {module}")))?;
+        self.session
+            .snapshot()
+            .render_module_stylesheet(&artifact.css.to_css())
+            .map_err(|error| Error::from_reason(error.to_string()))
+    }
+
     #[napi]
     pub fn remove(&mut self, module: String) -> napi::Result<bool> {
         self.session

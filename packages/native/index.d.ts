@@ -51,5 +51,7 @@ export declare class NativeProjectSession {
   reload(loader: NativeDesignSystemLoader): string;
   compile(sourcesJson: string): string;
   css(): string;
+  baseCss(): string;
+  moduleCss(module: string): string;
   remove(module: string): boolean;
 }

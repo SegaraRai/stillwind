@@ -2,6 +2,10 @@ use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind, Parser, Token};
 
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum CssImportError {
+    #[error("unsupported import modifier at byte {offset}: {modifier}")]
+    UnsupportedModifier { offset: usize, modifier: String },
+    #[error("invalid import modifier order at byte {offset}")]
+    ModifierOrder { offset: usize },
     #[error("invalid CSS block at byte {offset}: {kind:?}")]
     Block {
         offset: usize,
@@ -79,14 +83,26 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
                 Err(_) => break,
             }
         }
-        if is_framework(&specifier) {
-            continue;
-        }
         let tail = parser.slice(tail_start..parser.position());
         let wrappers = import_wrappers(
             tail.strip_suffix(';').unwrap_or(tail),
             tail_start.byte_index(),
         )?;
+        if is_framework(&specifier) {
+            // The legacy framework selector can represent only a named layer.
+            // Do not silently erase conditions while the CSS-entry migration
+            // replaces that selector with ordinary resolved source files.
+            if wrappers
+                .iter()
+                .any(|wrapper| !wrapper.starts_with("@layer "))
+            {
+                return Err(CssImportError::UnsupportedModifier {
+                    offset: tail_start.byte_index(),
+                    modifier: format!("conditional or anonymous-layer import of {specifier}"),
+                });
+            }
+            continue;
+        }
         imports.push(Import {
             start,
             end: parser.position().byte_index(),
@@ -100,6 +116,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
 fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImportError> {
     let mut parser = Parser::new(tail);
     let mut wrappers = Vec::new();
+    let mut supports_seen = false;
     while !parser.is_exhausted() {
         let state = parser.state();
         match parser.next().map_err(|error| CssImportError::Modifiers {
@@ -107,16 +124,36 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
             kind: error.kind,
         })? {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
+                if !wrappers.is_empty() {
+                    return Err(CssImportError::ModifierOrder {
+                        offset: base_offset + state.position().byte_index(),
+                    });
+                }
                 wrappers.push("@layer".into());
             }
             Token::Function(name)
                 if name.eq_ignore_ascii_case("layer") || name.eq_ignore_ascii_case("supports") =>
             {
                 let layer = name.eq_ignore_ascii_case("layer");
+                if (layer && !wrappers.is_empty()) || (!layer && supports_seen) {
+                    return Err(CssImportError::ModifierOrder {
+                        offset: base_offset + state.position().byte_index(),
+                    });
+                }
+                supports_seen |= !layer;
                 let condition = parser
                     .parse_nested_block(|nested| {
                         let start = nested.position();
-                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        if layer {
+                            nested.expect_ident()?;
+                            while !nested.is_exhausted() {
+                                nested.expect_delim('.')?;
+                                nested.expect_ident()?;
+                            }
+                        } else {
+                            nested.next()?;
+                            while nested.next_including_whitespace_and_comments().is_ok() {}
+                        }
                         Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_owned())
                     })
                     .map_err(|error| CssImportError::ModifierBlock {
@@ -126,7 +163,28 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
                 wrappers.push(if layer {
                     format!("@layer {condition}")
                 } else {
-                    format!("@supports ({condition})")
+                    let mut declaration = Parser::new(&condition);
+                    if declaration
+                        .try_parse(|p| {
+                            p.expect_ident()?;
+                            p.expect_colon()
+                        })
+                        .is_ok()
+                    {
+                        format!("@supports ({condition})")
+                    } else {
+                        format!("@supports {condition}")
+                    }
+                });
+            }
+            Token::Function(name) | Token::Ident(name)
+                if ["prefix", "reference", "source", "theme", "important"]
+                    .iter()
+                    .any(|modifier| name.eq_ignore_ascii_case(modifier)) =>
+            {
+                return Err(CssImportError::UnsupportedModifier {
+                    offset: base_offset + state.position().byte_index(),
+                    modifier: name.to_string(),
                 });
             }
             _ => {
@@ -144,11 +202,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
 fn is_framework(name: &str) -> bool {
     matches!(
         name,
-        "tailwindcss"
-            | "tailwindcss/theme"
-            | "tailwindcss/preflight"
-            | "tailwindcss/utilities"
-            | "stillwind"
+        "stillwind"
             | "stillwind/theme.css"
             | "stillwind/preflight.css"
             | "stillwind/utilities.css"
@@ -179,7 +233,52 @@ mod tests {
             import_wrappers("layer(foo) supports(display:grid) screen", 0).unwrap(),
             vec!["@layer foo", "@supports (display:grid)", "@media screen"]
         );
-        assert!(is_framework("tailwindcss"));
+        assert!(!is_framework("tailwindcss"));
         assert!(!is_framework("tailwindcss-custom.css"));
+    }
+
+    #[test]
+    fn supports_conditions_keep_function_and_boolean_syntax() {
+        assert_eq!(
+            import_wrappers("supports(selector(:has(*)))", 0).unwrap(),
+            vec!["@supports selector(:has(*))"]
+        );
+        assert_eq!(
+            import_wrappers("supports(not (display:grid))", 0).unwrap(),
+            vec!["@supports not (display:grid)"]
+        );
+        assert_eq!(
+            import_wrappers(
+                "layer(a.b) supports((display:grid) and (color:red)) print",
+                0
+            )
+            .unwrap(),
+            vec![
+                "@layer a.b",
+                "@supports (display:grid) and (color:red)",
+                "@media print"
+            ]
+        );
+        assert_eq!(import_wrappers("layer", 0).unwrap(), vec!["@layer"]);
+        for invalid in [
+            "layer()",
+            "layer(a b)",
+            "layer(a) layer(b)",
+            "supports(display:grid) layer(a)",
+            "supports()",
+            "supports(display:grid) supports(color:red)",
+        ] {
+            assert!(import_wrappers(invalid, 0).is_err(), "{invalid}");
+        }
+        for unsupported in ["prefix(tw)", "reference", "source(none)"] {
+            assert!(matches!(
+                import_wrappers(unsupported, 0),
+                Err(CssImportError::UnsupportedModifier { .. })
+            ));
+        }
+        assert!(matches!(
+            imports("@import 'stillwind' supports(display:grid);"),
+            Err(CssImportError::UnsupportedModifier { .. })
+        ));
     }
 }

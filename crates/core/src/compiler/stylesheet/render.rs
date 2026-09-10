@@ -25,10 +25,33 @@ pub(crate) fn render_stylesheet(
     utility_css: &str,
     options: &CompilerOptions,
 ) -> Result<String, StylesheetError> {
+    render(theme, utility_css, options, true)
+}
+
+/// A producer's rules and their support closure, without document-wide CSS.
+pub(crate) fn render_module_stylesheet(
+    theme: &ThemeIndex,
+    utility_css: &str,
+    options: &CompilerOptions,
+) -> Result<String, StylesheetError> {
+    render(theme, utility_css, options, false)
+}
+
+#[allow(clippy::too_many_lines)]
+fn render(
+    theme: &ThemeIndex,
+    utility_css: &str,
+    options: &CompilerOptions,
+    document: bool,
+) -> Result<String, StylesheetError> {
     let imports = &theme.imports;
     let mut css = String::new();
-    let authored_css = expand_authored_directives(&without_keyframes(theme.custom_css()), theme);
-    if imports.layer_order {
+    let authored_css = if document {
+        expand_authored_directives(&without_keyframes(theme.custom_css()), theme)
+    } else {
+        String::new()
+    };
+    if document && imports.layer_order {
         css.push_str("@layer theme, base, components, utilities;\n");
     }
     let mut keyframes_css = String::new();
@@ -37,7 +60,7 @@ pub(crate) fn render_stylesheet(
         let used_css = format!("{utility_css}{authored_css}");
         let mut required_tokens = theme.tokens_required_by_with_omit_rules(
             &used_css,
-            imports.base_layer.is_some(),
+            document && imports.base_layer.is_some(),
             builtin_omit_token_prefixes(),
         );
         required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
@@ -94,7 +117,7 @@ pub(crate) fn render_stylesheet(
             css.push('\n');
         }
     }
-    if let Some(layer) = &imports.base_layer {
+    if let Some(layer) = imports.base_layer.as_ref().filter(|_| document) {
         css.push_str("@layer ");
         css.push_str(layer);
         css.push('{');

@@ -2,6 +2,7 @@ packages:
   - apps/*
   - examples/*
   - experiments/*
+  - "!experiments/module-graph"
   - packages/*
   - packages/native/npm/*
   - tools

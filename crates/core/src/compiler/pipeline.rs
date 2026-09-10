@@ -224,6 +224,8 @@ impl Compiler {
                             );
                             let canonical =
                                 format!("dynamic-animation:{identity}:{}", options.value);
+                            let canonical =
+                                snapshot.config().class_input(source.path(), &canonical);
                             let class_name = class_name(&canonical);
                             if emitted_utility_classes
                                 .insert((class_name.clone(), canonical.clone()))
@@ -298,6 +300,8 @@ impl Compiler {
                                 "{}\0dynamic-animation:{identity}:{}",
                                 selector.value, options.value
                             );
+                            let canonical =
+                                snapshot.config().class_input(source.path(), &canonical);
                             let class_name = class_name(&canonical);
                             let mut utility = resolve_animation_use(
                                 &animation,
@@ -600,6 +604,7 @@ impl Compiler {
                 if utilities.is_empty() {
                     continue;
                 }
+                let canonical_input = options.class_input(source.path(), &canonical_input);
                 let class_name = class_name(&canonical_input);
                 if emitted_utility_classes.insert((class_name.clone(), canonical_input.clone())) {
                     emit_utility_rules(&mut utility_css, &class_name, &utilities, theme);

@@ -13,7 +13,7 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
   const css = path.join(root, "root.css");
   const tokens = path.join(root, "tokens.css");
-  writeFileSync(css, "@import './tokens.css';");
+  writeFileSync(css, "@import './tokens.css'; .base { color: var(--color-brand); }");
   writeFileSync(tokens, "@theme { --color-brand: red; }");
   const plugin = stillwind({ css, types: false });
   const server = await createServer({

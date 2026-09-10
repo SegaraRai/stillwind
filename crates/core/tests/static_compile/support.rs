@@ -1,5 +1,16 @@
 use super::*;
 
+/// Compare utilities against upstream fixtures using Stillwind's own entrypoints.
+/// Tailwind package names are deliberately not aliases in the production loader.
+pub(super) fn stillwind_fixture_css(css: &str) -> String {
+    let css = css
+        .replace("tailwindcss/theme", "stillwind/theme.css")
+        .replace("tailwindcss/preflight", "stillwind/preflight.css")
+        .replace("tailwindcss/utilities", "stillwind/utilities.css")
+        .replace("\"tailwindcss\"", "\"stillwind\"");
+    format!("{css}\n@import \"stillwind/builtins.css\";")
+}
+
 pub(super) fn fixture_candidates(fixture: &str, case_name: &str) -> String {
     let case_start = fixture
         .find(&format!("## `{case_name}`"))

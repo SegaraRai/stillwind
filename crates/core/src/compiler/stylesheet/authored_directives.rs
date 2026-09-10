@@ -172,8 +172,8 @@ mod tests {
             FileId(1),
             "stillwind.css",
             r#"
-                @import "tailwindcss/theme" layer(theme);
-                @import "tailwindcss/utilities" layer(utilities);
+                @import "stillwind/theme.css" layer(theme);
+                @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css";
                 .button {
                   @variant hover { opacity: 0.8; }
                   @variant focus { outline-width: 2px; }
@@ -203,8 +203,8 @@ mod tests {
             FileId(1),
             "stillwind.css",
             r#"
-                @import "tailwindcss/theme" layer(theme);
-                @import "tailwindcss/utilities" layer(utilities);
+                @import "stillwind/theme.css" layer(theme);
+                @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css";
                 .button { @apply px-4 bg-red-500 inline-flex; }
             "#,
         )

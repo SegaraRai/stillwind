@@ -74,7 +74,7 @@ fn preserves_unparseable_tailwind_candidates_as_lint_findings() {
 const props = style("bg-[color:red");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"tailwindcss\";").unwrap();
+    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.lint_findings[0].rule, "invalid-utility");

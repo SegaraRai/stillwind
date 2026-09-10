@@ -81,6 +81,17 @@ stillwind({
 
 Both prefixes must start with `--`, end with `-`, and differ from each other.
 
+The Vite adapter defaults to `classIdentity: "module"`. It salts generated style
+classes with the project-relative producer path. Set `classNamespace` to a stable
+package/application name when independently built projects share a document; use
+the same namespace for client and server builds. `classIdentity: "content"` keeps
+content-based names (the default of the lower-level Rust API).
+
+Vite imports document CSS once, then transports each producer's CSS and support
+dependencies through a self-contained CSS module. Late transforms and dynamic
+imports do not depend on a previously loaded aggregate stylesheet. This is
+module-level CSS retention; it does not eliminate individual unused style calls.
+
 `@stillwind/native` is a thin loader. Production installs select exactly one
 optional package for the host, such as `@stillwind/native-win32-x64-msvc` or
 `@stillwind/native-linux-x64-gnu`; generated target packages contain the
@@ -148,8 +159,11 @@ their tree-shakeable custom-property registrations. Authored `@theme`,
 `@utility`, `@variant`, and `@stillwind-property` definitions remain available.
 All four entry points are ordinary package CSS files; the compiler consumes the
 recognized imports while preserving unrelated CSS imports.
-For Tailwind migration compatibility, any recognized `tailwindcss` import also
-enables Stillwind's built-in registry automatically.
+`tailwindcss` imports are ordinary host-resolved imports, not aliases for Stillwind.
+The current loader preserves ordinary CSS import `layer`, `supports`, and media
+conditions. Unsupported build-time modifiers such as `prefix(...)` produce an
+error. Conditional imports of the legacy Stillwind entry selectors remain
+unsupported until those selectors are replaced by resolved CSS definitions.
 
 ### Extending the same registry
 

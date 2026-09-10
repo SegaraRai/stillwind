@@ -9,6 +9,7 @@ import {
   hasEquivalentDeclarationOrder,
   verifyPropertyOrderParity,
 } from "./lib/property-order-parity.ts";
+import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
 
 const root = resolve(import.meta.dirname, "..");
@@ -285,7 +286,7 @@ for (const file of readdirSync(caseRoot)
       };
       try {
         native = JSON.parse(
-          compileReact(source, "src/Parity.tsx", fixtureCase.input),
+          compileReact(source, "src/Parity.tsx", stillwindFixtureCss(fixtureCase.input)),
         ) as typeof native;
       } catch (error) {
         failures.push(`${file} ${candidate}: native exception ${String(error)}`);

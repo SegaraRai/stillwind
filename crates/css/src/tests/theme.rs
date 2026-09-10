@@ -147,7 +147,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     assert!(aggregate.imports.base_layer.is_some());
     assert!(aggregate.imports.utilities_layer.is_some());
 
-    let tailwind_compat = parse_tailwind_theme(
+    let external_import = parse_tailwind_theme(
         &SourceFile::new(
             FileId(7),
             "stillwind.css",
@@ -156,8 +156,11 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         .unwrap(),
     )
     .unwrap();
-    assert!(tailwind_compat.imports.builtins);
-    assert!(tailwind_compat.imports.utilities_layer.is_some());
+    assert!(
+        external_import
+            .custom_css()
+            .contains("@import \"tailwindcss/utilities\"")
+    );
 }
 
 #[test]

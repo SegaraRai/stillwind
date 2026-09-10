@@ -1,0 +1,262 @@
+{
+  "runId": "2026-09-10T01-40-30-128Z",
+  "node": "v24.21.0",
+  "versions": {
+    "vite-plus": "0.3.1",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "playwright": "1.63.0",
+    "@rspack/core": "2.2.3"
+  },
+  "checks": [
+    {
+      "name": "salt-reversed-css-order",
+      "passed": true,
+      "ms": 15,
+      "evidence": {
+        "separateElementsStable": true,
+        "explicitCompositionOrderDependent": true,
+        "values": [
+          {
+            "a": "rgb(255, 0, 0)",
+            "b": "rgb(0, 0, 255)",
+            "both": "rgb(0, 0, 255)"
+          },
+          {
+            "a": "rgb(255, 0, 0)",
+            "b": "rgb(0, 0, 255)",
+            "both": "rgb(255, 0, 0)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "vite-build-aggregate",
+      "passed": true,
+      "ms": 415,
+      "evidence": {
+        "aggregateLoadAt": [[]],
+        "transformed": ["lazy.js", "fast.js", "slow.js"],
+        "hasSlow": false,
+        "hasLazy": false,
+        "cssFileCount": 1,
+        "expectedBrokenBaseline": true
+      }
+    },
+    {
+      "name": "vite-build-carrier",
+      "passed": true,
+      "ms": 371,
+      "evidence": {
+        "aggregateLoadAt": [
+          [
+            "F:/Projects/shorth/experiments/module-graph/output/2026-09-10T01-40-30-128Z/vite/lazy.js",
+            "F:/Projects/shorth/experiments/module-graph/output/2026-09-10T01-40-30-128Z/vite/fast.js"
+          ]
+        ],
+        "transformed": ["lazy.js", "fast.js", "slow.js"],
+        "hasSlow": true,
+        "hasLazy": true,
+        "cssFileCount": 2,
+        "expectedBrokenBaseline": false
+      }
+    },
+    {
+      "name": "vite-dev-demand-and-lazy",
+      "passed": true,
+      "ms": 477,
+      "evidence": {
+        "before": {
+          "fast": {
+            "className": "sw_92ee24d96a88",
+            "color": "rgb(10, 20, 30)"
+          },
+          "slow": {
+            "className": "sw_dab40de40315",
+            "color": "rgb(40, 50, 60)"
+          }
+        },
+        "transformed": ["fast.js", "slow.js", "lazy.js"],
+        "unusedUnread": true
+      }
+    },
+    {
+      "name": "vite-dev-edit-and-remove",
+      "passed": true,
+      "ms": 310,
+      "evidence": {
+        "editedColorObserved": true,
+        "removedMacroObserved": true
+      }
+    },
+    {
+      "name": "rspack-cold",
+      "passed": true,
+      "ms": 370,
+      "evidence": {
+        "cssAssets": ["141.main.css", "main.ec5a7868f029ddf6.css"],
+        "executedLoaders": [
+          {
+            "owner": "main.js",
+            "rules": 1
+          },
+          {
+            "owner": "lazy.js",
+            "rules": 1
+          }
+        ],
+        "moduleCount": 5,
+        "separateNodeProcess": true
+      }
+    },
+    {
+      "name": "rspack-warm",
+      "passed": true,
+      "ms": 371,
+      "evidence": {
+        "cssAssets": ["141.main.css", "main.ec5a7868f029ddf6.css"],
+        "executedLoaders": [],
+        "moduleCount": 5,
+        "separateNodeProcess": true
+      }
+    },
+    {
+      "name": "rspack-changed",
+      "passed": true,
+      "ms": 370,
+      "evidence": {
+        "cssAssets": ["141.main.css", "main.8a7a01435c528425.css"],
+        "executedLoaders": [
+          {
+            "owner": "main.js",
+            "rules": 1
+          },
+          {
+            "owner": "lazy.js",
+            "rules": 1
+          }
+        ],
+        "moduleCount": 5,
+        "separateNodeProcess": true
+      }
+    },
+    {
+      "name": "next-dev-carrier-rsc-client",
+      "passed": true,
+      "ms": 1940,
+      "evidence": {
+        "server": {
+          "className": "sw_b72efb8ea095",
+          "color": "rgb(17, 34, 51)"
+        },
+        "client": {
+          "className": "sw_b4580dcac892",
+          "color": "rgb(70, 80, 90)"
+        }
+      }
+    },
+    {
+      "name": "next-dev-demand-graph",
+      "passed": true,
+      "ms": 0,
+      "evidence": {
+        "lazyUnread": true,
+        "unusedUnread": true,
+        "events": "{\"owner\":\"app/layout.jsx\",\"rules\":0}\n{\"owner\":\"app/page.jsx\",\"rules\":1}\n{\"owner\":\"app/client.jsx\",\"rules\":1}\n{\"owner\":\"app/client.jsx\",\"rules\":1}\n{\"owner\":\"app/client.jsx\",\"rules\":1}\n"
+      }
+    },
+    {
+      "name": "next-dev-css-dependency-hmr",
+      "passed": true,
+      "ms": 176,
+      "evidence": {
+        "color": "rgb(33, 44, 55)"
+      }
+    },
+    {
+      "name": "next-dev-lazy-route",
+      "passed": true,
+      "ms": 259,
+      "evidence": {
+        "lazy": {
+          "className": "sw_1975fc3403d7",
+          "color": "rgb(101, 102, 103)"
+        }
+      }
+    },
+    {
+      "name": "next-build-cold",
+      "passed": true,
+      "ms": 3427,
+      "evidence": {
+        "exitCode": 0
+      }
+    },
+    {
+      "name": "next-loader-events-cold",
+      "passed": true,
+      "ms": 0,
+      "evidence": {
+        "executed": 6,
+        "separateNodeProcess": true
+      }
+    },
+    {
+      "name": "next-production-cold",
+      "passed": true,
+      "ms": 656,
+      "evidence": {
+        "server": {
+          "className": "sw_f7f2d4b48b71",
+          "color": "rgb(33, 44, 55)"
+        },
+        "client": {
+          "className": "sw_b4580dcac892",
+          "color": "rgb(70, 80, 90)"
+        },
+        "lazy": {
+          "className": "sw_1975fc3403d7",
+          "color": "rgb(101, 102, 103)"
+        },
+        "cssFileCount": 8
+      }
+    },
+    {
+      "name": "next-build-warm",
+      "passed": true,
+      "ms": 1508,
+      "evidence": {
+        "exitCode": 0
+      }
+    },
+    {
+      "name": "next-loader-events-warm",
+      "passed": true,
+      "ms": 0,
+      "evidence": {
+        "executed": 0,
+        "separateNodeProcess": true
+      }
+    },
+    {
+      "name": "next-production-warm",
+      "passed": true,
+      "ms": 594,
+      "evidence": {
+        "server": {
+          "className": "sw_f7f2d4b48b71",
+          "color": "rgb(33, 44, 55)"
+        },
+        "client": {
+          "className": "sw_b4580dcac892",
+          "color": "rgb(70, 80, 90)"
+        },
+        "lazy": {
+          "className": "sw_1975fc3403d7",
+          "color": "rgb(101, 102, 103)"
+        },
+        "cssFileCount": 8
+      }
+    }
+  ]
+}

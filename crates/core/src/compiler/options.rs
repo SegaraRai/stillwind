@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ClassIdentity {
+    Module,
+    #[default]
+    Content,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum CompilerOptionsError {
     #[error("{option} must start with `--` and end with `-`")]
@@ -14,6 +22,8 @@ pub struct CompilerOptions {
     pub prefix: String,
     pub tailwind_prefix: String,
     pub forbid_tailwind_relationships: bool,
+    pub class_identity: ClassIdentity,
+    pub class_namespace: String,
 }
 
 impl Default for CompilerOptions {
@@ -22,11 +32,30 @@ impl Default for CompilerOptions {
             prefix: "--sw-".to_owned(),
             tailwind_prefix: "--tw-".to_owned(),
             forbid_tailwind_relationships: false,
+            class_identity: ClassIdentity::Content,
+            class_namespace: String::new(),
         }
     }
 }
 
 impl CompilerOptions {
+    pub(crate) fn class_input(&self, module: &str, content: &str) -> String {
+        match self.class_identity {
+            ClassIdentity::Content => content.to_owned(),
+            ClassIdentity::Module => {
+                let module = stillwind_source::normalized_module_path(module);
+                // Length framing makes namespace/module boundaries unambiguous.
+                format!(
+                    "stillwind/class/v1:{}:{}{}:{}{content}",
+                    self.class_namespace.len(),
+                    self.class_namespace,
+                    module.len(),
+                    module
+                )
+            }
+        }
+    }
+
     /// Validates that generated and Tailwind-compatible namespaces are distinct CSS prefixes.
     ///
     /// # Errors

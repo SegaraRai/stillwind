@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "name": "real-compiler-dev-css",
+      "passed": true
+    },
+    {
+      "name": "css-only-edit-stable-class",
+      "passed": true
+    },
+    {
+      "name": "macro-removal",
+      "passed": true
+    },
+    {
+      "name": "macro-restoration",
+      "passed": true
+    }
+  ]
+}

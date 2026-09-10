@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { compileReact } from "@stillwind/native";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
+import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
 
 const root = resolve(import.meta.dirname, "..");
@@ -83,7 +84,11 @@ for (const file of readdirSync(caseRoot)
         acceptedByTailwind += 1;
         const source = `import { style } from "stillwind/react"; style(${JSON.stringify(candidate)});`;
         const result = JSON.parse(
-          compileReact(source, "src/NumericDomainAudit.tsx", fixtureCase.input),
+          compileReact(
+            source,
+            "src/NumericDomainAudit.tsx",
+            stillwindFixtureCss(fixtureCase.input),
+          ),
         ) as { classes: unknown[]; diagnostics: unknown[] };
         if (result.classes.length === 0 || result.diagnostics.length !== 0) {
           failures.push(`${file}: ${original} -> ${candidate}`);

@@ -16,7 +16,12 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
     .unwrap();
     let result = Compiler::compile_react(
         &component,
-        &SourceFile::new(FileId(2), "stillwind.css", input_css).unwrap(),
+        &SourceFile::new(
+            FileId(2),
+            "stillwind.css",
+            stillwind_fixture_css(&input_css),
+        )
+        .unwrap(),
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -54,7 +59,12 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             ).unwrap();
             let result = Compiler::compile_react(
                 &component,
-                &SourceFile::new(FileId(2), "stillwind.css", input_css.clone()).unwrap(),
+                &SourceFile::new(
+                    FileId(2),
+                    "stillwind.css",
+                    stillwind_fixture_css(&input_css),
+                )
+                .unwrap(),
             );
             assert!(result.diagnostics.is_empty(), "{case_name}: {candidate}");
             let class_name = &result.classes[0].class_name;
@@ -81,7 +91,12 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             ),
         )
         .unwrap(),
-        &SourceFile::new(FileId(4), "stillwind.css", input_css).unwrap(),
+        &SourceFile::new(
+            FileId(4),
+            "stillwind.css",
+            stillwind_fixture_css(&input_css),
+        )
+        .unwrap(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.classes.is_empty(), "{}", result.css);
@@ -129,13 +144,13 @@ fn framework_imports_gate_baseline_layers() {
     assert!(utilities_only.css.contains("@layer theme{:root,:host{"));
     assert!(utilities_only.css.contains("@layer utilities{"));
 
-    let full = compiler("@import \"tailwindcss\";");
+    let full = compiler("@import \"stillwind\";");
     assert!(full.diagnostics.is_empty());
     assert!(full.css.contains("box-sizing: border-box"));
     assert!(!full.css.contains("@property --tw-"));
 
     let tailwind_individual = compiler(
-        "@import \"tailwindcss/theme\" layer(theme);\n@import \"tailwindcss/utilities\" layer(utilities);",
+        "@import \"stillwind/theme.css\" layer(theme);\n@import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
     );
     assert!(tailwind_individual.diagnostics.is_empty());
     assert!(tailwind_individual.css.contains("@layer utilities{"));
@@ -149,7 +164,7 @@ fn framework_imports_gate_baseline_layers() {
         &SourceFile::new(
             FileId(4),
             "stillwind.css",
-            "@import \"tailwindcss/theme\" layer(theme); @import \"tailwindcss/utilities\" layer(utilities);",
+            "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap(),
     );
     assert!(content.diagnostics.is_empty());

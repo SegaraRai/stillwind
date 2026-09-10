@@ -14,11 +14,7 @@ pub(crate) fn strip_framework_imports(css: &str) -> String {
         let is_framework = parse_import_path(rule).is_some_and(|(path, _)| {
             matches!(
                 path,
-                "tailwindcss"
-                    | "tailwindcss/theme"
-                    | "tailwindcss/preflight"
-                    | "tailwindcss/utilities"
-                    | "stillwind"
+                "stillwind"
                     | "stillwind/theme.css"
                     | "stillwind/preflight.css"
                     | "stillwind/utilities.css"
@@ -54,28 +50,11 @@ pub(crate) fn framework_imports(css: &str) -> FrameworkImports {
         let layer = import_layer(tail);
         let prefix = import_prefix(tail);
         match path {
-            "tailwindcss" | "stillwind" => {
+            "stillwind" => {
                 found = true;
                 output.layer_order = true;
                 output.theme_layer = Some(layer.clone().unwrap_or_else(|| "theme".to_owned()));
                 output.base_layer = Some(layer.clone().unwrap_or_else(|| "base".to_owned()));
-                output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
-                output.builtins = true;
-                output.prefix.clone_from(&prefix);
-            }
-            "tailwindcss/theme" => {
-                found = true;
-                output.theme_layer = Some(layer.unwrap_or_else(|| "theme".to_owned()));
-                output.builtins = true;
-                output.prefix.clone_from(&prefix);
-            }
-            "tailwindcss/preflight" => {
-                found = true;
-                output.base_layer = Some(layer.unwrap_or_else(|| "base".to_owned()));
-                output.builtins = true;
-            }
-            "tailwindcss/utilities" => {
-                found = true;
                 output.utilities_layer = Some(layer.unwrap_or_else(|| "utilities".to_owned()));
                 output.builtins = true;
                 output.prefix.clone_from(&prefix);

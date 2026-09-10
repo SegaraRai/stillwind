@@ -220,7 +220,7 @@ mod tests {
             &stillwind_source::SourceFile::new(
                 FileId(1),
                 "theme",
-                "@import 'tailwindcss'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
+                "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
             )
             .unwrap(),
             crate::CompilerOptions::default(),

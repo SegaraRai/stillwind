@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use stillwind_core::{
-    CompilerOptions, DesignSystemLoadError, DesignSystemSnapshot, ModuleAnalysis,
+    ClassIdentity, CompilerOptions, DesignSystemLoadError, DesignSystemSnapshot, ModuleAnalysis,
     OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer,
 };
 use stillwind_source::{CompileError, FileId, SourceFile};
@@ -33,6 +33,74 @@ fn module(name: &str, candidate: &str) -> ModuleAnalysis {
         )),
         None,
     )
+}
+
+#[test]
+fn module_stylesheets_include_support_without_repeating_document_rules() {
+    let snapshot = DesignSystemSnapshot::from_source(
+        &SourceFile::new(
+            FileId(2),
+            "theme",
+            "@theme { --color-brand: red; } .document-only{color:blue;}",
+        )
+        .unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap();
+    let base = snapshot.render_base_stylesheet().unwrap();
+    assert!(base.starts_with("@layer properties;\n@layer theme, base, components, utilities;"));
+    let mut session = ProjectSession::new(snapshot.clone(), SessionMode::Build);
+    session
+        .update_module(module("a.tsx", "bg-brand animate-spin ring-2"))
+        .unwrap();
+    let artifact = session.artifacts()["a.tsx"].clone();
+    let css = snapshot
+        .render_module_stylesheet(&artifact.css.to_css())
+        .unwrap();
+    assert!(css.contains("--color-brand:red"));
+    assert!(css.contains("@keyframes spin"));
+    assert!(css.contains("@property --tw-ring"));
+    assert!(css.contains("@layer utilities"));
+    assert!(!css.contains(".document-only"));
+    assert!(!css.contains("box-sizing:border-box"));
+    assert!(base.contains(".document-only"));
+    session.update_module(module("late.tsx", "flex")).unwrap();
+    assert_eq!(snapshot.render_base_stylesheet().unwrap(), base);
+    assert_eq!(
+        snapshot
+            .render_module_stylesheet(&artifact.css.to_css())
+            .unwrap(),
+        css
+    );
+}
+
+#[test]
+fn module_salt_is_stable_and_content_identity_remains_available() {
+    let compile = |identity, namespace: &str, path: &str| {
+        let snapshot = DesignSystemSnapshot::from_source(
+            &SourceFile::new(FileId(2), "theme", "").unwrap(),
+            CompilerOptions {
+                class_identity: identity,
+                class_namespace: namespace.into(),
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        let mut session = ProjectSession::new(snapshot, SessionMode::Build);
+        let analysis = module(path, "flex");
+        let id = analysis.module_id.clone();
+        session.update_module(analysis).unwrap();
+        session.artifacts()[&id].classes[0].class_name.clone()
+    };
+    let a = compile(ClassIdentity::Module, "app", "src/a.tsx");
+    assert_eq!(a, compile(ClassIdentity::Module, "app", "src\\a.tsx"));
+    assert_eq!(a, compile(ClassIdentity::Module, "app", "src/a.tsx"));
+    assert_ne!(a, compile(ClassIdentity::Module, "app", "src/b.tsx"));
+    assert_ne!(a, compile(ClassIdentity::Module, "other", "src/a.tsx"));
+    assert_eq!(
+        compile(ClassIdentity::Content, "app", "src/a.tsx"),
+        compile(ClassIdentity::Content, "app", "src/b.tsx")
+    );
 }
 
 #[test]

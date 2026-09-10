@@ -105,8 +105,9 @@ imports all four. Individual entry points are independent: `builtins.css` must
 be present for the compiler-owned utility, variant, and custom-property registry
 to participate. The Rust crates embed these same CSS sources instead of
 maintaining a second internal copy.
-Recognized `tailwindcss` aggregate and individual entry points enable that
-registry implicitly as a migration-compatibility rule.
+`tailwindcss` imports are not aliases for Stillwind and are passed to the host
+resolver. The next CSS-entry migration will remove Rust embedding and the
+remaining special treatment of Stillwind entry imports.
 
 ## Source model: locations are a first-class invariant
 

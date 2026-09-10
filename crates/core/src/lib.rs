@@ -27,8 +27,8 @@ pub use analysis::{
     TypeFacts, TypeFactsUpdate, TypeProbe, TypeScriptFactsProvider,
 };
 pub use compiler::{
-    CompileResult, Compiler, CompilerOptions, CompilerOptionsError, CompilerThemeError,
-    GeneratedClass, GeneratedSymbol, StylesheetError,
+    ClassIdentity, CompileResult, Compiler, CompilerOptions, CompilerOptionsError,
+    CompilerThemeError, GeneratedClass, GeneratedSymbol, StylesheetError,
 };
 pub use design_system::{
     CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
