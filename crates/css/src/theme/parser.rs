@@ -44,7 +44,8 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
         return Err(ThemeError::UnterminatedBlock { offset });
     }
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
-    let template = crate::CssOutputTemplate::parse(source.text(), &theme.tokens)?;
+    let mut template = crate::CssOutputTemplate::parse(source.text(), &theme.tokens)?;
+    template.source_identity = stillwind_source::normalized_module_path(source.path());
     theme.custom_css = template.authored_css();
     StyleSheet::parse(&theme.custom_css, ParserOptions::default())
         .map_err(|error| ThemeError::Parse(error.into_owned()))?;

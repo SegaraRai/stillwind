@@ -59,6 +59,8 @@ pub(super) fn render(
         tokens,
         animations,
         slots: 0,
+        layer_prefix: anonymous_layer_prefix(template, options),
+        anonymous_layers: 0,
     };
     let mut css = context.nodes(&template.nodes)?;
     if !utility_css.is_empty() && context.slots == 0 {
@@ -80,6 +82,27 @@ struct Context<'a> {
     tokens: BTreeSet<usize>,
     animations: Vec<String>,
     slots: usize,
+    layer_prefix: String,
+    anonymous_layers: usize,
+}
+
+fn anonymous_layer_prefix(template: &CssOutputTemplate, options: &CompilerOptions) -> String {
+    let identity = format!(
+        "stillwind/layer/v1:{}:{}{}",
+        options.class_namespace.len(),
+        options.class_namespace,
+        template.source_identity
+    );
+    format!(
+        "sw-anon-{}",
+        &blake3::hash(identity.as_bytes()).to_hex()[..16]
+    )
+}
+
+fn is_anonymous_layer(header: &str) -> bool {
+    let mut parser = cssparser::Parser::new(header);
+    matches!(parser.next(), Ok(cssparser::Token::AtKeyword(name)) if name.eq_ignore_ascii_case("layer"))
+        && parser.is_exhausted()
 }
 
 fn render_authored(css: &str, theme: &ThemeIndex) -> Result<String, StylesheetError> {
@@ -102,9 +125,17 @@ impl Context<'_> {
                     output.push_str(self.utility_css);
                 }
                 CssOutputNode::Group { header, children } => {
+                    // Count the complete template, including groups omitted from this carrier.
+                    let header = if is_anonymous_layer(header) {
+                        let index = self.anonymous_layers;
+                        self.anonymous_layers += 1;
+                        format!("@layer {}-{index}", self.layer_prefix)
+                    } else {
+                        header.clone()
+                    };
                     let body = self.nodes(children)?;
                     if self.document || !body.trim().is_empty() {
-                        output.push_str(header);
+                        output.push_str(&header);
                         output.push('{');
                         output.push_str(&body);
                         output.push('}');
@@ -144,6 +175,38 @@ mod tests {
     use super::*;
     use stillwind_css::parse_theme;
     use stillwind_source::{FileId, SourceFile};
+
+    #[test]
+    fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
+        let source = SourceFile::new(FileId(1), "styles/entry.css", "@layer { .base{color:red} } @layer /* anonymous */ { @layer { @stillwind-slot utilities; } } @layer named { .end{color:blue} }").unwrap();
+        let theme = parse_theme(&source).unwrap();
+        let template = &theme.output_template;
+        let options = CompilerOptions::default();
+        let prefix = anonymous_layer_prefix(template, &options);
+        let document = render(template, &theme, "", &options, true).unwrap();
+        let module = render(template, &theme, ".x{color:green}", &options, false).unwrap();
+        assert!(
+            document.contains(&format!("@layer {prefix}-0{{")),
+            "{document}"
+        );
+        assert!(document.contains(&format!("@layer {prefix}-1{{@layer {prefix}-2{{}}}}")));
+        assert_eq!(
+            module,
+            format!("@layer {prefix}-1{{@layer {prefix}-2{{.x{{color:green}}}}}}")
+        );
+        assert!(document.contains("@layer named"));
+        let isolated = CompilerOptions {
+            class_namespace: "other-app".into(),
+            ..options
+        };
+        assert_ne!(prefix, anonymous_layer_prefix(template, &isolated));
+        let other_source = SourceFile::new(FileId(2), "other/entry.css", source.text()).unwrap();
+        let other_theme = parse_theme(&other_source).unwrap();
+        assert_ne!(
+            prefix,
+            anonymous_layer_prefix(&other_theme.output_template, &CompilerOptions::default())
+        );
+    }
 
     #[test]
     fn slots_and_support_preserve_authored_conditions_in_document_and_module_outputs() {

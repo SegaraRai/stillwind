@@ -20,6 +20,8 @@ pub enum CssOutputNode {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CssOutputTemplate {
+    /// Host identity of the entry, shared by every output carrier.
+    pub source_identity: String,
     pub nodes: Vec<CssOutputNode>,
 }
 
@@ -40,6 +42,7 @@ impl CssOutputTemplate {
     /// Returns malformed blocks or unknown output slots.
     pub fn parse(css: &str, tokens: &[ThemeToken]) -> Result<Self, CssOutputError> {
         Ok(Self {
+            source_identity: String::new(),
             nodes: parse_nodes(css, 0, tokens, &mut Vec::new(), false)?,
         })
     }

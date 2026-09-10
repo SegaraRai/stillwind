@@ -43,8 +43,13 @@ CSS for compatibility tests. Standard package exports and authored utility slots
 are real CSS inputs. Vite, Playground, CLI and review/parity tooling have been
 migrated. CLI package exports use Oxc Resolver with CSS style conditions.
 Conditional compile-time definitions are diagnosed, while conditional output
-slots are preserved. Source URL rebasing and anonymous layer identity across
-separate module carriers remain in the next step.
+slots are preserved. Source URL rebasing remains in the next step.
+
+Anonymous output layers now receive deterministic internal names derived from
+the entry identity, configured namespace and template occurrence. Document CSS
+declares their order, and partial module carriers reopen the same layers even
+when preceding authored groups are omitted. Nested anonymous layers and comments
+in their headers are covered. Core/CSS library tests passed (54 and 75).
 
 Entry migration validation: workspace Rust tests passed; after the token scanner
 fix, Core tests (133), CSS tests (75), and Tailwind tests (87, one ignored) passed.
