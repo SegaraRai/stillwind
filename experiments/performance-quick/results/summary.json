@@ -1,0 +1,513 @@
+{
+  "runs": [5, 6, 7],
+  "metric": "Median of independent process medians; min/max are process medians, not confidence intervals.",
+  "correctness": "All six generated JS/CSS fingerprints and full registry CSS hashes match across selected current and baseline processes.",
+  "currentBindings": ["57a0809662ad88505bdced090aeb9c096317baa61b1936b46a99550ffaa29717"],
+  "legacyBindings": ["f9eb69a4d5e5abd35cae3e37410bca3ed0251fffde4c23c12b15454ee6c20691"],
+  "rows": [
+    {
+      "name": "loader/minimal",
+      "current": {
+        "medianMs": 0.02729999999999677,
+        "minMs": 0.026499999999998636,
+        "maxMs": 0.029400000000002535
+      },
+      "legacy": {
+        "medianMs": 0.02640000000000242,
+        "minMs": 0.026200000000002888,
+        "maxMs": 0.02850000000000108
+      },
+      "ratio": 1.034090909090692
+    },
+    {
+      "name": "loader/full-registry",
+      "current": {
+        "medianMs": 31.08850000000001,
+        "minMs": 30.571799999999996,
+        "maxMs": 32.802700000000016
+      },
+      "legacy": {
+        "medianMs": 28.575400000000002,
+        "minMs": 28.493499999999983,
+        "maxMs": 31.07329999999999
+      },
+      "ratio": 1.0879462754677103
+    },
+    {
+      "name": "stateless/minimal/8-calls",
+      "current": {
+        "medianMs": 0.10030000000000427,
+        "minMs": 0.09829999999999472,
+        "maxMs": 0.10290000000003374
+      },
+      "legacy": {
+        "medianMs": 0.09620000000001028,
+        "minMs": 0.09539999999998372,
+        "maxMs": 0.0969000000000051
+      },
+      "ratio": 1.0426195426194758
+    },
+    {
+      "name": "stateless/full-registry/8-calls",
+      "current": {
+        "medianMs": 35.80529999999999,
+        "minMs": 34.951400000000035,
+        "maxMs": 37.08969999999999
+      },
+      "legacy": {
+        "medianMs": 36.88239999999996,
+        "minMs": 33.21799999999996,
+        "maxMs": 39.15019999999993
+      },
+      "ratio": 0.9707963689998489
+    },
+    {
+      "name": "session/unchanged/1-calls",
+      "current": {
+        "medianMs": 0.024400000000014188,
+        "minMs": 0.02430000000003929,
+        "maxMs": 0.03979999999990014
+      },
+      "legacy": {
+        "medianMs": 0.025599999999940337,
+        "minMs": 0.024400000000014188,
+        "maxMs": 0.025600000000054024
+      },
+      "ratio": 0.9531250000027756
+    },
+    {
+      "name": "summary/1-calls",
+      "current": {
+        "medianMs": 0.005599999999958527,
+        "minMs": 0.005599999999958527,
+        "maxMs": 0.008400000000051477
+      },
+      "legacy": {
+        "medianMs": 0.006200000000035288,
+        "minMs": 0.0061000000000603904,
+        "maxMs": 0.006300000000010186
+      },
+      "ratio": 0.9032258064397829
+    },
+    {
+      "name": "session/unchanged/100-calls",
+      "current": {
+        "medianMs": 0.5108000000000175,
+        "minMs": 0.4800000000000182,
+        "maxMs": 0.6361000000000558
+      },
+      "legacy": {
+        "medianMs": 0.5236999999999625,
+        "minMs": 0.4489000000000942,
+        "maxMs": 0.5900000000000318
+      },
+      "ratio": 0.9753675768570823
+    },
+    {
+      "name": "summary/100-calls",
+      "current": {
+        "medianMs": 0.12360000000001037,
+        "minMs": 0.12260000000003402,
+        "maxMs": 0.12409999999999854
+      },
+      "legacy": {
+        "medianMs": 0.11169999999992797,
+        "minMs": 0.11089999999990141,
+        "maxMs": 0.14610000000004675
+      },
+      "ratio": 1.1065353625791412
+    },
+    {
+      "name": "session/unchanged/1000-calls",
+      "current": {
+        "medianMs": 6.782299999999964,
+        "minMs": 6.101400000000012,
+        "maxMs": 8.838899999999967
+      },
+      "legacy": {
+        "medianMs": 6.823099999999954,
+        "minMs": 5.811699999999973,
+        "maxMs": 6.982200000000034
+      },
+      "ratio": 0.9940203133473069
+    },
+    {
+      "name": "summary/1000-calls",
+      "current": {
+        "medianMs": 1.2825000000000273,
+        "minMs": 1.2737999999999374,
+        "maxMs": 1.8285999999999376
+      },
+      "legacy": {
+        "medianMs": 1.3617000000000417,
+        "minMs": 1.1889999999999645,
+        "maxMs": 1.4424000000000206
+      },
+      "ratio": 0.9418374091209429
+    },
+    {
+      "name": "graph/fresh/10-modules",
+      "current": {
+        "medianMs": 1.3541000000000167,
+        "minMs": 1.129000000000019,
+        "maxMs": 1.435799999999972
+      },
+      "legacy": {
+        "medianMs": 1.1569999999999254,
+        "minMs": 1.0976000000000568,
+        "maxMs": 1.2890999999999622
+      },
+      "ratio": 1.1703543647364771
+    },
+    {
+      "name": "graph/unchanged/10-modules",
+      "current": {
+        "medianMs": 0.5477999999999383,
+        "minMs": 0.5366999999999962,
+        "maxMs": 0.7355000000000018
+      },
+      "legacy": {
+        "medianMs": 0.5176999999999907,
+        "minMs": 0.511000000000081,
+        "maxMs": 0.5329000000000406
+      },
+      "ratio": 1.0581417809541205
+    },
+    {
+      "name": "graph/single-edit/10-resident-modules",
+      "current": {
+        "medianMs": 0.14379999999994197,
+        "minMs": 0.13609999999994216,
+        "maxMs": 0.26269999999999527
+      },
+      "legacy": {
+        "medianMs": 0.14699999999993452,
+        "minMs": 0.14620000000002165,
+        "maxMs": 0.19900000000006912
+      },
+      "ratio": 0.9782312925170479
+    },
+    {
+      "name": "css/all/10-modules",
+      "current": {
+        "medianMs": 0.010400000000004184,
+        "minMs": 0.009999999999990905,
+        "maxMs": 0.015599999999949432
+      },
+      "legacy": {
+        "medianMs": 0.010300000000029286,
+        "minMs": 0.010099999999965803,
+        "maxMs": 0.010400000000004184
+      },
+      "ratio": 1.009708737861613
+    },
+    {
+      "name": "css/plan-with-map/10-modules",
+      "current": {
+        "medianMs": 0.1310999999999467,
+        "minMs": 0.1308999999999969,
+        "maxMs": 0.13140000000009877
+      },
+      "legacy": {
+        "medianMs": 0.16769999999996799,
+        "minMs": 0.1654999999999518,
+        "maxMs": 0.16789999999991778
+      },
+      "ratio": 0.7817531305901714
+    },
+    {
+      "name": "css/single-carrier/10-resident-modules",
+      "current": {
+        "medianMs": 0.002299999999991087,
+        "minMs": 0.002199999999902502,
+        "maxMs": 0.00329999999996744
+      },
+      "legacy": {
+        "medianMs": 0.003199999999992542,
+        "minMs": 0.002100000000041291,
+        "maxMs": 0.004099999999993997
+      },
+      "ratio": 0.7187499999988898
+    },
+    {
+      "name": "graph/fresh/100-modules",
+      "current": {
+        "medianMs": 25.437700000000177,
+        "minMs": 24.14930000000004,
+        "maxMs": 26.037900000000036
+      },
+      "legacy": {
+        "medianMs": 25.274700000000166,
+        "minMs": 22.749799999999937,
+        "maxMs": 28.82420000000002
+      },
+      "ratio": 1.00644913688392
+    },
+    {
+      "name": "graph/unchanged/100-modules",
+      "current": {
+        "medianMs": 6.163199999999961,
+        "minMs": 5.8940000000000055,
+        "maxMs": 6.363100000000031
+      },
+      "legacy": {
+        "medianMs": 6.039800000000014,
+        "minMs": 5.556100000000015,
+        "maxMs": 6.384700000000066
+      },
+      "ratio": 1.020431140103968
+    },
+    {
+      "name": "graph/single-edit/100-resident-modules",
+      "current": {
+        "medianMs": 0.3672999999998865,
+        "minMs": 0.3547000000000935,
+        "maxMs": 0.3742000000002008
+      },
+      "legacy": {
+        "medianMs": 0.365099999999984,
+        "minMs": 0.35930000000007567,
+        "maxMs": 0.4098999999998796
+      },
+      "ratio": 1.0060257463705906
+    },
+    {
+      "name": "css/all/100-modules",
+      "current": {
+        "medianMs": 0.0886000000000422,
+        "minMs": 0.08550000000013824,
+        "maxMs": 0.09339999999997417
+      },
+      "legacy": {
+        "medianMs": 0.11540000000013606,
+        "minMs": 0.08659999999986212,
+        "maxMs": 0.1254999999998745
+      },
+      "ratio": 0.767764298093048
+    },
+    {
+      "name": "css/plan-with-map/100-modules",
+      "current": {
+        "medianMs": 1.3190999999999349,
+        "minMs": 1.3068000000000666,
+        "maxMs": 1.378500000000031
+      },
+      "legacy": {
+        "medianMs": 1.7280000000000655,
+        "minMs": 1.6770999999998821,
+        "maxMs": 1.894800000000032
+      },
+      "ratio": 0.7633680555554889
+    },
+    {
+      "name": "css/single-carrier/100-resident-modules",
+      "current": {
+        "medianMs": 0.002100000000154978,
+        "minMs": 0.0020999999999276042,
+        "maxMs": 0.002100000000154978
+      },
+      "legacy": {
+        "medianMs": 0.0029999999999290594,
+        "minMs": 0.002100000000154978,
+        "maxMs": 0.0031999999998788553
+      },
+      "ratio": 0.7000000000682121
+    },
+    {
+      "name": "graph/fresh/300-modules",
+      "current": {
+        "medianMs": 168.87559999999985,
+        "minMs": 155.77149999999983,
+        "maxMs": 177.5489
+      },
+      "legacy": {
+        "medianMs": 158.61919999999986,
+        "minMs": 144.94690000000014,
+        "maxMs": 171.07990000000018
+      },
+      "ratio": 1.0646605202901036
+    },
+    {
+      "name": "graph/unchanged/300-modules",
+      "current": {
+        "medianMs": 23.402399999999943,
+        "minMs": 23.133299999999963,
+        "maxMs": 26.27469999999994
+      },
+      "legacy": {
+        "medianMs": 19.060500000000047,
+        "minMs": 17.071899999999914,
+        "maxMs": 20.05639999999994
+      },
+      "ratio": 1.227795703155735
+    },
+    {
+      "name": "graph/single-edit/300-resident-modules",
+      "current": {
+        "medianMs": 0.9302999999999884,
+        "minMs": 0.9279000000001361,
+        "maxMs": 1.2975999999998749
+      },
+      "legacy": {
+        "medianMs": 0.9033000000003995,
+        "minMs": 0.8760999999999513,
+        "maxMs": 1.0631000000003041
+      },
+      "ratio": 1.0298904018593789
+    },
+    {
+      "name": "css/all/300-modules",
+      "current": {
+        "medianMs": 0.2798999999999978,
+        "minMs": 0.2745999999997366,
+        "maxMs": 0.3249000000000706
+      },
+      "legacy": {
+        "medianMs": 0.2717999999999847,
+        "minMs": 0.2667999999998756,
+        "maxMs": 0.28880000000026484
+      },
+      "ratio": 1.029801324503361
+    },
+    {
+      "name": "css/plan-with-map/300-modules",
+      "current": {
+        "medianMs": 4.386899999999969,
+        "minMs": 4.379799999999705,
+        "maxMs": 4.9715000000001055
+      },
+      "legacy": {
+        "medianMs": 5.581900000000132,
+        "minMs": 5.098100000000159,
+        "maxMs": 5.707899999999881
+      },
+      "ratio": 0.785915190168198
+    },
+    {
+      "name": "css/single-carrier/300-resident-modules",
+      "current": {
+        "medianMs": 0.002100000000154978,
+        "minMs": 0.0019999999999527063,
+        "maxMs": 0.0030999999999039574
+      },
+      "legacy": {
+        "medianMs": 0.0030999999999039574,
+        "minMs": 0.002199999999902502,
+        "maxMs": 0.003200000000106229
+      },
+      "ratio": 0.67741935490969
+    },
+    {
+      "name": "graph/fresh/1000-modules",
+      "current": {
+        "medianMs": 1743.9197999999997,
+        "minMs": 1612.2354999999998,
+        "maxMs": 1910.1261000000013
+      },
+      "legacy": {
+        "medianMs": 1616.3621000000003,
+        "minMs": 1555.6119999999992,
+        "maxMs": 2069.180699999999
+      },
+      "ratio": 1.0789165373278669
+    },
+    {
+      "name": "graph/unchanged/1000-modules",
+      "current": {
+        "medianMs": 91.6252999999997,
+        "minMs": 81.73799999999937,
+        "maxMs": 112.83060000000114
+      },
+      "legacy": {
+        "medianMs": 100.42510000000038,
+        "minMs": 76.22790000000168,
+        "maxMs": 103.84979999999996
+      },
+      "ratio": 0.9123744960174234
+    },
+    {
+      "name": "graph/single-edit/1000-resident-modules",
+      "current": {
+        "medianMs": 2.9553999999989173,
+        "minMs": 2.9491999999991094,
+        "maxMs": 4.148199999999633
+      },
+      "legacy": {
+        "medianMs": 3.263299999998708,
+        "minMs": 2.902799999999843,
+        "maxMs": 3.6480000000010477
+      },
+      "ratio": 0.9056476572794679
+    },
+    {
+      "name": "css/all/1000-modules",
+      "current": {
+        "medianMs": 1.0389000000013766,
+        "minMs": 0.9634000000005472,
+        "maxMs": 1.4851999999991676
+      },
+      "legacy": {
+        "medianMs": 1.019400000001042,
+        "minMs": 1.0094000000008236,
+        "maxMs": 1.1349000000009255
+      },
+      "ratio": 1.019128899352869
+    },
+    {
+      "name": "css/plan-with-map/1000-modules",
+      "current": {
+        "medianMs": 18.53939999999966,
+        "minMs": 16.305499999998574,
+        "maxMs": 24.440099999999802
+      },
+      "legacy": {
+        "medianMs": 24.511100000001534,
+        "minMs": 18.006600000000617,
+        "maxMs": 25.49880000000121
+      },
+      "ratio": 0.7563675232853074
+    },
+    {
+      "name": "css/single-carrier/1000-resident-modules",
+      "current": {
+        "medianMs": 0.0030000000006111804,
+        "minMs": 0.0020999999997002305,
+        "maxMs": 0.0032000000010157237
+      },
+      "legacy": {
+        "medianMs": 0.0031999999991967343,
+        "minMs": 0.002599999999802094,
+        "maxMs": 0.0031999999991967343
+      },
+      "ratio": 0.9375000004263256
+    },
+    {
+      "name": "css/full-registry/base-with-map",
+      "current": {
+        "medianMs": 2.42029999999977,
+        "minMs": 2.1740000000008877,
+        "maxMs": 2.6180999999996857
+      },
+      "legacy": {
+        "medianMs": 2.9721000000008644,
+        "minMs": 2.9382000000005064,
+        "maxMs": 3.1702000000004773
+      },
+      "ratio": 0.8143400289354551
+    },
+    {
+      "name": "css/full-registry/single-carrier",
+      "current": {
+        "medianMs": 0.278599999999642,
+        "minMs": 0.2724999999991269,
+        "maxMs": 0.3386000000009517
+      },
+      "legacy": {
+        "medianMs": 0.28369999999995343,
+        "minMs": 0.27959999999984575,
+        "maxMs": 0.29650000000037835
+      },
+      "ratio": 0.9820232640101789
+    }
+  ]
+}

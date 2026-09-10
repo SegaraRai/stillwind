@@ -23,6 +23,24 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "perf:quick": {
+        command: "node experiments/performance-quick/run.mjs",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
+      "perf:host": {
+        command: "node experiments/performance-quick/host.mts",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
+      "perf:profile": {
+        command: "node experiments/performance-quick/profile.mjs",
+        cache: false,
+      },
+      "perf:summarize": {
+        command: "node experiments/performance-quick/summarize.mjs",
+        cache: false,
+      },
       "sourcemap:build": {
         command:
           "cargo build --manifest-path experiments/source-map-research/native/Cargo.toml --release --locked",

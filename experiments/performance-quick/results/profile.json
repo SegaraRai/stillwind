@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-09-10T15:52:09.194Z",
+  "revision": "3b4a8d20ccdde4fb2c6c64d48b9a52aad05fe3b3",
+  "notes": "One fresh graph per size in separate processes. Instrumented temporary checkout; five timed spans in update_module, each recorded in stderr. Total includes untimed scan/finalize/output/FFI and instrumentation overhead. No optimized behavior changes.",
+  "rows": [
+    {
+      "count": 100,
+      "elapsedMs": 30.4803,
+      "oldCssMs": 4.9549,
+      "backendCompileMs": 6.5632,
+      "symbolCheckAndStoreMs": 0.4676,
+      "reindexMs": 2.3037,
+      "newCssMs": 5.1742
+    },
+    {
+      "count": 300,
+      "elapsedMs": 212.58929999999998,
+      "oldCssMs": 54.6412,
+      "backendCompileMs": 26.8901,
+      "symbolCheckAndStoreMs": 4.0481,
+      "reindexMs": 28.6036,
+      "newCssMs": 55.684
+    },
+    {
+      "count": 1000,
+      "elapsedMs": 1708.3618000000001,
+      "oldCssMs": 557.8473,
+      "backendCompileMs": 85.0113,
+      "symbolCheckAndStoreMs": 34.9377,
+      "reindexMs": 320.5098,
+      "newCssMs": 563.6306
+    }
+  ]
+}
