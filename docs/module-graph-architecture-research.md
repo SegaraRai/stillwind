@@ -13,7 +13,7 @@
 | SolidStart 2.0.4        | `solidstart-real.json`。`stillwind/solid`がclass propを出力。JS無効SSR、signalの比較条件と更新、hydration、lazy client遷移、CSS編集、macro削除復元、cold/warm本番を5項目確認                                                             | server functionの専用projection、CSS mapは別検証                                                                           |
 | TanStack Start 1.168.50 | `tanstack-vite-real.json` / `tanstack-rsbuild-real.json`。両経路でJS無効SSR、hydration、server function、初回にないlazy CSS、CSS編集、macro削除復元、server projection編集、cold/warm本番、client JSへのserver本体非混入                 | Windows Rsbuildはstart-plugin-core 1.171.40のmanifestパス正規化patchを適用。JS/CSS mapは別受け入れ                         |
 | 部分解析・overlay       | `packages/host`の`EditorProject`。未保存の依存編集、構文エラーと前回成功結果の区別、文書version、古い非同期結果の破棄、取消を本物のnative/checkerでテスト                                                                                | LSP transportや補完UIの完成を意味しない                                                                                    |
-| 意味依存の読み取り      | probeのbindingからローカル宣言を辿り、要求exportに対応するbarrelを読む。無関係なruntime importをhostが読まないテスト。checkerは要求されたprobe spanのみを問い合わせ、無関係な式やtupleを読まない。overlay/disk読取要求は別計上           | namespace・宣言sliceがないexportは保守的な依存読取。ホスト独自aliasとcheckerの解決一致は追加検証が必要                     |
+| 意味依存の読み取り      | probeのbindingからローカル宣言を辿り、要求exportに対応するbarrelを読む。無関係なruntime importをhostが読まないテスト。checkerは要求されたprobe spanのみを問い合わせ、無関係な式やtupleを読まない。overlay/disk読取要求は別計上           | namespace・宣言sliceがないexportは保守的な依存読取。static import/re-exportのhost aliasは別途検証済み                      |
 
 module CSSには明示・暗黙のlayer順序を保持する。React Routerがroute CSSを基盤CSSより先に配置した実験でPreflightがutilityを上書きしたため、文書の通常ruleを複製せずlayer順序だけを各carrierへ残す。開発時のCSS importには版を付け、macro削除直後の復元を以前のHMR pruneが消す競合を避ける。版はclassのsaltに使わない。
 
@@ -23,7 +23,9 @@ RsbuildのLightning CSSがroot外carrierを`../`を含むsource名へ再構成�
 
 Vite 0.3.1の実ビルドではJSの`.map`は生成されるがCSSの`.map`は生成されない。これは[ViteのCSS production source mapの未対応](https://github.com/vitejs/vite/issues/2830)と一致する。Stillwindから渡すmapは開発時に有効だが、Vite上のframeworkの本番CSS mapを保証しない。最終CSS assetを後から推測でmap化する処理は追加しない。
 
-残る主な受け入れは意味解決のhost整合、各frameworkのJS map検証と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
+意味依存については、hostが実際に選んだstatic import/re-exportの参照先をchecker用shadow sourceへ渡す。OXCのstring literal spanを使って置換し、元のUTF-8 spanへ戻すための編集位置も保持する。同じaliasがimporterごとに異なる場合、参照先変更後のincremental snapshot、未保存サブディレクトリ、Viteの独自aliasを検証した。外部packageの型解決はTypeScriptに委ね、将来のSFC仮想moduleやdynamic importまで同じ契約で対応したとは扱わない。
+
+残る主な受け入れは各frameworkのJS map検証と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
 
 ## 実装第一段階（2026-09-10）
 

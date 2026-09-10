@@ -45,6 +45,7 @@ export interface PlayOutput extends CompilerOutput {
 }
 
 export interface ModuleSummary {
+  module_specifiers: Array<{ source: string; start: number; end: number }>;
   type_probes: Array<{ start: number; end: number }>;
   imports: ImportBinding[];
   re_exports: Array<{ source: string; exported: string; imported: string }>;

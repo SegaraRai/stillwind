@@ -7,7 +7,8 @@ use oxc::ast_visit::{Visit, walk};
 
 use stillwind_ir::StyleCall;
 use stillwind_semantic::{
-    AssetKind, ExportedValue, ImportBinding, ReExport, RefAlternative, SymbolicValue,
+    AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, RefAlternative,
+    SymbolicValue,
 };
 use stillwind_source::{CompileError, Spanned};
 
@@ -23,6 +24,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     }
 
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
+        self.module_specifiers.push(ModuleSpecifier {
+            source: declaration.source.value.to_string(),
+            start: declaration.source.span.start,
+            end: declaration.source.span.end,
+        });
         if Self::is_style_import(declaration)
             && let Some(specifiers) = &declaration.specifiers
         {
@@ -111,6 +117,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     }
 
     fn visit_export_from_declaration(&mut self, declaration: &ExportFromDeclaration<'a>) {
+        self.module_specifiers.push(ModuleSpecifier {
+            source: declaration.source.value.to_string(),
+            start: declaration.source.span.start,
+            end: declaration.source.span.end,
+        });
         for specifier in &declaration.specifiers {
             self.re_exports.push(ReExport {
                 exported: Self::module_export_name(&specifier.exported),
@@ -122,6 +133,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     }
 
     fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
+        self.module_specifiers.push(ModuleSpecifier {
+            source: declaration.source.value.to_string(),
+            start: declaration.source.span.start,
+            end: declaration.source.span.end,
+        });
         self.re_exports.push(ReExport {
             exported: declaration
                 .exported

@@ -5,6 +5,28 @@ use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.ts",
+        "// 日本語 🧭\nimport {x} from '@a'; export {x as y} from \"@b\"; export * from '@c';",
+    )
+    .unwrap();
+    let summary = parse(&source).summary;
+    assert_eq!(summary.module_specifiers.len(), 3);
+    for (specifier, literal) in summary
+        .module_specifiers
+        .iter()
+        .zip(["'@a'", "\"@b\"", "'@c'"])
+    {
+        assert_eq!(
+            &source.text()[specifier.start as usize..specifier.end as usize],
+            literal
+        );
+    }
+}
+
+#[test]
 fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
     let source = SourceFile::new(FileId(1), "solid.tsx", "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
     let parsed = parse(&source);

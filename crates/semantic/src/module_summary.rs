@@ -18,8 +18,18 @@ pub struct ReExport {
     pub imported: String,
 }
 
+/// Exact string-literal span for host-authoritative shadow module resolution.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ModuleSpecifier {
+    pub source: String,
+    pub start: u32,
+    pub end: u32,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ModuleSummary {
+    #[serde(default)]
+    pub module_specifiers: Vec<ModuleSpecifier>,
     pub schema: u32,
     pub module_path: String,
     pub imports: Vec<ImportBinding>,
@@ -39,6 +49,7 @@ impl ModuleSummary {
 
     pub fn new(module_path: &str) -> Self {
         Self {
+            module_specifiers: Vec::new(),
             schema: Self::SCHEMA,
             module_path: normalized_module_path(module_path),
             imports: Vec::new(),

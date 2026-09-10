@@ -11,6 +11,8 @@ export interface TypeFactSource {
   source: string;
   /** Byte spans requested by the macro frontend; unrelated expressions are not queried. */
   probes: readonly { start: number; end: number }[];
+  /** Host-selected local modules; spans include the import's string quotes. */
+  resolutions?: readonly { start: number; end: number; id: string }[];
 }
 
 export interface IdentityId {
@@ -34,12 +36,16 @@ export interface TypeFact {
   value: unknown;
 }
 
-interface Insertion {
+interface ShadowEdit {
   at: number;
+  end: number;
   text: string;
 }
 
-const normalize = (fileName: string) => path.resolve(fileName).replaceAll("\\", "/").toLowerCase();
+const normalize = (fileName: string) => {
+  const name = path.resolve(fileName).replaceAll("\\", "/");
+  return process.platform === "win32" ? name.toLowerCase() : name;
+};
 
 function visit(node: Node, callback: (node: Node) => void) {
   callback(node);
@@ -60,40 +66,47 @@ function identityKey(identity: IdentityId): string {
 
 function shadowSource(source: TypeFactSource, assets: readonly AssetRecord[]) {
   const identities = new Map<string, IdentityId>();
-  const insertions = assets
-    .map((asset): Insertion => {
-      const key = identityKey(asset.identity);
-      identities.set(key, asset.identity);
-      const callStart = byteToUtf16(source.source, asset.call_start);
-      const callEnd = byteToUtf16(source.source, asset.call_end);
-      const call = source.source.slice(callStart, callEnd);
-      const closingParen = call.lastIndexOf(")");
-      if (closingParen < 0) throw new Error(`Stillwind producer has no closing parenthesis`);
-      const openingParen = call.indexOf("(");
-      const hasArguments = call.slice(openingParen + 1, closingParen).trim().length > 0;
-      const identityType = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
-      return {
-        at: callStart + closingParen,
-        text: `${hasArguments ? "," : ""}undefined as unknown as ${identityType}`,
-      };
-    })
-    .sort((left, right) => left.at - right.at);
+  const edits = assets.map((asset): ShadowEdit => {
+    const key = identityKey(asset.identity);
+    identities.set(key, asset.identity);
+    const callStart = byteToUtf16(source.source, asset.call_start);
+    const callEnd = byteToUtf16(source.source, asset.call_end);
+    const call = source.source.slice(callStart, callEnd);
+    const closingParen = call.lastIndexOf(")");
+    if (closingParen < 0) throw new Error(`Stillwind producer has no closing parenthesis`);
+    const openingParen = call.indexOf("(");
+    const hasArguments = call.slice(openingParen + 1, closingParen).trim().length > 0;
+    const identityType = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
+    return {
+      at: callStart + closingParen,
+      end: callStart + closingParen,
+      text: `${hasArguments ? "," : ""}undefined as unknown as ${identityType}`,
+    };
+  });
+  for (const resolution of source.resolutions ?? []) {
+    edits.push({
+      at: byteToUtf16(source.source, resolution.start),
+      end: byteToUtf16(source.source, resolution.end),
+      text: JSON.stringify(path.resolve(resolution.id).replaceAll("\\", "/")),
+    });
+  }
+  edits.sort((left, right) => left.at - right.at);
 
   let text = source.source;
-  for (const insertion of [...insertions].reverse()) {
-    text = text.slice(0, insertion.at) + insertion.text + text.slice(insertion.at);
+  for (const edit of [...edits].reverse()) {
+    text = text.slice(0, edit.at) + edit.text + text.slice(edit.end);
   }
-  return { text, insertions, identities };
+  return { text, edits, identities };
 }
 
-function shadowToOriginal(position: number, insertions: readonly Insertion[]): number | null {
+function shadowToOriginal(position: number, edits: readonly ShadowEdit[]): number | null {
   let inserted = 0;
-  for (const insertion of insertions) {
-    const shadowStart = insertion.at + inserted;
-    const shadowEnd = shadowStart + insertion.text.length;
+  for (const edit of edits) {
+    const shadowStart = edit.at + inserted;
+    const shadowEnd = shadowStart + edit.text.length;
     if (position < shadowStart) break;
     if (position < shadowEnd) return null;
-    inserted += insertion.text.length;
+    inserted += edit.text.length - (edit.end - edit.at);
   }
   return position - inserted;
 }
@@ -196,7 +209,7 @@ interface PreparedProject {
   virtualFiles: Map<string, string>;
   mappings: Map<
     string,
-    { source: TypeFactSource; insertions: Insertion[]; identities: Map<string, IdentityId> }
+    { source: TypeFactSource; edits: ShadowEdit[]; identities: Map<string, IdentityId> }
   >;
   identities: Map<string, IdentityId>;
 }
@@ -218,7 +231,7 @@ function prepareProject(
   const virtualFiles = new Map<string, string>();
   const mappings = new Map<
     string,
-    { source: TypeFactSource; insertions: Insertion[]; identities: Map<string, IdentityId> }
+    { source: TypeFactSource; edits: ShadowEdit[]; identities: Map<string, IdentityId> }
   >();
   const allIdentities = new Map<string, IdentityId>();
 
@@ -309,6 +322,12 @@ export class TypeScriptFactsService {
       cwd: this.#projectRoot,
       collectTiming: true,
       fs: {
+        directoryExists: (directoryName) => {
+          const prefix = normalize(directoryName).replace(/\/$/, "") + "/";
+          return [...this.#virtualFiles.keys()].some((name) => name.startsWith(prefix))
+            ? true
+            : undefined;
+        },
         fileExists: (fileName) => (this.#virtualFiles.has(normalize(fileName)) ? true : undefined),
         readFile: (fileName) => {
           const overlay = this.#virtualFiles.get(normalize(fileName));
@@ -382,7 +401,7 @@ export function collectTypeScriptFacts(
 function factsForSource(
   checker: Checker,
   sourceFile: SourceFile,
-  mapping: { source: TypeFactSource; insertions: Insertion[] },
+  mapping: { source: TypeFactSource; edits: ShadowEdit[] },
   identities: ReadonlyMap<string, IdentityId>,
 ): TypeFact[] {
   const expressions: Node[] = [];
@@ -390,8 +409,8 @@ function factsForSource(
   if (probes.size === 0) return [];
   visit(sourceFile, (node) => {
     if (!isExpression(node)) return;
-    const start = shadowToOriginal(node.getStart(sourceFile), mapping.insertions);
-    const end = shadowToOriginal(node.end, mapping.insertions);
+    const start = shadowToOriginal(node.getStart(sourceFile), mapping.edits);
+    const end = shadowToOriginal(node.end, mapping.edits);
     if (start === null || end === null) return;
     if (
       probes.has(
@@ -407,8 +426,8 @@ function factsForSource(
     if (!type) continue;
     const value = typeFactValue(checker, type, identities);
     if (!value) continue;
-    const start = shadowToOriginal(expressions[index].getStart(sourceFile), mapping.insertions);
-    const end = shadowToOriginal(expressions[index].end, mapping.insertions);
+    const start = shadowToOriginal(expressions[index].getStart(sourceFile), mapping.edits);
+    const end = shadowToOriginal(expressions[index].end, mapping.edits);
     if (start === null || end === null) continue;
     facts.push({
       start: utf16ToByte(mapping.source.source, start),

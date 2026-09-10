@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -11,12 +11,48 @@ import {
   NativeDesignSystemLoader,
   NativeProjectSession,
 } from "@stillwind/native";
+import { build } from "vite-plus";
 
 import { resolveFixtureCss } from "../../../tools/lib/stillwind-fixture-css.ts";
-import { finalizeReactModule } from "../src/index.ts";
+import { finalizeReactModule, stillwind } from "../src/index.ts";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/type-facts");
+
+void test("Vite aliases select the same asset in the host and checker", async () => {
+  const root = mkdtempSync(path.join(path.dirname(fixtureRoot), "../.session-test-"));
+  const put = (name: string, text: string) => writeFileSync(path.join(root, name), text);
+  put("index.html", '<script type="module" src="/entry.ts"></script>');
+  put("root.css", "@utility chosen {color:rgb(11,22,33)} @stillwind-slot utilities;");
+  put(
+    "asset.ts",
+    "import {style} from 'stillwind/react'; export const token=style.animation({from:'chosen',to:'chosen'});",
+  );
+  put(
+    "entry.ts",
+    "import {style} from 'stillwind/react'; import {token} from '@selected'; console.log(style(token('')));",
+  );
+  try {
+    const result = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      resolve: { alias: { "@selected": path.join(root, "asset.ts") } },
+      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+      build: { write: false, minify: false, cssMinify: false },
+    });
+    assert.ok("output" in result);
+    const css = result.output
+      .flatMap((asset) =>
+        asset.type === "asset" && asset.fileName.endsWith(".css") ? [String(asset.source)] : [],
+      )
+      .join("\n");
+    assert.match(css, /@keyframes/);
+    assert.match(css, /11,\s*22,\s*33/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   .map((name) => ({

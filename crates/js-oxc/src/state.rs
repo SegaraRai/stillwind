@@ -8,8 +8,8 @@ use stillwind_ir::{
     AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
-    AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding, ModuleSummary,
-    ReExport, TypeFact,
+    AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
+    ModuleSpecifier, ModuleSummary, ReExport, TypeFact,
 };
 use stillwind_source::{CompileError, SourceFile, Spanned};
 
@@ -43,6 +43,7 @@ impl<'a> MacroExtractor<'a> {
             jsx_path: Vec::new(),
             next_jsx_element: 0,
             imports: Vec::new(),
+            module_specifiers: Vec::new(),
             re_exports: Vec::new(),
             export_symbols: Vec::new(),
             type_facts: type_facts
@@ -67,6 +68,9 @@ impl<'a> MacroExtractor<'a> {
     pub(super) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.source.path());
         summary.imports.clone_from(&self.imports);
+        summary
+            .module_specifiers
+            .clone_from(&self.module_specifiers);
         summary.re_exports.clone_from(&self.re_exports);
 
         for definition in &self.scope_definitions {
@@ -144,6 +148,7 @@ pub(super) struct MacroExtractor<'a> {
     pub(super) jsx_path: Vec<usize>,
     pub(super) next_jsx_element: usize,
     pub(super) imports: Vec<ImportBinding>,
+    pub(super) module_specifiers: Vec<ModuleSpecifier>,
     pub(super) re_exports: Vec<ReExport>,
     pub(super) export_symbols: Vec<(SymbolId, String)>,
     pub(super) type_facts: HashMap<(u32, u32), ExportedValue>,

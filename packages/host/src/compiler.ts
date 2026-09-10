@@ -60,6 +60,7 @@ export async function compileModule(
   const needsTypeFacts = entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesById = new Map<string, ProjectSource>();
+  const resolutions = new Map<string, Map<string, string>>();
   const visited = new Map<string, Set<string | null>>();
   const pending: Array<{ source: ProjectSource; requested: string | null }> = [
     {
@@ -86,6 +87,9 @@ export async function compileModule(
       if (!resolved || resolved.external) continue;
       const dependencyId = cleanModuleId(resolved.id);
       if (!/\.[cm]?[jt]sx?$/.test(dependencyId)) continue;
+      let sourceResolutions = resolutions.get(source.id);
+      if (!sourceResolutions) resolutions.set(source.id, (sourceResolutions = new Map()));
+      sourceResolutions.set(dependency.source, dependencyId);
       host.watch(dependencyId);
       let dependencySource = sourcesById.get(dependencyId);
       if (!dependencySource) {
@@ -106,7 +110,17 @@ export async function compileModule(
   const sources = [...sourcesById.values()];
   const typeFacts = needsTypeFacts
     ? factsService().collect(
-        sources.map((source) => ({ ...source, probes: summaries.get(source.path)!.type_probes })),
+        sources.map((source) => {
+          const summary = summaries.get(source.path)!;
+          return {
+            ...source,
+            probes: summary.type_probes,
+            resolutions: summary.module_specifiers.flatMap((specifier) => {
+              const id = resolutions.get(source.id)?.get(specifier.source);
+              return id ? [{ start: specifier.start, end: specifier.end, id }] : [];
+            }),
+          };
+        }),
         new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
       )
     : new Map<string, TypeFact[]>();
