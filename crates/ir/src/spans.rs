@@ -17,6 +17,15 @@ impl ModuleIr {
         mut map: impl FnMut(Span) -> Result<Span, E>,
     ) -> Result<Self, E> {
         let mut result = self.clone();
+        for import in &mut result.imports.macros {
+            import.span = map(import.span)?;
+            for specifier in &mut import.specifiers {
+                specifier.span = map(specifier.span)?;
+                for reference in &mut specifier.references {
+                    *reference = map(*reference)?;
+                }
+            }
+        }
         for call in &mut result.style_calls {
             call.span = map(call.span)?;
             for input in &mut call.inputs {

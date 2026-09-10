@@ -9,6 +9,8 @@ pub use crate::framework::AdapterKind;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ModuleIr {
     pub adapter: AdapterKind,
+    #[serde(default)]
+    pub imports: ModuleImports,
     pub style_calls: Vec<StyleCall>,
     pub handle_definitions: Vec<HandleDefinition>,
     pub scope_definitions: Vec<ScopeDefinition>,
@@ -20,6 +22,10 @@ impl ModuleIr {
     pub const fn react() -> Self {
         Self {
             adapter: AdapterKind::React,
+            imports: ModuleImports {
+                reserved_names: Vec::new(),
+                macros: Vec::new(),
+            },
             style_calls: Vec::new(),
             handle_definitions: Vec::new(),
             scope_definitions: Vec::new(),
@@ -27,6 +33,31 @@ impl ModuleIr {
             view_transition_declarations: Vec::new(),
         }
     }
+}
+
+/// Binding-aware import information. All spans belong to the editable source.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ModuleImports {
+    /// Includes nested bindings and unresolved reads to avoid capturing user code.
+    pub reserved_names: Vec<String>,
+    pub macros: Vec<MacroImport>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MacroImport {
+    pub span: Span,
+    pub specifiers: Vec<MacroImportSpecifier>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MacroImportSpecifier {
+    pub span: Span,
+    pub local: String,
+    /// Only value imports of the framework macro may be removed after lowering.
+    pub is_macro: bool,
+    /// Incomplete reference correspondence forbids deleting this binding.
+    pub has_unmapped_references: bool,
+    pub references: Vec<Span>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

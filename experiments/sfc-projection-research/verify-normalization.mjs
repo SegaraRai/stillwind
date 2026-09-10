@@ -91,7 +91,10 @@ const results = JSON.parse(
     },
   ),
 );
-assert(results.every((result) => !result.error));
+assert(
+  results.every((result) => !result.error),
+  JSON.stringify(results.filter((result) => result.error)),
+);
 const slice = (source, span) => Buffer.from(source).subarray(span.start, span.end).toString();
 const summary = results.map((result, index) => {
   const fixture = [...fixtures, ...dynamicFixtures][index];

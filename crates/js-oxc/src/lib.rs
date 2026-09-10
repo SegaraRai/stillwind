@@ -18,6 +18,7 @@ mod bindings;
 mod demand;
 mod entry;
 mod expressions;
+mod imports;
 mod motion;
 mod normalization;
 mod projected_scan;

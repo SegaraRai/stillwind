@@ -45,6 +45,28 @@ fn projected() -> SourceInput {
 }
 
 #[test]
+fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_macros() {
+    let mut input = projected();
+    input.code = Arc::new(
+        SourceFile::new(
+            input.code.id(),
+            input.code.path(),
+            format!("{}\ntype Exposed = typeof style;", input.code.text()),
+        )
+        .unwrap(),
+    );
+    let scan = OxcSourceAnalyzer.scan_input(input);
+    assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
+    assert_eq!(scan.local_ir.style_calls.len(), 1);
+    let specifier = &scan.local_ir.imports.macros[0].specifiers[0];
+    assert!(specifier.has_unmapped_references);
+    assert_eq!(specifier.references.len(), 2);
+    for reference in &specifier.references {
+        assert_eq!(scan.source.slice(*reference).unwrap(), "style");
+    }
+}
+
+#[test]
 fn projected_analysis_preserves_original_source_and_semantic_identity() {
     let input = projected();
     let original = Arc::clone(input.edit_source());

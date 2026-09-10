@@ -54,11 +54,32 @@ impl NormalizedProjection<'_> {
         ir: &ModuleIr,
     ) -> Result<(ModuleIr, Vec<SourceProvenance>), ProjectionError> {
         let mut provenance = Vec::new();
-        let original = ir.try_map_spans(|span| {
+        // Converter-only reads (for example generated type queries) may have no
+        // original coordinate. Keep that uncertainty rather than inventing a
+        // location or allowing an unsafe import deletion.
+        let mut editable = ir.clone();
+        for import in &mut editable.imports.macros {
+            for specifier in &mut import.specifiers {
+                specifier.references.clear();
+            }
+        }
+        let mut original = editable.try_map_spans(|span| {
             let mapped = self.original_span(span)?;
             provenance.push(mapped);
             Ok::<_, ProjectionError>(mapped.original)
         })?;
+        for (target, source) in original.imports.macros.iter_mut().zip(&ir.imports.macros) {
+            for (target, source) in target.specifiers.iter_mut().zip(&source.specifiers) {
+                for reference in &source.references {
+                    if let Ok(mapped) = self.original_span(*reference) {
+                        target.references.push(mapped.original);
+                        provenance.push(mapped);
+                    } else {
+                        target.has_unmapped_references = true;
+                    }
+                }
+            }
+        }
         Ok((original, provenance))
     }
 }

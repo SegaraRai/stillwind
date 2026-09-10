@@ -101,6 +101,38 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
 }
 
 #[test]
+fn import_edit_metadata_tracks_macro_references_and_preserves_mixed_bindings() {
+    let source = SourceFile::new(FileId(1), "entry.tsx", "import fallback, {style as s, type StyleArgument, other} from 'stillwind/react'; const a = s('flex'); const retained = s; function f(s: Function, stillwindRef: string) { return s('grid') + stillwindClsx; }").unwrap();
+    let parsed = parse(&source);
+    assert!(parsed.diagnostics.is_empty());
+    let imports = &parsed.module.imports;
+    assert_eq!(imports.macros.len(), 1);
+    let declaration = &imports.macros[0];
+    assert!(
+        source
+            .slice(declaration.span)
+            .unwrap()
+            .starts_with("import fallback")
+    );
+    assert_eq!(declaration.specifiers.len(), 4);
+    let macros: Vec<_> = declaration
+        .specifiers
+        .iter()
+        .filter(|specifier| specifier.is_macro)
+        .collect();
+    assert_eq!(macros.len(), 1);
+    assert_eq!(macros[0].local, "s");
+    assert_eq!(source.slice(macros[0].span).unwrap(), "style as s");
+    assert_eq!(macros[0].references.len(), 2);
+    for reference in &macros[0].references {
+        assert_eq!(source.slice(*reference).unwrap(), "s");
+    }
+    for reserved in ["fallback", "StyleArgument", "stillwindRef", "stillwindClsx"] {
+        assert!(imports.reserved_names.iter().any(|name| name == reserved));
+    }
+}
+
+#[test]
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     let source = SourceFile::new(
         FileId(1),

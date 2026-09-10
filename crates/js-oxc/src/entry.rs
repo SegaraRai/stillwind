@@ -101,6 +101,7 @@ pub fn parse_with_language(
         summary,
         module: ModuleIr {
             adapter: extractor.adapter.unwrap_or(AdapterKind::React),
+            imports: super::imports::collect(&result.program, semantic.scoping(), source.id()),
             style_calls: extractor.style_calls,
             handle_definitions: extractor.handle_definitions,
             scope_definitions: extractor.scope_definitions,
