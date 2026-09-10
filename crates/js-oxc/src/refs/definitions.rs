@@ -119,7 +119,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         Some(HandleDefinition {
-            module_path: stillwind_source::normalized_module_path(self.source.path()),
+            module_path: normalized_module_path(self.source.path()),
             name,
             label,
             scope,

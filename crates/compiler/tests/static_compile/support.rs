@@ -1,3 +1,6 @@
+use stillwind_compiler::CompileResult;
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 /// Compare utilities against upstream fixtures using Stillwind's own entrypoints.
@@ -187,9 +190,9 @@ pub(super) fn class_rule_signatures(css: &str) -> Vec<String> {
     signatures
 }
 
-pub(super) fn compile_one_utility(utility: &str) -> stillwind_compiler::CompileResult {
+pub(super) fn compile_one_utility(utility: &str) -> CompileResult {
     Compiler::compile_source(
-        &stillwind_js_oxc::OxcSourceAnalyzer,
+        &OxcSourceAnalyzer,
         &SourceFile::new(
             FileId(91),
             "src/Property.tsx",

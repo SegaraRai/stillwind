@@ -1,3 +1,5 @@
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 #[test]
@@ -14,7 +16,7 @@ const panel = style(popover.position, "absolute");"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("anchor-name:--sw-r-"));
@@ -39,7 +41,7 @@ const panel = style(popover.position);"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
         result
@@ -63,7 +65,7 @@ const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@container --sw-r-"));
@@ -93,7 +95,7 @@ const child = style({ [trigger`&:hover`]: "text-accent" });"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let marker = "s_";
@@ -119,7 +121,7 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
@@ -159,7 +161,7 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
         result
@@ -184,7 +186,7 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
         result

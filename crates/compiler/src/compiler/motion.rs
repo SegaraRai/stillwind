@@ -160,13 +160,13 @@ mod tests {
 
     #[test]
     fn resolves_themed_duration_as_an_animation_option_only() {
-        let source = crate::css_fixture::source(
+        let theme: SourceFile = crate::css_fixture::source(
             FileId(1),
             "stillwind.css",
             "@theme { --duration-normal: 180ms; }",
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source).unwrap();
+        let theme = Compiler::read_theme(&theme).unwrap();
         let options = Spanned::new(
             "duration-normal both".to_owned(),
             Span::new(FileId(2), 0, 20),

@@ -221,20 +221,17 @@ mod tests {
 
     use super::*;
     use crate::CompilerOptions;
-    use crate::css_fixture::source;
 
     #[test]
     fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
-        let snapshot = DesignSystemSnapshot::from_source(
-            &source(
-                FileId(1),
-                "theme",
-                "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
-            )
-            .unwrap(),
-            DesignSystemOptions::default(),
+        let theme = crate::css_fixture::source(
+            FileId(1),
+            "theme",
+            "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
         )
         .unwrap();
+        let snapshot =
+            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
         for (prefix, expected) in [
             ("bg-br", "bg-brand"),

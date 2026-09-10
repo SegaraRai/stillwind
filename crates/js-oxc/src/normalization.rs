@@ -9,10 +9,10 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::parser::Parser;
 use oxc::span::GetSpan;
 
-use stillwind_ir::ModuleIr;
 use stillwind_ir::framework::{
     AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression,
 };
+use stillwind_ir::{ModuleIr, ScriptLanguage};
 use stillwind_source::{
     FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance, Span,
 };
@@ -108,7 +108,7 @@ pub fn normalize_projection<'a>(
         map,
         framework,
         analysis_id,
-        stillwind_ir::ScriptLanguage::from_path(generated.path()),
+        ScriptLanguage::from_path(generated.path()),
     )
 }
 
@@ -118,7 +118,7 @@ pub(crate) fn normalize_with_language<'a>(
     map: &ProjectionMap,
     framework: AdapterKind,
     analysis_id: FileId,
-    language: stillwind_ir::ScriptLanguage,
+    language: ScriptLanguage,
 ) -> Result<NormalizedProjection<'a>, ProjectionError> {
     if generated.id() == original.id()
         || analysis_id == generated.id()

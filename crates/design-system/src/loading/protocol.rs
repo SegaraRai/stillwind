@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceFile, Span};
 
 use super::state::DesignSystemLoadError;
 use crate::DesignSystemSnapshot;
@@ -54,7 +54,7 @@ pub struct CssResourceReference {
     pub placeholder: String,
     pub owner: String,
     pub specifier: String,
-    pub span: stillwind_source::Span,
+    pub span: Span,
 }
 
 #[derive(Clone, Debug)]

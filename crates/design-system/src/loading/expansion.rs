@@ -1,4 +1,5 @@
-use stillwind_source::{SourceError, SourceFile, Span};
+use stillwind_css::relative_css_urls;
+use stillwind_source::{Fingerprint, SourceError, SourceFile, Span};
 
 use super::protocol::{CssResourceReference, CssSourceMapping};
 
@@ -50,7 +51,7 @@ impl ExpandedSource {
                 end: range.end,
             })?;
         let mut cursor = range.start;
-        for resource in stillwind_css::relative_css_urls(text) {
+        for resource in relative_css_urls(text) {
             let start = range.start + resource.range.start;
             let end = range.start + resource.range.end;
             self.append_original(source, cursor..start)?;
@@ -60,10 +61,7 @@ impl ExpandedSource {
                 source.path(),
                 resource.specifier
             );
-            let placeholder = format!(
-                "__stillwind_resource_{}__",
-                stillwind_source::Fingerprint::of(identity).0
-            );
+            let placeholder = format!("__stillwind_resource_{}__", Fingerprint::of(identity).0);
             let replacement = if resource.string {
                 format!("\"{placeholder}\"")
             } else {

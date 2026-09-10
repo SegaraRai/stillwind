@@ -5,7 +5,8 @@ use oxc::ast::ast::ModuleExportName;
 use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_ir::{
-    AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall, ViewTransitionDefinition,
+    AdapterKind, AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall,
+    ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
@@ -128,7 +129,7 @@ impl<'a> MacroExtractor<'a> {
 }
 
 pub(crate) struct MacroExtractor<'a> {
-    pub(crate) adapter: Option<stillwind_ir::AdapterKind>,
+    pub(crate) adapter: Option<AdapterKind>,
     pub(crate) source: &'a SourceFile,
     pub(crate) scoping: &'a Scoping,
     pub(crate) style_symbols: HashSet<SymbolId>,

@@ -5,12 +5,10 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-pub fn source(
-    id: stillwind_source::FileId,
-    path: &str,
-    css: impl AsRef<str>,
-) -> Result<stillwind_source::SourceFile, stillwind_source::SourceError> {
-    stillwind_source::SourceFile::new(id, path, with_defaults(css.as_ref()))
+use stillwind_source::{FileId, SourceError, SourceFile};
+
+pub fn source(id: FileId, path: &str, css: impl AsRef<str>) -> Result<SourceFile, SourceError> {
+    SourceFile::new(id, path, with_defaults(css.as_ref()))
 }
 
 pub fn package_root() -> PathBuf {

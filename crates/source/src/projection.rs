@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use oxc_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -80,7 +81,7 @@ impl<'a> ProjectionIndex<'a> {
         };
         match map {
             ProjectionMap::V3 { json, source } => {
-                let map = oxc_sourcemap::SourceMap::from_json_string(json)
+                let map = SourceMap::from_json_string(json)
                     .map_err(|error| ProjectionError::Map(error.to_string()))?;
                 let sources: Vec<_> = map
                     .get_sources()

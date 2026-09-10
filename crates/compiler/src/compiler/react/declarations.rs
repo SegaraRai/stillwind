@@ -57,7 +57,7 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::FileId;
+    use stillwind_source::{FileId, SourceFile};
 
     use super::render_react_types;
     use crate::Compiler;
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn generates_custom_vocabulary_without_implicit_builtins() {
-        let source = stillwind_source::SourceFile::new(
+        let source = SourceFile::new(
             FileId(0),
             "custom.css",
             "@utility brand {color:red}\n@custom-variant active (&.active);",

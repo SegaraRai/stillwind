@@ -129,7 +129,7 @@ pub struct SessionUpdate {
 /// request handlers pin a clone obtained from `snapshot` before doing work.
 pub struct ProjectSession {
     current: DesignSystemSnapshot,
-    options: stillwind_compiler::CompilerOptions,
+    options: CompilerOptions,
     mode: SessionMode,
     analyses: BTreeMap<ModuleId, ModuleAnalysis>,
     artifacts: BTreeMap<ModuleId, CompiledModule>,
@@ -142,7 +142,7 @@ impl ProjectSession {
     pub fn new(
         snapshot: DesignSystemSnapshot,
         mode: SessionMode,
-        options: stillwind_compiler::CompilerOptions,
+        options: CompilerOptions,
     ) -> Self {
         Self {
             current: snapshot,
@@ -156,24 +156,30 @@ impl ProjectSession {
         }
     }
 
-    pub fn options(&self) -> &stillwind_compiler::CompilerOptions {
+    pub fn options(&self) -> &CompilerOptions {
         &self.options
     }
+
     pub fn snapshot(&self) -> DesignSystemSnapshot {
         self.current.clone()
     }
+
     pub fn stylesheet(&self) -> &ProjectStylesheet {
         &self.stylesheet
     }
+
     pub fn artifacts(&self) -> &BTreeMap<ModuleId, CompiledModule> {
         &self.artifacts
     }
+
     pub fn analyses(&self) -> &BTreeMap<ModuleId, ModuleAnalysis> {
         &self.analyses
     }
+
     pub fn dependencies(&self) -> &DependencyIndex {
         &self.dependencies
     }
+
     pub fn load_error(&self) -> Option<&DesignSystemLoadError> {
         self.load_error.as_ref()
     }

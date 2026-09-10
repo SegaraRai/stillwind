@@ -1,3 +1,5 @@
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 #[test]
@@ -25,7 +27,7 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -73,7 +75,7 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         )
         .unwrap();
         let result = Compiler::compile_source(
-            &stillwind_js_oxc::OxcSourceAnalyzer,
+            &OxcSourceAnalyzer,
             &component,
             &crate::css_fixture::source(
                 FileId(2),
@@ -157,7 +159,7 @@ fn matches_tailwind_fixture_rules_after_minification() {
         )
         .unwrap();
         let result = Compiler::compile_source(
-            &stillwind_js_oxc::OxcSourceAnalyzer,
+            &OxcSourceAnalyzer,
             &component,
             &crate::css_fixture::source(
                 FileId(2),
@@ -207,7 +209,7 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
         )
         .unwrap();
         let result = Compiler::compile_source(
-            &stillwind_js_oxc::OxcSourceAnalyzer,
+            &OxcSourceAnalyzer,
             &component,
             &crate::css_fixture::source(
                 FileId(2),

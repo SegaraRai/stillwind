@@ -1,5 +1,6 @@
 //! Integration of frontend/theme loading, registries and final compiler output.
 
+use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
 use super::Compiler;
@@ -52,7 +53,7 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
         "@theme { --color-accent: red; }",
     )
     .unwrap();
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &js, &css);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &js, &css);
     assert!(result.diagnostics.is_empty(), "{result:?}");
     assert!(result.css.contains("--color-accent:red;"), "{}", result.css);
     assert!(
@@ -157,7 +158,7 @@ fn makes_margin_utility_order_independent() {
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
     )
     .unwrap();
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
     assert!(result.diagnostics.is_empty(), "{result:?}");
     let margin = result.css.find("margin:").expect("margin shorthand");
     let inline = result.css.find("margin-inline:").expect("margin axis");
@@ -179,7 +180,7 @@ fn orders_whole_builtin_utilities_instead_of_individual_properties() {
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
     )
     .unwrap();
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
     assert!(result.diagnostics.is_empty(), "{result:?}");
     let size_width = result
         .css

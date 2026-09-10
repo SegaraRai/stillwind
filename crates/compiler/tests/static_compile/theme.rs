@@ -1,3 +1,5 @@
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 #[test]
@@ -15,7 +17,7 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
     )
     .unwrap();
     let result = Compiler::compile_source(
-        &stillwind_js_oxc::OxcSourceAnalyzer,
+        &OxcSourceAnalyzer,
         &component,
         &crate::css_fixture::source(
             FileId(2),
@@ -59,7 +61,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
                 ),
             ).unwrap();
             let result = Compiler::compile_source(
-                &stillwind_js_oxc::OxcSourceAnalyzer,
+                &OxcSourceAnalyzer,
                 &component,
                 &crate::css_fixture::source(
                     FileId(2),
@@ -85,7 +87,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
     let input_css = fixture_code_block(removed, "Input CSS", "css").unwrap();
     let candidates = fixture_code_block(removed, "Candidates", "text").unwrap();
     let result = Compiler::compile_source(
-        &stillwind_js_oxc::OxcSourceAnalyzer,
+        &OxcSourceAnalyzer,
         &SourceFile::new(
             FileId(3),
             "src/Fixture.tsx",
@@ -123,7 +125,7 @@ fn framework_imports_gate_baseline_layers() {
     .unwrap();
     let compiler = |css| {
         Compiler::compile_source(
-            &stillwind_js_oxc::OxcSourceAnalyzer,
+            &OxcSourceAnalyzer,
             &component,
             &crate::css_fixture::source(FileId(2), "stillwind.css", css).unwrap(),
         )
@@ -159,7 +161,7 @@ fn framework_imports_gate_baseline_layers() {
     assert!(tailwind_individual.diagnostics.is_empty());
     assert!(tailwind_individual.css.contains("@layer utilities{"));
 
-    let content = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer,
+    let content = Compiler::compile_source(&OxcSourceAnalyzer,
         &SourceFile::new(
             FileId(3),
             "src/Content.tsx",

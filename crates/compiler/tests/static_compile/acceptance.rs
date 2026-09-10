@@ -1,3 +1,5 @@
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 #[test]
@@ -17,7 +19,7 @@ export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
         result
@@ -41,7 +43,7 @@ const props = style("grid place-items-center size-10 flex-col grow border outlin
         "@theme { --spacing-10: 2.5rem; --color-accent: red; --z-index-popover: 50; --text-3xl: 1.875rem; }",
     ).unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("place-items:center;"));
@@ -69,7 +71,7 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
     ).unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("background-color:color-mix(in srgb"));
@@ -106,11 +108,9 @@ const props = style(trigger.anchor);"#;
     let other = SourceFile::new(FileId(1), "src/Other.tsx", module).unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let windows_result =
-        Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &windows, &theme);
-    let unix_result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &unix, &theme);
-    let other_result =
-        Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &other, &theme);
+    let windows_result = Compiler::compile_source(&OxcSourceAnalyzer, &windows, &theme);
+    let unix_result = Compiler::compile_source(&OxcSourceAnalyzer, &unix, &theme);
+    let other_result = Compiler::compile_source(&OxcSourceAnalyzer, &other, &theme);
 
     assert_eq!(windows_result.symbols[0].name, unix_result.symbols[0].name);
     assert_ne!(windows_result.symbols[0].name, other_result.symbols[0].name);
@@ -131,7 +131,7 @@ export const props = style(selected);"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert_eq!(result.diagnostics[0].code, "SHTS001");
 }
 
@@ -150,6 +150,6 @@ export const container = style(selected.container("inline-size"));"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert_eq!(result.diagnostics[0].code, "SHTS001");
 }

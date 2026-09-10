@@ -1,3 +1,5 @@
+use stillwind_css::csswg_formal_syntax;
+
 use super::*;
 use crate::evaluation::variants::resolve::resolve_registered_variant_candidate;
 
@@ -51,7 +53,7 @@ pub(super) fn expanded_csswg_syntax(
     if !visited.insert(property.to_owned()) {
         return Some(String::new());
     }
-    let syntax = stillwind_css::csswg_formal_syntax(property)?;
+    let syntax = csswg_formal_syntax(property)?;
     let mut expanded = syntax.to_owned();
     for referenced_property in property_references(syntax) {
         expanded.push(' ');

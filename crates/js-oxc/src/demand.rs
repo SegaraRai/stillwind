@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use oxc::ast::ast::{BindingIdentifier, IdentifierReference, Program};
+use oxc::ast::ast::{BindingIdentifier, IdentifierReference, Program, Statement};
 use oxc::ast_visit::Visit;
 use oxc::semantic::{ReferenceId, Scoping, SymbolId};
 
@@ -67,7 +67,7 @@ pub(crate) fn collect(
         for (name, symbol) in references.bindings {
             // Only an import statement may associate a binding by spelling.
             // Other bindings (including shadowed parameters) retain their symbol IDs.
-            if matches!(statement, oxc::ast::ast::Statement::ImportDeclaration(_))
+            if matches!(statement, Statement::ImportDeclaration(_))
                 && let Some(import) = summary.imports.iter().find(|import| import.local == name)
             {
                 imports.insert(symbol, import.clone());

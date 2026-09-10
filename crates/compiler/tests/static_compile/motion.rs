@@ -1,3 +1,6 @@
+use stillwind_compiler::CompilerOptions;
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 #[test]
@@ -17,7 +20,7 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@keyframes --sw-a-"));
@@ -60,7 +63,7 @@ const detail = style(title);"#,
         "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --ease-standard: ease-out; }",
     ).unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("::view-transition-group(.--sw-v-"));
@@ -111,18 +114,14 @@ export const item = style("translate-x-1", card);"#,
         "@theme { --spacing-1: .25rem; }",
     )
     .unwrap();
-    let options = stillwind_compiler::CompilerOptions {
+    let options = CompilerOptions {
         prefix: "--app-".to_owned(),
         tailwind_prefix: "--compat-".to_owned(),
-        ..stillwind_compiler::CompilerOptions::default()
+        ..CompilerOptions::default()
     };
 
-    let result = Compiler::compile_source_with_options(
-        &stillwind_js_oxc::OxcSourceAnalyzer,
-        &component,
-        &theme,
-        &options,
-    );
+    let result =
+        Compiler::compile_source_with_options(&OxcSourceAnalyzer, &component, &theme, &options);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("::view-transition-old(.--app-v-"));
@@ -148,7 +147,7 @@ export const item = style(card, image);"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
         result

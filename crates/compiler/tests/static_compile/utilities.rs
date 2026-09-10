@@ -1,3 +1,5 @@
+use stillwind_js_oxc::OxcSourceAnalyzer;
+
 use super::*;
 
 #[test]
@@ -20,7 +22,7 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -57,7 +59,7 @@ const props = style("bg-accent");"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(!result.css.contains("--color-accent:var(--app-accent);"));
@@ -85,7 +87,7 @@ const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)
     let theme =
         crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -115,7 +117,7 @@ const props = style("animate-spin");"#,
     let theme =
         crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("animation:var(--animate-spin);"));
@@ -140,7 +142,7 @@ const props = style("content-auto data-checked:content-auto tab-8");"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("content-visibility: auto;"));
@@ -165,7 +167,7 @@ export { props };"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     let transformed = result.apply_to_source(&component).unwrap();
 
     assert!(transformed.starts_with("\nconst props = {className:\"_s_"));
@@ -192,7 +194,7 @@ const props = style(
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
@@ -223,7 +225,7 @@ const props = style("-mt-4 duration-120 ease-standard");"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(

@@ -9,6 +9,7 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 use oxc::span::GetSpan;
 
+use stillwind_ir::framework::{MODULE_CSS_IMPORT, from_macro_import};
 use stillwind_ir::{MacroImport, MacroImportSpecifier, ModuleImports};
 use stillwind_source::{FileId, Span};
 
@@ -71,7 +72,7 @@ impl<'a> Visit<'a> for Collector<'_> {
     }
 
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
-        if declaration.source.value == stillwind_ir::framework::MODULE_CSS_IMPORT && !declaration.import_kind.is_type()
+        if declaration.source.value == MODULE_CSS_IMPORT && !declaration.import_kind.is_type()
             && declaration.specifiers.as_ref().is_none_or(|specifiers| {
                 specifiers.is_empty() || specifiers.iter().any(|specifier| {
                     !matches!(specifier, ImportDeclarationSpecifier::ImportSpecifier(specifier) if specifier.import_kind.is_type())
@@ -80,7 +81,7 @@ impl<'a> Visit<'a> for Collector<'_> {
         {
             self.module_css.push(self.span(declaration.source.span));
         }
-        if stillwind_ir::framework::from_macro_import(declaration.source.value.as_str()).is_some()
+        if from_macro_import(declaration.source.value.as_str()).is_some()
             && !declaration.import_kind.is_type()
             && let Some(specifiers) = &declaration.specifiers
         {

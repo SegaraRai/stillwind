@@ -5,7 +5,9 @@ use stillwind_semantic::{
     AssetKind, IdentityId, IntegrationDiagnostic, ModuleId, ModuleSummary, TypeFacts,
     TypeFactsUpdate,
 };
-use stillwind_source::{CompileError, Fingerprint, LintDirective, LintFinding, SourceFile, Span};
+use stillwind_source::{
+    CompileError, Fingerprint, LintDirective, LintFinding, SourceFile, SourceProvenance, Span,
+};
 
 use crate::{ModuleIr, SourceInput};
 
@@ -17,7 +19,7 @@ pub struct TypeProbe {
 #[derive(Clone, Debug)]
 pub struct ModuleScan {
     pub input: SourceInput,
-    pub provenance: Vec<stillwind_source::SourceProvenance>,
+    pub provenance: Vec<SourceProvenance>,
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
     pub source_revision: Fingerprint,
@@ -32,7 +34,7 @@ pub struct ModuleScan {
 #[derive(Clone, Debug)]
 pub struct ModuleAnalysis {
     pub input: SourceInput,
-    pub provenance: Vec<stillwind_source::SourceProvenance>,
+    pub provenance: Vec<SourceProvenance>,
     /// Declaration-only semantic inputs needed by this producer's standalone CSS.
     pub asset_support: Vec<ModuleAnalysis>,
     pub external_assets: BTreeSet<IdentityId>,

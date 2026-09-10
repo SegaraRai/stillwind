@@ -1,3 +1,5 @@
+use cssparser::{ParseError, Parser, Token};
+
 /// Removes complete block comments and preserves an unterminated comment tail.
 pub fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
@@ -52,7 +54,7 @@ struct DirectiveRule {
 fn directive_rules(css: &str, directive: &str) -> Vec<DirectiveRule> {
     let mut rules = Vec::new();
     scan_directives(
-        &mut cssparser::Parser::new(css),
+        &mut Parser::new(css),
         css,
         directive.trim_start_matches('@'),
         &mut rules,
@@ -61,12 +63,11 @@ fn directive_rules(css: &str, directive: &str) -> Vec<DirectiveRule> {
 }
 
 fn scan_directives(
-    parser: &mut cssparser::Parser<'_>,
+    parser: &mut Parser<'_>,
     css: &str,
     directive: &str,
     rules: &mut Vec<DirectiveRule>,
 ) {
-    use cssparser::{ParseError, Token};
     loop {
         let start = parser.position().byte_index();
         match parser.next_including_whitespace_and_comments() {

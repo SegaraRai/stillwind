@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use serde::Serialize;
+
 use stillwind_source::Fingerprint;
 
 use crate::{AssetMetadata, IdentityId, TypeFact};
@@ -10,7 +12,7 @@ use crate::{AssetMetadata, IdentityId, TypeFact};
 /// use stillwind_semantic::ModuleId;
 /// let module: ModuleId = String::from("entry.tsx");
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
 #[serde(transparent)]
 pub struct ModuleId(pub String);
 

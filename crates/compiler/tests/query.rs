@@ -8,11 +8,10 @@ use stillwind_source::{FileId, SourceFile};
 
 #[test]
 fn queries_share_resolved_custom_definitions_and_pin_revisions() {
-    let snapshot = DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(1), "theme", "@utility brand { color: red; }").unwrap(),
-        DesignSystemOptions::default(),
-    )
-    .unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(1), "theme", "@utility brand { color: red; }").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
     let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
     let resolved = query.resolve_candidate("hover:brand");
     assert!(resolved.diagnostics.is_empty());

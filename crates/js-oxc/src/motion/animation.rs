@@ -3,7 +3,7 @@ use oxc::span::GetSpan;
 
 use stillwind_ir::{AnimationDefinition, AnimationFrame, AssetReference, StyleInput};
 use stillwind_semantic::ExportedValue;
-use stillwind_source::{CompileError, Spanned};
+use stillwind_source::{CompileError, Span, Spanned};
 
 use crate::state::MacroExtractor;
 
@@ -13,7 +13,7 @@ pub(crate) enum ParsedAnimationUse {
         options: Spanned<String>,
     },
     Dynamic {
-        value: stillwind_source::Span,
+        value: Span,
         animations: Vec<AssetReference>,
         options: Spanned<String>,
     },

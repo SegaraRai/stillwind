@@ -61,16 +61,14 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
     );
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
     let compile = |policy: &str| {
-        let snapshot = DesignSystemSnapshot::from_source(
-            &crate::css_fixture::source(
-                FileId(2),
-                "theme",
-                format!("@stillwind {{ unknown-utility: {policy}; }}"),
-            )
-            .unwrap(),
-            DesignSystemOptions::default(),
+        let theme = crate::css_fixture::source(
+            FileId(2),
+            "theme",
+            format!("@stillwind {{ unknown-utility: {policy}; }}"),
         )
         .unwrap();
+        let snapshot =
+            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
         let module = analysis.clone();
         std::thread::spawn(move || {
             ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(&module)

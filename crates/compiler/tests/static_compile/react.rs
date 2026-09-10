@@ -1,3 +1,5 @@
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
+
 use super::*;
 
 #[test]
@@ -9,8 +11,7 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
              const text = 'stillwindAnimation(';\n\
              function render(stillwindClsx: string) {{ return sw('flex', {{class: stillwindClsx_1}}); }}"
         )).unwrap();
-        let result =
-            Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+        let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         let code = result.apply_to_source(&component).unwrap();
         assert!(code.contains(&format!("import {{ stillwindClsx as stillwindClsx_2 }} from \"stillwind/{framework}/runtime\";")), "{code}");
@@ -23,8 +24,7 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
         );
         assert!(!code.contains("{ stillwindAnimation"), "{code}");
         assert!(!code.contains("style as sw"), "{code}");
-        let reparsed =
-            stillwind_js_oxc::parse(&SourceFile::new(FileId(3), "output.tsx", code).unwrap());
+        let reparsed = parse(&SourceFile::new(FileId(3), "output.tsx", code).unwrap());
         assert!(reparsed.diagnostics.is_empty());
         assert!(reparsed.module.imports.macros.is_empty());
     }
@@ -42,8 +42,7 @@ fn residual_macro_references_fail_the_entire_compilation() {
             ),
         )
         .unwrap();
-        let result =
-            Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+        let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
         assert!(
             result
                 .diagnostics
@@ -60,7 +59,7 @@ fn residual_macro_references_fail_the_entire_compilation() {
     let component = SourceFile::new(FileId(1), "entry.tsx",
         "import {style} from 'stillwind/react'; const props = style('flex', {'aria-label': style});"
     ).unwrap();
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert!(
         result
             .diagnostics
@@ -91,7 +90,7 @@ export function SaveButton() {
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 1);
@@ -122,7 +121,7 @@ const props = style("bg-accnet");"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     let finding = result
         .lint_findings
         .first()
@@ -150,7 +149,7 @@ const props = style("bg-[color:red");"#,
     let theme =
         crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert_eq!(result.lint_findings[0].rule, "invalid-utility");
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("bg-[color:red"));
@@ -173,7 +172,7 @@ const fourth = style("m-accnet");"#,
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert_eq!(result.lint_findings.len(), 1);
     assert_eq!(result.lint_findings[0].rule, "unknown-utility");
     let transformed = result.apply_to_source(&component).unwrap();
@@ -200,7 +199,7 @@ const props = style("bg-accent", loading && "opacity-60");"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
@@ -225,7 +224,7 @@ const props = style(active ? "bg-accent" : "bg-muted");"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
@@ -253,8 +252,7 @@ const props = style(n() > 0 ? "bg-accent" : "bg-muted");"#
             "@theme { --color-accent: red; --color-muted: gray; }",
         )
         .unwrap();
-        let result =
-            Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+        let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
         assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
         let replacement = &result.transforms[0].replacement;
         assert!(replacement.contains("(n() > 0)&&"), "{replacement}");
@@ -284,7 +282,7 @@ const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.transforms.len(), 2);
@@ -315,7 +313,7 @@ const props = style("bg-accent", { class: ["legacy-button", loading && "is-loadi
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.transforms[0].replacement.contains("stillwindClsx("));
@@ -350,7 +348,7 @@ const props = style({ "legacy-loading": loading });"#,
     let theme =
         crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
         result.diagnostics.iter().any(|item| item.code == "SHJS003"),
