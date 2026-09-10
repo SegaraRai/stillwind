@@ -4,7 +4,6 @@ use oxc::allocator::Allocator;
 use oxc::ast::ast::{Expression, ObjectProperty, PropertyKey, StaticMemberExpression};
 use oxc::ast_visit::{Visit, walk};
 use oxc::parser::Parser;
-use oxc::span::SourceType;
 
 use stillwind_ir::ModuleIr;
 use stillwind_ir::framework::{
@@ -76,6 +75,24 @@ pub fn normalize_projection<'a>(
     framework: AdapterKind,
     analysis_id: FileId,
 ) -> Result<NormalizedProjection<'a>, ProjectionError> {
+    normalize_with_language(
+        generated,
+        original,
+        map,
+        framework,
+        analysis_id,
+        stillwind_ir::ScriptLanguage::from_path(generated.path()),
+    )
+}
+
+pub(crate) fn normalize_with_language<'a>(
+    generated: &'a SourceFile,
+    original: &'a SourceFile,
+    map: &ProjectionMap,
+    framework: AdapterKind,
+    analysis_id: FileId,
+    language: stillwind_ir::ScriptLanguage,
+) -> Result<NormalizedProjection<'a>, ProjectionError> {
     if generated.id() == original.id()
         || analysis_id == generated.id()
         || analysis_id == original.id()
@@ -89,7 +106,7 @@ pub fn normalize_projection<'a>(
     let parsed = Parser::new(
         &allocator,
         generated.text(),
-        SourceType::from_path(generated.path()).unwrap_or_default(),
+        super::entry::source_type(generated.path(), language),
     )
     .parse();
     if !parsed.diagnostics.is_empty() {

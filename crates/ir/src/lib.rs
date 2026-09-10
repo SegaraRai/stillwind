@@ -14,8 +14,10 @@
 
 mod analysis;
 pub mod framework;
+mod input;
 mod model;
 mod spans;
 
 pub use analysis::*;
+pub use input::*;
 pub use model::*;

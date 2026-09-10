@@ -2,8 +2,12 @@
 use serde::Deserialize;
 use serde_json::json;
 use std::io::{self, Read};
-use stillwind_ir::AdapterKind;
-use stillwind_js_oxc::{normalize_projection, parse};
+use std::sync::Arc;
+use stillwind_ir::{
+    AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, SourceAnalyzer,
+    SourceInput,
+};
+use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_source::{FileId, ProjectionMap, SourceFile};
 
 #[derive(Deserialize)]
@@ -37,8 +41,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
         let parsed = parse(&normalized.source);
+        let scan = OxcSourceAnalyzer.scan_input(SourceInput {
+            code: Arc::new(generated.clone()),
+            language: ScriptLanguage::Tsx,
+            framework: Some(input.framework),
+            upstream_map: None,
+            projection: Some(FrameworkProjection {
+                original: Arc::new(original.clone()),
+                map: input.map.clone(),
+                converter: ConverterIdentity {
+                    name: "real-converter-fixture".into(),
+                    version: "pinned".into(),
+                    options_fingerprint: "research".into(),
+                },
+                analysis_id: FileId(3),
+                realms: Vec::new(),
+                regions: Vec::new(),
+            }),
+        });
+        let analysis = OxcSourceAnalyzer.finalize(scan, None);
         match normalized.original_ir(&parsed.module) {
-            Ok((ir, provenance)) => results.push(json!({"name":input.name,"ir":ir,"provenance":provenance,"diagnostics":parsed.diagnostics,"normalized":normalized.source.text()})),
+            Ok((ir, provenance)) => {
+                assert_eq!(ir, analysis.ir, "projected analyzer and direct normalization must agree");
+                results.push(json!({"name":input.name,"ir":analysis.ir,"provenance":provenance,"diagnostics":analysis.diagnostics,"normalized":normalized.source.text()}));
+            },
             Err(error) => results.push(json!({"name":input.name,"error":error.to_string(),"normalized":normalized.source.text()})),
         }
     }

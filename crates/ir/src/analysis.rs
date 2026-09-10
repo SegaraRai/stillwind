@@ -7,7 +7,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{CompileError, Fingerprint, LintDirective, LintFinding, SourceFile, Span};
 
-use crate::ModuleIr;
+use crate::{ModuleIr, SourceInput};
 
 #[derive(Clone, Debug)]
 pub struct TypeProbe {
@@ -16,6 +16,8 @@ pub struct TypeProbe {
 
 #[derive(Clone, Debug)]
 pub struct ModuleScan {
+    pub input: SourceInput,
+    pub provenance: Vec<stillwind_source::SourceProvenance>,
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
     pub source_revision: Fingerprint,
@@ -29,6 +31,8 @@ pub struct ModuleScan {
 
 #[derive(Clone, Debug)]
 pub struct ModuleAnalysis {
+    pub input: SourceInput,
+    pub provenance: Vec<stillwind_source::SourceProvenance>,
     /// Declaration-only semantic inputs needed by this producer's standalone CSS.
     pub asset_support: Vec<ModuleAnalysis>,
     pub external_assets: BTreeSet<IdentityId>,
@@ -50,7 +54,10 @@ pub trait TypeScriptFactsProvider {
 }
 
 pub trait SourceAnalyzer {
-    fn scan(&self, source: Arc<SourceFile>) -> ModuleScan;
+    fn scan(&self, source: Arc<SourceFile>) -> ModuleScan {
+        self.scan_input(SourceInput::normal(source))
+    }
+    fn scan_input(&self, input: SourceInput) -> ModuleScan;
     fn finalize(&self, scan: ModuleScan, facts: Option<&TypeFacts>) -> ModuleAnalysis;
 }
 

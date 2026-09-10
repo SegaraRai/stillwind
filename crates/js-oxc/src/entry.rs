@@ -15,6 +15,7 @@ use super::state::MacroExtractor;
 
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
+    pub framework: Option<AdapterKind>,
     pub type_probes: Vec<Span>,
     pub diagnostics: Vec<CompileError>,
     pub lint_findings: Vec<LintFinding>,
@@ -32,8 +33,22 @@ pub fn parse_with_type_facts(
     type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
 ) -> ParsedJavaScript {
+    parse_with_language(
+        source,
+        type_facts,
+        assets,
+        stillwind_ir::ScriptLanguage::from_path(source.path()),
+    )
+}
+
+pub fn parse_with_language(
+    source: &SourceFile,
+    type_facts: &[TypeFact],
+    assets: &BTreeMap<IdentityId, AssetMetadata>,
+    language: stillwind_ir::ScriptLanguage,
+) -> ParsedJavaScript {
     let allocator = Allocator::default();
-    let source_type = SourceType::from_path(Path::new(source.path())).unwrap_or_default();
+    let source_type = source_type(source.path(), language);
     let result = Parser::new(&allocator, source.text(), source_type).parse();
 
     let mut diagnostics: Vec<_> = result
@@ -74,6 +89,7 @@ pub fn parse_with_type_facts(
     }
 
     ParsedJavaScript {
+        framework: extractor.adapter,
         type_probes: extractor
             .type_probes
             .into_inner()
@@ -92,6 +108,18 @@ pub fn parse_with_type_facts(
             view_transition_declarations: extractor.view_transition_declarations,
         },
     }
+}
+
+pub(crate) fn source_type(path: &str, language: stillwind_ir::ScriptLanguage) -> SourceType {
+    use stillwind_ir::ScriptLanguage;
+    let typescript = matches!(language, ScriptLanguage::Ts | ScriptLanguage::Tsx);
+    let jsx = matches!(language, ScriptLanguage::Jsx | ScriptLanguage::Tsx);
+    SourceType::from_path(Path::new(path))
+        .unwrap_or_default()
+        .with_javascript(!typescript)
+        .with_typescript(typescript)
+        .with_jsx(jsx)
+        .with_standard(!jsx)
 }
 
 fn lint_rule_for_code(code: &str) -> Option<&'static str> {

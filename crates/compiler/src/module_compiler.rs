@@ -225,7 +225,8 @@ impl ModuleCompiler {
         ModuleArtifactKey {
             compiler_options: Fingerprint::of(format!("{:?}", self.options)),
             analysis_revision: Fingerprint::of(format!(
-                "{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+                "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+                module.input.revision(),
                 module.ir,
                 module.summary,
                 module.external_assets,

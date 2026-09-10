@@ -224,6 +224,11 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     let mut analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
     let compiler = ModuleCompiler::new(snapshot, CompilerOptions::default());
     let first = compiler.compile(&analysis);
+    let mut upstream_changed = analysis.clone();
+    upstream_changed.input.upstream_map = Some("{\"version\":3,\"sources\":[\"upstream\"]}".into());
+    let upstream_key = compiler.key_for(&upstream_changed);
+    assert_eq!(first.key.source_revision, upstream_key.source_revision);
+    assert_ne!(first.key.analysis_revision, upstream_key.analysis_revision);
     let stillwind_ir::StyleInput::UtilityString(value) = &mut analysis.ir.style_calls[0].inputs[0]
     else {
         panic!("literal utility")

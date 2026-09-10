@@ -20,10 +20,11 @@ mod entry;
 mod expressions;
 mod motion;
 mod normalization;
+mod projected_scan;
 mod refs;
 mod state;
 mod visit;
 
 pub use analyzer::OxcSourceAnalyzer;
-pub use entry::{ParsedJavaScript, parse, parse_with_type_facts};
+pub use entry::{ParsedJavaScript, parse, parse_with_language, parse_with_type_facts};
 pub use normalization::{NormalizedProjection, normalize_projection};
