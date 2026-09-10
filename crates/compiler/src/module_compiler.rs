@@ -9,12 +9,12 @@ use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{ModuleAnalysis, StyleInput};
 use stillwind_semantic::{IdentityId, ModuleId};
-use stillwind_source::{CompileError, FileId, Fingerprint, LintFinding, SourceFile, Span};
+use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile};
 
 use crate::transforms::apply_transforms;
 use crate::{
     CompileResult, Compiler, CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform,
-    StylesheetRenderer, TransformError,
+    TransformError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -168,14 +168,12 @@ impl CompiledModule {
         self.diagnostics.is_empty()
     }
 
-    pub fn to_output(
-        &self,
-        snapshot: &DesignSystemSnapshot,
-        options: &CompilerOptions,
-    ) -> CompileResult {
+    /// Builds a producer's output without assembling document CSS or support layers.
+    pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
-        let mut result = CompileResult {
+        CompileResult {
             resources: self.resources.clone(),
+            css: module_css.clone(),
             module_css,
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
@@ -183,25 +181,7 @@ impl CompiledModule {
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),
             lint_policy: snapshot.theme().config.lint_rules.clone(),
-            ..CompileResult::default()
-        };
-        if self.is_success() {
-            match StylesheetRenderer::new(snapshot, options).render_stylesheet(&result.module_css) {
-                Ok(css) => result.css = css,
-                Err(error) => {
-                    result.diagnostics.push(CompileError::new(
-                        "SHCSS001",
-                        error.to_string(),
-                        Span::new(FileId(self.key.source_file_id), 0, 0),
-                    ));
-                    result.module_css.clear();
-                    result.transforms.clear();
-                    result.classes.clear();
-                    result.symbols.clear();
-                }
-            }
         }
-        result
     }
 }
 

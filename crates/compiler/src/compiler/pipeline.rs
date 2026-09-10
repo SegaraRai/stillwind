@@ -21,7 +21,6 @@ use super::output::CompileResult;
 use super::props::{
     DynamicAssetClassEntry, GeneratedClass, PropsParts, ViewTransitionStyleEntry, render_props,
 };
-use super::stylesheet::render::render_stylesheet;
 use super::symbols::{
     asset_symbol_name, class_name, generated_class_symbol, generated_ref_marker_symbol,
     generated_ref_symbol, generated_scope_marker_symbol, generated_scope_symbol, generated_symbol,
@@ -761,31 +760,13 @@ impl Compiler {
             result.transforms.clear();
         }
 
-        if !result.diagnostics.is_empty() {
+        if result.diagnostics.is_empty() {
+            result.module_css = options.rewrite_generated(&utility_css);
+        } else {
             result.css.clear();
             result.classes.clear();
             result.symbols.clear();
             result.transforms.clear();
-        } else if !utility_css.is_empty()
-            || !theme.custom_css.is_empty()
-            || !theme.output_template.nodes.is_empty()
-        {
-            let utility_css = options.rewrite_generated(&utility_css);
-            result.module_css.clone_from(&utility_css);
-            match render_stylesheet(theme, &result.module_css, options) {
-                Ok(css) => result.css = css,
-                Err(error) => {
-                    result.diagnostics.push(CompileError::new(
-                        "SHCSS001",
-                        error.to_string(),
-                        source.full_span(),
-                    ));
-                    result.module_css.clear();
-                    result.transforms.clear();
-                    result.classes.clear();
-                    result.symbols.clear();
-                }
-            }
         }
 
         for transform in &mut result.transforms {

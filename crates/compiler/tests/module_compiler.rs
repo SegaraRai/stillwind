@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     ClassIdentity, CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform,
+    StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::{HandleDefinition, SourceAnalyzer, StyleInput};
@@ -37,14 +38,70 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
             ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&analysis);
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
         assert_eq!(compiled.css.to_css(), output.module_css, "{candidates}");
+        let fragment = compiled.to_module_output(&snapshot);
+        assert_eq!(fragment.css, output.module_css);
+        assert_eq!(fragment.transforms, output.transforms);
         assert_eq!(
-            compiled.to_output(&snapshot, &CompilerOptions::default()),
+            StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
+                .render_compilation(&compiled, source.full_span()),
             output,
             "{candidates}"
         );
         assert_eq!(
             compiled.apply_to_source(&source).unwrap(),
             output.apply_to_source(&source).unwrap()
+        );
+    }
+}
+
+#[test]
+fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion() {
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "button.tsx",
+            "import {style} from 'stillwind/react'; export const props=style('flex');",
+        )
+        .unwrap(),
+    );
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+    let options = CompilerOptions::default();
+    for (css, expected) in [
+        ("@utility flex {display:flex;}", "@stillwind-slot"),
+        (
+            "@utility flex {display:flex;} @stillwind-slot utilities; .broken{color:--theme(--missing);}",
+            "unresolved --theme()",
+        ),
+    ] {
+        let theme = SourceFile::new(FileId(2), "root.css", css).unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(&theme, options.design_system()).unwrap();
+        let compiled = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(&analysis);
+        assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
+        let fragment = compiled.to_module_output(&snapshot);
+        assert!(fragment.diagnostics.is_empty());
+        assert!(fragment.css.contains("display:flex"));
+        assert!(fragment.apply_to_source(&source).is_ok());
+        let renderer = StylesheetRenderer::new(&snapshot, &options);
+        assert!(
+            renderer
+                .render_stylesheet(&fragment.css)
+                .unwrap_err()
+                .to_string()
+                .contains(expected)
+        );
+        let document = renderer.render_compilation(&compiled, source.full_span());
+        assert_eq!(document.diagnostics[0].code, "SHCSS001");
+        assert_eq!(document.diagnostics[0].labels[0].span, source.full_span());
+        assert!(document.diagnostics[0].message.contains(expected));
+        assert!(document.css.is_empty());
+        assert!(document.module_css.is_empty());
+        assert!(document.classes.is_empty());
+        assert!(document.symbols.is_empty());
+        assert!(document.transforms.is_empty());
+        assert!(document.apply_to_source(&source).is_err());
+        assert_eq!(
+            document,
+            Compiler::compile_source_with_options(&OxcSourceAnalyzer, &source, &theme, &options)
         );
     }
 }

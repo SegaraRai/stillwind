@@ -1,9 +1,10 @@
 use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_source::{CompileError, Span};
 
 use crate::compiler::{
     render_mapped, render_module_stylesheet, render_react_types, render_stylesheet,
 };
-use crate::{CompilerOptions, MappedStylesheet, StylesheetError};
+use crate::{CompileResult, CompiledModule, CompilerOptions, MappedStylesheet, StylesheetError};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StylesheetPlacement {
@@ -26,6 +27,34 @@ impl<'a> StylesheetRenderer<'a> {
 
     pub fn generate_react_types(&self) -> String {
         render_react_types(self.snapshot.theme())
+    }
+
+    /// Produces standalone compilation output, including document CSS.
+    /// Assembly failures become diagnostics and invalidate the generated output.
+    pub fn render_compilation(
+        &self,
+        module: &CompiledModule,
+        diagnostic_span: Span,
+    ) -> CompileResult {
+        let mut result = module.to_module_output(self.snapshot);
+        result.css.clear();
+        if module.is_success() {
+            match self.render_stylesheet(&result.module_css) {
+                Ok(css) => result.css = css,
+                Err(error) => {
+                    result.diagnostics.push(CompileError::new(
+                        "SHCSS001",
+                        error.to_string(),
+                        diagnostic_span,
+                    ));
+                    result.module_css.clear();
+                    result.transforms.clear();
+                    result.classes.clear();
+                    result.symbols.clear();
+                }
+            }
+        }
+        result
     }
 
     /// # Errors

@@ -128,6 +128,54 @@ void test("native semantic unions validate nested asset kinds and candidate payl
     assert.throws(() => compile(value));
 });
 
+void test("stylesheet assembly errors belong to rendering APIs", async () => {
+  const {
+    NativeDesignSystemLoader,
+    NativeProjectSession,
+    compileReact,
+    compileReactProject,
+    renderReactStylesheet,
+  } = await import("../index.js");
+  const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
+  const css = "@utility flex {display:flex;}";
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "root.css", css);
+  const session = new NativeProjectSession(loader, true);
+  const result = session.compile([{ path: "button.tsx", source }]);
+  assert.deepEqual(result.modules[0].diagnostics, []);
+  assert.match(result.modules[0].css, /display:flex/);
+  assert.match(result.modules[0].code, /className/);
+  assert.deepEqual(
+    compileReactProject([{ path: "button.tsx", source }], css).modules[0].diagnostics,
+    [],
+  );
+  assert.throws(() => session.css(), /@stillwind-slot/);
+  assert.throws(() => session.moduleCss("button.tsx"), /@stillwind-slot/);
+  assert.throws(
+    () =>
+      session.planStylesheet({
+        modules: ["button.tsx"],
+        coverage: { kind: "observed" },
+        placement: "document",
+      }),
+    /@stillwind-slot/,
+  );
+  assert.throws(() => renderReactStylesheet(result.modules[0].css, css), /@stillwind-slot/);
+  const standalone = compileReact(source, "button.tsx", css);
+  assert.equal(standalone.diagnostics[0].code, "SHCSS001");
+  assert.equal(standalone.diagnostics[0].start, 0);
+  assert.equal(standalone.diagnostics[0].end, Buffer.byteLength(source));
+  assert.equal(standalone.code, null);
+  assert.equal(standalone.css, "");
+  const repaired = new NativeDesignSystemLoader();
+  repaired.provide(0, "root.css", css + " @stillwind-slot utilities;");
+  assert.equal(session.reload(repaired).cssChanged, true);
+  const valid = session.css();
+  assert.match(valid, /display:flex/);
+  assert.throws(() => session.reload(loader), /@stillwind-slot/);
+  assert.equal(session.css(), valid);
+});
+
 void test("projected session edits original SFC text and preserves watch recovery", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const loader = new NativeDesignSystemLoader();

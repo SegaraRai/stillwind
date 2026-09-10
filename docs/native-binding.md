@@ -41,4 +41,6 @@ The native build regenerates `binding.d.ts`; do not edit it by hand. Only genera
 
 Session compilation updates producers without rendering the project stylesheet. `remove(module)` returns whether that producer was registered, including when another producer keeps the same shared CSS alive. Query `css()` or `planStylesheet()` to render CSS; `reload()` still reports the exact project-level `cssChanged` result across the revision boundary.
 
+`compileReactProject()` and session `compile()` return unwrapped module CSS. They do not assemble document CSS. Assembly errors (such as a missing utilities slot or an unresolved authored theme reference) are reported by stylesheet rendering APIs. Standalone `compileReact()` still assembles the document stylesheet and returns assembly failures as `SHCSS001` diagnostics with no generated code. The Rust equivalents are `CompiledModule::to_module_output` for fragments and `StylesheetRenderer::render_compilation` for standalone output.
+
 The implementation follows napi-rs's [object](https://napi.rs/docs/concepts/object) and [enum](https://napi.rs/docs/concepts/enum) conversion contracts.

@@ -374,12 +374,11 @@ impl NativeProjectSession {
                 .session
                 .artifacts()
                 .get(&scan.module_id)
-                .map(|artifact| artifact.to_output(&snapshot, self.session.options()))
+                .map(|artifact| artifact.to_module_output(&snapshot))
                 .unwrap_or_default();
             if !update.diagnostics.is_empty() {
                 result.diagnostics = update.diagnostics;
             }
-            result.css.clone_from(&result.module_css);
             modules.push(ProjectModuleOutput::new(
                 scan.module_id.0,
                 binding_output(result, &scan.source, &theme),

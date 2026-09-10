@@ -286,7 +286,7 @@ impl ProjectSession {
                 return Err(error.into());
             }
         };
-        let old_css = self.css()?;
+        let old_css = self.css();
         let mut next = Self::new(snapshot, self.mode, options);
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
@@ -306,7 +306,8 @@ impl ProjectSession {
             update.transformed_modules.clear();
             return Ok(update);
         }
-        update.css_changed = old_css != next.css()?;
+        let next_css = next.css()?;
+        update.css_changed = !old_css.is_ok_and(|previous| previous == next_css);
         *self = next;
         Ok(update)
     }

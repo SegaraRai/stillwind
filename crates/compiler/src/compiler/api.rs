@@ -121,8 +121,8 @@ impl Compiler {
                 };
             }
         };
-        ModuleCompiler::new(snapshot.clone(), options.clone())
-            .compile(analysis)
-            .to_output(&snapshot, options)
+        let module = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(analysis);
+        crate::StylesheetRenderer::new(&snapshot, options)
+            .render_compilation(&module, analysis.source.full_span())
     }
 }

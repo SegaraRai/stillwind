@@ -233,10 +233,7 @@ pub fn compile_react_project_input_with_options(
         .iter()
         .zip(results)
         .map(|(scan, result)| {
-            let mut result = result.to_output(&snapshot, options);
-            // Project consumers assemble one shared stylesheet from these
-            // fragments instead of repeating theme/base layers per module.
-            result.css.clone_from(&result.module_css);
+            let result = result.to_module_output(&snapshot);
             ProjectModuleOutput::new(
                 scan.source.path().to_owned(),
                 binding_output(result, &scan.source, &theme),
