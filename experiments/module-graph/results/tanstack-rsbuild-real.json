@@ -26,12 +26,22 @@
         "source": "src/routes/index.tsx",
         "line": 9,
         "column": 172
+      },
+      "cssSourceMap": {
+        "source": "src/routes/index.tsx",
+        "line": 9,
+        "column": 172
       }
     },
     {
       "name": "warm-ssr-hydration-server-function-lazy-navigation",
       "passed": true,
       "javascriptSourceMap": {
+        "source": "src/routes/index.tsx",
+        "line": 9,
+        "column": 172
+      },
+      "cssSourceMap": {
         "source": "src/routes/index.tsx",
         "line": 9,
         "column": 172

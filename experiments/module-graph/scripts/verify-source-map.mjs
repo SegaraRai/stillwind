@@ -5,7 +5,14 @@ import { pathToFileURL } from "node:url";
 
 import { AnyMap, originalPositionFor } from "@jridgewell/trace-mapping";
 
-export async function verifyMacroSourceMap(directory, sourcePath, source, macro) {
+export async function verifyMacroSourceMap(
+  directory,
+  sourcePath,
+  source,
+  macro,
+  css = false,
+  knownIncorrectSource,
+) {
   const originalOffset = source.indexOf(macro);
   assert.ok(originalOffset >= 0);
   const prefix = source.slice(0, originalOffset);
@@ -15,10 +22,10 @@ export async function verifyMacroSourceMap(directory, sourcePath, source, macro)
   };
   const candidates = [];
   for (const file of await fs.readdir(directory, { recursive: true })) {
-    if (!/\.[cm]?js$/.test(file)) continue;
+    if (!(css ? /\.css$/ : /\.[cm]?js$/).test(file)) continue;
     const target = path.join(directory, file);
     const code = await fs.readFile(target, "utf8");
-    const reference = code.match(/[#@] sourceMappingURL=([^\s]+)/)?.[1];
+    const reference = code.match(/[#@] sourceMappingURL=([^\s*]+)/)?.[1];
     const mapPath = reference ? path.resolve(path.dirname(target), reference) : target + ".map";
     let map;
     try {
@@ -43,6 +50,22 @@ export async function verifyMacroSourceMap(directory, sourcePath, source, macro)
       if (candidates.length < 12) candidates.push({ file, ...mapped });
     }
   }
+  // Record this narrowly observed pipeline failure without treating it as map support.
+  const knownMismatch =
+    knownIncorrectSource &&
+    candidates.find(
+      (candidate) =>
+        candidate.source?.endsWith(knownIncorrectSource) &&
+        candidate.line === expected.line &&
+        candidate.column === expected.column,
+    );
+  if (knownMismatch)
+    return {
+      supported: false,
+      issue: "css-source-mismatch",
+      expected: { source: sourcePath, ...expected },
+      actual: knownMismatch,
+    };
   assert.fail(
     `No generated class maps to ${sourcePath}:${expected.line}:${expected.column}: ${JSON.stringify(candidates)}`,
   );

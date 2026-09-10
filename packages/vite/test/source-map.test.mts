@@ -10,7 +10,7 @@ import { createServer } from "vite-plus";
 
 import { stillwind } from "../src/index.ts";
 
-void test("Vite development exposes a carrier CSS map to the original macro", async () => {
+void test("Vite development composes carrier CSS maps through framework preprocessing", async () => {
   const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repo, ".session-test-"));
   writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
@@ -20,7 +20,21 @@ void test("Vite development exposes a carrier CSS map to the original macro", as
   const server = await createServer({
     configFile: false,
     root,
-    plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+    plugins: [
+      {
+        name: "framework-preprocessing-fixture",
+        enforce: "pre",
+        transform(code, id) {
+          if (id !== path.join(root, "entry.ts").replaceAll("\\", "/")) return;
+          const prefix = "// framework helper\n\n";
+          return {
+            code: prefix + code,
+            map: JSON.stringify(moduleSourceMap(code, code, id, [], [], prefix)),
+          };
+        },
+      },
+      stillwind({ css: path.join(root, "root.css"), types: false }),
+    ],
     css: { devSourcemap: true },
     server: { middlewareMode: true, watch: null },
     logLevel: "silent",

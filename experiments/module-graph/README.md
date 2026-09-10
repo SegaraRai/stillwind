@@ -100,3 +100,12 @@ requires `patches/unplugin@3.3.0.patch`: its upstream transform loader replaces
 rather than composes an incoming map. The patch retains a newly generated map
 and composes it with an existing map. The frozen lockfile records both upstream
 patches, so these results do not claim unpatched TanStack/Rsbuild acceptance.
+
+CSS maps also compose through framework preprocessing. TanStack/Rsbuild and
+Next/webpack cold and warm builds trace selectors to the original TSX/JSX macro.
+Vite development has a preprocessing fixture that inserts helper lines before
+the compiler and verifies the final CSS map still points to the original line.
+Next/Turbopack 16.3.4 emits a CSS map with the correct macro line/column but the
+wrong source file (`packages/core/index.css` instead of `app/client.jsx`). The
+runner records that exact mismatch as `cssSourceMap.supported: false`; it is not
+a CSS-map acceptance pass. Any different mismatch still fails the runner.

@@ -111,8 +111,15 @@ module.exports = function (source, inputMap) {
       );
     }
     const carrier = relativeRequest(path.dirname(context.resourcePath), carrierPath);
+    const upstream =
+      !projection && inputMap
+        ? {
+            id: context.resourcePath,
+            map: typeof inputMap === "string" ? inputMap : JSON.stringify(inputMap),
+          }
+        : undefined;
     const cssImport = (output) =>
-      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root)).toString("base64url"))};\n`;
+      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root, upstream)).toString("base64url"))};\n`;
     const base = JSON.parse(session.baseCssWithMap());
     if (projection) return callback(null, cssImport(base) + cssImport(plan));
     const finalized = host.finalizeReactModuleWithMap(output.code);

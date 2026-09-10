@@ -180,6 +180,14 @@ try {
   for (const temperature of ["cold", "warm"]) {
     proc = start(["build", `--${mode}`]);
     assert.equal(await proc.done, 0, proc.logs());
+    const cssSourceMap = await verifyMacroSourceMap(
+      path.join(dir, ".next/static"),
+      "app/client.jsx",
+      await fs.readFile(path.join(dir, "app/client.jsx"), "utf8"),
+      "style('client')",
+      true,
+      mode === "turbopack" ? "/packages/core/index.css" : undefined,
+    );
     const javascriptSourceMap = await verifyMacroSourceMap(
       path.join(dir, ".next/static"),
       "app/client.jsx",
@@ -194,6 +202,7 @@ try {
       passed: true,
       evidence,
       javascriptSourceMap,
+      cssSourceMap,
     });
     await stop();
   }

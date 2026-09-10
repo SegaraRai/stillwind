@@ -63,7 +63,7 @@ await write(
 );
 await write(
   "rsbuild.config.mjs",
-  `import {pluginReact} from '@rsbuild/plugin-react';import {tanstackStart} from '@tanstack/react-start/plugin/rsbuild';import bundler from ${local("packages/bundler/index.cjs")};export default {root:${JSON.stringify(dir)},plugins:[bundler.pluginStillwind({css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}}),pluginReact(),tanstackStart()],server:{port:${port},strictPort:true},output:{sourceMap:{js:'source-map'}},tools:{rspack:{cache:{type:'persistent',storage:{type:'filesystem',directory:${JSON.stringify(path.join(dir, "cache"))}}}}}};`,
+  `import {pluginReact} from '@rsbuild/plugin-react';import {tanstackStart} from '@tanstack/react-start/plugin/rsbuild';import bundler from ${local("packages/bundler/index.cjs")};export default {root:${JSON.stringify(dir)},plugins:[bundler.pluginStillwind({css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}}),pluginReact(),tanstackStart()],server:{port:${port},strictPort:true},output:{sourceMap:{js:'source-map',css:true}},tools:{rspack:{cache:{type:'persistent',storage:{type:'filesystem',directory:${JSON.stringify(path.join(dir, "cache"))}}}}}};`,
 );
 await write(
   "src/router.tsx",
@@ -215,6 +215,16 @@ try {
     proc = start("build");
     assert.equal(await proc.done, 0, proc.logs());
     const clientDir = path.join(dir, bundler === "vite" ? ".output/public" : "dist/client");
+    const cssSourceMap =
+      bundler === "rsbuild"
+        ? await verifyMacroSourceMap(
+            clientDir,
+            "src/routes/index.tsx",
+            home,
+            "style('brand')",
+            true,
+          )
+        : undefined;
     const javascriptSourceMap = await verifyMacroSourceMap(
       clientDir,
       "src/routes/index.tsx",
@@ -237,6 +247,7 @@ try {
       name: `${temperature}-ssr-hydration-server-function-lazy-navigation`,
       passed: true,
       javascriptSourceMap,
+      cssSourceMap,
     });
     await page.goto("about:blank");
     await stop();

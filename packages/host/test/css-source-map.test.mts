@@ -80,6 +80,41 @@ void test("resource URL length edits preserve following non-ASCII CSS columns", 
   assert.equal(actual.column, css.indexOf("color"));
 });
 
+void test("CSS origins compose through framework preprocessing to original source", () => {
+  const id = path.resolve("route.tsx");
+  const original = "// 日本語 🧭\nexport const x = style('red');";
+  const processed = "// framework\n// helper\nexport const x = style('red');";
+  const previous = new GenMapping({ file: id });
+  setSourceContent(previous, id, original);
+  addSegment(previous, 2, 17, id, 1, 17);
+  const css = "._s_example{color:red}";
+  const output = {
+    css,
+    sourceMap: {
+      sources: [{ path: id, content: processed }],
+      entries: [
+        {
+          source: 0,
+          generatedStart: 0,
+          generatedEnd: css.length,
+          originalStart: Buffer.byteLength(processed.slice(0, processed.indexOf("style"))),
+          originalEnd: Buffer.byteLength(processed),
+          exact: false,
+        },
+      ],
+    },
+  };
+  const result = decodeCssSourceMap(
+    cssWithSourceMap(output, new Map(), process.cwd(), {
+      id,
+      map: JSON.stringify(toEncodedMap(previous)),
+    }),
+  );
+  const mapped = originalPositionFor(new TraceMap(result.map), { line: 1, column: 1 });
+  assert.deepEqual(mapped, { source: pathToFileURL(id).href, line: 2, column: 17, name: null });
+  assert.deepEqual(result.map.sourcesContent, [original]);
+});
+
 void test("loader composition traces native replacements through an upstream framework transform", () => {
   const id = path.resolve("route.tsx");
   const original = "// original route\nexport const props = style('red');";

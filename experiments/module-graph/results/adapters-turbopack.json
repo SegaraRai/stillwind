@@ -30,6 +30,22 @@
         "source": "app/client.jsx",
         "line": 4,
         "column": 91
+      },
+      "cssSourceMap": {
+        "supported": false,
+        "issue": "css-source-mismatch",
+        "expected": {
+          "source": "app/client.jsx",
+          "line": 4,
+          "column": 91
+        },
+        "actual": {
+          "file": "chunks\\0p08mh39zpkk-.css",
+          "source": "turbopack:///F:/Projects/shorth/packages/core/index.css",
+          "line": 4,
+          "column": 91,
+          "name": null
+        }
       }
     },
     {
@@ -44,6 +60,22 @@
         "source": "app/client.jsx",
         "line": 4,
         "column": 91
+      },
+      "cssSourceMap": {
+        "supported": false,
+        "issue": "css-source-mismatch",
+        "expected": {
+          "source": "app/client.jsx",
+          "line": 4,
+          "column": 91
+        },
+        "actual": {
+          "file": "chunks\\0p08mh39zpkk-.css",
+          "source": "turbopack:///F:/Projects/shorth/packages/core/index.css",
+          "line": 4,
+          "column": 91,
+          "name": null
+        }
       }
     }
   ]

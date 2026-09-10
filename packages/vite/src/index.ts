@@ -16,7 +16,12 @@ import {
   TypeScriptFactsService,
   finalizeReactModuleWithMap as finalizeModuleWithMap,
 } from "@stillwind/host";
-import type { CssLocations, PlayOutput, ProjectCompilerOutput } from "@stillwind/host";
+import type {
+  CssLocations,
+  CssUpstreamMap,
+  PlayOutput,
+  ProjectCompilerOutput,
+} from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
@@ -333,6 +338,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         importer: string,
       ): Promise<{ id: string; external?: boolean | string } | null>;
       watch(id: string): void;
+      upstream?: CssUpstreamMap;
     },
   ) => {
     const plan = JSON.parse(
@@ -364,7 +370,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         JSON.stringify(`/@fs/${file.replaceAll("\\", "/")}`).slice(1, -1),
       );
     }
-    return { ...plan, css: cssWithSourceMap(plan, resources, projectRoot) };
+    return { ...plan, css: cssWithSourceMap(plan, resources, projectRoot, host.upstream) };
   };
 
   return {
@@ -555,9 +561,13 @@ export function stillwind(options: StillwindOptions): Plugin {
       );
       if (!output?.code) return undefined;
       state.producers.add(id);
+      const upstreamMap = this.getCombinedSourcemap?.();
       const plan = await renderCarrier(state, output.path, {
         resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
         watch: (id) => this.addWatchFile(id),
+        upstream: upstreamMap
+          ? { id: cleanModuleId(id), map: JSON.stringify(upstreamMap) }
+          : undefined,
       });
       const css = plan.css;
       const carrier = carrierSpecifier(state, css);

@@ -30,6 +30,11 @@
         "source": "app/client.jsx",
         "line": 4,
         "column": 91
+      },
+      "cssSourceMap": {
+        "source": "app/client.jsx",
+        "line": 4,
+        "column": 91
       }
     },
     {
@@ -41,6 +46,11 @@
         "prefetched": true
       },
       "javascriptSourceMap": {
+        "source": "app/client.jsx",
+        "line": 4,
+        "column": 91
+      },
+      "cssSourceMap": {
         "source": "app/client.jsx",
         "line": 4,
         "column": 91
