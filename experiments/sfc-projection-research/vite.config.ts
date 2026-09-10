@@ -4,6 +4,7 @@ export default defineConfig({
     tasks: {
       research: { command: "node research.mjs", cache: false },
       verify: { command: "node verify.mjs", dependsOn: ["research"], cache: false },
+      "verify-native": { command: "node verify-native.mjs", cache: false },
     },
   },
 });

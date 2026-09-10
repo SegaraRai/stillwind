@@ -99,3 +99,18 @@ fn volar_intervals_use_utf16_and_reject_ambiguous_or_malformed_ranges() {
     };
     assert!(ProjectionIndex::new(&generated, &original, &surrogate).is_err());
 }
+
+#[test]
+fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
+    let original = SourceFile::new(FileId(1), "component", "x😀y").unwrap();
+    let generated = SourceFile::new(FileId(2), "component.ts", "😀").unwrap();
+    let map = point_map(&[(0, Some(1)), (1, Some(2))], original.text());
+    let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
+    assert_eq!(
+        index.verify_exact(generated.full_span()).unwrap().original,
+        Span::new(FileId(1), 1, 5)
+    );
+    assert!(index.original_byte(stillwind_source::BytePos(1)).is_none());
+    let malformed = point_map(&[(0, Some(1)), (1, Some(3))], original.text());
+    assert!(ProjectionIndex::new(&generated, &original, &malformed).is_err());
+}
