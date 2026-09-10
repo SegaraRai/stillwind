@@ -3,6 +3,7 @@ use super::{AdapterKind, FrameworkSpec};
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",
+    runtime_import: "stillwind/vue/runtime",
     class_property: "class",
     projected_input: false,
     normalize,

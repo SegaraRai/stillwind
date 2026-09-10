@@ -31,9 +31,12 @@ impl CompileResult {
     ///
     /// # Errors
     ///
-    /// Returns an error when a transform targets another file or overlaps a
-    /// previously applied source span.
+    /// Returns an error for failed compilation, or when a transform targets
+    /// another file or overlaps a previously applied source span.
     pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, TransformError> {
+        if !self.diagnostics.is_empty() {
+            return Err(TransformError::CompilationFailed);
+        }
         apply_transforms(source, &self.transforms)
     }
 }

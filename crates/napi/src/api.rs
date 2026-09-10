@@ -70,9 +70,13 @@ pub(super) fn binding_output(
     source: &SourceFile,
     theme: &SourceFile,
 ) -> BindingOutput {
-    let (code, mappings) = match stillwind_compiler::render_transforms(source, &result.transforms) {
-        Ok(output) => (Some(output.code), output.mappings),
-        Err(_) => (None, Vec::new()),
+    let (code, mappings) = if result.diagnostics.is_empty() {
+        match stillwind_compiler::render_transforms(source, &result.transforms) {
+            Ok(output) => (Some(output.code), output.mappings),
+            Err(_) => (None, Vec::new()),
+        }
+    } else {
+        (None, Vec::new())
     };
     let diagnostics = result
         .diagnostics

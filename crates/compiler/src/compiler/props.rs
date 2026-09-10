@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use crate::runtime::{RuntimeBindings, RuntimeHelper};
 use stillwind_ir::{AdapterKind, AttributeEntry};
 use stillwind_source::{SourceFile, Span};
 
@@ -57,6 +58,8 @@ pub(in crate::compiler) fn render_props(
     source: &SourceFile,
     parts: &PropsParts<'_>,
     adapter: AdapterKind,
+    runtime: &mut RuntimeBindings,
+    call_span: Span,
 ) -> Option<String> {
     let PropsParts {
         classes,
@@ -94,10 +97,12 @@ pub(in crate::compiler) fn render_props(
             dynamic_handle_classes
                 .iter()
                 .map(|value| {
-                    source
-                        .slice(*value)
-                        .ok()
-                        .map(|value| format!("stillwindHandleClass({value})"))
+                    source.slice(*value).ok().map(|value| {
+                        format!(
+                            "{}({value})",
+                            runtime.require(RuntimeHelper::HandleClass, call_span)
+                        )
+                    })
                 })
                 .collect::<Option<Vec<_>>>()?,
         );
@@ -112,14 +117,21 @@ pub(in crate::compiler) fn render_props(
                         .map(|(identity, class_name)| format!("\"{identity}\":\"{class_name}\""))
                         .collect::<Vec<_>>()
                         .join(",");
-                    Some(format!("stillwindAssetClass({value},{{{classes}}})"))
+                    Some(format!(
+                        "{}({value},{{{classes}}})",
+                        runtime.require(RuntimeHelper::AssetClass, call_span)
+                    ))
                 })
                 .collect::<Option<Vec<_>>>()?,
         );
         let class_value = if external_classes.is_empty() && class_names.len() == 1 {
             class_names.into_iter().next()?
         } else {
-            format!("stillwindClsx({})", class_names.join(","))
+            format!(
+                "{}({})",
+                runtime.require(RuntimeHelper::Clsx, call_span),
+                class_names.join(",")
+            )
         };
         let property = adapter.spec().class_property;
         entries.push(format!("{property}:{class_value}"));
@@ -129,24 +141,34 @@ pub(in crate::compiler) fn render_props(
         entries.push(format!("\"{}\":{value}", attribute.name.value));
     }
     if let Some(entry) = view_transition_style {
-        let value = match (entry.value, &entry.identity) {
-            (Some(value), None) => source.slice(value).ok()?.to_owned(),
-            (None, Some(identity)) => format!("\"{identity}\""),
-            _ => return None,
-        };
-        let key = match entry.key {
-            Some(key) => source.slice(key).ok()?.to_owned(),
-            None => "undefined".to_owned(),
-        };
-        let candidates = entry
-            .candidates
-            .iter()
-            .map(|candidate| format!("\"{candidate}\""))
-            .collect::<Vec<_>>()
-            .join(",");
-        entries.push(format!(
-            "style:stillwindViewTransitionStyle({value},{key},[{candidates}],\"--sw-vt-name\",\"--sw-vt-class\")"
-        ));
+        entries.push(render_view_transition(source, entry, runtime, call_span)?);
     }
     Some(format!("{{{}}}", entries.join(",")))
+}
+
+fn render_view_transition(
+    source: &SourceFile,
+    entry: &ViewTransitionStyleEntry,
+    runtime: &mut RuntimeBindings,
+    call_span: Span,
+) -> Option<String> {
+    let value = match (entry.value, &entry.identity) {
+        (Some(value), None) => source.slice(value).ok()?.to_owned(),
+        (None, Some(identity)) => format!("\"{identity}\""),
+        _ => return None,
+    };
+    let key = match entry.key {
+        Some(key) => source.slice(key).ok()?.to_owned(),
+        None => "undefined".to_owned(),
+    };
+    let candidates = entry
+        .candidates
+        .iter()
+        .map(|candidate| format!("\"{candidate}\""))
+        .collect::<Vec<_>>()
+        .join(",");
+    Some(format!(
+        "style:{}({value},{key},[{candidates}],\"--sw-vt-name\",\"--sw-vt-class\")",
+        runtime.require(RuntimeHelper::ViewTransitionStyle, call_span)
+    ))
 }

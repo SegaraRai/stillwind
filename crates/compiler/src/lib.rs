@@ -19,6 +19,7 @@ mod module_compiler;
 mod options;
 mod query;
 mod renderer;
+mod runtime;
 mod stylesheet_map;
 mod transforms;
 

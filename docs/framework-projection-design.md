@@ -177,6 +177,8 @@ Svelte の import では排他的 end の map がずれるため、start/end を
 
 CSS 更新・module 削除時は virtual module と CSS contribution を無効化する。既存 session の watch 時の直前成功状態保持と build 時の失敗通知を維持する。
 
+実装済みの import 経路では、OXC の binding ごとの参照と native の成功した callee 置換を照合して macro specifier を削除する。runtime helper は lowering 時に列挙型で要求し、全 binding・未解決参照と衝突しないローカル名を割り当てる。投影入力では host の region→realm 対応を検証し、その script 内の import と一括置換する。helper 名の文字列検索と macro import の正規表現削除は host から除去した。realm 不明・重複や残存 macro 参照は `SHIMPORT001` とし、native API は code と mapping を返さない。依存 asset の CSS だけを生成する内部経路は JavaScript を出力しないため、完全な module の import 編集を行わない。
+
 ## 7. 実装順序と完了条件
 
 | 段階 | 作業                                                  | 完了条件                                                                                                          |

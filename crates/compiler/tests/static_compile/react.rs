@@ -1,6 +1,36 @@
 use super::*;
 
 #[test]
+fn native_runtime_imports_are_binding_safe_and_framework_specific() {
+    let theme = crate::css_fixture::source(FileId(2), "theme.css", "").unwrap();
+    for framework in ["react", "preact", "solid", "vue", "svelte", "astro"] {
+        let component = SourceFile::new(FileId(1), "entry.tsx", format!(
+            "import {{style as sw, type Theme}} from 'stillwind/{framework}';\n\
+             const text = 'stillwindAnimation(';\n\
+             function render(stillwindClsx: string) {{ return sw('flex', {{class: stillwindClsx_1}}); }}"
+        )).unwrap();
+        let result =
+            Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let code = result.apply_to_source(&component).unwrap();
+        assert!(code.contains(&format!("import {{ stillwindClsx as stillwindClsx_2 }} from \"stillwind/{framework}/runtime\";")), "{code}");
+        assert!(code.contains("stillwindClsx_2(\"_s_"), "{code}");
+        assert!(code.contains(",stillwindClsx_1)"), "{code}");
+        assert!(code.contains("type Theme"), "{code}");
+        assert!(
+            code.contains("const text = 'stillwindAnimation(';"),
+            "{code}"
+        );
+        assert!(!code.contains("{ stillwindAnimation"), "{code}");
+        assert!(!code.contains("style as sw"), "{code}");
+        let reparsed =
+            stillwind_js_oxc::parse(&SourceFile::new(FileId(3), "output.tsx", code).unwrap());
+        assert!(reparsed.diagnostics.is_empty());
+        assert!(reparsed.module.imports.macros.is_empty());
+    }
+}
+
+#[test]
 fn residual_macro_references_fail_the_entire_compilation() {
     let theme = crate::css_fixture::source(FileId(2), "theme.css", "").unwrap();
     for suffix in ["const uncompiled = style;", "export {style};"] {
@@ -257,7 +287,7 @@ const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading
     let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert_eq!(result.transforms.len(), 1);
+    assert_eq!(result.transforms.len(), 2);
     let transform = &result.transforms[0];
     assert_eq!(transform.call_span, result.classes[0].call_span);
     assert_eq!(

@@ -23,6 +23,7 @@ pub enum AdapterKind {
 pub struct FrameworkSpec {
     pub id: AdapterKind,
     pub macro_import: &'static str,
+    pub runtime_import: &'static str,
     pub class_property: &'static str,
     /// Enabled only after the original-source projection path is validated.
     pub projected_input: bool,

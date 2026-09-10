@@ -168,11 +168,7 @@ export { props };"#,
     let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &component, &theme);
     let transformed = result.apply_to_source(&component).unwrap();
 
-    assert!(
-        transformed.starts_with(
-            "import { style } from \"stillwind/react\";\nconst props = {className:\"_s_"
-        )
-    );
+    assert!(transformed.starts_with("\nconst props = {className:\"_s_"));
     assert!(transformed.ends_with("};\nexport { props };"));
 }
 

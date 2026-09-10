@@ -6,6 +6,8 @@ use stillwind_source::{SourceError, SourceFile, Span};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransformError {
+    #[error("cannot render a failed compilation")]
+    CompilationFailed,
     #[error("invalid stillwind transform span: {0}")]
     InvalidSpan(#[source] SourceError),
     #[error("overlapping stillwind transform span {span:?}, previous start {previous_start}")]

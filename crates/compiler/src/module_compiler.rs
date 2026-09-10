@@ -156,8 +156,11 @@ pub struct CompiledModule {
 
 impl CompiledModule {
     /// # Errors
-    /// Returns invalid or overlapping source-transform spans.
+    /// Rejects failed compilation and invalid or overlapping source-transform spans.
     pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, ModuleTransformError> {
+        if !self.is_success() {
+            return Err(ModuleTransformError(TransformError::CompilationFailed));
+        }
         apply_transforms(source, &self.code_transforms).map_err(ModuleTransformError::from)
     }
 
@@ -272,7 +275,7 @@ impl ModuleCompiler {
         );
         self.capture_resources(&mut result, module.source.path());
         for support in &module.asset_support {
-            let mut compiled = Compiler::compile_with_snapshot(
+            let mut compiled = Compiler::compile_support_with_snapshot(
                 &support.source,
                 support,
                 &self.design_system,

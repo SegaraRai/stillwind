@@ -7,6 +7,8 @@ use crate::SourceTransform;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImportPlanError {
+    #[error("no verified macro import anchor for runtime use at {span:?}")]
+    MissingRuntimeAnchor { span: Span },
     #[error("invalid macro import source span: {0}")]
     Source(#[from] SourceError),
     #[error("invalid macro import metadata at {span:?}")]

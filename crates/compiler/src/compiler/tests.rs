@@ -69,9 +69,7 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
     assert!(!transformed.contains("style("), "{transformed}");
     assert_eq!(
         transformed,
-        format!(
-            "import {{ style }} from \"stillwind/react\"; export const props = {{className:\"{class}\"}};"
-        )
+        format!(" export const props = {{className:\"{class}\"}};")
     );
 }
 

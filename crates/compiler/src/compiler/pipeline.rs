@@ -31,15 +31,35 @@ use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
 };
+use crate::runtime::{RuntimeBindings, RuntimeHelper};
 use crate::transforms::SourceTransform;
 
 impl Compiler {
-    #[allow(clippy::too_many_lines)]
     pub(crate) fn compile_with_snapshot(
         source: &SourceFile,
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
         compiler_options: &crate::CompilerOptions,
+    ) -> CompileResult {
+        Self::compile_snapshot(source, parsed, snapshot, compiler_options, true)
+    }
+
+    pub(crate) fn compile_support_with_snapshot(
+        source: &SourceFile,
+        parsed: &ModuleAnalysis,
+        snapshot: &DesignSystemSnapshot,
+        compiler_options: &crate::CompilerOptions,
+    ) -> CompileResult {
+        Self::compile_snapshot(source, parsed, snapshot, compiler_options, false)
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn compile_snapshot(
+        source: &SourceFile,
+        parsed: &ModuleAnalysis,
+        snapshot: &DesignSystemSnapshot,
+        compiler_options: &crate::CompilerOptions,
+        emit_source: bool,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
         let mut result = CompileResult {
@@ -59,6 +79,7 @@ impl Compiler {
         let mut utility_css = String::new();
         let mut emitted_utility_classes = BTreeSet::new();
         let module = parsed.ir.clone();
+        let mut runtime = RuntimeBindings::new(&module.imports.reserved_names);
         result
             .symbols
             .extend(module.handle_definitions.iter().map(generated_ref_symbol));
@@ -637,6 +658,8 @@ impl Compiler {
                     view_transition_style: view_transition_style.as_ref(),
                 },
                 module.adapter,
+                &mut runtime,
+                call.span,
             ) {
                 result.transforms.push(SourceTransform {
                     call_span: call.span,
@@ -649,7 +672,8 @@ impl Compiler {
                 call_span: handle_definition.call_span,
                 replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
                     format!(
-                        "stillwindRef(\"{}\")",
+                        "{}(\"{}\")",
+                        runtime.require(RuntimeHelper::Ref, handle_definition.call_span),
                         handle_marker_class(&handle_definition)
                     )
                 } else {
@@ -662,7 +686,8 @@ impl Compiler {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
                     format!(
-                        "stillwindScope(\"{}\")",
+                        "{}(\"{}\")",
+                        runtime.require(RuntimeHelper::Scope, scope_definition.call_span),
                         scope_marker_class(&scope_definition).trim_start_matches('.')
                     )
                 } else {
@@ -679,7 +704,8 @@ impl Compiler {
                     &animation.name,
                 )) {
                     format!(
-                        "stillwindAnimation(\"{}\")",
+                        "{}(\"{}\")",
+                        runtime.require(RuntimeHelper::Animation, animation.call_span),
                         symbol_name(source, AssetKind::Animation, &animation.name)
                     )
                 } else {
@@ -696,7 +722,8 @@ impl Compiler {
                     &transition.name,
                 )) {
                     format!(
-                        "stillwindViewTransition(\"{}\")",
+                        "{}(\"{}\")",
+                        runtime.require(RuntimeHelper::ViewTransition, transition.call_span),
                         symbol_name(source, AssetKind::ViewTransition, &transition.name)
                     )
                 } else {
@@ -705,19 +732,28 @@ impl Compiler {
             });
         }
 
-        if result.diagnostics.is_empty()
-            && let Err(error) =
-                crate::plan_macro_import_removals(source, &parsed.ir.imports, &result.transforms)
-        {
-            let span = match &error {
-                crate::ImportPlanError::UntransformedReference { span, .. }
-                | crate::ImportPlanError::UnmappedReference { span, .. }
-                | crate::ImportPlanError::InvalidMetadata { span } => *span,
-                crate::ImportPlanError::Source(_) => source.full_span(),
-            };
-            result
-                .diagnostics
-                .push(CompileError::new("SHIMPORT001", error.to_string(), span));
+        if emit_source && result.diagnostics.is_empty() {
+            match runtime.plan(parsed, &result.transforms) {
+                Ok(edits) => result.transforms.extend(edits),
+                Err(error) => {
+                    let span = match &error {
+                        crate::ImportPlanError::UntransformedReference { span, .. }
+                        | crate::ImportPlanError::UnmappedReference { span, .. }
+                        | crate::ImportPlanError::InvalidMetadata { span }
+                        | crate::ImportPlanError::MissingRuntimeAnchor { span } => *span,
+                        crate::ImportPlanError::Source(_) => source.full_span(),
+                    };
+                    result.diagnostics.push(CompileError::new(
+                        "SHIMPORT001",
+                        error.to_string(),
+                        span,
+                    ));
+                }
+            }
+        }
+
+        if !emit_source {
+            result.transforms.clear();
         }
 
         if !result.diagnostics.is_empty() {
