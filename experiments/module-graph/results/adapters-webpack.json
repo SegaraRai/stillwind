@@ -1,0 +1,40 @@
+{
+  "mode": "webpack",
+  "checks": [
+    {
+      "name": "next-webpack-rsc-client-hydration",
+      "passed": true
+    },
+    {
+      "name": "next-webpack-css-edit",
+      "passed": true
+    },
+    {
+      "name": "next-webpack-macro-removal-restoration",
+      "passed": true
+    },
+    {
+      "name": "next-webpack-client-navigation",
+      "passed": true,
+      "color": "rgb(90, 80, 70)"
+    },
+    {
+      "name": "next-webpack-cold-production",
+      "passed": true,
+      "evidence": {
+        "color": "rgb(44, 55, 66)",
+        "lazy": "rgb(90, 80, 70)",
+        "prefetched": true
+      }
+    },
+    {
+      "name": "next-webpack-warm-production",
+      "passed": true,
+      "evidence": {
+        "color": "rgb(44, 55, 66)",
+        "lazy": "rgb(90, 80, 70)",
+        "prefetched": true
+      }
+    }
+  ]
+}

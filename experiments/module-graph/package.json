@@ -9,6 +9,8 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@rsbuild/core": "^2.2.4",
+    "@rsbuild/plugin-react": "^2.1.0",
     "@rspack/core": "^2.2.3",
     "@types/node": "^22.20.1",
     "playwright": "^1.63.0",

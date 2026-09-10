@@ -14,8 +14,8 @@ with a target of 5–30 commits including the initial integration.
 | Import modifiers, utilities slot, source provenance and relative URLs | Pending          | Layer/supports/media placement, explicit diagnostics, URL and mapping fixtures                    |
 | Demand-driven semantic reads and environment/session isolation        | Pending          | Unreached sources, imported/re-exported assets, cache, deletion, stale async updates              |
 | Artifact selection, support closure and output contracts              | Implemented      | Explicit selections and coverage; declaration support; document/carrier output and revision tests |
-| Next Turbopack and webpack adapters                                   | Pending          | Real compiler: RSC/client, route navigation, CSS edits, prerender, cold/warm cache                |
-| Rspack and Rsbuild adapters                                           | Pending          | Real compiler: native CSS chunks, browser behavior, persistent cache and dependency updates       |
+| Next Turbopack and webpack adapters                                   | Implemented      | Twelve real-compiler dev/production checks including hydration, prefetch and cold/warm output     |
+| Rspack and Rsbuild adapters                                           | Implemented      | Ten browser/cache/removal checks, including warm producers with built=false                       |
 | Vite framework templates                                              | Pending          | React Router, SolidStart, TanStack Start: SSR, hydration, lazy CSS, route changes                 |
 | Editor overlays and partial analysis                                  | Pending          | Unsaved buffers, invalid syntax, versions and stale requests                                      |
 | Final acceptance and documentation                                    | Pending          | Runnable templates, source maps, repeatable commands and precise capability matrix                |
@@ -131,3 +131,21 @@ delegates to the same implementation; its eleven integration tests passed after
 the extraction. The package emits JavaScript and declarations for Node loaders
 with `vp run --filter @stillwind/host build`; filesystem resolution, reads,
 dependency registration and diagnostics stay explicit host callbacks.
+
+`@stillwind/bundler` supplies Next's Turbopack/webpack wrapper, webpack-compatible
+loader rules and an Rsbuild plugin. Its immutable query carriers use ordinary
+CSS imports and preserve RSC directives; CSS/resource/compiler files are host
+build dependencies. The implementation uses fresh native sessions, not a shared
+CSS singleton. The current probes use literal style calls; cross-module symbolic
+semantics are exercised by the shared host/native suite.
+
+Real-compiler Chrome checks passed on Next 16.3.4 (six each for Turbopack and
+webpack): RSC/client hydration, CSS-only HMR with preserved client state, macro
+removal/restoration, route navigation, and cold/warm production builds with
+prerender and observed prefetch responses. Rspack 2.2.3 and Rsbuild 2.2.4 each
+passed five checks: cold, persistent warm, CSS edit, unreachable lazy producer,
+and macro removal. Warm producer stats explicitly report `built: false`; both
+initial/lazy styles and the emitted SVG still load. The probes disable minification
+for Rspack/Rsbuild inspection and use each Next bundler's production defaults.
+Commands and configuration examples live in `packages/bundler/README.md`; JSON
+evidence is under `experiments/module-graph/results`.

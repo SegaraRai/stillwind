@@ -1,0 +1,57 @@
+{
+  "checks": [
+    {
+      "name": "rsbuild-cold-browser-css",
+      "passed": true,
+      "producers": [
+        {
+          "name": "./static.js",
+          "built": true
+        },
+        {
+          "name": "./lazy.js",
+          "built": true
+        }
+      ],
+      "cssChunks": ["static/css/async/473.33e2819377.css", "static/css/main.3f1ccaf0c0.css"]
+    },
+    {
+      "name": "rsbuild-warm-browser-css",
+      "passed": true,
+      "producers": [
+        {
+          "name": "./static.js",
+          "built": false
+        },
+        {
+          "name": "./lazy.js",
+          "built": false
+        }
+      ],
+      "cssChunks": ["static/css/async/473.33e2819377.css", "static/css/main.3f1ccaf0c0.css"]
+    },
+    {
+      "name": "rsbuild-css-edit-browser-css",
+      "passed": true,
+      "producers": [
+        {
+          "name": "./static.js",
+          "built": true
+        },
+        {
+          "name": "./lazy.js",
+          "built": true
+        }
+      ],
+      "cssChunks": ["static/css/async/473.33e2819377.css", "static/css/main.b370e9bb32.css"]
+    },
+    {
+      "name": "rsbuild-unreachable-producer",
+      "passed": true
+    },
+    {
+      "name": "rsbuild-macro-removal",
+      "passed": true
+    }
+  ]
+}

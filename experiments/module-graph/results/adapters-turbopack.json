@@ -1,0 +1,40 @@
+{
+  "mode": "turbopack",
+  "checks": [
+    {
+      "name": "next-turbopack-rsc-client-hydration",
+      "passed": true
+    },
+    {
+      "name": "next-turbopack-css-edit",
+      "passed": true
+    },
+    {
+      "name": "next-turbopack-macro-removal-restoration",
+      "passed": true
+    },
+    {
+      "name": "next-turbopack-client-navigation",
+      "passed": true,
+      "color": "rgb(90, 80, 70)"
+    },
+    {
+      "name": "next-turbopack-cold-production",
+      "passed": true,
+      "evidence": {
+        "color": "rgb(44, 55, 66)",
+        "lazy": "rgb(90, 80, 70)",
+        "prefetched": true
+      }
+    },
+    {
+      "name": "next-turbopack-warm-production",
+      "passed": true,
+      "evidence": {
+        "color": "rgb(44, 55, 66)",
+        "lazy": "rgb(90, 80, 70)",
+        "prefetched": true
+      }
+    }
+  ]
+}

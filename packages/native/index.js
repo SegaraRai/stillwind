@@ -17,7 +17,9 @@ if (!packageName)
   );
 
 let binding;
+let bindingPath;
 try {
+  bindingPath = require.resolve(packageName);
   binding = require(packageName);
 } catch (error) {
   throw new Error(
@@ -25,6 +27,8 @@ try {
     { cause: error },
   );
 }
+
+export const nativeBindingPath = bindingPath;
 
 export const compileReact = binding.compileReact;
 export const compileReactProject = binding.compileReactProject;
