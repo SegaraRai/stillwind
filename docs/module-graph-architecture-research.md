@@ -10,12 +10,13 @@
 | Rspack・Rsbuild         | `rspack-real.json`と`rsbuild-real.json`で本体adapter、ブラウザーCSS・URL、別process cache復元、依存変更、未到達化、macro削除を各5項目確認                                                                                                | ブラウザーHMRは別項目                                                                                                      |
 | Vite environment        | environmentごとにsnapshot/sessionを分離。route解析のようなbuildStart前のtransformも遅延初期化で扱う。CSSはframeworkが発見できる物理resource IDと自己完結payloadで輸送                                                                    | 各frameworkの受け入れは個別に実施する                                                                                      |
 | React Router 8.3.1      | `react-router-real.json`。JavaScript無効の初回SSR、hydration、client遷移、初回にはないlazy CSS、CSS編集、macro削除復元3回、server CSS projection編集、cold/warm本番。JS source mapのmacro行・列とclient成果物へのserver code非混入も検査 | `.server.js`専用producerはrouteに`?stillwind.css`の明示CSS依存を付ける。全編集でのUI状態保持は未保証。Remix v2とは区別する |
+| SolidStart 2.0.4        | `solidstart-real.json`。`stillwind/solid`がclass propを出力。JS無効SSR、signalの比較条件と更新、hydration、lazy client遷移、CSS編集、macro削除復元、cold/warm本番を5項目確認                                                             | server functionの専用projection、CSS mapは別検証                                                                           |
 | 部分解析・overlay       | `packages/host`の`EditorProject`。未保存の依存編集、構文エラーと前回成功結果の区別、文書version、古い非同期結果の破棄、取消を本物のnative/checkerでテスト                                                                                | LSP transportや補完UIの完成を意味しない                                                                                    |
 | 意味依存の読み取り      | probeのbindingからローカル宣言を辿り、要求exportに対応するbarrelを読む。無関係なruntime importをhostが読まないテスト。checker側のoverlay/disk読取要求は別計上                                                                            | namespace・宣言sliceがないexportは保守的な依存読取。ホスト独自aliasとcheckerの解決一致は追加検証が必要                     |
 
 module CSSには明示・暗黙のlayer順序を保持する。React Routerがroute CSSを基盤CSSより先に配置した実験でPreflightがutilityを上書きしたため、文書の通常ruleを複製せずlayer順序だけを各carrierへ残す。開発時のCSS importには版を付け、macro削除直後の復元を以前のHMR pruneが消す競合を避ける。版はclassのsaltに使わない。
 
-残る主な受け入れはSolidStart・TanStack Start等のframework、CSS source map provenance、意味解決のhost整合と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
+残る主な受け入れはTanStack Start等のframework、CSS source map provenance、意味解決のhost整合と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
 
 ## 実装第一段階（2026-09-10）
 
@@ -23,7 +24,7 @@ module CSSには明示・暗黙のlayer順序を保持する。React Routerがro
 
 - `DesignSystemSnapshot::render_module_stylesheet`を追加。producerのruleと必要なtoken・keyframes・propertyを出力し、Preflightとauthored global CSSを含めない。
 - Node APIは`baseCss()`と`moduleCss(module)`を公開。既存の`css()`は選択済みmoduleを集約する明示APIとして残す。
-- Viteの`virtual:stillwind.css`は基盤CSSだけを返す。生成JSは基盤CSSを先にimportし、その後でCSS本文をbase64url queryに含むmodule carrierをimportする。carrierのloadはsession/Mapを参照しない。
+- Viteの`virtual:stillwind.css`は基盤CSSだけを返す。生成JSは基盤CSSを先にimportし、その後でCSS本文をbase64url queryに含み`&lang.css`で終わるmodule carrierをimportする。carrierのloadはsession/Mapを参照しない。
 - CSS依存の編集時は、JS/classの変換が同じ場合もproducerを無効化し、新しいCSS payloadへ更新する。macro削除ではimportが消える。
 - `classIdentity: 'module' | 'content'`と`classNamespace`を実装。Viteはmoduleを既定とし、低水準Rust APIはcontentを既定として既存の明示集約を維持する。module identityにはproject-relativeなproducer pathを使用し、SSR/clientで異なるsaltは加えない。
 - `tailwindcss` importのStillwind alias扱いを削除。parity試験だけは上流fixtureの入力をStillwind entryへ明示変換する。

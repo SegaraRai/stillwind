@@ -7,6 +7,7 @@ use stillwind_source::{Span, Spanned};
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AdapterKind {
     React,
+    Solid,
     Vue,
     Svelte,
 }

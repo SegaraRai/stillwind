@@ -10,6 +10,8 @@
     "./preflight.css": "./css/preflight.css",
     "./react": "./src/index.ts",
     "./react/runtime": "./src/runtime.ts",
+    "./solid": "./src/solid.ts",
+    "./solid/runtime": "./src/runtime.ts",
     "./theme.css": "./css/theme.css",
     "./utilities.css": "./css/utilities.css"
   },

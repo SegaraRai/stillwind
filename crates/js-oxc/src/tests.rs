@@ -5,6 +5,21 @@ use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
+    let source = SourceFile::new(FileId(1), "solid.tsx", "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
+    let parsed = parse(&source);
+    assert_eq!(parsed.module.adapter, stillwind_ir::AdapterKind::Solid);
+    assert!(parsed.diagnostics.is_empty());
+    let mixed = SourceFile::new(FileId(2), "mixed.tsx", "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex');").unwrap();
+    assert!(
+        parse(&mixed)
+            .diagnostics
+            .iter()
+            .any(|error| error.code == "SHJS008")
+    );
+}
+
+#[test]
 fn semantic_reads_follow_local_aliases_without_unrelated_imports() {
     let source = SourceFile::new(
         FileId(1),

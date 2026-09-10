@@ -163,6 +163,37 @@ const props = style(active ? "bg-accent" : "bg-muted");"#,
 }
 
 #[test]
+fn compound_branch_guards_preserve_precedence_for_both_frontends() {
+    for frontend in ["react", "solid"] {
+        let component = SourceFile::new(
+            FileId(1),
+            "src/Branch.tsx",
+            format!(
+                r#"import {{ style }} from "stillwind/{frontend}";
+const props = style(n() > 0 ? "bg-accent" : "bg-muted");"#
+            ),
+        )
+        .unwrap();
+        let theme = crate::css_fixture::source(
+            FileId(2),
+            "stillwind.css",
+            "@theme { --color-accent: red; --color-muted: gray; }",
+        )
+        .unwrap();
+        let result = Compiler::compile_react(&component, &theme);
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+        let replacement = &result.transforms[0].replacement;
+        assert!(replacement.contains("(n() > 0)&&"), "{replacement}");
+        assert!(replacement.contains("!(n() > 0)&&"), "{replacement}");
+        assert!(replacement.contains(if frontend == "solid" {
+            "{class:"
+        } else {
+            "{className:"
+        }));
+    }
+}
+
+#[test]
 fn plans_react_props_for_classes_a_conditional_and_an_aria_attribute() {
     let component = SourceFile::new(
         FileId(1),

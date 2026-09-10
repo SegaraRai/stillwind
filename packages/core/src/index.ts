@@ -123,8 +123,8 @@ export type StyleArgument =
   | StyleAnimationUse
   | StyleViewTransitionUse;
 
-export type StyleMacro = {
-  (...inputs: readonly StyleArgument[]): StyleProps;
+export type StyleMacro<Props = StyleProps> = {
+  (...inputs: readonly StyleArgument[]): Props;
   scope(): StyleScope;
   scope(name: string): StyleScope;
   scope<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleScope<Id>;

@@ -84,7 +84,7 @@ pub fn parse_with_type_facts(
         lint_findings,
         summary,
         module: ModuleIr {
-            adapter: AdapterKind::React,
+            adapter: extractor.adapter.unwrap_or(AdapterKind::React),
             style_calls: extractor.style_calls,
             handle_definitions: extractor.handle_definitions,
             scope_definitions: extractor.scope_definitions,

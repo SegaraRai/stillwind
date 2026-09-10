@@ -36,9 +36,27 @@ pub(in crate::compiler) struct ReactPropsParts<'a> {
     pub(in crate::compiler) view_transition_style: Option<&'a ViewTransitionStyleEntry>,
 }
 
+fn guarded_class(source: &SourceFile, class: &GeneratedClass) -> Option<String> {
+    let Some(span) = class.guard else {
+        return Some(format!("\"{}\"", class.class_name));
+    };
+    let guard = source.slice(span).ok()?;
+    let guard = if guard
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    {
+        guard.to_owned()
+    } else {
+        format!("({guard})")
+    };
+    let negation = if class.guard_when_true { "" } else { "!" };
+    Some(format!("{negation}{guard}&&\"{}\"", class.class_name))
+}
+
 pub(in crate::compiler) fn render_react_props(
     source: &SourceFile,
     parts: &ReactPropsParts<'_>,
+    adapter: stillwind_ir::AdapterKind,
 ) -> Option<String> {
     let ReactPropsParts {
         classes,
@@ -63,17 +81,7 @@ pub(in crate::compiler) fn render_react_props(
         class_names.extend(
             classes
                 .iter()
-                .map(|class| match class.guard {
-                    Some(guard) => source.slice(guard).ok().map(|guard| {
-                        let guard = if class.guard_when_true {
-                            guard.to_owned()
-                        } else {
-                            format!("!{guard}")
-                        };
-                        format!("{guard}&&\"{}\"", class.class_name)
-                    }),
-                    None => Some(format!("\"{}\"", class.class_name)),
-                })
+                .map(|class| guarded_class(source, class))
                 .collect::<Option<Vec<_>>>()?,
         );
         class_names.extend(
@@ -113,7 +121,12 @@ pub(in crate::compiler) fn render_react_props(
         } else {
             format!("stillwindClsx({})", class_names.join(","))
         };
-        entries.push(format!("className:{class_value}"));
+        let property = if adapter == stillwind_ir::AdapterKind::Solid {
+            "class"
+        } else {
+            "className"
+        };
+        entries.push(format!("{property}:{class_value}"));
     }
     for attribute in attributes {
         let value = source.slice(attribute.value).ok()?;

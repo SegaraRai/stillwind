@@ -7,13 +7,15 @@ export type FinalizedModuleEdit = { from: number; to: number };
 
 /** Finalizes compiled output while retaining edits needed to remap source spans. */
 export function finalizeReactModuleWithMap(code: string, stylesheetSpecifier?: string) {
-  const macroImportPattern = /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm;
+  const macroImportPattern =
+    /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/(react|solid)["'];?\s*$/gm;
   const removed = [...code.matchAll(macroImportPattern)].map((match) => ({
     from: match.index,
     to: match.index + match[0].length,
   }));
   const withoutMacroImport = code.replace(macroImportPattern, "");
-  const runtimeImport = renderRuntimeImport(withoutMacroImport);
+  const frontend = /["']stillwind\/solid["']/.test(code) ? "solid" : "react";
+  const runtimeImport = renderRuntimeImport(withoutMacroImport, frontend);
   const stylesheetImport = stylesheetSpecifier
     ? `import ${JSON.stringify(stylesheetSpecifier)};\n`
     : "";
@@ -21,7 +23,7 @@ export function finalizeReactModuleWithMap(code: string, stylesheetSpecifier?: s
   return { code: prefix + withoutMacroImport, prefix, removed };
 }
 
-function renderRuntimeImport(code: string): string {
+function renderRuntimeImport(code: string, frontend: "react" | "solid"): string {
   const names = [
     "stillwindAnimation",
     "stillwindAssetClass",
@@ -32,5 +34,7 @@ function renderRuntimeImport(code: string): string {
     "stillwindViewTransition",
     "stillwindViewTransitionStyle",
   ].filter((name) => code.includes(`${name}(`));
-  return names.length > 0 ? `import { ${names.join(", ")} } from "stillwind/react/runtime";\n` : "";
+  return names.length > 0
+    ? `import { ${names.join(", ")} } from "stillwind/${frontend}/runtime";\n`
+    : "";
 }

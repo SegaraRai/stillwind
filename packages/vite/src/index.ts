@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -50,6 +50,16 @@ const resolvedProjectionId = fileURLToPath(
   new URL("../stillwind-projection.js", import.meta.url),
 ).replaceAll("\\", "/");
 const maximumPlayPayloadBytes = 1_000_000;
+
+function resolvedFile(
+  result: { id: string; external?: boolean | string } | null,
+  description: string,
+): string {
+  if (!result) throw new Error(`Cannot resolve ${description}`);
+  if (result.id.startsWith("file:")) return fileURLToPath(result.id);
+  if (!result.external || isAbsolute(result.id)) return result.id;
+  throw new Error(`Cannot read external ${description}: ${result.id}`);
+}
 
 function cssEntrypoint(options: StillwindOptions): string {
   const path = options.css ?? options.theme;
@@ -222,8 +232,8 @@ export function stillwind(options: StillwindOptions): Plugin {
   const carrierSpecifier = (state: EnvironmentState, css: string) => {
     // A restored macro must not reuse a CSS module which an earlier HMR prune
     // can still dispose. The payload is self-contained; only dev import identity changes.
-    const version = watching ? `&version=${++state.carrierRevision}` : "";
-    return `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}${version}`;
+    const version = watching ? ++state.carrierRevision : 0;
+    return `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}&version=${version}&lang.css`;
   };
 
   const closeTypeFacts = () => {
@@ -292,9 +302,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         const loader = await loadDesignSystem(
           async (specifier, importer) => {
             const result = await context.resolve(specifier, importer, { skipSelf: true });
-            if (!result || result.external)
-              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
-            return result.id;
+            return resolvedFile(result, `CSS ${specifier} from ${importer}`);
           },
           undefined,
           dependencies,
@@ -343,14 +351,14 @@ export function stillwind(options: StillwindOptions): Plugin {
     const resources = new Map(state.resources);
     for (const resource of plan.resources) {
       const resolved = await host.resolve(resource.specifier, resolve(projectRoot, resource.owner));
-      if (!resolved || resolved.external)
-        throw new Error(
-          `Cannot resolve Stillwind resource ${resource.specifier} from ${resource.owner}`,
-        );
-      host.watch(cleanModuleId(resolved.id));
+      const file = resolvedFile(
+        resolved,
+        `Stillwind resource ${resource.specifier} from ${resource.owner}`,
+      );
+      host.watch(cleanModuleId(file));
       resources.set(
         resource.placeholder,
-        JSON.stringify(`/@fs/${resolved.id.replaceAll("\\", "/")}`).slice(1, -1),
+        JSON.stringify(`/@fs/${file.replaceAll("\\", "/")}`).slice(1, -1),
       );
     }
     return { ...plan, css: resolveResources(plan.css, resources) };
@@ -362,6 +370,10 @@ export function stillwind(options: StillwindOptions): Plugin {
     perEnvironmentStartEndDuringDev: true,
     perEnvironmentWatchChangeDuringDev: true,
     async resolveId(id, importer) {
+      if (id.startsWith(resolvedModuleCssId)) {
+        // Some framework asset collectors append ?inline to an existing query.
+        return id.replace(/\?inline$/, "&inline");
+      }
       if (importer && cleanModuleId(importer) === resolvedProjectionId) {
         const state = environmentState(this.environment?.name);
         if (state.projectionDependencies.get(id.replaceAll("\\", "/"))?.has(importer)) {
@@ -462,9 +474,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         const loader = await loadDesignSystem(
           async (specifier, importer) => {
             const result = await this.environment.pluginContainer.resolveId(specifier, importer);
-            if (!result || result.external)
-              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
-            return result.id;
+            return resolvedFile(result, `CSS ${specifier} from ${importer}`);
           },
           undefined,
           dependencies,
@@ -506,9 +516,15 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
     },
     async transform(code, id) {
-      if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined;
+      if (
+        !/\.[cm]?[jt]sx?$/.test(cleanModuleId(id)) ||
+        id.includes("node_modules") ||
+        id.endsWith("?stillwind-css-watch") ||
+        /[?&](?:raw|url)(?:[=&]|$)/.test(id)
+      )
+        return undefined;
       const state = environmentState(this.environment?.name);
-      if (!code.includes("stillwind/react")) {
+      if (!code.includes("stillwind/react") && !code.includes("stillwind/solid")) {
         state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
         state.producers.delete(id);
         return undefined;

@@ -1,0 +1,26 @@
+{
+  "framework": "SolidStart",
+  "version": "2.0.4",
+  "checks": [
+    {
+      "name": "dev-ssr-hydration-reactivity-lazy-navigation",
+      "passed": true
+    },
+    {
+      "name": "dev-css-edit",
+      "passed": true
+    },
+    {
+      "name": "dev-macro-removal-restoration",
+      "passed": true
+    },
+    {
+      "name": "cold-ssr-hydration-reactivity-lazy-navigation",
+      "passed": true
+    },
+    {
+      "name": "warm-ssr-hydration-reactivity-lazy-navigation",
+      "passed": true
+    }
+  ]
+}

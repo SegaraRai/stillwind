@@ -4,7 +4,10 @@ use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(crate) fn is_style_import(declaration: &ImportDeclaration<'a>) -> bool {
-        declaration.source.value.as_str() == "stillwind/react"
+        matches!(
+            declaration.source.value.as_str(),
+            "stillwind/react" | "stillwind/solid"
+        )
     }
 
     pub(crate) fn is_style_member(&self, expression: &Expression<'a>, property: &str) -> bool {

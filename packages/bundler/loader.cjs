@@ -10,7 +10,8 @@ const relativeRequest = (from, to) => {
 module.exports = function (source, inputMap) {
   const callback = this.async();
   const text = String(source);
-  if (!text.includes("stillwind/react")) return callback(null, source, inputMap);
+  if (!text.includes("stillwind/react") && !text.includes("stillwind/solid"))
+    return callback(null, source, inputMap);
   const context = this;
   const options = this.getOptions();
   if (!options.css) return callback(new Error("Stillwind requires a CSS entrypoint"));

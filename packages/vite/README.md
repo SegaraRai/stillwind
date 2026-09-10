@@ -60,3 +60,13 @@ vp run verify:react-router
 
 The runner uses installed Chrome and port 43176. Development may reload the page;
 preserving component state during all framework HMR updates is not asserted.
+
+SolidStart 2.0.4 uses `solidStart()` and `nitro()` after `stillwind()`. Import the
+macro from `stillwind/solid` to emit Solid's `class` prop. Reactive expressions
+stay inside JSX spreads for Solid's transform to track them. Run
+`vp run verify:solidstart` in `experiments/module-graph` (port 43177) for
+JavaScript-disabled SSR, hydration, signal updates, lazy client navigation,
+CSS edits, macro removal/restoration, and cold/warm production builds.
+The local linked-package fixture explicitly allows the repository in Vite's
+`server.fs.allow`. Carriers end in `.css`, including their immutable payload and
+development revision, so framework CSS discovery and `?inline` reads work.

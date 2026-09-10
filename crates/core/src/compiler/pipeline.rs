@@ -639,6 +639,7 @@ impl Compiler {
                     dynamic_asset_classes: &dynamic_asset_classes,
                     view_transition_style: view_transition_style.as_ref(),
                 },
+                module.adapter,
             ) {
                 result.transforms.push(SourceTransform {
                     call_span: call.span,

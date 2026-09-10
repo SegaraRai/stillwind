@@ -26,6 +26,7 @@ impl<'a> MacroExtractor<'a> {
             source,
             scoping,
             style_symbols: HashSet::new(),
+            adapter: None,
             handle_symbols: HashMap::new(),
             scope_symbols: HashMap::new(),
             handle_uses: Vec::new(),
@@ -123,6 +124,7 @@ impl<'a> MacroExtractor<'a> {
 }
 
 pub(super) struct MacroExtractor<'a> {
+    pub(super) adapter: Option<stillwind_ir::AdapterKind>,
     pub(super) source: &'a SourceFile,
     pub(super) scoping: &'a Scoping,
     pub(super) style_symbols: HashSet<SymbolId>,

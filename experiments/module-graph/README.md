@@ -41,6 +41,7 @@ The following separate tasks use the real Stillwind compiler, not `styleToken`:
 - `vp run verify:rspack`: Rspack native CSS and persistent cache.
 - `vp run verify:rsbuild`: Rsbuild wrapper over the same adapter.
 - `vp run verify:react-router`: React Router 8.3.1 Framework Mode and Vite+.
+- `vp run verify:solidstart`: SolidStart 2.0.4, Solid 1.9.15, Nitro, and Vite+.
 
 Next checks RSC/client rendering, hydration, dependency edits, macro removal,
 client navigation, prefetch, and cold/warm production builds. Rspack/Rsbuild
@@ -58,3 +59,8 @@ server code from client JavaScript and source maps. Results are stored in
 fixture under `output/react-router-<timestamp>` using the dependencies installed
 here. Next uses ports 43174–43175; React Router uses 43176. Do not run two copies
 of the same task concurrently.
+
+SolidStart uses port 43177 and writes `results/solidstart-real.json`. Its generated
+fixture verifies JavaScript-disabled SSR, hydration, both branches of a reactive
+comparison, lazy navigation without document replacement, CSS edits, macro
+removal/restoration, and cold/warm production builds with `stillwind/solid`.
