@@ -1,10 +1,11 @@
-use oxc_resolver::{ResolveOptions, Resolver};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use stillwind_core::{
-    CompilerOptions, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep,
-    DesignSystemLoader, DesignSystemSnapshot,
+use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
+
+use stillwind_design_system::{
+    CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
+    DesignSystemOptions, DesignSystemSnapshot,
 };
 use stillwind_source::{FileId, SourceError, SourceFile};
 
@@ -22,7 +23,7 @@ pub(super) enum FileLoadError {
     Resolve {
         request: CssFileRequest,
         #[source]
-        source: Box<oxc_resolver::ResolveError>,
+        source: Box<ResolveError>,
     },
     #[error("{0}")]
     Load(#[from] DesignSystemLoadError),
@@ -38,7 +39,7 @@ pub(super) fn read_source(path: &str, id: u32) -> Result<SourceFile, FileLoadErr
 
 pub(super) fn load_design_system(
     theme: &SourceFile,
-    options: CompilerOptions,
+    options: DesignSystemOptions,
 ) -> Result<DesignSystemSnapshot, FileLoadError> {
     let resolver = Resolver::new(ResolveOptions {
         condition_names: vec!["style".into(), "import".into(), "default".into()],

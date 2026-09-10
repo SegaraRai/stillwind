@@ -11,13 +11,16 @@ name = "stillwind"
 path = "src/main.rs"
 
 [dependencies]
-thiserror.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-stillwind-core = { path = "../core" }
+stillwind-compiler = { path = "../compiler" }
+stillwind-design-system = { path = "../design-system" }
+stillwind-ir = { path = "../ir" }
+stillwind-js-oxc = { path = "../js-oxc" }
 stillwind-source = { path = "../source" }
 oxc_resolver = "11.24.3"
 pathdiff = "0.2.3"
+serde_json.workspace = true
+serde.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

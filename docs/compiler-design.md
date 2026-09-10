@@ -1,6 +1,7 @@
 # stillwind compiler design
 
-Status: proposed architecture. This document turns the golden case into an
+Status: original proposed architecture. For current crate ownership and host
+boundaries, see [crate architecture](crate-architecture.md). This document turns the golden case into an
 implementable compiler while preserving precise source locations for errors,
 linting, quick-fixes, and a future formatter.
 

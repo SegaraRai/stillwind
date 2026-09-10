@@ -1,6 +1,8 @@
 # Stillwind design system architecture
 
-Status: accepted design for the next compiler refactor.
+Status: implemented service design. Current crate ownership and API changes are
+specified in [crate architecture](crate-architecture.md) and
+[using the compiler services](design-system-core.md).
 
 This document fixes the public responsibility boundaries for loading Stillwind
 CSS configuration, analyzing source modules, compiling analyzed modules, editor

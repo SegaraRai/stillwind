@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde.workspace = true
 stillwind-source = { path = "../source" }
+serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

@@ -8,37 +8,20 @@ use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use stillwind_core::{
-    CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot, Fingerprint,
-    ModuleId, ModuleScan, OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer,
-    StylesheetCoverage, StylesheetPlacement, StylesheetSelection, TypeFacts, TypeFactsUpdate,
-    TypeScriptFactsProvider,
+use stillwind_compiler::{
+    CompilerOptions, StylesheetMapping, StylesheetPlacement, StylesheetRenderer,
 };
-use stillwind_semantic::TypeFact;
-use stillwind_source::{CompileError, FileId, SourceFile};
+use stillwind_design_system::{
+    CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
+};
+use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
+use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
+use stillwind_semantic::{ModuleId, TypeFact, TypeFacts, TypeFactsUpdate};
+use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
 
 use super::api::{binding_output, parse_options};
 use super::output::BindingOutput;
-
-fn stylesheet_locations(mappings: &[stillwind_core::StylesheetMapping]) -> serde_json::Value {
-    let mut sources = Vec::new();
-    let mut indices = BTreeMap::new();
-    let entries =
-        mappings
-            .iter()
-            .map(|mapping| {
-                let index = *indices.entry(mapping.source.path().to_owned()).or_insert_with(|| {
-            let index = sources.len();
-            sources.push(json!({"path": mapping.source.path(), "content": mapping.source.text()}));
-            index
-        });
-                json!({"source": index, "generatedStart": mapping.generated.start,
-            "generatedEnd": mapping.generated.end, "originalStart": mapping.original.start,
-            "originalEnd": mapping.original.end, "exact": mapping.exact})
-            })
-            .collect::<Vec<_>>();
-    json!({"sources": sources, "entries": entries})
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {
@@ -108,6 +91,7 @@ pub struct NativeCssFileInput {
 #[napi]
 pub struct NativeDesignSystemLoader {
     loader: DesignSystemLoader,
+    options: CompilerOptions,
     snapshot: Option<DesignSystemSnapshot>,
 }
 
@@ -115,8 +99,10 @@ pub struct NativeDesignSystemLoader {
 impl NativeDesignSystemLoader {
     #[napi(constructor)]
     pub fn new(options_json: Option<String>) -> napi::Result<Self> {
+        let options = parse_options(options_json.as_deref())?;
         Ok(Self {
-            loader: DesignSystemLoader::new(parse_options(options_json.as_deref())?),
+            loader: DesignSystemLoader::new(options.design_system()),
+            options,
             snapshot: None,
         })
     }
@@ -168,7 +154,7 @@ impl NativeDesignSystemLoader {
 
     #[napi]
     pub fn generate_react_types(&self) -> napi::Result<String> {
-        Ok(self.completed()?.generate_react_types())
+        Ok(StylesheetRenderer::new(&self.completed()?, &self.options).generate_react_types())
     }
 }
 
@@ -235,6 +221,7 @@ impl NativeProjectSession {
                 } else {
                     SessionMode::Build
                 },
+                loader.options.clone(),
             ),
         })
     }
@@ -243,7 +230,7 @@ impl NativeProjectSession {
     pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> napi::Result<String> {
         let update = self
             .session
-            .reload(Ok(loader.completed()?))
+            .reload(Ok(loader.completed()?), loader.options.clone())
             .map_err(|error| Error::from_reason(error.to_string()))?;
         if !update.diagnostics.is_empty() {
             return Err(NativeSessionError::ReloadCompilation {
@@ -307,6 +294,8 @@ impl NativeProjectSession {
                 "module": module.as_str(), "sourceRevision": key.source_revision.0,
                 "semanticRevision": key.semantic_revision.as_ref().map(|revision| &revision.0),
                 "compilerVersion": key.compiler_version,
+                "compilerOptions": key.compiler_options.0,
+                "analysisRevision": key.analysis_revision.0,
             })).collect::<Vec<_>>(),
         }).to_string())
     }
@@ -314,17 +303,14 @@ impl NativeProjectSession {
     /// Stable document CSS independent of which JS modules have been visited.
     #[napi]
     pub fn base_css(&self) -> napi::Result<String> {
-        self.session
-            .snapshot()
+        StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
             .render_base_stylesheet()
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     #[napi]
     pub fn base_css_with_map(&self) -> napi::Result<String> {
-        let output = self
-            .session
-            .snapshot()
+        let output = StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
             .render_base_stylesheet_with_map()
             .map_err(|error| Error::from_reason(error.to_string()))?;
         Ok(
@@ -341,8 +327,7 @@ impl NativeProjectSession {
             .artifacts()
             .get(module.as_str())
             .ok_or_else(|| Error::from_reason(format!("Unknown Stillwind module: {module}")))?;
-        self.session
-            .snapshot()
+        StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
             .render_module_stylesheet(&artifact.css.to_css())
             .map_err(|error| Error::from_reason(error.to_string()))
     }
@@ -410,7 +395,7 @@ impl NativeProjectSession {
                 .session
                 .artifacts()
                 .get(&scan.module_id)
-                .map(|artifact| artifact.to_legacy(&snapshot))
+                .map(|artifact| artifact.to_output(&snapshot, self.session.options()))
                 .unwrap_or_default();
             if let Some(diagnostics) = update.diagnostics.get(&scan.module_id) {
                 result.diagnostics.clone_from(diagnostics);
@@ -426,10 +411,31 @@ impl NativeProjectSession {
     }
 }
 
+fn stylesheet_locations(mappings: &[StylesheetMapping]) -> serde_json::Value {
+    let mut sources = Vec::new();
+    let mut indices = BTreeMap::new();
+    let entries =
+        mappings
+            .iter()
+            .map(|mapping| {
+                let index = *indices.entry(mapping.source.path().to_owned()).or_insert_with(|| {
+            let index = sources.len();
+            sources.push(json!({"path": mapping.source.path(), "content": mapping.source.text()}));
+            index
+        });
+                json!({"source": index, "generatedStart": mapping.generated.start,
+            "generatedEnd": mapping.generated.end, "originalStart": mapping.original.start,
+            "originalEnd": mapping.original.end, "exact": mapping.exact})
+            })
+            .collect::<Vec<_>>();
+    json!({"sources": sources, "entries": entries})
+}
+
 #[cfg(test)]
 mod tests {
+    use stillwind_project::SessionUpdate;
+
     use super::*;
-    use stillwind_core::SessionUpdate;
 
     #[test]
     fn module_ids_remain_strings_in_host_json() {

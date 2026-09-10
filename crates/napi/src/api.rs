@@ -3,13 +3,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_core::{
-    CompileResult, Compiler, CompilerOptions, CompilerOptionsError, DesignSystemError,
-    DesignSystemSnapshot, Fingerprint, ModuleCompiler, OxcSourceAnalyzer, SourceAnalyzer,
-    TypeFacts,
-};
-use stillwind_semantic::{AssetMetadata, IdentityId};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, ModuleCompiler};
+use stillwind_design_system::{DesignSystemError, DesignSystemOptionsError, DesignSystemSnapshot};
+use stillwind_ir::SourceAnalyzer;
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
+use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
+use stillwind_source::{FileId, Fingerprint, SourceFile};
 
 use super::output::{BindingDiagnostic, BindingLintFinding, BindingMapping, BindingOutput};
 use super::session::{ProjectBindingOutput, ProjectModuleOutput, ProjectSource};
@@ -25,16 +24,7 @@ pub enum BindingApiError {
     #[error("{0}")]
     DesignSystem(#[from] DesignSystemError),
     #[error("{0}")]
-    Options(#[from] CompilerOptionsError),
-}
-
-fn source_file_id(index: usize) -> Result<FileId, BindingApiError> {
-    let id = index
-        .checked_add(1)
-        .ok_or(BindingApiError::TooManySources)?;
-    u32::try_from(id)
-        .map(FileId)
-        .map_err(|_| BindingApiError::TooManySources)
+    Options(#[from] DesignSystemOptionsError),
 }
 
 impl From<BindingApiError> for Error {
@@ -68,7 +58,8 @@ pub fn compile_react_json_with_options(
     let source = SourceFile::new(FileId(1), source_path, source)?;
     let theme =
         SourceFile::new(FileId(2), "stillwind.css", theme).map_err(BindingApiError::from)?;
-    let result = Compiler::compile_react_with_options(&source, &theme, options);
+    let result =
+        Compiler::compile_source_with_options(&OxcSourceAnalyzer, &source, &theme, options);
     serde_json::to_string(&binding_output(result, &source, &theme)).map_err(BindingApiError::Json)
 }
 
@@ -204,12 +195,12 @@ pub fn compile_react_project_json_with_options(
     let theme = SourceFile::new(source_file_id(sources.len())?, "stillwind.css", theme)?;
     let assets = sources
         .iter()
-        .flat_map(|(source, _)| Compiler::analyze_javascript(source).summary.assets)
+        .flat_map(|(source, _)| parse(source).summary.assets)
         .map(|asset| (asset.identity, asset.metadata))
         .collect::<BTreeMap<IdentityId, AssetMetadata>>();
-    let snapshot = DesignSystemSnapshot::from_source(&theme, options.clone())
+    let snapshot = DesignSystemSnapshot::from_source(&theme, options.design_system())
         .map_err(BindingApiError::DesignSystem)?;
-    let compiler = ModuleCompiler::new(snapshot.clone());
+    let compiler = ModuleCompiler::new(snapshot.clone(), options.clone());
     let mut results = sources
         .iter()
         .map(|(source, type_facts)| {
@@ -236,7 +227,7 @@ pub fn compile_react_project_json_with_options(
         .iter()
         .zip(results)
         .map(|((source, _), result)| {
-            let mut result = result.to_legacy(&snapshot);
+            let mut result = result.to_output(&snapshot, options);
             // Project consumers assemble one shared stylesheet from these
             // fragments instead of repeating theme/base layers per module.
             result.css.clone_from(&result.module_css);
@@ -256,7 +247,7 @@ pub fn compile_react_project_json_with_options(
 /// Returns an error only when serializing the summary fails.
 pub fn summarize_react_json(source: &str, source_path: &str) -> Result<String, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source)?;
-    let parsed = Compiler::analyze_javascript(&source);
+    let parsed = parse(&source);
     let mut summary = serde_json::to_value(&parsed.summary).map_err(BindingApiError::Json)?;
     summary["type_probes"] = serde_json::json!(
         parsed
@@ -365,6 +356,15 @@ pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)
 }
 
+fn source_file_id(index: usize) -> Result<FileId, BindingApiError> {
+    let id = index
+        .checked_add(1)
+        .ok_or(BindingApiError::TooManySources)?;
+    u32::try_from(id)
+        .map(FileId)
+        .map_err(|_| BindingApiError::TooManySources)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,11 +382,7 @@ mod tests {
         ));
         assert!(parse_options(Some(r#"{"prefix":"bad"}"#)).is_err());
     }
-}
 
-#[cfg(test)]
-mod source_limits {
-    use super::*;
     #[test]
     fn file_id_exhaustion_does_not_require_allocating_a_source_graph() {
         assert_eq!(source_file_id(0).unwrap(), FileId(1));

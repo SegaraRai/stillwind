@@ -1,8 +1,10 @@
 //! Integration of import binding, declarations, reference resolution and module summaries.
-use super::entry::parse;
+
 use stillwind_ir::StyleInput;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
+
+use crate::parse;
 
 #[test]
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {

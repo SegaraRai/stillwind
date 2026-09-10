@@ -1,8 +1,11 @@
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+
+use stillwind_source::normalized_module_path;
+
 use super::assets::AssetRecord;
 use super::symbolic::ExportedValue;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use stillwind_source::normalized_module_path;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ImportBinding {

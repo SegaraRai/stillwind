@@ -1,0 +1,34 @@
+[package]
+name = "stillwind-compiler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+stillwind-css = { path = "../css" }
+stillwind-design-system = { path = "../design-system" }
+stillwind-ir = { path = "../ir" }
+stillwind-semantic = { path = "../semantic" }
+stillwind-source = { path = "../source" }
+stillwind-syntax = { path = "../syntax" }
+blake3.workspace = true
+cssparser.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+stillwind-js-oxc = { path = "../js-oxc" }
+lightningcss.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true
+
+[build-dependencies]
+blake3.workspace = true
+
+[[test]]
+name = "static_compile"
+path = "tests/static_compile/mod.rs"

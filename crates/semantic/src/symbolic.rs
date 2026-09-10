@@ -1,6 +1,8 @@
-use super::identity::{AssetKind, IdentityId};
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+
+use serde::{Deserialize, Serialize};
+
+use super::identity::{AssetKind, IdentityId};
 
 #[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
 pub enum SymbolicError {

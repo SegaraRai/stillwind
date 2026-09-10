@@ -228,8 +228,9 @@ fn is_marker_label(label: &Spanned<String>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use stillwind_source::FileId;
+
+    use super::*;
 
     #[test]
     fn labels_allow_only_nonempty_ascii_marker_characters() {

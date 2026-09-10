@@ -1,16 +1,15 @@
-# Using the design-system core
+# Using the compiler services
 
-The implementation of [the accepted architecture](./design-system-architecture.md)
-is exported by `stillwind-core`. New integrations should use these domain APIs;
-`Compiler` and `CompileResult` remain compatibility facades for existing callers
-and fixtures, and delegate to the same snapshot and module compilation pipeline.
+The implementation follows [the crate responsibility boundaries](./crate-architecture.md).
+Loading, frontend analysis, compilation, and mutable project state have separate
+crates. Hosts explicitly compose these services; there is no compatibility facade.
 
 ## Loading CSS
 
 ```rust
-use stillwind_core::{DesignSystemLoader, DesignSystemLoadStep, CompilerOptions};
+use stillwind_design_system::{DesignSystemLoader, DesignSystemLoadStep, DesignSystemOptions};
 
-let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
 let mut step = loader.provide(0, root_name, root_content);
 let snapshot = loop {
     match step {
@@ -43,8 +42,8 @@ Source names are opaque identities. A filesystem host should canonicalize the
 root and imported names consistently. A resolver or read error belongs to the host: drop the
 incomplete loader. Completion is terminal, including a failed completion.
 
-Framework imports select vendored definitions. Other imports request buffers
-from the host. Import order, duplicate identities, cycles, conflicting contents,
+All imports request buffers from the host, including package-owned definitions.
+Import order, duplicate identities, cycles, conflicting contents,
 layer placement, supports conditions, and media conditions are handled by the
 loader. `snapshot.sources()` retains supplied names, edges and expansion
 mappings; theme token spans point into their original source buffers.
@@ -56,18 +55,20 @@ loader loop instead.
 ## Analysis, compilation and queries
 
 ```rust
-use stillwind_core::{
-    SourceAnalyzer, OxcSourceAnalyzer, ModuleCompiler, DesignSystemQuery,
-    CompletionInput,
+use stillwind_ir::SourceAnalyzer;
+use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_compiler::{
+    ModuleCompiler, DesignSystemQuery, CompilerOptions, CompletionInput,
 };
 
 let scan = OxcSourceAnalyzer.scan(source); // Arc<SourceFile>
 // Optional: pass scans to a TypeScriptFactsProvider before finalization.
 let analysis = OxcSourceAnalyzer.finalize(scan, None);
-let compiled = ModuleCompiler::new(snapshot.clone()).compile(&analysis);
+let options = CompilerOptions::default();
+let compiled = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(&analysis);
 let transformed = compiled.apply_to_source(&analysis.source)?;
 
-let query = DesignSystemQuery::new(snapshot.clone());
+let query = DesignSystemQuery::new(snapshot.clone(), options.clone());
 let resolved = query.resolve_candidate("hover:bg-red-500");
 let completions = query.complete_candidate(CompletionInput { prefix: "bg-".into() });
 ```
@@ -76,7 +77,7 @@ Scanning produces local IR, producer summaries, expression probes, source
 diagnostics and lint directives. Finalization consumes optional versioned,
 span-keyed `TypeFacts`; incompatible schemas, stale source revisions and invalid
 byte spans produce integration diagnostics. The Rust frontend does not load or
-traverse JavaScript dependencies. The Vite TypeScript service retains ownership
+traverse JavaScript dependencies. The host TypeScript service retains ownership
 of checker snapshots and cross-module propagation. The native adapter implements
 `TypeScriptFactsProvider` for the service's supplied facts and asset metadata.
 
@@ -92,23 +93,38 @@ at-rule prelude and block body losslessly; the existing emitter is adapted at
 the rule boundary without changing its serialization. Lint findings and policy
 do not change CSS, transforms or generated names.
 
+## Rendering a pinned snapshot
+
+```rust
+use stillwind_compiler::StylesheetRenderer;
+
+let renderer = StylesheetRenderer::new(&snapshot, &options);
+let document_css = renderer.render_base_stylesheet()?;
+let module_css = renderer.render_module_stylesheet(&compiled.css.to_css())?;
+let declarations = renderer.generate_react_types();
+```
+
+The snapshot owns definition settings. Rendering and class-generation policy
+belong to the compiler. CSS-resolved prefixes override the loader defaults;
+class identity and application namespace remain independent compiler settings.
+
 ## Sessions and reloads
 
 ```rust
-use stillwind_core::{ProjectSession, SessionMode};
+use stillwind_project::{ProjectSession, SessionMode};
 
-let mut session = ProjectSession::new(snapshot, SessionMode::Watch);
+let mut session = ProjectSession::new(snapshot, SessionMode::Watch, options.clone());
 let change = session.update_module(analysis)?;
 let css = session.css()?;
 session.remove_module("src/removed.tsx")?;
 
 // Drive a fresh loader first; keep the active snapshot pinned during loading.
-let change = session.reload(new_load_result)?;
+let change = session.reload(new_load_result, options)?;
 ```
 
 Session mutations are exclusive actor operations; a host may put the session
 behind a mutex. `snapshot()` returns an immutable clone for concurrent requests.
-There is no watcher, I/O runtime or checker process inside the core.
+There is no watcher, I/O runtime or checker process inside the Rust services.
 
 The stylesheet owns rule contributions and module membership. Removing a module
 retains rules used by other modules. Serialization uses deterministic module
@@ -122,10 +138,10 @@ returned to the host and do not retain successful module artifacts as fallback.
 Source failures likewise retain the previous successful artifact only in watch
 mode. Notifications distinguish changed CSS and changed transform plans.
 
-Artifact keys include compiler content identity, snapshot content fingerprint,
-module identity and source revision, source file ID, frontend, adapter and optional
-semantic revision. Identical successful artifacts are reused. The compiler build
-fingerprint includes compiler source, CSS definitions and the lockfile, so
+Artifact keys include compiler content identity, resolved generation options,
+snapshot content, finalized analysis inputs, module identity and source revision,
+source file ID, frontend, adapter and optional semantic revision. Identical successful artifacts are reused. The compiler build
+fingerprint includes compiler/dependency source, CSS property data, manifests and the lockfile, so
 unpublished builds sharing a package version do not collide.
 
 Definition fingerprints and dependency indexes are present. Definition dependency
@@ -171,16 +187,13 @@ agreement, shared rule ownership, cache reuse, concurrent compilation, lint
 independence, native bindings and Vite reload behavior. Existing transform and
 Tailwind fixture expectations are preserved.
 
-The React example production build also passes. Its additional `tsc --noEmit`
-check currently reports `TS2590` in `packages/react/src/index.ts:19` because the
-utility/variant union is too large. This predates the refactor: a detached build
-of `cad1f5f` produces an identical example vocabulary file (SHA-256
-`858865bf08894313f3c6183e99a18921a9b6654bd167dc47772645484b86b7f7`), and the React
-type definition and TypeScript configuration are unchanged. Native and Vite
-package type checks pass.
+Workspace builds and type checks cover the React example as well as the native,
+host, and Vite packages. See [crate architecture](crate-architecture.md) for the
+full validation commands and [module graph implementation](module-graph-implementation.md)
+for framework acceptance and downstream source-map limitations.
 
 ### Fallible Rust boundaries
 
 `SourceFile::new` returns `Result` and rejects buffers beyond the 32-bit source-coordinate limit. `Span::len` returns `None` for reversed spans, and `lex_utilities` returns a source error for invalid or overflowing token coordinates. Callers must propagate or handle these failures.
 
-`DesignSystemSnapshot::render_stylesheet`, `ProjectStylesheet::module_css`/`serialize`, and `ProjectSession::css`/`update_module`/`remove_module` return `Result` for stylesheet failures. Compiler entrypoints that already return diagnostic collections attach these failures as diagnostics. The Node interface continues to return the same successful JSON/string values and throws on boundary errors.
+`StylesheetRenderer::render_stylesheet`, `ProjectStylesheet::module_css`/`serialize`, and `ProjectSession::css`/`update_module`/`remove_module` return `Result` for stylesheet failures. Compiler entrypoints that return diagnostic collections attach these failures as diagnostics. The Node interface returns successful JSON/string values and throws on boundary errors.

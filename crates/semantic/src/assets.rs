@@ -1,5 +1,6 @@
-use super::identity::IdentityId;
 use serde::{Deserialize, Serialize};
+
+use super::identity::IdentityId;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetMetadata {

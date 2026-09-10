@@ -12,14 +12,17 @@
     )
 )]
 
-use std::{env, fs, sync::Arc};
+use std::sync::Arc;
+use std::{env, fs};
 
 use serde::Serialize;
 
-use stillwind_core::{
-    CompilerOptions, CompilerOptionsError, GeneratedClass, ModuleCompiler, OxcSourceAnalyzer,
-    SourceAnalyzer,
+use stillwind_compiler::{
+    CompilerOptions, GeneratedClass, ModuleCompiler, ModuleResourceReference,
 };
+use stillwind_design_system::{DesignSystemOptionsError, DesignSystemSnapshot};
+use stillwind_ir::SourceAnalyzer;
+use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceError, SourceFile};
 
 mod arguments;
@@ -27,6 +30,30 @@ mod loading;
 
 use arguments::{ArgumentError, argument, has_flag, optional_argument};
 use loading::{FileLoadError, load_design_system, read_source};
+
+#[derive(Debug, thiserror::Error)]
+enum CommandError {
+    #[error("{0}")]
+    Source(#[from] SourceError),
+    #[error("expected `compile` command")]
+    MissingCommand,
+    #[error("unknown command `{command}`; expected `compile`")]
+    UnknownCommand { command: String },
+    #[error("{0}")]
+    Argument(#[from] ArgumentError),
+    #[error("{0}")]
+    File(#[from] FileLoadError),
+    #[error("cannot resolve theme {path}: {source}")]
+    ThemePath {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Options(#[from] DesignSystemOptionsError),
+    #[error("{0}")]
+    Output(#[from] serde_json::Error),
+}
 
 #[derive(Serialize)]
 struct CliOutput {
@@ -54,35 +81,11 @@ struct LintFindingOutput {
     end: u32,
 }
 
-#[derive(Debug, thiserror::Error)]
-enum CommandError {
-    #[error("{0}")]
-    Source(#[from] SourceError),
-    #[error("expected `compile` command")]
-    MissingCommand,
-    #[error("unknown command `{command}`; expected `compile`")]
-    UnknownCommand { command: String },
-    #[error("{0}")]
-    Argument(#[from] ArgumentError),
-    #[error("{0}")]
-    File(#[from] FileLoadError),
-    #[error("cannot resolve theme {path}: {source}")]
-    ThemePath {
-        path: String,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("{0}")]
-    Options(#[from] CompilerOptionsError),
-    #[error("{0}")]
-    Output(#[from] serde_json::Error),
-}
-
 fn rebase_resources(
     mut css: String,
     theme: &SourceFile,
-    snapshot: &stillwind_core::DesignSystemSnapshot,
-    resources: &[stillwind_core::ModuleResourceReference],
+    snapshot: &DesignSystemSnapshot,
+    resources: &[ModuleResourceReference],
 ) -> Result<String, CommandError> {
     let entry_path =
         std::path::absolute(theme.path()).map_err(|source| CommandError::ThemePath {
@@ -146,12 +149,12 @@ fn run() -> Result<(), CommandError> {
         ..CompilerOptions::default()
     };
     options.validate()?;
-    let snapshot = load_design_system(&theme, options)?;
+    let snapshot = load_design_system(&theme, options.design_system())?;
     let analysis =
         OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source.clone())), None);
-    let result = ModuleCompiler::new(snapshot.clone())
+    let result = ModuleCompiler::new(snapshot.clone(), options.clone())
         .compile(&analysis)
-        .to_legacy(&snapshot);
+        .to_output(&snapshot, &options);
     let diagnostics = result
         .diagnostics
         .iter()

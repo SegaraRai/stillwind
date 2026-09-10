@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-pub(crate) fn custom_property_references(css: &str) -> BTreeSet<String> {
+pub fn custom_property_references(css: &str) -> BTreeSet<String> {
     let mut references = BTreeSet::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("--") {

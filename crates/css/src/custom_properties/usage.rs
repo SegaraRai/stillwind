@@ -7,9 +7,8 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::visit_types;
 use lightningcss::visitor::{Visit, VisitTypes, Visitor};
 
-use crate::blocks::{strip_blocks, strip_css_comments};
-
 use super::references::custom_property_references;
+use crate::blocks::{strip_blocks, strip_css_comments};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CustomPropertyUsage {

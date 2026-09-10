@@ -1,4 +1,4 @@
-//! CSS theme parsing, definition registration, and value validation.
+//! CSS syntax and value primitives, custom properties, resources, and output templates.
 
 #![cfg_attr(
     not(test),
@@ -12,33 +12,21 @@
     )
 )]
 
-mod blocks;
+pub mod blocks;
 mod colors;
 mod custom_properties;
-mod functions;
+pub mod functions;
 mod math;
 mod output;
-mod registry;
 mod resources;
-mod theme;
 mod values;
 
 pub use colors::*;
 pub use custom_properties::*;
 pub use math::*;
 pub use output::*;
-pub use registry::*;
 pub use resources::*;
-pub use theme::*;
 pub use values::*;
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-#[path = "../../test-support/defaults.rs"]
-mod test_defaults;
-
-#[cfg(test)]
-#[path = "../../test-support/css.rs"]
-mod css_fixture;

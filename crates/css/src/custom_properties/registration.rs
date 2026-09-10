@@ -43,7 +43,7 @@ impl CustomPropertyActivation {
     }
 }
 
-pub(crate) fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
+pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_named_blocks(&strip_css_comments(css), "@stillwind-property")
         .into_iter()
         .filter_map(|(header, body)| {
@@ -84,7 +84,7 @@ pub(crate) fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefin
         .collect()
 }
 
-pub(crate) fn extract_authored_property_names(css: &str) -> BTreeSet<String> {
+pub fn extract_authored_property_names(css: &str) -> BTreeSet<String> {
     extract_named_blocks(&strip_css_comments(css), "@property")
         .into_iter()
         .filter_map(|(header, _)| {

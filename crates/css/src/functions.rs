@@ -1,4 +1,4 @@
-pub(super) fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> {
+pub fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> {
     let bytes = value.as_bytes();
     let needle = format!("{name}(");
     let mut quote = None;
@@ -34,7 +34,7 @@ pub(super) fn find_css_function(value: &str, name: &str, from: usize) -> Option<
     None
 }
 
-pub(super) fn matching_css_delimiter(
+pub fn matching_css_delimiter(
     value: &str,
     open: usize,
     opener: char,
@@ -79,7 +79,7 @@ pub(super) fn matching_css_delimiter(
     None
 }
 
-pub(super) fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
+pub fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
     let mut stack = Vec::new();
     let mut quote = None;
     let mut escaped = false;

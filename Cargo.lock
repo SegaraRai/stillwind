@@ -1502,13 +1502,16 @@ dependencies = [
  "pathdiff",
  "serde",
  "serde_json",
- "stillwind-core",
+ "stillwind-compiler",
+ "stillwind-design-system",
+ "stillwind-ir",
+ "stillwind-js-oxc",
  "stillwind-source",
  "thiserror",
 ]
 
 [[package]]
-name = "stillwind-core"
+name = "stillwind-compiler"
 version = "0.0.0"
 dependencies = [
  "blake3",
@@ -1517,12 +1520,12 @@ dependencies = [
  "proptest",
  "serde",
  "stillwind-css",
- "stillwind-grammar",
+ "stillwind-design-system",
  "stillwind-ir",
  "stillwind-js-oxc",
  "stillwind-semantic",
  "stillwind-source",
- "stillwind-tailwind",
+ "stillwind-syntax",
  "thiserror",
 ]
 
@@ -1538,11 +1541,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "stillwind-grammar"
+name = "stillwind-design-system"
 version = "0.0.0"
 dependencies = [
+ "cssparser 0.38.0",
+ "lightningcss",
  "proptest",
+ "serde",
+ "stillwind-css",
  "stillwind-source",
+ "stillwind-syntax",
+ "thiserror",
 ]
 
 [[package]]
@@ -1550,6 +1559,7 @@ name = "stillwind-ir"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "stillwind-semantic",
  "stillwind-source",
 ]
 
@@ -1572,8 +1582,27 @@ dependencies = [
  "napi-derive",
  "serde",
  "serde_json",
- "stillwind-core",
+ "stillwind-compiler",
  "stillwind-css",
+ "stillwind-design-system",
+ "stillwind-ir",
+ "stillwind-js-oxc",
+ "stillwind-project",
+ "stillwind-semantic",
+ "stillwind-source",
+ "thiserror",
+]
+
+[[package]]
+name = "stillwind-project"
+version = "0.0.0"
+dependencies = [
+ "cssparser 0.38.0",
+ "proptest",
+ "stillwind-compiler",
+ "stillwind-design-system",
+ "stillwind-ir",
+ "stillwind-js-oxc",
  "stillwind-semantic",
  "stillwind-source",
  "thiserror",
@@ -1593,18 +1622,17 @@ dependencies = [
 name = "stillwind-source"
 version = "0.0.0"
 dependencies = [
+ "blake3",
  "proptest",
  "serde",
  "thiserror",
 ]
 
 [[package]]
-name = "stillwind-tailwind"
+name = "stillwind-syntax"
 version = "0.0.0"
 dependencies = [
  "proptest",
- "stillwind-css",
- "stillwind-grammar",
  "stillwind-source",
 ]
 

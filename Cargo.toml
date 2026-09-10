@@ -1,15 +1,16 @@
 [workspace]
 members = [
-  "crates/source",
-  "crates/ir",
-  "crates/semantic",
-  "crates/grammar",
-  "crates/css",
-  "crates/tailwind",
-  "crates/js-oxc",
-  "crates/core",
   "crates/cli",
+  "crates/compiler",
+  "crates/css",
+  "crates/design-system",
+  "crates/ir",
+  "crates/js-oxc",
   "crates/napi",
+  "crates/project",
+  "crates/semantic",
+  "crates/source",
+  "crates/syntax",
 ]
 resolver = "3"
 
@@ -17,11 +18,12 @@ resolver = "3"
 edition = "2024"
 rust-version = "1.96"
 license = "MIT"
-repository = "https://github.com/izual/stillwind"
+repository = "https://github.com/SegaraRai/stillwind"
 version = "0.0.0"
 
 [workspace.dependencies]
 blake3 = "1.8.7"
+cssparser = "0.38.0"
 lightningcss = { version = "1.0.0-alpha.72", default-features = false, features = [
   "visitor",
   "into_owned",

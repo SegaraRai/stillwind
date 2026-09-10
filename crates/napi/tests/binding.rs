@@ -1,3 +1,10 @@
+use std::error::Error;
+
+use stillwind_compiler::CompilerOptions;
+use stillwind_napi::{
+    BindingApiError, compile_react_project_json, compile_react_project_json_with_options,
+};
+
 #[test]
 fn serializes_a_layered_compile_result_for_node_consumers() {
     let source = r#"import { style } from "stillwind/react";
@@ -182,18 +189,14 @@ fn generates_theme_backed_react_type_augmentations() {
 
 #[test]
 fn project_api_preserves_json_and_configuration_errors() {
-    use std::error::Error;
-    use stillwind_napi::{
-        BindingApiError, compile_react_project_json, compile_react_project_json_with_options,
-    };
     let error = compile_react_project_json("{", "").unwrap_err();
     let BindingApiError::Json(cause) = &error else {
         panic!("expected JSON error")
     };
     assert_eq!(cause.line(), 1);
-    let options = stillwind_core::CompilerOptions {
+    let options = CompilerOptions {
         prefix: "invalid".into(),
-        ..stillwind_core::CompilerOptions::default()
+        ..CompilerOptions::default()
     };
     let error = compile_react_project_json_with_options("[]", "", &options).unwrap_err();
     assert!(matches!(error, BindingApiError::DesignSystem(_)));

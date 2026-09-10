@@ -14,6 +14,10 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "crates:check": {
+        command: "",
+        dependsOn: ["@stillwind/tools#check"],
+      },
       fmt: {
         command: "vp fmt --check",
       },

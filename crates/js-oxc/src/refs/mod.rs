@@ -1,4 +1,6 @@
 mod definitions;
-pub(super) mod projections;
+mod projections;
 mod references;
 mod validation;
+
+pub(super) use projections::*;

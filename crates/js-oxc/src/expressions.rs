@@ -284,9 +284,10 @@ impl<'a> MacroExtractor<'a> {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::{FileId, SourceFile};
+
     use super::super::entry::parse;
     use super::*;
-    use stillwind_source::{FileId, SourceFile};
 
     #[test]
     fn extracts_aria_and_data_attributes_with_value_expression_spans() {

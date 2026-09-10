@@ -108,8 +108,9 @@ fn lint_rule_for_code(code: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use stillwind_source::FileId;
+
+    use super::*;
 
     #[test]
     fn accepts_typescript_jsx() {

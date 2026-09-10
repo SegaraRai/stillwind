@@ -1,0 +1,22 @@
+[package]
+name = "stillwind-design-system"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+stillwind-css = { path = "../css" }
+stillwind-source = { path = "../source" }
+stillwind-syntax = { path = "../syntax" }
+cssparser.workspace = true
+lightningcss.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

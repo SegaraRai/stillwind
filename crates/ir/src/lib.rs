@@ -12,6 +12,8 @@
     )
 )]
 
+mod analysis;
 mod model;
 
+pub use analysis::*;
 pub use model::*;

@@ -7,6 +7,36 @@ void test("loads the current platform package through the public loader", async 
   assert.equal(typeof binding.compileReactProject, "function");
 });
 
+void test("session reload applies code generation options independently of CSS definitions", async () => {
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const load = (classNamespace) => {
+    const loader = new NativeDesignSystemLoader(
+      JSON.stringify({ classIdentity: "module", classNamespace }),
+    );
+    const result = JSON.parse(
+      loader.provide(0, "root", "@utility flex { display:flex; } @stillwind-slot utilities;"),
+    );
+    assert.equal(result.kind, "complete");
+    return loader;
+  };
+  const session = new NativeProjectSession(load("first"), true);
+  const sources = JSON.stringify([
+    {
+      path: "button.tsx",
+      source: "import { style } from 'stillwind/react'; const x = style('flex');",
+    },
+  ]);
+  const before = JSON.parse(session.compile(sources));
+  const beforeCss = session.css();
+  const update = JSON.parse(session.reload(load("second")));
+  assert.equal(update.cssChanged, true);
+  assert.deepEqual(update.transformedModules, ["button.tsx"]);
+  assert.notEqual(session.css(), beforeCss);
+  const after = JSON.parse(session.compile(sources));
+  assert.notEqual(before.modules[0].code, after.modules[0].code);
+  assert.deepEqual(after.modules[0].diagnostics, []);
+});
+
 void test("native sessions retain shared rules and replace CSS revisions", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const loader = new NativeDesignSystemLoader();

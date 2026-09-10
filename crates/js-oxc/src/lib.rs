@@ -12,6 +12,7 @@
     )
 )]
 
+mod analyzer;
 mod ast;
 mod bindings;
 mod demand;
@@ -22,7 +23,8 @@ mod refs;
 mod state;
 mod visit;
 
-pub use entry::*;
+pub use analyzer::OxcSourceAnalyzer;
+pub use entry::{ParsedJavaScript, parse, parse_with_type_facts};
 
 #[cfg(test)]
 mod tests;

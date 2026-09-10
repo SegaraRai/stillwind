@@ -2,7 +2,7 @@
 /// utility roots and the affected edges; this helper merely stamps the shared
 /// custom-property protocol into each definition. It deliberately enumerates
 /// neither colors nor spacing values.
-pub(super) fn strip_css_comments(css: &str) -> String {
+pub fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
     let mut remaining = css;
     while let Some(start) = remaining.find("/*") {
@@ -17,14 +17,14 @@ pub(super) fn strip_css_comments(css: &str) -> String {
     output
 }
 
-pub(super) fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
+pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .map(|(_, header, body)| (header, body))
         .collect()
 }
 
-pub(super) fn extract_named_blocks_with_offsets(
+pub fn extract_named_blocks_with_offsets(
     css: &str,
     directive: &str,
 ) -> Vec<(usize, String, String)> {
@@ -34,7 +34,7 @@ pub(super) fn extract_named_blocks_with_offsets(
         .collect()
 }
 
-pub(super) fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
+pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
     directive_rules(css, directive)
         .into_iter()
         .filter_map(|rule| {
@@ -127,7 +127,8 @@ fn scan_directives(
         }
     }
 }
-pub(super) fn strip_blocks(css: &str, directive: &str) -> String {
+
+pub fn strip_blocks(css: &str, directive: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find(directive) {
@@ -176,7 +177,7 @@ pub(super) fn strip_blocks(css: &str, directive: &str) -> String {
     output
 }
 
-pub(super) fn find_block_open(value: &str) -> Option<usize> {
+pub fn find_block_open(value: &str) -> Option<usize> {
     let mut offset = 0;
     while offset < value.len() {
         if value[offset..].starts_with("{modifier}") {
@@ -192,7 +193,7 @@ pub(super) fn find_block_open(value: &str) -> Option<usize> {
     None
 }
 
-pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
+pub fn matching_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;
@@ -224,7 +225,7 @@ pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
 
 /// Detect EOF inside a block before CSS parsers implicitly close it.
 /// Strings, comments and escaped delimiters do not change block depth.
-pub(super) fn unterminated_block(css: &str) -> Option<usize> {
+pub fn unterminated_block(css: &str) -> Option<usize> {
     let mut openings = Vec::new();
     let mut quote = None;
     let mut chars = css.char_indices().peekable();

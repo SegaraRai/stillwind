@@ -3,6 +3,9 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   run: {
     tasks: {
+      check: {
+        command: "node crate-boundaries.mts",
+      },
       typecheck: {
         command: "tsc --noEmit",
       },
@@ -30,7 +33,7 @@ export default defineConfig({
         command: "node verify-tailwind-v4-value-grammar.ts",
       },
       "tailwind:parity": {
-        command: "cargo test -p stillwind-core --test static_compile matches_tailwind_",
+        command: "cargo test -p stillwind-compiler --test static_compile matches_tailwind_",
       },
       "tailwind:parity:all": {
         command: "node tailwind-parity.mts",
@@ -49,7 +52,7 @@ export default defineConfig({
       },
       "tailwind:registry-audit": {
         command:
-          "cargo test -p stillwind-tailwind audits_builtin_registry_reachability_from_parity_fixtures -- --ignored --nocapture",
+          "cargo test -p stillwind-design-system audits_builtin_registry_reachability_from_parity_fixtures -- --ignored --nocapture",
       },
       "tailwind:numeric-domain-audit": {
         command: "node tailwind-numeric-domain-audit.mts",

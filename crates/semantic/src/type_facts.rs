@@ -1,5 +1,6 @@
-use super::symbolic::ExportedValue;
 use serde::{Deserialize, Serialize};
+
+use super::symbolic::ExportedValue;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TypeFact {

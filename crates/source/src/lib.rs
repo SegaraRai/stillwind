@@ -13,9 +13,14 @@
 )]
 
 mod diagnostics;
+mod fingerprint;
 mod lint;
 mod text;
 
-pub use diagnostics::*;
-pub use lint::*;
-pub use text::*;
+pub use diagnostics::{CompileError, Label, LintFinding};
+pub use fingerprint::Fingerprint;
+pub use lint::{LintDirective, LintDirectiveKind, collect_lint_directives, filter_lint_findings};
+pub use text::{
+    BytePos, FileId, Position, SourceError, SourceFile, Span, Spanned, normalized_module_path,
+    range_of,
+};

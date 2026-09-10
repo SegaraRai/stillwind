@@ -7,9 +7,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-cssparser = "0.38.0"
-lightningcss.workspace = true
 stillwind-source = { path = "../source" }
+cssparser.workspace = true
+lightningcss.workspace = true
 thiserror.workspace = true
 
 [lints]

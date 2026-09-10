@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use stillwind_core::{GeneratedClass, GeneratedSymbol};
+use stillwind_compiler::{GeneratedClass, GeneratedSymbol, ModuleResourceReference};
 
 #[derive(Serialize)]
 pub struct BindingOutput {
-    pub resources: Vec<stillwind_core::ModuleResourceReference>,
+    pub resources: Vec<ModuleResourceReference>,
     pub css: String,
     pub code: Option<String>,
     pub mappings: Vec<BindingMapping>,

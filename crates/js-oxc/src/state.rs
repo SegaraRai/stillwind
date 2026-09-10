@@ -13,7 +13,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{CompileError, SourceFile, Spanned};
 
-use super::refs::projections::{HandleUse, ScopeUse};
+use super::refs::{HandleUse, ScopeUse};
 
 impl<'a> MacroExtractor<'a> {
     pub(super) fn new(

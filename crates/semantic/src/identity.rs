@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+
 use stillwind_source::normalized_module_path;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
