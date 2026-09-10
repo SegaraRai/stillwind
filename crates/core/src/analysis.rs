@@ -65,6 +65,8 @@ pub struct ModuleScan {
 
 #[derive(Clone, Debug)]
 pub struct ModuleAnalysis {
+    /// Declaration-only semantic inputs needed by this producer's standalone CSS.
+    pub asset_support: Vec<ModuleAnalysis>,
     pub external_assets: BTreeSet<IdentityId>,
     pub module_id: ModuleId,
     pub source: Arc<SourceFile>,
@@ -181,8 +183,9 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             },
         );
         ModuleAnalysis {
+            asset_support: Vec::new(),
             external_assets: facts.map_or_else(BTreeSet::new, |facts| {
-                let mut assets: BTreeSet<_> = facts.assets.keys().cloned().collect();
+                let mut assets = BTreeSet::new();
                 for fact in &facts.facts {
                     match &fact.value {
                         stillwind_semantic::ExportedValue::Refs(alternatives) => {
@@ -220,6 +223,55 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
 }
 
 impl ModuleAnalysis {
+    /// Attaches referenced declaration CSS without registering semantic inputs as producers.
+    pub fn attach_asset_support(&mut self, inputs: &[Self]) {
+        self.asset_support.clear();
+        for input in inputs {
+            if input.module_id == self.module_id {
+                continue;
+            }
+            let identities: BTreeSet<_> = input
+                .summary
+                .assets
+                .iter()
+                .filter(|asset| self.external_assets.contains(&asset.identity))
+                .map(|asset| asset.identity.clone())
+                .collect();
+            if identities.is_empty() {
+                continue;
+            }
+            let mut support = input.clone();
+            support.asset_support.clear();
+            support.ir.style_calls.clear();
+            support.ir.handle_definitions.clear();
+            support.ir.scope_definitions.clear();
+            support.ir.animation_declarations.retain(|declaration| {
+                identities.iter().any(|identity| {
+                    identity.kind == stillwind_semantic::AssetKind::Animation
+                        && identity.binding_name == declaration.name.value
+                })
+            });
+            support
+                .ir
+                .view_transition_declarations
+                .retain(|declaration| {
+                    identities.iter().any(|identity| {
+                        identity.kind == stillwind_semantic::AssetKind::ViewTransition
+                            && identity.binding_name == declaration.name.value
+                    })
+                });
+            support
+                .summary
+                .assets
+                .retain(|asset| identities.contains(&asset.identity));
+            if !support.ir.animation_declarations.is_empty()
+                || !support.ir.view_transition_declarations.is_empty()
+            {
+                self.asset_support.push(support);
+            }
+        }
+    }
+
     pub(crate) fn parsed(&self) -> stillwind_js_oxc::ParsedJavaScript {
         stillwind_js_oxc::ParsedJavaScript {
             type_probes: Vec::new(),

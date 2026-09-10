@@ -20,6 +20,7 @@ mod fingerprint;
 mod loader;
 mod module_compiler;
 mod session;
+mod stylesheet_plan;
 mod transforms;
 
 pub use analysis::{
@@ -49,6 +50,10 @@ pub use module_compiler::{
 pub use session::{
     DependencyIndex, ProjectSession, ProjectStylesheet, SessionMode, SessionReloadError,
     SessionUpdate,
+};
+pub use stylesheet_plan::{
+    StylesheetCoverage, StylesheetPlacement, StylesheetPlan, StylesheetPlanError,
+    StylesheetSelection,
 };
 pub use transforms::{SourceTransform, TransformError};
 

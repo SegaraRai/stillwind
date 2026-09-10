@@ -140,6 +140,7 @@ impl Compiler {
             }
         };
         let analysis = ModuleAnalysis {
+            asset_support: Vec::new(),
             external_assets: BTreeSet::new(),
             module_id: source.path().into(),
             source: Arc::new(source.clone()),

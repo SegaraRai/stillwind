@@ -51,6 +51,8 @@ export declare class NativeProjectSession {
   reload(loader: NativeDesignSystemLoader): string;
   compile(sourcesJson: string, producer?: string): string;
   css(): string;
+  /** Explicit modules, coverage {kind: observed | complete, target?, revision?}, and placement document | carrier. */
+  planStylesheet(selectionJson: string): string;
   baseCss(): string;
   moduleCss(module: string): string;
   remove(module: string): boolean;

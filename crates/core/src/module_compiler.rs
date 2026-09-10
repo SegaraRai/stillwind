@@ -209,13 +209,40 @@ impl ModuleCompiler {
             source_file_id: module.source.id().0,
             frontend_kind: module.frontend_kind.clone(),
             adapter_mode: format!("{:?}", module.ir.adapter),
-            semantic_revision: module.semantic_revision.clone(),
+            semantic_revision: if module.asset_support.is_empty() {
+                module.semantic_revision.clone()
+            } else {
+                Some(Fingerprint::of(format!(
+                    "{:?}{:?}",
+                    module.semantic_revision,
+                    module
+                        .asset_support
+                        .iter()
+                        .map(|support| (&support.module_id, &support.source_revision, &support.ir))
+                        .collect::<Vec<_>>()
+                )))
+            },
         }
     }
 
-    pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
-        let result =
+    fn compile_support_closure(&self, module: &ModuleAnalysis) -> CompileResult {
+        let mut result =
             Compiler::compile_with_snapshot(&module.source, module.parsed(), &self.design_system);
+        for support in &module.asset_support {
+            let compiled = Compiler::compile_with_snapshot(
+                &support.source,
+                support.parsed(),
+                &self.design_system,
+            );
+            result.module_css.push_str(&compiled.module_css);
+            result.symbols.extend(compiled.symbols);
+            result.diagnostics.extend(compiled.diagnostics);
+        }
+        result
+    }
+
+    pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
+        let result = self.compile_support_closure(module);
         let mut diagnostics = result.diagnostics;
         diagnostics.extend(module.integration_diagnostics.iter().map(|error| {
             CompileError::new(

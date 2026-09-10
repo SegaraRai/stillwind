@@ -6,19 +6,19 @@ optimization remain extension points, as specified there; they must not be
 mistaken for implemented capabilities. Work is committed in coherent steps,
 with a target of 5–30 commits including the initial integration.
 
-| Work                                                                  | Status           | Evidence / next check                                                                            |
-| --------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------ |
-| Module CSS transport and class identity                               | Done (`77ba639`) | Rust, Vite build, Chrome edit/remove/restore, fixtures; workspace commit gates                   |
-| Self-contained `stillwind` package and CSS exports                    | Done (`30aff1a`) | Six package tests and seven Vite tests; recursive exported CSS imports stay within the package   |
-| CSS-derived registries; remove Rust CSS embedding and magic imports   | Implemented      | Real package graph test changes definitions without rebuilding Rust; empty input has no defaults |
-| Import modifiers, utilities slot, source provenance and relative URLs | Pending          | Layer/supports/media placement, explicit diagnostics, URL and mapping fixtures                   |
-| Demand-driven semantic reads and environment/session isolation        | Pending          | Unreached sources, imported/re-exported assets, cache, deletion, stale async updates             |
-| Artifact selection, support closure and output contracts              | Pending          | Observed vs complete coverage, producer identities, document/chunk/module outputs                |
-| Next Turbopack and webpack adapters                                   | Pending          | Real compiler: RSC/client, route navigation, CSS edits, prerender, cold/warm cache               |
-| Rspack and Rsbuild adapters                                           | Pending          | Real compiler: native CSS chunks, browser behavior, persistent cache and dependency updates      |
-| Vite framework templates                                              | Pending          | React Router, SolidStart, TanStack Start: SSR, hydration, lazy CSS, route changes                |
-| Editor overlays and partial analysis                                  | Pending          | Unsaved buffers, invalid syntax, versions and stale requests                                     |
-| Final acceptance and documentation                                    | Pending          | Runnable templates, source maps, repeatable commands and precise capability matrix               |
+| Work                                                                  | Status           | Evidence / next check                                                                             |
+| --------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------- |
+| Module CSS transport and class identity                               | Done (`77ba639`) | Rust, Vite build, Chrome edit/remove/restore, fixtures; workspace commit gates                    |
+| Self-contained `stillwind` package and CSS exports                    | Done (`30aff1a`) | Six package tests and seven Vite tests; recursive exported CSS imports stay within the package    |
+| CSS-derived registries; remove Rust CSS embedding and magic imports   | Implemented      | Real package graph test changes definitions without rebuilding Rust; empty input has no defaults  |
+| Import modifiers, utilities slot, source provenance and relative URLs | Pending          | Layer/supports/media placement, explicit diagnostics, URL and mapping fixtures                    |
+| Demand-driven semantic reads and environment/session isolation        | Pending          | Unreached sources, imported/re-exported assets, cache, deletion, stale async updates              |
+| Artifact selection, support closure and output contracts              | Implemented      | Explicit selections and coverage; declaration support; document/carrier output and revision tests |
+| Next Turbopack and webpack adapters                                   | Pending          | Real compiler: RSC/client, route navigation, CSS edits, prerender, cold/warm cache                |
+| Rspack and Rsbuild adapters                                           | Pending          | Real compiler: native CSS chunks, browser behavior, persistent cache and dependency updates       |
+| Vite framework templates                                              | Pending          | React Router, SolidStart, TanStack Start: SSR, hydration, lazy CSS, route changes                 |
+| Editor overlays and partial analysis                                  | Pending          | Unsaved buffers, invalid syntax, versions and stale requests                                      |
+| Final acceptance and documentation                                    | Pending          | Runnable templates, source maps, repeatable commands and precise capability matrix                |
 
 Every step records tests actually run. A successful surrogate transport probe
 does not substitute for acceptance using the Stillwind compiler.
@@ -94,3 +94,23 @@ The cross-module fixture verifies animation support on the selected consumer
 without registering its source producer. Vite tests: ten passed; Oxc: eleven;
 native binding: eight. Probe-bearing graphs still use conservative recursive
 local dependency discovery; finer checker-driven discovery remains pending.
+
+Core and Node sessions now plan explicit producer selections with observed or
+host-guaranteed complete coverage. Complete coverage names a target and graph
+revision; missing producers and stale retained watch artifacts are rejected.
+Document placement includes authored global CSS; carrier placement supports
+module/chunk selections without those globals. Plans include design-system,
+source, semantic and compiler identities. Completeness remains a host assertion,
+not something inferred from callbacks.
+
+The standalone-consumer regression exposed missing imported animation keyframes.
+Selected native compilation now attaches referenced animation/view-transition
+declarations from semantic inputs, without registering those inputs as producers
+or including unrelated ordinary styles or unused animations. Support source
+changes invalidate the consumer artifact and survive CSS snapshot recompilation.
+The Node fixture verifies the closure, exclusion and a producer-only content edit.
+The fingerprint regression fixture now preserves entry identity while varying
+file IDs: entry identity intentionally namespaces anonymous layers.
+Vite uses these plans and retains their coverage/revision metadata in transform
+results. All Core and native tests (including integration/property tests) passed,
+as did the ten Vite tests and Core/native Clippy checks.

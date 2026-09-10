@@ -11,7 +11,8 @@ use serde_json::json;
 use stillwind_core::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot, Fingerprint,
     ModuleId, ModuleScan, OxcSourceAnalyzer, ProjectSession, SessionMode, SourceAnalyzer,
-    TypeFacts, TypeFactsUpdate, TypeScriptFactsProvider,
+    StylesheetCoverage, StylesheetPlacement, StylesheetSelection, TypeFacts, TypeFactsUpdate,
+    TypeScriptFactsProvider,
 };
 use stillwind_semantic::TypeFact;
 use stillwind_source::{CompileError, FileId, SourceFile};
@@ -53,6 +54,28 @@ pub struct ProjectModuleOutput {
     pub path: String,
     #[serde(flatten)]
     pub output: BindingOutput,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum HostCoverage {
+    Observed,
+    Complete { target: String, revision: String },
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum HostPlacement {
+    Document,
+    Carrier,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HostSelection {
+    modules: Vec<String>,
+    coverage: HostCoverage,
+    placement: HostPlacement,
 }
 
 #[napi(object)]
@@ -222,6 +245,50 @@ impl NativeProjectSession {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
+    /// Plans an explicit host selection and returns CSS with coverage and producer revisions.
+    #[napi]
+    pub fn plan_stylesheet(&self, selection_json: String) -> napi::Result<String> {
+        let input: HostSelection = serde_json::from_str(&selection_json)
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let coverage = match input.coverage {
+            HostCoverage::Observed => StylesheetCoverage::Observed,
+            HostCoverage::Complete { target, revision } => {
+                StylesheetCoverage::Complete { target, revision }
+            }
+        };
+        let placement = match input.placement {
+            HostPlacement::Document => StylesheetPlacement::Document,
+            HostPlacement::Carrier => StylesheetPlacement::Carrier,
+        };
+        let plan = self
+            .session
+            .plan_stylesheet(
+                StylesheetSelection {
+                    modules: input.modules.into_iter().map(Into::into).collect(),
+                    coverage,
+                },
+                placement,
+            )
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let coverage = match plan.coverage {
+            StylesheetCoverage::Observed => json!({"kind": "observed"}),
+            StylesheetCoverage::Complete { target, revision } => {
+                json!({"kind": "complete", "target": target, "revision": revision})
+            }
+        };
+        Ok(json!({
+            "css": plan.css,
+            "coverage": coverage,
+            "placement": match placement { StylesheetPlacement::Document => "document", StylesheetPlacement::Carrier => "carrier" },
+            "designSystem": plan.design_system.0,
+            "producers": plan.producers.iter().map(|(module, key)| json!({
+                "module": module.as_str(), "sourceRevision": key.source_revision.0,
+                "semanticRevision": key.semantic_revision.as_ref().map(|revision| &revision.0),
+                "compilerVersion": key.compiler_version,
+            })).collect::<Vec<_>>(),
+        }).to_string())
+    }
+
     /// Stable document CSS independent of which JS modules have been visited.
     #[napi]
     pub fn base_css(&self) -> napi::Result<String> {
@@ -280,6 +347,12 @@ impl NativeProjectSession {
             })
             .collect::<Result<_, _>>()?;
         let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);
+        let analyses: Vec<_> = scans
+            .iter()
+            .map(|scan| {
+                OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id))
+            })
+            .collect();
         let snapshot = self.session.snapshot();
         let theme = SourceFile::new(FileId(2), "stillwind.css", "")
             .map_err(|error| Error::from_reason(error.to_string()))?;
@@ -291,8 +364,9 @@ impl NativeProjectSession {
             {
                 continue;
             }
-            let analysis =
+            let mut analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
+            analysis.attach_asset_support(&analyses);
             let update = self
                 .session
                 .update_module(analysis)

@@ -98,7 +98,8 @@ fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {
     let identical = DesignSystemSnapshot::from_source(
         &SourceFile::new(
             FileId(87),
-            "opaque:second",
+            // Entry identity now namespaces anonymous output layers; only file IDs/spans vary.
+            "opaque:first",
             "@theme { --color-brand: red; }",
         )
         .unwrap(),

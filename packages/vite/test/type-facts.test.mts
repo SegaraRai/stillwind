@@ -114,7 +114,54 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   );
   assert.deepEqual(selected.modules[0].diagnostics, []);
   assert.match(session.moduleCss("src/consumer.ts"), /animation-name:--sw-a-/);
+  const selection = {
+    modules: ["src/consumer.ts"],
+    coverage: { kind: "complete", target: "consumer-route", revision: "graph-1" },
+    placement: "carrier",
+  };
+  const plan = JSON.parse(session.planStylesheet(JSON.stringify(selection))) as {
+    css: string;
+    coverage: typeof selection.coverage;
+    producers: { module: string; sourceRevision: string; semanticRevision: string }[];
+  };
+  assert.equal(plan.css, session.moduleCss("src/consumer.ts"));
+  assert.match(plan.css, /@keyframes --sw-a-/);
+  assert.equal(plan.css.match(/@keyframes /g)?.length, 2);
+  assert.doesNotMatch(plan.css, /display:flex/);
+  assert.deepEqual(plan.coverage, selection.coverage);
+  assert.deepEqual(
+    plan.producers.map((producer) => producer.module),
+    selection.modules,
+  );
+  assert.match(plan.producers[0].sourceRevision, /^[a-f0-9]{64}$/);
+  assert.match(plan.producers[0].semanticRevision, /^[a-f0-9]{64}$/);
+  assert.throws(
+    () =>
+      session.planStylesheet(
+        JSON.stringify({
+          ...selection,
+          modules: [...selection.modules, "src/unvisited.ts"],
+        }),
+      ),
+    /unregistered modules/,
+  );
   assert.throws(() => session.moduleCss("src/producer.ts"), /Unknown Stillwind module/);
+  session.compile(
+    JSON.stringify(
+      sources.map((source) => ({
+        ...source,
+        source:
+          source.path === "src/producer.ts"
+            ? source.source.replaceAll("opacity-0", "opacity-5")
+            : source.source,
+        type_facts: facts.get(source.path) ?? [],
+      })),
+    ),
+    "src/consumer.ts",
+  );
+  const changedPlan = JSON.parse(session.planStylesheet(JSON.stringify(selection))) as typeof plan;
+  assert.notEqual(changedPlan.producers[0].semanticRevision, plan.producers[0].semanticRevision);
+  assert.match(changedPlan.css, /opacity:5%/);
 
   const runnable = finalizeReactModule(consumer.code, false);
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);

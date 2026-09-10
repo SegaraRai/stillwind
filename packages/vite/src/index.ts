@@ -559,12 +559,28 @@ export function stillwind(options: StillwindOptions): Plugin {
       );
       if (!output?.code) return undefined;
       state.producers.add(id);
-      const css = resolveResources(session.moduleCss(output.path), state.resources);
+      const plan = JSON.parse(
+        session.planStylesheet(
+          JSON.stringify({
+            modules: [output.path],
+            coverage: { kind: "observed" },
+            placement: "carrier",
+          }),
+        ),
+      ) as { css: string; coverage: { kind: string }; designSystem: string; producers: unknown[] };
+      const css = resolveResources(plan.css, state.resources);
       const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
       const finalized = finalizeReactModuleWithMap(output.code, false);
       const imports = `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
       return {
         code: imports + finalized.code,
+        meta: {
+          stillwind: {
+            coverage: plan.coverage,
+            designSystem: plan.designSystem,
+            producers: plan.producers,
+          },
+        },
         map: JSON.stringify(
           moduleSourceMap(
             code,
