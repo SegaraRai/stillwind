@@ -8,3 +8,4 @@ packages/native/npm/*/index.d.ts
 **/stillwind.generated.d.ts
 packages/vite/.review-fixtures/
 packages/vite/.framework-test-*/
+packages/bundler/.framework-test-*/

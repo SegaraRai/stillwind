@@ -55,4 +55,12 @@ To retain production-build fixtures for inspection, set `STILLWIND_KEEP_FRAMEWOR
 
 The host does not yet query checker type facts for projected input. The normal JS/TS checker path remains enabled. SFC source parsing, framework normalization, original-span validation, native editing, source maps, and CSS import placement are exercised independently of that deferred checker integration.
 
-These fixtures validate the Vite integration. Other bundler loaders and additional framework-specific features require their own acceptance checks; a passing converter test alone is not evidence for those boundaries.
+## webpack and Rspack
+
+Run `vp run @stillwind/bundler#test` for ten production builds: React, Preact, Solid, Vue, and Svelte on each bundler. All ten passed on 2026-09-10. Vue and Svelte use their official loaders. The tests verify automatic CSS ownership, explicit module CSS values, preserved external classes, and final JavaScript source maps back to the exact original macro line and column. The ordinary JS cases also execute the bundle and check emitted asset URLs in CSS values.
+
+Unlike Vite, vue-loader can run the raw-SFC loader in query subrequests and clone it within a chain. Identical already-transformed output is skipped using loader metadata. SFC stylesheet and CSS-value requests include the loader and serialized configuration, so another worker can reconstruct them from the source file. The source receives only native import edits.
+
+Framework loaders can discard their upstream maps. A post loader composes maps only when their embedded source content exactly matches the native-edited SFC. It reads chain-local pitch data; Rspack 2 exposes that data through `loaderItem`, while webpack exposes `data`. Both paths are exercised by the production tests. The TypeScript fixture uses SWC, which preserves upstream maps.
+
+Browser and HMR observations above apply to Vite. These new webpack/Rspack tests do not establish Next.js/Turbopack acceptance for the explicit CSS-value feature or browser HMR for those bundlers.

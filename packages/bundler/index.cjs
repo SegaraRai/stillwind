@@ -25,7 +25,19 @@ function stillwindRules(options) {
       enforce: "pre",
       use: [{ loader, options }],
     },
+    {
+      test: /\.(vue|svelte|astro)$/,
+      exclude: /node_modules/,
+      enforce: "pre",
+      use: [{ loader, options }],
+    },
     { test: /stillwind-carrier\.css$/, use: [cssLoader] },
+    {
+      test: /\.(vue|svelte|astro)$/,
+      exclude: /node_modules/,
+      enforce: "post",
+      use: [path.join(__dirname, "source-map-loader.cjs")],
+    },
   ];
 }
 

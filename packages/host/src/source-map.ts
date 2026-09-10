@@ -2,6 +2,26 @@ import { resolve } from "node:path";
 
 import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
 import remapping from "@jridgewell/remapping";
+import { TraceMap } from "@jridgewell/trace-mapping";
+
+/** Repair framework loaders that publish maps to the transformed SFC input. */
+export function composeFrameworkSourceMap(
+  generated: Exclude<Parameters<typeof remapping>[0], unknown[]>,
+  original: Parameters<typeof remapping>[0],
+  transformedSource: string,
+) {
+  const traced = new TraceMap(generated);
+  const matches = new Set(
+    traced.resolvedSources.filter(
+      (_source, index) => traced.sourcesContent?.[index] === transformedSource,
+    ),
+  );
+  return remapping(generated, (source, context) =>
+    context.depth === 1 && matches.has(source)
+      ? (original as Exclude<Parameters<typeof remapping>[0], unknown[]>)
+      : null,
+  );
+}
 
 export function composeCarrierSourceMap(
   generated: Parameters<typeof remapping>[0],
