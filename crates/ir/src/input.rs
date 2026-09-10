@@ -39,6 +39,8 @@ pub struct ConverterIdentity {
 pub struct ImportRealm {
     pub id: u32,
     pub source: Span,
+    /// Enclosing script scope whose imports are visible in this realm.
+    pub parent: Option<u32>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

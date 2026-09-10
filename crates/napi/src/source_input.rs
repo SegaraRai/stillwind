@@ -37,6 +37,7 @@ pub struct HostRealm {
     id: u32,
     start: u32,
     end: u32,
+    parent: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -114,6 +115,7 @@ impl ProjectSource {
                     Ok(ImportRealm {
                         id: realm.id,
                         source: span(realm.start, realm.end)?,
+                        parent: realm.parent,
                     })
                 })
                 .collect::<napi::Result<Vec<_>>>()?;

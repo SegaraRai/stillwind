@@ -12,7 +12,7 @@ export interface ProjectSource {
   fw_map?: string;
   converter?: { name: string; version: string; options_fingerprint: string };
   /** Offsets in these host records are UTF-16, not Rust byte offsets. */
-  import_realms?: Array<{ id: number; start: number; end: number }>;
+  import_realms?: Array<{ id: number; start: number; end: number; parent?: number }>;
   regions?: Array<{
     start: number;
     end: number;

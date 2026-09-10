@@ -85,14 +85,7 @@ impl<'a> RuntimeBindings<'a> {
         let mut edits = plan_macro_import_removals(&module.source, &module.ir.imports, lowered)?;
         let mut anchors: BTreeMap<usize, BTreeSet<(RuntimeHelper, Option<u32>)>> = BTreeMap::new();
         for &(helper, at, realm_id) in &self.uses {
-            let realm = runtime_realm(module, at)?;
-            let anchor = module
-                .ir
-                .imports
-                .macros
-                .iter()
-                .position(|import| realm.is_none_or(|realm| contains(realm, import.span)))
-                .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
+            let anchor = runtime_anchor(module, at)?;
             anchors
                 .entry(anchor)
                 .or_default()
@@ -135,25 +128,44 @@ fn contains(outer: Span, inner: Span) -> bool {
     outer.file == inner.file && outer.start <= inner.start && inner.end <= outer.end
 }
 
-fn runtime_realm(module: &ModuleAnalysis, at: Span) -> Result<Option<Span>, ImportPlanError> {
+fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, ImportPlanError> {
     let Some(projection) = &module.input.projection else {
-        return Ok(None);
+        return if module.ir.imports.macros.is_empty() {
+            Err(ImportPlanError::MissingRuntimeAnchor { span: at })
+        } else {
+            Ok(0)
+        };
     };
     let region =
         projection_region(module, at)?.ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
-    let mut realms = projection
-        .realms
-        .iter()
-        .filter(|realm| realm.id == region.import_realm);
-    let realm = realms
-        .next()
-        .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
-    if realms.next().is_some() {
-        return Err(ImportPlanError::InvalidMetadata { span: at });
-    }
-    module.source.slice(realm.source)?;
     module.source.slice(region.source)?;
-    Ok(Some(realm.source))
+    let mut visited = BTreeSet::new();
+    let mut id = region.import_realm;
+    loop {
+        if !visited.insert(id) {
+            return Err(ImportPlanError::InvalidMetadata { span: at });
+        }
+        let mut realms = projection.realms.iter().filter(|realm| realm.id == id);
+        let realm = realms
+            .next()
+            .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
+        if realms.next().is_some() {
+            return Err(ImportPlanError::InvalidMetadata { span: at });
+        }
+        module.source.slice(realm.source)?;
+        if let Some(anchor) = module
+            .ir
+            .imports
+            .macros
+            .iter()
+            .position(|import| contains(realm.source, import.span))
+        {
+            return Ok(anchor);
+        }
+        id = realm
+            .parent
+            .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
+    }
 }
 
 fn projection_region(

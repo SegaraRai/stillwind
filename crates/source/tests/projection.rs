@@ -109,9 +109,9 @@ fn adjacent_reordered_volar_ranges_keep_their_own_start_anchors() {
     let generated = SourceFile::new(FileId(2), "component.ts", "firstsecond").unwrap();
     let map = ProjectionMap::Volar {
         mappings: vec![VolarMapping {
-            source_offsets: vec![6, 0],
-            generated_offsets: vec![0, 5],
-            lengths: vec![5, 6],
+            source_offsets: vec![0, 6, 0, 11],
+            generated_offsets: vec![0, 0, 5, 7],
+            lengths: vec![0, 5, 6, 0],
             generated_lengths: None,
         }],
     };

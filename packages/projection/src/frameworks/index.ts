@@ -8,6 +8,7 @@ export interface ScriptRegion {
   id: number;
   start: number;
   end: number;
+  parent?: number;
 }
 export interface ConvertedFramework {
   source: string;

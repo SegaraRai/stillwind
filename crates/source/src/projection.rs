@@ -188,6 +188,12 @@ impl<'a> ProjectionIndex<'a> {
                                 generated_length,
                             )?))?
                             .0;
+                        // Empty anchors describe a boundary, not the character
+                        // beginning there. A nonempty interval owns that character.
+                        if source_length == 0 && generated_length == 0 {
+                            exclusive_ends.push((generated_start, original_start));
+                            continue;
+                        }
                         // Nonlinear intervals supply boundary anchors, never an invented scale.
                         if source_length == generated_length {
                             let generated_span =

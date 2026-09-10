@@ -49,6 +49,18 @@ void test("SFC output fails on residual macros or mismatched attribute context",
 const extra = [
   {
     extension: "vue",
+    name: "shared normal-script import",
+    source: `<script>import {style} from 'stillwind/vue';</script><script setup>const external='extra';</script><template><div v-bind="style('flex', {class: external})"/></template>`,
+    imports: 1,
+  },
+  {
+    extension: "svelte",
+    name: "shared module-script import",
+    source: `<script module>import {style} from 'stillwind/svelte';</script><script>const external='extra';</script><div {...style('flex', {class: external})}></div>`,
+    imports: 1,
+  },
+  {
+    extension: "vue",
     name: "single quoted attribute",
     source: `<script setup>import {style} from 'stillwind/vue'; const external='extra';</script><template><div v-bind='style("flex", {class: external})'/></template>`,
     imports: 1,

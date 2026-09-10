@@ -27,7 +27,12 @@ export function convert(source: string, filename: string): ConvertedFramework {
     const { script, scriptSetup } = parsed.descriptor;
     if (script) scripts.push({ id: 0, start: script.loc.start.offset, end: script.loc.end.offset });
     if (scriptSetup)
-      scripts.push({ id: 1, start: scriptSetup.loc.start.offset, end: scriptSetup.loc.end.offset });
+      scripts.push({
+        id: 1,
+        start: scriptSetup.loc.start.offset,
+        end: scriptSetup.loc.end.offset,
+        ...(script ? { parent: 0 } : {}),
+      });
     return {
       framework: "Vue",
       language: service.extension === ".tsx" ? "tsx" : "ts",

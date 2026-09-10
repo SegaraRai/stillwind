@@ -24,7 +24,7 @@ export function convert(source: string, filename: string): ConvertedFramework {
     const end = "end" in script.content ? script.content.end : undefined;
     if (typeof start !== "number" || typeof end !== "number")
       throw new Error("Svelte script has no source coordinates");
-    scripts.push({ id, start, end });
+    scripts.push({ id, start, end, ...(id === 1 && ast.module ? { parent: 0 } : {}) });
   }
   return {
     framework: "Svelte",
