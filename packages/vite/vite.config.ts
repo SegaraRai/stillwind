@@ -5,10 +5,11 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
+        dependsOn: ["@stillwind/host#build"],
       },
       test: {
         command: "node --test test/*.test.mts",
-        dependsOn: ["@stillwind/native#build", "typecheck"],
+        dependsOn: ["@stillwind/host#build", "typecheck"],
       },
     },
   },

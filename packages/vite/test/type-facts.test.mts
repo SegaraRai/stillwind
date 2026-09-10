@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { TypeScriptFactsService, type AssetRecord } from "@stillwind/host";
 import {
   compileReactProject,
   summarizeReact,
@@ -13,7 +14,6 @@ import {
 
 import { resolveFixtureCss } from "../../../tools/lib/stillwind-fixture-css.ts";
 import { finalizeReactModule } from "../src/index.ts";
-import { TypeScriptFactsService, type AssetRecord } from "../src/type-facts.ts";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/type-facts");

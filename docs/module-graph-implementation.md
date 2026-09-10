@@ -124,3 +124,10 @@ build emits two distinct SVGs and classes for two `./icon.svg` references; an
 imported animation retains its producer owner. Eleven Vite tests, 57 Core library
 tests, four CLI tests and Core/native/CLI Clippy passed. CSS source maps remain
 outstanding.
+
+`@stillwind/host` now owns the host-neutral CSS graph loader, semantic compiler
+driver, TS7 service, module finalization and JavaScript map composition. Vite
+delegates to the same implementation; its eleven integration tests passed after
+the extraction. The package emits JavaScript and declarations for Node loaders
+with `vp run --filter @stillwind/host build`; filesystem resolution, reads,
+dependency registration and diagnostics stay explicit host callbacks.

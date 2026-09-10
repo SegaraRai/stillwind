@@ -1,0 +1,23 @@
+{
+  "name": "@stillwind/host",
+  "version": "0.0.0",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.js"
+  },
+  "dependencies": {
+    "@jridgewell/gen-mapping": "^0.3.13",
+    "@stillwind/native": "workspace:*",
+    "typescript": "7.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:"
+  }
+}

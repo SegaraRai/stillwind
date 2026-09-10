@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
-
-import { moduleSourceMap } from "../src/source-map.ts";
+import { moduleSourceMap } from "@stillwind/host";
 
 void test("maps replacements and untouched UTF-16 positions after removed and inserted imports", () => {
   const macro = 'import { style } from "stillwind/react";\r\n';

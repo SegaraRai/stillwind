@@ -2,14 +2,21 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
-import { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } from "@stillwind/native";
+import {
+  compileModule,
+  loadCssGraph,
+  compilerModulePath,
+  cleanModuleId,
+  moduleSourceMap,
+  TypeScriptFactsService,
+  finalizeReactModuleWithMap as finalizeModuleWithMap,
+} from "@stillwind/host";
+import type { PlayOutput, ProjectCompilerOutput } from "@stillwind/host";
+import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
-
-import { moduleSourceMap, type CompilerMapping } from "./source-map.ts";
-import { TypeScriptFactsService, type AssetRecord, type TypeFact } from "./type-facts.ts";
 
 export interface StillwindOptions {
   /** Absolute path to the CSS file containing the project's `@theme` tokens. */
@@ -28,68 +35,6 @@ export interface StillwindOptions {
   classIdentity?: "module" | "content";
   /** Stable namespace shared by the project's client and server builds. */
   classNamespace?: string;
-}
-
-interface CompilerOutput {
-  mappings: CompilerMapping[];
-  css: string;
-  code: string | null;
-  classes: Array<{ class_name: string }>;
-  symbols: GeneratedSymbol[];
-  diagnostics: Array<{
-    code: string;
-    message: string;
-    file: string;
-    start: number;
-    end: number;
-    start_utf16: number;
-    end_utf16: number;
-    start_line: number;
-    start_column: number;
-    end_line: number;
-    end_column: number;
-    notes: string[];
-  }>;
-  lint_findings: Array<{
-    rule: string;
-    message: string;
-    file: string;
-    start: number;
-    end: number;
-    notes: string[];
-  }>;
-  lint_policy: Record<string, "warn" | "deny" | "off">;
-}
-
-interface GeneratedSymbol {
-  name: string;
-  kind: string;
-  identity: string;
-  source_path: string;
-  start: number;
-  end: number;
-}
-
-interface PlayOutput extends CompilerOutput {
-  previewUrl: string | null;
-}
-
-interface ModuleSummary {
-  type_probes: Array<{ start: number; end: number }>;
-  imports: Array<{ source: string }>;
-  re_exports: Array<{ source: string }>;
-  assets: AssetRecord[];
-}
-
-interface ProjectSource {
-  id: string;
-  path: string;
-  source: string;
-  type_facts?: TypeFact[];
-}
-
-interface ProjectCompilerOutput {
-  modules: Array<CompilerOutput & { path: string }>;
 }
 
 const virtualCssId = "virtual:stillwind.css";
@@ -111,23 +56,6 @@ function compilerOptions(options: StillwindOptions): string {
     classIdentity: options.classIdentity ?? "module",
     classNamespace: options.classNamespace ?? "",
   });
-}
-
-function compilerModulePath(root: string, id: string): string {
-  return relative(root, id).replaceAll("\\", "/");
-}
-
-function cleanModuleId(id: string): string {
-  return id.replace(/[?#].*$/, "");
-}
-
-function localDependencies(summary: ModuleSummary): string[] {
-  return [
-    ...summary.imports.map((entry) => entry.source),
-    ...summary.re_exports.map((entry) => entry.source),
-  ].filter(
-    (specifier, index, all) => specifier.startsWith(".") && all.indexOf(specifier) === index,
-  );
 }
 
 function sendJson(response: ServerResponse, value: unknown, statusCode = 200) {
@@ -166,39 +94,11 @@ function previewSource(code: string): string {
   return withRuntime.replace(/\bexport\s+App\s*;/g, "export { App };");
 }
 
-/** Adds the runtime helpers (and optionally virtual CSS) required by compiled output. */
-export function finalizeReactModule(code: string, includeStylesheet = true): string {
+export function finalizeReactModule(code: string, includeStylesheet = true) {
   return finalizeReactModuleWithMap(code, includeStylesheet).code;
 }
-
-export type FinalizedModuleEdit = { from: number; to: number };
-
-/** Finalizes compiled output while retaining edits needed to remap source spans. */
 export function finalizeReactModuleWithMap(code: string, includeStylesheet = true) {
-  const macroImportPattern = /^\s*import\s+(?:[^;]+?)\s+from\s+["']stillwind\/react["'];?\s*$/gm;
-  const removed = [...code.matchAll(macroImportPattern)].map((match) => ({
-    from: match.index,
-    to: match.index + match[0].length,
-  }));
-  const withoutMacroImport = code.replace(macroImportPattern, "");
-  const runtimeImport = renderRuntimeImport(withoutMacroImport);
-  const stylesheetImport = includeStylesheet ? `import "${virtualCssId}";\n` : "";
-  const prefix = runtimeImport + stylesheetImport;
-  return { code: prefix + withoutMacroImport, prefix, removed };
-}
-
-function renderRuntimeImport(code: string): string {
-  const names = [
-    "stillwindAnimation",
-    "stillwindAssetClass",
-    "stillwindClsx",
-    "stillwindHandleClass",
-    "stillwindRef",
-    "stillwindScope",
-    "stillwindViewTransition",
-    "stillwindViewTransitionStyle",
-  ].filter((name) => code.includes(`${name}(`));
-  return names.length > 0 ? `import { ${names.join(", ")} } from "stillwind/react/runtime";\n` : "";
+  return finalizeModuleWithMap(code, includeStylesheet ? virtualCssId : undefined);
 }
 
 async function bundlePreview(source: string, css: string, server: ViteDevServer): Promise<string> {
@@ -313,52 +213,17 @@ export function stillwind(options: StillwindOptions): Plugin {
     rootContent?: string,
     dependencies = cssFiles,
   ) => {
-    const loader = new NativeDesignSystemLoader(compilerOptions(options));
     const root = realpathSync(resolve(projectRoot, cssEntrypoint(options)));
-    dependencies.add(root);
-    type LoadStep =
-      | { kind: "needFile"; requests: { id: number; importer: string; specifier: string }[] }
-      | {
-          kind: "complete";
-          resources: { placeholder: string; owner: string; specifier: string }[];
-        };
-    let resourceReferences: Extract<LoadStep, { kind: "complete" }>["resources"] = [];
-    const initial = JSON.parse(
-      loader.provide(0, root, rootContent ?? (await readFile(root, "utf8"))),
-    ) as LoadStep;
-    await new Promise<void>((resolveLoad, rejectLoad) => {
-      const started = new Set<number>();
-      let stopped = false;
-      const fail = (error: unknown) => {
-        stopped = true;
-        rejectLoad(error);
-      };
-      const advance = (step: LoadStep) => {
-        if (step.kind === "complete") {
-          resourceReferences = step.resources;
-          stopped = true;
-          resolveLoad();
-          return;
-        }
-        for (const request of step.requests) {
-          // NeedFile repeats outstanding IDs, including reads already in flight.
-          if (started.has(request.id)) continue;
-          started.add(request.id);
-          const read = async () => {
-            const name = await realpath(await resolveImport(request.specifier, request.importer));
-            if (stopped) return;
-            dependencies.add(name);
-            const content = await readFile(name, "utf8");
-            if (stopped) return;
-            // JS callbacks serialize provide/step processing; I/O remains concurrent.
-            advance(JSON.parse(loader.provide(request.id, name, content)) as LoadStep);
-          };
-          // Handle every rejection, including reads finishing after another read failed.
-          void read().catch(fail);
-        }
-      };
-      advance(initial);
-    });
+    const { loader, resources: resourceReferences } = await loadCssGraph(
+      root,
+      compilerOptions(options),
+      {
+        resolve: async (specifier, importer) => realpath(await resolveImport(specifier, importer)),
+        read: (name) => readFile(name, "utf8"),
+        watch: (name) => dependencies.add(name),
+      },
+      rootContent,
+    );
     const references = new Map<string, string>();
     for (const resource of resourceReferences) {
       const resolved = await resolveImport(resource.specifier, resource.owner);
@@ -483,79 +348,18 @@ export function stillwind(options: StillwindOptions): Plugin {
         state.producers.delete(id);
         return undefined;
       }
-      const entryId = cleanModuleId(id);
-      const entrySummary = JSON.parse(
-        summarizeReact(code, compilerModulePath(projectRoot, entryId)),
-      ) as ModuleSummary;
-      const needsTypeFacts = entrySummary.type_probes.length > 0;
-      const summaries = new Map<string, ModuleSummary>();
-      const sourcesById = new Map<string, ProjectSource>();
-      const pending: ProjectSource[] = [
-        { id: entryId, path: compilerModulePath(projectRoot, entryId), source: code },
-      ];
-      while (pending.length > 0) {
-        const source = pending.pop()!;
-        if (sourcesById.has(source.id)) continue;
-        sourcesById.set(source.id, source);
-        const summary =
-          source.id === entryId
-            ? entrySummary
-            : (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary);
-        summaries.set(source.path, summary);
-        if (!needsTypeFacts) continue;
-        for (const specifier of localDependencies(summary)) {
-          const resolved = await this.resolve(specifier, source.id, { skipSelf: true });
-          if (!resolved || resolved.external) continue;
-          const dependencyId = cleanModuleId(resolved.id);
-          if (!/\.[cm]?[jt]sx?$/.test(dependencyId) || sourcesById.has(dependencyId)) continue;
-          this.addWatchFile(dependencyId);
-          pending.push({
-            id: dependencyId,
-            path: compilerModulePath(projectRoot, dependencyId),
-            source: readFileSync(dependencyId, "utf8"),
-          });
-        }
-      }
-
-      const sources = [...sourcesById.values()];
-      const typeFacts = needsTypeFacts
-        ? (state.typeFacts ??= new TypeScriptFactsService(projectRoot)).collect(
-            sources,
-            new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
-          )
-        : new Map<string, TypeFact[]>();
-      const typedSources = sources.map((source) => ({
-        ...source,
-        type_facts: typeFacts.get(source.path) ?? [],
-      }));
-      const projectOutput = JSON.parse(
-        session.compile(JSON.stringify(typedSources), compilerModulePath(projectRoot, entryId)),
-      ) as ProjectCompilerOutput;
-      const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
-      for (const output of projectOutput.modules) {
-        const moduleId = idsByPath.get(output.path);
-        if (!moduleId) this.error(`Stillwind returned an unknown module: ${output.path}`);
-        if (output.diagnostics.length > 0) {
-          const diagnostic = output.diagnostics[0];
-          this.error(
-            `${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`,
-          );
-        }
-        const deniedFindings: string[] = [];
-        for (const finding of output.lint_findings ?? []) {
-          const level = output.lint_policy?.[finding.rule] ?? "warn";
-          if (level !== "deny") {
-            this.warn(`${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`);
-          } else {
-            deniedFindings.push(
-              `${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`,
-            );
-          }
-        }
-        if (deniedFindings.length > 0) this.error(deniedFindings.join("\n"));
-      }
-      const output = projectOutput.modules.find(
-        (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
+      const output = await compileModule(
+        session,
+        () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
+        code,
+        id,
+        projectRoot,
+        {
+          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+          read: (id) => readFile(id, "utf8"),
+          watch: (id) => this.addWatchFile(id),
+          warn: (message) => this.warn(message),
+        },
       );
       if (!output?.code) return undefined;
       state.producers.add(id);

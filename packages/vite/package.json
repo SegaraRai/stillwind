@@ -9,15 +9,15 @@
     "access": "public"
   },
   "dependencies": {
-    "@jridgewell/gen-mapping": "^0.3.13",
     "@jridgewell/trace-mapping": "^0.3.31",
+    "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
     "esbuild": "^0.28.2",
-    "stillwind": "workspace:*",
-    "typescript": "7.0.2"
+    "stillwind": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   },
