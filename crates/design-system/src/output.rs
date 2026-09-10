@@ -29,13 +29,7 @@ fn is_definition(name: &str) -> bool {
     name.starts_with("stillwind-")
         || matches!(
             name,
-            "theme"
-                | "stillwind"
-                | "utility"
-                | "utility-family"
-                | "custom-variant"
-                | "variant"
-                | "tailwind"
+            "theme" | "stillwind" | "utility" | "custom-variant" | "variant" | "tailwind"
         )
 }
 

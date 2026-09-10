@@ -38,9 +38,6 @@ pub(crate) fn parse_ordered_utility_definitions(css: &str, directive: &str) -> V
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
-            if header.starts_with("-family") {
-                return None;
-            }
             let name = header.split_whitespace().next()?.to_owned();
             Some(CustomUtility {
                 name,
@@ -58,18 +55,13 @@ pub fn parse_marker_utilities(css: &str) -> BTreeSet<String> {
 
 pub(crate) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
     let css = strip_css_comments(css);
-    let mut utilities = extract_named_utility_blocks(&css, "@utility");
-    utilities.extend(extract_utility_families(&css));
-    utilities
+    extract_named_utility_blocks(&css, "@utility")
 }
 
 pub(crate) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(header, body)| {
-            if header.starts_with("-family") {
-                return None;
-            }
             let name = header.split_whitespace().next()?.to_owned();
             Some(CustomUtility {
                 name,
@@ -87,78 +79,6 @@ pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
         .filter(|name| !name.is_empty())
         .map(str::to_owned)
         .collect()
-}
-
-/// Expands the generic value-bearing utility-family syntax.
-///
-/// ```css
-/// @utility-family value=--value(--spacing-*, --spacing(), [length]) {
-///   inset: inset;
-///   inset-x: inset-inline;
-/// }
-/// ```
-///
-/// The value expression is authored in the CSS header, so this parser does
-/// not need a table of framework namespaces or property families. A family
-/// definition remains reviewable without enumerating concrete token values.
-pub(crate) fn extract_utility_families(css: &str) -> Vec<CustomUtility> {
-    extract_named_blocks(css, "@utility-family")
-        .into_iter()
-        .flat_map(|(header, body)| {
-            let Some(value) = parse_utility_family_header(&header) else {
-                return Vec::new();
-            };
-            body.split(';')
-                .filter_map(|entry| {
-                    let (names, properties) = entry.split_once(':')?;
-                    let names = names
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|name| !name.is_empty());
-                    let properties = properties
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|property| !property.is_empty())
-                        .collect::<Vec<_>>();
-                    (!properties.is_empty()).then_some((names, properties))
-                })
-                .flat_map(move |(names, properties)| {
-                    names.flat_map({
-                        let value = value.clone();
-                        move |name| {
-                            let mut body = String::new();
-                            for property in &properties {
-                                body.push_str(property);
-                                body.push(':');
-                                body.push_str(&value);
-                                body.push(';');
-                            }
-                            vec![CustomUtility {
-                                name: format!("{name}-*"),
-                                body,
-                                builtin_order: None,
-                            }]
-                        }
-                    })
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect()
-}
-
-/// Reads the generic family header. Value expressions are authored in CSS as
-/// `value=--value(...)`. Headers without an authored value expression are
-/// ignored, keeping framework vocabulary and sign handling out of the parser.
-/// Negative utilities must be authored explicitly with their own `* -1`.
-pub(crate) fn parse_utility_family_header(header: &str) -> Option<String> {
-    let start = header.find("value=")?;
-    let value = &header[start + "value=".len()..];
-    let value = value.trim();
-    if value.is_empty() {
-        None
-    } else {
-        Some(value.to_owned())
-    }
 }
 
 #[cfg(test)]
@@ -193,29 +113,6 @@ mod tests {
         assert_eq!(
             builtin_utilities[0].builtin_order,
             css.find("@stillwind-utility")
-        );
-    }
-
-    #[test]
-    fn expands_compact_utility_families_without_enumerating_values() {
-        let utilities = parse_utility_definitions(
-            "@utility-family value=--value(--spacing-*, --spacing(), [length]) { inset: inset; inset-x: inset-inline; }",
-        );
-
-        assert_eq!(
-            utilities,
-            vec![
-                CustomUtility {
-                    name: "inset-*".to_owned(),
-                    body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
-                    builtin_order: None,
-                },
-                CustomUtility {
-                    name: "inset-x-*".to_owned(),
-                    body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
-                    builtin_order: None,
-                },
-            ]
         );
     }
 
@@ -258,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn named_and_ordered_utilities_preserve_bodies_and_exclude_family_headers() {
+    fn named_and_ordered_utilities_preserve_bodies_and_exclude_prefix_collisions() {
         let css = "@utility user { color:red; } @stillwind-utility builtin {color:blue;}";
         let users = parse_utility_definitions(css);
         let builtins = parse_builtin_utility_definitions(css);
@@ -268,7 +165,7 @@ mod tests {
         assert_eq!(builtins[0].builtin_order, css.find("@stillwind-utility"));
         assert!(
             parse_ordered_utility_definitions(
-                "@stillwind-utility-family x {x:y;}",
+                "@stillwind-utility-other x {x:y;}",
                 "@stillwind-utility"
             )
             .is_empty()
@@ -276,33 +173,6 @@ mod tests {
         assert_eq!(
             parse_marker_utilities("@stillwind-marker group; @stillwind-marker group;"),
             BTreeSet::from(["group".into()])
-        );
-    }
-
-    #[test]
-    fn family_expansion_preserves_alias_and_property_order_and_skips_empty_entries() {
-        let utilities = extract_utility_families(
-            "@utility-family value=--value(number) { x,y: width,height; bad; empty: ; }",
-        );
-        assert_eq!(utilities.len(), 2);
-        assert_eq!(
-            utilities
-                .iter()
-                .map(|u| u.name.as_str())
-                .collect::<Vec<_>>(),
-            ["x-*", "y-*"]
-        );
-        assert!(
-            utilities
-                .iter()
-                .all(|u| u.body == "width:--value(number);height:--value(number);")
-        );
-        for header in ["", "value=   ", "number"] {
-            assert!(parse_utility_family_header(header).is_none());
-        }
-        assert_eq!(
-            parse_utility_family_header("value=  calc(--value(number) * -1) ").as_deref(),
-            Some("calc(--value(number) * -1)")
         );
     }
 }
