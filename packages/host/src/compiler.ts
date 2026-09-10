@@ -42,6 +42,7 @@ export async function compileModule(
   id: string,
   projectRoot: string,
   host: CompilerHost,
+  options: { diagnostics?: "throw" | "collect" } = {},
 ) {
   const entryId = cleanModuleId(id);
   const entrySummary = JSON.parse(
@@ -95,7 +96,7 @@ export async function compileModule(
   for (const output of projectOutput.modules) {
     const moduleId = idsByPath.get(output.path);
     if (!moduleId) fail(`Stillwind returned an unknown module: ${output.path}`);
-    if (output.diagnostics.length > 0) {
+    if (output.diagnostics.length > 0 && options.diagnostics !== "collect") {
       const diagnostic = output.diagnostics[0];
       fail(`${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`);
     }
@@ -110,11 +111,19 @@ export async function compileModule(
         );
       }
     }
-    if (deniedFindings.length > 0) fail(deniedFindings.join("\n"));
+    if (deniedFindings.length > 0 && options.diagnostics !== "collect") {
+      fail(deniedFindings.join("\n"));
+    }
   }
   const output = projectOutput.modules.find(
     (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
   );
+  if (options.diagnostics === "collect" && output) {
+    return {
+      ...output,
+      diagnostics: projectOutput.modules.flatMap((module) => module.diagnostics),
+    };
+  }
   if (!output?.code) return undefined;
   return output;
 }

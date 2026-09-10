@@ -343,6 +343,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.1
+      stillwind:
+        specifier: workspace:*
+        version: link:../core
       vite-plus:
         specifier: 'catalog:'
         version: 0.3.0(@types/node@26.4.1)(@voidzero-dev/vite-plus-core@0.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(typescript@6.0.3))(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)

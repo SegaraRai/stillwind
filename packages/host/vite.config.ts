@@ -4,6 +4,7 @@ export default defineConfig({
     tasks: {
       build: { command: "tsc -p tsconfig.json", dependsOn: ["@stillwind/native#build"] },
       typecheck: { command: "tsc --noEmit" },
+      test: { command: "node --test test/*.test.mts", dependsOn: ["build"] },
     },
   },
 });

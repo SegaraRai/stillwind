@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "stillwind": "workspace:*",
     "typescript": "7.0.2",
     "vite-plus": "catalog:"
   }
