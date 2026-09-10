@@ -17,7 +17,7 @@ assert(["turbopack", "webpack"].includes(mode));
 const port = mode === "webpack" ? 43175 : 43174;
 const url = `http://localhost:${port}`;
 const dir = path.join(root, "output", `adapters-${mode}-${Date.now()}`);
-const results = { mode, checks: [] };
+const results = { mode, next: require("next/package.json").version, checks: [] };
 const browserErrors = [];
 const write = async (name, text) => {
   const file = path.join(dir, name);
@@ -186,7 +186,6 @@ try {
       await fs.readFile(path.join(dir, "app/client.jsx"), "utf8"),
       "style('client')",
       true,
-      mode === "turbopack" ? "/packages/core/index.css" : undefined,
     );
     const javascriptSourceMap = await verifyMacroSourceMap(
       path.join(dir, ".next/static"),

@@ -1,5 +1,6 @@
 {
   "mode": "webpack",
+  "next": "16.4.0-canary.25",
   "checks": [
     {
       "name": "next-webpack-rsc-client-hydration",

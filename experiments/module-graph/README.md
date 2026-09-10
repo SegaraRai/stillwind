@@ -36,8 +36,8 @@ of application state. The original 18 transport checks remain surrogate experime
 
 The following separate tasks use the real Stillwind compiler, not `styleToken`:
 
-- `vp run verify:adapters`: Next 16.3.4 with Turbopack.
-- `vp run verify:webpack`: Next 16.3.4 with webpack.
+- `vp run verify:adapters`: Next 16.4.0-canary.25 with Turbopack.
+- `vp run verify:webpack`: Next 16.4.0-canary.25 with webpack.
 - `vp run verify:rspack`: Rspack native CSS and persistent cache.
 - `vp run verify:rsbuild`: Rsbuild wrapper over the same adapter.
 - `vp run verify:react-router`: React Router 8.3.1 Framework Mode and Vite+.
@@ -105,10 +105,11 @@ CSS maps also compose through framework preprocessing. TanStack/Rsbuild and
 Next/webpack cold and warm builds trace selectors to the original TSX/JSX macro.
 Vite development has a preprocessing fixture that inserts helper lines before
 the compiler and verifies the final CSS map still points to the original line.
-Next/Turbopack 16.3.4 emits a CSS map with the correct macro line/column but the
-wrong source file (`packages/core/index.css` instead of `app/client.jsx`). The
-runner records that exact mismatch as `cssSourceMap.supported: false`; it is not
-a CSS-map acceptance pass. Any different mismatch still fails the runner.
+Next/Turbopack 16.4.0-canary.25 traces CSS maps to the original macro file,
+line and column in cold and warm builds. This fixes the wrong source file
+observed with 16.3.4 (upstream Next.js PR #88225, released in canary.18).
+The runner now requires the correct source without allowing that old mismatch
+and records the installed Next version in each adapter result.
 
 Explicit server CSS projections omit `sourcesContent` while retaining source
 paths and positions. The React Router probe checks both JavaScript and map
