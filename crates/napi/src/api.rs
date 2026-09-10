@@ -10,7 +10,7 @@ use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
 use stillwind_source::{FileId, Fingerprint, SourceFile};
 
-use super::output::{BindingDiagnostic, BindingLintFinding, BindingMapping, BindingOutput};
+use super::output::{BindingDiagnostic, BindingLintFinding, BindingOutput};
 use super::session::{ProjectBindingOutput, ProjectModuleOutput, ProjectSource};
 
 #[derive(Debug, thiserror::Error)]
@@ -70,29 +70,10 @@ pub(super) fn binding_output(
     source: &SourceFile,
     theme: &SourceFile,
 ) -> BindingOutput {
-    let code = result.apply_to_source(source).ok();
-    let mut transforms = result.transforms.iter().collect::<Vec<_>>();
-    transforms.sort_by_key(|transform| transform.call_span.start.0);
-    let mut generated_delta = 0_i64;
-    let mappings = transforms
-        .into_iter()
-        .filter_map(|transform| {
-            let original_start = source.utf16_offset(transform.call_span.start).ok()?;
-            let original_end = source.utf16_offset(transform.call_span.end).ok()?;
-            let generated_start = i64::from(original_start) + generated_delta;
-            let replacement_length =
-                u32::try_from(transform.replacement.encode_utf16().count()).ok()?;
-            let generated_end = generated_start + i64::from(replacement_length);
-            generated_delta +=
-                i64::from(replacement_length) - i64::from(original_end - original_start);
-            Some(BindingMapping {
-                original_start,
-                original_end,
-                generated_start: u32::try_from(generated_start).ok()?,
-                generated_end: u32::try_from(generated_end).ok()?,
-            })
-        })
-        .collect();
+    let (code, mappings) = match stillwind_compiler::render_transforms(source, &result.transforms) {
+        Ok(output) => (Some(output.code), output.mappings),
+        Err(_) => (None, Vec::new()),
+    };
     let diagnostics = result
         .diagnostics
         .iter()

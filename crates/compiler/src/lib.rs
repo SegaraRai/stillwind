@@ -35,7 +35,9 @@ pub use query::{
 };
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
 pub use stylesheet_map::{MappedStylesheet, StylesheetMapping};
-pub use transforms::{SourceTransform, TransformError};
+pub use transforms::{
+    RenderedSource, SourceTransform, TransformError, TransformMapping, render_transforms,
+};
 
 #[cfg(test)]
 #[path = "../../test-support/css.rs"]

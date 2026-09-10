@@ -23,7 +23,7 @@ pub struct CompileResult {
 }
 
 impl CompileResult {
-    /// Applies source-spanned macro replacements from right to left.
+    /// Validates source-spanned macro replacements and renders them in source order.
     ///
     /// This deliberately keeps the compiler's source mapping contract separate
     /// from any particular bundler. A Vite adapter can use the same plan and

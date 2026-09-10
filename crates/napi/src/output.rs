@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+pub use stillwind_compiler::TransformMapping as BindingMapping;
 use stillwind_compiler::{GeneratedClass, GeneratedSymbol, ModuleResourceReference};
 
 #[derive(Serialize)]
@@ -15,14 +16,6 @@ pub struct BindingOutput {
     pub diagnostics: Vec<BindingDiagnostic>,
     pub lint_findings: Vec<BindingLintFinding>,
     pub lint_policy: BTreeMap<String, String>,
-}
-
-#[derive(Serialize)]
-pub struct BindingMapping {
-    pub original_start: u32,
-    pub original_end: u32,
-    pub generated_start: u32,
-    pub generated_end: u32,
 }
 
 #[derive(Serialize)]
