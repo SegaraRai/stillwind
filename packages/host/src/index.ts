@@ -6,3 +6,4 @@ export * from "./finalize.ts";
 export * from "./css.ts";
 export * from "./css-source-map.ts";
 export * from "./editor.ts";
+export { projectFrameworkSource } from "@stillwind/projection";

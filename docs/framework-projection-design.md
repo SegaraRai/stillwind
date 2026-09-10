@@ -181,6 +181,10 @@ CSS 更新・module 削除時は virtual module と CSS contribution を無効�
 
 実装済みの import 経路では、OXC の binding ごとの参照と native の成功した callee 置換を照合して macro specifier を削除する。runtime helper は lowering 時に列挙型で要求し、全 binding・未解決参照と衝突しないローカル名を割り当てる。投影入力では host の region→realm 対応を検証し、その script 内の import と一括置換する。helper 名の文字列検索と macro import の正規表現削除は host から除去した。realm 不明・重複や残存 macro 参照は `SHIMPORT001` とし、native API は code と mapping を返さない。依存 asset の CSS だけを生成する内部経路は JavaScript を出力しないため、完全な module の import 編集を行わない。
 
+host converter は `@stillwind/projection` に配置し、各 framework を別ファイルにする。converter が必要とする TypeScript 6 の JavaScript SDK は、この package の通常依存とする。`@stillwind/host` の TypeScript 7 による型情報取得と依存ツリーを分け、両方を検証する。`projectFrameworkSource` は通常入力をそのまま返し、SFC では原文・map・converter identity・region を持つ入力を返す。Vue の属性引用符は host AST から region に記録し、native が原文の引用符を確認して置換文字列をエスケープする。複数 realm の helper 名も全体で衝突させない。
+
+`vp run @stillwind/host#test` は実 converter→native→framework compile を実行する。Vue の引用符2種・空白・複数 script、Svelte の複数 script、Astro の frontmatter と client script を含む。これは converter 接続の検証であり、bundler/HMR と明示 module-css の完了を意味しない。
+
 ## 7. 実装順序と完了条件
 
 | 段階 | 作業                                                  | 完了条件                                                                                                          |

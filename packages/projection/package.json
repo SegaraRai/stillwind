@@ -1,0 +1,28 @@
+{
+  "name": "@stillwind/projection",
+  "version": "0.0.0",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.js"
+  },
+  "dependencies": {
+    "@astrojs/compiler": "4.0.0",
+    "@vue/compiler-dom": "3.5.42",
+    "@vue/compiler-sfc": "3.5.42",
+    "@vue/language-core": "3.3.11",
+    "svelte": "5.57.0",
+    "svelte2tsx": "0.7.61",
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@volar/typescript": "2.4.28",
+    "typescript": "6.0.3",
+    "vite-plus": "catalog:"
+  }
+}

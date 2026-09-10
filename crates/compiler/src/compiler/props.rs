@@ -1,8 +1,9 @@
 use serde::Serialize;
 
-use crate::runtime::{RuntimeBindings, RuntimeHelper};
 use stillwind_ir::{AdapterKind, AttributeEntry};
 use stillwind_source::{SourceFile, Span};
+
+use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
@@ -13,28 +14,28 @@ pub struct GeneratedClass {
 }
 
 #[derive(Clone, Debug)]
-pub(in crate::compiler) struct ViewTransitionStyleEntry {
-    pub(in crate::compiler) value: Option<Span>,
-    pub(in crate::compiler) identity: Option<String>,
-    pub(in crate::compiler) candidates: Vec<String>,
-    pub(in crate::compiler) key: Option<Span>,
+pub(super) struct ViewTransitionStyleEntry {
+    pub(super) value: Option<Span>,
+    pub(super) identity: Option<String>,
+    pub(super) candidates: Vec<String>,
+    pub(super) key: Option<Span>,
 }
 
 #[derive(Clone, Debug)]
-pub(in crate::compiler) struct DynamicAssetClassEntry {
-    pub(in crate::compiler) value: Span,
-    pub(in crate::compiler) classes: Vec<(String, String)>,
+pub(super) struct DynamicAssetClassEntry {
+    pub(super) value: Span,
+    pub(super) classes: Vec<(String, String)>,
 }
 
 #[derive(Clone, Copy)]
-pub(in crate::compiler) struct PropsParts<'a> {
-    pub(in crate::compiler) classes: &'a [GeneratedClass],
-    pub(in crate::compiler) attributes: &'a [AttributeEntry],
-    pub(in crate::compiler) handle_markers: &'a [String],
-    pub(in crate::compiler) external_classes: &'a [Span],
-    pub(in crate::compiler) dynamic_handle_classes: &'a [Span],
-    pub(in crate::compiler) dynamic_asset_classes: &'a [DynamicAssetClassEntry],
-    pub(in crate::compiler) view_transition_style: Option<&'a ViewTransitionStyleEntry>,
+pub(super) struct PropsParts<'a> {
+    pub(super) classes: &'a [GeneratedClass],
+    pub(super) attributes: &'a [AttributeEntry],
+    pub(super) handle_markers: &'a [String],
+    pub(super) external_classes: &'a [Span],
+    pub(super) dynamic_handle_classes: &'a [Span],
+    pub(super) dynamic_asset_classes: &'a [DynamicAssetClassEntry],
+    pub(super) view_transition_style: Option<&'a ViewTransitionStyleEntry>,
 }
 
 fn guarded_class(source: &SourceFile, class: &GeneratedClass) -> Option<String> {
@@ -54,11 +55,11 @@ fn guarded_class(source: &SourceFile, class: &GeneratedClass) -> Option<String> 
     Some(format!("{negation}{guard}&&\"{}\"", class.class_name))
 }
 
-pub(in crate::compiler) fn render_props(
+pub(super) fn render_props(
     source: &SourceFile,
     parts: &PropsParts<'_>,
     adapter: AdapterKind,
-    runtime: &mut RuntimeBindings,
+    runtime: &mut RuntimeBindings<'_>,
     call_span: Span,
 ) -> Option<String> {
     let PropsParts {
@@ -149,7 +150,7 @@ pub(in crate::compiler) fn render_props(
 fn render_view_transition(
     source: &SourceFile,
     entry: &ViewTransitionStyleEntry,
-    runtime: &mut RuntimeBindings,
+    runtime: &mut RuntimeBindings<'_>,
     call_span: Span,
 ) -> Option<String> {
     let value = match (entry.value, &entry.identity) {

@@ -1,3 +1,5 @@
+import type { ProjectSource as FrameworkSource } from "@stillwind/projection";
+
 import type { CompilerMapping } from "./source-map.ts";
 import type { AssetRecord, TypeFact } from "./type-facts.ts";
 export interface CompilerOutput {
@@ -60,36 +62,11 @@ export interface ImportBinding {
   imported: string;
 }
 
-export interface ProjectSource {
-  id: string;
-  path: string;
-  source: string;
+export interface ProjectSource extends FrameworkSource {
   type_facts?: TypeFact[];
-  language?: "js" | "jsx" | "ts" | "tsx";
-  framework?: "React" | "Preact" | "Solid" | "Vue" | "Svelte" | "Astro";
-  /** Source-to-upstream map for a normal input; it does not change the edit target. */
-  map?: string;
-  /** Original framework source; source above remains the projected JS/TS. */
-  fw_code?: string;
-  fw2js_map?: ProjectionMap;
-  fw_map?: string;
-  converter?: { name: string; version: string; options_fingerprint: string };
-  /** Offsets in these host records are UTF-16, not Rust byte offsets. */
-  import_realms?: Array<{ id: number; start: number; end: number }>;
-  regions?: Array<{ start: number; end: number; import_realm: number }>;
 }
 
-export type ProjectionMap =
-  | { kind: "v3"; json: string; source: string }
-  | {
-      kind: "volar";
-      mappings: Array<{
-        sourceOffsets: number[];
-        generatedOffsets: number[];
-        lengths: number[];
-        generatedLengths?: number[];
-      }>;
-    };
+export type { ProjectionMap } from "@stillwind/projection";
 
 export interface ProjectCompilerOutput {
   modules: Array<CompilerOutput & { path: string }>;

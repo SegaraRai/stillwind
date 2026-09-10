@@ -31,15 +31,16 @@ use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
 };
-use crate::runtime::{RuntimeBindings, RuntimeHelper};
+use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
+use crate::{CompilerOptions, ImportPlanError};
 
 impl Compiler {
     pub(crate) fn compile_with_snapshot(
         source: &SourceFile,
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
-        compiler_options: &crate::CompilerOptions,
+        compiler_options: &CompilerOptions,
     ) -> CompileResult {
         Self::compile_snapshot(source, parsed, snapshot, compiler_options, true)
     }
@@ -48,7 +49,7 @@ impl Compiler {
         source: &SourceFile,
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
-        compiler_options: &crate::CompilerOptions,
+        compiler_options: &CompilerOptions,
     ) -> CompileResult {
         Self::compile_snapshot(source, parsed, snapshot, compiler_options, false)
     }
@@ -58,7 +59,7 @@ impl Compiler {
         source: &SourceFile,
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
-        compiler_options: &crate::CompilerOptions,
+        compiler_options: &CompilerOptions,
         emit_source: bool,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
@@ -79,7 +80,7 @@ impl Compiler {
         let mut utility_css = String::new();
         let mut emitted_utility_classes = BTreeSet::new();
         let module = parsed.ir.clone();
-        let mut runtime = RuntimeBindings::new(&module.imports.reserved_names);
+        let mut runtime = RuntimeBindings::new(parsed);
         result
             .symbols
             .extend(module.handle_definitions.iter().map(generated_ref_symbol));
@@ -733,15 +734,18 @@ impl Compiler {
         }
 
         if emit_source && result.diagnostics.is_empty() {
-            match runtime.plan(parsed, &result.transforms) {
+            match runtime.plan(parsed, &result.transforms).and_then(|edits| {
+                encode_projected_edits(parsed, &mut result.transforms)?;
+                Ok(edits)
+            }) {
                 Ok(edits) => result.transforms.extend(edits),
                 Err(error) => {
                     let span = match &error {
-                        crate::ImportPlanError::UntransformedReference { span, .. }
-                        | crate::ImportPlanError::UnmappedReference { span, .. }
-                        | crate::ImportPlanError::InvalidMetadata { span }
-                        | crate::ImportPlanError::MissingRuntimeAnchor { span } => *span,
-                        crate::ImportPlanError::Source(_) => source.full_span(),
+                        ImportPlanError::UntransformedReference { span, .. }
+                        | ImportPlanError::UnmappedReference { span, .. }
+                        | ImportPlanError::InvalidMetadata { span }
+                        | ImportPlanError::MissingRuntimeAnchor { span } => *span,
+                        ImportPlanError::Source(_) => source.full_span(),
                     };
                     result.diagnostics.push(CompileError::new(
                         "SHIMPORT001",

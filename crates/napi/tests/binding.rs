@@ -42,9 +42,14 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let code = module["code"].as_str().unwrap();
     let runtime = "import { stillwindClsx } from \"stillwind/svelte/runtime\";";
     assert!(code.starts_with(&format!("{prefix}{runtime}")), "{code}");
-    assert!(code.contains(&format!("{middle}{runtime}")), "{code}");
+    assert!(
+        code.contains(&format!(
+            "{middle}import {{ stillwindClsx as stillwindClsx_1 }}"
+        )),
+        "{code}"
+    );
     assert!(code.ends_with(suffix));
-    assert_eq!(code.matches(runtime).count(), 2);
+    assert_eq!(code.matches("stillwind/svelte/runtime").count(), 2);
     assert!(!code.contains("style as"));
     let duplicate = input["regions"][0].clone();
     input["regions"].as_array_mut().unwrap().push(duplicate);
@@ -73,7 +78,9 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
         "path":"Component.svelte", "source":script, "language":"ts", "framework":"Svelte",
         "fw_code":original,
         "fw2js_map":{"kind":"volar","mappings":[{"sourceOffsets":[prefix.encode_utf16().count()],"generatedOffsets":[0],"lengths":[script.len()]}]},
-        "converter":{"name":"svelte2tsx","version":"0.7.61","options_fingerprint":"test"}
+        "converter":{"name":"svelte2tsx","version":"0.7.61","options_fingerprint":"test"},
+        "import_realms":[{"id":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}],
+        "regions":[{"import_realm":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}]
     });
     let output = compile_react_project_json(
         &serde_json::json!([source]).to_string(),

@@ -1,11 +1,13 @@
 //! Host transport for normal and projected source buffers.
+
 use std::sync::Arc;
 
 use napi::Error;
 use serde::Deserialize;
+
 use stillwind_ir::{
-    AdapterKind, ConverterIdentity, FrameworkProjection, ImportRealm, ProjectionRegion,
-    ScriptLanguage, SourceInput,
+    AdapterKind, AttributeQuote, ConverterIdentity, FrameworkProjection, ImportRealm,
+    ProjectionRegion, ScriptLanguage, SourceInput,
 };
 use stillwind_semantic::TypeFact;
 use stillwind_source::{CoordinateIndex, FileId, ProjectionMap, SourceFile, Span, Utf16Offset};
@@ -42,6 +44,7 @@ pub struct HostRegion {
     start: u32,
     end: u32,
     import_realm: u32,
+    attribute_quote: Option<AttributeQuote>,
 }
 
 impl ProjectSource {
@@ -121,6 +124,7 @@ impl ProjectSource {
                     Ok(ProjectionRegion {
                         source: span(region.start, region.end)?,
                         import_realm: region.import_realm,
+                        attribute_quote: region.attribute_quote,
                     })
                 })
                 .collect::<napi::Result<Vec<_>>>()?;

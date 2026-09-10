@@ -1,7 +1,9 @@
 //! Host input contract. Original framework sources are opaque text to the core.
+
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+
 use stillwind_source::{FileId, Fingerprint, ProjectionMap, SourceFile, Span};
 
 use crate::AdapterKind;
@@ -43,6 +45,14 @@ pub struct ImportRealm {
 pub struct ProjectionRegion {
     pub source: Span,
     pub import_realm: u32,
+    pub attribute_quote: Option<AttributeQuote>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AttributeQuote {
+    Single,
+    Double,
 }
 
 #[derive(Clone, Debug)]

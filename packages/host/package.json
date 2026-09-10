@@ -14,12 +14,16 @@
     "@jridgewell/gen-mapping": "^0.3.13",
     "@jridgewell/remapping": "^2.3.5",
     "@stillwind/native": "workspace:*",
+    "@stillwind/projection": "workspace:*",
     "typescript": "7.0.2"
   },
   "devDependencies": {
+    "@astrojs/compiler": "4.0.0",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@types/node": "catalog:",
+    "@vue/compiler-sfc": "3.5.42",
     "stillwind": "workspace:*",
+    "svelte": "5.57.0",
     "typescript": "7.0.2",
     "vite-plus": "catalog:"
   }
