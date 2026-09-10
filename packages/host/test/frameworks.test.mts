@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { transform as compileAstro } from "@astrojs/compiler";
-import { compileReactProject } from "@stillwind/native";
+import {
+  compileReactProject,
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+} from "@stillwind/native";
 import { projectFrameworkSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
 
+import { compileModule } from "../src/compiler.ts";
 import type { ProjectCompilerOutput } from "../src/protocol.ts";
 
 const examples = {
@@ -14,6 +19,55 @@ const examples = {
   svelte: `<script lang="ts">\nimport {style} from 'stillwind/svelte';\nconst active = true, external = 'extra';\n</script>\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
   astro: `---\n// 🧭\nimport {style} from 'stillwind/astro';\nconst active = true, external = 'extra';\n---\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
 };
+
+void test("host compiles raw SFCs and updates session CSS after edits", async () => {
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(
+    0,
+    "/theme.css",
+    "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+  );
+  const session = new NativeProjectSession(loader, true);
+  const host = {
+    resolve: async () => {
+      throw new Error("Unexpected resolution");
+    },
+    read: async () => {
+      throw new Error("Unexpected read");
+    },
+    watch: () => {},
+    warn: () => {},
+  };
+  for (const [extension, source] of Object.entries(examples)) {
+    const id = `/src/Component.${extension}`;
+    const output = await compileModule(
+      session,
+      () => {
+        throw new Error("Unexpected projected checker query");
+      },
+      source,
+      id,
+      "/",
+      host,
+    );
+    assert.ok(output?.code?.includes(`<${extension === "astro" ? "div" : "script"}`));
+    assert.deepEqual(output.diagnostics, []);
+    assert.match(session.moduleCss(output.path), /display:\s*flex/);
+    const edited = await compileModule(
+      session,
+      () => {
+        throw new Error("Unexpected projected checker query");
+      },
+      source.replace("'flex'", "'grid'"),
+      id,
+      "/",
+      host,
+    );
+    assert.ok(edited?.code);
+    assert.doesNotMatch(session.moduleCss(output.path), /display:\s*flex/);
+    assert.match(session.moduleCss(output.path), /display:\s*grid/);
+  }
+});
 
 void test("SFC output fails on residual macros or mismatched attribute context", async () => {
   const compile = (input: Awaited<ReturnType<typeof projectFrameworkSource>>) =>

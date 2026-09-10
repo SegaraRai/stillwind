@@ -2,6 +2,7 @@ import { relative } from "node:path";
 
 import { summarizeReact } from "@stillwind/native";
 import type { NativeProjectSession } from "@stillwind/native";
+import { projectFrameworkSource } from "@stillwind/projection";
 
 import type { ModuleSummary, ProjectSource, ProjectCompilerOutput } from "./protocol.ts";
 import type { TypeScriptFactsService, TypeFact } from "./type-facts.ts";
@@ -54,17 +55,29 @@ export async function compileModule(
   options: { diagnostics?: "throw" | "collect" } = {},
 ) {
   const entryId = cleanModuleId(id);
+  const entrySource = await projectFrameworkSource({
+    id: entryId,
+    path: compilerModulePath(projectRoot, entryId),
+    source: code,
+  });
   const entrySummary = JSON.parse(
-    summarizeReact(code, compilerModulePath(projectRoot, entryId)),
+    summarizeReact(
+      entrySource.source,
+      entrySource.fw_code === undefined
+        ? entrySource.path
+        : `${entrySource.path}.${entrySource.language}`,
+    ),
   ) as ModuleSummary;
-  const needsTypeFacts = entrySummary.type_probes.length > 0;
+  // Checker spans currently describe ordinary modules. Projected probes need
+  // a separate original/generated coordinate contract before they can be queried.
+  const needsTypeFacts = entrySource.fw_code === undefined && entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesById = new Map<string, ProjectSource>();
   const resolutions = new Map<string, Map<string, string>>();
   const visited = new Map<string, Set<string | null>>();
   const pending: Array<{ source: ProjectSource; requested: string | null }> = [
     {
-      source: { id: entryId, path: compilerModulePath(projectRoot, entryId), source: code },
+      source: entrySource,
       requested: null,
     },
   ];
