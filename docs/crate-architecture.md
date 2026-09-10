@@ -3,6 +3,9 @@
 This is the accepted crate structure for Stillwind. The Rust workspace has
 eleven crates; there are no `core`, `tailwind`, or `grammar` compatibility crates.
 
+The proposed framework descriptor placement and projection/editing boundaries
+are documented in [framework projection design](framework-projection-design.md).
+
 | Crate           | Owns                                                                                                                                |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `source`        | Source buffers, spans, diagnostics, lint suppression, and content fingerprints                                                      |

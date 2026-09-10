@@ -5,6 +5,11 @@ boundaries, see [crate architecture](crate-architecture.md). This document turns
 implementable compiler while preserving precise source locations for errors,
 linting, quick-fixes, and a future formatter.
 
+For the accepted framework projection and source-editing direction, see
+[framework projection design](framework-projection-design.md). It supersedes the
+future SFC frontend direction below: host-side projection, Oxc analysis, and
+minimal Rust framework knowledge isolated in one file per framework.
+
 ## Decisions
 
 1. The compiler core is a Rust workspace.
