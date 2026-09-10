@@ -25,23 +25,31 @@ pub(crate) fn apply_transforms(
     let mut transforms = transforms.iter().collect::<Vec<_>>();
     transforms.sort_by_key(|transform| std::cmp::Reverse(transform.call_span.start.0));
 
-    let mut output = source.text().to_owned();
     let mut previous_start = u32::MAX;
-    for transform in transforms {
+    for transform in &transforms {
         source
             .slice(transform.call_span)
             .map_err(TransformError::InvalidSpan)?;
-        if transform.call_span.end.0 > previous_start {
+        if transform.call_span.end.0 > previous_start
+            || transform.call_span.start.0 == previous_start
+        {
             return Err(TransformError::Overlap {
                 span: transform.call_span,
                 previous_start,
             });
         }
-        let start = transform.call_span.start.0 as usize;
-        let end = transform.call_span.end.0 as usize;
-        output.replace_range(start..end, &transform.replacement);
         previous_start = transform.call_span.start.0;
     }
+    let mut output = String::with_capacity(source.text().len());
+    let mut cursor = 0;
+    for transform in transforms.into_iter().rev() {
+        let start = transform.call_span.start.0 as usize;
+        let end = transform.call_span.end.0 as usize;
+        output.push_str(&source.text()[cursor..start]);
+        output.push_str(&transform.replacement);
+        cursor = end;
+    }
+    output.push_str(&source.text()[cursor..]);
     Ok(output)
 }
 
@@ -104,6 +112,39 @@ mod tests {
             .unwrap(),
             "xx"
         );
+    }
+
+    #[test]
+    fn linear_render_preserves_unicode_gaps_and_rejects_same_anchor_collisions() {
+        let source = SourceFile::new(FileId(1), "x", "🧭abc日本def\r\n").unwrap();
+        let transforms = vec![
+            SourceTransform {
+                call_span: Span::new(FileId(1), 13, 16),
+                replacement: "終".into(),
+            },
+            SourceTransform {
+                call_span: Span::new(FileId(1), 4, 7),
+                replacement: "開始".into(),
+            },
+        ];
+        assert_eq!(
+            apply_transforms(&source, &transforms).unwrap(),
+            "🧭開始日本終\r\n"
+        );
+        let insertion = SourceTransform {
+            call_span: Span::new(FileId(1), 4, 4),
+            replacement: "import;".into(),
+        };
+        for edits in [
+            vec![insertion.clone(), transforms[1].clone()],
+            vec![transforms[1].clone(), insertion.clone()],
+            vec![insertion.clone(), insertion],
+        ] {
+            assert!(matches!(
+                apply_transforms(&source, &edits),
+                Err(TransformError::Overlap { .. })
+            ));
+        }
     }
 
     proptest::proptest! {
