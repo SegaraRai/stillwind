@@ -183,7 +183,7 @@ fn compiles_nested_arrays_attributes_and_element_local_selectors() {
 declare const loading: boolean;
 const props = style(
   ["bg-accent", ["px-4"], loading && "opacity-60"],
-  { "aria-busy": loading, "&:hover": "bg-accent/90" },
+  { "aria-busy": loading, "hover:": "bg-accent/90" },
 );"#,
     )
     .unwrap();

@@ -411,13 +411,13 @@ const props = style({ "aria-busy": loading, "data-state": state });"#,
 }
 
 #[test]
-fn flattens_arrays_and_retains_element_local_selectors() {
+fn flattens_arrays_and_retains_variant_prefixes() {
     let source = SourceFile::new(
         FileId(1),
         "Button.tsx",
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
-const props = style(["px-4", loading && "opacity-60"], { "&:hover": "bg-accent" });"#,
+const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" });"#,
     )
     .unwrap();
 
@@ -432,11 +432,53 @@ const props = style(["px-4", loading && "opacity-60"], { "&:hover": "bg-accent" 
         parsed.module.style_calls[0].inputs[1],
         StyleInput::ConditionalUtilityString { .. }
     ));
-    let Some(StyleInput::SelectorUtilityString { selector, value }) =
+    let Some(StyleInput::VariantUtilityString { prefix, value }) =
         parsed.module.style_calls[0].inputs.get(2)
     else {
-        panic!("the selector should be preserved in the style IR");
+        panic!("the variant prefix should be preserved in the style IR");
     };
-    assert_eq!(selector.value, "&:hover");
+    assert_eq!(prefix.value, "hover:");
     assert_eq!(value.value, "bg-accent");
+}
+
+#[test]
+fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
+    for argument in [
+        r#"{ "&:hover": "flex" }"#,
+        r#"{ ":": "flex" }"#,
+        r#"{ "hover:": { "aria-busy": true } }"#,
+        r#"{ "hover:": { class: "external" } }"#,
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            "Invalid.tsx",
+            format!(
+                "import {{ style }} from \"stillwind/react\"; const props = style({argument});"
+            ),
+        )
+        .unwrap();
+        let parsed = parse(&source);
+        assert!(!parsed.diagnostics.is_empty(), "{argument}");
+    }
+}
+
+#[test]
+fn nested_variant_wrappers_preserve_utility_source_spans() {
+    let source = SourceFile::new(
+        FileId(1),
+        "Nested.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }] });"#,
+    )
+    .unwrap();
+    let parsed = parse(&source);
+    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+    let StyleInput::VariantUtilityString { prefix, value } =
+        &parsed.module.style_calls[0].inputs[1]
+    else {
+        panic!("expected variant utility")
+    };
+    assert_eq!(prefix.value, "hover:[&:where(.mod)]:");
+    assert_eq!(value.value, "text-blue");
+    assert_eq!(source.slice(value.span).unwrap(), "text-blue");
 }

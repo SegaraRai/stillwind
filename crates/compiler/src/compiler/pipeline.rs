@@ -140,6 +140,7 @@ impl Compiler {
             let mut view_transition_style = None;
             let mut compatibility_classes = Vec::new();
             for input in call.inputs {
+                let mut variant_prefix = None;
                 let (guard, guard_when_true, selector, input) = match input {
                     StyleInput::ViewTransitionUse { transition, key } => {
                         if view_transition_style.is_some() {
@@ -272,13 +273,13 @@ impl Compiler {
                         dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
                         continue;
                     }
-                    StyleInput::SelectorAnimationUse {
-                        selector,
+                    StyleInput::VariantAnimationUse {
+                        prefix,
                         animation,
                         options,
                     } => {
                         let branch = &mut branches[0];
-                        branch.2.push_str(&selector.value);
+                        branch.2.push_str(&prefix.value);
                         branch.2.push('\0');
                         branch.2.push_str("animation:");
                         branch.2.push_str(&animation.name.value);
@@ -291,12 +292,19 @@ impl Compiler {
                             theme,
                             &mut result.diagnostics,
                         );
-                        utility.selector = Some(selector.value);
+                        let Some(variants) = super::variants::resolve_wrapper_variants(
+                            &prefix,
+                            theme,
+                            &mut result.diagnostics,
+                        ) else {
+                            continue;
+                        };
+                        utility.variants = variants;
                         branch.3.push(utility);
                         continue;
                     }
-                    StyleInput::DynamicSelectorAnimationUse {
-                        selector,
+                    StyleInput::DynamicVariantAnimationUse {
+                        prefix,
                         value,
                         animations,
                         options,
@@ -317,7 +325,7 @@ impl Compiler {
                             );
                             let canonical = format!(
                                 "{}\0dynamic-animation:{identity}:{}",
-                                selector.value, options.value
+                                prefix.value, options.value
                             );
                             let canonical = compiler_options.class_input(source.path(), &canonical);
                             let class_name = class_name(&canonical);
@@ -327,7 +335,14 @@ impl Compiler {
                                 theme,
                                 &mut result.diagnostics,
                             );
-                            utility.selector = Some(selector.value.clone());
+                            let Some(variants) = super::variants::resolve_wrapper_variants(
+                                &prefix,
+                                theme,
+                                &mut result.diagnostics,
+                            ) else {
+                                continue;
+                            };
+                            utility.variants = variants;
                             if emitted_utility_classes
                                 .insert((class_name.clone(), canonical.clone()))
                             {
@@ -499,15 +514,19 @@ impl Compiler {
                         attributes.extend(entries);
                         continue;
                     }
-                    StyleInput::SelectorUtilityString { selector, value } => {
-                        (None, true, Some(selector.value), value)
+                    StyleInput::VariantUtilityString { prefix, value } => {
+                        variant_prefix = Some(prefix.value);
+                        (None, true, None, value)
                     }
-                    StyleInput::ConditionalSelectorUtilityString {
-                        selector,
+                    StyleInput::ConditionalVariantUtilityString {
+                        prefix,
                         guard,
                         when_true,
                         value,
-                    } => (Some(guard), when_true, Some(selector.value), value),
+                    } => {
+                        variant_prefix = Some(prefix.value);
+                        (Some(guard), when_true, None, value)
+                    }
                     StyleInput::HandleSelectorUtilityString {
                         handle,
                         selector,
@@ -548,7 +567,10 @@ impl Compiler {
                     0
                 };
                 let branch = &mut branches[branch_index];
-                for utility in lex_utilities(&input, &mut result.diagnostics) {
+                for mut utility in lex_utilities(&input, &mut result.diagnostics) {
+                    if let Some(prefix) = &variant_prefix {
+                        utility.value.raw.insert_str(0, prefix);
+                    }
                     if (options.forbid_tailwind_relationships
                         || theme.config.lint_enabled("prefer-typed-relationships"))
                         && is_tailwind_relationship_candidate(&utility.value.raw, theme)
@@ -610,7 +632,7 @@ impl Compiler {
                             format!("unknown or unavailable utility `{}`", utility.value.raw),
                             utility.span,
                         ));
-                        if selector.is_none() {
+                        if selector.is_none() && variant_prefix.is_none() {
                             external_classes.push(utility.span);
                         }
                     }

@@ -20,39 +20,14 @@ pub(crate) enum ParsedAnimationUse {
 }
 
 impl ParsedAnimationUse {
-    pub(crate) fn into_style_input(self, selector: Option<Spanned<String>>) -> StyleInput {
-        match (self, selector) {
-            (Self::Static { animation, options }, None) => {
-                StyleInput::AnimationUse { animation, options }
-            }
-            (Self::Static { animation, options }, Some(selector)) => {
-                StyleInput::SelectorAnimationUse {
-                    selector,
-                    animation,
-                    options,
-                }
-            }
-            (
-                Self::Dynamic {
-                    value,
-                    animations,
-                    options,
-                },
-                None,
-            ) => StyleInput::DynamicAnimationUse {
+    pub(crate) fn into_style_input(self) -> StyleInput {
+        match self {
+            Self::Static { animation, options } => StyleInput::AnimationUse { animation, options },
+            Self::Dynamic {
                 value,
                 animations,
                 options,
-            },
-            (
-                Self::Dynamic {
-                    value,
-                    animations,
-                    options,
-                },
-                Some(selector),
-            ) => StyleInput::DynamicSelectorAnimationUse {
-                selector,
+            } => StyleInput::DynamicAnimationUse {
                 value,
                 animations,
                 options,

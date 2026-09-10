@@ -38,7 +38,7 @@ impl<'a> MacroExtractor<'a> {
             return;
         }
         if let Some(animation) = self.animation_use(expression) {
-            inputs.push(animation.into_style_input(None));
+            inputs.push(animation.into_style_input());
             return;
         }
         if let Some(transition) = self.view_transition_use(expression) {
@@ -115,6 +115,9 @@ impl<'a> MacroExtractor<'a> {
                 }
             }
             Expression::ObjectExpression(object) => self.collect_object(object, inputs),
+            Expression::NullLiteral(_) => {},
+            Expression::BooleanLiteral(value) if !value.value => {},
+            Expression::Identifier(value) if value.name == "undefined" => {},
             Expression::Identifier(_) => self.diagnostics.push(CompileError::new(
                 "SHTS001",
                 "non-local or conditional handles require TypeScript checker facts",
@@ -122,7 +125,7 @@ impl<'a> MacroExtractor<'a> {
             )),
             _ => self.diagnostics.push(CompileError::new(
                 "SHJS002",
-                "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and `&` selectors",
+                "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers",
                 self.source_span(expression.span()),
             )),
         }
@@ -212,68 +215,118 @@ impl<'a> MacroExtractor<'a> {
             let PropertyKey::StringLiteral(name) = &property.key else {
                 self.diagnostics.push(CompileError::new(
                     "SHJS003",
-                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or `&` selectors",
+                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or variant prefixes ending in `:`",
                     self.source_span(property.key.span()),
                 ));
                 continue;
             };
             let name = self.string_literal(name);
-            if name.value.starts_with("aria-") || name.value.starts_with("data-") {
+            if !name.value.ends_with(':')
+                && (name.value.starts_with("aria-") || name.value.starts_with("data-"))
+            {
                 entries.push(AttributeEntry {
                     name,
                     value: self.source_span(property.value.span()),
                 });
                 continue;
             }
-            if !name.value.starts_with('&') {
+            if !name.value.ends_with(':') || name.value == ":" {
                 self.diagnostics.push(CompileError::new(
                     "SHJS003",
-                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or `&` selectors",
+                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or variant prefixes ending in `:`",
                     name.span,
                 ));
                 continue;
             }
-            match &property.value {
-                Expression::CallExpression(_) => {
-                    let Some(animation) = self.animation_use(&property.value) else {
+            let mut nested = Vec::new();
+            self.collect_style_expression(&property.value, &mut nested);
+            for input in nested {
+                let input = match input {
+                    StyleInput::UtilityString(value) => StyleInput::VariantUtilityString {
+                        prefix: name.clone(),
+                        value,
+                    },
+                    StyleInput::ConditionalUtilityString {
+                        guard,
+                        when_true,
+                        value,
+                    } => StyleInput::ConditionalVariantUtilityString {
+                        prefix: name.clone(),
+                        guard,
+                        when_true,
+                        value,
+                    },
+                    StyleInput::AnimationUse { animation, options } => {
+                        StyleInput::VariantAnimationUse {
+                            prefix: name.clone(),
+                            animation,
+                            options,
+                        }
+                    }
+                    StyleInput::DynamicAnimationUse {
+                        value,
+                        animations,
+                        options,
+                    } => StyleInput::DynamicVariantAnimationUse {
+                        prefix: name.clone(),
+                        value,
+                        animations,
+                        options,
+                    },
+                    StyleInput::VariantUtilityString { mut prefix, value } => {
+                        prefix.value.insert_str(0, &name.value);
+                        StyleInput::VariantUtilityString { prefix, value }
+                    }
+                    StyleInput::ConditionalVariantUtilityString {
+                        mut prefix,
+                        guard,
+                        when_true,
+                        value,
+                    } => {
+                        prefix.value.insert_str(0, &name.value);
+                        StyleInput::ConditionalVariantUtilityString {
+                            prefix,
+                            guard,
+                            when_true,
+                            value,
+                        }
+                    }
+                    StyleInput::VariantAnimationUse {
+                        mut prefix,
+                        animation,
+                        options,
+                    } => {
+                        prefix.value.insert_str(0, &name.value);
+                        StyleInput::VariantAnimationUse {
+                            prefix,
+                            animation,
+                            options,
+                        }
+                    }
+                    StyleInput::DynamicVariantAnimationUse {
+                        mut prefix,
+                        value,
+                        animations,
+                        options,
+                    } => {
+                        prefix.value.insert_str(0, &name.value);
+                        StyleInput::DynamicVariantAnimationUse {
+                            prefix,
+                            value,
+                            animations,
+                            options,
+                        }
+                    }
+                    _ => {
                         self.diagnostics.push(CompileError::new(
                             "SHJS004",
-                            "a `&` selector must map to a literal utility string, animation use, or `condition && \"…\"`",
+                            "variant wrappers accept utility strings, animations, arrays, and nested variant wrappers",
                             self.source_span(property.value.span()),
                         ));
                         continue;
-                    };
-                    inputs.push(animation.into_style_input(Some(name)));
-                }
-                Expression::StringLiteral(value) => {
-                    inputs.push(StyleInput::SelectorUtilityString {
-                        selector: name,
-                        value: self.string_literal(value),
-                    });
-                }
-                Expression::LogicalExpression(expression)
-                    if expression.operator == LogicalOperator::And =>
-                {
-                    let Expression::StringLiteral(value) = &expression.right else {
-                        self.diagnostics.push(CompileError::new(
-                            "SHJS004",
-                            "a selector conditional must have a literal utility string on its right side",
-                            self.source_span(expression.right.span()),
-                        ));
-                        continue;
-                    };
-                    inputs.push(StyleInput::ConditionalSelectorUtilityString {
-                        selector: name,
-                        guard: self.source_span(expression.left.span()),
-                        when_true: true,
-                        value: self.string_literal(value),
-                    });
-                }
-                _ => self.diagnostics.push(CompileError::new(
-                    "SHJS004",
-                    "a `&` selector must map to a literal utility string or `condition && \"…\"`",
-                    self.source_span(property.value.span()),
-                )),
+                    }
+                };
+                inputs.push(input);
             }
         }
         if !entries.is_empty() {

@@ -13,7 +13,7 @@ export const buttonProps = style(
     class: ["legacy-button", loading && "is-loading"],
     "aria-busy": loading,
     "data-emphasis": emphasized ? "high" : "normal",
-    "&:hover": "bg-accent/90",
+    "hover:": "bg-accent/90",
   },
 );
 

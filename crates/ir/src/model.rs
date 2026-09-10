@@ -138,12 +138,12 @@ pub enum StyleInput {
         value: Spanned<String>,
     },
     Attributes(Vec<AttributeEntry>),
-    SelectorUtilityString {
-        selector: Spanned<String>,
+    VariantUtilityString {
+        prefix: Spanned<String>,
         value: Spanned<String>,
     },
-    ConditionalSelectorUtilityString {
-        selector: Spanned<String>,
+    ConditionalVariantUtilityString {
+        prefix: Spanned<String>,
         guard: Span,
         when_true: bool,
         value: Spanned<String>,
@@ -198,13 +198,13 @@ pub enum StyleInput {
         animations: Vec<AssetReference>,
         options: Spanned<String>,
     },
-    SelectorAnimationUse {
-        selector: Spanned<String>,
+    VariantAnimationUse {
+        prefix: Spanned<String>,
         animation: AssetReference,
         options: Spanned<String>,
     },
-    DynamicSelectorAnimationUse {
-        selector: Spanned<String>,
+    DynamicVariantAnimationUse {
+        prefix: Spanned<String>,
         value: Span,
         animations: Vec<AssetReference>,
         options: Spanned<String>,

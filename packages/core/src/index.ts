@@ -29,7 +29,7 @@ export type StyleProps = {
   className?: string;
 } & Partial<Record<StyleAttributeName, unknown>>;
 
-export type StyleSelector = `&${string}`;
+export type StyleVariant = `${string}:`;
 
 /** Values accepted by the explicit `{ class: … }` external-class entry. */
 export type StillwindClassValue =
@@ -74,7 +74,7 @@ export type StyleRef<RefId extends string = string, ScopeId extends string = nev
 export type StyleRefSelector<
   RefId extends string = string,
   ScopeId extends string = never,
-> = StyleSelector & {
+> = `&${string}` & {
   readonly [refProjection]: true;
   readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
 };
@@ -106,8 +106,23 @@ export type StyleViewTransitionDefinition = {
   new?: string;
 };
 
+/** Variant wrappers compose from outermost to innermost, just like utility prefixes. */
+export type StyleVariantValue =
+  | UtilityString
+  | StyleAnimationUse
+  | false
+  | null
+  | undefined
+  | readonly StyleVariantValue[]
+  | StyleVariantObject;
+
+export type StyleVariantObject = {
+  readonly [variant: StyleVariant]: StyleVariantValue;
+};
+
 type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
-  Partial<Record<StyleSelector, UtilityString | StyleAnimationUse | false | null | undefined>> & {
+  StyleVariantObject &
+  Partial<Record<StyleRefSelector, UtilityString | false | null | undefined>> & {
     readonly class?: StillwindClassValue;
   };
 

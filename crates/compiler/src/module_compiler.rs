@@ -342,15 +342,21 @@ impl ModuleCompiler {
                 .filter_map(|input| match input {
                     StyleInput::UtilityString(value)
                     | StyleInput::ConditionalUtilityString { value, .. }
-                    | StyleInput::SelectorUtilityString { value, .. }
-                    | StyleInput::ConditionalSelectorUtilityString { value, .. }
                     | StyleInput::HandleSelectorUtilityString { value, .. }
                     | StyleInput::ConditionalHandleSelectorUtilityString { value, .. }
-                    | StyleInput::ContainerQuery { value, .. } => Some(value.value.as_str()),
+                    | StyleInput::ContainerQuery { value, .. } => Some(("", value)),
+                    StyleInput::VariantUtilityString { prefix, value }
+                    | StyleInput::ConditionalVariantUtilityString { prefix, value, .. } => {
+                        Some((prefix.value.as_str(), value))
+                    }
                     _ => None,
                 })
-                .flat_map(str::split_whitespace)
-                .map(str::to_owned)
+                .flat_map(|(prefix, value)| {
+                    value
+                        .value
+                        .split_whitespace()
+                        .map(move |token| format!("{prefix}{token}"))
+                })
                 .collect(),
             // Conservative definition dependencies are safe for full invalidation.
             theme_tokens: theme

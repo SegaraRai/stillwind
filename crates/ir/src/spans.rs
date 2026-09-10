@@ -145,17 +145,17 @@ fn map_input<E>(
                 entry.value = map(entry.value)?;
             }
         }
-        StyleInput::SelectorUtilityString { selector, value } => {
-            map_value(selector, map)?;
+        StyleInput::VariantUtilityString { prefix, value } => {
+            map_value(prefix, map)?;
             map_value(value, map)?;
         }
-        StyleInput::ConditionalSelectorUtilityString {
-            selector,
+        StyleInput::ConditionalVariantUtilityString {
+            prefix,
             guard,
             value,
             ..
         } => {
-            map_value(selector, map)?;
+            map_value(prefix, map)?;
             *guard = map(*guard)?;
             map_value(value, map)?;
         }
@@ -234,22 +234,22 @@ fn map_input<E>(
             }
             map_value(options, map)?;
         }
-        StyleInput::SelectorAnimationUse {
-            selector,
+        StyleInput::VariantAnimationUse {
+            prefix,
             animation,
             options,
         } => {
-            map_value(selector, map)?;
+            map_value(prefix, map)?;
             map_asset(animation, map)?;
             map_value(options, map)?;
         }
-        StyleInput::DynamicSelectorAnimationUse {
-            selector,
+        StyleInput::DynamicVariantAnimationUse {
+            prefix,
             value,
             animations,
             options,
         } => {
-            map_value(selector, map)?;
+            map_value(prefix, map)?;
             *value = map(*value)?;
             for animation in animations {
                 map_asset(animation, map)?;

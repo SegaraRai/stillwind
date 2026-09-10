@@ -10,10 +10,10 @@
   animation-timing-function: var(--ease-standard);
   animation-fill-mode: both;
 }
-._s_4c5285b6 {
+._s_80628fcf {
   border-radius: var(--radius-md);
 }
-._s_4c5285b6[data-state="closed"] {
+._s_80628fcf[data-state="closed"] {
   animation-name: --sw-a-59b85d3d;
   animation-duration: var(--duration-fast);
   animation-timing-function: var(--ease-standard);

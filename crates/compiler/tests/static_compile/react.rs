@@ -304,7 +304,7 @@ fn keeps_external_classes_in_an_explicit_clsx_class_entry() {
         "src/SaveButton.tsx",
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
-const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "&:hover": "bg-muted" });"#,
+const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "hover:": "bg-muted" });"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),

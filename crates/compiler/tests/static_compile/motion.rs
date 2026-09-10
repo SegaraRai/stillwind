@@ -11,7 +11,7 @@ fn compiles_local_utility_animations_and_selector_uses() {
         r#"import { style } from "stillwind/react";
 const enter = style.animation({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
 const exit = style.animation({ from: "opacity-100", to: "opacity-0 scale-98" });
-const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&[data-state=closed]": exit("duration-120 ease-standard both") });"#,
+const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[&[data-state=closed]]:": exit("duration-120 ease-standard both") });"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),

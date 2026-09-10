@@ -75,7 +75,7 @@ function SaveButton({ loading }: { loading: boolean }) {
         "focus-visible:outline-2 focus-visible:outline-offset-2",
         loading && "opacity-60 cursor-wait",
         { "aria-busy": loading },
-        { "&:hover": "bg-accent/90" },
+        { "hover:": "bg-accent/90" },
       )}
     >
       Save
@@ -140,10 +140,14 @@ final authority.
 Theme changes use ordinary CSS variable cascading. Components refer to semantic
 tokens such as `bg-accent`; they do not generally carry their own theme branch.
 
-## Attributes and element-local selectors
+## Attributes and variant wrappers
 
-Attributes are real props, not classes. A selector whose key starts with `&`
-styles the same element.
+Attributes are real props, not classes. A key ending in `:` wraps its value in
+that variant prefix. Arrays and nested wrappers compose from outermost to
+innermost: `{ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }] }`
+is equivalent to `hover:text-red hover:[&:where(.mod)]:text-blue`. Each utility
+in a whitespace-separated string receives the prefix. Raw `&...` keys are
+rejected; use an arbitrary variant such as `"[&:where(.mod)]:"` instead.
 
 ```tsx
 style(
@@ -151,9 +155,9 @@ style(
   { "data-state": state },
   { "aria-busy": loading },
   {
-    "&[data-state=error]": "bg-danger",
-    "&[aria-busy=true]": "opacity-70 cursor-wait",
-    "&:focus-visible": "outline-2 outline-offset-2 outline-accent",
+    "[&[data-state=error]]:": "bg-danger",
+    "[&[aria-busy=true]]:": "opacity-70 cursor-wait",
+    "focus-visible:": "outline-2 outline-offset-2 outline-accent",
   },
 );
 ```
@@ -173,7 +177,7 @@ all work.
 style("rounded-md bg-accent", {
   class: ["legacy-button", loading && "is-loading", { "legacy-enabled": enabled }],
   "aria-busy": loading,
-  "&:hover": "bg-accent/90",
+  "hover:": "bg-accent/90",
 });
 ```
 
@@ -258,7 +262,7 @@ const exit = style.animation({
 
 <section
   {...style("rounded-xl bg-surface p-6 shadow-xl", enter("duration-normal ease-standard both"), {
-    "&[data-state=closed]": exit("duration-fast ease-standard both"),
+    "[&[data-state=closed]]:": exit("duration-fast ease-standard both"),
   })}
 />;
 ```

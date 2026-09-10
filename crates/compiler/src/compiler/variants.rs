@@ -2,6 +2,30 @@
 
 use stillwind_design_system::{VariantApplication, VariantDeclaration};
 
+/// Animation uses carry declarations rather than utility candidates, but their
+/// wrappers must pass the same variant grammar and registry validation.
+pub(super) fn resolve_wrapper_variants(
+    prefix: &stillwind_source::Spanned<String>,
+    theme: &stillwind_design_system::ThemeIndex,
+    diagnostics: &mut Vec<stillwind_source::CompileError>,
+) -> Option<Vec<stillwind_syntax::Variant>> {
+    let variants = stillwind_syntax::parse_candidate(&format!("{}animation", prefix.value))
+        .map(|candidate| candidate.variants)
+        .filter(|variants| {
+            variants
+                .iter()
+                .all(|variant| stillwind_design_system::resolve_variant(variant, theme).is_some())
+        });
+    if variants.is_none() {
+        diagnostics.push(stillwind_source::CompileError::new(
+            "SHJS004",
+            "invalid or unknown animation variant prefix",
+            prefix.span,
+        ));
+    }
+    variants
+}
+
 #[derive(Clone, Copy)]
 pub(super) enum VariantStep<'a> {
     SelectorSuffix(&'a str),

@@ -17,3 +17,14 @@ export type FrameworkSpreadContracts = [
   Assert<"className" extends keyof ReturnType<typeof react> ? true : false>,
   Assert<typeof css extends string ? true : false>,
 ];
+
+// Wrappers compose recursively and preserve the public argument contract.
+function variantWrapperTypes(active: boolean) {
+  react({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }, false, null, undefined] });
+  vue({ "aria-busy:": active && "opacity-60" });
+  // @ts-expect-error Raw CSS selectors are not variant wrappers.
+  react({ "&:hover": "text-red" });
+  // @ts-expect-error Attributes cannot be nested inside a variant wrapper.
+  react({ "hover:": { "aria-busy": true } });
+}
+void variantWrapperTypes;

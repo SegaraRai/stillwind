@@ -345,7 +345,7 @@ style(
   active ? "block" : "hidden", // conditional guard
   ["rounded", compact && "p-2"],
   { class: ["legacy-button", loading && "is-loading"], "aria-busy": loading },
-  { "&:hover": "bg-accent/90" },
+  { "hover:": "bg-accent/90" },
   { [trigger`&:hover`]: "text-accent" },
 );
 ```
@@ -375,7 +375,7 @@ pub struct StyleCall {
 pub enum StyleInput {
     Utilities { text: DecodedText, guard: Guard, origin: Origin },
     Attributes { entries: Vec<AttributeEntry>, guard: Guard, origin: Origin },
-    SelfSelector { selector: SelectorFragment, body: Vec<StyleInput>, guard: Guard },
+    VariantWrapper { prefix: VariantPrefix, body: Vec<StyleInput>, guard: Guard },
     RefSelector { reference: Ref, selector: SelectorFragment, body: Vec<StyleInput>, guard: Guard },
     ScopeAttachment { scope: Scope, origin: Origin },
     RefAttachment { reference: Ref, origin: Origin },
@@ -419,7 +419,7 @@ theme namespace it may reference.
 
 Selector keys are parsed by a separate restricted grammar:
 
-- self selector: begins with `&`;
+- variant wrapper: ends with `:` and prepends its variants to each nested utility;
 - ref selector: tagged template must begin with `&`;
 - permitted pseudos, attribute selectors, `:has()`, and supported at-rules;
 - no arbitrary descendant/global selector in the safe API.
@@ -663,7 +663,7 @@ as a compiler integration error rather than falling back to Rust propagation.
 3. CSS `@theme` index, typed utility registry, diagnostics, and CSS emission.
 4. React transform plan plus Vite adapter; support static strings and finite
    conditional branches.
-5. Attributes and self selectors.
+5. Attributes and nested variant wrappers.
 6. `style.ref()` / `style.scope()` graph, selector relations, anchor positioning, and
    container queries with lint rules.
 7. String-based `style.animation()` and named view-transition assets.

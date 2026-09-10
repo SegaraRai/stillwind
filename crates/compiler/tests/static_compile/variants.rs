@@ -256,3 +256,52 @@ const props = style("starting:opacity-0");"#,
     assert!(result.css.contains("@starting-style{._s_"));
     assert!(result.css.contains("{opacity:0%;}"), "{}", result.css);
 }
+
+#[test]
+fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
+    let theme = crate::css_fixture::source(
+        FileId(2),
+        "stillwind.css",
+        r#"@import "stillwind";
+@utility text-red { color: red; }
+@utility text-blue { color: blue; }
+"#,
+    )
+    .unwrap();
+    for (wrapped, flat) in [
+        (
+            r#"{ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }] }"#,
+            r#""hover:text-red hover:[&:where(.mod)]:text-blue""#,
+        ),
+        (
+            r#"{ "md:hover:": ["text-red text-blue", false, null, undefined] }"#,
+            r#""md:hover:text-red md:hover:text-blue""#,
+        ),
+        (
+            r#"{ "aria-busy:": "text-red", "data-[state=open]:": "text-blue" }"#,
+            r#""aria-busy:text-red data-[state=open]:text-blue""#,
+        ),
+        (
+            r#"{ "hover:": [active && "text-red", active ? "text-blue" : "text-red"] }"#,
+            r#"active && "hover:text-red", active ? "hover:text-blue" : "hover:text-red""#,
+        ),
+        (
+            r#"{ "[&>p]:": "divide-x-2 hover:text-red" }"#,
+            r#""[&>p]:divide-x-2 [&>p]:hover:text-red""#,
+        ),
+    ] {
+        let compile = |args: &str| {
+            let source = SourceFile::new(FileId(1), "src/Wrapper.tsx", format!(
+                "import {{ style }} from \"stillwind/react\"; declare const active: boolean; const props = style({args});"
+            )).unwrap();
+            let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+            assert!(
+                result.diagnostics.is_empty(),
+                "{args}: {:#?}",
+                result.diagnostics
+            );
+            (result.css.clone(), result.apply_to_source(&source).unwrap())
+        };
+        assert_eq!(compile(wrapped), compile(flat), "{wrapped}");
+    }
+}
