@@ -25,6 +25,7 @@ impl ModuleIr {
             imports: ModuleImports {
                 reserved_names: Vec::new(),
                 macros: Vec::new(),
+                module_css: Vec::new(),
             },
             style_calls: Vec::new(),
             handle_definitions: Vec::new(),
@@ -41,6 +42,9 @@ pub struct ModuleImports {
     /// Includes nested bindings and unresolved reads to avoid capturing user code.
     pub reserved_names: Vec<String>,
     pub macros: Vec<MacroImport>,
+    /// Source-literal spans of explicit module CSS value imports.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub module_css: Vec<Span>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

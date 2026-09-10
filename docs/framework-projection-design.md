@@ -183,7 +183,13 @@ CSS 更新・module 削除時は virtual module と CSS contribution を無効�
 
 host converter は `@stillwind/projection` に配置し、各 framework を別ファイルにする。converter が必要とする TypeScript 6 の JavaScript SDK は、この package の通常依存とする。`@stillwind/host` の TypeScript 7 による型情報取得と依存ツリーを分け、両方を検証する。`projectFrameworkSource` は通常入力をそのまま返し、SFC では原文・map・converter identity・region を持つ入力を返す。Vue の属性引用符は host AST から region に記録し、native が原文の引用符を確認して置換文字列をエスケープする。複数 realm の helper 名も全体で衝突させない。
 
-`vp run @stillwind/host#test` は実 converter→native→framework compile を実行する。Vue の引用符2種・空白・複数 script、Svelte の複数 script、Astro の frontmatter と client script を含む。これは converter 接続の検証であり、bundler/HMR と明示 module-css の完了を意味しない。
+`vp run @stillwind/host#test` は実 converter→native→framework compile を実行する。Vue の引用符2種・空白・複数 script、Svelte の複数 script、Astro の frontmatter と client script、明示 CSS import を含む。Vue normal→setup と Svelte module→instance は host が realm の `parent` を指定し、native が親の import を利用できる。Astro の client/server は独立のままとする。
+
+明示経路は `import css from 'stillwind/module-css'` とする。host は `module_css_import` に当該 module の virtual JS ID を、SFC の自動経路では `stylesheet_imports` に CSS ID を渡す。native は AST で見つけた import の source literal だけを置換し、明示 import があれば自動経路を抑制する。virtual ID が不足した明示 import は `SHIMPORT001` とする。CSS 値には当該 module と依存するルール、および document の共通 CSS を含める。
+
+Vite は raw SFC を `pre` で処理し、framework の query subrequest は処理しない。CSS ID は編集前に割り当て、native session が確定した CSS を immutable な payload として登録する。明示経路の virtual JS は Vite の CSS `?inline` を再 export するため、画像 URL のビルド時解決を維持しつつ document へ自動挿入しない。`vp run @stillwind/vite#test` は raw SFC の hook 接続、CSS ID の再読み込み、通常 JS の明示 CSS 値・runtime helper・画像出力と既存 CSS build を検証する。実 SFC bundler build と画面/HMR の検証はこれらとは別に行う。
+
+`compileModule` は raw SFC を投影してから native session に渡す。投影入力の checker 型情報は座標契約をまだ提供していないため取得しない。通常 JS/TS の型情報経路は従来どおり維持する。
 
 ## 7. 実装順序と完了条件
 

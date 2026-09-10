@@ -52,14 +52,17 @@ export async function compileModule(
   id: string,
   projectRoot: string,
   host: CompilerHost,
-  options: { diagnostics?: "throw" | "collect"; stylesheetImports?: string[] } = {},
+  options: {
+    diagnostics?: "throw" | "collect";
+    stylesheetImports?: string[];
+    moduleCssImport?: string;
+  } = {},
 ) {
   const entryId = cleanModuleId(id);
   const entrySource = await projectFrameworkSource({
     id: entryId,
     path: compilerModulePath(projectRoot, entryId),
     source: code,
-    stylesheet_imports: options.stylesheetImports,
   });
   const entrySummary = JSON.parse(
     summarizeReact(
@@ -69,6 +72,9 @@ export async function compileModule(
         : `${entrySource.path}.${entrySource.language}`,
     ),
   ) as ModuleSummary;
+  const hasModuleCssImport = entrySummary.module_css_imports > 0;
+  if (entrySummary.macro_imports > 0) entrySource.stylesheet_imports = options.stylesheetImports;
+  if (hasModuleCssImport) entrySource.module_css_import = options.moduleCssImport;
   // Checker spans currently describe ordinary modules. Projected probes need
   // a separate original/generated coordinate contract before they can be queried.
   const needsTypeFacts = entrySource.fw_code === undefined && entrySummary.type_probes.length > 0;
@@ -177,9 +183,10 @@ export async function compileModule(
   if (options.diagnostics === "collect" && output) {
     return {
       ...output,
+      hasModuleCssImport,
       diagnostics: projectOutput.modules.flatMap((module) => module.diagnostics),
     };
   }
   if (!output?.code) return undefined;
-  return output;
+  return { ...output, hasModuleCssImport };
 }

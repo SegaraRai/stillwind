@@ -13,6 +13,8 @@ pub enum ImportPlanError {
     Source(#[from] SourceError),
     #[error("invalid macro import metadata at {span:?}")]
     InvalidMetadata { span: Span },
+    #[error("explicit module CSS import requires a host-allocated virtual module at {span:?}")]
+    MissingModuleCssTarget { span: Span },
     #[error("macro binding `{local}` has a reference that was not transformed at {span:?}")]
     UntransformedReference { local: String, span: Span },
     #[error(

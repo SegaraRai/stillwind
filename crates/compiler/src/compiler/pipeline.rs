@@ -744,6 +744,7 @@ impl Compiler {
                         ImportPlanError::UntransformedReference { span, .. }
                         | ImportPlanError::UnmappedReference { span, .. }
                         | ImportPlanError::InvalidMetadata { span }
+                        | ImportPlanError::MissingModuleCssTarget { span }
                         | ImportPlanError::MissingRuntimeAnchor { span } => *span,
                         ImportPlanError::Source(_) => source.full_span(),
                     };

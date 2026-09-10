@@ -98,9 +98,30 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   const leftover = compile(leaked);
   assert.equal(leftover.code, null);
   assert.equal(leftover.diagnostics[0]?.code, "SHIMPORT001");
+  const missingTarget = await projectFrameworkSource({
+    id: "/src/Bad.vue",
+    path: "/src/Bad.vue",
+    source: examples.vue.replace(
+      "import {style}",
+      "import css from 'stillwind/module-css'; import {style}",
+    ),
+  });
+  const noVirtualModule = compile(missingTarget);
+  assert.equal(noVirtualModule.code, null);
+  assert.equal(noVirtualModule.diagnostics[0]?.code, "SHIMPORT001");
+  assert.match(noVirtualModule.diagnostics[0]!.message, /host-allocated virtual module/);
 });
 
 const extra = [
+  ...Object.entries(examples).map(([extension, source]) => ({
+    extension,
+    name: "explicit module CSS",
+    source: source.replace(
+      "import {style}",
+      "import css from 'stillwind/module-css'; console.log(css); import {style}",
+    ),
+    imports: 1,
+  })),
   {
     extension: "vue",
     name: "shared normal-script import",
@@ -167,6 +188,7 @@ for (const { extension, source, name, imports } of [
       "virtual:stillwind.css",
       "virtual:stillwind/carrier.css?revision=1",
     ];
+    projected.module_css_import = "virtual:stillwind/module-css?test=1";
     assert.equal(projected.fw_code, source);
     assert.ok(projected.converter?.version);
     assert.ok(projected.import_realms?.length);
@@ -179,8 +201,14 @@ for (const { extension, source, name, imports } of [
     const module = output.modules[0]!;
     assert.deepEqual(module.diagnostics, []);
     assert.ok(module.code);
-    assert.equal(module.code.split('import "virtual:stillwind.css";').length, 2);
-    assert.equal(module.code.split('import "virtual:stillwind/carrier.css?revision=1";').length, 2);
+    const explicit = source.includes("stillwind/module-css");
+    assert.equal(module.code.split('import "virtual:stillwind.css";').length, explicit ? 1 : 2);
+    assert.equal(
+      module.code.split('import "virtual:stillwind/carrier.css?revision=1";').length,
+      explicit ? 1 : 2,
+    );
+    if (explicit)
+      assert.match(module.code, /import css from "virtual:stillwind\/module-css\?test=1"/);
     assert.ok(module.code.includes(`stillwind/${extension}/runtime`), module.code);
     assert.ok(!module.code.includes("import {style}"), module.code);
     assert.ok(!module.code.includes("style(active"), module.code);

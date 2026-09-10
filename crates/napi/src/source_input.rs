@@ -31,6 +31,7 @@ pub struct ProjectSource {
     pub regions: Vec<HostRegion>,
     #[serde(default)]
     pub stylesheet_imports: Vec<String>,
+    pub module_css_import: Option<String>,
 }
 
 /// Source offsets in the host transport are UTF-16; native spans are bytes.
@@ -153,6 +154,7 @@ impl ProjectSource {
         };
         Ok(SourceInput {
             stylesheet_imports: self.stylesheet_imports.clone(),
+            module_css_import: self.module_css_import.clone(),
             code,
             language,
             framework: self.framework,

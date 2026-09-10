@@ -8,6 +8,8 @@ export interface ProjectSource {
   map?: string;
   /** Host-allocated stylesheet modules placed inside a verified macro import realm. */
   stylesheet_imports?: string[];
+  /** JavaScript module exporting CSS for an explicit stillwind/module-css import. */
+  module_css_import?: string;
   /** Original framework source; source above remains the projected JS/TS. */
   fw_code?: string;
   fw2js_map?: ProjectionMap;

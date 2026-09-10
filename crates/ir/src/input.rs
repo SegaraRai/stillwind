@@ -78,6 +78,8 @@ pub struct SourceInput {
     pub upstream_map: Option<String>,
     /// Host-allocated stylesheet modules inserted at a verified macro import.
     pub stylesheet_imports: Vec<String>,
+    /// Host-allocated JavaScript module exporting this module's CSS value.
+    pub module_css_import: Option<String>,
 }
 
 impl SourceInput {
@@ -89,6 +91,7 @@ impl SourceInput {
             projection: None,
             upstream_map: None,
             stylesheet_imports: Vec::new(),
+            module_css_import: None,
         }
     }
 

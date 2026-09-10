@@ -50,6 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             framework: Some(input.framework),
             upstream_map: None,
             stylesheet_imports: Vec::new(),
+            module_css_import: None,
             projection: Some(FrameworkProjection {
                 original: Arc::new(original.clone()),
                 map: input.map.clone(),

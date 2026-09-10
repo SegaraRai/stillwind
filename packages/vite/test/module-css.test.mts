@@ -3,11 +3,78 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { build } from "vite-plus";
 
 import { stillwind } from "../src/index.ts";
+
+void test("explicit module CSS exports scoped values without adding document CSS and retains helpers", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, "packages/vite/.session-test-"));
+  const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
+  put("index.html", '<script type="module" src="/main.ts"></script>');
+  put(
+    "root.css",
+    ".document-base{color:purple;} @utility red {color:red; background-image:url('./icon.svg');} @utility blue {color:blue;} @utility green {color:green;} @stillwind-slot utilities;",
+  );
+  put("icon.svg", '<svg xmlns="http://www.w3.org/2000/svg"><text>icon</text></svg>');
+  put(
+    "main.ts",
+    `import css from 'stillwind/module-css'; import {style} from 'stillwind/react'; import {otherCss} from './other'; import {auto} from './auto'; globalThis.result = {css, otherCss, auto, props: style('red', {class: 'external'})};`,
+  );
+  put(
+    "other.ts",
+    `import otherCss from 'stillwind/module-css'; import {style} from 'stillwind/react'; export {otherCss}; export const unused = style('green');`,
+  );
+  put("auto.ts", `import {style} from 'stillwind/react'; export const auto=style('blue');`);
+  try {
+    const result = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        assetsInlineLimit: 0,
+        modulePreload: false,
+      },
+    });
+    if (!("output" in result)) throw new Error("expected a single build output");
+    const documentCss = result.output
+      .filter((asset) => asset.type === "asset")
+      .filter((asset) => asset.fileName.endsWith(".css"))
+      .map((asset) => String(asset.source))
+      .join("\n");
+    assert.match(documentCss, /color:\s*blue/);
+    assert.doesNotMatch(documentCss, /color:\s*(red|green)/);
+    assert.equal(documentCss.match(/\.document-base/g)?.length, 1);
+    const entry = result.output.find((asset) => asset.type === "chunk" && asset.isEntry);
+    assert.ok(entry?.type === "chunk");
+    const global: { result?: { css: string; otherCss: string; props: { className: string } } } = {};
+    runInNewContext(entry.code, { globalThis: global });
+    assert.ok(global.result);
+    assert.match(global.result.css, /color:\s*red/);
+    assert.doesNotMatch(global.result.css, /color:\s*(blue|green)/);
+    assert.match(global.result.otherCss, /color:\s*green/);
+    assert.doesNotMatch(global.result.otherCss, /color:\s*(blue|red)/);
+    assert.match(global.result.css, /\.document-base/);
+    assert.match(global.result.css, /assets\/icon-[\w-]+\.svg/);
+    assert.doesNotMatch(global.result.css, /@fs|__stillwind_resource/);
+    assert.match(global.result.props.className, /external/);
+    assert.match(global.result.props.className, /_s_/);
+    assert.equal(
+      result.output.filter((asset) => asset.type === "asset" && asset.fileName.endsWith(".svg"))
+        .length,
+      1,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 void test("relative JS resources preserve distinct origins even with content class identity", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");

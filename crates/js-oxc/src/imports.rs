@@ -18,6 +18,7 @@ pub(crate) fn collect(program: &Program<'_>, scoping: &Scoping, file: FileId) ->
         file,
         names: BTreeSet::new(),
         imports: Vec::new(),
+        module_css: Vec::new(),
         references: HashMap::new(),
         symbols: Vec::new(),
     };
@@ -34,6 +35,7 @@ pub(crate) fn collect(program: &Program<'_>, scoping: &Scoping, file: FileId) ->
     ModuleImports {
         reserved_names: collector.names.into_iter().collect(),
         macros: collector.imports,
+        module_css: collector.module_css,
     }
 }
 
@@ -42,6 +44,7 @@ struct Collector<'s> {
     file: FileId,
     names: BTreeSet<String>,
     imports: Vec<MacroImport>,
+    module_css: Vec<Span>,
     symbols: Vec<Vec<Option<SymbolId>>>,
     references: HashMap<SymbolId, Vec<Span>>,
 }
@@ -68,6 +71,15 @@ impl<'a> Visit<'a> for Collector<'_> {
     }
 
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
+        if declaration.source.value == "stillwind/module-css" && !declaration.import_kind.is_type()
+            && declaration.specifiers.as_ref().is_none_or(|specifiers| {
+                specifiers.is_empty() || specifiers.iter().any(|specifier| {
+                    !matches!(specifier, ImportDeclarationSpecifier::ImportSpecifier(specifier) if specifier.import_kind.is_type())
+                })
+            })
+        {
+            self.module_css.push(self.span(declaration.source.span));
+        }
         if stillwind_ir::framework::from_macro_import(declaration.source.value.as_str()).is_some()
             && !declaration.import_kind.is_type()
             && let Some(specifiers) = &declaration.specifiers

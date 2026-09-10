@@ -23,6 +23,7 @@ fn projected() -> SourceInput {
         framework: Some(AdapterKind::Svelte),
         upstream_map: None,
         stylesheet_imports: Vec::new(),
+        module_css_import: None,
         projection: Some(FrameworkProjection {
             original,
             map: ProjectionMap::Volar {

@@ -48,6 +48,14 @@ void test("raw SFC transforms publish immutable CSS carriers and skip framework 
       astro: `---\nimport {style} from 'stillwind/astro';\n---\n<div {...style('red')}></div>`,
     };
     const carriers: string[] = [];
+    const typeOnly = `<script setup lang="ts">import type Css from 'stillwind/module-css';</script><template><div/></template>`;
+    const untouched: unknown = await transform.call(
+      context,
+      typeOnly,
+      path.join(root, "Types.vue"),
+    );
+    assert.ok(untouched && typeof untouched === "object" && "code" in untouched);
+    assert.equal(untouched.code, typeOnly);
     for (const [extension, source] of Object.entries(sources)) {
       const id = path.join(root, `Component.${extension}`);
       writeFileSync(id, source);

@@ -18,6 +18,9 @@ impl ModuleIr {
         mut map: impl FnMut(Span) -> Result<Span, E>,
     ) -> Result<Self, E> {
         let mut result = self.clone();
+        for source in &mut result.imports.module_css {
+            *source = map(*source)?;
+        }
         for import in &mut result.imports.macros {
             import.span = map(import.span)?;
             for specifier in &mut import.specifiers {

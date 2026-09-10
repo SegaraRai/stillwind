@@ -51,6 +51,10 @@ const resolvedVirtualCssId = fileURLToPath(
 ).replaceAll("\\", "/");
 const moduleCssPrefix = "virtual:stillwind/module.css?css=";
 const registeredCssPrefix = "virtual:stillwind/module.css?ref=";
+const moduleCssValuePrefix = "virtual:stillwind/module-css?ref=";
+const resolvedModuleCssValueId = fileURLToPath(
+  new URL("../stillwind-module-css.js", import.meta.url),
+).replaceAll("\\", "/");
 const resolvedModuleCssId = fileURLToPath(
   new URL("../stillwind-carrier.css", import.meta.url),
 ).replaceAll("\\", "/");
@@ -343,6 +347,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       watch(id: string): void;
       upstream?: CssUpstreamMap;
       includeSourcesContent?: boolean;
+      placement?: "document" | "carrier";
     },
   ) => {
     const plan = JSON.parse(
@@ -350,7 +355,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         JSON.stringify({
           modules: [modulePath],
           coverage: { kind: "observed" },
-          placement: "carrier",
+          placement: host.placement ?? "carrier",
         }),
       ),
     ) as {
@@ -408,6 +413,8 @@ export function stillwind(options: StillwindOptions): Plugin {
         return `${resolvedModuleCssId}?css=${id.slice(moduleCssPrefix.length)}`;
       if (id.startsWith(registeredCssPrefix))
         return `${resolvedModuleCssId}?ref=${id.slice(registeredCssPrefix.length)}`;
+      if (id.startsWith(moduleCssValuePrefix))
+        return `${resolvedModuleCssValueId}?ref=${id.slice(moduleCssValuePrefix.length)}`;
       if (id.endsWith("?stillwind.css")) {
         const source = await this.resolve(id, importer, { skipSelf: true });
         if (!source || source.external) this.error(`Cannot resolve Stillwind CSS projection ${id}`);
@@ -418,6 +425,12 @@ export function stillwind(options: StillwindOptions): Plugin {
     async load(id) {
       if (id.endsWith("?stillwind-css-watch")) return "";
       const state = environmentState(this.environment?.name);
+      if (cleanModuleId(id) === resolvedModuleCssValueId) {
+        const reference = new URLSearchParams(id.slice(id.indexOf("?") + 1)).get("ref");
+        if (reference === null || !carrierPayloads.has(reference))
+          this.error("Unknown Stillwind module CSS value");
+        return `export { default } from ${JSON.stringify(`${registeredCssPrefix}${reference}&inline&lang.css`)};`;
+      }
       if (cleanModuleId(id) === resolvedProjectionId) {
         for (const [dependency, projections] of state.projectionDependencies) {
           projections.delete(id);
@@ -564,7 +577,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       )
         return undefined;
       const state = environmentState(this.environment?.name);
-      if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro)/.test(code)) {
+      if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
         state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
         state.producers.delete(id);
         return undefined;
@@ -573,10 +586,8 @@ export function stillwind(options: StillwindOptions): Plugin {
       const session = state.session!;
       // Native needs the import identity before it renders edits. Publish its
       // immutable CSS payload after compilation and before Vite can load it.
-      const carrierReference = sfc ? String(++carrierSequence) : undefined;
-      const allocatedCarrier = carrierReference
-        ? `${registeredCssPrefix}${carrierReference}&lang.css`
-        : undefined;
+      const carrierReference = String(++carrierSequence);
+      const allocatedCarrier = `${registeredCssPrefix}${carrierReference}&lang.css`;
       const output = await compileModule(
         session,
         () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
@@ -589,12 +600,16 @@ export function stillwind(options: StillwindOptions): Plugin {
           watch: (id) => this.addWatchFile(id),
           warn: (message) => this.warn(message),
         },
-        { stylesheetImports: allocatedCarrier ? [virtualCssId, allocatedCarrier] : undefined },
+        {
+          stylesheetImports: sfc ? [virtualCssId, allocatedCarrier] : undefined,
+          moduleCssImport: `${moduleCssValuePrefix}${carrierReference}`,
+        },
       );
       if (!output?.code) return undefined;
       state.producers.add(id);
       const upstreamMap = this.getCombinedSourcemap?.();
       const plan = await renderCarrier(state, output.path, {
+        placement: output.hasModuleCssImport ? "document" : "carrier",
         resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
         watch: (id) => this.addWatchFile(id),
         upstream: upstreamMap
@@ -602,12 +617,15 @@ export function stillwind(options: StillwindOptions): Plugin {
           : undefined,
       });
       const css = plan.css;
-      if (carrierReference) carrierPayloads.set(carrierReference, css);
-      const carrier = allocatedCarrier ?? carrierSpecifier(state, css);
+      if (sfc || output.hasModuleCssImport) carrierPayloads.set(carrierReference, css);
+      const carrier = sfc ? allocatedCarrier : carrierSpecifier(state, css);
       const finalized = sfc
         ? { code: output.code, removed: [], prefix: "" }
         : finalizeReactModuleWithMap(output.code, false);
-      const imports = sfc ? "" : `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
+      const imports =
+        sfc || output.hasModuleCssImport
+          ? ""
+          : `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
       return {
         code: imports + finalized.code,
         meta: {

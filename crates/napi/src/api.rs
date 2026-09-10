@@ -254,6 +254,8 @@ pub fn summarize_react_json(source: &str, source_path: &str) -> Result<String, B
     let source = SourceFile::new(FileId(1), source_path, source)?;
     let parsed = parse(&source);
     let mut summary = serde_json::to_value(&parsed.summary).map_err(BindingApiError::Json)?;
+    summary["module_css_imports"] = serde_json::json!(parsed.module.imports.module_css.len());
+    summary["macro_imports"] = serde_json::json!(parsed.module.imports.macros.len());
     summary["type_probes"] = serde_json::json!(
         parsed
             .type_probes

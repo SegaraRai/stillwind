@@ -120,7 +120,21 @@ impl<'a> RuntimeBindings<'a> {
                 return Err(ImportPlanError::MissingRuntimeAnchor { span });
             }
         }
-        if !module.input.stylesheet_imports.is_empty() {
+        for &span in &module.ir.imports.module_css {
+            module.source.slice(span)?;
+            let target = module
+                .input
+                .module_css_import
+                .as_ref()
+                .ok_or(ImportPlanError::MissingModuleCssTarget { span })?;
+            let quoted = serde_json::to_string(target)
+                .map_err(|_| ImportPlanError::InvalidMetadata { span })?;
+            edits.push(SourceTransform {
+                call_span: span,
+                replacement: quoted.replace('<', "\\u003c"),
+            });
+        }
+        if module.ir.imports.module_css.is_empty() && !module.input.stylesheet_imports.is_empty() {
             let anchor = module
                 .ir
                 .imports
