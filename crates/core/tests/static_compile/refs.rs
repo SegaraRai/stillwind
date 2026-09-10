@@ -12,7 +12,7 @@ const trigger = style(popover.anchor, "relative");
 const panel = style(popover.position, "absolute");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -37,7 +37,7 @@ const popover = style.ref();
 const panel = style(popover.position);"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -61,7 +61,7 @@ const root = style(card.container("inline-size"));
 const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -86,7 +86,7 @@ const parent = style(trigger.anchor, "inline-flex");
 const child = style({ [trigger`&:hover`]: "text-accent" });"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
@@ -112,7 +112,7 @@ const menu = style.scope("menu");
 const trigger = style.ref(menu, "trigger");
 export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></section>;"#,
     ).unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
@@ -152,7 +152,7 @@ const menu = style.scope();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
     ).unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
@@ -182,7 +182,7 @@ const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

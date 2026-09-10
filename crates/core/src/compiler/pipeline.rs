@@ -714,9 +714,7 @@ impl Compiler {
             result.transforms.clear();
         } else if !utility_css.is_empty()
             || !theme.custom_css.is_empty()
-            || theme.imports.theme_layer.is_some()
-            || theme.imports.base_layer.is_some()
-            || theme.imports.utilities_layer.is_some()
+            || !theme.output_template.nodes.is_empty()
         {
             let utility_css = options.rewrite_generated(&utility_css);
             result.module_css.clone_from(&utility_css);

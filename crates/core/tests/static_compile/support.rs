@@ -197,7 +197,7 @@ pub(super) fn compile_one_utility(utility: &str) -> stillwind_core::CompileResul
             ),
         )
         .unwrap(),
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(92),
             "stillwind.css",
             "@theme { --spacing: 0.25rem; }",

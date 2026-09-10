@@ -122,26 +122,21 @@ pub(crate) fn resolve_registered_variant(
     if let Some(application) = resolve_registered_variant_from(&theme.variants, value, theme) {
         return Some(application);
     }
-    theme
-        .imports
-        .builtins
-        .then(|| resolve_registered_variant_from(builtin_variants(theme), value, theme))?
+    resolve_registered_variant_from(builtin_variants(theme), value, theme)
 }
 
 pub(crate) fn resolve_bare_registered_variant(
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
-    theme.imports.builtins.then(|| {
-        builtin_variants(theme).iter().find_map(|variant| {
-            let sort = variant.sort.as_ref().filter(|sort| sort.bare)?;
-            let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
-            theme.token_in(namespace, value)?;
-            let prefix = variant.name.strip_suffix('*')?;
-            let expanded = format!("{prefix}{value}");
-            resolve_registered_variant_candidate(variant, Some(value), &expanded, theme)
-        })
-    })?
+    builtin_variants(theme).iter().find_map(|variant| {
+        let sort = variant.sort.as_ref().filter(|sort| sort.bare)?;
+        let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
+        theme.token_in(namespace, value)?;
+        let prefix = variant.name.strip_suffix('*')?;
+        let expanded = format!("{prefix}{value}");
+        resolve_registered_variant_candidate(variant, Some(value), &expanded, theme)
+    })
 }
 
 pub(crate) fn resolve_registered_variant_from(

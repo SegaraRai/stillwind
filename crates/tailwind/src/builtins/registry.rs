@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 #[cfg(test)]
-pub(crate) use stillwind_css::BUILTIN_REGISTRY_CSS;
+pub(crate) use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 pub use stillwind_css::BuiltinDefinitions;
 use stillwind_css::{CustomUtility, CustomVariant, ThemeIndex};
 

@@ -1,3 +1,5 @@
+@import "stillwind";
+
 @theme {
   --color-accent: oklch(0.62 0.18 252);
 }

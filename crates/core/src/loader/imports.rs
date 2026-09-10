@@ -88,21 +88,6 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
             tail.strip_suffix(';').unwrap_or(tail),
             tail_start.byte_index(),
         )?;
-        if is_framework(&specifier) {
-            // The legacy framework selector can represent only a named layer.
-            // Do not silently erase conditions while the CSS-entry migration
-            // replaces that selector with ordinary resolved source files.
-            if wrappers
-                .iter()
-                .any(|wrapper| !wrapper.starts_with("@layer "))
-            {
-                return Err(CssImportError::UnsupportedModifier {
-                    offset: tail_start.byte_index(),
-                    modifier: format!("conditional or anonymous-layer import of {specifier}"),
-                });
-            }
-            continue;
-        }
         imports.push(Import {
             start,
             end: parser.position().byte_index(),
@@ -199,28 +184,18 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
     Ok(wrappers)
 }
 
-fn is_framework(name: &str) -> bool {
-    matches!(
-        name,
-        "stillwind"
-            | "stillwind/theme.css"
-            | "stillwind/preflight.css"
-            | "stillwind/utilities.css"
-            | "stillwind/builtins.css"
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn imports_ignore_comments_strings_nested_rules_and_framework_entries() {
+    fn imports_ignore_comments_strings_and_nested_rules_but_resolve_all_packages() {
         let css = "/* @import 'no'; */ .x{content:\"@import 'no';\";} @import 'stillwind'; @import 'a.css';";
         let found = imports(css).unwrap();
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].specifier, "a.css");
-        assert_eq!(&css[found[0].start..found[0].end], "@import 'a.css';");
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].specifier, "stillwind");
+        assert_eq!(found[1].specifier, "a.css");
+        assert_eq!(&css[found[1].start..found[1].end], "@import 'a.css';");
         assert!(matches!(
             imports("@import 42;"),
             Err(CssImportError::Specifier { .. })
@@ -233,8 +208,12 @@ mod tests {
             import_wrappers("layer(foo) supports(display:grid) screen", 0).unwrap(),
             vec!["@layer foo", "@supports (display:grid)", "@media screen"]
         );
-        assert!(!is_framework("tailwindcss"));
-        assert!(!is_framework("tailwindcss-custom.css"));
+        assert_eq!(
+            imports("@import 'tailwindcss'; @import 'tailwindcss-custom.css';")
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -276,9 +255,8 @@ mod tests {
                 Err(CssImportError::UnsupportedModifier { .. })
             ));
         }
-        assert!(matches!(
-            imports("@import 'stillwind' supports(display:grid);"),
-            Err(CssImportError::UnsupportedModifier { .. })
-        ));
+        let framework = imports("@import 'stillwind' supports(display:grid);").unwrap();
+        assert_eq!(framework[0].specifier, "stillwind");
+        assert_eq!(framework[0].wrappers, vec!["@supports (display:grid)"]);
     }
 }

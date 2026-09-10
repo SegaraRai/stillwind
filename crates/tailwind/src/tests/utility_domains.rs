@@ -117,7 +117,7 @@ fn respects_tailwind_theme_namespace_resets_when_resolving_utilities() {
         "background-color:var(--color-red-500);"
     );
 
-    let reset_theme = parse_tailwind_theme(
+    let reset_theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(1),
             "theme.css",
@@ -264,7 +264,7 @@ fn prunes_only_incompatible_declarations_from_a_typed_utility_body() {
 }",
     )
     .unwrap();
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
 
     assert_eq!(
         resolve_utility("token-[color:rebeccapurple]", &theme)
@@ -311,7 +311,7 @@ fn resolves_typed_modifier_domains_without_accepting_other_types() {
 }",
     )
     .unwrap();
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
 
     assert_eq!(
         resolve_utility("prose-sm/6", &theme).unwrap().declaration,

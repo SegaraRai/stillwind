@@ -143,7 +143,7 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
         &SourceFile::new(
             FileId(1),
             "root",
-            "@utility custom { color: red; } @utility custom { background: blue; }",
+            "@stillwind-utility flex { display: flex; } @utility custom { color: red; } @utility custom { background: blue; }",
         )
         .unwrap(),
         CompilerOptions::default(),
@@ -154,11 +154,11 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     assert!(snapshot.fingerprints().utilities.contains_key("flex"));
     assert!(snapshot.builtins().is_some());
     let unselected = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "root", "@import 'stillwind/theme.css';").unwrap(),
+        &SourceFile::new(FileId(1), "root", "@theme { --color-brand:red; }").unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
-    assert!(unselected.builtins().is_none());
+    assert!(unselected.builtins().unwrap().utilities.is_empty());
     assert!(unselected.utilities().get("flex").is_none());
 }
 
@@ -212,6 +212,88 @@ fn imported_styles_retain_layer_supports_and_media_conditions() {
     assert!(css.contains("@layer components"), "{css}");
     assert!(css.contains("@supports (display: grid)"), "{css}");
     assert!(css.contains("@media screen and (width > 40rem)"), "{css}");
+}
+
+#[test]
+fn package_definitions_are_host_inputs_and_changes_need_no_compiler_rebuild() {
+    use std::path::Path;
+    fn load(display: &str) -> DesignSystemSnapshot {
+        let entry = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../packages/core/index.css")
+            .canonicalize()
+            .unwrap();
+        let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+        let mut step = loader.provide(
+            0,
+            entry.to_string_lossy().as_ref().into(),
+            std::fs::read_to_string(&entry).unwrap().into(),
+        );
+        loop {
+            match step {
+                DesignSystemLoadStep::Complete(result) => return result.unwrap(),
+                DesignSystemLoadStep::NeedFile(requests) => {
+                    let files = requests
+                        .into_iter()
+                        .map(|request| {
+                            let file = Path::new(request.importer.0.as_ref())
+                                .parent()
+                                .unwrap()
+                                .join(&request.specifier)
+                                .canonicalize()
+                                .unwrap();
+                            let source = std::fs::read_to_string(&file)
+                                .unwrap()
+                                .replace("display: flex;", &format!("display: {display};"));
+                            input(request.id, file.to_string_lossy().as_ref(), &source)
+                        })
+                        .collect::<Vec<_>>();
+                    step = loader.provide_many(files);
+                }
+            }
+        }
+    }
+    let first = load("flex");
+    let changed = load("grid");
+    assert!(first.sources().sources.len() > 20);
+    assert!(
+        first.utilities().get("container").is_some(),
+        "manifest documentation must not consume the first utility definition"
+    );
+    assert!(
+        first.utilities().get("flex").unwrap()[0]
+            .body
+            .contains("display:flex;")
+    );
+    assert!(
+        changed.utilities().get("flex").unwrap()[0]
+            .body
+            .contains("display:grid;")
+    );
+    assert_ne!(first.fingerprints().content, changed.fingerprints().content);
+    assert!(
+        first
+            .render_base_stylesheet()
+            .unwrap()
+            .contains("box-sizing")
+    );
+    assert!(!first.render_base_stylesheet().unwrap().contains("--theme("));
+    let bare = DesignSystemSnapshot::from_source(
+        &SourceFile::new(FileId(1), "empty", "").unwrap(),
+        CompilerOptions::default(),
+    )
+    .unwrap();
+    assert!(bare.utilities().get("flex").is_none());
+    assert!(bare.tokens().get("--spacing").is_none());
+    assert!(!bare.render_stylesheet("").unwrap().contains("box-sizing"));
+    let mut loader = DesignSystemLoader::new(CompilerOptions::default());
+    let DesignSystemLoadStep::NeedFile(requests) = loader.provide(
+        0,
+        "entry".into(),
+        "@import 'stillwind' layer(app) supports(display:grid) print;".into(),
+    ) else {
+        panic!("package must be resolved by the host")
+    };
+    assert_eq!(requests[0].specifier, "stillwind");
 }
 
 fn input(id: u32, name: &str, content: &str) -> CssFileInput {

@@ -1,3 +1,4 @@
+use oxc_resolver::{ResolveOptions, Resolver};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -21,7 +22,7 @@ pub(super) enum FileLoadError {
     Resolve {
         request: CssFileRequest,
         #[source]
-        source: std::io::Error,
+        source: Box<oxc_resolver::ResolveError>,
     },
     #[error("{0}")]
     Load(#[from] DesignSystemLoadError),
@@ -39,6 +40,12 @@ pub(super) fn load_design_system(
     theme: &SourceFile,
     options: CompilerOptions,
 ) -> Result<DesignSystemSnapshot, FileLoadError> {
+    let resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["style".into(), "import".into(), "default".into()],
+        extensions: vec![".css".into()],
+        main_fields: vec!["style".into(), "main".into()],
+        ..ResolveOptions::default()
+    });
     let mut loader = DesignSystemLoader::new(options);
     let mut step = loader.provide(0, theme.path().into(), theme.text().into());
     loop {
@@ -48,14 +55,16 @@ pub(super) fn load_design_system(
             }
             DesignSystemLoadStep::NeedFile(requests) => {
                 let request = &requests[0];
-                let path = Path::new(request.importer.0.as_ref())
+                let directory = Path::new(request.importer.0.as_ref())
                     .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(&request.specifier);
-                let path = fs::canonicalize(&path).map_err(|error| FileLoadError::Resolve {
-                    request: request.clone(),
-                    source: error,
-                })?;
+                    .unwrap_or_else(|| Path::new("."));
+                let path = resolver
+                    .resolve(directory, &request.specifier)
+                    .map_err(|error| FileLoadError::Resolve {
+                        request: request.clone(),
+                        source: Box::new(error),
+                    })?
+                    .full_path();
                 let content = fs::read_to_string(&path).map_err(|error| FileLoadError::Read {
                     path: path.clone(),
                     source: error,

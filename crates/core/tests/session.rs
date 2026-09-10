@@ -8,7 +8,7 @@ use stillwind_source::{CompileError, FileId, SourceFile};
 
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(2),
             "theme",
             format!("@theme {{ --color-brand: {color}; }}"),
@@ -38,7 +38,7 @@ fn module(name: &str, candidate: &str) -> ModuleAnalysis {
 #[test]
 fn module_stylesheets_include_support_without_repeating_document_rules() {
     let snapshot = DesignSystemSnapshot::from_source(
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(2),
             "theme",
             "@theme { --color-brand: red; } .document-only{color:blue;}",
@@ -78,7 +78,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
 fn module_salt_is_stable_and_content_identity_remains_available() {
     let compile = |identity, namespace: &str, path: &str| {
         let snapshot = DesignSystemSnapshot::from_source(
-            &SourceFile::new(FileId(2), "theme", "").unwrap(),
+            &crate::css_fixture::source(FileId(2), "theme", "").unwrap(),
             CompilerOptions {
                 class_identity: identity,
                 class_namespace: namespace.into(),
@@ -182,3 +182,6 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
     assert!(session.dependencies().candidates.is_empty());
     assert!(session.dependencies().theme_tokens.is_empty());
 }
+
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

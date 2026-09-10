@@ -1,4 +1,3 @@
-mod defaults;
 mod definitions;
 pub(super) mod formats;
 mod normalization;
@@ -6,7 +5,6 @@ pub(super) mod order;
 pub(super) mod utilities;
 pub(super) mod variants;
 
-pub use defaults::BUILTIN_REGISTRY_CSS;
 pub use definitions::BuiltinDefinitions;
 pub use normalization::canonical_builtin_body;
 

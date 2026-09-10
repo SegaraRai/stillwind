@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use stillwind_css::{FrameworkImports, ThemeIndex};
+use stillwind_css::ThemeIndex;
 use stillwind_source::SourceFile;
 use stillwind_tailwind::{BuiltinDefinitions, builtin_definitions, builtin_theme_order};
 
@@ -99,11 +99,11 @@ impl DesignSystemSnapshot {
         let config_hash = Fingerprint::of(format!("{config:?}"));
         let ordering = Fingerprint::of(format!(
             "{:?}{:?}",
-            theme.imports,
+            theme.output_template,
             builtin_theme_order(&theme)
         ));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
-        let builtins = theme.imports.builtins.then(|| builtin_definitions(&theme));
+        let builtins = Some(builtin_definitions(&theme));
         let mut declaration_formats = builtins.as_ref().map_or_else(BTreeMap::new, |definitions| {
             definitions.declaration_formats.clone()
         });
@@ -188,7 +188,7 @@ impl DesignSystemSnapshot {
             theme.utilities,
             theme.variants,
             theme.properties,
-            theme.imports,
+            theme.output_template,
             theme.config,
             theme.marker_utilities,
             theme.declaration_formats,
@@ -254,9 +254,6 @@ impl DesignSystemSnapshot {
     }
     pub fn relationships(&self) -> &BTreeSet<String> {
         &self.inner.relationships
-    }
-    pub fn imports(&self) -> &FrameworkImports {
-        &self.inner.theme.imports
     }
     pub fn lint_policy(&self) -> &BTreeMap<String, String> {
         &self.inner.theme.config.lint_rules

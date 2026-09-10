@@ -301,9 +301,7 @@
 
   ::placeholder {
     opacity: 1;
-  }
-
-  /*
+  } /*
   Set the default placeholder color to a semi-transparent version of the current text color in browsers that do not
   crash when using `color-mix(…)` with `currentcolor`. (https://github.com/tailwindlabs/tailwindcss/issues/17194)
 */

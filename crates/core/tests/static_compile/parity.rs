@@ -23,7 +23,7 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
         ),
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -74,7 +74,7 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         .unwrap();
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(
+            &crate::css_fixture::source(
                 FileId(2),
                 "stillwind.css",
                 stillwind_fixture_css(&input_css),
@@ -157,7 +157,7 @@ fn matches_tailwind_fixture_rules_after_minification() {
         .unwrap();
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(
+            &crate::css_fixture::source(
                 FileId(2),
                 "stillwind.css",
                 stillwind_fixture_css(&input_css),
@@ -206,7 +206,7 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
         .unwrap();
         let result = Compiler::compile_react(
             &component,
-            &SourceFile::new(
+            &crate::css_fixture::source(
                 FileId(2),
                 "stillwind.css",
                 stillwind_fixture_css(&input_css),

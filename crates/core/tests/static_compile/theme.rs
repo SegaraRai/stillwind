@@ -16,7 +16,7 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
     .unwrap();
     let result = Compiler::compile_react(
         &component,
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(2),
             "stillwind.css",
             stillwind_fixture_css(&input_css),
@@ -59,7 +59,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             ).unwrap();
             let result = Compiler::compile_react(
                 &component,
-                &SourceFile::new(
+                &crate::css_fixture::source(
                     FileId(2),
                     "stillwind.css",
                     stillwind_fixture_css(&input_css),
@@ -91,7 +91,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             ),
         )
         .unwrap(),
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(4),
             "stillwind.css",
             stillwind_fixture_css(&input_css),
@@ -121,7 +121,7 @@ fn framework_imports_gate_baseline_layers() {
     let compiler = |css| {
         Compiler::compile_react(
             &component,
-            &SourceFile::new(FileId(2), "stillwind.css", css).unwrap(),
+            &crate::css_fixture::source(FileId(2), "stillwind.css", css).unwrap(),
         )
     };
 
@@ -161,7 +161,7 @@ fn framework_imports_gate_baseline_layers() {
             "src/Content.tsx",
             "import { style } from \"stillwind/react\"; const props = style(\"bg-linear-to-r\");",
         ).unwrap(),
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(4),
             "stillwind.css",
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",

@@ -21,13 +21,7 @@ pub(crate) fn theme_value(
             if matches!(token.mode, ThemeTokenMode::Inline) {
                 token.value.value.clone()
             } else {
-                let prefix = theme
-                    .imports
-                    .prefix
-                    .as_deref()
-                    .map(|prefix| format!("{}-", prefix.trim_end_matches('-')))
-                    .unwrap_or_default();
-                format!("var(--{prefix}{}-{value})", namespace.css_name())
+                format!("var({})", token.name.value)
             }
         }
         _ if namespace == ThemeNamespace::Spacing
@@ -152,7 +146,7 @@ mod tests {
     fn arbitrary_values_and_variables_must_match_namespace_types() {
         let configured = ThemeIndex {
             registry: std::sync::Arc::new(stillwind_css::BuiltinDefinitions::from_css(
-                stillwind_css::BUILTIN_REGISTRY_CSS,
+                crate::test_defaults::BUILTIN_REGISTRY_CSS,
             )),
             ..ThemeIndex::default()
         };

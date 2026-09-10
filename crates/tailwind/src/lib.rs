@@ -28,3 +28,11 @@ pub use variants::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../test-support/defaults.rs"]
+mod test_defaults;
+
+#[cfg(test)]
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

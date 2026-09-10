@@ -64,3 +64,48 @@ fn cli_reports_typed_argument_and_option_failures() {
         assert!(String::from_utf8_lossy(&output.stderr).contains(expected));
     }
 }
+
+#[test]
+fn cli_resolves_css_package_exports_with_style_conditions() {
+    let directory = std::env::temp_dir().join(format!(
+        "stillwind-cli-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let package = directory.join("node_modules/@fixture/css");
+    std::fs::create_dir_all(&package).unwrap();
+    std::fs::write(
+        package.join("package.json"),
+        r#"{"name":"@fixture/css","exports":{".":{"style":"./entry.css","default":"./wrong.js"}}}"#,
+    )
+    .unwrap();
+    std::fs::write(package.join("entry.css"), "@stillwind-utility paint { color: rebeccapurple; } @layer utilities { @stillwind-slot utilities; }").unwrap();
+    std::fs::write(directory.join("entry.css"), "@import '@fixture/css';").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
+        .args([
+            "compile",
+            "--source-text",
+            "import { style } from 'stillwind/react'; const props = style('paint');",
+            "--theme",
+            directory.join("entry.css").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["diagnostics"], serde_json::json!([]));
+    assert!(
+        result["css"]
+            .as_str()
+            .unwrap()
+            .contains("color:rebeccapurple;")
+    );
+    std::fs::remove_dir_all(directory).unwrap();
+}

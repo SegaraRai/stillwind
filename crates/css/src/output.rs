@@ -25,6 +25,10 @@ pub struct CssOutputTemplate {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum CssOutputError {
+    #[error(
+        "compile-time @{name} definitions cannot be conditional (byte {offset}); import definitions unconditionally and put conditions around @stillwind-slot utilities;"
+    )]
+    ConditionalDefinition { offset: usize, name: String },
     #[error("unsupported Stillwind output slot at byte {offset}: {name}")]
     Slot { offset: usize, name: String },
     #[error("invalid CSS output block at byte {offset}")]
@@ -36,7 +40,7 @@ impl CssOutputTemplate {
     /// Returns malformed blocks or unknown output slots.
     pub fn parse(css: &str, tokens: &[ThemeToken]) -> Result<Self, CssOutputError> {
         Ok(Self {
-            nodes: parse_nodes(css, 0, tokens, &mut Vec::new())?,
+            nodes: parse_nodes(css, 0, tokens, &mut Vec::new(), false)?,
         })
     }
 
@@ -62,8 +66,22 @@ pub(crate) fn theme_blocks(
     css: &str,
 ) -> Result<Vec<(std::ops::Range<usize>, String)>, CssOutputError> {
     let mut blocks = Vec::new();
-    parse_nodes(css, 0, &[], &mut blocks)?;
+    parse_nodes(css, 0, &[], &mut blocks, false)?;
     Ok(blocks)
+}
+
+fn is_definition(name: &str) -> bool {
+    name.starts_with("stillwind-")
+        || matches!(
+            name,
+            "theme"
+                | "stillwind"
+                | "utility"
+                | "utility-family"
+                | "custom-variant"
+                | "variant"
+                | "tailwind"
+        )
 }
 
 fn parse_nodes(
@@ -71,6 +89,7 @@ fn parse_nodes(
     base: usize,
     tokens: &[ThemeToken],
     theme_blocks: &mut Vec<(std::ops::Range<usize>, String)>,
+    conditional: bool,
 ) -> Result<Vec<CssOutputNode>, CssOutputError> {
     let mut parser = Parser::new(css);
     let mut nodes = Vec::new();
@@ -82,11 +101,21 @@ fn parse_nodes(
             _ => None,
         };
         let header_end = parser.position().byte_index();
+        if conditional
+            && let Some(name) = name.as_deref()
+            && is_definition(name)
+            && name != "stillwind-slot"
+        {
+            return Err(CssOutputError::ConditionalDefinition {
+                offset: base + start,
+                name: name.into(),
+            });
+        }
         let mut block = None;
         loop {
-            let position = parser.position().byte_index();
             match parser.next_including_whitespace_and_comments() {
                 Ok(Token::CurlyBracketBlock) => {
+                    let position = parser.position().byte_index() - 1;
                     parser
                         .parse_nested_block(|nested| {
                             while nested.next_including_whitespace_and_comments().is_ok() {}
@@ -147,16 +176,11 @@ fn parse_nodes(
                         base + open + 1,
                         tokens,
                         theme_blocks,
+                        conditional || name.as_deref() != Some("layer"),
                     )?,
                 });
             }
-            (Some(name), _)
-                if name == "stillwind"
-                    || name.starts_with("stillwind-")
-                    || matches!(
-                        name,
-                        "utility" | "utility-family" | "custom-variant" | "variant" | "tailwind"
-                    ) => {}
+            (Some(name), _) if is_definition(name) => {}
             _ => nodes.push(CssOutputNode::Authored(css[start..end].into())),
         }
     }
@@ -198,5 +222,25 @@ mod tests {
             CssOutputTemplate::parse("@stillwind-slot other;", &[]),
             Err(CssOutputError::Slot { .. })
         ));
+    }
+
+    #[test]
+    fn conditional_slots_are_supported_but_conditional_semantics_are_diagnosed() {
+        assert!(
+            CssOutputTemplate::parse(
+                "@supports (display:grid){@media print{@stillwind-slot utilities;}}",
+                &[]
+            )
+            .is_ok()
+        );
+        for css in [
+            "@supports (display:grid){@theme {--color-brand:blue;}}",
+            "@media print{@layer test{@stillwind-utility flex{display:flex;}}}",
+        ] {
+            assert!(matches!(
+                CssOutputTemplate::parse(css, &[]),
+                Err(CssOutputError::ConditionalDefinition { .. })
+            ));
+        }
     }
 }

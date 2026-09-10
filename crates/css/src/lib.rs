@@ -13,10 +13,8 @@
 )]
 
 mod blocks;
-mod builtins;
 mod colors;
 mod custom_properties;
-mod directives;
 mod functions;
 mod math;
 mod output;
@@ -24,7 +22,6 @@ mod registry;
 mod theme;
 mod values;
 
-pub use builtins::*;
 pub use colors::*;
 pub use custom_properties::*;
 pub use math::*;
@@ -35,3 +32,11 @@ pub use values::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../test-support/defaults.rs"]
+mod test_defaults;
+
+#[cfg(test)]
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

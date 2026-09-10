@@ -174,12 +174,8 @@ pub(crate) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    let capture = compound_variant_capture(&theme.variants, value).or_else(|| {
-        theme
-            .imports
-            .builtins
-            .then(|| compound_variant_capture(builtin_variants(theme), value))?
-    })?;
+    let capture = compound_variant_capture(&theme.variants, value)
+        .or_else(|| compound_variant_capture(builtin_variants(theme), value))?;
     Some(parse_nested_variant(split_variant_modifier(&capture).0))
 }
 

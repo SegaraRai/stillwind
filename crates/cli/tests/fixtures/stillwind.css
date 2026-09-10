@@ -1,3 +1,5 @@
+@import "../../../../packages/core/index.css";
+
 @theme {
   --color-accent: oklch(0.6 0.2 250);
 }

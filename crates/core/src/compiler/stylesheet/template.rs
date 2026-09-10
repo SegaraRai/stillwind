@@ -18,7 +18,7 @@ pub(super) fn render(
     document: bool,
 ) -> Result<String, StylesheetError> {
     let authored = if document {
-        expand_authored_directives(theme.custom_css(), theme)
+        render_authored(theme.custom_css(), theme)?
     } else {
         String::new()
     };
@@ -60,7 +60,7 @@ pub(super) fn render(
         animations,
         slots: 0,
     };
-    let mut css = context.nodes(&template.nodes);
+    let mut css = context.nodes(&template.nodes)?;
     if !utility_css.is_empty() && context.slots == 0 {
         return Err(StylesheetError::MissingUtilitiesSlot);
     }
@@ -82,13 +82,19 @@ struct Context<'a> {
     slots: usize,
 }
 
+fn render_authored(css: &str, theme: &ThemeIndex) -> Result<String, StylesheetError> {
+    theme
+        .resolve_theme_references(&expand_authored_directives(css, theme))
+        .ok_or(StylesheetError::UnresolvedThemeReference)
+}
+
 impl Context<'_> {
-    fn nodes(&mut self, nodes: &[CssOutputNode]) -> String {
+    fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<String, StylesheetError> {
         let mut output = String::new();
         for node in nodes {
             match node {
                 CssOutputNode::Authored(css) if self.document => {
-                    output.push_str(&expand_authored_directives(css, self.theme));
+                    output.push_str(&render_authored(css, self.theme)?);
                 }
                 CssOutputNode::Authored(_) => {}
                 CssOutputNode::Utilities => {
@@ -96,7 +102,7 @@ impl Context<'_> {
                     output.push_str(self.utility_css);
                 }
                 CssOutputNode::Group { header, children } => {
-                    let body = self.nodes(children);
+                    let body = self.nodes(children)?;
                     if self.document || !body.trim().is_empty() {
                         output.push_str(header);
                         output.push('{');
@@ -129,21 +135,21 @@ impl Context<'_> {
                 }
             }
         }
-        output
+        Ok(output)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use stillwind_css::parse_resolved_theme;
+    use stillwind_css::parse_theme;
     use stillwind_source::{FileId, SourceFile};
 
     #[test]
     fn slots_and_support_preserve_authored_conditions_in_document_and_module_outputs() {
         let source = SourceFile::new(FileId(1), "entry.css", "@layer theme, utilities; @layer theme { @theme { --color-brand: red; --unused:blue; } } .before{display:block;} @layer utilities { @supports (display:grid) { @media print { @stillwind-slot utilities; } } } .after{color:blue;}").unwrap();
-        let theme = parse_resolved_theme(&source).unwrap();
-        let template = theme.output_template.as_ref().unwrap();
+        let theme = parse_theme(&source).unwrap();
+        let template = &theme.output_template;
         let utility = ".x{color:var(--color-brand);}";
         let css = render(template, &theme, utility, &CompilerOptions::default(), true).unwrap();
         assert!(css.contains("@layer theme{:root,:host{--color-brand:red;}}"));
@@ -168,8 +174,8 @@ mod tests {
     #[test]
     fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
         let source = SourceFile::new(FileId(1), "entry.css", ".a{color:red;}").unwrap();
-        let theme = parse_resolved_theme(&source).unwrap();
-        let template = theme.output_template.as_ref().unwrap();
+        let theme = parse_theme(&source).unwrap();
+        let template = &theme.output_template;
         assert_eq!(
             render(template, &theme, "", &CompilerOptions::default(), true).unwrap(),
             ".a{color:red;}"

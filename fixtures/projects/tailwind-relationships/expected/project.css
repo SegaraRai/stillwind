@@ -2,14 +2,13 @@
 @layer theme {
   :root,
   :host {
-    --spacing: 0.25rem;
-    --color-brand: oklch(62% 0.2 280);
     --font-sans:
       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial,
       sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     --font-mono:
       ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
       monospace;
+    --spacing: 0.25rem;
     --radius-lg: 0.5rem;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
@@ -304,9 +303,7 @@
 
   ::placeholder {
     opacity: 1;
-  }
-
-  /*
+  } /*
   Set the default placeholder color to a semi-transparent version of the current text color in browsers that do not
   crash when using `color-mix(…)` with `currentcolor`. (https://github.com/tailwindlabs/tailwindcss/issues/17194)
 */
@@ -461,4 +458,8 @@
       display: grid;
     }
   }
+}
+:root,
+:host {
+  --color-brand: oklch(62% 0.2 280);
 }

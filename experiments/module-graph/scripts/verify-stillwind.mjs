@@ -13,7 +13,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dir = path.join(root, "output", `stillwind-${Date.now()}`);
 await fs.mkdir(dir, { recursive: true });
 const put = (name, text) => fs.writeFile(path.join(dir, name), text);
-await put("root.css", "@theme { --color-brand: rgb(11,22,33); } .document-only { color: purple; }");
+const coreEntry = path
+  .relative(dir, path.resolve(root, "../../packages/core/index.css"))
+  .replaceAll("\\", "/");
+const themeSource = (color) =>
+  `@import ${JSON.stringify(coreEntry)}; @theme { --color-brand: ${color}; } .document-only { color: purple; }`;
+await put("root.css", themeSource("rgb(11,22,33)"));
 await put("index.html", '<div id="sample"></div><script type="module" src="/main.ts"></script>');
 await put(
   "main.ts",
@@ -45,10 +50,7 @@ try {
   await color("rgb(11, 22, 33)");
   results.checks.push({ name: "real-compiler-dev-css", passed: true });
   const before = await page.locator("#sample").getAttribute("class");
-  await put(
-    "root.css",
-    "@theme { --color-brand: rgb(44,55,66); } .document-only { color: purple; }",
-  );
+  await put("root.css", themeSource("rgb(44,55,66)"));
   await color("rgb(44, 55, 66)");
   assert.equal(await page.locator("#sample").getAttribute("class"), before);
   results.checks.push({ name: "css-only-edit-stable-class", passed: true });

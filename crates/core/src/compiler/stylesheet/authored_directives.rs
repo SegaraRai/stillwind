@@ -164,11 +164,11 @@ pub(in crate::compiler) fn render_authored_variant_path(
 mod tests {
     use super::*;
     use crate::Compiler;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::FileId;
 
     #[test]
     fn expands_authored_variants_through_the_shared_registry() {
-        let source = SourceFile::new(
+        let source = crate::css_fixture::source(
             FileId(1),
             "stillwind.css",
             r#"
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn expands_authored_apply_in_builtin_registry_order() {
-        let source = SourceFile::new(
+        let source = crate::css_fixture::source(
             FileId(1),
             "stillwind.css",
             r#"

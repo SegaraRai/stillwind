@@ -13,7 +13,7 @@ void test("build retains late and lazy producer CSS without collecting transform
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
   const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
   put("index.html", '<script type="module" src="/main.ts"></script>');
-  put("root.css", ".document-only{color:purple;}");
+  put("root.css", ".document-only{color:purple;} @layer utilities { @stillwind-slot utilities; }");
   put(
     "main.ts",
     'import "virtual:stillwind.css"; import { a } from "./slow"; console.log(a); window.loadLazy = () => import("./lazy");',

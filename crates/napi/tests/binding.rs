@@ -5,7 +5,7 @@ const props = style("bg-accent hover:bg-accent/90");"#;
     let output = stillwind_napi::compile_react_json(
         source,
         "Button.tsx",
-        "@theme { --color-accent: oklch(.6 .2 250); }",
+        &css_fixture::with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
     )
     .unwrap();
 
@@ -38,7 +38,7 @@ fn exposes_generated_symbols_for_build_wide_collision_checks() {
 const menu = style.ref();
 const props = style(menu.anchor);"#,
         "src/Menu.tsx",
-        "@theme {}",
+        &css_fixture::with_defaults("@theme {}"),
     )
     .unwrap();
 
@@ -87,7 +87,7 @@ export const child = style({ [menu`&:hover`]: "text-white" });"#
     ]);
     let output = stillwind_napi::compile_react_project_json(
         &sources.to_string(),
-        "@theme { --color-white: white; }",
+        &css_fixture::with_defaults("@theme { --color-white: white; }"),
     )
     .unwrap();
 
@@ -115,9 +115,11 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
     export const duplicate = style("text-white");"#
         }
     ]);
-    let theme = r#"@import "tailwindcss";
-@theme { --color-white: white; }"#;
-    let output = stillwind_napi::compile_react_project_json(&sources.to_string(), theme).unwrap();
+    let theme = css_fixture::with_defaults(
+        r#"@import "stillwind";
+@theme { --color-white: white; }"#,
+    );
+    let output = stillwind_napi::compile_react_project_json(&sources.to_string(), &theme).unwrap();
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
     let fragments = value["modules"]
         .as_array()
@@ -157,7 +159,7 @@ fn serializes_editor_positions_for_diagnostics() {
     let output = stillwind_napi::compile_react_json(
         "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
         "Button.tsx",
-        "@theme { --color-accent: red; }",
+        &css_fixture::with_defaults("@theme { --color-accent: red; }"),
     )
     .unwrap();
 
@@ -169,8 +171,10 @@ fn serializes_editor_positions_for_diagnostics() {
 
 #[test]
 fn generates_theme_backed_react_type_augmentations() {
-    let output =
-        stillwind_napi::generate_react_types("@theme { --color-accent: red; }".to_owned()).unwrap();
+    let output = stillwind_napi::generate_react_types(css_fixture::with_defaults(
+        "@theme { --color-accent: red; }",
+    ))
+    .unwrap();
 
     assert!(output.contains("declare module \"stillwind/react\""));
     assert!(output.contains("\"bg-accent\": true"));
@@ -195,3 +199,7 @@ fn project_api_preserves_json_and_configuration_errors() {
     assert!(matches!(error, BindingApiError::DesignSystem(_)));
     assert!(error.source().is_some());
 }
+
+#[allow(dead_code)]
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

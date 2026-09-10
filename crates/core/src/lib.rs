@@ -56,3 +56,11 @@ pub(crate) use compiler::{
     class_name, emit_utility_rules, render_react_types, render_stylesheet, resolve_utility_targets,
     unresolved_utility_rule,
 };
+
+#[cfg(test)]
+#[path = "../../test-support/defaults.rs"]
+mod test_defaults;
+
+#[cfg(test)]
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

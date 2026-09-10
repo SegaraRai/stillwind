@@ -80,7 +80,7 @@ fn lets_user_css_override_compatibility_fallback_utility_names() {
         "@utility size-* { inline-size: --value(--spacing-*); block-size: --value(--spacing-*); }",
     )
     .unwrap();
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
 
     assert_eq!(
         resolve_utility("size-4", &theme).unwrap().declaration,

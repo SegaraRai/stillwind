@@ -9,7 +9,7 @@ fn emits_tailwind_shaped_layers_theme_variables_and_variants() {
 const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opacity-60");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         r"@theme {
@@ -26,7 +26,7 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     assert!(
         result
             .css
-            .starts_with("@layer theme, base, components, utilities;\n")
+            .starts_with("@layer theme, base, components, utilities;")
     );
     assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
@@ -48,7 +48,7 @@ fn retains_authored_custom_properties_and_theme_selectors() {
 const props = style("bg-accent");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         r#"@theme inline { --color-accent: var(--app-accent); }
@@ -82,7 +82,8 @@ fn resolves_v4_default_spacing_and_arbitrary_custom_properties() {
 const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)*2)]");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -111,7 +112,8 @@ fn resolves_v4_default_animations_and_emits_their_keyframes() {
 const props = style("animate-spin");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -129,7 +131,7 @@ fn resolves_css_defined_custom_utilities_and_variants() {
 const props = style("content-auto data-checked:content-auto tab-8");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         r#"@utility content-auto { content-visibility: auto; }
@@ -156,7 +158,7 @@ const props = style("bg-accent");
 export { props };"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
@@ -187,7 +189,7 @@ const props = style(
 );"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; --spacing-4: 1rem; }",
@@ -218,7 +220,7 @@ fn resolves_negative_and_transition_utilities_from_declared_theme_tokens() {
 const props = style("-mt-4 duration-120 ease-standard");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --spacing-4: 1rem; --ease-standard: ease-out; }",

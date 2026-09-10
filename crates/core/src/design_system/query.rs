@@ -125,7 +125,7 @@ impl DesignSystemQuery {
             .filter(|name| !name.contains('*'))
             .map(str::to_owned)
             .collect();
-        if theme.imports.builtins {
+        {
             let token_prefixes = builtin_utility_token_prefixes(theme);
             for token in theme.active_tokens() {
                 for (prefix, namespace) in &token_prefixes {
@@ -153,7 +153,7 @@ impl DesignSystemQuery {
             .filter(|name| !name.contains('*'))
             .map(str::to_owned)
             .collect();
-        if theme.imports.builtins {
+        {
             variant_names.extend(theme.active_tokens().iter().filter_map(
                 |token| match &token.kind {
                     ThemeTokenKind::Token {
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
         let snapshot = DesignSystemSnapshot::from_source(
-            &stillwind_source::SourceFile::new(
+            &crate::css_fixture::source(
                 FileId(1),
                 "theme",
                 "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",

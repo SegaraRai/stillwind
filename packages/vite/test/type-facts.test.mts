@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { compileReactProject, summarizeReact } from "@stillwind/native";
 
+import { resolveFixtureCss } from "../../../tools/lib/stillwind-fixture-css.ts";
 import { finalizeReactModule } from "../src/index.ts";
 import { TypeScriptFactsService, type AssetRecord } from "../src/type-facts.ts";
 
@@ -29,7 +30,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   const withoutFacts = JSON.parse(
     compileReactProject(
       JSON.stringify(sources.map(({ path: sourcePath, source }) => ({ path: sourcePath, source }))),
-      "@theme {}",
+      resolveFixtureCss('@import "stillwind";'),
     ),
   ) as { modules: Array<{ path: string; diagnostics: Array<{ code: string }> }> };
   assert(
@@ -64,7 +65,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
           type_facts: facts.get(sourcePath) ?? [],
         })),
       ),
-      "@theme {}",
+      resolveFixtureCss('@import "stillwind";'),
     ),
   ) as {
     modules: Array<{

@@ -28,58 +28,105 @@ pub(super) fn extract_named_blocks_with_offsets(
     css: &str,
     directive: &str,
 ) -> Vec<(usize, String, String)> {
-    let mut blocks = Vec::new();
-    let mut cursor = 0;
-    while let Some(relative) = css[cursor..].find(directive) {
-        let start = cursor + relative;
-        let Some(open_relative) = css[start..].find('{') else {
-            break;
-        };
-        let open = start + open_relative;
-        let header = css[start + directive.len()..open].trim().to_owned();
-        let mut depth = 1_u32;
-        let mut close = None;
-        for (offset, character) in css[open + 1..].char_indices() {
-            match character {
-                '{' => depth += 1,
-                '}' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        close = Some(open + 1 + offset);
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-        let Some(close) = close else {
-            break;
-        };
-        blocks.push((start, header, css[open + 1..close].trim().to_owned()));
-        cursor = close + 1;
-    }
-    blocks
+    directive_rules(css, directive)
+        .into_iter()
+        .filter_map(|rule| rule.body.map(|body| (rule.start, rule.header, body)))
+        .collect()
 }
 
 pub(super) fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
-    let mut statements = Vec::new();
-    let mut cursor = 0;
-    while let Some(relative) = css[cursor..].find(directive) {
-        let start = cursor + relative;
-        let value_start = start + directive.len();
-        let Some(relative_end) = css[value_start..].find(';') else {
-            break;
-        };
-        let end = value_start + relative_end;
-        let pattern = css[value_start..end].trim();
-        if !pattern.is_empty() && !pattern.chars().any(char::is_whitespace) {
-            statements.push((start, pattern.to_owned()));
-        }
-        cursor = end + 1;
-    }
-    statements
+    directive_rules(css, directive)
+        .into_iter()
+        .filter_map(|rule| {
+            (rule.body.is_none()
+                && !rule.header.is_empty()
+                && !rule.header.chars().any(char::is_whitespace))
+            .then_some((rule.start, rule.header))
+        })
+        .collect()
 }
 
+struct DirectiveRule {
+    start: usize,
+    header: String,
+    body: Option<String>,
+}
+
+fn directive_rules(css: &str, directive: &str) -> Vec<DirectiveRule> {
+    let mut rules = Vec::new();
+    scan_directives(
+        &mut cssparser::Parser::new(css),
+        css,
+        directive.trim_start_matches('@'),
+        &mut rules,
+    );
+    rules
+}
+
+fn scan_directives(
+    parser: &mut cssparser::Parser<'_>,
+    css: &str,
+    directive: &str,
+    rules: &mut Vec<DirectiveRule>,
+) {
+    use cssparser::{ParseError, Token};
+    loop {
+        let start = parser.position().byte_index();
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::AtKeyword(name)) if name.as_ref() == directive => {
+                let header_start = parser.position().byte_index();
+                loop {
+                    match parser.next_including_whitespace_and_comments() {
+                        Ok(Token::Semicolon) => {
+                            rules.push(DirectiveRule {
+                                start,
+                                header: css[header_start..parser.position().byte_index() - 1]
+                                    .trim()
+                                    .into(),
+                                body: None,
+                            });
+                            break;
+                        }
+                        Ok(Token::CurlyBracketBlock) => {
+                            let body_start = parser.position().byte_index();
+                            let result = parser.parse_nested_block(|nested| {
+                                while nested.next_including_whitespace_and_comments().is_ok() {}
+                                Ok::<_, ParseError<()>>(())
+                            });
+                            if result.is_ok() {
+                                let body_end = parser.position().byte_index() - 1;
+                                if css.as_bytes().get(body_end) == Some(&b'}') {
+                                    rules.push(DirectiveRule {
+                                        start,
+                                        header: css[header_start..body_start - 1].trim().into(),
+                                        body: Some(css[body_start..body_end].trim().into()),
+                                    });
+                                }
+                            }
+                            break;
+                        }
+                        Ok(_) => {}
+                        Err(_) => break,
+                    }
+                }
+            }
+            Ok(Token::CurlyBracketBlock) => {
+                let _ = parser.parse_nested_block(|nested| {
+                    scan_directives(nested, css, directive, rules);
+                    Ok::<_, ParseError<()>>(())
+                });
+            }
+            Ok(Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock) => {
+                let _ = parser.parse_nested_block(|nested| {
+                    while nested.next_including_whitespace_and_comments().is_ok() {}
+                    Ok::<_, ParseError<()>>(())
+                });
+            }
+            Ok(_) => {}
+            Err(_) => break,
+        }
+    }
+}
 pub(super) fn strip_blocks(css: &str, directive: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
@@ -143,50 +190,6 @@ pub(super) fn find_block_open(value: &str) -> Option<usize> {
         offset += character.len_utf8();
     }
     None
-}
-
-pub(super) fn strip_top_level_blocks(css: &str, directive: &str) -> String {
-    let mut output = String::new();
-    let mut cursor = 0;
-    let mut depth = 0_u32;
-    while cursor < css.len() {
-        if depth == 0 && css[cursor..].starts_with(directive) {
-            let Some(open_rel) = css[cursor..].find('{') else {
-                break;
-            };
-            let open = cursor + open_rel;
-            let mut inner = 1_u32;
-            let mut end = open + 1;
-            for (offset, ch) in css[open + 1..].char_indices() {
-                match ch {
-                    '{' => inner += 1,
-                    '}' => {
-                        inner = inner.saturating_sub(1);
-                        if inner == 0 {
-                            end = open + 1 + offset + 1;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            cursor = end;
-            continue;
-        }
-        let Some(ch) = css[cursor..].chars().next() else {
-            break;
-        };
-        if ch == '{' {
-            depth += 1;
-        }
-        if ch == '}' {
-            depth = depth.saturating_sub(1);
-        }
-        output.push(ch);
-        cursor += ch.len_utf8();
-    }
-    output.push_str(&css[cursor..]);
-    output
 }
 
 pub(super) fn matching_brace(value: &str, open: usize) -> Option<usize> {
@@ -262,6 +265,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn definitions_ignore_documentation_strings_and_statement_directives() {
+        let css = "/* @utility describes a definition. */ .label{content:'@utility fake {x:y}';} @utility-note ignored; @utility real {content:'}'; color:red;}";
+        let blocks = extract_named_blocks_with_offsets(css, "@utility");
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].0, css.find("@utility real").unwrap());
+        assert_eq!(blocks[0].1, "real");
+        assert_eq!(blocks[0].2, "content:'}'; color:red;");
+        assert!(
+            extract_order_statements("/* @order fake; */ @order real;", "@order")
+                .iter()
+                .all(|(_, name)| name == "real")
+        );
+    }
+
+    #[test]
     fn named_blocks_do_not_slice_unclosed_bodies() {
         assert!(extract_named_blocks("@utility x {", "@utility").is_empty());
         assert_eq!(
@@ -292,10 +310,6 @@ mod tests {
         assert_eq!(strip_blocks("a @theme { x {y} } b", "@theme"), "a  b");
         assert_eq!(strip_blocks("a @theme { x", "@theme"), "a @theme { x");
         assert_eq!(find_block_open("x-{modifier} { y }"), Some(13));
-        assert_eq!(
-            strip_top_level_blocks("@variant a {x} .a { @variant b {y} }", "@variant"),
-            " .a { @variant b {y} }"
-        );
         assert_eq!(matching_brace("{ '}' {x} }", 0), Some(10));
         assert_eq!(matching_brace("{x", 0), None);
     }

@@ -8,6 +8,7 @@ import { finalizeReactModuleWithMap, type FinalizedModuleEdit } from "@stillwind
 import { format } from "prettier";
 
 import { TypeScriptFactsService, type AssetRecord } from "../packages/vite/src/type-facts.ts";
+import { resolveFixtureCss } from "./lib/stillwind-fixture-css.ts";
 
 type Manifest = {
   schemaVersion: 1;
@@ -92,7 +93,7 @@ function compileProject(root: string, manifest: Manifest) {
   service.collect(sources, assets);
   const facts = service.collect(sources, assets);
   service.close();
-  const theme = normalize(readFileSync(path.join(root, manifest.theme), "utf8"));
+  const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
   const output = JSON.parse(
     compileReactProject(
       JSON.stringify(

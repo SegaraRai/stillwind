@@ -11,7 +11,7 @@ export function SaveButton() {
   return <button {...style("inline-flex items-center rounded-md bg-accent px-4 text-center")}>Save</button>;
 }"#,
     ).unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: oklch(.6 .2 250); --spacing-4: 1rem; --radius-md: .375rem; }",
@@ -42,7 +42,7 @@ fn reports_an_unknown_token_at_the_utility_not_the_whole_call() {
 const props = style("bg-accnet");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; }",
@@ -74,7 +74,8 @@ fn preserves_unparseable_tailwind_candidates_as_lint_findings() {
 const props = style("bg-[color:red");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.lint_findings[0].rule, "invalid-utility");
@@ -97,7 +98,7 @@ const third = style("p-accnet");
 const fourth = style("m-accnet");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
     assert_eq!(result.lint_findings.len(), 1);
@@ -119,7 +120,7 @@ declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; }",
@@ -144,7 +145,7 @@ declare const active: boolean;
 const props = style(active ? "bg-accent" : "bg-muted");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; --color-muted: gray; }",
@@ -171,7 +172,7 @@ declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading });"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; }",
@@ -202,7 +203,7 @@ fn keeps_external_classes_in_an_explicit_clsx_class_entry() {
 declare const loading: boolean;
 const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "&:hover": "bg-muted" });"#,
     ).unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "src/styles/stillwind.css",
         "@theme { --color-accent: red; --color-muted: gray; }",
@@ -241,7 +242,8 @@ declare const loading: boolean;
 const props = style({ "legacy-loading": loading });"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

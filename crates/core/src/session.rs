@@ -360,7 +360,7 @@ mod tests {
 
     fn reload_snapshot(css: &str) -> DesignSystemSnapshot {
         DesignSystemSnapshot::from_source(
-            &SourceFile::new(FileId(2), "theme", css).unwrap(),
+            &crate::css_fixture::source(FileId(2), "theme", css).unwrap(),
             CompilerOptions::default(),
         )
         .unwrap()

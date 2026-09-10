@@ -10,7 +10,7 @@ const enter = style.animation({ from: "opacity-0 translate-y-2 scale-98", to: "o
 const exit = style.animation({ from: "opacity-100", to: "opacity-0 scale-98" });
 const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "&[data-state=closed]": exit("duration-120 ease-standard both") });"#,
     ).unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --radius-md: .375rem; --spacing-2: .5rem; --ease-standard: ease-out; }",
@@ -54,7 +54,7 @@ const item = style("rounded-md", card.for(product.id));
 const image = style(title);
 const detail = style(title);"#,
     ).unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --ease-standard: ease-out; }",
@@ -105,7 +105,7 @@ const card = style.viewTransition({ old: "opacity-0" });
 export const item = style("translate-x-1", card);"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-1: .25rem; }",
@@ -141,7 +141,7 @@ const image = style.viewTransition({ new: "opacity-100" });
 export const item = style(card, image);"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

@@ -70,9 +70,6 @@ pub(crate) fn resolve_builtin_css_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<UtilityResolution> {
-    if !theme.imports.builtins {
-        return None;
-    }
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(

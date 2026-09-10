@@ -2,9 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 
-use stillwind_css::{
-    CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueType, parse_tailwind_theme,
-};
+use stillwind_css::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace, ValueType};
 use stillwind_grammar::{Utility, VariantKind, parse_candidate};
 use stillwind_source::{FileId, SourceFile};
 

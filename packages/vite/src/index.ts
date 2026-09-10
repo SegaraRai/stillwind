@@ -4,12 +4,7 @@ import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, relative, resolve } from "node:path";
 
-import {
-  compileReact,
-  NativeDesignSystemLoader,
-  NativeProjectSession,
-  summarizeReact,
-} from "@stillwind/native";
+import { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } from "@stillwind/native";
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
 
@@ -113,21 +108,6 @@ function compilerOptions(options: StillwindOptions): string {
     classIdentity: options.classIdentity ?? "module",
     classNamespace: options.classNamespace ?? "",
   });
-}
-
-function compile(
-  source: string,
-  path: string,
-  theme: string,
-  options: StillwindOptions,
-): CompilerOutput {
-  return JSON.parse(compileReact(source, path, theme, compilerOptions(options))) as CompilerOutput;
-}
-
-function compilePlay(source: string, theme: string, options: StillwindOptions): CompilerOutput {
-  // Play accepts the pleasant `export App;` shorthand in addition to regular
-  // TypeScript exports. This replacement preserves byte length for source spans.
-  return compile(source.replace(/\bexport App;/g, "export{App}"), "Play.tsx", theme, options);
 }
 
 function compilerModulePath(root: string, id: string): string {
@@ -307,14 +287,18 @@ export function stillwind(options: StillwindOptions): Plugin {
 
   const loadDesignSystem = async (
     resolveImport: (specifier: string, importer: string) => Promise<string>,
+    rootContent?: string,
+    dependencies = cssFiles,
   ) => {
     const loader = new NativeDesignSystemLoader(compilerOptions(options));
     const root = realpathSync(resolve(projectRoot, cssEntrypoint(options)));
-    cssFiles.add(root);
+    dependencies.add(root);
     type LoadStep =
       | { kind: "needFile"; requests: { id: number; importer: string; specifier: string }[] }
       | { kind: "complete" };
-    const initial = JSON.parse(loader.provide(0, root, await readFile(root, "utf8"))) as LoadStep;
+    const initial = JSON.parse(
+      loader.provide(0, root, rootContent ?? (await readFile(root, "utf8"))),
+    ) as LoadStep;
     await new Promise<void>((resolveLoad, rejectLoad) => {
       const started = new Set<number>();
       let stopped = false;
@@ -335,7 +319,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           const read = async () => {
             const name = await realpath(await resolveImport(request.specifier, request.importer));
             if (stopped) return;
-            cssFiles.add(name);
+            dependencies.add(name);
             const content = await readFile(name, "utf8");
             if (stopped) return;
             // JS callbacks serialize provide/step processing; I/O remains concurrent.
@@ -519,7 +503,27 @@ export function stillwind(options: StillwindOptions): Plugin {
           return sendJson(response, { error: "POST is required" }, 405);
         void readJson(request)
           .then(async ({ source, theme }) => {
-            const output = compilePlay(source, theme, options);
+            const playLoader = await loadDesignSystem(
+              async (specifier, importer) => {
+                const result = await server.pluginContainer.resolveId(specifier, importer);
+                if (!result || result.external)
+                  throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+                return result.id;
+              },
+              theme,
+              new Set(),
+            );
+            const playSession = new NativeProjectSession(playLoader, false);
+            // Preserve byte length for the Play shorthand's source positions.
+            const playProject = JSON.parse(
+              playSession.compile(
+                JSON.stringify([
+                  { path: "Play.tsx", source: source.replace(/\bexport App;/g, "export{App}") },
+                ]),
+              ),
+            ) as ProjectCompilerOutput;
+            const output = playProject.modules[0]!;
+            output.css = playSession.css();
             let previewUrl: string | null = null;
             if (output.diagnostics.length === 0 && output.code) {
               try {

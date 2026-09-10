@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ThemeTokenMode;
-use crate::builtins::tailwind_v4_preflight;
 use crate::custom_properties::references::custom_property_references;
 use crate::custom_properties::registration::CustomPropertyDefinition;
 use crate::registry::utilities::CustomUtility;
@@ -9,13 +8,12 @@ use crate::registry::variants::CustomVariant;
 
 use super::config::StillwindConfig;
 use super::declarations::{ThemeToken, ThemeTokenKind};
-use super::imports::FrameworkImports;
 use super::namespace::ThemeNamespace;
 use super::references::resolve_theme_references;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThemeIndex {
-    pub output_template: Option<crate::CssOutputTemplate>,
+    pub output_template: crate::CssOutputTemplate,
     pub registry: std::sync::Arc<crate::BuiltinDefinitions>,
     pub tokens: Vec<ThemeToken>,
     pub custom_css: String,
@@ -28,12 +26,6 @@ pub struct ThemeIndex {
     pub declaration_formats: BTreeMap<String, String>,
     pub relationship_patterns: BTreeSet<String>,
     pub authored_properties: BTreeSet<String>,
-    /// Framework layers requested by the authored Tailwind-compatible imports.
-    ///
-    /// A stylesheet without a framework import retains the historical full
-    /// Stillwind baseline. Once an official Tailwind import is present, its
-    /// selected entry points are authoritative.
-    pub imports: FrameworkImports,
     pub config: StillwindConfig,
 }
 
@@ -153,7 +145,7 @@ impl ThemeIndex {
         let tokens = self.active_tokens();
         let mut required = custom_property_references(css);
         if include_preflight {
-            required.extend(custom_property_references(&tailwind_v4_preflight()));
+            required.extend(custom_property_references(&self.custom_css));
         }
         for token in &tokens {
             if matches!(token.mode, ThemeTokenMode::Static)

@@ -7,7 +7,7 @@ pub(super) fn canonical_builtin_body(value: &str) -> String {
     stillwind_css::canonical_builtin_body(
         value,
         FORMATS.get_or_init(|| {
-            stillwind_css::parse_function_formats(stillwind_css::BUILTIN_REGISTRY_CSS)
+            stillwind_css::parse_function_formats(crate::test_defaults::BUILTIN_REGISTRY_CSS)
         }),
     )
 }
@@ -111,7 +111,7 @@ pub(super) fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) ->
 }
 
 pub(super) fn theme() -> ThemeIndex {
-    parse_tailwind_theme(&SourceFile::new(
+    parse_fixture_theme(&SourceFile::new(
             FileId(1),
             "theme.css",
             "@stillwind-marker group; @stillwind-marker peer; @theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
@@ -343,4 +343,12 @@ pub(super) fn resolve_registry_variant_branches(
                 .filter(|(index, (_, custom))| Some(*index) != excluded && custom.wildcard)
                 .find_map(|(_, (_, custom))| resolve(custom))
         })
+}
+
+pub(super) fn parse_fixture_theme(
+    source: &SourceFile,
+) -> Result<ThemeIndex, stillwind_css::ThemeError> {
+    stillwind_css::parse_theme(
+        &crate::css_fixture::source(source.id(), source.path(), source.text()).unwrap(),
+    )
 }

@@ -15,7 +15,7 @@ fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
 @utility alpha-* { opacity: --modifier(); }",
     )
     .unwrap();
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
 
     assert_eq!(
         resolve_utility("tone-brand", &theme).unwrap().declaration,
@@ -61,7 +61,7 @@ fn tries_overloaded_css_utility_definitions_in_reverse_source_order() {
 @utility token-* { color: --value([color]); }",
     )
     .unwrap();
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
 
     assert_eq!(
         resolve_utility("token-[color:rebeccapurple]", &theme)
@@ -86,7 +86,7 @@ fn preserves_css_fallbacks_and_multiple_selector_targets() {
 @utility paint-* { &::before { content: "fallback"; } }"#,
     )
     .unwrap();
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
     let resolved = resolve_utility("paint-card", &theme).unwrap();
 
     assert!(

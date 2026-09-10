@@ -44,7 +44,7 @@ fn derives_arbitrary_property_order_from_builtin_css() {
 fn resolves_animation_options_from_css_registry_metadata() {
     let mut theme = theme();
     theme.tokens.extend(
-        parse_tailwind_theme(
+        parse_fixture_theme(
             &SourceFile::new(
                 FileId(2),
                 "motion-theme.css",
@@ -79,7 +79,7 @@ fn resolves_animation_options_from_css_registry_metadata() {
 
 #[test]
 fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
-    let theme = parse_tailwind_theme(
+    let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(2),
             "typography-theme.css",

@@ -6,7 +6,7 @@ use super::{Compiler, CompilerOptions};
 
 #[test]
 fn resolves_default_theme_aliases_without_font_name_special_cases() {
-    let source = SourceFile::new(
+    let source = crate::css_fixture::source(
         FileId(1),
         "stillwind.css",
         r#"
@@ -23,7 +23,7 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
     );
     assert!(css.contains("--font-sans--font-feature-settings:\"cv02\";"));
 
-    let without_feature = SourceFile::new(
+    let without_feature = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         r#"
@@ -40,7 +40,7 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
 #[test]
 fn exposes_the_first_frontends_through_one_compiler_api() {
     let js = SourceFile::new(FileId(1), "App.tsx", "export const App = () => <main />;").unwrap();
-    let css = SourceFile::new(
+    let css = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
@@ -55,7 +55,7 @@ fn exposes_the_first_frontends_through_one_compiler_api() {
 
 #[test]
 fn emits_only_used_compiler_owned_property_registrations() {
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         r#"
@@ -82,7 +82,7 @@ fn emits_only_used_compiler_owned_property_registrations() {
 
 #[test]
 fn preserves_authored_property_rules_over_compiler_defaults() {
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         r#"
@@ -104,7 +104,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
 
 #[test]
 fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
     let options = CompilerOptions {
         tailwind_prefix: "--internal-".to_owned(),
         ..CompilerOptions::default()
@@ -131,7 +131,7 @@ fn makes_margin_utility_order_independent() {
         r#"import { style } from "stillwind/react"; export const props = style("ml-2 mx-3 m-4");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
@@ -153,7 +153,7 @@ fn orders_whole_builtin_utilities_instead_of_individual_properties() {
         r#"import { style } from "stillwind/react"; export const props = style("h-2 w-3 size-4");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(
+    let theme = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",

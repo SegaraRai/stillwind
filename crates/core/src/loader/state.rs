@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use stillwind_css::{ThemeError, parse_tailwind_theme};
+use stillwind_css::{ThemeError, parse_theme};
 use stillwind_source::{FileId, SourceError, SourceFile};
 
 use crate::{CompilerOptions, CompilerOptionsError, DesignSystemSnapshot};
@@ -171,7 +171,7 @@ impl DesignSystemLoader {
             .clone();
         let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str())?;
         let mut theme =
-            parse_tailwind_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
+            parse_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
                 name: name.clone(),
                 cause: error,
             })?;
@@ -222,7 +222,7 @@ impl DesignSystemLoader {
         let index = self.nodes.len();
         let id = u32::try_from(index + 1).map_err(|_| DesignSystemLoadError::SourceIdExhausted)?;
         let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content)?);
-        parse_tailwind_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
+        parse_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
             name: name.clone(),
             cause: error,
         })?;

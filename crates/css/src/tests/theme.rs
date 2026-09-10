@@ -97,7 +97,7 @@ fn applies_tailwind_defaults_and_namespace_resets() {
     )
     .unwrap();
 
-    let theme = parse_tailwind_theme(&source).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
 
     assert_eq!(theme.value("color", "brand"), Some("oklch(.6 .2 250)"));
     assert!(theme.token("color", "red-500").is_none());
@@ -111,7 +111,7 @@ fn applies_tailwind_defaults_and_namespace_resets() {
 
 #[test]
 fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
-    let individual = parse_tailwind_theme(
+    let individual = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
             "stillwind.css",
@@ -120,16 +120,16 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         .unwrap(),
     )
     .unwrap();
-    assert!(!individual.imports.builtins);
+    assert!(individual.registry.utilities.is_empty());
     assert!(individual.scale(ThemeNamespace::Spacing).is_none());
 
-    let with_builtins = parse_tailwind_theme(&SourceFile::new(
+    let with_builtins = parse_fixture_theme(&SourceFile::new(
             FileId(7),
             "stillwind.css",
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap())
         .unwrap();
-    assert!(with_builtins.imports.builtins);
+    assert!(!with_builtins.registry.utilities.is_empty());
     assert_eq!(
         with_builtins
             .scale(ThemeNamespace::Spacing)
@@ -138,16 +138,16 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     );
     assert!(!with_builtins.custom_css().contains("@import"));
 
-    let aggregate = parse_tailwind_theme(
+    let aggregate = parse_fixture_theme(
         &SourceFile::new(FileId(7), "stillwind.css", "@import \"stillwind\";").unwrap(),
     )
     .unwrap();
-    assert!(aggregate.imports.builtins);
-    assert!(aggregate.imports.theme_layer.is_some());
-    assert!(aggregate.imports.base_layer.is_some());
-    assert!(aggregate.imports.utilities_layer.is_some());
+    assert!(!aggregate.registry.utilities.is_empty());
+    assert!(!aggregate.tokens.is_empty());
+    assert!(aggregate.custom_css.contains("box-sizing"));
+    assert!(!aggregate.output_template.nodes.is_empty());
 
-    let external_import = parse_tailwind_theme(
+    let external_import = parse_theme(
         &SourceFile::new(
             FileId(7),
             "stillwind.css",
@@ -165,7 +165,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
 
 #[test]
 fn consumes_framework_imports_but_preserves_other_css_imports() {
-    let theme = parse_tailwind_theme(
+    let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
             "stillwind.css",
@@ -182,7 +182,7 @@ fn consumes_framework_imports_but_preserves_other_css_imports() {
 
 #[test]
 fn retains_default_tokens_after_nested_theme_keyframes() {
-    let theme = parse_tailwind_theme(
+    let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
             "stillwind.css",

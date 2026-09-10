@@ -39,7 +39,9 @@ export function App() {
   );
 }`;
 
-const initialTheme = `@theme {
+const initialTheme = `@import "stillwind";
+
+@theme {
   --color-accent: oklch(.6 .2 250);
   --color-white: white;
   --color-surface: oklch(.97 .01 250);

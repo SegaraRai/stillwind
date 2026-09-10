@@ -1,3 +1,5 @@
+@layer theme, base, components, utilities;
+
 @import "./css/theme.css" layer(theme);
 @import "./css/preflight.css" layer(base);
 @import "./css/utilities.css" layer(utilities);

@@ -9,7 +9,7 @@ use stillwind_source::{FileId, SourceFile};
 #[test]
 fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     let snapshot = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "theme", "@utility brand { color: red; }").unwrap(),
+        &crate::css_fixture::source(FileId(1), "theme", "@utility brand { color: red; }").unwrap(),
         CompilerOptions::default(),
     )
     .unwrap();
@@ -49,3 +49,6 @@ fn queries_share_resolved_custom_definitions_and_pin_revisions() {
             .any(|item| item.label == "brand")
     );
 }
+
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

@@ -103,6 +103,26 @@ task that assembles every CI-built artifact and pins optional package versions.
 
 ## CSS-first theme compatibility
 
+Import the CSS definitions explicitly in the entry configured by `css`:
+
+```css
+@import "stillwind";
+@theme {
+  --color-accent: oklch(0.6 0.2 250);
+}
+```
+
+The `stillwind` package contains the canonical CSS files; Rust does not embed
+them. Its `theme.css`, `preflight.css`, `utilities.css`, and `builtins.css`
+exports can also be selected individually. A stylesheet without those imports
+receives no default utilities, theme, or reset. The utilities export contains
+`@stillwind-slot utilities;`; a custom entry can place that marker directly.
+Generated rules retain the marker's layer, supports, and media wrappers.
+Compile-time definitions must be unconditional; conditions belong around the
+output slot or ordinary CSS. Unsupported import modifiers produce diagnostics.
+Low-level APIs accept fully supplied CSS; hosts resolve every import through
+`NativeDesignSystemLoader` or `DesignSystemLoader`, including package exports.
+
 Stillwind accepts a Tailwind v4-style `@theme` block. The compiler indexes
 `--color-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--text-*`,
 `--duration-*`, `--ease-*`, `--z-index-*`, and `--breakpoint-*` custom

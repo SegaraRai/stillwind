@@ -5,7 +5,7 @@ use stillwind_tailwind::{
 
 pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     let mut utilities = Vec::new();
-    if theme.imports.builtins {
+    {
         utilities.extend(builtin_utility_names(theme));
         for token in &theme.tokens {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
@@ -27,7 +27,7 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     let mut variants = Vec::new();
-    if theme.imports.builtins {
+    {
         variants.extend(builtin_variant_names(theme));
         variants.extend(theme.tokens.iter().filter_map(|token| {
             if let ThemeTokenKind::Token {
@@ -57,11 +57,11 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
 mod tests {
     use super::render_react_types;
     use crate::Compiler;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::FileId;
 
     #[test]
     fn generates_types_from_the_css_theme_vocabulary() {
-        let css = SourceFile::new(
+        let css = crate::css_fixture::source(
             FileId(2),
             "stillwind.css",
             "@theme { --color-accent: red; --spacing-4: 1rem; }",

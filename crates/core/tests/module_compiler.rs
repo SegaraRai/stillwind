@@ -8,7 +8,8 @@ use stillwind_source::{FileId, SourceFile, Span};
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
-    let theme = SourceFile::new(FileId(2), "theme", "@theme { --color-brand: red; }").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "theme", "@theme { --color-brand: red; }").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(&theme, CompilerOptions::default()).unwrap();
     for candidates in [
         "flex p-4 hover:bg-brand",
@@ -53,7 +54,7 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
     let compile = |policy: &str| {
         let snapshot = DesignSystemSnapshot::from_source(
-            &SourceFile::new(
+            &crate::css_fixture::source(
                 FileId(2),
                 "theme",
                 format!("@stillwind {{ unknown-utility: {policy}; }}"),
@@ -92,7 +93,7 @@ fn invalid_transform_byte_boundaries_return_errors() {
 fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     use stillwind_ir::{HandleDefinition, StyleInput};
     use stillwind_source::Spanned;
-    let theme = SourceFile::new(FileId(2), "theme", "").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(&theme, CompilerOptions::default()).unwrap();
     let source = Arc::new(
         SourceFile::new(
@@ -143,3 +144,6 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         assert!(compiled.code_transforms.is_empty());
     }
 }
+
+#[path = "../../test-support/css.rs"]
+mod css_fixture;

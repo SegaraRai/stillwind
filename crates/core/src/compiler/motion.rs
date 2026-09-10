@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn resolves_themed_duration_as_an_animation_option_only() {
-        let source = SourceFile::new(
+        let source = crate::css_fixture::source(
             FileId(1),
             "stillwind.css",
             "@theme { --duration-normal: 180ms; }",
@@ -198,7 +198,7 @@ mod tests {
                 format!("import {{ style }} from 'stillwind/react'; const motion = {definition};"),
             )
             .unwrap();
-            let theme = SourceFile::new(FileId(2), "theme", "").unwrap();
+            let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
             let result = Compiler::compile_react(&source, &theme);
             let errors = result
                 .diagnostics

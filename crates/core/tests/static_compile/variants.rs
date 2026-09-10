@@ -11,7 +11,8 @@ export const peer = style("peer/field");
 export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block @sm:grid");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -40,7 +41,8 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
         "src/Relationships.tsx",
         "import { style } from \"stillwind/react\"; const child = style(\"group-hover:flex @sm:grid\");",
     ).unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
     let options = stillwind_core::CompilerOptions {
         forbid_tailwind_relationships: true,
         ..stillwind_core::CompilerOptions::default()
@@ -69,7 +71,7 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
     .unwrap();
     let result = Compiler::compile_react(
         &component,
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(2),
             "stillwind.css",
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
@@ -98,7 +100,7 @@ fn breakpoint_variants_inline_queries_without_emitting_lookup_tokens() {
     .unwrap();
     let result = Compiler::compile_react(
         &component,
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(2),
             "stillwind.css",
             "@import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\"; @theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
@@ -126,7 +128,7 @@ fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
     .unwrap();
     let result = Compiler::compile_react(
         &component,
-        &SourceFile::new(
+        &crate::css_fixture::source(
             FileId(2),
             "stillwind.css",
             r#"@import "stillwind/utilities.css" layer(utilities);
@@ -161,7 +163,7 @@ fn emits_nested_supports_from_css_utility_definitions() {
 const props = style("bg-linear-to-r");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -193,7 +195,7 @@ fn emits_nested_media_from_css_utility_definitions() {
 const props = style("outline-hidden");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -217,7 +219,7 @@ fn emits_selector_bearing_css_utilities_on_their_target_children() {
 const props = style("divide-x-[2px]");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 
@@ -241,7 +243,7 @@ fn emits_starting_style_variants_as_a_css_wrapper() {
 const props = style("starting:opacity-0");"#,
     )
     .unwrap();
-    let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_react(&component, &theme);
 

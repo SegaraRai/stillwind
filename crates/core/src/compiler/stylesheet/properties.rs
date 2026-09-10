@@ -13,11 +13,7 @@ pub(in crate::compiler) fn render_used_properties(
     options: &CompilerOptions,
 ) -> Result<String, PropertyUsageError> {
     let usage = custom_property_usage(css)?;
-    let builtin_properties = if theme.imports.builtins {
-        builtin_property_definitions(theme)
-    } else {
-        &[]
-    };
+    let builtin_properties = builtin_property_definitions(theme);
     let definitions = builtin_properties.iter().chain(&theme.properties);
     let mut required = definitions
         .clone()

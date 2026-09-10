@@ -17,9 +17,11 @@
 
 本体のVite build試験は遅延producer・dynamic import・未到達source・global CSS重複を検査する。Chromeでは本物のmacroによる表示、CSS編集でのclass維持、macro削除・復元を確認。再実行は`packages/vite`で`vp run test`、その後`experiments/module-graph`で`vp run verify:stillwind`。後者の結果は`results/stillwind.json`。ページreloadは許容しており、状態を保持するHMRの保証ではない。
 
-次の段階に残るもの: `packages/react`からcore packageへの移動、RustのCSS埋め込みとStillwind import特殊扱いの完全撤去、source由来URL/source mapの移送、意味probeに応じた依存読取への縮小、environment別session、Next/Rspackの本体adapter。これらは今回のVite輸送変更で完了したとは扱わない。
+その後のCSSエントリ移行も実装済み。`packages/core`がpackage exportsと標準CSSを所有し、RustからCSS埋め込みとimport名の特殊扱いを撤去した。通常のホスト解決で読み込んだ定義だけをスナップショット化する。入力にimportがなければ標準utility/theme/resetを補わない。実ファイルを読み込むテストで、Rust再ビルドなしの定義変更を確認した。CLIはOxc Resolver、Vite/PlaygroundはVite resolverでCSS importを解決する。
 
-CSSエントリ移行時の確定方針: `@import "stillwind"`はpackage exportsで公開する（現在のexportsにも存在）。`tailwindcss`のalias互換は復活させない。importの修飾子と出力位置を保持し、未対応の組合せは診断する。utilitiesの配置マーカーが必要なら`@stillwind-slot utilities;`を使用する。今回のmodule carrierにはこのマーカーを追加していない。
+次の段階に残るもの: source由来URL/source mapの移送、意味probeに応じた依存読取への縮小、environment別session、Next/Rspackの本体adapter。これらはCSSエントリ移行で完了したとは扱わない。
+
+CSSエントリでは`@import "stillwind"`をpackage exportsで公開する。`tailwindcss`のalias互換は復活させない。`utilities.css`には`@stillwind-slot utilities;`を配置し、出力テンプレートがlayer・supports・mediaと前後の通常CSSを保持する。`@theme`や定義レジストリ自体を条件付きgroupに置くことは未対応として診断する。定義を無条件に読み込み、slot側に条件を付ける構成は扱える。source URLの移送と匿名layerのmodule間同一性は次の受け入れ項目として残る。
 
 ## 実測による結論
 
