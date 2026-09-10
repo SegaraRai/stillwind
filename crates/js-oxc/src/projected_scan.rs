@@ -4,6 +4,7 @@ use stillwind_ir::SourceInput;
 use stillwind_semantic::{Candidates, ExportedValue, IdentityId, SymbolicValue};
 use stillwind_source::{ProjectionError, SourceFile, SourceProvenance, Span};
 
+use crate::normalization::normalize_with_language;
 use crate::{NormalizedProjection, ParsedJavaScript, parse_with_language};
 
 pub(crate) fn parse_projected(
@@ -27,7 +28,7 @@ pub(crate) fn parse_projected(
         projection.original.path(),
         input.code.text(),
     )?;
-    let normalized = super::normalization::normalize_with_language(
+    let normalized = normalize_with_language(
         &generated,
         &projection.original,
         &projection.map,

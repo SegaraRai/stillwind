@@ -1,8 +1,7 @@
+use stillwind_compiler::{CompilerOptions, StylesheetRenderer};
 use stillwind_design_system::{
     CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
 };
-
-use stillwind_compiler::{CompilerOptions, StylesheetRenderer};
 
 #[test]
 fn imported_authored_css_and_theme_tokens_keep_their_physical_sources() {

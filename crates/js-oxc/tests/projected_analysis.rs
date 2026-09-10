@@ -4,7 +4,7 @@ use stillwind_ir::{
     AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, SourceAnalyzer,
     SourceInput,
 };
-use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_source::{FileId, ProjectionMap, SourceFile, VolarMapping};
 
 fn projected() -> SourceInput {
@@ -71,15 +71,9 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
                 generated_lengths: None,
             }],
         };
-        let normalized = stillwind_js_oxc::normalize_projection(
-            &generated,
-            &original,
-            &map,
-            AdapterKind::Vue,
-            FileId(3),
-        )
-        .unwrap();
-        let parsed = stillwind_js_oxc::parse(&normalized.source);
+        let normalized =
+            normalize_projection(&generated, &original, &map, AdapterKind::Vue, FileId(3)).unwrap();
+        let parsed = parse(&normalized.source);
         assert!(parsed.diagnostics.is_empty());
         let (ir, _) = normalized.original_ir(&parsed.module).unwrap();
         let binding = &ir.imports.macros[0].specifiers[0];

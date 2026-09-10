@@ -10,8 +10,9 @@ use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
 use stillwind_source::{FileId, Fingerprint, SourceFile};
 
-use super::output::{BindingDiagnostic, BindingLintFinding, BindingOutput};
-use super::session::{ProjectBindingOutput, ProjectModuleOutput, ProjectSource};
+use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput};
+use crate::session::{ProjectBindingOutput, ProjectModuleOutput};
+use crate::source_input::ProjectSource;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BindingApiError {

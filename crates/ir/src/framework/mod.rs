@@ -1,6 +1,7 @@
 //! Framework policy, independent of parsers and host converters.
 
 use serde::{Deserialize, Serialize};
+
 use stillwind_source::Span;
 
 mod astro;
@@ -10,6 +11,15 @@ mod solid;
 mod svelte;
 mod vue;
 
+pub const FRAMEWORKS: &[&FrameworkSpec] = &[
+    &react::SPEC,
+    &preact::SPEC,
+    &solid::SPEC,
+    &vue::SPEC,
+    &svelte::SPEC,
+    &astro::SPEC,
+];
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AdapterKind {
     React,
@@ -18,6 +28,19 @@ pub enum AdapterKind {
     Vue,
     Svelte,
     Astro,
+}
+
+impl AdapterKind {
+    pub const fn spec(self) -> &'static FrameworkSpec {
+        match self {
+            Self::React => &react::SPEC,
+            Self::Preact => &preact::SPEC,
+            Self::Solid => &solid::SPEC,
+            Self::Vue => &vue::SPEC,
+            Self::Svelte => &svelte::SPEC,
+            Self::Astro => &astro::SPEC,
+        }
+    }
 }
 
 pub struct FrameworkSpec {
@@ -65,28 +88,6 @@ pub enum ProjectionDecision {
 
 fn preserve(_: ProjectionExpression<'_>) -> ProjectionDecision {
     ProjectionDecision::Preserve
-}
-
-pub const FRAMEWORKS: &[&FrameworkSpec] = &[
-    &react::SPEC,
-    &preact::SPEC,
-    &solid::SPEC,
-    &vue::SPEC,
-    &svelte::SPEC,
-    &astro::SPEC,
-];
-
-impl AdapterKind {
-    pub const fn spec(self) -> &'static FrameworkSpec {
-        match self {
-            Self::React => &react::SPEC,
-            Self::Preact => &preact::SPEC,
-            Self::Solid => &solid::SPEC,
-            Self::Vue => &vue::SPEC,
-            Self::Svelte => &svelte::SPEC,
-            Self::Astro => &astro::SPEC,
-        }
-    }
 }
 
 pub fn from_macro_import(source: &str) -> Option<&'static FrameworkSpec> {

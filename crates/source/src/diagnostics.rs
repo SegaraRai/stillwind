@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::text::Span;
+use crate::text::Span;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Label {

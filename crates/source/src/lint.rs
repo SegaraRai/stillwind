@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
-use super::diagnostics::LintFinding;
-use super::text::SourceFile;
+use crate::diagnostics::LintFinding;
+use crate::text::SourceFile;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LintDirectiveKind {

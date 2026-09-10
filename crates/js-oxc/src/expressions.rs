@@ -8,7 +8,7 @@ use oxc::syntax::operator::LogicalOperator;
 use stillwind_ir::{AttributeEntry, StyleInput};
 use stillwind_source::CompileError;
 
-use super::state::MacroExtractor;
+use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
@@ -25,7 +25,7 @@ impl<'a> MacroExtractor<'a> {
         self.type_probes.borrow_mut().insert((span.start, span.end));
     }
 
-    pub(super) fn collect_style_expression(
+    pub(crate) fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
@@ -129,7 +129,7 @@ impl<'a> MacroExtractor<'a> {
     }
 
     #[allow(clippy::too_many_lines)] // Keeps the tightly coupled object-key diagnostics together.
-    pub(super) fn collect_object(
+    pub(crate) fn collect_object(
         &mut self,
         object: &ObjectExpression<'a>,
         inputs: &mut Vec<StyleInput>,

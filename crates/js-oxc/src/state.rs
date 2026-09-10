@@ -13,10 +13,10 @@ use stillwind_semantic::{
 };
 use stillwind_source::{CompileError, SourceFile, Spanned};
 
-use super::refs::{HandleUse, ScopeUse};
+use crate::refs::{HandleUse, ScopeUse};
 
 impl<'a> MacroExtractor<'a> {
-    pub(super) fn new(
+    pub(crate) fn new(
         source: &'a SourceFile,
         scoping: &'a Scoping,
         type_facts: &[TypeFact],
@@ -55,7 +55,7 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    pub(super) fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
+    pub(crate) fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
         IdentityId::new(
             kind,
             self.source.path(),
@@ -65,7 +65,7 @@ impl<'a> MacroExtractor<'a> {
         )
     }
 
-    pub(super) fn module_summary(&self) -> ModuleSummary {
+    pub(crate) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.source.path());
         summary.imports.clone_from(&self.imports);
         summary
@@ -118,7 +118,7 @@ impl<'a> MacroExtractor<'a> {
         summary
     }
 
-    pub(super) fn module_export_name(name: &ModuleExportName<'a>) -> String {
+    pub(crate) fn module_export_name(name: &ModuleExportName<'a>) -> String {
         match name {
             ModuleExportName::IdentifierName(name) => name.name.to_string(),
             ModuleExportName::IdentifierReference(name) => name.name.to_string(),
@@ -127,31 +127,31 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
-pub(super) struct MacroExtractor<'a> {
-    pub(super) adapter: Option<stillwind_ir::AdapterKind>,
-    pub(super) source: &'a SourceFile,
-    pub(super) scoping: &'a Scoping,
-    pub(super) style_symbols: HashSet<SymbolId>,
-    pub(super) handle_symbols: HashMap<SymbolId, HandleDefinition>,
-    pub(super) scope_symbols: HashMap<SymbolId, ScopeDefinition>,
-    pub(super) handle_uses: Vec<HandleUse>,
-    pub(super) scope_uses: Vec<ScopeUse>,
-    pub(super) handle_definitions: Vec<HandleDefinition>,
-    pub(super) scope_definitions: Vec<ScopeDefinition>,
-    pub(super) animation_symbols: HashMap<SymbolId, Spanned<String>>,
-    pub(super) animation_declarations: Vec<AnimationDefinition>,
-    pub(super) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
-    pub(super) view_transition_declarations: Vec<ViewTransitionDefinition>,
-    pub(super) local_values: HashMap<SymbolId, ExportedValue>,
-    pub(super) style_calls: Vec<StyleCall>,
-    pub(super) diagnostics: Vec<CompileError>,
-    pub(super) jsx_path: Vec<usize>,
-    pub(super) next_jsx_element: usize,
-    pub(super) imports: Vec<ImportBinding>,
-    pub(super) module_specifiers: Vec<ModuleSpecifier>,
-    pub(super) re_exports: Vec<ReExport>,
-    pub(super) export_symbols: Vec<(SymbolId, String)>,
-    pub(super) type_facts: HashMap<(u32, u32), ExportedValue>,
-    pub(super) type_probes: RefCell<BTreeSet<(u32, u32)>>,
-    pub(super) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
+pub(crate) struct MacroExtractor<'a> {
+    pub(crate) adapter: Option<stillwind_ir::AdapterKind>,
+    pub(crate) source: &'a SourceFile,
+    pub(crate) scoping: &'a Scoping,
+    pub(crate) style_symbols: HashSet<SymbolId>,
+    pub(crate) handle_symbols: HashMap<SymbolId, HandleDefinition>,
+    pub(crate) scope_symbols: HashMap<SymbolId, ScopeDefinition>,
+    pub(crate) handle_uses: Vec<HandleUse>,
+    pub(crate) scope_uses: Vec<ScopeUse>,
+    pub(crate) handle_definitions: Vec<HandleDefinition>,
+    pub(crate) scope_definitions: Vec<ScopeDefinition>,
+    pub(crate) animation_symbols: HashMap<SymbolId, Spanned<String>>,
+    pub(crate) animation_declarations: Vec<AnimationDefinition>,
+    pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
+    pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
+    pub(crate) style_calls: Vec<StyleCall>,
+    pub(crate) diagnostics: Vec<CompileError>,
+    pub(crate) jsx_path: Vec<usize>,
+    pub(crate) next_jsx_element: usize,
+    pub(crate) imports: Vec<ImportBinding>,
+    pub(crate) module_specifiers: Vec<ModuleSpecifier>,
+    pub(crate) re_exports: Vec<ReExport>,
+    pub(crate) export_symbols: Vec<(SymbolId, String)>,
+    pub(crate) type_facts: HashMap<(u32, u32), ExportedValue>,
+    pub(crate) type_probes: RefCell<BTreeSet<(u32, u32)>>,
+    pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }

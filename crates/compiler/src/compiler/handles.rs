@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
-use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId};
+use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Spanned};
 
 use super::symbols::{asset_identity, ref_symbol_name};
@@ -86,9 +86,7 @@ pub(super) fn named_identity(
     )
 }
 
-pub(super) fn summary_runtime_assets(
-    summary: &stillwind_semantic::ModuleSummary,
-) -> BTreeSet<IdentityId> {
+pub(super) fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<IdentityId> {
     let mut identities = BTreeSet::new();
     for value in summary.exports.values() {
         match value {

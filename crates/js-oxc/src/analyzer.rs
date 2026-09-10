@@ -1,11 +1,12 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use stillwind_ir::{ModuleAnalysis, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
-use stillwind_semantic::{ExportedValue, IntegrationDiagnostic, TypeFacts};
-use stillwind_source::{Fingerprint, collect_lint_directives};
+use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
+use stillwind_semantic::{ExportedValue, IntegrationDiagnostic, ModuleSummary, TypeFacts};
+use stillwind_source::{CompileError, Fingerprint, collect_lint_directives};
 
-use crate::parse_with_language;
+use crate::projected_scan::parse_projected;
+use crate::{ParsedJavaScript, parse_with_language};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct OxcSourceAnalyzer;
@@ -14,17 +15,17 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     fn scan_input(&self, input: SourceInput) -> ModuleScan {
         let source = Arc::clone(input.edit_source());
         let (mut parsed, provenance) = if input.projection.is_some() {
-            match super::projected_scan::parse_projected(&input) {
+            match parse_projected(&input) {
                 Ok(value) => value,
                 Err(error) => {
                     return ModuleScan {
                         module_id: source.path().into(),
                         source_revision: Fingerprint::of(source.text()),
-                        local_ir: stillwind_ir::ModuleIr::react(),
-                        summary: stillwind_semantic::ModuleSummary::new(source.path()),
+                        local_ir: ModuleIr::react(),
+                        summary: ModuleSummary::new(source.path()),
                         type_probes: Vec::new(),
                         lint_directives: collect_lint_directives(source.text()),
-                        diagnostics: vec![stillwind_source::CompileError::new(
+                        diagnostics: vec![CompileError::new(
                             "SHPRJ001",
                             error.to_string(),
                             source.full_span(),
@@ -38,12 +39,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             }
         } else {
             (
-                parse_with_language(
-                    &source,
-                    &[],
-                    &std::collections::BTreeMap::new(),
-                    input.language,
-                ),
+                parse_with_language(&source, &[], &BTreeMap::new(), input.language),
                 Vec::new(),
             )
         };
@@ -168,13 +164,13 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     }
 }
 
-fn select_framework(parsed: &mut crate::ParsedJavaScript, input: &SourceInput) {
+fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
     if let Some(framework) = input.framework {
         if parsed
             .framework
             .is_some_and(|selected| selected != framework)
         {
-            parsed.diagnostics.push(stillwind_source::CompileError::new(
+            parsed.diagnostics.push(CompileError::new(
                 "SHJS008",
                 "explicit framework conflicts with the imported style macro",
                 input.edit_source().full_span(),

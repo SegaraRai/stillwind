@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use stillwind_compiler::{CompletionInput, DesignSystemQuery, ModuleCompiler};
-use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_compiler::{CompilerOptions, CompletionInput, DesignSystemQuery, ModuleCompiler};
+use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
@@ -10,13 +10,10 @@ use stillwind_source::{FileId, SourceFile};
 fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     let snapshot = DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(FileId(1), "theme", "@utility brand { color: red; }").unwrap(),
-        stillwind_design_system::DesignSystemOptions::default(),
+        DesignSystemOptions::default(),
     )
     .unwrap();
-    let query = DesignSystemQuery::new(
-        snapshot.clone(),
-        stillwind_compiler::CompilerOptions::default(),
-    );
+    let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
     let resolved = query.resolve_candidate("hover:brand");
     assert!(resolved.diagnostics.is_empty());
     assert_eq!(resolved.revision, snapshot.revision());
@@ -31,11 +28,8 @@ fn queries_share_resolved_custom_definitions_and_pin_revisions() {
         SourceAnalyzer::scan(&OxcSourceAnalyzer, Arc::new(source)),
         None,
     );
-    let compiled = ModuleCompiler::new(
-        snapshot.clone(),
-        stillwind_compiler::CompilerOptions::default(),
-    )
-    .compile(&analysis);
+    let compiled =
+        ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&analysis);
     assert_eq!(resolved.generated_rules, compiled.css.rules);
     assert!(
         query

@@ -1,4 +1,5 @@
 //! Non-compound steps shared by authored and generated CSS renderers.
+
 use stillwind_design_system::{VariantApplication, VariantDeclaration};
 
 #[derive(Clone, Copy)]

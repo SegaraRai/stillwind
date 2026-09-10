@@ -4,7 +4,7 @@ use stillwind_ir::AssetReference;
 use stillwind_semantic::IdentityId;
 use stillwind_source::{Span, Spanned};
 
-use super::state::MacroExtractor;
+use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     pub(crate) fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {

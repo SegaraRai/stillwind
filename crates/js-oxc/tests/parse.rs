@@ -1,9 +1,10 @@
 //! Integration of import binding, declarations, reference resolution and module summaries.
 
+use stillwind_ir::framework::FRAMEWORKS;
 use stillwind_ir::{AdapterKind, StyleInput};
 use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceFile, Span};
 
 #[test]
 fn ir_span_mapping_relocates_nested_expressions_transactionally() {
@@ -16,22 +17,12 @@ fn ir_span_mapping_relocates_nested_expressions_transactionally() {
         .try_map_spans(|span| {
             visited += 1;
             source.slice(span).unwrap();
-            Ok::<_, ()>(stillwind_source::Span::new(
-                FileId(2),
-                span.start.0 + 17,
-                span.end.0 + 17,
-            ))
+            Ok::<_, ()>(Span::new(FileId(2), span.start.0 + 17, span.end.0 + 17))
         })
         .unwrap();
     assert!(visited > 10);
     let restored = relocated
-        .try_map_spans(|span| {
-            Ok::<_, ()>(stillwind_source::Span::new(
-                FileId(1),
-                span.start.0 - 17,
-                span.end.0 - 17,
-            ))
-        })
+        .try_map_spans(|span| Ok::<_, ()>(Span::new(FileId(1), span.start.0 - 17, span.end.0 - 17)))
         .unwrap();
     assert_eq!(restored, before);
     let mut visited = 0;
@@ -52,7 +43,7 @@ fn ir_span_mapping_relocates_nested_expressions_transactionally() {
 
 #[test]
 fn framework_registry_preserves_import_aliases_and_shadowing() {
-    for spec in stillwind_ir::framework::FRAMEWORKS {
+    for spec in FRAMEWORKS {
         let source = SourceFile::new(
             FileId(1),
             "entry.tsx",

@@ -6,13 +6,14 @@ use oxc::ast::ast::{
 use oxc::ast_visit::{Visit, walk};
 
 use stillwind_ir::StyleCall;
+use stillwind_ir::framework::from_macro_import;
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, RefAlternative,
     SymbolicValue,
 };
 use stillwind_source::{CompileError, Spanned};
 
-use super::state::MacroExtractor;
+use crate::state::MacroExtractor;
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
     fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
@@ -45,9 +46,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     && let Some(symbol_id) = specifier.local.symbol_id.get()
                 {
                     self.style_symbols.insert(symbol_id);
-                    let Some(spec) = stillwind_ir::framework::from_macro_import(
-                        declaration.source.value.as_str(),
-                    ) else {
+                    let Some(spec) = from_macro_import(declaration.source.value.as_str()) else {
                         continue;
                     };
                     let adapter = spec.id;

@@ -1,4 +1,4 @@
-use super::{AdapterKind, FrameworkSpec};
+use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression};
 
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
@@ -9,31 +9,31 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     normalize,
 };
 
-fn normalize(expression: super::ProjectionExpression<'_>) -> super::ProjectionDecision {
+fn normalize(expression: ProjectionExpression<'_>) -> ProjectionDecision {
     match expression {
-        super::ProjectionExpression::SyntheticTypeAlias {
+        ProjectionExpression::SyntheticTypeAlias {
             name: "__VLS_SetupExposed",
             definition,
         } if definition.starts_with("import('vue').ShallowUnwrapRef<{") => {
-            super::ProjectionDecision::DiscardScaffolding
+            ProjectionDecision::DiscardScaffolding
         }
-        super::ProjectionExpression::SyntheticReferenceList {
+        ProjectionExpression::SyntheticReferenceList {
             preceding_line: "// @ts-ignore",
             next_binding: "__VLS_export",
-        } => super::ProjectionDecision::DiscardScaffolding,
-        super::ProjectionExpression::Member {
+        } => ProjectionDecision::DiscardScaffolding,
+        ProjectionExpression::Member {
             receiver: "__VLS_ctx",
             property,
             optional: false,
             ..
-        } => super::ProjectionDecision::Retain(property),
-        super::ProjectionExpression::ExpandedShorthand {
+        } => ProjectionDecision::Retain(property),
+        ProjectionExpression::ExpandedShorthand {
             receiver: "__VLS_ctx",
             key,
             key_name,
             value_name,
             ..
-        } if key_name == value_name => super::ProjectionDecision::Retain(key),
-        _ => super::ProjectionDecision::Preserve,
+        } if key_name == value_name => ProjectionDecision::Retain(key),
+        _ => ProjectionDecision::Preserve,
     }
 }

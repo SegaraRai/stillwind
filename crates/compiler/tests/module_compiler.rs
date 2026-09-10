@@ -1,22 +1,19 @@
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform,
+    ClassIdentity, CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform,
 };
-use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_ir::SourceAnalyzer;
+use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_ir::{HandleDefinition, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceFile, Span};
+use stillwind_source::{FileId, SourceFile, Span, Spanned};
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
     let theme =
         crate::css_fixture::source(FileId(2), "theme", "@theme { --color-brand: red; }").unwrap();
-    let snapshot = DesignSystemSnapshot::from_source(
-        &theme,
-        stillwind_design_system::DesignSystemOptions::default(),
-    )
-    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
     for candidates in [
         "flex p-4 hover:bg-brand",
         "before:content-['}']",
@@ -34,18 +31,14 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
             )
             .unwrap(),
         );
-        let output =
-            Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &source, &theme);
+        let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
         let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
-        let compiled = ModuleCompiler::new(
-            snapshot.clone(),
-            stillwind_compiler::CompilerOptions::default(),
-        )
-        .compile(&analysis);
+        let compiled =
+            ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&analysis);
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
         assert_eq!(compiled.css.to_css(), output.module_css, "{candidates}");
         assert_eq!(
-            compiled.to_output(&snapshot, &stillwind_compiler::CompilerOptions::default()),
+            compiled.to_output(&snapshot, &CompilerOptions::default()),
             output,
             "{candidates}"
         );
@@ -75,13 +68,12 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
                 format!("@stillwind {{ unknown-utility: {policy}; }}"),
             )
             .unwrap(),
-            stillwind_design_system::DesignSystemOptions::default(),
+            DesignSystemOptions::default(),
         )
         .unwrap();
         let module = analysis.clone();
         std::thread::spawn(move || {
-            ModuleCompiler::new(snapshot, stillwind_compiler::CompilerOptions::default())
-                .compile(&module)
+            ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(&module)
         })
     };
     let off = compile("off");
@@ -109,14 +101,9 @@ fn invalid_transform_byte_boundaries_return_errors() {
 
 #[test]
 fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
-    use stillwind_ir::{HandleDefinition, StyleInput};
-    use stillwind_source::Spanned;
     let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot = DesignSystemSnapshot::from_source(
-        &theme,
-        stillwind_design_system::DesignSystemOptions::default(),
-    )
-    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
@@ -154,11 +141,8 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     ] {
         let mut malformed = analysis.clone();
         malformed.ir.style_calls[0].inputs = vec![input];
-        let compiled = ModuleCompiler::new(
-            snapshot.clone(),
-            stillwind_compiler::CompilerOptions::default(),
-        )
-        .compile(&malformed);
+        let compiled =
+            ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&malformed);
         assert!(!compiled.is_success());
         assert!(
             compiled
@@ -190,7 +174,7 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
         ModuleCompiler::new(
             snapshot.clone(),
             CompilerOptions {
-                class_identity: stillwind_compiler::ClassIdentity::Module,
+                class_identity: ClassIdentity::Module,
                 class_namespace: namespace.into(),
                 ..CompilerOptions::default()
             },
@@ -229,8 +213,7 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     let upstream_key = compiler.key_for(&upstream_changed);
     assert_eq!(first.key.source_revision, upstream_key.source_revision);
     assert_ne!(first.key.analysis_revision, upstream_key.analysis_revision);
-    let stillwind_ir::StyleInput::UtilityString(value) = &mut analysis.ir.style_calls[0].inputs[0]
-    else {
+    let StyleInput::UtilityString(value) = &mut analysis.ir.style_calls[0].inputs[0] else {
         panic!("literal utility")
     };
     value.value = "grid".into();

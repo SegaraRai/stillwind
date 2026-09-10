@@ -7,11 +7,12 @@ use oxc::parser::Parser;
 use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
 
-use stillwind_ir::{AdapterKind, ModuleIr};
+use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
 
-use super::state::MacroExtractor;
+use crate::imports::collect;
+use crate::state::MacroExtractor;
 
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
@@ -37,7 +38,7 @@ pub fn parse_with_type_facts(
         source,
         type_facts,
         assets,
-        stillwind_ir::ScriptLanguage::from_path(source.path()),
+        ScriptLanguage::from_path(source.path()),
     )
 }
 
@@ -45,7 +46,7 @@ pub fn parse_with_language(
     source: &SourceFile,
     type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
-    language: stillwind_ir::ScriptLanguage,
+    language: ScriptLanguage,
 ) -> ParsedJavaScript {
     let allocator = Allocator::default();
     let source_type = source_type(source.path(), language);
@@ -101,7 +102,7 @@ pub fn parse_with_language(
         summary,
         module: ModuleIr {
             adapter: extractor.adapter.unwrap_or(AdapterKind::React),
-            imports: super::imports::collect(&result.program, semantic.scoping(), source.id()),
+            imports: collect(&result.program, semantic.scoping(), source.id()),
             style_calls: extractor.style_calls,
             handle_definitions: extractor.handle_definitions,
             scope_definitions: extractor.scope_definitions,
@@ -111,8 +112,7 @@ pub fn parse_with_language(
     }
 }
 
-pub(crate) fn source_type(path: &str, language: stillwind_ir::ScriptLanguage) -> SourceType {
-    use stillwind_ir::ScriptLanguage;
+pub(crate) fn source_type(path: &str, language: ScriptLanguage) -> SourceType {
     let typescript = matches!(language, ScriptLanguage::Ts | ScriptLanguage::Tsx);
     let jsx = matches!(language, ScriptLanguage::Jsx | ScriptLanguage::Tsx);
     SourceType::from_path(Path::new(path))

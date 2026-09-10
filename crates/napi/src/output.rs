@@ -2,15 +2,16 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-pub use stillwind_compiler::TransformMapping as BindingMapping;
-use stillwind_compiler::{GeneratedClass, GeneratedSymbol, ModuleResourceReference};
+use stillwind_compiler::{
+    GeneratedClass, GeneratedSymbol, ModuleResourceReference, TransformMapping,
+};
 
 #[derive(Serialize)]
 pub struct BindingOutput {
     pub resources: Vec<ModuleResourceReference>,
     pub css: String,
     pub code: Option<String>,
-    pub mappings: Vec<BindingMapping>,
+    pub mappings: Vec<TransformMapping>,
     pub classes: Vec<GeneratedClass>,
     pub symbols: Vec<GeneratedSymbol>,
     pub diagnostics: Vec<BindingDiagnostic>,

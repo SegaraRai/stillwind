@@ -1,16 +1,17 @@
 //! Conservative declaration-level slicing for host semantic reads.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use oxc::ast::ast::{BindingIdentifier, IdentifierReference, Program};
 use oxc::ast_visit::Visit;
-use oxc::semantic::{Scoping, SymbolId};
+use oxc::semantic::{ReferenceId, Scoping, SymbolId};
+
 use stillwind_semantic::{ImportBinding, ModuleSummary};
 
 #[derive(Default)]
 struct References {
     bindings: Vec<(String, SymbolId)>,
-    references: Vec<(u32, u32, oxc::semantic::ReferenceId)>,
+    references: Vec<(u32, u32, ReferenceId)>,
 }
 
 impl<'a> Visit<'a> for References {
@@ -28,10 +29,10 @@ impl<'a> Visit<'a> for References {
     }
 }
 
-pub(super) fn collect(
+pub(crate) fn collect(
     program: &Program<'_>,
     scoping: &Scoping,
-    probes: &std::collections::BTreeSet<(u32, u32)>,
+    probes: &BTreeSet<(u32, u32)>,
     exports: &[(SymbolId, String)],
     summary: &mut ModuleSummary,
 ) {

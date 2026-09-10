@@ -1,4 +1,5 @@
 use serde::Serialize;
+
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};

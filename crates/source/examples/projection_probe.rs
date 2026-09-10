@@ -1,8 +1,10 @@
 //! JSON harness for real host-converter acceptance tests.
+
 use std::io::{self, Read};
 
 use serde::Deserialize;
 use serde_json::json;
+
 use stillwind_source::{
     CoordinateIndex, FileId, ProjectionIndex, ProjectionMap, SourceFile, Span, Utf16Offset,
 };
@@ -29,7 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let index = match ProjectionIndex::new(&generated, &original, &input.map) {
             Ok(index) => index,
             Err(error) => {
-                results.push(json!({"name":input.name,"error":error.to_string()}));
+                results.push(json!({
+                    "name": input.name,
+                    "error": error.to_string()
+                }));
                 continue;
             }
         };
@@ -41,11 +46,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 coordinates.byte(Utf16Offset(end))?.0,
             );
             probes.push(match index.verify_exact(span) {
-                Ok(provenance) => json!({"range":[original_coordinates.utf16(provenance.original.start)?.0, original_coordinates.utf16(provenance.original.end)?.0]}),
-                Err(error) => json!({"error":error.to_string()}),
+                Ok(provenance) => json!({
+                    "range": [
+                        original_coordinates.utf16(provenance.original.start)?.0,
+                        original_coordinates.utf16(provenance.original.end)?.0
+                    ]
+                }),
+                Err(error) => json!({
+                    "error": error.to_string()
+                }),
             });
         }
-        results.push(json!({"name":input.name,"probes":probes}));
+        results.push(json!({
+            "name": input.name,
+            "probes": probes
+        }));
     }
     println!("{}", serde_json::to_string(&results)?);
     Ok(())

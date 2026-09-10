@@ -19,9 +19,9 @@ use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, Stylesh
 use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
 use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
 
-use super::api::{binding_output, parse_options};
-use super::output::BindingOutput;
-pub use super::source_input::ProjectSource;
+use crate::api::{binding_output, parse_options};
+use crate::output::BindingOutput;
+use crate::source_input::ProjectSource;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {

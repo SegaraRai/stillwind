@@ -1,4 +1,5 @@
 //! Transactional conversion of IR coordinates at a frontend boundary.
+
 use stillwind_source::{Span, Spanned};
 
 use crate::{

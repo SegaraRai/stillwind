@@ -17,6 +17,8 @@ use stillwind_source::{
     FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance, Span,
 };
 
+use crate::entry::source_type;
+
 struct Segment {
     normalized: Span,
     projected: Span,
@@ -131,7 +133,7 @@ pub(crate) fn normalize_with_language<'a>(
     let parsed = Parser::new(
         &allocator,
         generated.text(),
-        super::entry::source_type(generated.path(), language),
+        source_type(generated.path(), language),
     )
     .parse();
     if !parsed.diagnostics.is_empty() {

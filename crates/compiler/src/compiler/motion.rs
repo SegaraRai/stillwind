@@ -152,6 +152,7 @@ pub(super) fn resolve_static_utility_list(
 
 #[cfg(test)]
 mod tests {
+    use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{FileId, SourceFile, Span};
 
     use super::*;
@@ -198,8 +199,7 @@ mod tests {
             )
             .unwrap();
             let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-            let result =
-                Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &source, &theme);
+            let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
             let errors = result
                 .diagnostics
                 .iter()

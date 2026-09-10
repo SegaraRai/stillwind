@@ -113,6 +113,8 @@ mod tests {
 
 #[cfg(test)]
 mod boundary_tests {
+    use stillwind_source::FileId;
+
     use super::*;
 
     proptest::proptest! {
@@ -121,7 +123,7 @@ mod boundary_tests {
             let text = format!("  {a}\t{b} ");
             let input = Spanned::new(
                 text.clone(),
-                Span::new(stillwind_source::FileId(1), 0, u32::try_from(text.len()).unwrap())
+                Span::new(FileId(1), 0, u32::try_from(text.len()).unwrap())
             );
             let tokens = lex_utilities(&input).unwrap();
             proptest::prop_assert_eq!(tokens.len(), 2);

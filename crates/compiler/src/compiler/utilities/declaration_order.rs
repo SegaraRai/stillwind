@@ -30,11 +30,11 @@ pub(in crate::compiler) fn prepend_missing_declarations(
 
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
+    use stillwind_design_system::parse_declaration_formats;
+
     combine_declarations_with_formats(
         utilities,
-        &stillwind_design_system::parse_declaration_formats(
-            crate::test_defaults::BUILTIN_REGISTRY_CSS,
-        ),
+        &parse_declaration_formats(crate::test_defaults::BUILTIN_REGISTRY_CSS),
     )
 }
 

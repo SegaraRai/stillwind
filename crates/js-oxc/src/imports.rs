@@ -8,6 +8,7 @@ use oxc::ast::ast::{
 use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 use oxc::span::GetSpan;
+
 use stillwind_ir::{MacroImport, MacroImportSpecifier, ModuleImports};
 use stillwind_source::{FileId, Span};
 
