@@ -1334,6 +1334,7 @@ dependencies = [
 name = "stillwind-css"
 version = "0.0.0"
 dependencies = [
+ "cssparser 0.38.0",
  "lightningcss",
  "proptest",
  "stillwind-source",

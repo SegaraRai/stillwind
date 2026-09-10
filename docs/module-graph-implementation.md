@@ -30,3 +30,10 @@ no process-global semantic registry. Core/CSS tests: 204 passed; Tailwind tests:
 different declarations from the same utility name in separate registries and
 checks that an empty registry does not acquire builtins. The legacy CSS input
 fallback remains temporarily in the CSS parser until the entry/template step.
+
+The source-ordered output template now preserves layers and conditions around
+utility slots and theme support. It has a parser entry that injects no defaults.
+Core tests: 132 passed; CSS tests: 77 passed after correcting a test to allow
+preserved comments mentioning compiler directives. The graph loader still uses
+the old parser in this intermediate commit; the next step switches all hosts
+and removes that parser's implicit default input.

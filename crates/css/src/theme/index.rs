@@ -15,6 +15,7 @@ use super::references::resolve_theme_references;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThemeIndex {
+    pub output_template: Option<crate::CssOutputTemplate>,
     pub registry: std::sync::Arc<crate::BuiltinDefinitions>,
     pub tokens: Vec<ThemeToken>,
     pub custom_css: String,

@@ -13,6 +13,8 @@ use super::properties::render_used_properties;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StylesheetError {
+    #[error("generated utilities require an @stillwind-slot utilities; in the CSS entry graph")]
+    MissingUtilitiesSlot,
     #[error("{0}")]
     PropertyUsage(#[from] PropertyUsageError),
     #[error("stylesheet contribution references a missing rule")]
@@ -44,6 +46,9 @@ fn render(
     options: &CompilerOptions,
     document: bool,
 ) -> Result<String, StylesheetError> {
+    if let Some(template) = &theme.output_template {
+        return super::template::render(template, theme, utility_css, options, document);
+    }
     let imports = &theme.imports;
     let mut css = String::new();
     let authored_css = if document {

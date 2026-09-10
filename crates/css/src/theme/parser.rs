@@ -5,7 +5,7 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_source::{FileId, SourceFile};
 
-use crate::blocks::{matching_brace, unterminated_block};
+use crate::blocks::unterminated_block;
 use crate::builtins::TAILWIND_V4_THEME;
 use crate::custom_properties::registration::{
     extract_authored_property_names, extract_property_definitions,
@@ -22,6 +22,8 @@ use super::index::ThemeIndex;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
+    #[error("{0}")]
+    Output(#[from] crate::CssOutputError),
     #[error("CSS source offset {0} exceeds the 32-bit source limit")]
     InvalidOffset(usize),
     #[error("CSS parse error: {0}")]
@@ -61,6 +63,8 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
 
 /// Parses the Tailwind v4-compatible theme used by Stillwind's compiler.
 ///
+/// New hosts should use `parse_resolved_theme` after resolving the CSS graph.
+///
 /// The vendored Tailwind defaults form the base theme, then the project CSS
 /// extends, overrides, or clears namespaces with the normal `@theme` syntax.
 ///
@@ -99,6 +103,7 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
     let mut custom_css = strip_framework_directives(source.text());
     custom_css.push_str(&extract_keyframe_blocks(source.text()));
     Ok(ThemeIndex {
+        output_template: None,
         registry: std::sync::Arc::new(crate::BuiltinDefinitions::from_css(&if imports.builtins {
             format!("{}\n{}", crate::BUILTIN_REGISTRY_CSS, source.text())
         } else {
@@ -116,6 +121,35 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
         imports,
         config: extract_stillwind_config(source.text()),
     })
+}
+
+/// Parses only host-supplied definitions and retains their authored output positions.
+/// No package names, default theme, reset, or registry are injected here.
+///
+/// # Errors
+/// Returns invalid CSS, unterminated blocks, or unsupported output slots.
+pub fn parse_resolved_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
+    if let Some(offset) = unterminated_block(source.text()) {
+        return Err(ThemeError::UnterminatedBlock { offset });
+    }
+    let mut theme = extract_theme_tokens(source.id(), source.text())?;
+    let template = crate::CssOutputTemplate::parse(source.text(), &theme.tokens)?;
+    theme.custom_css = template.authored_css();
+    StyleSheet::parse(&theme.custom_css, ParserOptions::default())
+        .map_err(|error| ThemeError::Parse(error.into_owned()))?;
+    theme.output_template = Some(template);
+    theme.registry = std::sync::Arc::new(crate::BuiltinDefinitions::from_css(source.text()));
+    theme.utilities = extract_custom_utilities(source.text());
+    theme.variants = extract_custom_variants(source.text());
+    theme.properties = extract_property_definitions(source.text());
+    theme.marker_utilities = extract_marker_utilities(source.text());
+    theme.declaration_formats = extract_declaration_formats(source.text());
+    theme.relationship_patterns = extract_relationship_patterns(source.text());
+    theme.authored_properties = extract_authored_property_names(source.text());
+    theme.config = extract_stillwind_config(source.text());
+    theme.imports = FrameworkImports::explicit();
+    theme.imports.builtins = true;
+    Ok(theme)
 }
 
 pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
@@ -155,31 +189,17 @@ pub(crate) fn offset(value: usize) -> Result<u32, ThemeError> {
 
 pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeError> {
     let mut tokens = Vec::new();
-    let mut cursor = 0;
-
-    while let Some(theme_relative) = css[cursor..].find("@theme") {
-        let theme_start = cursor + theme_relative;
-        let Some(open_relative) = css[theme_start..].find('{') else {
-            return Err(ThemeError::UnterminatedTheme);
-        };
-        let open = theme_start + open_relative;
-        let Some(close) = matching_brace(css, open) else {
-            return Err(ThemeError::UnterminatedTheme);
-        };
-
-        let modifier = css[theme_start + "@theme".len()..open].trim();
-        let mode = ThemeTokenMode::parse(modifier);
+    for (range, modifier) in crate::output::theme_blocks(css)? {
+        let mode = ThemeTokenMode::parse(&modifier);
         tokens.extend(extract_theme_declarations(
             file,
-            &css[open + 1..close],
-            open + 1,
+            &css[range.clone()],
+            range.start,
             mode,
         )?);
-
-        cursor = close + 1;
     }
-
     Ok(ThemeIndex {
+        output_template: None,
         registry: std::sync::Arc::default(),
         tokens,
         custom_css: String::new(),
@@ -198,6 +218,21 @@ pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
+        let source = SourceFile::new(FileId(1), "entry.css", format!("{}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;", crate::BUILTIN_REGISTRY_CSS)).unwrap();
+        let theme = parse_resolved_theme(&source).unwrap();
+        assert_eq!(theme.tokens.len(), 1);
+        assert_eq!(theme.tokens[0].name.value, "--color-local");
+        assert!(theme.registry.builtin_exact.contains_key("flex"));
+        assert!(theme.custom_css.contains("content:'@theme'"));
+        assert!(
+            !crate::blocks::strip_css_comments(&theme.custom_css).contains("@stillwind"),
+            "{}",
+            theme.custom_css
+        );
+    }
 
     #[test]
     fn keyframe_extraction_keeps_nested_blocks_and_ignores_other_rules() {

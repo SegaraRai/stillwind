@@ -197,11 +197,12 @@ impl DesignSystemSnapshot {
             theme.custom_css
         ));
         let content = Fingerprint::of(format!(
-            "{}|{}",
+            "{}|{}|{:?}",
             content.0,
             builtins
                 .as_ref()
-                .map_or("", |definitions| definitions.source.as_str())
+                .map_or("", |definitions| definitions.source.as_str()),
+            theme.output_template,
         ));
         let utilities = utility_registry.fingerprints();
         let variants = variant_registry.fingerprints();

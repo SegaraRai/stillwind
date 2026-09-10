@@ -3,3 +3,4 @@ pub(super) mod blocks;
 pub(super) mod keyframes;
 pub(super) mod properties;
 pub(super) mod render;
+mod template;
