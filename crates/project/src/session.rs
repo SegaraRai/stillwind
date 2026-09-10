@@ -9,8 +9,10 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_ir::ModuleAnalysis;
-use stillwind_semantic::{IdentityId, ModuleId};
+use stillwind_semantic::ModuleId;
 use stillwind_source::{CompileError, SourceFile, Span};
+
+use crate::DependencyIndex;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionReloadError {
@@ -106,16 +108,6 @@ impl ProjectStylesheet {
 pub enum SessionMode {
     Build,
     Watch,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct DependencyIndex {
-    pub candidates: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub theme_tokens: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
-    pub assets: BTreeMap<IdentityId, BTreeSet<ModuleId>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -240,26 +232,36 @@ impl ProjectSession {
             {
                 update.transformed = true;
             }
+            self.dependencies.replace(
+                &module_id,
+                self.artifacts
+                    .get(&module_id)
+                    .map(|previous| &previous.dependencies),
+                &compiled.dependencies,
+            );
             self.stylesheet.replace(module_id.clone(), &compiled.css);
             self.artifacts.insert(module_id, compiled);
         } else {
             update.diagnostics = compiled.diagnostics;
             if self.mode == SessionMode::Build {
-                self.stylesheet.remove(module_id.as_str());
-                self.artifacts.remove(&module_id);
+                self.remove_artifact(module_id.as_str());
             }
         }
-        self.reindex();
         update
     }
 
     /// Removes a producer, returning whether it was registered.
     pub fn remove_module(&mut self, module: &str) -> bool {
         let removed = self.analyses.remove(module).is_some();
-        self.artifacts.remove(module);
-        self.stylesheet.remove(module);
-        self.reindex();
+        self.remove_artifact(module);
         removed
+    }
+
+    fn remove_artifact(&mut self, module: &str) {
+        if let Some((id, artifact)) = self.artifacts.remove_entry(module) {
+            self.stylesheet.remove(module);
+            self.dependencies.remove(&id, &artifact.dependencies);
+        }
     }
 
     /// Publishes an entirely rebuilt revision under the host's exclusive actor turn.
@@ -279,7 +281,7 @@ impl ProjectSession {
                 if self.mode == SessionMode::Build {
                     self.artifacts.clear();
                     self.stylesheet = ProjectStylesheet::default();
-                    self.reindex();
+                    self.dependencies = DependencyIndex::default();
                 }
                 return Err(error.into());
             }
@@ -307,48 +309,6 @@ impl ProjectSession {
         update.css_changed = old_css != next.css()?;
         *self = next;
         Ok(update)
-    }
-
-    fn reindex(&mut self) {
-        self.dependencies = DependencyIndex::default();
-        for (id, artifact) in &self.artifacts {
-            for (entries, index) in [
-                (
-                    &artifact.dependencies.theme_tokens,
-                    &mut self.dependencies.theme_tokens,
-                ),
-                (
-                    &artifact.dependencies.utilities,
-                    &mut self.dependencies.utilities,
-                ),
-                (
-                    &artifact.dependencies.variants,
-                    &mut self.dependencies.variants,
-                ),
-                (
-                    &artifact.dependencies.properties,
-                    &mut self.dependencies.properties,
-                ),
-            ] {
-                for entry in entries {
-                    index.entry(entry.clone()).or_default().insert(id.clone());
-                }
-            }
-            for asset in &artifact.dependencies.assets {
-                self.dependencies
-                    .assets
-                    .entry(asset.clone())
-                    .or_default()
-                    .insert(id.clone());
-            }
-            for candidate in &artifact.dependencies.candidates {
-                self.dependencies
-                    .candidates
-                    .entry(candidate.clone())
-                    .or_default()
-                    .insert(id.clone());
-            }
-        }
     }
 }
 

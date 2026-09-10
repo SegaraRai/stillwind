@@ -12,9 +12,11 @@
     )
 )]
 
+mod dependencies;
 mod session;
 mod stylesheet_plan;
 
+pub use dependencies::DependencyIndex;
 pub use session::*;
 pub use stylesheet_plan::*;
 

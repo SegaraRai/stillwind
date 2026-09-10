@@ -4,7 +4,7 @@ use stillwind_compiler::{ClassIdentity, CompilerOptions, StylesheetPlacement, St
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_project::{ProjectSession, SessionMode};
+use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
 use stillwind_source::{CompileError, FileId, SourceFile};
 
 fn snapshot(color: &str) -> DesignSystemSnapshot {
@@ -205,6 +205,7 @@ fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
     for mode in [SessionMode::Watch, SessionMode::Build] {
         let mut session = ProjectSession::new(snapshot("red"), mode, CompilerOptions::default());
         session.update_module(module("a.tsx", "flex"));
+        let dependencies = session.dependencies().clone();
         let mut invalid = module("a.tsx", "block");
         invalid.diagnostics.push(CompileError::new(
             "TEST",
@@ -217,6 +218,12 @@ fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
             session.artifacts().contains_key("a.tsx"),
             mode == SessionMode::Watch
         );
+        let expected = if mode == SessionMode::Watch {
+            dependencies
+        } else {
+            DependencyIndex::default()
+        };
+        assert_eq!(session.dependencies(), &expected);
     }
 }
 
@@ -240,6 +247,65 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
     session.remove_module("a.tsx");
     assert!(session.dependencies().candidates.is_empty());
     assert!(session.dependencies().theme_tokens.is_empty());
+}
+
+#[test]
+fn dependency_replacement_retains_other_producers_and_clears_last_memberships() {
+    let snapshot = snapshot("red");
+    let mut session = ProjectSession::new(
+        snapshot.clone(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+    );
+    for name in ["a.tsx", "b.tsx"] {
+        let source = Arc::new(SourceFile::new(FileId(1), name,
+            "import {style} from 'stillwind/react'; const scope=style.scope(); const props=style('hover:bg-brand ring-2');"
+        ).unwrap());
+        let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+        assert!(session.update_module(analysis).diagnostics.is_empty());
+    }
+    assert_eq!(session.dependencies().assets.len(), 2);
+    assert!(!session.dependencies().utilities.is_empty());
+    assert!(!session.dependencies().variants.is_empty());
+    assert!(!session.dependencies().properties.is_empty());
+    assert_eq!(
+        session.dependencies().theme_tokens["--color-brand"].len(),
+        2
+    );
+
+    assert!(
+        session
+            .update_module(module("a.tsx", "flex"))
+            .diagnostics
+            .is_empty()
+    );
+    assert_eq!(session.dependencies().assets.len(), 1);
+    assert_eq!(
+        session.dependencies().theme_tokens["--color-brand"],
+        ["b.tsx".into()].into()
+    );
+    assert_eq!(
+        session.dependencies().candidates["flex"],
+        ["a.tsx".into()].into()
+    );
+    let mut rebuilt = ProjectSession::new(snapshot, SessionMode::Watch, CompilerOptions::default());
+    for analysis in session.analyses().values() {
+        rebuilt.update_module(analysis.clone());
+    }
+    assert_eq!(session.dependencies(), rebuilt.dependencies());
+    assert_eq!(session.css().unwrap(), rebuilt.css().unwrap());
+
+    assert!(session.remove_module("b.tsx"));
+    assert!(session.dependencies().assets.is_empty());
+    assert!(session.dependencies().theme_tokens.is_empty());
+    assert!(
+        !session
+            .dependencies()
+            .candidates
+            .contains_key("hover:bg-brand")
+    );
+    assert!(session.remove_module("a.tsx"));
+    assert_eq!(session.dependencies(), &DependencyIndex::default());
 }
 
 #[path = "../../test-support/css.rs"]
