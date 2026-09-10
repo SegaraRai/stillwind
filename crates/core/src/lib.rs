@@ -20,7 +20,9 @@ mod fingerprint;
 mod loader;
 mod module_compiler;
 mod session;
+mod stylesheet_map;
 mod stylesheet_plan;
+pub use stylesheet_map::{MappedStylesheet, StylesheetMapping};
 mod transforms;
 
 pub use analysis::{

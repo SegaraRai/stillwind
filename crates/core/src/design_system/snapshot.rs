@@ -96,10 +96,14 @@ impl DesignSystemSnapshot {
             config.tailwind_prefix.clone_from(prefix);
         }
         config.validate()?;
+        // Source IDs are allocated as host reads complete; provenance must not
+        // participate in semantic identity or asynchronous load order.
+        let mut semantic_template = theme.output_template.clone();
+        semantic_template.map_origins(|_| None);
         let config_hash = Fingerprint::of(format!("{config:?}"));
         let ordering = Fingerprint::of(format!(
             "{:?}{:?}",
-            theme.output_template,
+            semantic_template,
             builtin_theme_order(&theme)
         ));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
@@ -188,7 +192,7 @@ impl DesignSystemSnapshot {
             theme.utilities,
             theme.variants,
             theme.properties,
-            theme.output_template,
+            semantic_template,
             theme.config,
             theme.marker_utilities,
             theme.declaration_formats,
@@ -202,7 +206,7 @@ impl DesignSystemSnapshot {
             builtins
                 .as_ref()
                 .map_or("", |definitions| definitions.source.as_str()),
-            theme.output_template,
+            semantic_template,
         ));
         let utilities = utility_registry.fingerprints();
         let variants = variant_registry.fingerprints();
@@ -303,5 +307,39 @@ impl DesignSystemSnapshot {
     /// Returns an error when the support closure cannot be analyzed.
     pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, StylesheetError> {
         crate::compiler::render_module_stylesheet(self.theme(), module_css, self.config())
+    }
+
+    /// # Errors
+    /// Returns invalid CSS support closure or missing utility slots.
+    pub fn render_mapped_stylesheet(
+        &self,
+        module_css: &crate::MappedStylesheet,
+        placement: crate::StylesheetPlacement,
+    ) -> Result<crate::MappedStylesheet, StylesheetError> {
+        crate::compiler::render_mapped(
+            &self.theme().output_template,
+            self.theme(),
+            module_css,
+            self.config(),
+            placement == crate::StylesheetPlacement::Document,
+            Some(self.sources()),
+        )
+    }
+
+    /// Document CSS with source provenance and a stable support-layer reservation.
+    ///
+    /// # Errors
+    /// Returns invalid authored CSS.
+    pub fn render_base_stylesheet_with_map(
+        &self,
+    ) -> Result<crate::MappedStylesheet, StylesheetError> {
+        let mut output = self.render_mapped_stylesheet(
+            &crate::MappedStylesheet::default(),
+            crate::StylesheetPlacement::Document,
+        )?;
+        if !output.css.starts_with("@layer properties;") {
+            output.prepend_unmapped("@layer properties;\n");
+        }
+        Ok(output)
     }
 }

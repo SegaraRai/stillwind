@@ -32,6 +32,7 @@ pub struct StylesheetSelection {
 
 #[derive(Clone, Debug)]
 pub struct StylesheetPlan {
+    pub mappings: Vec<crate::StylesheetMapping>,
     pub resources: Vec<crate::ModuleResourceReference>,
     pub css: String,
     pub coverage: StylesheetCoverage,
@@ -119,21 +120,67 @@ impl ProjectSession {
             }
         }
         let snapshot = self.snapshot();
-        let css = match placement {
-            StylesheetPlacement::Document => stylesheet.serialize(&snapshot)?,
-            StylesheetPlacement::Carrier => {
-                snapshot.render_module_stylesheet(&stylesheet.module_css()?)?
+        let utility_css = stylesheet.module_css_with_origins(|module, rule| {
+            let artifact = self.artifacts().get(module)?;
+            let analysis = self.analyses().get(module)?;
+            let identifiers = rule_identifiers(&rule.to_css());
+            if let Some(class) = artifact
+                .classes
+                .iter()
+                .find(|class| identifiers.contains(&class.class_name))
+            {
+                return Some((analysis.source.clone(), class.call_span));
             }
-        };
+            let symbol = artifact
+                .symbols
+                .iter()
+                .find(|symbol| identifiers.contains(&symbol.name))?;
+            let source = std::iter::once(analysis)
+                .chain(analysis.asset_support.iter())
+                .find(|input| input.source.path() == symbol.source_path)?
+                .source
+                .clone();
+            let span = stillwind_source::Span::new(source.id(), symbol.start, symbol.end);
+            Some((source, span))
+        })?;
+        let mapped = snapshot.render_mapped_stylesheet(&utility_css, placement)?;
         Ok(StylesheetPlan {
+            mappings: mapped.mappings,
             resources,
-            css,
+            css: mapped.css,
             coverage: selection.coverage,
             placement,
             design_system: snapshot.fingerprints().content.clone(),
             producers,
         })
     }
+}
+
+// Use CSS tokens so strings, comments and identifier escapes cannot masquerade
+// as a generated identifier. Locations themselves come from compiler metadata.
+fn rule_identifiers(css: &str) -> BTreeSet<String> {
+    fn visit(parser: &mut cssparser::Parser<'_>, names: &mut BTreeSet<String>) {
+        while let Ok(token) = parser.next() {
+            match token {
+                cssparser::Token::Ident(name) => {
+                    names.insert(name.to_string());
+                }
+                cssparser::Token::CurlyBracketBlock
+                | cssparser::Token::SquareBracketBlock
+                | cssparser::Token::ParenthesisBlock
+                | cssparser::Token::Function(_) => {
+                    let _ = parser.parse_nested_block(|nested| {
+                        visit(nested, names);
+                        Ok::<_, cssparser::ParseError<()>>(())
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut names = BTreeSet::new();
+    visit(&mut cssparser::Parser::new(css), &mut names);
+    names
 }
 
 #[cfg(test)]

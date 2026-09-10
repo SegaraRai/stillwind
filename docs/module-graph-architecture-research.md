@@ -7,7 +7,7 @@
 | 対象                    | 現在の根拠                                                                                                                                                                                                                               | 未完了・保証しない範囲                                                                                                     |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Next/Turbopack・webpack | `packages/bundler`の本体loader。`experiments/module-graph/results/adapters-turbopack.json`と`adapters-webpack.json`で、RSC/client、hydration、CSS編集、macro削除復元、client遷移・prefetch、cold/warm本番を各6項目確認                   | 実fixtureはliteral macro中心。任意の型依存・streaming・edge環境の完全な受け入れではない                                    |
-| Rspack・Rsbuild         | `rspack-real.json`と`rsbuild-real.json`で本体adapter、ブラウザーCSS・URL、別process cache復元、依存変更、未到達化、macro削除を各5項目確認                                                                                                | ブラウザーHMRは別項目                                                                                                      |
+| Rspack・Rsbuild         | `rspack-real.json`と`rsbuild-real.json`で本体adapter、ブラウザーCSS・URL、別process cache復元、依存変更、未到達化、macro削除、CSS selector mapを各7項目確認                                                                              | ブラウザーHMRは別項目                                                                                                      |
 | Vite environment        | environmentごとにsnapshot/sessionを分離。route解析のようなbuildStart前のtransformも遅延初期化で扱う。CSSはframeworkが発見できる物理resource IDと自己完結payloadで輸送                                                                    | 各frameworkの受け入れは個別に実施する                                                                                      |
 | React Router 8.3.1      | `react-router-real.json`。JavaScript無効の初回SSR、hydration、client遷移、初回にはないlazy CSS、CSS編集、macro削除復元3回、server CSS projection編集、cold/warm本番。JS source mapのmacro行・列とclient成果物へのserver code非混入も検査 | `.server.js`専用producerはrouteに`?stillwind.css`の明示CSS依存を付ける。全編集でのUI状態保持は未保証。Remix v2とは区別する |
 | SolidStart 2.0.4        | `solidstart-real.json`。`stillwind/solid`がclass propを出力。JS無効SSR、signalの比較条件と更新、hydration、lazy client遷移、CSS編集、macro削除復元、cold/warm本番を5項目確認                                                             | server functionの専用projection、CSS mapは別検証                                                                           |
@@ -17,7 +17,13 @@
 
 module CSSには明示・暗黙のlayer順序を保持する。React Routerがroute CSSを基盤CSSより先に配置した実験でPreflightがutilityを上書きしたため、文書の通常ruleを複製せずlayer順序だけを各carrierへ残す。開発時のCSS importには版を付け、macro削除直後の復元を以前のHMR pruneが消す競合を避ける。版はclassのsaltに使わない。
 
-残る主な受け入れはCSS source map provenance、意味解決のhost整合、各frameworkのmap検証と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
+CSS source mapは元ファイルを持つ構造としてcoreからhostへ渡す。importされた通常CSSは保持した範囲、theme tokenは定義、生成ruleはmacro呼び出しまたはシンボル定義へ対応する。URL置換後にUTF-8位置をUTF-16行・列へ変換し、carrier自身にmapを含める。native、host、Vite開発変換、Rspack/Rsbuildのcold/warm本番で検証した。非ASCII、URLの長さ変更、上流JS変換とのmap合成を含む。生成supportやwrapperには対応元のない範囲があり、Lightning CSS後はselector単位の対応となる。
+
+RsbuildのLightning CSSがroot外carrierを`../`を含むsource名へ再構成すると合成が残るため、adapterはそのsourceだけを正規化して合成する。CSSの加工内容や順序は変更しない。`verify:rspack` / `verify:rsbuild`はselectorの元ファイルを実pathへ解決し、macroの行・列をcold/warm両方で確認する（各7項目）。
+
+Vite 0.3.1の実ビルドではJSの`.map`は生成されるがCSSの`.map`は生成されない。これは[ViteのCSS production source mapの未対応](https://github.com/vitejs/vite/issues/2830)と一致する。Stillwindから渡すmapは開発時に有効だが、Vite上のframeworkの本番CSS mapを保証しない。最終CSS assetを後から推測でmap化する処理は追加しない。
+
+残る主な受け入れは意味解決のhost整合、各frameworkのJS map検証と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
 
 ## 実装第一段階（2026-09-10）
 

@@ -60,7 +60,7 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     );
     // Pinning is observable even after the file changes, before the reload hook runs.
     writeFileSync(tokens, "@theme { --color-brand: blue; }");
-    assert.equal(
+    assert.deepEqual(
       await load.call(
         context,
         fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
@@ -86,8 +86,8 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
       context,
       fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
     );
-    assert.equal(typeof after, "string");
-    assert.notEqual(after, before);
+    assert.ok(after && typeof after === "object" && after.map);
+    assert.notDeepEqual(after, before);
     writeFileSync(tokens, "@theme {");
     await hot.call(
       { warn: () => {}, environment: server.environments.client } as unknown as ThisParameterType<
@@ -95,7 +95,7 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
       >,
       { ...hotContext, type: "update" },
     );
-    assert.equal(
+    assert.deepEqual(
       await load.call(
         context,
         fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
@@ -170,11 +170,11 @@ void test("Vite supplies ready CSS and discovers nested imports before a slow si
       server.pluginContainer as unknown as ThisParameterType<typeof load>,
       fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
     );
-    assert.equal(typeof output, "string");
-    if (typeof output !== "string") throw new Error("expected CSS");
-    assert.ok(output.includes(".first"));
-    assert.ok(output.indexOf(".first") < output.indexOf(".child"));
-    assert.ok(output.indexOf(".child") < output.indexOf(".second"));
+    assert.ok(output && typeof output === "object" && output.map);
+    if (!output || typeof output !== "object") throw new Error("expected mapped CSS");
+    assert.ok(output.code.includes(".first"));
+    assert.ok(output.code.indexOf(".first") < output.code.indexOf(".child"));
+    assert.ok(output.code.indexOf(".child") < output.code.indexOf(".second"));
     assert.deepEqual(
       [...resolutions.entries()],
       [
@@ -279,8 +279,8 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
         { environment } as ThisParameterType<typeof load>,
         fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
       );
-      assert.equal(typeof css, "string");
-      return css as string;
+      assert.ok(css && typeof css === "object" && css.map);
+      return (css as { code: string }).code;
     };
     assert.match(String(await readCss(client)), /color: red/);
     assert.match(String(await readCss(ssr)), /color: blue/);

@@ -1,6 +1,10 @@
 {
   "checks": [
     {
+      "name": "rspack-cold-css-source-map",
+      "passed": true
+    },
+    {
       "name": "rspack-cold-browser-css",
       "passed": true,
       "producers": [
@@ -13,7 +17,11 @@
           "built": true
         }
       ],
-      "cssChunks": ["215.main.css", "main.d81eb1cea41bc408.css"]
+      "cssChunks": ["215.main.css", "main.badac2b4b65cdd67.css"]
+    },
+    {
+      "name": "rspack-warm-css-source-map",
+      "passed": true
     },
     {
       "name": "rspack-warm-browser-css",
@@ -28,7 +36,7 @@
           "built": false
         }
       ],
-      "cssChunks": ["215.main.css", "main.d81eb1cea41bc408.css"]
+      "cssChunks": ["215.main.css", "main.badac2b4b65cdd67.css"]
     },
     {
       "name": "rspack-css-edit-browser-css",
@@ -43,7 +51,7 @@
           "built": true
         }
       ],
-      "cssChunks": ["215.main.css", "main.45715c36e52631af.css"]
+      "cssChunks": ["215.main.css", "main.942512ebd174655c.css"]
     },
     {
       "name": "rspack-unreachable-producer",

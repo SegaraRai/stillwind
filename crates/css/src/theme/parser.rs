@@ -45,6 +45,13 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     }
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     let mut template = crate::CssOutputTemplate::parse(source.text(), &theme.tokens)?;
+    template.map_origins(|span| {
+        Some(stillwind_source::Span::new(
+            source.id(),
+            span.start.0,
+            span.end.0,
+        ))
+    });
     template.source_identity = stillwind_source::normalized_module_path(source.path());
     theme.custom_css = template.authored_css();
     StyleSheet::parse(&theme.custom_css, ParserOptions::default())

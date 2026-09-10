@@ -56,6 +56,7 @@ export declare class NativeProjectSession {
   /** Explicit modules, coverage {kind: observed | complete, target?, revision?}, and placement document | carrier. */
   planStylesheet(selectionJson: string): string;
   baseCss(): string;
+  baseCssWithMap(): string;
   moduleCss(module: string): string;
   remove(module: string): boolean;
 }

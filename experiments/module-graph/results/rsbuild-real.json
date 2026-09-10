@@ -1,6 +1,10 @@
 {
   "checks": [
     {
+      "name": "rsbuild-cold-css-source-map",
+      "passed": true
+    },
+    {
       "name": "rsbuild-cold-browser-css",
       "passed": true,
       "producers": [
@@ -13,7 +17,11 @@
           "built": true
         }
       ],
-      "cssChunks": ["static/css/async/677.b6fefdfea0.css", "static/css/main.4435a888c1.css"]
+      "cssChunks": ["static/css/async/875.4483cc336b.css", "static/css/main.df9c6558bc.css"]
+    },
+    {
+      "name": "rsbuild-warm-css-source-map",
+      "passed": true
     },
     {
       "name": "rsbuild-warm-browser-css",
@@ -28,7 +36,7 @@
           "built": false
         }
       ],
-      "cssChunks": ["static/css/async/677.b6fefdfea0.css", "static/css/main.4435a888c1.css"]
+      "cssChunks": ["static/css/async/875.4483cc336b.css", "static/css/main.df9c6558bc.css"]
     },
     {
       "name": "rsbuild-css-edit-browser-css",
@@ -43,7 +51,7 @@
           "built": true
         }
       ],
-      "cssChunks": ["static/css/async/677.b6fefdfea0.css", "static/css/main.ff41655b27.css"]
+      "cssChunks": ["static/css/async/875.4483cc336b.css", "static/css/main.777b70fc54.css"]
     },
     {
       "name": "rsbuild-unreachable-producer",

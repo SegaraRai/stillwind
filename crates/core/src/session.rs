@@ -69,12 +69,27 @@ impl ProjectStylesheet {
     /// # Errors
     /// Returns an error if a contribution refers to a missing rule.
     pub fn module_css(&self) -> Result<String, StylesheetError> {
+        Ok(self.module_css_with_origins(|_, _| None)?.css)
+    }
+
+    pub(crate) fn module_css_with_origins(
+        &self,
+        mut origin: impl FnMut(
+            &ModuleId,
+            &GeneratedRule,
+        ) -> Option<(
+            std::sync::Arc<stillwind_source::SourceFile>,
+            stillwind_source::Span,
+        )>,
+    ) -> Result<crate::MappedStylesheet, StylesheetError> {
         let mut emitted = BTreeSet::new();
-        let mut css = String::new();
-        for key in self.contributions.values().flatten() {
-            if emitted.insert(key) {
-                let entry = self.rules.get(key).ok_or(StylesheetError::MissingRule)?;
-                css.push_str(&entry.rule.to_css());
+        let mut css = crate::MappedStylesheet::default();
+        for (module, keys) in &self.contributions {
+            for key in keys {
+                if emitted.insert(key) {
+                    let entry = self.rules.get(key).ok_or(StylesheetError::MissingRule)?;
+                    css.text(&entry.rule.to_css(), origin(module, &entry.rule));
+                }
             }
         }
         Ok(css)

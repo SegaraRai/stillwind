@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "@jridgewell/gen-mapping": "^0.3.13",
+    "@jridgewell/remapping": "^2.3.5",
     "@stillwind/native": "workspace:*",
     "typescript": "7.0.2"
   },
   "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
     "@types/node": "catalog:",
     "stillwind": "workspace:*",
     "typescript": "7.0.2",

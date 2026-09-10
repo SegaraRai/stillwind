@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { chromium } from "playwright";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -108,6 +109,31 @@ try {
       );
     if (stage === "macro-removal") await put("static.js", "export const props={};");
     const stats = await build();
+    if (stage === "cold" || stage === "warm") {
+      const cssFile = stats.chunks
+        .filter((chunk) => chunk.initial)
+        .flatMap((chunk) => chunk.files)
+        .find((file) => file.endsWith(".css"));
+      const cssText = await fs.readFile(path.join(dir, "dist", cssFile), "utf8");
+      const cssMap = new TraceMap(
+        JSON.parse(await fs.readFile(path.join(dir, "dist", cssFile + ".map"), "utf8")),
+      );
+      const offset = cssText.indexOf("._s_");
+      assert(offset >= 0, cssText);
+      const prefix = cssText.slice(0, offset);
+      const origin = originalPositionFor(cssMap, {
+        line: prefix.split("\n").length,
+        column: offset - prefix.lastIndexOf("\n") - 1,
+      });
+      assert(origin.source?.endsWith("/static.js"), JSON.stringify(origin));
+      assert.equal(
+        path.resolve(path.dirname(path.join(dir, "dist", cssFile)), origin.source),
+        path.join(dir, "static.js"),
+      );
+      assert.equal(origin.line, 2);
+      assert.equal(origin.column, "export const props=".length);
+      results.checks.push({ name: `${mode}-${stage}-css-source-map`, passed: true });
+    }
     await page.goto(url);
     const expected =
       stage === "macro-removal"

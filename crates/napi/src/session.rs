@@ -20,6 +20,26 @@ use stillwind_source::{CompileError, FileId, SourceFile};
 use super::api::{binding_output, parse_options};
 use super::output::BindingOutput;
 
+fn stylesheet_locations(mappings: &[stillwind_core::StylesheetMapping]) -> serde_json::Value {
+    let mut sources = Vec::new();
+    let mut indices = BTreeMap::new();
+    let entries =
+        mappings
+            .iter()
+            .map(|mapping| {
+                let index = *indices.entry(mapping.source.path().to_owned()).or_insert_with(|| {
+            let index = sources.len();
+            sources.push(json!({"path": mapping.source.path(), "content": mapping.source.text()}));
+            index
+        });
+                json!({"source": index, "generatedStart": mapping.generated.start,
+            "generatedEnd": mapping.generated.end, "originalStart": mapping.original.start,
+            "originalEnd": mapping.original.end, "exact": mapping.exact})
+            })
+            .collect::<Vec<_>>();
+    json!({"sources": sources, "entries": entries})
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {
     #[error("CSS load is incomplete")]
@@ -278,6 +298,7 @@ impl NativeProjectSession {
         };
         Ok(json!({
             "css": plan.css,
+            "sourceMap": stylesheet_locations(&plan.mappings),
             "resources": plan.resources,
             "coverage": coverage,
             "placement": match placement { StylesheetPlacement::Document => "document", StylesheetPlacement::Carrier => "carrier" },
@@ -297,6 +318,19 @@ impl NativeProjectSession {
             .snapshot()
             .render_base_stylesheet()
             .map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    #[napi]
+    pub fn base_css_with_map(&self) -> napi::Result<String> {
+        let output = self
+            .session
+            .snapshot()
+            .render_base_stylesheet_with_map()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        Ok(
+            json!({"css": output.css, "sourceMap": stylesheet_locations(&output.mappings)})
+                .to_string(),
+        )
     }
 
     /// Complete CSS for one producer, safe to transport across loader workers.

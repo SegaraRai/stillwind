@@ -12,6 +12,7 @@ const rsbuild = await createRsbuild({
     plugins: [bundler.pluginStillwind({ css: path.join(dir, "root.css"), root: dir })],
     source: { entry: { main: path.join(dir, "main.js") } },
     output: {
+      sourceMap: { js: "source-map", css: true },
       distPath: { root: path.join(dir, "dist") },
       assetPrefix: "/",
       minify: false,

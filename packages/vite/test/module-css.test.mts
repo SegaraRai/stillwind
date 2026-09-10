@@ -100,6 +100,12 @@ void test("build retains late and lazy producer CSS without collecting transform
     assert.doesNotMatch(css, /77,\s*88,\s*99/);
     assert.equal(css.match(/\.document-only/g)?.length, 1);
     assert.ok(assets.some((asset) => asset.fileName.includes("lazy")));
+    // Vite currently emits JS build maps but discards CSS build maps. Keep the
+    // boundary explicit; the adapter's CSS maps are accepted in development.
+    assert.equal(
+      output.output.some((asset) => asset.fileName.endsWith(".css.map")),
+      false,
+    );
     const lazy = output.output.find(
       (asset) => asset.type === "chunk" && asset.fileName.includes("lazy"),
     );

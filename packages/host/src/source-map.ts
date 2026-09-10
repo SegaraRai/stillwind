@@ -1,4 +1,32 @@
+import { resolve } from "node:path";
+
 import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
+import remapping from "@jridgewell/remapping";
+
+export function composeCarrierSourceMap(
+  generated: Parameters<typeof remapping>[0],
+  original: Parameters<typeof remapping>[0],
+  resource: string,
+) {
+  return remapping(generated, (source, context) =>
+    context.depth === 1 && resolve(source).replaceAll("\\", "/") === resource
+      ? (original as Exclude<Parameters<typeof remapping>[0], unknown[]>)
+      : null,
+  );
+}
+
+/** The upstream loader map describes the input that native compilation received. */
+export function composeModuleSourceMap(
+  generated: ReturnType<typeof moduleSourceMap>,
+  upstream: Parameters<typeof remapping>[0] | undefined | null,
+) {
+  return upstream
+    ? remapping(
+        [JSON.stringify(generated), ...(Array.isArray(upstream) ? upstream : [upstream])],
+        () => null,
+      )
+    : generated;
+}
 
 export interface CompilerMapping {
   original_start: number;

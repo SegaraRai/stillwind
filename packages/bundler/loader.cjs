@@ -109,22 +109,19 @@ module.exports = function (source, inputMap) {
         JSON.stringify(relativeRequest(path.dirname(carrierPath), resolved)).slice(1, -1),
       );
     }
-    const resolveResources = (css) => {
-      for (const [placeholder, url] of replacements) css = css.replaceAll(placeholder, url);
-      return css;
-    };
     const carrier = relativeRequest(path.dirname(context.resourcePath), carrierPath);
-    const cssImport = (css) =>
-      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(resolveResources(css)).toString("base64url"))};\n`;
-    if (projection) return callback(null, cssImport(session.baseCss()) + cssImport(plan.css));
+    const cssImport = (output) =>
+      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root)).toString("base64url"))};\n`;
+    const base = JSON.parse(session.baseCssWithMap());
+    if (projection) return callback(null, cssImport(base) + cssImport(plan));
     const finalized = host.finalizeReactModuleWithMap(output.code);
     // Append synthetic imports so RSC directives remain the first statements.
     const code =
       finalized.code.slice(finalized.prefix.length) +
       "\n" +
       finalized.prefix +
-      cssImport(session.baseCss()) +
-      cssImport(plan.css);
+      cssImport(base) +
+      cssImport(plan);
     const map = host.moduleSourceMap(
       text,
       output.code,
@@ -133,7 +130,7 @@ module.exports = function (source, inputMap) {
       finalized.removed,
       "",
     );
-    callback(null, code, map, {
+    callback(null, code, host.composeModuleSourceMap(map, inputMap), {
       stillwind: {
         coverage: plan.coverage,
         designSystem: plan.designSystem,

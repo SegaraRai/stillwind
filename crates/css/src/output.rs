@@ -1,20 +1,29 @@
 //! Source-ordered CSS output, independent of the host's module/chunk policy.
 
 use cssparser::{ParseError, Parser, Token};
+use stillwind_source::{FileId, Span};
 
 use crate::ThemeToken;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CssOutputNode {
-    Authored(String),
-    LayerOrder(String),
+    Authored {
+        css: String,
+        origin: Option<Span>,
+    },
+    LayerOrder {
+        css: String,
+        origin: Option<Span>,
+    },
     Group {
         header: String,
         children: Vec<Self>,
+        origin: Option<Span>,
     },
     Theme {
         tokens: Vec<usize>,
         keyframes: String,
+        origin: Option<Span>,
     },
     Utilities,
 }
@@ -51,14 +60,38 @@ impl CssOutputTemplate {
     pub fn authored_css(&self) -> String {
         authored_css(&self.nodes)
     }
+
+    pub fn map_origins(&mut self, mut map: impl FnMut(Span) -> Option<Span>) {
+        fn visit_nodes(nodes: &mut [CssOutputNode], map: &mut impl FnMut(Span) -> Option<Span>) {
+            for node in nodes {
+                match node {
+                    CssOutputNode::Authored { origin, .. }
+                    | CssOutputNode::LayerOrder { origin, .. }
+                    | CssOutputNode::Theme { origin, .. } => *origin = origin.and_then(&mut *map),
+                    CssOutputNode::Group {
+                        origin, children, ..
+                    } => {
+                        *origin = origin.and_then(&mut *map);
+                        visit_nodes(children, map);
+                    }
+                    CssOutputNode::Utilities => {}
+                }
+            }
+        }
+        visit_nodes(&mut self.nodes, &mut map);
+    }
 }
 
 fn authored_css(nodes: &[CssOutputNode]) -> String {
     nodes
         .iter()
         .map(|node| match node {
-            CssOutputNode::Authored(css) | CssOutputNode::LayerOrder(css) => css.clone(),
-            CssOutputNode::Group { header, children } => {
+            CssOutputNode::Authored { css, .. } | CssOutputNode::LayerOrder { css, .. } => {
+                css.clone()
+            }
+            CssOutputNode::Group {
+                header, children, ..
+            } => {
                 format!("{header}{{{}}}", authored_css(children))
             }
             CssOutputNode::Theme { .. } | CssOutputNode::Utilities => String::new(),
@@ -88,6 +121,30 @@ fn is_definition(name: &str) -> bool {
         )
 }
 
+fn consume_block(
+    parser: &mut Parser<'_>,
+    base: usize,
+) -> Result<Option<(usize, usize)>, CssOutputError> {
+    loop {
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::CurlyBracketBlock) => {
+                let position = parser.position().byte_index() - 1;
+                parser
+                    .parse_nested_block(|nested| {
+                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, ParseError<()>>(())
+                    })
+                    .map_err(|_| CssOutputError::Block {
+                        offset: base + position,
+                    })?;
+                return Ok(Some((position, parser.position().byte_index() - 1)));
+            }
+            Ok(Token::Semicolon) | Err(_) => return Ok(None),
+            Ok(_) => {}
+        }
+    }
+}
+
 fn parse_nodes(
     css: &str,
     base: usize,
@@ -115,29 +172,20 @@ fn parse_nodes(
                 name: name.into(),
             });
         }
-        let mut block = None;
-        loop {
-            match parser.next_including_whitespace_and_comments() {
-                Ok(Token::CurlyBracketBlock) => {
-                    let position = parser.position().byte_index() - 1;
-                    parser
-                        .parse_nested_block(|nested| {
-                            while nested.next_including_whitespace_and_comments().is_ok() {}
-                            Ok::<_, ParseError<()>>(())
-                        })
-                        .map_err(|_| CssOutputError::Block {
-                            offset: base + position,
-                        })?;
-                    block = Some((position, parser.position().byte_index() - 1));
-                    break;
-                }
-                Ok(Token::Semicolon) | Err(_) => break,
-                Ok(_) => {}
-            }
-        }
+        let block = consume_block(&mut parser, base)?;
         let end = parser.position().byte_index();
+        let origin = Some(Span::new(
+            FileId(0),
+            u32::try_from(base + start).map_err(|_| CssOutputError::Block {
+                offset: base + start,
+            })?,
+            u32::try_from(base + end).map_err(|_| CssOutputError::Block { offset: base + end })?,
+        ));
         match (name.as_deref(), block) {
-            (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder(css[start..end].into())),
+            (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder {
+                css: css[start..end].into(),
+                origin,
+            }),
             (Some("stillwind-slot"), Some(_)) | (Some("theme"), None) => {
                 return Err(CssOutputError::Block {
                     offset: base + start,
@@ -159,6 +207,7 @@ fn parse_nodes(
                     css[header_end..open].trim().into(),
                 ));
                 nodes.push(CssOutputNode::Theme {
+                    origin,
                     tokens: tokens
                         .iter()
                         .enumerate()
@@ -175,6 +224,7 @@ fn parse_nodes(
                 Some((open, close)),
             ) => {
                 nodes.push(CssOutputNode::Group {
+                    origin,
                     header: css[start..open].trim().into(),
                     children: parse_nodes(
                         &css[open + 1..close],
@@ -186,7 +236,10 @@ fn parse_nodes(
                 });
             }
             (Some(name), _) if is_definition(name) => {}
-            _ => nodes.push(CssOutputNode::Authored(css[start..end].into())),
+            _ => nodes.push(CssOutputNode::Authored {
+                css: css[start..end].into(),
+                origin,
+            }),
         }
     }
     Ok(nodes)
@@ -201,9 +254,12 @@ mod tests {
         let template = CssOutputTemplate::parse("@stillwind-marker group; .before{content:'@theme { ; }';} @layer x { @supports (display:grid) { @stillwind-slot utilities; } .after{color:red} }", &[]).unwrap();
         assert_eq!(template.nodes.len(), 2);
         assert!(
-            matches!(&template.nodes[0], CssOutputNode::Authored(css) if css.contains("content:"))
+            matches!(&template.nodes[0], CssOutputNode::Authored {css,..} if css.contains("content:"))
         );
-        let CssOutputNode::Group { header, children } = &template.nodes[1] else {
+        let CssOutputNode::Group {
+            header, children, ..
+        } = &template.nodes[1]
+        else {
             panic!("layer")
         };
         assert_eq!(header, "@layer x");
@@ -211,7 +267,7 @@ mod tests {
         assert!(
             matches!(&children[0], CssOutputNode::Group { children, .. } if children == &[CssOutputNode::Utilities])
         );
-        assert!(matches!(&children[1], CssOutputNode::Authored(css) if css.contains(".after")));
+        assert!(matches!(&children[1], CssOutputNode::Authored {css,..} if css.contains(".after")));
     }
 
     #[test]

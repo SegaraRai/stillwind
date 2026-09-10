@@ -81,3 +81,13 @@ Without that one-line patch, SSR omits CSS belonging to split route components.
 This is an explicit dependency patch, not a claim that the unpatched upstream
 release passes this Windows acceptance fixture. `vp i --frozen-lockfile`
 reapplies it on a fresh checkout.
+
+`verify:rspack` and `verify:rsbuild` also trace the emitted CSS selector map to
+the actual macro file, line and column in both cold and warm builds. Rsbuild
+explicitly enables `output.sourceMap.css`. Lightning CSS maps selectors; it does
+not preserve declaration-by-declaration columns. The adapter composes remaining
+carrier references after Lightning CSS, including carriers outside the project
+root on Windows. Native and host tests cover imported authored CSS, theme tokens,
+UTF-8/UTF-16 conversion, URL length edits and upstream JavaScript map composition.
+Vite development accepts the carrier map. The tested Vite release does not emit
+production CSS maps even with `build.sourcemap: true`; JS maps remain enabled.

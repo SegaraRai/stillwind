@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   compileModule,
+  cssWithSourceMap,
+  decodeCssSourceMap,
   loadCssGraph,
   compilerModulePath,
   cleanModuleId,
@@ -14,7 +16,7 @@ import {
   TypeScriptFactsService,
   finalizeReactModuleWithMap as finalizeModuleWithMap,
 } from "@stillwind/host";
-import type { PlayOutput, ProjectCompilerOutput } from "@stillwind/host";
+import type { CssLocations, PlayOutput, ProjectCompilerOutput } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
@@ -343,6 +345,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       ),
     ) as {
       css: string;
+      sourceMap: CssLocations;
       coverage: { kind: string };
       designSystem: string;
       producers: unknown[];
@@ -361,7 +364,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         JSON.stringify(`/@fs/${file.replaceAll("\\", "/")}`).slice(1, -1),
       );
     }
-    return { ...plan, css: resolveResources(plan.css, resources) };
+    return { ...plan, css: cssWithSourceMap(plan, resources, projectRoot) };
   };
 
   return {
@@ -434,12 +437,18 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
       if (cleanModuleId(id) === resolvedVirtualCssId) {
         await ensureSession(state, this);
-        return resolveResources(state.session!.baseCss(), state.resources);
+        return decodeCssSourceMap(
+          cssWithSourceMap(
+            JSON.parse(state.session!.baseCssWithMap()),
+            state.resources,
+            projectRoot,
+          ),
+        );
       }
       if (cleanModuleId(id) === resolvedModuleCssId) {
         const payload = new URLSearchParams(id.slice(id.indexOf("?") + 1)).get("css");
         if (payload === null) this.error("Stillwind CSS carrier is missing its payload");
-        return Buffer.from(payload, "base64url").toString("utf8");
+        return decodeCssSourceMap(Buffer.from(payload, "base64url").toString("utf8"));
       }
       return undefined;
     },

@@ -1,8 +1,53 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { moduleSourceMap } from "@stillwind/host";
+import { createServer } from "vite-plus";
+
+import { stillwind } from "../src/index.ts";
+
+void test("Vite development exposes a carrier CSS map to the original macro", async () => {
+  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const root = mkdtempSync(path.join(repo, ".session-test-"));
+  writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
+  const source =
+    "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props=style('red');";
+  writeFileSync(path.join(root, "entry.ts"), source);
+  const server = await createServer({
+    configFile: false,
+    root,
+    plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+    css: { devSourcemap: true },
+    server: { middlewareMode: true, watch: null },
+    logLevel: "silent",
+  });
+  try {
+    const result = await server.transformRequest("/entry.ts");
+    assert.ok(result);
+    const carrier = result.code.match(/(?:from |import )"([^"\n]+stillwind-carrier\.css[^"\n]+)"/);
+    assert.ok(carrier, result.code);
+    const css = await server.transformRequest(carrier[1] + "&direct");
+    assert.ok(css);
+    assert.ok(css.map, css.code);
+    const map = new TraceMap(JSON.stringify(css.map));
+    const offset = css.code.indexOf("._s_");
+    const prefix = css.code.slice(0, offset);
+    const origin = originalPositionFor(map, {
+      line: prefix.split("\n").length,
+      column: offset - prefix.lastIndexOf("\n") - 1,
+    });
+    assert.ok(origin.source?.endsWith("/entry.ts"), JSON.stringify(origin));
+    assert.equal(origin.line, 3);
+    assert.equal(origin.column, "export const props=".length);
+  } finally {
+    await server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 void test("maps replacements and untouched UTF-16 positions after removed and inserted imports", () => {
   const macro = 'import { style } from "stillwind/react";\r\n';
