@@ -16,18 +16,18 @@ vp run verify
 
 各言語 9 fixtures / 28 import・call span。成功数は「生成 AST の開始位置が期待する SFC の位置に戻り、生成 span のテキストが元 SFC と完全一致し、call は Identifier を callee に持つ」の件数。実際の import binding の解決までは検証していない。
 
-| converter | version | map | 成功 span |
-| --- | --- | --- | --- |
-| @astrojs/compiler convertToTSX | 4.0.0 | v3 | 28/28 |
-| 同上 includeScripts:false | 4.0.0 | v3 | 26/28 |
-| @astrojs/compiler transform | 4.0.0 | v3 | 19/28 |
-| @astrojs/compiler-rs convertToTSX | 0.4.0 | — | 全9件で未実装エラー |
-| @astrojs/compiler-rs transform | 0.4.0 | v3 | 8/28 |
-| svelte2tsx | 0.7.61 | v3 | 28/28 |
-| svelte/compiler client / server | 5.57.0 | v3 | 23/28・24/28 |
-| @vue/language-core | 3.3.11 | Volar range mappings | 21/28 |
-| @vue/compiler-sfc compileScript | 3.5.42 | v3 | 21/28 |
-| 同上 inlineTemplate:true | 3.5.42 | v3 | 21/28 |
+| converter                         | version | map                  | 成功 span           |
+| --------------------------------- | ------- | -------------------- | ------------------- |
+| @astrojs/compiler convertToTSX    | 4.0.0   | v3                   | 28/28               |
+| 同上 includeScripts:false         | 4.0.0   | v3                   | 26/28               |
+| @astrojs/compiler transform       | 4.0.0   | v3                   | 19/28               |
+| @astrojs/compiler-rs convertToTSX | 0.4.0   | —                    | 全9件で未実装エラー |
+| @astrojs/compiler-rs transform    | 0.4.0   | v3                   | 8/28                |
+| svelte2tsx                        | 0.7.61  | v3                   | 28/28               |
+| svelte/compiler client / server   | 5.57.0  | v3                   | 23/28・24/28        |
+| @vue/language-core                | 3.3.11  | Volar range mappings | 21/28               |
+| @vue/compiler-sfc compileScript   | 3.5.42  | v3                   | 21/28               |
+| 同上 inlineTemplate:true          | 3.5.42  | v3                   | 21/28               |
 
 全ての変換成功ファイルは oxc-parser 0.149.0 で構文エラーなし。TypeScript 6.0.3 を使用。これは OXC の JS binding での構文確認で、Stillwind Rust 本体の受け入れテストではない。
 
@@ -61,3 +61,9 @@ verify.mjs は map で対応できた77 spanを元 SFC 上で編集し、27 SFC 
 - [Vue language tools](https://github.com/vuejs/language-tools)
 
 上記に加え、固定した npm package の実際の公開 API と出力を確認した。最新一般の保証ではなく、表のバージョンと同梱 fixture に対する結果。
+
+# Native 実装の追加検証
+
+`vp run verify-native` は保存済みの実 converter 出力を Rust の `ProjectionIndex` に渡す。原文が無変形の77 spanが一致し、Vue templateの7 spanは正規化前には拒否される。v3 が出すサロゲートペア内部の点は、両側が同じ文字の内部であることを確認したうえで編集アンカーから除外する。
+
+`vp run verify-normalization` は converter を再実行し、Rust の framework 規則、解析用 source の構築、OXC の binding 追跡、元 IR span の検証を通す。32 fixtureで確認済み。Vue の nested expression・shorthand object・ユーザー所有の receiver・template shadowing、Svelte の store・reactive declaration・runesを含む。再利用する条件式・属性式が元ソースの文字列であることも assert する。これは frontend と map の検証であり、native session・bundler・runtime の対応完了を意味しない。

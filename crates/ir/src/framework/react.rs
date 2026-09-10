@@ -5,4 +5,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     macro_import: "stillwind/react",
     class_property: "className",
     projected_input: false,
+    normalize: super::preserve,
 };

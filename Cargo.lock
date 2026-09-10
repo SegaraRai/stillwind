@@ -1603,6 +1603,8 @@ name = "stillwind-js-oxc"
 version = "0.0.0"
 dependencies = [
  "oxc",
+ "serde",
+ "serde_json",
  "stillwind-ir",
  "stillwind-semantic",
  "stillwind-source",
@@ -1661,6 +1663,7 @@ dependencies = [
  "oxc_sourcemap",
  "proptest",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 

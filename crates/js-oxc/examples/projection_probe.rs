@@ -1,0 +1,47 @@
+//! Runs host-converter outputs through normalization, Oxc and original IR mapping.
+use serde::Deserialize;
+use serde_json::json;
+use std::io::{self, Read};
+use stillwind_ir::AdapterKind;
+use stillwind_js_oxc::{normalize_projection, parse};
+use stillwind_source::{FileId, ProjectionMap, SourceFile};
+
+#[derive(Deserialize)]
+struct Input {
+    name: String,
+    generated: String,
+    original: String,
+    map: ProjectionMap,
+    framework: AdapterKind,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input)?;
+    let inputs: Vec<Input> = serde_json::from_str(&input)?;
+    let mut results = Vec::new();
+    for input in inputs {
+        let generated = SourceFile::new(FileId(2), "generated.tsx", input.generated)?;
+        let original = SourceFile::new(FileId(1), "original", input.original)?;
+        let normalized = match normalize_projection(
+            &generated,
+            &original,
+            &input.map,
+            input.framework,
+            FileId(3),
+        ) {
+            Ok(value) => value,
+            Err(error) => {
+                results.push(json!({"name":input.name,"error":error.to_string()}));
+                continue;
+            }
+        };
+        let parsed = parse(&normalized.source);
+        match normalized.original_ir(&parsed.module) {
+            Ok((ir, provenance)) => results.push(json!({"name":input.name,"ir":ir,"provenance":provenance,"diagnostics":parsed.diagnostics,"normalized":normalized.source.text()})),
+            Err(error) => results.push(json!({"name":input.name,"error":error.to_string(),"normalized":normalized.source.text()})),
+        }
+    }
+    println!("{}", serde_json::to_string(&results)?);
+    Ok(())
+}

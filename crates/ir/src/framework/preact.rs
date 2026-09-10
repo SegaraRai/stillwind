@@ -5,4 +5,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     macro_import: "stillwind/preact",
     class_property: "class",
     projected_input: false,
+    normalize: super::preserve,
 };

@@ -247,8 +247,33 @@ impl<'a> ProjectionIndex<'a> {
     /// Requires mapped first/last scalars and exact original text. In particular,
     /// an exclusive-end token is not required (some converters move it).
     pub fn verify_exact(&self, projected: Span) -> Result<SourceProvenance, ProjectionError> {
-        let text = self.generated.slice(projected)?;
-        let Some((last, character)) = text.char_indices().next_back() else {
+        self.verify_fragments(&[projected])
+    }
+
+    /// Verifies a normalized expression assembled from ordered generated fragments.
+    /// Omitted synthetic text never becomes part of the emitted original expression.
+    ///
+    /// # Errors
+    /// Rejects invalid, overlapping, nonmonotonic, unmapped or text-mismatched fragments.
+    pub fn verify_fragments(
+        &self,
+        fragments: &[Span],
+    ) -> Result<SourceProvenance, ProjectionError> {
+        let (Some(first), Some(last_span)) = (fragments.first(), fragments.last()) else {
+            return Err(ProjectionError::Map("empty projection fragments".into()));
+        };
+        let projected = Span::new(self.generated.id(), first.start.0, last_span.end.0);
+        let mut text = String::new();
+        let mut previous_end = 0;
+        for fragment in fragments {
+            if fragment.start.0 < previous_end {
+                return Err(ProjectionError::Unmapped(projected));
+            }
+            text.push_str(self.generated.slice(*fragment)?);
+            previous_end = fragment.end.0;
+        }
+        let last_text = self.generated.slice(*last_span)?;
+        let Some((last, character)) = last_text.char_indices().next_back() else {
             return Err(ProjectionError::Unmapped(projected));
         };
         let last = u32::try_from(last).map_err(|_| ProjectionError::Unmapped(projected))?;
@@ -258,7 +283,7 @@ impl<'a> ProjectionIndex<'a> {
             .original_byte(projected.start)
             .ok_or(ProjectionError::Unmapped(projected))?;
         let end = self
-            .original_byte(BytePos(projected.start.0 + last))
+            .original_byte(BytePos(last_span.start.0 + last))
             .ok_or(ProjectionError::Unmapped(projected))?
             .0
             .checked_add(width)
@@ -268,7 +293,10 @@ impl<'a> ProjectionIndex<'a> {
             return Err(ProjectionError::Content(original));
         }
         let mut previous = start.0;
-        for (_, mapped) in self.points.range(projected.start.0..projected.end.0) {
+        for (_, mapped) in fragments
+            .iter()
+            .flat_map(|fragment| self.points.range(fragment.start.0..fragment.end.0))
+        {
             let Some(mapped) = mapped else {
                 return Err(ProjectionError::Unmapped(projected));
             };
@@ -281,6 +309,74 @@ impl<'a> ProjectionIndex<'a> {
             projected,
             original,
         })
+    }
+
+    /// Tests whether the converter collapsed a generated prefix onto the retained
+    /// expression. Actual user-written receivers have distinct original positions.
+    pub fn is_collapsed_prefix(&self, whole: Span, retained: Span) -> bool {
+        if whole.file != self.generated.id()
+            || retained.file != whole.file
+            || whole.start.0 >= retained.start.0
+            || whole.end != retained.end
+        {
+            return false;
+        }
+        let Ok(provenance) = self.verify_exact(retained) else {
+            return false;
+        };
+        if self.verify_exact(whole).is_ok() {
+            return false;
+        }
+        if self.ranges.iter().any(|range| {
+            range.generated.start.0 < retained.start.0 && range.generated.end.0 > whole.start.0
+        }) {
+            return false;
+        }
+        self.points
+            .range(whole.start.0..retained.start.0)
+            .all(|(_, mapped)| mapped.is_none_or(|mapped| mapped == provenance.original.start.0))
+    }
+
+    /// Checks that all mapped pieces of a wrapper originate within the retained
+    /// source range. This also supports duplicated identifiers in expanded
+    /// shorthand properties without treating authored `key: value` as shorthand.
+    pub fn is_collapsed_wrapper(&self, whole: Span, retained: Span) -> bool {
+        if whole.file != self.generated.id()
+            || retained.file != whole.file
+            || whole.start.0 > retained.start.0
+            || whole.end.0 < retained.end.0
+        {
+            return false;
+        }
+        let Ok(mapped) = self.verify_exact(retained) else {
+            return false;
+        };
+        if self.verify_exact(whole).is_ok() {
+            return false;
+        }
+        if !self
+            .points
+            .range(whole.start.0..whole.end.0)
+            .all(|(_, point)| {
+                point.is_none_or(|point| {
+                    point >= mapped.original.start.0 && point <= mapped.original.end.0
+                })
+            })
+        {
+            return false;
+        }
+        self.ranges
+            .iter()
+            .filter(|range| {
+                range.generated.start.0 < whole.end.0 && range.generated.end.0 > whole.start.0
+            })
+            .all(|range| {
+                let start = range.original.start.0 + whole.start.0.max(range.generated.start.0)
+                    - range.generated.start.0;
+                let end = range.original.start.0 + whole.end.0.min(range.generated.end.0)
+                    - range.generated.start.0;
+                start >= mapped.original.start.0 && end <= mapped.original.end.0
+            })
     }
 }
 

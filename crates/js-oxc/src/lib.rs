@@ -19,9 +19,11 @@ mod demand;
 mod entry;
 mod expressions;
 mod motion;
+mod normalization;
 mod refs;
 mod state;
 mod visit;
 
 pub use analyzer::OxcSourceAnalyzer;
 pub use entry::{ParsedJavaScript, parse, parse_with_type_facts};
+pub use normalization::{NormalizedProjection, normalize_projection};

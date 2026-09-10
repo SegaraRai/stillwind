@@ -104,6 +104,10 @@ framework converter は、変数参照、call、リアクティブな読み取�
 
 拡張点の結果は「対応できた」「対象外」「対応不能／曖昧」を区別する。マクロ候補と分かったものの対応に失敗した場合は診断し、通常の無関係な式として黙って落とさない。認識・比較・編集で別々の prefix 除去を実装せず、同じ対応結果を利用する。
 
+実装中の共通経路は、OXC から中立な式の view を作り、framework が返す保持範囲を map と原文で検証して、内部の解析用 source を構築する。この source を OXC で解析することで、既存の binding 追跡と式比較にも同じ正規化を適用する。元投影との断片対応は `NormalizedProjection` が保持する。出力用 IR の全 span は元 source に検証付きで移し、元投影の span は `SourceProvenance` に残す。解析用 source を最終出力として返さない。追加の parse と断片検索のコストは性能検証の対象に含める。
+
+Vue language-core の実出力では、補助 receiver に加え `{label}` が `{label: __VLS_ctx.label}` になることを確認した。`vue.rs` は同名 key/value の既知の形を候補とし、共通処理が両方の対応先が同じ元 identifier の範囲内にあることを検証する。ユーザーが書いた `{label: label}` は別々の位置に対応するため省略しない。
+
 ### 全フレームワーク共通のマクロ認識
 
 import binding の追跡、alias、shadowing、script realm の区別は全フレームワーク共通の解析責務である。名前だけの `style(...)` や同名のユーザー関数は対象にしない。framework ファイルは投影固有の参照形を宣言し、共通解析がそれを binding に対応付ける。生成コードだけでは対応が確定しない場合は converter 由来の provenance を利用し、名前から推測しない。

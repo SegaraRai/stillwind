@@ -1,6 +1,7 @@
 //! Framework policy, independent of parsers and host converters.
 
 use serde::{Deserialize, Serialize};
+use stillwind_source::Span;
 
 mod astro;
 mod preact;
@@ -25,6 +26,34 @@ pub struct FrameworkSpec {
     pub class_property: &'static str,
     /// Enabled only after the original-source projection path is validated.
     pub projected_input: bool,
+    pub normalize: fn(ProjectionExpression<'_>) -> ProjectionDecision,
+}
+
+/// Parser-neutral view of a possible converter-generated expression wrapper.
+#[derive(Clone, Copy, Debug)]
+pub enum ProjectionExpression<'a> {
+    Member {
+        receiver: &'a str,
+        whole: Span,
+        property: Span,
+        optional: bool,
+    },
+    ExpandedShorthand {
+        receiver: &'a str,
+        whole: Span,
+        key: Span,
+        key_name: &'a str,
+        value_name: &'a str,
+    },
+}
+
+pub enum ProjectionDecision {
+    Preserve,
+    Retain(Span),
+}
+
+fn preserve(_: ProjectionExpression<'_>) -> ProjectionDecision {
+    ProjectionDecision::Preserve
 }
 
 pub const FRAMEWORKS: &[&FrameworkSpec] = &[

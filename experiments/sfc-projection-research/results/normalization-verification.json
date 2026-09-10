@@ -1,0 +1,424 @@
+[
+  {
+    "name": "astro/basic",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('script-basic')",
+        "reused": []
+      },
+      {
+        "text": "style('template-basic')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/unicode",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('script-é🧭')",
+        "reused": []
+      },
+      {
+        "text": "style('template-中🧭')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/multiline",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style(\n /* 日本語 🧭 */\n 'script-multi'\n)",
+        "reused": []
+      },
+      {
+        "text": "style(\n 'template-multi'\n)",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/generic",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style<{label:string}>('script-generic')",
+        "reused": []
+      },
+      {
+        "text": "style('template-generic')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/alias-crlf",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "sx('script-alias')",
+        "reused": []
+      },
+      {
+        "text": "sx('template-alias')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/module-css",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('sheet-style')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/duplicates",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('same')",
+        "reused": []
+      },
+      {
+        "text": "style('same')",
+        "reused": []
+      },
+      {
+        "text": "style('same')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/scoped-expression",
+    "diagnostics": ["SHJS002"],
+    "calls": [
+      {
+        "text": "style('template-scope', item.tone)",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/basic",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('script-basic')",
+        "reused": []
+      },
+      {
+        "text": "style('template-basic')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/unicode",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('script-é🧭')",
+        "reused": []
+      },
+      {
+        "text": "style('template-中🧭')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/multiline",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style(\n /* 日本語 🧭 */\n 'script-multi'\n)",
+        "reused": []
+      },
+      {
+        "text": "style(\n 'template-multi'\n)",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/generic",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style<{label:string}>('script-generic')",
+        "reused": []
+      },
+      {
+        "text": "style('template-generic')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/alias-crlf",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "sx('script-alias')",
+        "reused": []
+      },
+      {
+        "text": "sx('template-alias')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/module-css",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('sheet-style')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/duplicates",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('same')",
+        "reused": []
+      },
+      {
+        "text": "style('same')",
+        "reused": []
+      },
+      {
+        "text": "style('same')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/scoped-expression",
+    "diagnostics": ["SHJS002"],
+    "calls": [
+      {
+        "text": "style('template-scope', item.tone)",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/basic",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('script-basic')",
+        "reused": []
+      },
+      {
+        "text": "style('template-basic')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/unicode",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('script-é🧭')",
+        "reused": []
+      },
+      {
+        "text": "style('template-中🧭')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/multiline",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style(\n /* 日本語 🧭 */\n 'script-multi'\n)",
+        "reused": []
+      },
+      {
+        "text": "style(\n 'template-multi'\n)",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/generic",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style<{label:string}>('script-generic')",
+        "reused": []
+      },
+      {
+        "text": "style('template-generic')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/alias-crlf",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "sx('script-alias')",
+        "reused": []
+      },
+      {
+        "text": "sx('template-alias')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/module-css",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('sheet-style')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/duplicates",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('same')",
+        "reused": []
+      },
+      {
+        "text": "style('same')",
+        "reused": []
+      },
+      {
+        "text": "style('same')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/scoped-expression",
+    "diagnostics": ["SHJS002"],
+    "calls": [
+      {
+        "text": "style('template-scope', item.tone)",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "svelte/two-scripts",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "sx('module')",
+        "reused": []
+      },
+      {
+        "text": "style('instance')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "astro/client-script",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style('server')",
+        "reused": []
+      },
+      {
+        "text": "sx('client')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/two-scripts",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "sx('normal')",
+        "reused": []
+      },
+      {
+        "text": "style('setup')",
+        "reused": []
+      }
+    ]
+  },
+  {
+    "name": "vue/dynamic-expressions",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "sx(active ? 'flex' : 'grid', {class: names.map(name => name + suffix), 'aria-label': JSON.stringify({label}), 'data-note': '__VLS_ctx.label'})",
+        "reused": [
+          "active",
+          "active",
+          "names.map(name => name + suffix)",
+          "JSON.stringify({label})",
+          "'__VLS_ctx.label'"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "vue/user-receiver",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style(__VLS_ctx.active ? 'flex' : 'grid')",
+        "reused": ["__VLS_ctx.active", "__VLS_ctx.active"]
+      }
+    ]
+  },
+  {
+    "name": "vue/template-shadow",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style(active ? 'flex' : 'grid')",
+        "reused": ["active", "active"]
+      }
+    ]
+  },
+  {
+    "name": "svelte/reactive-expressions",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style($enabled ? 'flex' : 'grid', {class: external, 'aria-label': label})",
+        "reused": ["$enabled", "$enabled", "external", "label"]
+      }
+    ]
+  },
+  {
+    "name": "svelte/rune-expressions",
+    "diagnostics": [],
+    "calls": [
+      {
+        "text": "style(active ? 'flex' : 'grid', {class: external})",
+        "reused": ["active", "active", "external"]
+      }
+    ]
+  }
+]
