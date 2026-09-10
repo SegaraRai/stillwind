@@ -82,6 +82,11 @@ This is an explicit dependency patch, not a claim that the unpatched upstream
 release passes this Windows acceptance fixture. `vp i --frozen-lockfile`
 reapplies it on a fresh checkout.
 
+This Windows path mismatch is already covered upstream by
+[TanStack/router PR #8202](https://github.com/TanStack/router/pull/8202),
+which normalizes the same module lookup path and adds regression tests for
+route stylesheets. As of 2026-09-10, the PR is open and unmerged.
+
 `verify:rspack` and `verify:rsbuild` also trace the emitted CSS selector map to
 the actual macro file, line and column in both cold and warm builds. Rsbuild
 explicitly enables `output.sourceMap.css`. Lightning CSS maps selectors; it does
@@ -100,6 +105,12 @@ requires `patches/unplugin@3.3.0.patch`: its upstream transform loader replaces
 rather than composes an incoming map. The patch retains a newly generated map
 and composes it with an existing map. The frozen lockfile records both upstream
 patches, so these results do not claim unpatched TanStack/Rsbuild acceptance.
+
+Both source-map failures are already reported in
+[unjs/unplugin issue #616](https://github.com/unjs/unplugin/issues/616).
+[PR #615](https://github.com/unjs/unplugin/pull/615) preserves newly generated
+maps and composes incoming maps for both Rspack and webpack, with regression
+tests. As of 2026-09-10, the issue and PR are open and the PR is unmerged.
 
 CSS maps also compose through framework preprocessing. TanStack/Rsbuild and
 Next/webpack cold and warm builds trace selectors to the original TSX/JSX macro.
