@@ -82,3 +82,10 @@ output. Rspack/Rsbuild check native or extracted CSS chunks, relative images,
 persistent-cache reuse, CSS changes, unreachable producers and macro removal.
 These probes do not claim expression-level dead-code elimination or complete
 graph enumeration from Turbopack loader callbacks.
+
+JavaScript maps are checked against original macro calls in both Next bundlers
+and TanStack/Rsbuild. CSS selectors map correctly through Next/webpack and
+TanStack/Rsbuild; the latter also needs the experiment's `unplugin@3.3.0` map
+composition patch. Next/Turbopack's final CSS map currently has an incorrect
+source filename in the acceptance fixture and is explicitly recorded as
+unsupported. See the [acceptance matrix](../../docs/module-graph-implementation.md).

@@ -43,8 +43,8 @@ runtime, and emits CSS like:
 This repository contains a pnpm workspace backed by Vite+.
 
 ```powershell
-vp i
-vp run --filter @stillwind/native build
+vp i --frozen-lockfile
+vp run -r build
 vp run --filter @stillwind/react-example dev
 vp run --filter @stillwind/play dev
 ```

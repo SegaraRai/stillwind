@@ -1,151 +1,141 @@
-# Module graph implementation
+# Module graph implementation and acceptance
 
-Goal: complete the concrete architecture and acceptance work in
-`module-graph-architecture-research.md`. Future SFC frontends and optional global
-optimization remain extension points, as specified there; they must not be
-mistaken for implemented capabilities. Work is committed in coherent steps,
-with a target of 5–30 commits including the initial integration.
+Verified on Windows x64 on 2026-09-10. This is the current implementation status
+for [the architecture research](module-graph-architecture-research.md). The
+research document retains the original experiments and design rationale.
 
-| Work                                                                  | Status           | Evidence / next check                                                                             |
-| --------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------- |
-| Module CSS transport and class identity                               | Done (`77ba639`) | Rust, Vite build, Chrome edit/remove/restore, fixtures; workspace commit gates                    |
-| Self-contained `stillwind` package and CSS exports                    | Done (`30aff1a`) | Six package tests and seven Vite tests; recursive exported CSS imports stay within the package    |
-| CSS-derived registries; remove Rust CSS embedding and magic imports   | Implemented      | Real package graph test changes definitions without rebuilding Rust; empty input has no defaults  |
-| Import modifiers, utilities slot, source provenance and relative URLs | Pending          | Layer/supports/media placement, explicit diagnostics, URL and mapping fixtures                    |
-| Demand-driven semantic reads and environment/session isolation        | Pending          | Unreached sources, imported/re-exported assets, cache, deletion, stale async updates              |
-| Artifact selection, support closure and output contracts              | Implemented      | Explicit selections and coverage; declaration support; document/carrier output and revision tests |
-| Next Turbopack and webpack adapters                                   | Implemented      | Twelve real-compiler dev/production checks including hydration, prefetch and cold/warm output     |
-| Rspack and Rsbuild adapters                                           | Implemented      | Ten browser/cache/removal checks, including warm producers with built=false                       |
-| Vite framework templates                                              | Pending          | React Router, SolidStart, TanStack Start: SSR, hydration, lazy CSS, route changes                 |
-| Editor overlays and partial analysis                                  | Pending          | Unsaved buffers, invalid syntax, versions and stale requests                                      |
-| Final acceptance and documentation                                    | Pending          | Runnable templates, source maps, repeatable commands and precise capability matrix                |
+## Implemented boundaries
 
-Every step records tests actually run. A successful surrogate transport probe
-does not substitute for acceptance using the Stillwind compiler.
+| Area                            | Implementation and evidence                                                                                                                                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSS entry and package ownership | `stillwind` owns its exported CSS, React/Solid macros and runtime. Imports resolve through package exports. Rust does not embed the default stylesheet or recognize a magic `tailwindcss` alias.                                                                                         |
+| CSS graph                       | Immutable per-snapshot registries; source-ordered imports, layer/supports/media wrappers, explicit `@stillwind-slot utilities;`, stable anonymous layers, physical source provenance and owner-relative resources. Unsupported conditional compile-time definitions produce diagnostics. |
+| Module output                   | Self-contained physical CSS query carriers contain selected rules and their support. A CSS load never depends on collecting all transform callbacks. Document CSS and module contributions have separate placement.                                                                      |
+| Identity                        | Module-relative class identity is the adapter default; optional content identity supports deduplication. Namespace settings separate independently built applications. Resource-bearing rules preserve their source owner.                                                               |
+| Semantic inputs                 | Native probe summaries select relevant bindings and barrel exports. The host supplies local resolutions to the checker. Unrelated runtime imports do not become semantic producers. External package declarations retain TypeScript resolution.                                          |
+| Artifacts and coverage          | Explicit producer selection, support closure and revision identities. Observed coverage is distinct from host-guaranteed complete coverage; stale or missing producer selections are rejected.                                                                                           |
+| Environment and editor state    | Separate Vite environments; immutable CSS revisions; stale asynchronous loads rejected. `EditorProject` handles unsaved documents, dependencies, partial diagnostics, versions, cancellation and previous-success previews.                                                              |
+| Frameworks                      | Real-compiler adapters for Vite, Next/Turbopack, Next/webpack, Rspack and Rsbuild. Runnable acceptance fixtures cover React Router, SolidStart and both TanStack Start bundlers.                                                                                                         |
+| Source maps                     | JavaScript replacements and CSS provenance compose with preceding transforms. Authored CSS, theme tokens, macro/symbol origins, non-ASCII positions and URL-length edits are tested. Final CSS-map support depends on the downstream bundler, as listed below.                           |
 
-Registry ownership now belongs to each immutable theme snapshot. Utility,
-variant, property, formatting and ordering consumers read that snapshot, with
-no process-global semantic registry. Core/CSS tests: 204 passed; Tailwind tests:
-87 passed, one pre-existing ignored parity audit. An isolation test resolves
-different declarations from the same utility name in separate registries and
-checks that an empty registry does not acquire builtins. The legacy CSS input
-fallback was removed in the entry migration below.
+The host package owns compiler orchestration, checker snapshots, source-map
+composition and finalization. Resolution, reads, dependency registration and
+diagnostics remain host callbacks. Bundler loaders use isolated native sessions;
+restored carriers can be decoded in another process without a shared registry.
 
-The source-ordered output template now preserves layers and conditions around
-utility slots and theme support. It has a parser entry that injects no defaults.
-Core tests at the template step: 132 passed; CSS tests: 77 passed after correcting
-a test to allow preserved comments mentioning compiler directives.
+The checker distinguishes adding an overlay to an existing disk file from
+creating a new file. Removing an overlay restores the disk version instead of
+notifying TypeScript that the file was deleted. Regression tests exercise
+addition, removal and restoration without restarting the checker process.
 
-The graph loader now uses `parse_theme` with the resolved CSS source graph.
-`parse_tailwind_theme`, default CSS embedding, framework import selectors and
-the legacy renderer have been removed. Only explicit test fixtures load default
-CSS for compatibility tests. Standard package exports and authored utility slots
-are real CSS inputs. Vite, Playground, CLI and review/parity tooling have been
-migrated. CLI package exports use Oxc Resolver with CSS style conditions.
-Conditional compile-time definitions are diagnosed, while conditional output
-slots are preserved.
+Custom utility and variant names enter generated vocabularies without acquiring
+implicit builtins. Type declarations expose utility names and variant prefixes
+without materializing their full Cartesian product; the compiler validates
+complete utility strings.
 
-Anonymous output layers now receive deterministic internal names derived from
-the entry identity, configured namespace and template occurrence. Document CSS
-declares their order, and partial module carriers reopen the same layers even
-when preceding authored groups are omitted. Nested anonymous layers and comments
-in their headers are covered. Core/CSS library tests passed (54 and 75).
+## Framework acceptance
 
-Entry migration validation: workspace Rust tests passed; after the token scanner
-fix, Core tests (133), CSS tests (75), and Tailwind tests (87, one ignored) passed.
-The scanner regression was observed as a missing `container` in the real
-manifest graph and corrected before accepting fixture changes. Vite tests (7),
-core package tests (6), CLI package exports (3), native binding tests (8), React
-build, Chrome edit/remove/restore (4), and all six review fixtures passed.
-Workspace Clippy, relevant TypeScript checks, and changed-file lint passed.
+All listed probes use the actual compiler and Chrome. The original 18 transport
+experiments remain separate surrogate evidence. Results and generated fixture
+instructions are in [the experiment workspace](../experiments/module-graph/README.md).
 
-CSS graph resources now retain their owner, original span and decoded specifier.
-The expanded source uses deterministic placeholders and piecewise mappings, so
-length-changing URL substitutions preserve subsequent token positions. Vite
-resolves these through its host resolver before CSS asset processing; a real
-build emits two hashed SVG assets from authored and utility CSS in an imported
-file. CLI output rebases resources to the CSS entry directory. Quoted/unquoted
-`url()` and direct `image-set()` strings are recognized; comments, ordinary
-strings and absolute/data/fragment URLs are left intact. Vite tests (8), CLI
-tests (3), Core/CSS library tests and workspace Clippy passed. Resource URLs
-authored in JS style arguments and generated source maps remain pending.
+| Target                            | Verified behavior                                                                                                                                                              | Final JavaScript map                        | Final CSS map                                                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Vite                              | Late/lazy producers, resource emission, independent client/SSR resolution, CSS dependency edits, macro removal/restoration, aliases                                            | Original macro, including lazy build output | Development map, including preprocessing; production CSS maps unavailable in the tested Vite release                                     |
+| Next 16.3.4 / Turbopack           | RSC/client hydration, state-preserving CSS edit, macro removal/restoration, client navigation, observed prefetch, cold/warm production                                         | Original macro in both builds               | **Unsupported in this fixture:** final map retains the macro line/column but names `packages/core/index.css` instead of `app/client.jsx` |
+| Next 16.3.4 / webpack             | Same six browser acceptance checks                                                                                                                                             | Original macro in both builds               | Original macro in both builds                                                                                                            |
+| Rspack 2.2.3                      | Browser CSS and SVG, persistent-cache restoration, dependency edit, unreachable producer, macro removal                                                                        | Shared loader composition tested            | Original macro selector in cold/warm builds                                                                                              |
+| Rsbuild 2.2.4                     | Same browser/cache checks; Lightning CSS composition                                                                                                                           | Shared loader composition tested            | Original macro selector in cold/warm builds                                                                                              |
+| React Router 8.3.1                | JS-disabled SSR, hydration, lazy client navigation, CSS edits, three removal/restoration cycles, server projection edits, cold/warm builds, no server code in client artifacts | Original macro in both builds               | Vite production limitation                                                                                                               |
+| SolidStart 2.0.4                  | `stillwind/solid` class props, JS-disabled SSR, reactive comparisons, hydration, lazy navigation, CSS edits, removal/restoration, cold/warm builds                             | Original macro in both builds               | Vite production limitation                                                                                                               |
+| TanStack Start 1.168.50 / Vite    | JS-disabled SSR, hydration, real server-function request, lazy navigation, CSS edits, macro removal/restoration, server projection edits, cold/warm builds                     | Original macro in both builds               | Vite production limitation                                                                                                               |
+| TanStack Start 1.168.50 / Rsbuild | Same acceptance checks with the dependency patches below                                                                                                                       | Original macro in both builds               | Original macro in both builds, composed through route preprocessing                                                                      |
 
-Vite now composes native UTF-16 replacement spans with removed macro imports
-and synthetic runtime/CSS imports into a standard JavaScript source map.
-The real lazy-chunk build maps its generated class back to the original style
-call. CRLF, non-BMP text, unchanged statements and unmapped synthetic imports
-are covered separately. Vite tests: nine passed, including TypeScript checks.
-CSS rule provenance maps remain outstanding. Installing the map encoder also
-refreshes the workspace lock to the current Vite override and renamed core package.
+The experiment lockfile applies two explicit upstream patches for Windows
+TanStack/Rsbuild acceptance: `@tanstack/start-plugin-core@1.171.40` normalizes
+route paths in the CSS manifest, and `unplugin@3.3.0` composes rather than replaces
+transform maps. These results do not claim unpatched upstream support.
 
-Vite sessions, TypeScript services, producer sets, CSS dependencies and resource
-resolutions are now scoped by Vite environment. The per-environment hot-update
-hook reloads only that environment and rejects outdated asynchronous loads.
-A real Vite server test resolves the same import to different client/SSR CSS,
-checks each module carrier, reloads only the client and releases an older load
-after a newer successful reload. Ten Vite tests passed. The Chrome real-compiler
-probe passed initial CSS, CSS-only edit, macro removal and restoration checks.
+Framework splitting runs before Stillwind determines producer ownership. A
+server-only module can be connected to a route with an explicit
+`import './server-style.ts?stillwind.css'`; only CSS is projected into the client.
+Projection maps retain file/line/column but omit server source text. React Router
+checks both client JavaScript and source maps for its server-only sentinel.
+Layer order is repeated in carriers so early route CSS is not overridden by
+later Preflight. Development carrier versions prevent an older HMR prune from
+removing a newly restored macro's stylesheet; they do not change class identity.
 
-Native summaries expose checker probe spans. Literal utilities no longer create
-probe candidates; Vite skips recursive semantic input reads and checker startup
-when the entry has no probes. Semantic inputs can now be supplied to a native
-session while selecting only one producer for compilation and registration.
-The cross-module fixture verifies animation support on the selected consumer
-without registering its source producer. Vite tests: ten passed; Oxc: eleven;
-native binding: eight. Probe-bearing graphs still use conservative recursive
-local dependency discovery; finer checker-driven discovery remains pending.
+CSS rules use macro/symbol anchors when no exact source range exists. Generated
+wrappers and helper rules can be unmapped. Lightning CSS preserves selector
+origins rather than every declaration column. The Turbopack runner records its
+specific source-file mismatch as `cssSourceMap.supported: false`, not as a
+source-map pass; other mismatches still fail. Disabling Turbopack minification
+was also tried and did not repair that mismatch. SolidStart edit checks allow
+300 ms for the Windows file watcher to settle between removal and restoration;
+they do not claim that every intermediate rapid disk write is observed.
 
-Core and Node sessions now plan explicit producer selections with observed or
-host-guaranteed complete coverage. Complete coverage names a target and graph
-revision; missing producers and stale retained watch artifacts are rejected.
-Document placement includes authored global CSS; carrier placement supports
-module/chunk selections without those globals. Plans include design-system,
-source, semantic and compiler identities. Completeness remains a host assertion,
-not something inferred from callbacks.
+## Repeatable verification
 
-The standalone-consumer regression exposed missing imported animation keyframes.
-Selected native compilation now attaches referenced animation/view-transition
-declarations from semantic inputs, without registering those inputs as producers
-or including unrelated ordinary styles or unused animations. Support source
-changes invalidate the consumer artifact and survive CSS snapshot recompilation.
-The Node fixture verifies the closure, exclusion and a producer-only content edit.
-The fingerprint regression fixture now preserves entry identity while varying
-file IDs: entry identity intentionally namespaces anonymous layers.
-Vite uses these plans and retains their coverage/revision metadata in transform
-results. All Core and native tests (including integration/property tests) passed,
-as did the ten Vite tests and Core/native Clippy checks.
+Prerequisites: the repository's Rust toolchain and platform linker, Node.js,
+Vite+ and pnpm. Framework browser probes also require installed Chrome. The
+standalone experiment has its own frozen lockfile and fixed ports; do not run
+two copies of the same probe concurrently.
 
-JS-authored relative resources now carry their source-module owner through
-artifacts, standalone support declarations, native output and stylesheet plans.
-Vite resolves them before its asset pipeline; CLI rebases them to the CSS entry
-directory. Relative-resource classes retain source identity even in content mode,
-so identical spellings in different directories cannot collide. A real Vite
-build emits two distinct SVGs and classes for two `./icon.svg` references; an
-imported animation retains its producer owner. Eleven Vite tests, 57 Core library
-tests, four CLI tests and Core/native/CLI Clippy passed. CSS source maps remain
-outstanding.
+From the repository root:
 
-`@stillwind/host` now owns the host-neutral CSS graph loader, semantic compiler
-driver, TS7 service, module finalization and JavaScript map composition. Vite
-delegates to the same implementation; its eleven integration tests passed after
-the extraction. The package emits JavaScript and declarations for Node loaders
-with `vp run --filter @stillwind/host build`; filesystem resolution, reads,
-dependency registration and diagnostics stay explicit host callbacks.
+```sh
+vp i --frozen-lockfile
+vp run -r build
+vp run -r typecheck
+vp run -r test
+vp run -r check
+vp run fixtures:check
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+```
 
-`@stillwind/bundler` supplies Next's Turbopack/webpack wrapper, webpack-compatible
-loader rules and an Rsbuild plugin. Its immutable query carriers use ordinary
-CSS imports and preserve RSC directives; CSS/resource/compiler files are host
-build dependencies. The implementation uses fresh native sessions, not a shared
-CSS singleton. The current probes use literal style calls; cross-module symbolic
-semantics are exercised by the shared host/native suite.
+`test` covers host/Vite suites; `check` additionally runs native/core package
+tests and application TypeScript checks. Build includes the React example,
+playground, fixture viewer and its six unchanged review fixtures. Each example's
+build/dev task first builds the host package and native dependency.
 
-Real-compiler Chrome checks passed on Next 16.3.4 (six each for Turbopack and
-webpack): RSC/client hydration, CSS-only HMR with preserved client state, macro
-removal/restoration, route navigation, and cold/warm production builds with
-prerender and observed prefetch responses. Rspack 2.2.3 and Rsbuild 2.2.4 each
-passed five checks: cold, persistent warm, CSS edit, unreachable lazy producer,
-and macro removal. Warm producer stats explicitly report `built: false`; both
-initial/lazy styles and the emitted SVG still load. The probes disable minification
-for Rspack/Rsbuild inspection and use each Next bundler's production defaults.
-Commands and configuration examples live in `packages/bundler/README.md`; JSON
-evidence is under `experiments/module-graph/results`.
+From `experiments/module-graph` after building the repository:
+
+```sh
+vp i --frozen-lockfile
+vp run verify:stillwind
+vp run verify:adapters
+vp run verify:webpack
+vp run verify:rspack
+vp run verify:rsbuild
+vp run verify:react-router
+vp run verify:solidstart
+vp run verify:tanstack-vite
+vp run verify:tanstack-rsbuild
+```
+
+Workspace Rust tests, workspace Clippy, all package/application checks, twelve
+host tests, thirteen Vite tests, five native Node tests, six core Node tests and
+six review fixtures passed. One pre-existing ignored Rust registry audit remains
+ignored in the default workspace test command. Windows incremental-cache cleanup
+notes and playground bundle-size warnings are non-failing build output.
+
+A separate checkout with no native binary, Rust target directory or host/app
+build output passed frozen installation and a cache-disabled workspace build.
+After the final projection change, the same checkout passed cache-disabled
+`build`, `typecheck`, `test` and `check` tasks at `a66e9fe`. No tracked files were
+changed by installation or validation.
+
+## Explicit limits
+
+- Svelte/Vue/Astro frontends, a complete LSP transport/UI and optional global
+  optimization remain extension points.
+- Loader callbacks do not establish complete graph coverage, expression-level
+  tree shaking or arbitrary framework streaming/edge behavior.
+- Literal macros dominate framework browser fixtures. Cross-module symbolic
+  semantics, aliases and editor overlays have separate native/host/Vite tests.
+- The tested Vite production pipeline and Next/Turbopack CSS source mapping
+  have the limitations above. JavaScript source-map acceptance is separate.
+- Self-contained CSS/map payloads can be large; webpack reports cache string
+  serialization warnings. No payload compression or large-project performance
+  claim is included in this acceptance.
