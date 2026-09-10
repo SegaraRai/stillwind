@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
 
+import { verifyMacroSourceMap } from "./verify-source-map.mjs";
+
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(root, "../..");
@@ -16,6 +18,7 @@ const port = mode === "webpack" ? 43175 : 43174;
 const url = `http://localhost:${port}`;
 const dir = path.join(root, "output", `adapters-${mode}-${Date.now()}`);
 const results = { mode, checks: [] };
+const browserErrors = [];
 const write = async (name, text) => {
   const file = path.join(dir, name);
   await fs.mkdir(path.dirname(file), { recursive: true });
@@ -28,7 +31,7 @@ await write("package.json", JSON.stringify({ private: true }));
 await write("root.css", theme("rgb(11,22,33)"));
 await write(
   "next.config.js",
-  `const {withStillwind}=require(${JSON.stringify(path.join(repo, "packages/bundler/index.cjs"))}); module.exports=withStillwind({turbopack:{root:${JSON.stringify(repo)}}},{css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}});`,
+  `const {withStillwind}=require(${JSON.stringify(path.join(repo, "packages/bundler/index.cjs"))}); module.exports=withStillwind({productionBrowserSourceMaps:true,turbopack:{root:${JSON.stringify(repo)}}},{css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}});`,
 );
 await write(
   "app/layout.jsx",
@@ -125,6 +128,10 @@ try {
   await ready();
   browser = await chromium.launch({ channel: "chrome", headless: true });
   const page = await browser.newPage();
+  page.on("pageerror", (error) => browserErrors.push(String(error)));
+  page.on("requestfailed", (request) =>
+    browserErrors.push(`${request.url()}: ${request.failure()?.errorText}`),
+  );
   await page.goto(url);
   await page.waitForFunction(
     () => getComputedStyle(document.querySelector("#server")).color === "rgb(11, 22, 33)",
@@ -173,14 +180,30 @@ try {
   for (const temperature of ["cold", "warm"]) {
     proc = start(["build", `--${mode}`]);
     assert.equal(await proc.done, 0, proc.logs());
+    const javascriptSourceMap = await verifyMacroSourceMap(
+      path.join(dir, ".next/static"),
+      "app/client.jsx",
+      await fs.readFile(path.join(dir, "app/client.jsx"), "utf8"),
+      "style('client')",
+    );
     proc = start(["start", "-p", String(port)]);
     await ready();
     const evidence = await verifyPage(page, "rgb(44, 55, 66)");
-    results.checks.push({ name: `next-${mode}-${temperature}-production`, passed: true, evidence });
+    results.checks.push({
+      name: `next-${mode}-${temperature}-production`,
+      passed: true,
+      evidence,
+      javascriptSourceMap,
+    });
     await stop();
   }
 } catch (error) {
-  results.checks.push({ name: `next-${mode}-failure`, passed: false, error: String(error.stack) });
+  results.checks.push({
+    name: `next-${mode}-failure`,
+    passed: false,
+    error: String(error.stack),
+    browserErrors,
+  });
   throw error;
 } finally {
   await browser?.close();

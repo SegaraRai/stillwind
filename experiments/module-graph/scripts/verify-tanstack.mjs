@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
 
+import { verifyMacroSourceMap } from "./verify-source-map.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(root, "../..");
 const bundler = process.argv[2] ?? "vite";
@@ -213,6 +215,12 @@ try {
     proc = start("build");
     assert.equal(await proc.done, 0, proc.logs());
     const clientDir = path.join(dir, bundler === "vite" ? ".output/public" : "dist/client");
+    const javascriptSourceMap = await verifyMacroSourceMap(
+      clientDir,
+      "src/routes/index.tsx",
+      home,
+      "style('brand')",
+    );
     for (const file of await fs.readdir(clientDir, { recursive: true })) {
       if (/\.[cm]?js$/.test(file))
         assert.ok(
@@ -228,6 +236,7 @@ try {
     results.checks.push({
       name: `${temperature}-ssr-hydration-server-function-lazy-navigation`,
       passed: true,
+      javascriptSourceMap,
     });
     await page.goto("about:blank");
     await stop();

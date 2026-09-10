@@ -16,11 +16,21 @@
     },
     {
       "name": "cold-ssr-hydration-reactivity-lazy-navigation",
-      "passed": true
+      "passed": true,
+      "javascriptSourceMap": {
+        "source": "src/routes/index.jsx",
+        "line": 4,
+        "column": 152
+      }
     },
     {
       "name": "warm-ssr-hydration-reactivity-lazy-navigation",
-      "passed": true
+      "passed": true,
+      "javascriptSourceMap": {
+        "source": "src/routes/index.jsx",
+        "line": 4,
+        "column": 152
+      }
     }
   ]
 }

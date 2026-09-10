@@ -5,6 +5,7 @@ const { fileURLToPath } = require("node:url");
 // carrier is outside rootContext (the reconstructed source contains ../).
 // Compose only that remaining source; maps already composed are untouched.
 module.exports = function (source, inputMap) {
+  this.addDependency(__filename);
   const payload = new URLSearchParams(this.resourceQuery).get("stillwind");
   if (!payload || !inputMap) return this.callback(null, source, inputMap);
   const callback = this.async();

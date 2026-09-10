@@ -42,6 +42,7 @@ module.exports = function (source, inputMap) {
   });
   const resolveAsset = resolver({});
   const watch = (id) => context.addDependency(id);
+  watch(__filename);
   void (async () => {
     const host = await import("@stillwind/host");
     const { NativeProjectSession, nativeBindingPath } = await import("@stillwind/native");

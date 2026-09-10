@@ -91,3 +91,12 @@ root on Windows. Native and host tests cover imported authored CSS, theme tokens
 UTF-8/UTF-16 conversion, URL length edits and upstream JavaScript map composition.
 Vite development accepts the carrier map. The tested Vite release does not emit
 production CSS maps even with `build.sourcemap: true`; JS maps remain enabled.
+
+All current framework runners verify production JavaScript maps back to an
+original macro call in cold and warm builds. The shared helper follows emitted
+`sourceMappingURL` comments (Turbopack hashes the map filename independently).
+Next's fixture enables `productionBrowserSourceMaps`. TanStack/Rsbuild also
+requires `patches/unplugin@3.3.0.patch`: its upstream transform loader replaces
+rather than composes an incoming map. The patch retains a newly generated map
+and composes it with an existing map. The frozen lockfile records both upstream
+patches, so these results do not claim unpatched TanStack/Rsbuild acceptance.

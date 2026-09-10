@@ -25,6 +25,11 @@
         "color": "rgb(44, 55, 66)",
         "lazy": "rgb(90, 80, 70)",
         "prefetched": true
+      },
+      "javascriptSourceMap": {
+        "source": "app/client.jsx",
+        "line": 4,
+        "column": 91
       }
     },
     {
@@ -34,6 +39,11 @@
         "color": "rgb(44, 55, 66)",
         "lazy": "rgb(90, 80, 70)",
         "prefetched": true
+      },
+      "javascriptSourceMap": {
+        "source": "app/client.jsx",
+        "line": 4,
+        "column": 91
       }
     }
   ]

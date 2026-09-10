@@ -111,6 +111,7 @@ overrides:
 
 patchedDependencies:
   '@tanstack/start-plugin-core@1.171.40': 243b2aa406bd2d0f4bc8b7e3845fcd50e2f70cded74bd76d4b5fc91bf3b9dffd
+  unplugin@3.3.0: 96b357da5a035c60c0bb7cb1f11a522c67eaff4d97bcbb01f90bef13160c3af0
 
 importers:
 
@@ -4186,7 +4187,7 @@ snapshots:
       '@tanstack/router-generator': 1.167.34
       '@tanstack/router-utils': 1.162.2
       chokidar: 5.0.0
-      unplugin: 3.3.0(@rspack/core@2.2.3(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@0.3.1(@types/node@22.20.1)(jiti@2.7.0)(typescript@7.0.2))(rolldown@1.2.7)
+      unplugin: 3.3.0(patch_hash=96b357da5a035c60c0bb7cb1f11a522c67eaff4d97bcbb01f90bef13160c3af0)(@rspack/core@2.2.3(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@0.3.1(@types/node@22.20.1)(jiti@2.7.0)(typescript@7.0.2))(rolldown@1.2.7)
       zod: 4.5.4
     optionalDependencies:
       '@rsbuild/core': 2.2.4
@@ -5748,7 +5749,7 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unplugin@3.3.0(@rspack/core@2.2.3(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@0.3.1(@types/node@22.20.1)(jiti@2.7.0)(typescript@7.0.2))(rolldown@1.2.7):
+  unplugin@3.3.0(patch_hash=96b357da5a035c60c0bb7cb1f11a522c67eaff4d97bcbb01f90bef13160c3af0)(@rspack/core@2.2.3(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@0.3.1(@types/node@22.20.1)(jiti@2.7.0)(typescript@7.0.2))(rolldown@1.2.7):
     dependencies:
       '@jridgewell/remapping': 2.3.5
       picomatch: 4.0.7

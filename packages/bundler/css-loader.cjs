@@ -1,5 +1,6 @@
 const { fileURLToPath } = require("node:url");
 module.exports = function () {
+  this.addDependency(__filename);
   const css = new URLSearchParams(this.resourceQuery).get("stillwind");
   if (css === null) throw new Error("Missing Stillwind CSS carrier payload");
   const callback = this.async();

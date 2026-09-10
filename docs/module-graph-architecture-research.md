@@ -25,7 +25,9 @@ Vite 0.3.1の実ビルドではJSの`.map`は生成されるがCSSの`.map`は�
 
 意味依存については、hostが実際に選んだstatic import/re-exportの参照先をchecker用shadow sourceへ渡す。OXCのstring literal spanを使って置換し、元のUTF-8 spanへ戻すための編集位置も保持する。同じaliasがimporterごとに異なる場合、参照先変更後のincremental snapshot、未保存サブディレクトリ、Viteの独自aliasを検証した。外部packageの型解決はTypeScriptに委ね、将来のSFC仮想moduleやdynamic importまで同じ契約で対応したとは扱わない。
 
-残る主な受け入れは各frameworkのJS map検証と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
+本番JS mapはReact Routerに加え、SolidStart、TanStack StartのVite/Rsbuild、NextのTurbopack/webpackでcold/warm両方を検証した。`verify-source-map.mjs`は最終JSの`sourceMappingURL`を読み、生成classから元macroの行・列へ戻ることを確認する。TurbopackではJSとmapのhash名が異なるため、単なる`.map` suffixの推測では検証しない。TanStack/Rsbuildはさらに`unplugin@3.3.0`のRspack transform map合成patchを適用する。未patchではroute splitの中間ソースへ戻るだけで、元routeへ戻らない。
+
+残る主な受け入れはframework前段とのCSS map合成と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
 
 ## 実装第一段階（2026-09-10）
 

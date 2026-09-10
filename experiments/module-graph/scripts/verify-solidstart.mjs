@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
 
+import { verifyMacroSourceMap } from "./verify-source-map.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(root, "../..");
 const dir = path.join(root, "output", `solidstart-${Date.now()}`);
@@ -159,12 +161,19 @@ try {
   for (const temperature of ["cold", "warm"]) {
     proc = start("build");
     assert.equal(await proc.done, 0, proc.logs());
+    const javascriptSourceMap = await verifyMacroSourceMap(
+      path.join(dir, ".output/public"),
+      "src/routes/index.jsx",
+      home,
+      "style('brand')",
+    );
     proc = start("start");
     await ready();
     await verify(page, "rgb(44, 55, 66)");
     results.checks.push({
       name: `${temperature}-ssr-hydration-reactivity-lazy-navigation`,
       passed: true,
+      javascriptSourceMap,
     });
     await stop();
   }
