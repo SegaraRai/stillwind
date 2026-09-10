@@ -99,7 +99,9 @@
   },
   {
     "name": "astro/scoped-expression",
-    "diagnostics": ["SHJS002"],
+    "diagnostics": [
+      "SHJS002"
+    ],
     "calls": [
       {
         "text": "style('template-scope', item.tone)",
@@ -207,7 +209,9 @@
   },
   {
     "name": "svelte/scoped-expression",
-    "diagnostics": ["SHJS002"],
+    "diagnostics": [
+      "SHJS002"
+    ],
     "calls": [
       {
         "text": "style('template-scope', item.tone)",
@@ -315,7 +319,9 @@
   },
   {
     "name": "vue/scoped-expression",
-    "diagnostics": ["SHJS002"],
+    "diagnostics": [
+      "SHJS002"
+    ],
     "calls": [
       {
         "text": "style('template-scope', item.tone)",
@@ -387,7 +393,10 @@
     "calls": [
       {
         "text": "style(__VLS_ctx.active ? 'flex' : 'grid')",
-        "reused": ["__VLS_ctx.active", "__VLS_ctx.active"]
+        "reused": [
+          "__VLS_ctx.active",
+          "__VLS_ctx.active"
+        ]
       }
     ]
   },
@@ -397,7 +406,10 @@
     "calls": [
       {
         "text": "style(active ? 'flex' : 'grid')",
-        "reused": ["active", "active"]
+        "reused": [
+          "active",
+          "active"
+        ]
       }
     ]
   },
@@ -407,7 +419,12 @@
     "calls": [
       {
         "text": "style($enabled ? 'flex' : 'grid', {class: external, 'aria-label': label})",
-        "reused": ["$enabled", "$enabled", "external", "label"]
+        "reused": [
+          "$enabled",
+          "$enabled",
+          "external",
+          "label"
+        ]
       }
     ]
   },
@@ -417,7 +434,11 @@
     "calls": [
       {
         "text": "style(active ? 'flex' : 'grid', {class: external})",
-        "reused": ["active", "active", "external"]
+        "reused": [
+          "active",
+          "active",
+          "external"
+        ]
       }
     ]
   }

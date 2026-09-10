@@ -1,15 +1,15 @@
 {
-  "date": "2026-09-10T10:49:08.747Z",
+  "date": "2026-09-10T15:04:07.441Z",
   "results": [
     {
       "variant": "baseline",
       "exitCode": 0,
-      "output": "✔ CSS maps retain imported authored text, theme tokens and macro origins (10.8497ms)\n✔ resource URL length edits preserve following non-ASCII CSS columns (0.3508ms)\n✔ CSS origins compose through framework preprocessing to original source (1.4865ms)\n✔ loader composition traces native replacements through an upstream framework transform (0.738ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 17.1147\n"
+      "output": "✔ CSS maps retain imported authored text, theme tokens and macro origins (10.0847ms)\n✔ resource URL length edits preserve following non-ASCII CSS columns (0.4155ms)\n✔ CSS origins compose through framework preprocessing to original source (1.6769ms)\n✔ loader composition traces native replacements through an upstream framework transform (0.6413ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 17.4381\n"
     },
     {
       "variant": "candidate",
       "exitCode": 0,
-      "output": "✔ CSS maps retain imported authored text, theme tokens and macro origins (3.6849ms)\n✔ resource URL length edits preserve following non-ASCII CSS columns (0.3701ms)\n✔ CSS origins compose through framework preprocessing to original source (0.7285ms)\n✔ loader composition traces native replacements through an upstream framework transform (1.2245ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 9.6595\n"
+      "output": "✔ CSS maps retain imported authored text, theme tokens and macro origins (3.5411ms)\n✔ resource URL length edits preserve following non-ASCII CSS columns (0.3271ms)\n✔ CSS origins compose through framework preprocessing to original source (0.7194ms)\n✔ loader composition traces native replacements through an upstream framework transform (1.3164ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 9.6576\n"
     }
   ]
 }

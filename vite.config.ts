@@ -5,10 +5,17 @@ export default defineConfig({
     ignorePatterns: [
       "fixtures/projects/*/expected/**",
       "apps/fixtures-viewer/public/fixtures.json",
+      "experiments/sfc-projection-research/fixtures/**",
+      "experiments/sfc-projection-research/results/**",
     ],
     options: { typeAware: true },
   },
   fmt: {
+    // Raw converter output and offset-sensitive inputs are research evidence.
+    ignorePatterns: [
+      "experiments/sfc-projection-research/fixtures/**",
+      "experiments/sfc-projection-research/results/**",
+    ],
     sortImports: true,
     sortPackageJson: true,
   },

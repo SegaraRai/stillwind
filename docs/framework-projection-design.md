@@ -224,8 +224,8 @@ Rust unit/integration、native public API、host/bundler、実 framework build�
 
 ## 9. 根拠と残る検証
 
-[SFC projection 調査](../experiments/sfc-projection-research/README.md) では Astro Go/WASM `convertToTSX` と svelte2tsx が各28/28 span、Vue language-core が script 系21/21 spanで位置と原文一致を確認した。Vue template 7件は context receiver により未対応だった。本設計の Vue 正規化はその制約を解消するための追加実装であり、既に検証済みではない。
+[SFC projection 調査](../experiments/sfc-projection-research/README.md) では Astro Go/WASM `convertToTSX` と svelte2tsx が各28/28 span、Vue language-core が script 系21/21 spanで位置と原文一致を確認した。未正規化の Vue template 7件は引き続き原文比較で拒否する。実装した正規化経路は、実 converter の32ケースと host の原文編集・公式 framework compiler テストで検証済みである。
 
 [source-map 調査](../experiments/source-map-research/README.md) は線形 renderer の有効性と、追加 map 合成での LUB 差異を確認している。まず契約を維持して線形化し、map ライブラリ交換は切り離す。
 
-実装前半で確定すべき事項は、Vue binding provenance の最小 metadata、Volar の区間表現、複数 realm のアンカー、virtual module の既存公開 API との整合である。これらは共通 matcher／transport の詳細として詰め、framework ごとの知識を散在させる理由にはしない。
+Vue binding provenance、Volar 区間の端点、複数 realm の親参照、virtual module の公開 API は共通契約に実装した。実ビルド、画面/HMR、性能、再実行コマンドと検証範囲は [検証記録](framework-projection-validation.md) にまとめる。投影入力の checker type facts は合意どおり後続作業とし、通常入力の既存経路は維持する。

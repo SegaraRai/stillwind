@@ -222,7 +222,7 @@ writeFileSync(
     2,
   ) + "\n",
 );
-console.table(summary.map(({ byRegion, ...row }) => row));
+console.table(summary.map(({ byRegion: _byRegion, ...row }) => row));
 for (const row of rows)
   if (row.error || row.parseErrors?.length)
     console.log(row.adapter, row.fixture, row.error ?? row.parseErrors);

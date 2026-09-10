@@ -27,14 +27,26 @@ void test("projected session edits original SFC text and preserves watch recover
       ],
     },
     converter: { name: "svelte2tsx", version: "0.7.61", options_fingerprint: "test" },
+    import_realms: [{ id: 0, start: prefix.length, end: prefix.length + source.length }],
+    regions: [{ start: prefix.length, end: prefix.length + source.length, import_realm: 0 }],
   };
   const before = JSON.parse(session.compile(JSON.stringify([input]))).modules[0];
   assert.deepEqual(before.diagnostics, []);
   assert(before.code.startsWith(prefix));
   assert(before.code.endsWith(suffix));
   assert(before.code.includes("{class:"));
-  assert.equal(before.mappings[0].original_start, prefix.length + source.indexOf("style('"));
+  assert(
+    before.mappings.some(
+      (mapping) => mapping.original_start === prefix.length + source.indexOf("style('"),
+    ),
+  );
+  assert(!before.code.includes("stillwind/svelte"));
   const css = session.css();
+  const missingRealm = JSON.parse(
+    session.compile(JSON.stringify([{ ...input, import_realms: [], regions: [] }])),
+  ).modules[0];
+  assert.equal(missingRealm.diagnostics[0].code, "SHIMPORT001");
+  assert.equal(session.css(), css);
   const invalid = { ...input, fw2js_map: { kind: "volar", mappings: [] } };
   const failed = JSON.parse(session.compile(JSON.stringify([invalid]))).modules[0];
   assert.equal(failed.diagnostics[0].code, "SHPRJ001");

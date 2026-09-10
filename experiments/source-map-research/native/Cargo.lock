@@ -390,6 +390,7 @@ name = "stillwind-source"
 version = "0.0.0"
 dependencies = [
  "blake3",
+ "oxc_sourcemap",
  "serde",
  "thiserror",
 ]
