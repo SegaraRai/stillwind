@@ -6,6 +6,35 @@ use stillwind_napi::{
 };
 
 #[test]
+fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
+    let script = "import {style} from 'stillwind/svelte'; const props = style('flex');";
+    let prefix = "<!-- 🧭 -->\n<script>";
+    let suffix = "</script>\n<div {...props}></div><style>/* preserved */</style>";
+    let original = format!("{prefix}{script}{suffix}");
+    let source = serde_json::json!({
+        "path":"Component.svelte", "source":script, "language":"ts", "framework":"Svelte",
+        "fw_code":original,
+        "fw2js_map":{"kind":"volar","mappings":[{"sourceOffsets":[prefix.encode_utf16().count()],"generatedOffsets":[0],"lengths":[script.len()]}]},
+        "converter":{"name":"svelte2tsx","version":"0.7.61","options_fingerprint":"test"}
+    });
+    let output = compile_react_project_json(
+        &serde_json::json!([source]).to_string(),
+        "@utility flex {display:flex;} @stillwind-slot utilities;",
+    )
+    .unwrap();
+    let result: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let module = &result["modules"][0];
+    assert_eq!(module["diagnostics"], serde_json::json!([]));
+    let code = module["code"].as_str().unwrap();
+    assert!(code.starts_with(prefix));
+    assert!(code.ends_with(suffix));
+    assert!(code.contains("{class:"));
+    assert!(!code.contains("style('flex')"));
+    let expected = prefix.encode_utf16().count() + script.find("style('").unwrap();
+    assert_eq!(module["mappings"][0]["original_start"], expected);
+}
+
+#[test]
 fn serializes_a_layered_compile_result_for_node_consumers() {
     let source = r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90");"#;

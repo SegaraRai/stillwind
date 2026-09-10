@@ -15,6 +15,7 @@
 mod api;
 mod output;
 mod session;
+mod source_input;
 
 pub use api::*;
 pub use session::NativeSessionError;

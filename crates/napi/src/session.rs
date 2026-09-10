@@ -1,7 +1,6 @@
 //! Stateful Node host binding. Resolution and I/O remain in JavaScript.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use napi::Error;
 use napi_derive::napi;
@@ -17,11 +16,12 @@ use stillwind_design_system::{
 use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
-use stillwind_semantic::{ModuleId, TypeFact, TypeFacts, TypeFactsUpdate};
+use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
 use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
 
 use super::api::{binding_output, parse_options};
 use super::output::BindingOutput;
+pub use super::source_input::ProjectSource;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {
@@ -37,14 +37,6 @@ impl From<NativeSessionError> for Error {
     fn from(error: NativeSessionError) -> Self {
         Self::from_reason(error.to_string())
     }
-}
-
-#[derive(Deserialize)]
-pub struct ProjectSource {
-    pub path: String,
-    pub source: String,
-    #[serde(default)]
-    pub type_facts: Vec<TypeFact>,
 }
 
 #[derive(Serialize)]
@@ -358,12 +350,11 @@ impl NativeProjectSession {
         let scans: Vec<_> = sources
             .iter()
             .map(|source| {
-                Ok::<_, Error>(
-                    OxcSourceAnalyzer.scan(Arc::new(
-                        SourceFile::new(FileId(1), source.path.as_str(), source.source.as_str())
-                            .map_err(|error| Error::from_reason(error.to_string()))?,
-                    )),
-                )
+                Ok::<_, Error>(OxcSourceAnalyzer.scan_input(source.input(
+                    FileId(1),
+                    FileId(3),
+                    FileId(4),
+                )?))
             })
             .collect::<Result<_, _>>()?;
         let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);

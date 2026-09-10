@@ -15,6 +15,8 @@ use super::session::{ProjectBindingOutput, ProjectModuleOutput, ProjectSource};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BindingApiError {
+    #[error("invalid source input: {0}")]
+    Input(String),
     #[error("{0}")]
     Source(#[from] stillwind_source::SourceError),
     #[error("source graph exceeds the 32-bit file ID limit")]
@@ -182,29 +184,46 @@ pub fn compile_react_project_json_with_options(
     options: &CompilerOptions,
 ) -> Result<String, BindingApiError> {
     let input: Vec<ProjectSource> = serde_json::from_str(sources_json)?;
-    let sources = input
-        .into_iter()
+    let scans = input
+        .iter()
         .enumerate()
         .map(|(index, source)| {
-            Ok::<_, BindingApiError>((
-                SourceFile::new(source_file_id(index)?, source.path, source.source)?,
-                source.type_facts,
-            ))
+            let generated_index = input
+                .len()
+                .checked_add(
+                    index
+                        .checked_mul(2)
+                        .ok_or(BindingApiError::TooManySources)?,
+                )
+                .and_then(|index| index.checked_add(1))
+                .ok_or(BindingApiError::TooManySources)?;
+            let analysis_index = generated_index
+                .checked_add(1)
+                .ok_or(BindingApiError::TooManySources)?;
+            let input = source
+                .input(
+                    source_file_id(index)?,
+                    source_file_id(generated_index)?,
+                    source_file_id(analysis_index)?,
+                )
+                .map_err(|error| BindingApiError::Input(error.reason))?;
+            Ok::<_, BindingApiError>(OxcSourceAnalyzer.scan_input(input))
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let theme = SourceFile::new(source_file_id(sources.len())?, "stillwind.css", theme)?;
-    let assets = sources
+    let theme = SourceFile::new(source_file_id(scans.len())?, "stillwind.css", theme)?;
+    let assets = scans
         .iter()
-        .flat_map(|(source, _)| parse(source).summary.assets)
+        .flat_map(|scan| scan.summary.assets.iter().cloned())
         .map(|asset| (asset.identity, asset.metadata))
         .collect::<BTreeMap<IdentityId, AssetMetadata>>();
     let snapshot = DesignSystemSnapshot::from_source(&theme, options.design_system())
         .map_err(BindingApiError::DesignSystem)?;
     let compiler = ModuleCompiler::new(snapshot.clone(), options.clone());
-    let mut results = sources
+    let mut results = scans
         .iter()
-        .map(|(source, type_facts)| {
-            let scan = OxcSourceAnalyzer.scan(std::sync::Arc::new(source.clone()));
+        .zip(&input)
+        .map(|(scan, source)| {
+            let type_facts = &source.type_facts;
             let facts = TypeFacts {
                 schema: TypeFacts::SCHEMA,
                 module_id: scan.module_id.clone(),
@@ -213,7 +232,7 @@ pub fn compile_react_project_json_with_options(
                 facts: type_facts.clone(),
                 assets: assets.clone(),
             };
-            compiler.compile(&OxcSourceAnalyzer.finalize(scan, Some(&facts)))
+            compiler.compile(&OxcSourceAnalyzer.finalize(scan.clone(), Some(&facts)))
         })
         .collect::<Vec<_>>();
     let mut emitted_css_rules = BTreeSet::new();
@@ -223,17 +242,17 @@ pub fn compile_react_project_json_with_options(
             .rules
             .retain(|rule| emitted_css_rules.insert(rule.key.clone()));
     }
-    let modules = sources
+    let modules = scans
         .iter()
         .zip(results)
-        .map(|((source, _), result)| {
+        .map(|(scan, result)| {
             let mut result = result.to_output(&snapshot, options);
             // Project consumers assemble one shared stylesheet from these
             // fragments instead of repeating theme/base layers per module.
             result.css.clone_from(&result.module_css);
             ProjectModuleOutput {
-                path: source.path().to_owned(),
-                output: binding_output(result, source, &theme),
+                path: scan.source.path().to_owned(),
+                output: binding_output(result, &scan.source, &theme),
             }
         })
         .collect();

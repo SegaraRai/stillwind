@@ -1,6 +1,53 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+void test("projected session edits original SFC text and preserves watch recovery", async () => {
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const loader = new NativeDesignSystemLoader();
+  assert.equal(
+    JSON.parse(
+      loader.provide(0, "root", "@utility flex { display:flex; } @stillwind-slot utilities;"),
+    ).kind,
+    "complete",
+  );
+  const session = new NativeProjectSession(loader, true);
+  const source = "import {style} from 'stillwind/svelte'; const props = style('flex');";
+  const prefix = "<!-- 🧭 -->\n<script>";
+  const suffix = "</script><div {...props}></div><style>/* preserved */</style>";
+  const input = {
+    path: "Component.svelte",
+    source,
+    language: "ts",
+    framework: "Svelte",
+    fw_code: prefix + source + suffix,
+    fw2js_map: {
+      kind: "volar",
+      mappings: [
+        { sourceOffsets: [prefix.length], generatedOffsets: [0], lengths: [source.length] },
+      ],
+    },
+    converter: { name: "svelte2tsx", version: "0.7.61", options_fingerprint: "test" },
+  };
+  const before = JSON.parse(session.compile(JSON.stringify([input]))).modules[0];
+  assert.deepEqual(before.diagnostics, []);
+  assert(before.code.startsWith(prefix));
+  assert(before.code.endsWith(suffix));
+  assert(before.code.includes("{class:"));
+  assert.equal(before.mappings[0].original_start, prefix.length + source.indexOf("style('"));
+  const css = session.css();
+  const invalid = { ...input, fw2js_map: { kind: "volar", mappings: [] } };
+  const failed = JSON.parse(session.compile(JSON.stringify([invalid]))).modules[0];
+  assert.equal(failed.diagnostics[0].code, "SHPRJ001");
+  assert.equal(session.css(), css);
+  const recovered = JSON.parse(session.compile(JSON.stringify([input]))).modules[0];
+  assert.deepEqual(recovered.diagnostics, []);
+  assert.equal(recovered.code, before.code);
+  assert.throws(
+    () => session.compile(JSON.stringify([{ ...input, fw2js_map: undefined }])),
+    /fw2js_map/,
+  );
+});
+
 void test("loads the current platform package through the public loader", async () => {
   const binding = await import("../index.js");
   assert.equal(typeof binding.compileReact, "function");
