@@ -45,7 +45,7 @@ pub use loader::{
 };
 pub use module_compiler::{
     CompilationDependencies, CompiledModule, GeneratedRule, ModuleArtifactKey, ModuleCompiler,
-    ModuleCssArtifact, ModuleTransformError, RuleKey,
+    ModuleCssArtifact, ModuleResourceReference, ModuleTransformError, RuleKey,
 };
 pub use session::{
     DependencyIndex, ProjectSession, ProjectStylesheet, SessionMode, SessionReloadError,

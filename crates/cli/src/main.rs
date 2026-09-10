@@ -78,6 +78,43 @@ enum CommandError {
     Output(#[from] serde_json::Error),
 }
 
+fn rebase_resources(
+    mut css: String,
+    theme: &SourceFile,
+    snapshot: &stillwind_core::DesignSystemSnapshot,
+    resources: &[stillwind_core::ModuleResourceReference],
+) -> Result<String, CommandError> {
+    let entry_path =
+        std::path::absolute(theme.path()).map_err(|source| CommandError::ThemePath {
+            path: theme.path().into(),
+            source,
+        })?;
+    let entry_directory = entry_path.parent().unwrap_or(std::path::Path::new("."));
+    let snapshot = snapshot.sources();
+    let resources = snapshot
+        .resources
+        .iter()
+        .map(|resource| (&resource.placeholder, &resource.owner, &resource.specifier))
+        .chain(
+            resources
+                .iter()
+                .map(|resource| (&resource.placeholder, &resource.owner, &resource.specifier)),
+        );
+    for (placeholder, owner, specifier) in resources {
+        let owner_path = std::path::absolute(owner).map_err(|source| CommandError::ThemePath {
+            path: owner.clone(),
+            source,
+        })?;
+        let owner_directory = owner_path.parent().unwrap_or(entry_directory);
+        let target = owner_directory.join(specifier);
+        let rebased = pathdiff::diff_paths(&target, entry_directory).unwrap_or(target);
+        let url = rebased.to_string_lossy().replace('\\', "/");
+        let quoted = serde_json::to_string(&url)?;
+        css = css.replace(placeholder, &quoted[1..quoted.len() - 1]);
+    }
+    Ok(css)
+}
+
 fn run() -> Result<(), CommandError> {
     let command = env::args()
         .nth(1)
@@ -148,26 +185,7 @@ fn run() -> Result<(), CommandError> {
             }
         })
         .collect();
-    let mut css = result.css;
-    let entry_path =
-        std::path::absolute(theme.path()).map_err(|source| CommandError::ThemePath {
-            path: theme.path().into(),
-            source,
-        })?;
-    let entry_directory = entry_path.parent().unwrap_or(std::path::Path::new("."));
-    for resource in &snapshot.sources().resources {
-        let owner_path =
-            std::path::absolute(&resource.owner).map_err(|source| CommandError::ThemePath {
-                path: resource.owner.clone(),
-                source,
-            })?;
-        let owner_directory = owner_path.parent().unwrap_or(entry_directory);
-        let target = owner_directory.join(&resource.specifier);
-        let rebased = pathdiff::diff_paths(&target, entry_directory).unwrap_or(target);
-        let url = rebased.to_string_lossy().replace('\\', "/");
-        let quoted = serde_json::to_string(&url)?;
-        css = css.replace(&resource.placeholder, &quoted[1..quoted.len() - 1]);
-    }
+    let css = rebase_resources(result.css, &theme, &snapshot, &result.resources)?;
     let output = CliOutput {
         css,
         code,

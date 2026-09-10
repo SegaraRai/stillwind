@@ -32,6 +32,7 @@ pub struct StylesheetSelection {
 
 #[derive(Clone, Debug)]
 pub struct StylesheetPlan {
+    pub resources: Vec<crate::ModuleResourceReference>,
     pub css: String,
     pub coverage: StylesheetCoverage,
     pub placement: StylesheetPlacement,
@@ -109,10 +110,12 @@ impl ProjectSession {
         }
         let mut stylesheet = ProjectStylesheet::default();
         let mut producers = BTreeMap::new();
+        let mut resources = Vec::new();
         for module in &selection.modules {
             if let Some(artifact) = self.artifacts().get(module) {
                 stylesheet.replace(module.clone(), &artifact.css);
                 producers.insert(module.clone(), artifact.key.clone());
+                resources.extend(artifact.resources.iter().cloned());
             }
         }
         let snapshot = self.snapshot();
@@ -123,6 +126,7 @@ impl ProjectSession {
             }
         };
         Ok(StylesheetPlan {
+            resources,
             css,
             coverage: selection.coverage,
             placement,

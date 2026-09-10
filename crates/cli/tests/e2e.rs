@@ -9,6 +9,32 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 #[test]
+fn cli_rebases_js_resources_from_the_source_directory() {
+    let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
+        .args([
+            "compile",
+            "--source-text",
+            "import {style} from 'stillwind/react'; const x=style('bg-[url(./icon.svg)]');",
+            "--source-path",
+            fixture("nested/Component.tsx").to_str().unwrap(),
+            "--theme",
+            fixture("stillwind.css").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["diagnostics"], serde_json::json!([]));
+    let css = value["css"].as_str().unwrap();
+    assert!(css.contains("nested/icon.svg"), "{css}");
+    assert!(!css.contains("__stillwind_"), "{css}");
+}
+
+#[test]
 fn cli_compiles_a_react_module_to_layered_css_and_macro_free_code() {
     let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
         .args([

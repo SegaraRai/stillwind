@@ -157,6 +157,7 @@ pub(super) fn binding_output(
         })
         .collect();
     BindingOutput {
+        resources: result.resources,
         css: result.css,
         code,
         mappings,

@@ -11,6 +11,7 @@ use super::symbols::GeneratedSymbol;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CompileResult {
+    pub resources: Vec<crate::ModuleResourceReference>,
     pub css: String,
     /// Unwrapped utility rules used to assemble one stylesheet for a module graph.
     #[serde(skip)]

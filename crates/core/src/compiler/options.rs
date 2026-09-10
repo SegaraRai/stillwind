@@ -41,8 +41,10 @@ impl Default for CompilerOptions {
 impl CompilerOptions {
     pub(crate) fn class_input(&self, module: &str, content: &str) -> String {
         match self.class_identity {
-            ClassIdentity::Content => content.to_owned(),
-            ClassIdentity::Module => {
+            ClassIdentity::Content if stillwind_css::relative_css_urls(content).is_empty() => {
+                content.to_owned()
+            }
+            ClassIdentity::Content | ClassIdentity::Module => {
                 let module = stillwind_source::normalized_module_path(module);
                 // Length framing makes namespace/module boundaries unambiguous.
                 format!(

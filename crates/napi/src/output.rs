@@ -6,6 +6,7 @@ use stillwind_core::{GeneratedClass, GeneratedSymbol};
 
 #[derive(Serialize)]
 pub struct BindingOutput {
+    pub resources: Vec<stillwind_core::ModuleResourceReference>,
     pub css: String,
     pub code: Option<String>,
     pub mappings: Vec<BindingMapping>,

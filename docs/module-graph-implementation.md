@@ -114,3 +114,13 @@ file IDs: entry identity intentionally namespaces anonymous layers.
 Vite uses these plans and retains their coverage/revision metadata in transform
 results. All Core and native tests (including integration/property tests) passed,
 as did the ten Vite tests and Core/native Clippy checks.
+
+JS-authored relative resources now carry their source-module owner through
+artifacts, standalone support declarations, native output and stylesheet plans.
+Vite resolves them before its asset pipeline; CLI rebases them to the CSS entry
+directory. Relative-resource classes retain source identity even in content mode,
+so identical spellings in different directories cannot collide. A real Vite
+build emits two distinct SVGs and classes for two `./icon.svg` references; an
+imported animation retains its producer owner. Eleven Vite tests, 57 Core library
+tests, four CLI tests and Core/native/CLI Clippy passed. CSS source maps remain
+outstanding.

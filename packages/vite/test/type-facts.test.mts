@@ -120,6 +120,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
     placement: "carrier",
   };
   const plan = JSON.parse(session.planStylesheet(JSON.stringify(selection))) as {
+    resources: { owner: string; specifier: string }[];
     css: string;
     coverage: typeof selection.coverage;
     producers: { module: string; sourceRevision: string; semanticRevision: string }[];
@@ -128,6 +129,10 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.match(plan.css, /@keyframes --sw-a-/);
   assert.equal(plan.css.match(/@keyframes /g)?.length, 2);
   assert.doesNotMatch(plan.css, /display:flex/);
+  assert.deepEqual(
+    plan.resources.map(({ owner, specifier }) => ({ owner, specifier })),
+    [{ owner: "src/producer.ts", specifier: "./support.svg" }],
+  );
   assert.deepEqual(plan.coverage, selection.coverage);
   assert.deepEqual(
     plan.producers.map((producer) => producer.module),

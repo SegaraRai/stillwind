@@ -567,8 +567,31 @@ export function stillwind(options: StillwindOptions): Plugin {
             placement: "carrier",
           }),
         ),
-      ) as { css: string; coverage: { kind: string }; designSystem: string; producers: unknown[] };
-      const css = resolveResources(plan.css, state.resources);
+      ) as {
+        css: string;
+        coverage: { kind: string };
+        designSystem: string;
+        producers: unknown[];
+        resources: { placeholder: string; owner: string; specifier: string }[];
+      };
+      const resources = new Map(state.resources);
+      for (const resource of plan.resources) {
+        const resolved = await this.resolve(
+          resource.specifier,
+          resolve(projectRoot, resource.owner),
+          { skipSelf: true },
+        );
+        if (!resolved || resolved.external)
+          this.error(
+            `Cannot resolve Stillwind resource ${resource.specifier} from ${resource.owner}`,
+          );
+        this.addWatchFile(cleanModuleId(resolved.id));
+        resources.set(
+          resource.placeholder,
+          JSON.stringify(`/@fs/${resolved.id.replaceAll("\\", "/")}`).slice(1, -1),
+        );
+      }
+      const css = resolveResources(plan.css, resources);
       const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
       const finalized = finalizeReactModuleWithMap(output.code, false);
       const imports = `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;

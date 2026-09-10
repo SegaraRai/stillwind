@@ -3,6 +3,7 @@
 use std::collections::BTreeSet;
 
 use cssparser::{ParseError, Parser, Token};
+use serde::Serialize;
 
 use stillwind_ir::StyleInput;
 use stillwind_semantic::IdentityId;
@@ -54,6 +55,13 @@ impl GeneratedRule {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ModuleCssArtifact {
     pub rules: Vec<GeneratedRule>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModuleResourceReference {
+    pub placeholder: String,
+    pub owner: String,
+    pub specifier: String,
 }
 
 impl ModuleCssArtifact {
@@ -129,6 +137,7 @@ pub struct CompilationDependencies {
 
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
+    pub resources: Vec<ModuleResourceReference>,
     pub key: ModuleArtifactKey,
     pub code_transforms: Vec<SourceTransform>,
     pub css: ModuleCssArtifact,
@@ -153,6 +162,7 @@ impl CompiledModule {
     pub fn to_legacy(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         let mut result = CompileResult {
+            resources: self.resources.clone(),
             module_css,
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
@@ -228,17 +238,57 @@ impl ModuleCompiler {
     fn compile_support_closure(&self, module: &ModuleAnalysis) -> CompileResult {
         let mut result =
             Compiler::compile_with_snapshot(&module.source, module.parsed(), &self.design_system);
+        self.capture_resources(&mut result, module.source.path());
         for support in &module.asset_support {
-            let compiled = Compiler::compile_with_snapshot(
+            let mut compiled = Compiler::compile_with_snapshot(
                 &support.source,
                 support.parsed(),
                 &self.design_system,
             );
+            self.capture_resources(&mut compiled, support.source.path());
             result.module_css.push_str(&compiled.module_css);
+            result.resources.extend(compiled.resources);
             result.symbols.extend(compiled.symbols);
             result.diagnostics.extend(compiled.diagnostics);
         }
         result
+    }
+
+    fn capture_resources(&self, result: &mut CompileResult, owner: &str) {
+        let mut references = stillwind_css::relative_css_urls(&result.module_css);
+        references.retain(|reference| {
+            !self
+                .design_system
+                .sources()
+                .resources
+                .iter()
+                .any(|resource| resource.placeholder == reference.specifier)
+        });
+        for reference in references.into_iter().rev() {
+            let placeholder = format!(
+                "__stillwind_js_resource_{}__",
+                Fingerprint::of(format!(
+                    "{}:{owner}{}:{}",
+                    owner.len(),
+                    reference.specifier.len(),
+                    reference.specifier
+                ))
+                .0
+            );
+            let replacement = if reference.string {
+                format!("\"{placeholder}\"")
+            } else {
+                format!("url(\"{placeholder}\")")
+            };
+            result
+                .module_css
+                .replace_range(reference.range, &replacement);
+            result.resources.push(ModuleResourceReference {
+                placeholder,
+                owner: owner.into(),
+                specifier: reference.specifier,
+            });
+        }
     }
 
     pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
@@ -323,6 +373,7 @@ impl ModuleCompiler {
         };
         let success = diagnostics.is_empty();
         CompiledModule {
+            resources: result.resources,
             key: self.key_for(module),
             code_transforms: if success {
                 result.transforms

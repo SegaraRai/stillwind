@@ -278,6 +278,7 @@ impl NativeProjectSession {
         };
         Ok(json!({
             "css": plan.css,
+            "resources": plan.resources,
             "coverage": coverage,
             "placement": match placement { StylesheetPlacement::Document => "document", StylesheetPlacement::Carrier => "carrier" },
             "designSystem": plan.design_system.0,
