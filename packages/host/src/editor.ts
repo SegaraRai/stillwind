@@ -5,6 +5,7 @@ import { cleanModuleId, compileModule } from "./compiler.ts";
 import type { CompilerHost } from "./compiler.ts";
 import type { CompilerOutput } from "./protocol.ts";
 import { TypeScriptFactsService } from "./type-facts.ts";
+import type { TypeScriptFactsStats } from "./type-facts.ts";
 
 export interface EditorDocument {
   id: string;
@@ -20,6 +21,7 @@ export interface EditorAnalysis {
   output?: CompilerOutput;
   error?: string;
   dependencies: string[];
+  checkerStats?: TypeScriptFactsStats;
   previousSuccess?: { version: number; revision: number; output: CompilerOutput };
 }
 
@@ -122,6 +124,7 @@ export class EditorProject {
     } catch (error) {
       result.error = error instanceof Error ? error.message : String(error);
     } finally {
+      if (facts) result.checkerStats = { ...facts.stats };
       facts?.close();
       result.dependencies = [...dependencies];
     }

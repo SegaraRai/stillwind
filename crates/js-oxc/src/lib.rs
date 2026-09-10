@@ -14,6 +14,7 @@
 
 mod ast;
 mod bindings;
+mod demand;
 mod entry;
 mod expressions;
 mod motion;

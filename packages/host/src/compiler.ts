@@ -26,13 +26,22 @@ export function cleanModuleId(id: string): string {
   return id.replace(/[?#].*$/, "");
 }
 
-function localDependencies(summary: ModuleSummary): string[] {
-  return [
-    ...summary.imports.map((entry) => entry.source),
-    ...summary.re_exports.map((entry) => entry.source),
-  ].filter(
-    (specifier, index, all) => specifier.startsWith(".") && all.indexOf(specifier) === index,
+function semanticDependencies(summary: ModuleSummary, requested: string | null) {
+  if (requested === null) return summary.probe_imports;
+  if (requested !== "*" && Object.hasOwn(summary.export_imports, requested)) {
+    return summary.export_imports[requested];
+  }
+  const reExports = summary.re_exports.filter(
+    (entry) => requested === "*" || entry.exported === requested || entry.exported === "*",
   );
+  if (requested !== "*" && reExports.length > 0) {
+    return reExports.map((entry) => ({
+      source: entry.source,
+      imported: entry.exported === "*" ? requested : entry.imported,
+    }));
+  }
+  // Namespace imports and exports without a declaration slice remain conservative.
+  return [...summary.imports, ...summary.re_exports];
 }
 
 export async function compileModule(
@@ -51,29 +60,45 @@ export async function compileModule(
   const needsTypeFacts = entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesById = new Map<string, ProjectSource>();
-  const pending: ProjectSource[] = [
-    { id: entryId, path: compilerModulePath(projectRoot, entryId), source: code },
+  const visited = new Map<string, Set<string | null>>();
+  const pending: Array<{ source: ProjectSource; requested: string | null }> = [
+    {
+      source: { id: entryId, path: compilerModulePath(projectRoot, entryId), source: code },
+      requested: null,
+    },
   ];
   while (pending.length > 0) {
-    const source = pending.pop()!;
-    if (sourcesById.has(source.id)) continue;
+    const { source, requested } = pending.pop()!;
+    const demands = visited.get(source.id) ?? new Set<string | null>();
+    if (demands.has(requested)) continue;
+    demands.add(requested);
+    visited.set(source.id, demands);
     sourcesById.set(source.id, source);
     const summary =
-      source.id === entryId
+      summaries.get(source.path) ??
+      (source.id === entryId
         ? entrySummary
-        : (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary);
+        : (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary));
     summaries.set(source.path, summary);
     if (!needsTypeFacts) continue;
-    for (const specifier of localDependencies(summary)) {
-      const resolved = await host.resolve(specifier, source.id, { skipSelf: true });
+    for (const dependency of semanticDependencies(summary, requested)) {
+      const resolved = await host.resolve(dependency.source, source.id, { skipSelf: true });
       if (!resolved || resolved.external) continue;
       const dependencyId = cleanModuleId(resolved.id);
-      if (!/\.[cm]?[jt]sx?$/.test(dependencyId) || sourcesById.has(dependencyId)) continue;
+      if (!/\.[cm]?[jt]sx?$/.test(dependencyId)) continue;
       host.watch(dependencyId);
+      let dependencySource = sourcesById.get(dependencyId);
+      if (!dependencySource) {
+        dependencySource = {
+          id: dependencyId,
+          path: compilerModulePath(projectRoot, dependencyId),
+          source: await host.read(dependencyId),
+        };
+        sourcesById.set(dependencyId, dependencySource);
+      }
       pending.push({
-        id: dependencyId,
-        path: compilerModulePath(projectRoot, dependencyId),
-        source: await host.read(dependencyId),
+        source: dependencySource,
+        requested: dependency.imported,
       });
     }
   }

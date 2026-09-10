@@ -46,9 +46,17 @@ export interface PlayOutput extends CompilerOutput {
 
 export interface ModuleSummary {
   type_probes: Array<{ start: number; end: number }>;
-  imports: Array<{ source: string }>;
-  re_exports: Array<{ source: string }>;
+  imports: ImportBinding[];
+  re_exports: Array<{ source: string; exported: string; imported: string }>;
+  probe_imports: ImportBinding[];
+  export_imports: Record<string, ImportBinding[]>;
   assets: AssetRecord[];
+}
+
+export interface ImportBinding {
+  local: string;
+  source: string;
+  imported: string;
 }
 
 export interface ProjectSource {

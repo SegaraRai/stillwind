@@ -111,3 +111,32 @@ void test("late dependency reads and cancellation cannot publish or replace the 
   assert.equal(cancelled.status, "cancelled");
   assert.equal(cancelled.previousSuccess?.version, 2);
 });
+
+void test("semantic reads select a barrel export and exclude unrelated runtime imports", async () => {
+  const reads: string[] = [];
+  const barrel = path.join(root, "barrel.ts");
+  const editor = project(async (id) => {
+    reads.push(id);
+    if (id === barrel)
+      return "export { token } from './tokens'; export { lazy } from './unvisited';";
+    if (id === dependency)
+      return "import { style } from 'stillwind/react'; export const token = style.animation({ from: 'red', to: 'red' });";
+    throw new Error(`Unrelated source was read: ${id}`);
+  });
+  editor.update({
+    id: entry,
+    version: 1,
+    source:
+      "import { style } from 'stillwind/react'; import { token } from './barrel'; import { route } from './unvisited'; const unused = route; const alias = token; export const props = style(alias(''));",
+  });
+  const result = await editor.analyze(entry);
+  assert.equal(
+    result.status,
+    "success",
+    result.error ?? JSON.stringify(result.output?.diagnostics),
+  );
+  assert.match(result.output!.css, /color:\s*red/);
+  assert.deepEqual(reads, [barrel, dependency]);
+  assert.ok(result.checkerStats!.overlayReads > 0);
+  assert.ok(result.checkerStats!.diskReadRequests > 0);
+});

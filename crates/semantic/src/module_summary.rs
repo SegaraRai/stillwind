@@ -26,6 +26,12 @@ pub struct ModuleSummary {
     pub re_exports: Vec<ReExport>,
     pub assets: Vec<AssetRecord>,
     pub exports: BTreeMap<String, ExportedValue>,
+    /// Import bindings reachable from type probes through local declarations.
+    #[serde(default)]
+    pub probe_imports: Vec<ImportBinding>,
+    /// Import bindings needed by each explicitly exported local variable.
+    #[serde(default)]
+    pub export_imports: BTreeMap<String, Vec<ImportBinding>>,
 }
 
 impl ModuleSummary {
@@ -39,6 +45,8 @@ impl ModuleSummary {
             re_exports: Vec::new(),
             assets: Vec::new(),
             exports: BTreeMap::new(),
+            probe_imports: Vec::new(),
+            export_imports: BTreeMap::new(),
         }
     }
 }

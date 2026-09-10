@@ -46,7 +46,14 @@ pub fn parse_with_type_facts(
     let mut extractor = MacroExtractor::new(source, semantic.scoping(), type_facts, assets);
     extractor.visit_program(&result.program);
     extractor.validate_handles();
-    let summary = extractor.module_summary();
+    let mut summary = extractor.module_summary();
+    super::demand::collect(
+        &result.program,
+        semantic.scoping(),
+        &extractor.type_probes.borrow(),
+        &extractor.export_symbols,
+        &mut summary,
+    );
     let mut lint_findings = Vec::new();
     for diagnostic in extractor.diagnostics {
         if let Some(rule) = lint_rule_for_code(diagnostic.code) {

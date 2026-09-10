@@ -5,6 +5,52 @@ use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn semantic_reads_follow_local_aliases_without_unrelated_imports() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.tsx",
+        r"
+import { style } from 'stillwind/react';
+import { first } from './first';
+import { second } from './second';
+import { unrelated } from './unrelated';
+let selected = first;
+selected = second;
+const alias = selected;
+const unused = unrelated;
+export const attached = style(alias);
+",
+    )
+    .unwrap();
+    let parsed = parse(&source);
+    assert_eq!(
+        parsed
+            .summary
+            .probe_imports
+            .iter()
+            .map(|import| import.source.as_str())
+            .collect::<Vec<_>>(),
+        vec!["./first", "./second"]
+    );
+    assert_eq!(parsed.summary.export_imports["attached"].len(), 2);
+}
+
+#[test]
+fn semantic_reads_preserve_binding_shadowing() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.tsx",
+        r"
+import { style } from 'stillwind/react';
+import { handle } from './unrelated';
+export function attach(handle: unknown) { return style(handle); }
+",
+    )
+    .unwrap();
+    assert!(parse(&source).summary.probe_imports.is_empty());
+}
+
+#[test]
 fn extracts_only_an_import_bound_style_call_with_literal_spans() {
     let source = SourceFile::new(
         FileId(1),

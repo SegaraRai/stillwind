@@ -204,6 +204,8 @@ export interface TypeScriptFactsStats {
   snapshots: number;
   incrementalSnapshots: number;
   restarts: number;
+  overlayReads: number;
+  diskReadRequests: number;
 }
 
 function prepareProject(
@@ -252,6 +254,8 @@ export class TypeScriptFactsService {
     snapshots: 0,
     incrementalSnapshots: 0,
     restarts: 0,
+    overlayReads: 0,
+    diskReadRequests: 0,
   };
 
   readonly #configFile: string;
@@ -304,7 +308,12 @@ export class TypeScriptFactsService {
       collectTiming: true,
       fs: {
         fileExists: (fileName) => (this.#virtualFiles.has(normalize(fileName)) ? true : undefined),
-        readFile: (fileName) => this.#virtualFiles.get(normalize(fileName)),
+        readFile: (fileName) => {
+          const overlay = this.#virtualFiles.get(normalize(fileName));
+          if (overlay === undefined) this.stats.diskReadRequests += 1;
+          else this.stats.overlayReads += 1;
+          return overlay;
+        },
       },
     });
   }

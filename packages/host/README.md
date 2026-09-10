@@ -36,8 +36,14 @@ TypeScript checker already executing in the same JavaScript turn.
 
 This is an analysis API, not a complete LSP server or a completion provider.
 Syntax recovery depends on the compiler: some malformed documents only produce
-an error with a previous-success preview. Semantic dependency discovery remains
-conservative once a type probe is required.
+an error with a previous-success preview. Semantic dependency discovery follows
+probe bindings through local declarations and requested barrel exports. Namespace
+requests and declarations without an export slice retain a conservative fallback.
+TypeScript can separately read additional imports and library declarations:
+`checkerStats.overlayReads` and `checkerStats.diskReadRequests` count its overlay
+reads and requests delegated to its filesystem implementation, respectively
+(including unsuccessful reads). These are separate from the host's explicit
+semantic `dependencies`.
 
 Run `vp run --filter @stillwind/host test` for real native/checker verification of
 unsaved imports, dependency edits, broken syntax, macro removal, cancellation,
