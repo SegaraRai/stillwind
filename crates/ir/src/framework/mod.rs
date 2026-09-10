@@ -33,6 +33,14 @@ pub struct FrameworkSpec {
 /// Parser-neutral view of a possible converter-generated expression wrapper.
 #[derive(Clone, Copy, Debug)]
 pub enum ProjectionExpression<'a> {
+    SyntheticTypeAlias {
+        name: &'a str,
+        definition: &'a str,
+    },
+    SyntheticReferenceList {
+        preceding_line: &'a str,
+        next_binding: &'a str,
+    },
     Member {
         receiver: &'a str,
         whole: Span,
@@ -51,6 +59,8 @@ pub enum ProjectionExpression<'a> {
 pub enum ProjectionDecision {
     Preserve,
     Retain(Span),
+    /// Discard only if the caller proves the scaffolding's syntax is unmapped.
+    DiscardScaffolding,
 }
 
 fn preserve(_: ProjectionExpression<'_>) -> ProjectionDecision {

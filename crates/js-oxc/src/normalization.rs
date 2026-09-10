@@ -1,9 +1,13 @@
 //! A validated analysis view shared by macro detection and expression comparison.
 
 use oxc::allocator::Allocator;
-use oxc::ast::ast::{Expression, ObjectProperty, PropertyKey, StaticMemberExpression};
+use oxc::ast::ast::{
+    ArrayExpressionElement, BindingPattern, Expression, ObjectProperty, PropertyKey, Statement,
+    StaticMemberExpression, TSTypeAliasDeclaration,
+};
 use oxc::ast_visit::{Visit, walk};
 use oxc::parser::Parser;
+use oxc::span::GetSpan;
 
 use stillwind_ir::ModuleIr;
 use stillwind_ir::framework::{
@@ -196,6 +200,84 @@ struct NormalizationVisitor<'a, 'b> {
 }
 
 impl<'a> Visit<'a> for NormalizationVisitor<'_, '_> {
+    fn visit_ts_type_alias_declaration(&mut self, declaration: &TSTypeAliasDeclaration<'a>) {
+        let definition = declaration.type_annotation.span();
+        let whole = Span::new(
+            self.source.id(),
+            declaration.span.start,
+            declaration.span.end,
+        );
+        let header = Span::new(self.source.id(), declaration.span.start, definition.start);
+        let decision = (self.framework.normalize)(ProjectionExpression::SyntheticTypeAlias {
+            name: declaration.id.name.as_str(),
+            definition: self
+                .source
+                .slice(Span::new(
+                    self.source.id(),
+                    definition.start,
+                    definition.end,
+                ))
+                .unwrap_or_default(),
+        });
+        if matches!(decision, ProjectionDecision::DiscardScaffolding)
+            && self.index.is_unmapped_syntax(header)
+        {
+            self.omitted.push(whole);
+        } else {
+            walk::walk_ts_type_alias_declaration(self, declaration);
+        }
+    }
+
+    fn visit_statements(&mut self, statements: &oxc::allocator::Vec<'a, Statement<'a>>) {
+        for (index, statement) in statements.iter().enumerate() {
+            if let Statement::ExpressionStatement(expression) = statement
+                && let Expression::ArrayExpression(array) = &expression.expression
+                && !array.elements.is_empty()
+                && array
+                    .elements
+                    .iter()
+                    .all(|element| matches!(element, ArrayExpressionElement::Identifier(_)))
+                && let Some(Statement::VariableDeclaration(next)) = statements.get(index + 1)
+                && let Some(binding) = next.declarations.first()
+                && let BindingPattern::BindingIdentifier(identifier) = &binding.id
+            {
+                let prefix = &self.source.text()[..expression.span.start as usize];
+                let preceding_line = prefix
+                    .trim_end()
+                    .lines()
+                    .next_back()
+                    .unwrap_or_default()
+                    .trim();
+                let decision =
+                    (self.framework.normalize)(ProjectionExpression::SyntheticReferenceList {
+                        preceding_line,
+                        next_binding: identifier.name.as_str(),
+                    });
+                let header = Span::new(
+                    self.source.id(),
+                    array.span.start,
+                    array.elements[0].span().start,
+                );
+                if matches!(decision, ProjectionDecision::DiscardScaffolding)
+                    && self.index.is_unmapped_syntax(header)
+                    && self.index.is_unmapped_syntax(Span::new(
+                        self.source.id(),
+                        identifier.span.start,
+                        identifier.span.end,
+                    ))
+                {
+                    self.omitted.push(Span::new(
+                        self.source.id(),
+                        expression.span.start,
+                        expression.span.end,
+                    ));
+                    continue;
+                }
+            }
+            self.visit_statement(statement);
+        }
+    }
+
     fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'a>) {
         if let Expression::Identifier(receiver) = &member.object {
             let whole = Span::new(self.source.id(), member.span.start, member.span.end);

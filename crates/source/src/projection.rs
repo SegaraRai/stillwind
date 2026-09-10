@@ -243,6 +243,18 @@ impl<'a> ProjectionIndex<'a> {
         found.flatten().map(BytePos)
     }
 
+    /// True only when valid, nonempty syntax has no map entries or intervals.
+    /// Ambiguous points count as entries, never as evidence of generated syntax.
+    pub fn is_unmapped_syntax(&self, span: Span) -> bool {
+        self.generated.slice(span).is_ok()
+            && span.start < span.end
+            && self.points.range(span.start.0..span.end.0).next().is_none()
+            && !self
+                .ranges
+                .iter()
+                .any(|range| range.generated.start < span.end && span.start < range.generated.end)
+    }
+
     /// # Errors
     /// Requires mapped first/last scalars and exact original text. In particular,
     /// an exclusive-end token is not required (some converters move it).

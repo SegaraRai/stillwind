@@ -45,6 +45,52 @@ fn projected() -> SourceInput {
 }
 
 #[test]
+fn only_verified_unmapped_framework_scaffolding_is_discarded() {
+    let script = "import {style} from 'stillwind/vue'; const props = style('flex');";
+    let scaffold = "\ntype __VLS_SetupExposed = import('vue').ShallowUnwrapRef<{ style: typeof style; }>;\n// @ts-ignore\n[style,];\nconst __VLS_export = {};";
+    let generated_text = format!("{script}{scaffold}");
+    for authored in [false, true] {
+        let original_text = if authored {
+            generated_text.as_str()
+        } else {
+            script
+        };
+        let original = SourceFile::new(
+            FileId(1),
+            "Component.vue",
+            format!("<script setup>{original_text}</script>"),
+        )
+        .unwrap();
+        let generated =
+            SourceFile::new(FileId(2), "Component.ts", generated_text.as_str()).unwrap();
+        let map = ProjectionMap::Volar {
+            mappings: vec![VolarMapping {
+                source_offsets: vec![14],
+                generated_offsets: vec![0],
+                lengths: vec![u32::try_from(original_text.len()).unwrap()],
+                generated_lengths: None,
+            }],
+        };
+        let normalized = stillwind_js_oxc::normalize_projection(
+            &generated,
+            &original,
+            &map,
+            AdapterKind::Vue,
+            FileId(3),
+        )
+        .unwrap();
+        let parsed = stillwind_js_oxc::parse(&normalized.source);
+        assert!(parsed.diagnostics.is_empty());
+        let (ir, _) = normalized.original_ir(&parsed.module).unwrap();
+        let binding = &ir.imports.macros[0].specifiers[0];
+        assert!(!binding.has_unmapped_references);
+        assert_eq!(binding.references.len(), if authored { 3 } else { 1 });
+        assert_eq!(normalized.source.text().contains("typeof style"), authored);
+        assert_eq!(normalized.source.text().contains("[style,]"), authored);
+    }
+}
+
+#[test]
 fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_macros() {
     let mut input = projected();
     input.code = Arc::new(

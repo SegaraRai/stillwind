@@ -106,6 +106,8 @@ framework converter は、変数参照、call、リアクティブな読み取�
 
 実装中の共通経路は、OXC から中立な式の view を作り、framework が返す保持範囲を map と原文で検証して、内部の解析用 source を構築する。この source を OXC で解析することで、既存の binding 追跡と式比較にも同じ正規化を適用する。元投影との断片対応は `NormalizedProjection` が保持する。出力用 IR の全 span は元 source に検証付きで移し、元投影の span は `SourceProvenance` に残す。解析用 source を最終出力として返さない。追加の parse と断片検索のコストは性能検証の対象に含める。
 
+Vue language-core が挿入する型公開用宣言と使用済み参照リストは、`vue.rs` の構文規則に一致し、宣言ヘッダーまたはリストの開始構文と後続 binding に map の対応がない場合に限り、解析用 source から除外する。曖昧な map point は除外の根拠にしない。同じ構文が元 source に対応する場合は除外せず、残存 macro の検証対象にする。未知の検査用参照は未検証のままとし、正常な出力を許可しない。
+
 Vue language-core の実出力では、補助 receiver に加え `{label}` が `{label: __VLS_ctx.label}` になることを確認した。`vue.rs` は同名 key/value の既知の形を候補とし、共通処理が両方の対応先が同じ元 identifier の範囲内にあることを検証する。ユーザーが書いた `{label: label}` は別々の位置に対応するため省略しない。
 
 ### 全フレームワーク共通のマクロ認識

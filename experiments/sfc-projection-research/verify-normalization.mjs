@@ -97,6 +97,30 @@ assert(
 );
 const slice = (source, span) => Buffer.from(source).subarray(span.start, span.end).toString();
 const summary = results.map((result, index) => {
+  for (const declaration of result.ir.imports.macros) {
+    for (const specifier of declaration.specifiers) {
+      assert.equal(
+        specifier.has_unmapped_references,
+        false,
+        `${result.name}: unresolved ${specifier.local} reference`,
+      );
+      const calls = [
+        ...result.ir.style_calls.map(({ span }) => span),
+        ...[
+          ...result.ir.handle_definitions,
+          ...result.ir.scope_definitions,
+          ...result.ir.animation_declarations,
+          ...result.ir.view_transition_declarations,
+        ].map(({ call_span }) => call_span),
+      ];
+      for (const reference of specifier.references) {
+        assert(
+          calls.some((call) => call.start <= reference.start && reference.end <= call.end),
+          `${result.name}: non-macro reference ${JSON.stringify(reference)}`,
+        );
+      }
+    }
+  }
   const fixture = [...fixtures, ...dynamicFixtures][index];
   assert.equal(
     result.ir.style_calls.length,
