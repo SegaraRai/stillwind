@@ -6,6 +6,8 @@ export interface ProjectSource {
   framework?: "React" | "Preact" | "Solid" | "Vue" | "Svelte" | "Astro";
   /** Source-to-upstream map for a normal input; it does not change the edit target. */
   map?: string;
+  /** Host-allocated stylesheet modules placed inside a verified macro import realm. */
+  stylesheet_imports?: string[];
   /** Original framework source; source above remains the projected JS/TS. */
   fw_code?: string;
   fw2js_map?: ProjectionMap;

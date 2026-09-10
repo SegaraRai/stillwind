@@ -52,13 +52,14 @@ export async function compileModule(
   id: string,
   projectRoot: string,
   host: CompilerHost,
-  options: { diagnostics?: "throw" | "collect" } = {},
+  options: { diagnostics?: "throw" | "collect"; stylesheetImports?: string[] } = {},
 ) {
   const entryId = cleanModuleId(id);
   const entrySource = await projectFrameworkSource({
     id: entryId,
     path: compilerModulePath(projectRoot, entryId),
     source: code,
+    stylesheet_imports: options.stylesheetImports,
   });
   const entrySummary = JSON.parse(
     summarizeReact(

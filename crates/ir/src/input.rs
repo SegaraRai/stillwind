@@ -76,6 +76,8 @@ pub struct SourceInput {
     pub projection: Option<FrameworkProjection>,
     /// Edited-source to upstream-original map. Does not change the edit target.
     pub upstream_map: Option<String>,
+    /// Host-allocated stylesheet modules inserted at a verified macro import.
+    pub stylesheet_imports: Vec<String>,
 }
 
 impl SourceInput {
@@ -86,6 +88,7 @@ impl SourceInput {
             framework: None,
             projection: None,
             upstream_map: None,
+            stylesheet_imports: Vec::new(),
         }
     }
 

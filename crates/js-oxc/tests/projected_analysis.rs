@@ -22,6 +22,7 @@ fn projected() -> SourceInput {
         language: ScriptLanguage::Ts,
         framework: Some(AdapterKind::Svelte),
         upstream_map: None,
+        stylesheet_imports: Vec::new(),
         projection: Some(FrameworkProjection {
             original,
             map: ProjectionMap::Volar {

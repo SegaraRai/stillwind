@@ -1554,6 +1554,7 @@ dependencies = [
  "lightningcss",
  "proptest",
  "serde",
+ "serde_json",
  "stillwind-css",
  "stillwind-design-system",
  "stillwind-ir",

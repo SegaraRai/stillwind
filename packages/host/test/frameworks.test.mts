@@ -163,6 +163,10 @@ for (const { extension, source, name, imports } of [
   void test(`${extension} ${name}: converter, native edits and framework compilation agree`, async () => {
     const filename = `/src/Component.${extension}`;
     const projected = await projectFrameworkSource({ id: filename, path: filename, source });
+    projected.stylesheet_imports = [
+      "virtual:stillwind.css",
+      "virtual:stillwind/carrier.css?revision=1",
+    ];
     assert.equal(projected.fw_code, source);
     assert.ok(projected.converter?.version);
     assert.ok(projected.import_realms?.length);
@@ -175,6 +179,8 @@ for (const { extension, source, name, imports } of [
     const module = output.modules[0]!;
     assert.deepEqual(module.diagnostics, []);
     assert.ok(module.code);
+    assert.equal(module.code.split('import "virtual:stillwind.css";').length, 2);
+    assert.equal(module.code.split('import "virtual:stillwind/carrier.css?revision=1";').length, 2);
     assert.ok(module.code.includes(`stillwind/${extension}/runtime`), module.code);
     assert.ok(!module.code.includes("import {style}"), module.code);
     assert.ok(!module.code.includes("style(active"), module.code);

@@ -16,6 +16,7 @@ stillwind-syntax = { path = "../syntax" }
 blake3.workspace = true
 cssparser.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

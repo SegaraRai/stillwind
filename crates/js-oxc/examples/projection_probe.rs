@@ -49,6 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             language: ScriptLanguage::Tsx,
             framework: Some(input.framework),
             upstream_map: None,
+            stylesheet_imports: Vec::new(),
             projection: Some(FrameworkProjection {
                 original: Arc::new(original.clone()),
                 map: input.map.clone(),
