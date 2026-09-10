@@ -14,8 +14,10 @@ type UtilityWithVariant<Utility extends string, Variant extends string> = [Utili
   ? string
   : [Variant] extends [never]
     ? Utility
-    : Utility | `${Variant}:${Utility}`;
-/** One generated utility token, including one typed variant prefix. */
+    : Utility | `${Variant}:${string}`;
+/** Utility names and variant prefixes; the compiler validates the full token.
+ * Avoid materializing every utility/variant pair in large generated vocabularies.
+ */
 export type StillwindUtility = UtilityWithVariant<VocabularyUtility, VocabularyVariant>;
 
 // Utility lists are intentionally validated by the compiler. A recursive

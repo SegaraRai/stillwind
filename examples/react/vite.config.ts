@@ -16,8 +16,8 @@ export default defineConfig({
   ],
   run: {
     tasks: {
-      dev: { command: "vp dev" },
-      build: { command: "vp build" },
+      dev: { command: "vp dev", dependsOn: ["@stillwind/host#build"] },
+      build: { command: "vp build", dependsOn: ["@stillwind/host#build"] },
       check: { command: "tsc --noEmit", dependsOn: ["build"] },
     },
   },
