@@ -69,3 +69,11 @@ file. CLI output rebases resources to the CSS entry directory. Quoted/unquoted
 strings and absolute/data/fragment URLs are left intact. Vite tests (8), CLI
 tests (3), Core/CSS library tests and workspace Clippy passed. Resource URLs
 authored in JS style arguments and generated source maps remain pending.
+
+Vite now composes native UTF-16 replacement spans with removed macro imports
+and synthetic runtime/CSS imports into a standard JavaScript source map.
+The real lazy-chunk build maps its generated class back to the original style
+call. CRLF, non-BMP text, unchanged statements and unmapped synthetic imports
+are covered separately. Vite tests: nine passed, including TypeScript checks.
+CSS rule provenance maps remain outstanding. Installing the map encoder also
+refreshes the workspace lock to the current Vite override and renamed core package.

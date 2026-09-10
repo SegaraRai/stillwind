@@ -8,6 +8,7 @@ import { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } from "
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
 
+import { moduleSourceMap, type CompilerMapping } from "./source-map.ts";
 import { TypeScriptFactsService, type AssetRecord, type TypeFact } from "./type-facts.ts";
 
 export interface StillwindOptions {
@@ -30,6 +31,7 @@ export interface StillwindOptions {
 }
 
 interface CompilerOutput {
+  mappings: CompilerMapping[];
   css: string;
   code: string | null;
   classes: Array<{ class_name: string }>;
@@ -512,9 +514,20 @@ export function stillwind(options: StillwindOptions): Plugin {
       producers.add(id);
       const css = resolveResources(session.moduleCss(output.path));
       const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
+      const finalized = finalizeReactModuleWithMap(output.code, false);
+      const imports = `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
       return {
-        code: `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n${finalizeReactModule(output.code, false)}`,
-        map: null,
+        code: imports + finalized.code,
+        map: JSON.stringify(
+          moduleSourceMap(
+            code,
+            output.code,
+            id,
+            output.mappings,
+            finalized.removed,
+            imports + finalized.prefix,
+          ),
+        ),
       };
     },
     configureServer(server: ViteDevServer) {

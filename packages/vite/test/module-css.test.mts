@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { build } from "vite-plus";
 
 import { stillwind } from "../src/index.ts";
@@ -45,7 +46,7 @@ void test("build retains late and lazy producer CSS without collecting transform
         },
         stillwind({ css: path.join(root, "root.css"), types: false }),
       ],
-      build: { write: false, minify: false, cssMinify: false },
+      build: { write: false, minify: false, cssMinify: false, sourcemap: true },
     });
     if (!("output" in output)) throw new Error("expected a single build output");
     const assets = output.output
@@ -57,6 +58,23 @@ void test("build retains late and lazy producer CSS without collecting transform
     assert.doesNotMatch(css, /77,\s*88,\s*99/);
     assert.equal(css.match(/\.document-only/g)?.length, 1);
     assert.ok(assets.some((asset) => asset.fileName.includes("lazy")));
+    const lazy = output.output.find(
+      (asset) => asset.type === "chunk" && asset.fileName.includes("lazy"),
+    );
+    assert.ok(lazy?.type === "chunk" && lazy.map);
+    const classOffset = lazy.code.indexOf("_s_");
+    assert.ok(classOffset >= 0);
+    const beforeClass = lazy.code.slice(0, classOffset);
+    const position = originalPositionFor(new TraceMap(lazy.map.toString()), {
+      line: beforeClass.split("\n").length,
+      column: beforeClass.length - beforeClass.lastIndexOf("\n") - 1,
+    });
+    assert.ok(position.source?.endsWith("lazy.ts"));
+    assert.equal(position.line, 1);
+    assert.equal(
+      position.column,
+      'import { style } from "stillwind/react"; export const b = '.length,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
