@@ -6,6 +6,24 @@ use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn framework_registry_preserves_import_aliases_and_shadowing() {
+    for spec in stillwind_ir::framework::FRAMEWORKS {
+        let source = SourceFile::new(
+            FileId(1),
+            "entry.tsx",
+            format!(
+                "import {{style as s}} from '{}'; const a = s('flex'); function f(s: Function) {{ return s('grid'); }}",
+                spec.macro_import,
+            ),
+        ).unwrap();
+        let parsed = parse(&source);
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        assert_eq!(parsed.module.adapter, spec.id);
+        assert_eq!(parsed.module.style_calls.len(), 1);
+    }
+}
+
+#[test]
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     let source = SourceFile::new(
         FileId(1),

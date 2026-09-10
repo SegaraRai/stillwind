@@ -26,7 +26,7 @@ pub(in crate::compiler) struct DynamicAssetClassEntry {
 }
 
 #[derive(Clone, Copy)]
-pub(in crate::compiler) struct ReactPropsParts<'a> {
+pub(in crate::compiler) struct PropsParts<'a> {
     pub(in crate::compiler) classes: &'a [GeneratedClass],
     pub(in crate::compiler) attributes: &'a [AttributeEntry],
     pub(in crate::compiler) handle_markers: &'a [String],
@@ -53,12 +53,12 @@ fn guarded_class(source: &SourceFile, class: &GeneratedClass) -> Option<String> 
     Some(format!("{negation}{guard}&&\"{}\"", class.class_name))
 }
 
-pub(in crate::compiler) fn render_react_props(
+pub(in crate::compiler) fn render_props(
     source: &SourceFile,
-    parts: &ReactPropsParts<'_>,
+    parts: &PropsParts<'_>,
     adapter: AdapterKind,
 ) -> Option<String> {
-    let ReactPropsParts {
+    let PropsParts {
         classes,
         attributes,
         handle_markers,
@@ -121,11 +121,7 @@ pub(in crate::compiler) fn render_react_props(
         } else {
             format!("stillwindClsx({})", class_names.join(","))
         };
-        let property = if adapter == AdapterKind::Solid {
-            "class"
-        } else {
-            "className"
-        };
+        let property = adapter.spec().class_property;
         entries.push(format!("{property}:{class_value}"));
     }
     for attribute in attributes {

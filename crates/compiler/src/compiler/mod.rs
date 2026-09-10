@@ -5,6 +5,7 @@ mod motion;
 
 mod output;
 mod pipeline;
+mod props;
 mod react;
 mod stylesheet;
 mod symbols;
@@ -15,7 +16,7 @@ pub struct Compiler;
 
 pub use api::CompilerThemeError;
 pub use output::CompileResult;
-pub use react::props::GeneratedClass;
+pub use props::GeneratedClass;
 pub use stylesheet::render::StylesheetError;
 pub use symbols::GeneratedSymbol;
 

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
-use super::react::props::GeneratedClass;
+use super::props::GeneratedClass;
 use super::symbols::GeneratedSymbol;
 use crate::transforms::{SourceTransform, TransformError, apply_transforms};
 

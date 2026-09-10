@@ -18,9 +18,8 @@ use super::motion::{
     emit_animation_definition, emit_view_transition_definition, resolve_animation_use,
 };
 use super::output::CompileResult;
-use super::react::props::{
-    DynamicAssetClassEntry, GeneratedClass, ReactPropsParts, ViewTransitionStyleEntry,
-    render_react_props,
+use super::props::{
+    DynamicAssetClassEntry, GeneratedClass, PropsParts, ViewTransitionStyleEntry, render_props,
 };
 use super::stylesheet::render::render_stylesheet;
 use super::symbols::{
@@ -626,9 +625,9 @@ impl Compiler {
                 call_classes.push(class.clone());
                 result.classes.push(class);
             }
-            if let Some(replacement) = render_react_props(
+            if let Some(replacement) = render_props(
                 source,
-                &ReactPropsParts {
+                &PropsParts {
                     classes: &call_classes,
                     attributes: &attributes,
                     handle_markers: &handle_markers,

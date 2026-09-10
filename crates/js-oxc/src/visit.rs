@@ -43,15 +43,16 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     && let Some(symbol_id) = specifier.local.symbol_id.get()
                 {
                     self.style_symbols.insert(symbol_id);
-                    let adapter = if declaration.source.value == "stillwind/solid" {
-                        stillwind_ir::AdapterKind::Solid
-                    } else {
-                        stillwind_ir::AdapterKind::React
+                    let Some(spec) = stillwind_ir::framework::from_macro_import(
+                        declaration.source.value.as_str(),
+                    ) else {
+                        continue;
                     };
+                    let adapter = spec.id;
                     if self.adapter.is_some_and(|previous| previous != adapter) {
                         self.diagnostics.push(CompileError::new(
                             "SHJS008",
-                            "a module cannot mix React and Solid style macros",
+                            "a module cannot mix framework style macros",
                             self.source_span(declaration.span),
                         ));
                     }
