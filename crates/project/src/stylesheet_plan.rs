@@ -220,7 +220,7 @@ mod tests {
             .unwrap();
             let analysis =
                 OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source)), None);
-            session.update_module(analysis).unwrap();
+            session.update_module(analysis);
         }
         assert!(session.css().unwrap().contains("color:red"));
         assert!(matches!(
@@ -246,13 +246,7 @@ mod tests {
             .unwrap();
             let analysis =
                 OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source)), None);
-            assert!(
-                session
-                    .update_module(analysis)
-                    .unwrap()
-                    .diagnostics
-                    .is_empty()
-            );
+            assert!(session.update_module(analysis).diagnostics.is_empty());
         }
         let observed = session
             .plan_stylesheet(session.observed_selection(), StylesheetPlacement::Document)
@@ -276,7 +270,7 @@ mod tests {
             .plan_stylesheet(selection.clone(), StylesheetPlacement::Document)
             .unwrap();
         assert!(document.css.contains("body"));
-        session.remove_module("red.tsx").unwrap();
+        session.remove_module("red.tsx");
         assert!(matches!(
             session.plan_stylesheet(selection, StylesheetPlacement::Carrier),
             Err(StylesheetPlanError::MissingModules(_))

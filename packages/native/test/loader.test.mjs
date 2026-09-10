@@ -70,6 +70,24 @@ void test("native object transport returns typed values and rejects the former J
   assert(Array.isArray(session.baseCssWithMap().sourceMap.entries));
 });
 
+void test("removal reports producer presence independently of shared CSS", async () => {
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const loader = new NativeDesignSystemLoader({ classIdentity: "content" });
+  loader.provide(0, "root.css", "@utility flex {display:flex;} @stillwind-slot utilities;");
+  const session = new NativeProjectSession(loader, true);
+  const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
+  session.compile([
+    { path: "a.ts", source },
+    { path: "b.ts", source },
+  ]);
+  const shared = session.css();
+  assert.equal(session.remove("a.ts"), true);
+  assert.equal(session.css(), shared);
+  assert.equal(session.remove("a.ts"), false);
+  assert.equal(session.remove("b.ts"), true);
+  assert.notEqual(session.css(), shared);
+});
+
 void test("native semantic unions validate nested asset kinds and candidate payloads", async () => {
   const { compileReactProject } = await import("../index.js");
   const compile = (value) =>
@@ -226,7 +244,7 @@ void test("native sessions retain shared rules and replace CSS revisions", async
   assert.ok(result.modules.every((module) => module.diagnostics.length === 0));
   const before = session.css();
   assert.ok(before.length > 0);
-  assert.equal(session.remove("a.tsx"), false);
+  assert.equal(session.remove("a.tsx"), true);
   assert.equal(session.css(), before);
   const next = new NativeDesignSystemLoader();
   next.provide(

@@ -18,6 +18,7 @@ export declare class NativeProjectSession {
   baseCssWithMap(): NativeStylesheetOutput
   /** Complete CSS for one producer, safe to transport across loader workers. */
   moduleCss(module: string): string
+  /** Removes a producer, returning whether it was registered. */
   remove(module: string): boolean
   compile(sources: Array<NativeProjectSource>, producer?: string | undefined | null): ProjectBindingOutput
 }

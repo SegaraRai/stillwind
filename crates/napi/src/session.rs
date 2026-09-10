@@ -316,11 +316,9 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn remove(&mut self, module: String) -> napi::Result<bool> {
-        self.session
-            .remove_module(&module)
-            .map(|update| update.css_changed)
-            .map_err(|error| Error::from_reason(error.to_string()))
+    /// Removes a producer, returning whether it was registered.
+    pub fn remove(&mut self, module: String) -> bool {
+        self.session.remove_module(&module)
     }
 
     #[napi(strict)]
@@ -371,18 +369,15 @@ impl NativeProjectSession {
             let mut analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
             analysis.attach_asset_support(&analyses);
-            let update = self
-                .session
-                .update_module(analysis)
-                .map_err(|error| Error::from_reason(error.to_string()))?;
+            let update = self.session.update_module(analysis);
             let mut result = self
                 .session
                 .artifacts()
                 .get(&scan.module_id)
                 .map(|artifact| artifact.to_output(&snapshot, self.session.options()))
                 .unwrap_or_default();
-            if let Some(diagnostics) = update.diagnostics.get(&scan.module_id) {
-                result.diagnostics.clone_from(diagnostics);
+            if !update.diagnostics.is_empty() {
+                result.diagnostics = update.diagnostics;
             }
             result.css.clone_from(&result.module_css);
             modules.push(ProjectModuleOutput::new(

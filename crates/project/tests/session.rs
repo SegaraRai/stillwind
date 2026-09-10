@@ -45,7 +45,7 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
         ..CompilerOptions::default()
     };
     let mut session = ProjectSession::new(snapshot.clone(), SessionMode::Watch, options.clone());
-    session.update_module(module("button.tsx", "flex")).unwrap();
+    session.update_module(module("button.tsx", "flex"));
     let before = session.artifacts()["button.tsx"].clone();
     let next = CompilerOptions {
         class_namespace: "second".into(),
@@ -87,9 +87,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         SessionMode::Build,
         CompilerOptions::default(),
     );
-    session
-        .update_module(module("a.tsx", "bg-brand animate-spin ring-2"))
-        .unwrap();
+    session.update_module(module("a.tsx", "bg-brand animate-spin ring-2"));
     let artifact = session.artifacts()["a.tsx"].clone();
     let css = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
         .render_module_stylesheet(&artifact.css.to_css())
@@ -101,7 +99,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     assert!(!css.contains(".document-only"));
     assert!(!css.contains("box-sizing:border-box"));
     assert!(base.contains(".document-only"));
-    session.update_module(module("late.tsx", "flex")).unwrap();
+    session.update_module(module("late.tsx", "flex"));
     assert_eq!(
         StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
             .render_base_stylesheet()
@@ -132,7 +130,7 @@ fn module_salt_is_stable_and_content_identity_remains_available() {
         let mut session = ProjectSession::new(snapshot, SessionMode::Build, options);
         let analysis = module(path, "flex");
         let id = analysis.module_id.clone();
-        session.update_module(analysis).unwrap();
+        session.update_module(analysis);
         session.artifacts()[&id].classes[0].class_name.clone()
     };
     let a = compile(ClassIdentity::Module, "app", "src/a.tsx");
@@ -154,21 +152,25 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
         CompilerOptions::default(),
     );
     let pinned = session.snapshot();
+    let base_css = session.css().unwrap();
     assert!(
         session
             .update_module(module("a.tsx", "bg-brand hover:flex"))
-            .unwrap()
-            .css_changed
+            .transformed
     );
+    let shared_css = session.css().unwrap();
+    assert_ne!(shared_css, base_css);
     let count = session.stylesheet().rule_count();
     assert!(
-        !session
+        session
             .update_module(module("b.tsx", "bg-brand hover:flex"))
-            .unwrap()
-            .css_changed
+            .transformed
     );
+    assert_eq!(session.css().unwrap(), shared_css);
     assert_eq!(session.stylesheet().rule_count(), count);
-    assert!(!session.remove_module("a.tsx").unwrap().css_changed);
+    assert!(session.remove_module("a.tsx"));
+    assert!(!session.remove_module("a.tsx"));
+    assert_eq!(session.css().unwrap(), shared_css);
     assert_eq!(session.stylesheet().rule_count(), count);
     let old_css = session.css().unwrap();
     assert!(
@@ -192,7 +194,9 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
         analysis_revision
     );
     assert_ne!(session.snapshot().revision(), pinned.revision());
-    assert!(session.remove_module("b.tsx").unwrap().css_changed);
+    let before_removal = session.css().unwrap();
+    assert!(session.remove_module("b.tsx"));
+    assert_ne!(session.css().unwrap(), before_removal);
     assert_eq!(session.stylesheet().rule_count(), 0);
 }
 
@@ -200,14 +204,14 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
 fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
     for mode in [SessionMode::Watch, SessionMode::Build] {
         let mut session = ProjectSession::new(snapshot("red"), mode, CompilerOptions::default());
-        session.update_module(module("a.tsx", "flex")).unwrap();
+        session.update_module(module("a.tsx", "flex"));
         let mut invalid = module("a.tsx", "block");
         invalid.diagnostics.push(CompileError::new(
             "TEST",
             "invalid",
             invalid.source.full_span(),
         ));
-        let update = session.update_module(invalid).unwrap();
+        let update = session.update_module(invalid);
         assert!(!update.diagnostics.is_empty());
         assert_eq!(
             session.artifacts().contains_key("a.tsx"),
@@ -223,18 +227,17 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
         SessionMode::Watch,
         CompilerOptions::default(),
     );
-    session.update_module(module("a.tsx", "bg-brand")).unwrap();
+    session.update_module(module("a.tsx", "bg-brand"));
     let rules = session.artifacts()["a.tsx"].css.rules.as_ptr();
     assert!(
         !session
             .update_module(module("a.tsx", "bg-brand"))
-            .unwrap()
-            .css_changed
+            .transformed
     );
     assert_eq!(rules, session.artifacts()["a.tsx"].css.rules.as_ptr());
     assert!(session.dependencies().candidates["bg-brand"].contains("a.tsx"));
     assert!(session.dependencies().theme_tokens["--color-brand"].contains("a.tsx"));
-    session.remove_module("a.tsx").unwrap();
+    session.remove_module("a.tsx");
     assert!(session.dependencies().candidates.is_empty());
     assert!(session.dependencies().theme_tokens.is_empty());
 }

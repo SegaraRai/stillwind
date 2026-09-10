@@ -119,7 +119,14 @@ pub struct DependencyIndex {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct SessionUpdate {
+pub struct ModuleUpdate {
+    /// Whether a successful update published different source transforms.
+    pub transformed: bool,
+    pub diagnostics: Vec<CompileError>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SessionReload {
     pub css_changed: bool,
     pub transformed_modules: BTreeSet<ModuleId>,
     pub diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
@@ -189,12 +196,8 @@ impl ProjectSession {
         self.stylesheet.serialize(&self.current, &self.options)
     }
 
-    /// # Errors
-    /// Returns an error if stylesheet serialization fails.
-    pub fn update_module(
-        &mut self,
-        analysis: ModuleAnalysis,
-    ) -> Result<SessionUpdate, StylesheetError> {
+    /// Updates one producer without rendering the project stylesheet.
+    pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         if analysis.diagnostics.is_empty()
             && analysis.integration_diagnostics.is_empty()
@@ -204,9 +207,8 @@ impl ProjectSession {
                 .is_some_and(|artifact| artifact.key == backend.key_for(&analysis))
         {
             self.analyses.insert(analysis.module_id.clone(), analysis);
-            return Ok(SessionUpdate::default());
+            return ModuleUpdate::default();
         }
-        let old_css = self.css()?;
         let module_id = analysis.module_id.clone();
         let mut compiled = backend.compile(&analysis);
         let mut symbols: BTreeMap<_, _> = self
@@ -229,43 +231,35 @@ impl ProjectSession {
             }
         }
         self.analyses.insert(module_id.clone(), analysis);
-        let mut update = SessionUpdate::default();
+        let mut update = ModuleUpdate::default();
         if compiled.is_success() {
             if self
                 .artifacts
                 .get(&module_id)
                 .is_none_or(|previous| previous.code_transforms != compiled.code_transforms)
             {
-                update.transformed_modules.insert(module_id.clone());
+                update.transformed = true;
             }
             self.stylesheet.replace(module_id.clone(), &compiled.css);
             self.artifacts.insert(module_id, compiled);
         } else {
-            update
-                .diagnostics
-                .insert(module_id.clone(), compiled.diagnostics);
+            update.diagnostics = compiled.diagnostics;
             if self.mode == SessionMode::Build {
                 self.stylesheet.remove(module_id.as_str());
                 self.artifacts.remove(&module_id);
             }
         }
         self.reindex();
-        update.css_changed = old_css != self.css()?;
-        Ok(update)
+        update
     }
 
-    /// # Errors
-    /// Returns an error if stylesheet serialization fails.
-    pub fn remove_module(&mut self, module: &str) -> Result<SessionUpdate, StylesheetError> {
-        let old_css = self.css()?;
-        self.analyses.remove(module);
+    /// Removes a producer, returning whether it was registered.
+    pub fn remove_module(&mut self, module: &str) -> bool {
+        let removed = self.analyses.remove(module).is_some();
         self.artifacts.remove(module);
         self.stylesheet.remove(module);
         self.reindex();
-        Ok(SessionUpdate {
-            css_changed: old_css != self.css()?,
-            ..SessionUpdate::default()
-        })
+        removed
     }
 
     /// Publishes an entirely rebuilt revision under the host's exclusive actor turn.
@@ -277,7 +271,7 @@ impl ProjectSession {
         &mut self,
         result: Result<DesignSystemSnapshot, DesignSystemLoadError>,
         options: CompilerOptions,
-    ) -> Result<SessionUpdate, SessionReloadError> {
+    ) -> Result<SessionReload, SessionReloadError> {
         let snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -292,10 +286,12 @@ impl ProjectSession {
         };
         let old_css = self.css()?;
         let mut next = Self::new(snapshot, self.mode, options);
-        let mut update = SessionUpdate::default();
+        let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
-            let changed = next.update_module(analysis.clone())?;
-            update.diagnostics.extend(changed.diagnostics);
+            let changed = next.update_module(analysis.clone());
+            if !changed.diagnostics.is_empty() {
+                update.diagnostics.insert(id.clone(), changed.diagnostics);
+            }
             if next.artifacts.get(id).map(|value| &value.code_transforms)
                 != self.artifacts.get(id).map(|value| &value.code_transforms)
             {
@@ -426,7 +422,6 @@ mod tests {
         assert!(
             session
                 .update_module(reload_module())
-                .unwrap()
                 .diagnostics
                 .is_empty()
         );
@@ -438,13 +433,7 @@ mod tests {
         .unwrap();
         let analysis =
             OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(other)), None);
-        assert!(
-            session
-                .update_module(analysis)
-                .unwrap()
-                .diagnostics
-                .is_empty()
-        );
+        assert!(session.update_module(analysis).diagnostics.is_empty());
         let other_artifact = session.artifacts()["other.tsx"].css.to_css();
         let before_css = session.css().unwrap();
         let revision = session.snapshot().revision();
@@ -492,7 +481,6 @@ mod tests {
         assert!(
             session
                 .update_module(reload_module())
-                .unwrap()
                 .diagnostics
                 .is_empty()
         );
