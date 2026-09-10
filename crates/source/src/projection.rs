@@ -147,6 +147,7 @@ impl<'a> ProjectionIndex<'a> {
                 }
             }
             ProjectionMap::Volar { mappings } => {
+                let mut exclusive_ends = Vec::new();
                 for mapping in mappings {
                     let count = mapping.lengths.len();
                     if mapping.source_offsets.len() != count
@@ -200,23 +201,50 @@ impl<'a> ProjectionIndex<'a> {
                                 });
                             }
                         }
-                        for (g, o) in [
-                            (generated_start, original_start),
-                            (generated_end, original_end),
-                        ] {
-                            result
-                                .points
-                                .entry(g)
-                                .and_modify(|previous| {
-                                    if *previous != Some(o) {
-                                        *previous = None;
-                                    }
-                                })
-                                .or_insert(Some(o));
-                        }
+                        let start = if generated_length == 0 && source_length != 0 {
+                            None
+                        } else {
+                            Some(original_start)
+                        };
+                        result
+                            .points
+                            .entry(generated_start)
+                            .and_modify(|previous| {
+                                if *previous != start {
+                                    *previous = None;
+                                }
+                            })
+                            .or_insert(start);
+                        exclusive_ends.push((generated_end, original_end));
                     }
                 }
                 result.ranges.sort_by_key(|range| range.generated.start.0);
+                // A right-hand interval owns its first character. The previous
+                // interval's exclusive end is only a fallback at an uncovered boundary.
+                let starts = result
+                    .points
+                    .keys()
+                    .copied()
+                    .collect::<std::collections::BTreeSet<_>>();
+                for (generated_end, original_end) in exclusive_ends {
+                    if starts.contains(&generated_end)
+                        || result.ranges.iter().any(|range| {
+                            range.generated.start.0 <= generated_end
+                                && generated_end < range.generated.end.0
+                        })
+                    {
+                        continue;
+                    }
+                    result
+                        .points
+                        .entry(generated_end)
+                        .and_modify(|previous| {
+                            if *previous != Some(original_end) {
+                                *previous = None;
+                            }
+                        })
+                        .or_insert(Some(original_end));
+                }
             }
         }
         Ok(result)

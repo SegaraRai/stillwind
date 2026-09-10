@@ -1,5 +1,8 @@
 use oxc_sourcemap::SourceMapBuilder;
-use stillwind_source::{FileId, ProjectionIndex, ProjectionMap, SourceFile, Span, VolarMapping};
+
+use stillwind_source::{
+    BytePos, FileId, ProjectionIndex, ProjectionMap, SourceFile, Span, VolarMapping,
+};
 
 fn point_map(points: &[(u32, Option<u32>)], original: &str) -> ProjectionMap {
     let mut builder = SourceMapBuilder::default();
@@ -101,6 +104,50 @@ fn volar_intervals_use_utf16_and_reject_ambiguous_or_malformed_ranges() {
 }
 
 #[test]
+fn adjacent_reordered_volar_ranges_keep_their_own_start_anchors() {
+    let original = SourceFile::new(FileId(1), "component", "secondfirst").unwrap();
+    let generated = SourceFile::new(FileId(2), "component.ts", "firstsecond").unwrap();
+    let map = ProjectionMap::Volar {
+        mappings: vec![VolarMapping {
+            source_offsets: vec![6, 0],
+            generated_offsets: vec![0, 5],
+            lengths: vec![5, 6],
+            generated_lengths: None,
+        }],
+    };
+    let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
+    assert_eq!(
+        index
+            .verify_exact(Span::new(FileId(2), 0, 5))
+            .unwrap()
+            .original,
+        Span::new(FileId(1), 6, 11)
+    );
+    assert_eq!(
+        index
+            .verify_exact(Span::new(FileId(2), 5, 11))
+            .unwrap()
+            .original,
+        Span::new(FileId(1), 0, 6)
+    );
+    assert!(index.verify_exact(generated.full_span()).is_err());
+    let ambiguous = ProjectionMap::Volar {
+        mappings: vec![VolarMapping {
+            source_offsets: vec![0, 6],
+            generated_offsets: vec![0, 0],
+            lengths: vec![1, 1],
+            generated_lengths: None,
+        }],
+    };
+    assert!(
+        ProjectionIndex::new(&generated, &original, &ambiguous)
+            .unwrap()
+            .original_byte(BytePos(0))
+            .is_none()
+    );
+}
+
+#[test]
 fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
     let original = SourceFile::new(FileId(1), "component", "x😀y").unwrap();
     let generated = SourceFile::new(FileId(2), "component.ts", "😀").unwrap();
@@ -110,7 +157,7 @@ fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
         index.verify_exact(generated.full_span()).unwrap().original,
         Span::new(FileId(1), 1, 5)
     );
-    assert!(index.original_byte(stillwind_source::BytePos(1)).is_none());
+    assert!(index.original_byte(BytePos(1)).is_none());
     let malformed = point_map(&[(0, Some(1)), (1, Some(3))], original.text());
     assert!(ProjectionIndex::new(&generated, &original, &malformed).is_err());
 }
