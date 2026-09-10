@@ -31,3 +31,30 @@ The real Stillwind adapter has a separate browser acceptance probe. First run
 edits with stable class names, macro removal and restoration. Its result is
 `results/stillwind.json`. Page reloads are allowed; it does not assert preservation
 of application state. The original 18 transport checks remain surrogate experiments.
+
+## Real framework adapters
+
+The following separate tasks use the real Stillwind compiler, not `styleToken`:
+
+- `vp run verify:adapters`: Next 16.3.4 with Turbopack.
+- `vp run verify:webpack`: Next 16.3.4 with webpack.
+- `vp run verify:rspack`: Rspack native CSS and persistent cache.
+- `vp run verify:rsbuild`: Rsbuild wrapper over the same adapter.
+- `vp run verify:react-router`: React Router 8.3.1 Framework Mode and Vite+.
+
+Next checks RSC/client rendering, hydration, dependency edits, macro removal,
+client navigation, prefetch, and cold/warm production builds. Rspack/Rsbuild
+check browser CSS and URL assets, cache restoration, dependency invalidation,
+unreachable producers, and macro removal. Their results are
+`results/adapters-{turbopack,webpack}.json`, `results/rspack-real.json`, and
+`results/rsbuild-real.json`.
+
+React Router verifies JavaScript-disabled SSR (including `.server.js` styles
+connected by `?stillwind.css`), hydration, client navigation, lazy CSS, CSS edits,
+three macro removal/restoration cycles, and projected server-source edits.
+Each cold/warm build also checks JavaScript source-map positions and excludes
+server code from client JavaScript and source maps. Results are stored in
+`results/react-router-real.json`. The runner creates a complete, inspectable
+fixture under `output/react-router-<timestamp>` using the dependencies installed
+here. Next uses ports 43174–43175; React Router uses 43176. Do not run two copies
+of the same task concurrently.

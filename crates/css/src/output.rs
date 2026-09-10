@@ -7,6 +7,7 @@ use crate::ThemeToken;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CssOutputNode {
     Authored(String),
+    LayerOrder(String),
     Group {
         header: String,
         children: Vec<Self>,
@@ -56,7 +57,7 @@ fn authored_css(nodes: &[CssOutputNode]) -> String {
     nodes
         .iter()
         .map(|node| match node {
-            CssOutputNode::Authored(css) => css.clone(),
+            CssOutputNode::Authored(css) | CssOutputNode::LayerOrder(css) => css.clone(),
             CssOutputNode::Group { header, children } => {
                 format!("{header}{{{}}}", authored_css(children))
             }
@@ -136,6 +137,7 @@ fn parse_nodes(
         }
         let end = parser.position().byte_index();
         match (name.as_deref(), block) {
+            (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder(css[start..end].into())),
             (Some("stillwind-slot"), Some(_)) | (Some("theme"), None) => {
                 return Err(CssOutputError::Block {
                     offset: base + start,

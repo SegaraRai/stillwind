@@ -27,7 +27,7 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     server: { middlewareMode: true, watch: null },
   });
   try {
-    await server.pluginContainer.buildStart({});
+    // React Router's route-export scanner can transform before buildStart.
     const sourcePath = path.join(root, "button.tsx");
     const source =
       "import { style } from 'stillwind/react'; export const props = style('bg-brand');";
@@ -54,10 +54,19 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     assert.equal(typeof load, "function");
     if (typeof load !== "function") throw new Error("expected load hook");
     const context = server.pluginContainer as unknown as ThisParameterType<typeof load>;
-    const before = await load.call(context, "\0virtual:stillwind.css");
+    const before = await load.call(
+      context,
+      fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
+    );
     // Pinning is observable even after the file changes, before the reload hook runs.
     writeFileSync(tokens, "@theme { --color-brand: blue; }");
-    assert.equal(await load.call(context, "\0virtual:stillwind.css"), before);
+    assert.equal(
+      await load.call(
+        context,
+        fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
+      ),
+      before,
+    );
     const hot = plugin.hotUpdate;
     if (typeof hot !== "function") throw new Error("expected HMR hook");
     const hotContext = {
@@ -73,7 +82,10 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
       >,
       { ...hotContext, type: "update" },
     );
-    const after = await load.call(context, "\0virtual:stillwind.css");
+    const after = await load.call(
+      context,
+      fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
+    );
     assert.equal(typeof after, "string");
     assert.notEqual(after, before);
     writeFileSync(tokens, "@theme {");
@@ -83,7 +95,13 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
       >,
       { ...hotContext, type: "update" },
     );
-    assert.equal(await load.call(context, "\0virtual:stillwind.css"), after);
+    assert.equal(
+      await load.call(
+        context,
+        fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
+      ),
+      after,
+    );
   } finally {
     await server.close();
     rmSync(root, { recursive: true, force: true });
@@ -150,7 +168,7 @@ void test("Vite supplies ready CSS and discovers nested imports before a slow si
     if (typeof load !== "function") throw new Error("expected load hook");
     const output = await load.call(
       server.pluginContainer as unknown as ThisParameterType<typeof load>,
-      "\0virtual:stillwind.css",
+      fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
     );
     assert.equal(typeof output, "string");
     if (typeof output !== "string") throw new Error("expected CSS");
@@ -259,7 +277,7 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
     const readCss = async (environment: typeof client) => {
       const css = await load.call(
         { environment } as ThisParameterType<typeof load>,
-        "\0virtual:stillwind.css",
+        fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
       );
       assert.equal(typeof css, "string");
       return css as string;
@@ -296,7 +314,7 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
       assert.ok(output && typeof output === "object" && output.code);
       const encoded = output.code
         .toString()
-        .match(/virtual:stillwind\/module\.css\?css=([^"]+)/)?.[1];
+        .match(/virtual:stillwind\/module\.css\?css=([^"&]+)/)?.[1];
       assert.ok(encoded);
       return Buffer.from(encoded, "base64url").toString("utf8");
     });

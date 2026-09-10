@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   compileModule,
@@ -38,8 +39,16 @@ export interface StillwindOptions {
 }
 
 const virtualCssId = "virtual:stillwind.css";
-const resolvedVirtualCssId = `\0${virtualCssId}`;
+const resolvedVirtualCssId = fileURLToPath(
+  new URL("../stillwind-base.css", import.meta.url),
+).replaceAll("\\", "/");
 const moduleCssPrefix = "virtual:stillwind/module.css?css=";
+const resolvedModuleCssId = fileURLToPath(
+  new URL("../stillwind-carrier.css", import.meta.url),
+).replaceAll("\\", "/");
+const resolvedProjectionId = fileURLToPath(
+  new URL("../stillwind-projection.js", import.meta.url),
+).replaceAll("\\", "/");
 const maximumPlayPayloadBytes = 1_000_000;
 
 function cssEntrypoint(options: StillwindOptions): string {
@@ -176,17 +185,27 @@ function previewHtml(id: string) {
 export function stillwind(options: StillwindOptions): Plugin {
   type EnvironmentState = {
     session?: NativeProjectSession;
+    initializing?: Promise<void>;
+    projectionDependencies: Map<string, Set<string>>;
     resources: Map<string, string>;
     producers: Set<string>;
     cssFiles: Set<string>;
     typeFacts?: TypeScriptFactsService;
     revision: number;
+    carrierRevision: number;
   };
   const environments = new Map<string, EnvironmentState>();
   const environmentState = (name = "client") => {
     let state = environments.get(name);
     if (!state) {
-      state = { resources: new Map(), producers: new Set(), cssFiles: new Set(), revision: 0 };
+      state = {
+        resources: new Map(),
+        producers: new Set(),
+        cssFiles: new Set(),
+        projectionDependencies: new Map(),
+        revision: 0,
+        carrierRevision: 0,
+      };
       environments.set(name, state);
     }
     return state;
@@ -199,6 +218,12 @@ export function stillwind(options: StillwindOptions): Plugin {
   const resolveResources = (css: string, references = new Map<string, string>()) => {
     for (const [placeholder, url] of references) css = css.replaceAll(placeholder, url);
     return css;
+  };
+  const carrierSpecifier = (state: EnvironmentState, css: string) => {
+    // A restored macro must not reuse a CSS module which an earlier HMR prune
+    // can still dispose. The payload is self-contained; only dev import identity changes.
+    const version = watching ? `&version=${++state.carrierRevision}` : "";
+    return `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}${version}`;
   };
 
   const closeTypeFacts = () => {
@@ -248,20 +273,162 @@ export function stillwind(options: StillwindOptions): Plugin {
     writeFileSync(path, types);
   };
 
+  const ensureSession = async (
+    state: EnvironmentState,
+    context: {
+      resolve: (
+        specifier: string,
+        importer: string,
+        options: { skipSelf: boolean },
+      ) => Promise<{ id: string; external?: boolean | string } | null>;
+      addWatchFile: (id: string) => void;
+    },
+  ) => {
+    if (state.session) return;
+    if (!state.initializing) {
+      const revision = ++state.revision;
+      const initialize = async () => {
+        const dependencies = new Set<string>();
+        const loader = await loadDesignSystem(
+          async (specifier, importer) => {
+            const result = await context.resolve(specifier, importer, { skipSelf: true });
+            if (!result || result.external)
+              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+            return result.id;
+          },
+          undefined,
+          dependencies,
+        );
+        if (state.revision !== revision) return;
+        state.session = new NativeProjectSession(loader, watching);
+        state.resources = loaderResources.get(loader) ?? new Map();
+        state.cssFiles = dependencies;
+        state.producers.clear();
+        for (const path of dependencies) context.addWatchFile(path);
+        writeTypes(loader);
+      };
+      state.initializing = initialize().finally(() => {
+        state.initializing = undefined;
+      });
+    }
+    await state.initializing;
+  };
+
+  const renderCarrier = async (
+    state: EnvironmentState,
+    modulePath: string,
+    host: {
+      resolve(
+        specifier: string,
+        importer: string,
+      ): Promise<{ id: string; external?: boolean | string } | null>;
+      watch(id: string): void;
+    },
+  ) => {
+    const plan = JSON.parse(
+      state.session!.planStylesheet(
+        JSON.stringify({
+          modules: [modulePath],
+          coverage: { kind: "observed" },
+          placement: "carrier",
+        }),
+      ),
+    ) as {
+      css: string;
+      coverage: { kind: string };
+      designSystem: string;
+      producers: unknown[];
+      resources: { placeholder: string; owner: string; specifier: string }[];
+    };
+    const resources = new Map(state.resources);
+    for (const resource of plan.resources) {
+      const resolved = await host.resolve(resource.specifier, resolve(projectRoot, resource.owner));
+      if (!resolved || resolved.external)
+        throw new Error(
+          `Cannot resolve Stillwind resource ${resource.specifier} from ${resource.owner}`,
+        );
+      host.watch(cleanModuleId(resolved.id));
+      resources.set(
+        resource.placeholder,
+        JSON.stringify(`/@fs/${resolved.id.replaceAll("\\", "/")}`).slice(1, -1),
+      );
+    }
+    return { ...plan, css: resolveResources(plan.css, resources) };
+  };
+
   return {
     name: "stillwind",
     enforce: "pre",
     perEnvironmentStartEndDuringDev: true,
     perEnvironmentWatchChangeDuringDev: true,
-    resolveId(id) {
-      return id === virtualCssId || id.startsWith(moduleCssPrefix) ? `\0${id}` : undefined;
+    async resolveId(id, importer) {
+      if (importer && cleanModuleId(importer) === resolvedProjectionId) {
+        const state = environmentState(this.environment?.name);
+        if (state.projectionDependencies.get(id.replaceAll("\\", "/"))?.has(importer)) {
+          return `${id}?stillwind-css-watch`;
+        }
+      }
+      if (id.endsWith("?stillwind-css-watch")) return id;
+      if (id === virtualCssId) return resolvedVirtualCssId;
+      if (id.startsWith(moduleCssPrefix))
+        return `${resolvedModuleCssId}?css=${id.slice(moduleCssPrefix.length)}`;
+      if (id.endsWith("?stillwind.css")) {
+        const source = await this.resolve(id, importer, { skipSelf: true });
+        if (!source || source.external) this.error(`Cannot resolve Stillwind CSS projection ${id}`);
+        return `${resolvedProjectionId}?source=${Buffer.from(cleanModuleId(source.id)).toString("base64url")}`;
+      }
+      return undefined;
     },
-    load(id) {
+    async load(id) {
+      if (id.endsWith("?stillwind-css-watch")) return "";
       const state = environmentState(this.environment?.name);
-      if (id === resolvedVirtualCssId)
+      if (cleanModuleId(id) === resolvedProjectionId) {
+        for (const [dependency, projections] of state.projectionDependencies) {
+          projections.delete(id);
+          if (projections.size === 0) state.projectionDependencies.delete(dependency);
+        }
+        const encoded = new URLSearchParams(id.slice(id.indexOf("?") + 1)).get("source");
+        if (encoded === null) this.error("Stillwind CSS projection is missing its source");
+        const sourceId = Buffer.from(encoded, "base64url").toString("utf8");
+        const watch = (dependency: string) => {
+          this.addWatchFile(dependency);
+          const key = dependency.replaceAll("\\", "/");
+          const projections = state.projectionDependencies.get(key) ?? new Set<string>();
+          projections.add(id);
+          state.projectionDependencies.set(key, projections);
+        };
+        watch(sourceId);
+        await ensureSession(state, this);
+        const output = await compileModule(
+          state.session!,
+          () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
+          await readFile(sourceId, "utf8"),
+          sourceId,
+          projectRoot,
+          {
+            resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+            read: (dependency) => readFile(dependency, "utf8"),
+            watch,
+            warn: (message) => this.warn(message),
+          },
+        );
+        if (!output) return "";
+        const css = await renderCarrier(state, output.path, {
+          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+          watch,
+        });
+        state.producers.add(id);
+        return `import ${JSON.stringify(virtualCssId)};\nimport ${JSON.stringify(carrierSpecifier(state, css.css))};`;
+      }
+      if (cleanModuleId(id) === resolvedVirtualCssId) {
+        await ensureSession(state, this);
         return resolveResources(state.session!.baseCss(), state.resources);
-      if (id.startsWith(`\0${moduleCssPrefix}`))
-        return Buffer.from(id.slice(moduleCssPrefix.length + 1), "base64url").toString("utf8");
+      }
+      if (cleanModuleId(id) === resolvedModuleCssId) {
+        const payload = new URLSearchParams(id.slice(id.indexOf("?") + 1)).get("css");
+        if (payload === null) this.error("Stillwind CSS carrier is missing its payload");
+        return Buffer.from(payload, "base64url").toString("utf8");
+      }
       return undefined;
     },
     configResolved(config) {
@@ -271,29 +438,24 @@ export function stillwind(options: StillwindOptions): Plugin {
     },
     async buildStart() {
       const state = environmentState(this.environment?.name);
-      const revision = ++state.revision;
-      const dependencies = new Set<string>();
-      const loader = await loadDesignSystem(
-        async (specifier, importer) => {
-          const result = await this.resolve(specifier, importer, { skipSelf: true });
-          if (!result || result.external)
-            throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
-          return result.id;
-        },
-        undefined,
-        dependencies,
-      );
-      if (state.revision !== revision) return;
-      state.session = new NativeProjectSession(loader, watching);
-      state.resources = loaderResources.get(loader) ?? new Map();
-      state.cssFiles = dependencies;
-      state.producers.clear();
-      for (const path of dependencies) this.addWatchFile(path);
-      writeTypes(loader);
+      state.session = undefined;
+      await ensureSession(state, this);
     },
     async hotUpdate(context) {
       const state = environmentState(this.environment.name);
-      if (!state.cssFiles.has(context.file) && !state.cssFiles.has(resolve(context.file))) return;
+      if (!state.cssFiles.has(context.file) && !state.cssFiles.has(resolve(context.file))) {
+        const projections = state.projectionDependencies.get(context.file.replaceAll("\\", "/"));
+        if (!projections) return;
+        const modules = [...context.modules];
+        for (const id of projections) {
+          const module = this.environment.moduleGraph.getModuleById(id);
+          if (module) {
+            this.environment.moduleGraph.invalidateModule(module);
+            modules.push(module);
+          }
+        }
+        return modules;
+      }
       const revision = ++state.revision;
       const dependencies = new Set<string>();
       try {
@@ -318,9 +480,13 @@ export function stillwind(options: StillwindOptions): Plugin {
         writeTypes(loader);
         // A CSS-only semantic change must also refresh the producer's payload
         // import, even when its class names and JS transforms are unchanged.
-        const modules = [...state.producers].flatMap((id) => [
-          ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(id)) ?? []),
-        ]);
+        const modules = [
+          ...new Set(
+            [...state.producers].flatMap((id) => [
+              ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(id)) ?? []),
+            ]),
+          ),
+        ];
         const cssModule = this.environment.moduleGraph.getModuleById(resolvedVirtualCssId);
         if (update.cssChanged && cssModule) modules.push(cssModule);
         for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
@@ -342,12 +508,13 @@ export function stillwind(options: StillwindOptions): Plugin {
     async transform(code, id) {
       if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined;
       const state = environmentState(this.environment?.name);
-      const session = state.session!;
       if (!code.includes("stillwind/react")) {
-        session.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
+        state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
         state.producers.delete(id);
         return undefined;
       }
+      await ensureSession(state, this);
+      const session = state.session!;
       const output = await compileModule(
         session,
         () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
@@ -363,40 +530,12 @@ export function stillwind(options: StillwindOptions): Plugin {
       );
       if (!output?.code) return undefined;
       state.producers.add(id);
-      const plan = JSON.parse(
-        session.planStylesheet(
-          JSON.stringify({
-            modules: [output.path],
-            coverage: { kind: "observed" },
-            placement: "carrier",
-          }),
-        ),
-      ) as {
-        css: string;
-        coverage: { kind: string };
-        designSystem: string;
-        producers: unknown[];
-        resources: { placeholder: string; owner: string; specifier: string }[];
-      };
-      const resources = new Map(state.resources);
-      for (const resource of plan.resources) {
-        const resolved = await this.resolve(
-          resource.specifier,
-          resolve(projectRoot, resource.owner),
-          { skipSelf: true },
-        );
-        if (!resolved || resolved.external)
-          this.error(
-            `Cannot resolve Stillwind resource ${resource.specifier} from ${resource.owner}`,
-          );
-        this.addWatchFile(cleanModuleId(resolved.id));
-        resources.set(
-          resource.placeholder,
-          JSON.stringify(`/@fs/${resolved.id.replaceAll("\\", "/")}`).slice(1, -1),
-        );
-      }
-      const css = resolveResources(plan.css, resources);
-      const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
+      const plan = await renderCarrier(state, output.path, {
+        resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+        watch: (id) => this.addWatchFile(id),
+      });
+      const css = plan.css;
+      const carrier = carrierSpecifier(state, css);
       const finalized = finalizeReactModuleWithMap(output.code, false);
       const imports = `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
       return {

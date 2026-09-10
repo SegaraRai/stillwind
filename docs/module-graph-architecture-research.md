@@ -1,7 +1,21 @@
 # モジュールグラフとCSS出力のアーキテクチャ調査
 
-調査日: 2026-09-10。後述の最小実験をVite+・Next/Turbopack・Rspackで実行済み。Stillwind本体のVite統合は第一段階を実装済み。各frameworkテンプレートの受け入れ試験は未実施。
-ローカル実装の確認時点は `48e0029`。本文のAPI名は、既存コードとして明示したものを除き仮称。
+調査日: 2026-09-10。最小輸送実験に加え、Stillwind本体のVite・Next・Rspack系adapterとReact Router Framework Modeを検証した。最新の完了範囲は次の表を優先する。後半の調査記録は実装前の根拠と計画も含む。
+
+## 継続実装と受け入れ状況
+
+| 対象                    | 現在の根拠                                                                                                                                                                                                                               | 未完了・保証しない範囲                                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Next/Turbopack・webpack | `packages/bundler`の本体loader。`experiments/module-graph/results/adapters-turbopack.json`と`adapters-webpack.json`で、RSC/client、hydration、CSS編集、macro削除復元、client遷移・prefetch、cold/warm本番を各6項目確認                   | 実fixtureはliteral macro中心。任意の型依存・streaming・edge環境の完全な受け入れではない                                    |
+| Rspack・Rsbuild         | `rspack-real.json`と`rsbuild-real.json`で本体adapter、ブラウザーCSS・URL、別process cache復元、依存変更、未到達化、macro削除を各5項目確認                                                                                                | ブラウザーHMRは別項目                                                                                                      |
+| Vite environment        | environmentごとにsnapshot/sessionを分離。route解析のようなbuildStart前のtransformも遅延初期化で扱う。CSSはframeworkが発見できる物理resource IDと自己完結payloadで輸送                                                                    | 各frameworkの受け入れは個別に実施する                                                                                      |
+| React Router 8.3.1      | `react-router-real.json`。JavaScript無効の初回SSR、hydration、client遷移、初回にはないlazy CSS、CSS編集、macro削除復元3回、server CSS projection編集、cold/warm本番。JS source mapのmacro行・列とclient成果物へのserver code非混入も検査 | `.server.js`専用producerはrouteに`?stillwind.css`の明示CSS依存を付ける。全編集でのUI状態保持は未保証。Remix v2とは区別する |
+| 部分解析・overlay       | `packages/host`の`EditorProject`。未保存の依存編集、構文エラーと前回成功結果の区別、文書version、古い非同期結果の破棄、取消を本物のnative/checkerでテスト                                                                                | LSP transportや補完UIの完成を意味しない                                                                                    |
+| 意味依存の読み取り      | probeのbindingからローカル宣言を辿り、要求exportに対応するbarrelを読む。無関係なruntime importをhostが読まないテスト。checker側のoverlay/disk読取要求は別計上                                                                            | namespace・宣言sliceがないexportは保守的な依存読取。ホスト独自aliasとcheckerの解決一致は追加検証が必要                     |
+
+module CSSには明示・暗黙のlayer順序を保持する。React Routerがroute CSSを基盤CSSより先に配置した実験でPreflightがutilityを上書きしたため、文書の通常ruleを複製せずlayer順序だけを各carrierへ残す。開発時のCSS importには版を付け、macro削除直後の復元を以前のHMR pruneが消す競合を避ける。版はclassのsaltに使わない。
+
+残る主な受け入れはSolidStart・TanStack Start等のframework、CSS source map provenance、意味解決のhost整合と最終bootstrap監査。CSS URL移送、匿名layer同一性、environment分離、Next/Rspack本体adapterは既に実装済みであり、以下の当初計画に残る記述だけをもって未実装とは判断しない。
 
 ## 実装第一段階（2026-09-10）
 

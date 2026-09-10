@@ -54,7 +54,10 @@ void test("TypeScript is required for cross-module conditional handle propagatio
     ),
     assets,
   );
-  assert.deepEqual(service.stats, {
+  const { overlayReads, diskReadRequests, ...lifecycle } = service.stats;
+  assert.ok(overlayReads > 0);
+  assert.ok(diskReadRequests > 0);
+  assert.deepEqual(lifecycle, {
     starts: 1,
     snapshots: 2,
     incrementalSnapshots: 1,

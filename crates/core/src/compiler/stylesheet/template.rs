@@ -105,6 +105,11 @@ fn is_anonymous_layer(header: &str) -> bool {
         && parser.is_exhausted()
 }
 
+fn is_layer(header: &str) -> bool {
+    let mut parser = cssparser::Parser::new(header);
+    matches!(parser.next(), Ok(cssparser::Token::AtKeyword(name)) if name.eq_ignore_ascii_case("layer"))
+}
+
 fn render_authored(css: &str, theme: &ThemeIndex) -> Result<String, StylesheetError> {
     theme
         .resolve_theme_references(&expand_authored_directives(css, theme))
@@ -116,6 +121,7 @@ impl Context<'_> {
         let mut output = String::new();
         for node in nodes {
             match node {
+                CssOutputNode::LayerOrder(css) => output.push_str(css),
                 CssOutputNode::Authored(css) if self.document => {
                     output.push_str(&render_authored(css, self.theme)?);
                 }
@@ -134,7 +140,10 @@ impl Context<'_> {
                         header.clone()
                     };
                     let body = self.nodes(children)?;
-                    if self.document || !body.trim().is_empty() {
+                    if !self.document && body.trim().is_empty() && is_layer(&header) {
+                        output.push_str(&header);
+                        output.push(';');
+                    } else if self.document || !body.trim().is_empty() {
                         output.push_str(&header);
                         output.push('{');
                         output.push_str(&body);
@@ -192,7 +201,9 @@ mod tests {
         assert!(document.contains(&format!("@layer {prefix}-1{{@layer {prefix}-2{{}}}}")));
         assert_eq!(
             module,
-            format!("@layer {prefix}-1{{@layer {prefix}-2{{.x{{color:green}}}}}}")
+            format!(
+                "@layer {prefix}-0;@layer {prefix}-1{{@layer {prefix}-2{{.x{{color:green}}}}}}@layer named;"
+            )
         );
         assert!(document.contains("@layer named"));
         let isolated = CompilerOptions {
