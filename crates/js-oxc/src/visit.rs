@@ -30,6 +30,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             end: declaration.source.span.end,
         });
         if Self::is_style_import(declaration)
+            && !declaration.import_kind.is_type()
             && let Some(specifiers) = &declaration.specifiers
         {
             for specifier in specifiers {
@@ -40,6 +41,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     continue;
                 };
                 if imported.name.as_str() == "style"
+                    && !specifier.import_kind.is_type()
                     && let Some(symbol_id) = specifier.local.symbol_id.get()
                 {
                     self.style_symbols.insert(symbol_id);

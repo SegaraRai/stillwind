@@ -69,6 +69,38 @@ fn framework_registry_preserves_import_aliases_and_shadowing() {
 }
 
 #[test]
+fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
+    for declaration in [
+        "import type {style as s} from 'stillwind/react';",
+        "import {type style as s} from 'stillwind/react';",
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            "entry.tsx",
+            format!("{declaration} const a = s('grid');"),
+        )
+        .unwrap();
+        let parsed = parse(&source);
+        assert!(parsed.diagnostics.is_empty());
+        assert_eq!(parsed.framework, None);
+        assert!(parsed.module.style_calls.is_empty());
+
+        let mixed = SourceFile::new(
+            FileId(2),
+            "entry.tsx",
+            format!(
+                "{declaration} import {{style}} from 'stillwind/solid'; const b = style('flex');"
+            ),
+        )
+        .unwrap();
+        let parsed = parse(&mixed);
+        assert!(parsed.diagnostics.is_empty());
+        assert_eq!(parsed.framework, Some(AdapterKind::Solid));
+        assert_eq!(parsed.module.style_calls.len(), 1);
+    }
+}
+
+#[test]
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     let source = SourceFile::new(
         FileId(1),
