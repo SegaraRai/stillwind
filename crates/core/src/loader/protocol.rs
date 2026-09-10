@@ -45,6 +45,17 @@ pub struct CssSourceGraph {
     pub sources: Vec<CssSource>,
     pub edges: Vec<CssSourceEdge>,
     pub mappings: Vec<CssSourceMapping>,
+    pub resources: Vec<CssResourceReference>,
+}
+
+/// A resource placeholder in generated CSS. Hosts resolve specifiers relative
+/// to `owner`, then replace the placeholder before their CSS asset pipeline.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CssResourceReference {
+    pub placeholder: String,
+    pub owner: String,
+    pub specifier: String,
+    pub span: stillwind_source::Span,
 }
 
 #[derive(Clone, Debug)]
@@ -52,6 +63,8 @@ pub struct CssSourceMapping {
     pub generated: std::ops::Range<usize>,
     pub file: FileId,
     pub source_start: usize,
+    /// Explicit original end for a length-changing resource substitution.
+    pub source_end: Option<usize>,
 }
 
 #[derive(Debug)]

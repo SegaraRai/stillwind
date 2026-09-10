@@ -82,7 +82,7 @@ fn cli_resolves_css_package_exports_with_style_conditions() {
         r#"{"name":"@fixture/css","exports":{".":{"style":"./entry.css","default":"./wrong.js"}}}"#,
     )
     .unwrap();
-    std::fs::write(package.join("entry.css"), "@stillwind-utility paint { color: rebeccapurple; } @layer utilities { @stillwind-slot utilities; }").unwrap();
+    std::fs::write(package.join("entry.css"), "@stillwind-utility paint { color: rebeccapurple; background-image:url('./paint.svg'); } @layer utilities { @stillwind-slot utilities; }").unwrap();
     std::fs::write(directory.join("entry.css"), "@import '@fixture/css';").unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
         .args([
@@ -106,6 +106,18 @@ fn cli_resolves_css_package_exports_with_style_conditions() {
             .as_str()
             .unwrap()
             .contains("color:rebeccapurple;")
+    );
+    assert!(
+        result["css"]
+            .as_str()
+            .unwrap()
+            .contains("node_modules/@fixture/css/paint.svg")
+    );
+    assert!(
+        !result["css"]
+            .as_str()
+            .unwrap()
+            .contains("__stillwind_resource_")
     );
     std::fs::remove_dir_all(directory).unwrap();
 }

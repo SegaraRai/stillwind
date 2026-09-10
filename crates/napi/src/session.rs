@@ -105,6 +105,13 @@ impl NativeDesignSystemLoader {
                 let output = json!({
                   "kind": "complete",
                   "revision": snapshot.revision().0.to_string(),
+                  "resources": snapshot.sources().resources.iter().map(|resource| json!({
+                    "placeholder": resource.placeholder,
+                    "owner": resource.owner,
+                    "specifier": resource.specifier,
+                    "start": resource.span.start.0,
+                    "end": resource.span.end.0,
+                  })).collect::<Vec<_>>(),
                   "sources": snapshot.sources().sources.iter().map(|source| source.name.0.as_ref()).collect::<Vec<_>>()
                 }).to_string();
                 self.snapshot = Some(snapshot);

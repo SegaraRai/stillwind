@@ -17,6 +17,7 @@ serde_json.workspace = true
 stillwind-core = { path = "../core" }
 stillwind-source = { path = "../source" }
 oxc_resolver = "11.24.3"
+pathdiff = "0.2.3"
 
 [lints]
 workspace = true

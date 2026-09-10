@@ -43,7 +43,7 @@ CSS for compatibility tests. Standard package exports and authored utility slots
 are real CSS inputs. Vite, Playground, CLI and review/parity tooling have been
 migrated. CLI package exports use Oxc Resolver with CSS style conditions.
 Conditional compile-time definitions are diagnosed, while conditional output
-slots are preserved. Source URL rebasing remains in the next step.
+slots are preserved.
 
 Anonymous output layers now receive deterministic internal names derived from
 the entry identity, configured namespace and template occurrence. Document CSS
@@ -58,3 +58,14 @@ manifest graph and corrected before accepting fixture changes. Vite tests (7),
 core package tests (6), CLI package exports (3), native binding tests (8), React
 build, Chrome edit/remove/restore (4), and all six review fixtures passed.
 Workspace Clippy, relevant TypeScript checks, and changed-file lint passed.
+
+CSS graph resources now retain their owner, original span and decoded specifier.
+The expanded source uses deterministic placeholders and piecewise mappings, so
+length-changing URL substitutions preserve subsequent token positions. Vite
+resolves these through its host resolver before CSS asset processing; a real
+build emits two hashed SVG assets from authored and utility CSS in an imported
+file. CLI output rebases resources to the CSS entry directory. Quoted/unquoted
+`url()` and direct `image-set()` strings are recognized; comments, ordinary
+strings and absolute/data/fragment URLs are left intact. Vite tests (8), CLI
+tests (3), Core/CSS library tests and workspace Clippy passed. Resource URLs
+authored in JS style arguments and generated source maps remain pending.

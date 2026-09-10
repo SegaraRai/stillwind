@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -57,6 +57,56 @@ void test("build retains late and lazy producer CSS without collecting transform
     assert.doesNotMatch(css, /77,\s*88,\s*99/);
     assert.equal(css.match(/\.document-only/g)?.length, 1);
     assert.ok(assets.some((asset) => asset.fileName.includes("lazy")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("imported CSS resources retain their owner through document and module carriers", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
+  const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
+  mkdirSync(path.join(root, "nested"));
+  put("index.html", '<script type="module" src="/main.ts"></script>');
+  put("root.css", '@import "./nested/design.css"; @stillwind-slot utilities;');
+  put(
+    "nested/design.css",
+    '.document-only{background:url("./document.svg")} @stillwind-utility picture{background-image:url("./utility.svg")}',
+  );
+  put(
+    "nested/document.svg",
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><path fill="red" d="M0 0h1v1H0z"/></svg>',
+  );
+  put(
+    "nested/utility.svg",
+    '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><path fill="blue" d="M0 0h2v2H0z"/></svg>',
+  );
+  put(
+    "main.ts",
+    'import "virtual:stillwind.css"; import { style } from "stillwind/react"; console.log(style("picture"));',
+  );
+  try {
+    const result = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+      build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
+    });
+    if (!("output" in result)) throw new Error("expected a single build output");
+    const css = result.output
+      .filter((asset) => asset.type === "asset")
+      .filter((asset) => asset.fileName.endsWith(".css"))
+      .map((asset) => String(asset.source))
+      .join("\n");
+    assert.match(css, /assets\/document-[\w-]+\.svg/);
+    assert.match(css, /assets\/utility-[\w-]+\.svg/);
+    assert.doesNotMatch(css, /__stillwind_resource_|@fs|nested\//);
+    assert.equal(
+      result.output.filter((asset) => asset.type === "asset" && asset.fileName.endsWith(".svg"))
+        .length,
+      2,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

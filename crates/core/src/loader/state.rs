@@ -186,6 +186,7 @@ impl DesignSystemLoader {
             }
         }
         self.graph.mappings = output.mappings;
+        self.graph.resources = output.resources;
         let snapshot = DesignSystemSnapshot::from_loaded_theme(
             theme,
             self.options.clone(),

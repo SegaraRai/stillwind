@@ -279,6 +279,12 @@ export function stillwind(options: StillwindOptions): Plugin {
   let projectRoot = "";
   let typeFactsService: TypeScriptFactsService | undefined;
   const producers = new Set<string>();
+  const loaderResources = new WeakMap<NativeDesignSystemLoader, Map<string, string>>();
+  let resources = new Map<string, string>();
+  const resolveResources = (css: string, references = resources) => {
+    for (const [placeholder, url] of references) css = css.replaceAll(placeholder, url);
+    return css;
+  };
 
   const closeTypeFacts = () => {
     typeFactsService?.close();
@@ -295,7 +301,11 @@ export function stillwind(options: StillwindOptions): Plugin {
     dependencies.add(root);
     type LoadStep =
       | { kind: "needFile"; requests: { id: number; importer: string; specifier: string }[] }
-      | { kind: "complete" };
+      | {
+          kind: "complete";
+          resources: { placeholder: string; owner: string; specifier: string }[];
+        };
+    let resourceReferences: Extract<LoadStep, { kind: "complete" }>["resources"] = [];
     const initial = JSON.parse(
       loader.provide(0, root, rootContent ?? (await readFile(root, "utf8"))),
     ) as LoadStep;
@@ -308,6 +318,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       };
       const advance = (step: LoadStep) => {
         if (step.kind === "complete") {
+          resourceReferences = step.resources;
           stopped = true;
           resolveLoad();
           return;
@@ -331,6 +342,14 @@ export function stillwind(options: StillwindOptions): Plugin {
       };
       advance(initial);
     });
+    const references = new Map<string, string>();
+    for (const resource of resourceReferences) {
+      const resolved = await resolveImport(resource.specifier, resource.owner);
+      const url = `/@fs/${resolved.replaceAll("\\", "/")}`;
+      references.set(resource.placeholder, JSON.stringify(url).slice(1, -1));
+      dependencies.add(cleanModuleId(resolved));
+    }
+    loaderResources.set(loader, references);
     return loader;
   };
 
@@ -354,7 +373,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       return id === virtualCssId || id.startsWith(moduleCssPrefix) ? `\0${id}` : undefined;
     },
     load(id) {
-      if (id === resolvedVirtualCssId) return session.baseCss();
+      if (id === resolvedVirtualCssId) return resolveResources(session.baseCss());
       if (id.startsWith(`\0${moduleCssPrefix}`))
         return Buffer.from(id.slice(moduleCssPrefix.length + 1), "base64url").toString("utf8");
       return undefined;
@@ -373,6 +392,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         return result.id;
       });
       session = new NativeProjectSession(loader, watching);
+      resources = loaderResources.get(loader) ?? new Map();
       for (const path of cssFiles) this.addWatchFile(path);
       writeTypes(loader);
     },
@@ -389,6 +409,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           cssChanged: boolean;
           transformedModules: string[];
         };
+        resources = loaderResources.get(loader) ?? new Map();
         context.server.watcher.add([...cssFiles]);
         writeTypes(loader);
         // A CSS-only semantic change must also refresh the producer's payload
@@ -489,7 +510,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       );
       if (!output?.code) return undefined;
       producers.add(id);
-      const css = session.moduleCss(output.path);
+      const css = resolveResources(session.moduleCss(output.path));
       const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
       return {
         code: `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n${finalizeReactModule(output.code, false)}`,
@@ -523,7 +544,7 @@ export function stillwind(options: StillwindOptions): Plugin {
               ),
             ) as ProjectCompilerOutput;
             const output = playProject.modules[0]!;
-            output.css = playSession.css();
+            output.css = resolveResources(playSession.css(), loaderResources.get(playLoader));
             let previewUrl: string | null = null;
             if (output.diagnostics.length === 0 && output.code) {
               try {

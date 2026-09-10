@@ -1,11 +1,12 @@
 use stillwind_source::{SourceError, SourceFile, Span};
 
-use super::protocol::CssSourceMapping;
+use super::protocol::{CssResourceReference, CssSourceMapping};
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct ExpandedSource {
     pub(super) text: String,
     pub(super) mappings: Vec<CssSourceMapping>,
+    pub(super) resources: Vec<CssResourceReference>,
 }
 
 impl ExpandedSource {
@@ -41,7 +42,6 @@ impl ExpandedSource {
         source: &SourceFile,
         range: std::ops::Range<usize>,
     ) -> Result<(), SourceError> {
-        let start = self.text.len();
         let text = source
             .text()
             .get(range.clone())
@@ -49,11 +49,64 @@ impl ExpandedSource {
                 start: range.start,
                 end: range.end,
             })?;
-        self.append_text(text)?;
+        let mut cursor = range.start;
+        for resource in stillwind_css::relative_css_urls(text) {
+            let start = range.start + resource.range.start;
+            let end = range.start + resource.range.end;
+            self.append_original(source, cursor..start)?;
+            let identity = format!(
+                "{}:{}{}",
+                source.path().len(),
+                source.path(),
+                resource.specifier
+            );
+            let placeholder = format!(
+                "__stillwind_resource_{}__",
+                blake3::hash(identity.as_bytes()).to_hex()
+            );
+            let replacement = if resource.string {
+                format!("\"{placeholder}\"")
+            } else {
+                format!("url(\"{placeholder}\")")
+            };
+            let generated_start = self.text.len();
+            self.append_text(&replacement)?;
+            self.mappings.push(CssSourceMapping {
+                generated: generated_start..self.text.len(),
+                file: source.id(),
+                source_start: start,
+                source_end: Some(end),
+            });
+            self.resources.push(CssResourceReference {
+                placeholder,
+                owner: source.path().into(),
+                specifier: resource.specifier,
+                span: Span::new(
+                    source.id(),
+                    u32::try_from(start).map_err(|_| SourceError::TooLarge(start))?,
+                    u32::try_from(end).map_err(|_| SourceError::TooLarge(end))?,
+                ),
+            });
+            cursor = end;
+        }
+        self.append_original(source, cursor..range.end)
+    }
+
+    fn append_original(
+        &mut self,
+        source: &SourceFile,
+        range: std::ops::Range<usize>,
+    ) -> Result<(), SourceError> {
+        if range.is_empty() {
+            return Ok(());
+        }
+        let start = self.text.len();
+        self.append_text(&source.text()[range.clone()])?;
         self.mappings.push(CssSourceMapping {
             generated: start..self.text.len(),
             file: source.id(),
             source_start: range.start,
+            source_end: None,
         });
         Ok(())
     }
@@ -76,31 +129,101 @@ impl ExpandedSource {
                 generated: mapping.generated.start + offset..mapping.generated.end + offset,
                 file: mapping.file,
                 source_start: mapping.source_start,
+                source_end: mapping.source_end,
             }));
+        self.resources.extend(other.resources.iter().cloned());
         Ok(())
     }
 
     pub(super) fn original_span(&self, span: Span) -> Option<Span> {
         let start = span.start.0 as usize;
         let end = span.end.0 as usize;
-        self.mappings
-            .iter()
-            .find(|mapping| mapping.generated.start <= start && end <= mapping.generated.end)
-            .and_then(|mapping| {
-                let start = mapping
-                    .source_start
-                    .checked_add(start.checked_sub(mapping.generated.start)?)?;
-                Some(Span::new(
-                    mapping.file,
-                    u32::try_from(start).ok()?,
-                    u32::try_from(start.checked_add(span.len()? as usize)?).ok()?,
-                ))
-            })
+        if end < start {
+            return None;
+        }
+        let first = self.mappings.iter().position(|mapping| {
+            mapping.generated.start <= start && start < mapping.generated.end
+        })?;
+        let initial = &self.mappings[first];
+        let original_start = if initial.source_end.is_some() {
+            initial.source_start
+        } else {
+            initial
+                .source_start
+                .checked_add(start - initial.generated.start)?
+        };
+        let mut previous_end = None;
+        let mut generated_end = initial.generated.start;
+        for mapping in &self.mappings[first..] {
+            if mapping.file != initial.file
+                || mapping.generated.start != generated_end
+                || previous_end.is_some_and(|previous| previous != mapping.source_start)
+            {
+                return None;
+            }
+            let original_end = mapping
+                .source_end
+                .or_else(|| mapping.source_start.checked_add(mapping.generated.len()))?;
+            if end <= mapping.generated.end {
+                let original_end = if mapping.source_end.is_some() {
+                    original_end
+                } else {
+                    mapping
+                        .source_start
+                        .checked_add(end.checked_sub(mapping.generated.start)?)?
+                };
+                return Some(Span::new(
+                    initial.file,
+                    u32::try_from(original_start).ok()?,
+                    u32::try_from(original_end).ok()?,
+                ));
+            }
+            previous_end = Some(original_end);
+            generated_end = mapping.generated.end;
+        }
+        None
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn resource_substitution_preserves_spans_across_length_changes() {
+        let text = "--image:linear-gradient(red,blue),url('é.png');--color:red;";
+        let source = SourceFile::new(FileId(9), "nested/design.css", text).unwrap();
+        let mut output = ExpandedSource::default();
+        output.append_source(&source, 0..text.len()).unwrap();
+        assert_eq!(output.resources.len(), 1);
+        assert_eq!(output.resources[0].owner, "nested/design.css");
+        assert_eq!(output.resources[0].specifier, "é.png");
+        assert_eq!(
+            source.slice(output.resources[0].span).unwrap(),
+            "url('é.png')"
+        );
+        let value_end = output.text.find(';').unwrap();
+        assert_eq!(
+            output.original_span(Span::new(FileId(0), 8, u32::try_from(value_end).unwrap())),
+            Some(Span::new(
+                FileId(9),
+                8,
+                u32::try_from(text.find(';').unwrap()).unwrap()
+            ))
+        );
+        let color = output.text.find("--color").unwrap();
+        assert_eq!(
+            output.original_span(Span::new(
+                FileId(0),
+                u32::try_from(color).unwrap(),
+                u32::try_from(color + 7).unwrap()
+            )),
+            Some(Span::new(
+                FileId(9),
+                u32::try_from(text.find("--color").unwrap()).unwrap(),
+                u32::try_from(text.find("--color").unwrap() + 7).unwrap()
+            ))
+        );
+    }
+
     #[test]
     fn rejects_invalid_source_ranges_and_unrepresentable_mappings() {
         let source = SourceFile::new(FileId(1), "x", "é").unwrap();

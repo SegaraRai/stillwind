@@ -148,8 +148,28 @@ fn run() -> Result<(), CommandError> {
             }
         })
         .collect();
+    let mut css = result.css;
+    let entry_path =
+        std::path::absolute(theme.path()).map_err(|source| CommandError::ThemePath {
+            path: theme.path().into(),
+            source,
+        })?;
+    let entry_directory = entry_path.parent().unwrap_or(std::path::Path::new("."));
+    for resource in &snapshot.sources().resources {
+        let owner_path =
+            std::path::absolute(&resource.owner).map_err(|source| CommandError::ThemePath {
+                path: resource.owner.clone(),
+                source,
+            })?;
+        let owner_directory = owner_path.parent().unwrap_or(entry_directory);
+        let target = owner_directory.join(&resource.specifier);
+        let rebased = pathdiff::diff_paths(&target, entry_directory).unwrap_or(target);
+        let url = rebased.to_string_lossy().replace('\\', "/");
+        let quoted = serde_json::to_string(&url)?;
+        css = css.replace(&resource.placeholder, &quoted[1..quoted.len() - 1]);
+    }
     let output = CliOutput {
-        css: result.css,
+        css,
         code,
         classes: result.classes,
         diagnostics,

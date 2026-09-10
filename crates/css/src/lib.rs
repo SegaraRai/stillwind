@@ -19,6 +19,7 @@ mod functions;
 mod math;
 mod output;
 mod registry;
+mod resources;
 mod theme;
 mod values;
 
@@ -27,6 +28,7 @@ pub use custom_properties::*;
 pub use math::*;
 pub use output::*;
 pub use registry::*;
+pub use resources::*;
 pub use theme::*;
 pub use values::*;
 
