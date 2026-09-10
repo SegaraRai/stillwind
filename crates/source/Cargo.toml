@@ -10,6 +10,7 @@ repository.workspace = true
 blake3.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+oxc_sourcemap.workspace = true
 
 [lints]
 workspace = true
