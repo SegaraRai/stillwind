@@ -46,6 +46,18 @@ export default defineConfig({
 
 Retain the application's framework plugin when adding Stillwind.
 
+The Rsbuild adapter runs after framework pre-loaders split routes and server
+functions, and before SWC lowers JSX. A server-only producer can be connected to
+its route with `import './server-style.ts?stillwind.css'`; this import compiles
+only its stylesheet and does not ship its JavaScript.
+
+TanStack Start 1.168.50 is verified with Rsbuild 2.2.4, including SSR without
+JavaScript, lazy route CSS, server functions, editing, and cold/warm production.
+On Windows, the experiment pins a patch for `@tanstack/start-plugin-core`
+1.171.40: its Rsbuild manifest must normalize backslashes before matching
+route paths. The patch and frozen lockfile are in `experiments/module-graph`.
+Run `vp run verify:tanstack-rsbuild` there to reproduce on port 43179.
+
 ## Transport and verification
 
 Each transform creates an isolated native session. CSS query payloads contain

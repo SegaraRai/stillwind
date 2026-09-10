@@ -13,7 +13,7 @@
           "built": true
         }
       ],
-      "cssChunks": ["static/css/async/473.33e2819377.css", "static/css/main.3f1ccaf0c0.css"]
+      "cssChunks": ["static/css/async/677.b6fefdfea0.css", "static/css/main.4435a888c1.css"]
     },
     {
       "name": "rsbuild-warm-browser-css",
@@ -28,7 +28,7 @@
           "built": false
         }
       ],
-      "cssChunks": ["static/css/async/473.33e2819377.css", "static/css/main.3f1ccaf0c0.css"]
+      "cssChunks": ["static/css/async/677.b6fefdfea0.css", "static/css/main.4435a888c1.css"]
     },
     {
       "name": "rsbuild-css-edit-browser-css",
@@ -43,7 +43,7 @@
           "built": true
         }
       ],
-      "cssChunks": ["static/css/async/473.33e2819377.css", "static/css/main.b370e9bb32.css"]
+      "cssChunks": ["static/css/async/677.b6fefdfea0.css", "static/css/main.ff41655b27.css"]
     },
     {
       "name": "rsbuild-unreachable-producer",

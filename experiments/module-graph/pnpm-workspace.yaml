@@ -5,3 +5,5 @@ overrides:
 allowBuilds:
   "@parcel/watcher": true
   sharp: true
+patchedDependencies:
+  "@tanstack/start-plugin-core@1.171.40": patches/@tanstack__start-plugin-core@1.171.40.patch

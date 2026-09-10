@@ -10,6 +10,11 @@ export default defineConfig({
       "verify:rsbuild": { command: "node scripts/verify-rspack.mjs rsbuild", cache: false },
       "verify:react-router": { command: "node scripts/verify-react-router.mjs", cache: false },
       "verify:solidstart": { command: "node scripts/verify-solidstart.mjs", cache: false },
+      "verify:tanstack-vite": { command: "node scripts/verify-tanstack.mjs", cache: false },
+      "verify:tanstack-rsbuild": {
+        command: "node scripts/verify-tanstack.mjs rsbuild",
+        cache: false,
+      },
     },
   },
 });

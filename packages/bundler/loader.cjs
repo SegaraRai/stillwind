@@ -1,5 +1,6 @@
 const path = require("node:path");
 const fs = require("node:fs");
+const { isBuiltin } = require("node:module");
 
 const carrierPath = path.join(__dirname, "stillwind-carrier.css");
 const relativeRequest = (from, to) => {
@@ -10,7 +11,8 @@ const relativeRequest = (from, to) => {
 module.exports = function (source, inputMap) {
   const callback = this.async();
   const text = String(source);
-  if (!text.includes("stillwind/react") && !text.includes("stillwind/solid"))
+  const projection = /[?&]stillwind\.css(?:&|$)/.test(this.resourceQuery ?? "");
+  if (!projection && !text.includes("stillwind/react") && !text.includes("stillwind/solid"))
     return callback(null, source, inputMap);
   const context = this;
   const options = this.getOptions();
@@ -35,6 +37,7 @@ module.exports = function (source, inputMap) {
     mainFields: ["style", "main"],
   });
   const resolveJs = resolver({
+    dependencyType: "esm",
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs", ".cjs", ".json"],
   });
   const resolveAsset = resolver({});
@@ -62,20 +65,28 @@ module.exports = function (source, inputMap) {
     const output = await host.compileModule(
       session,
       () => (facts ??= new host.TypeScriptFactsService(root)),
-      text,
+      projection ? await read(context.resourcePath) : text,
       context.resourcePath,
       root,
       {
         resolve: async (specifier, importer) => {
-          const id = await resolveJs(specifier, importer);
-          return id ? { id } : null;
+          if (specifier.startsWith("node:") && isBuiltin(specifier))
+            return { id: specifier, external: true };
+          try {
+            const id = await resolveJs(specifier, importer);
+            return id ? { id } : null;
+          } catch (error) {
+            if (isBuiltin(specifier)) return { id: specifier, external: true };
+            throw error;
+          }
         },
         read,
         watch,
         warn: (message) => context.emitWarning(new Error(message)),
       },
     );
-    if (!output?.code) return callback(null, source, inputMap);
+    if (!output?.code)
+      return callback(null, projection ? "" : source, projection ? null : inputMap);
     const plan = JSON.parse(
       session.planStylesheet(
         JSON.stringify({
@@ -105,6 +116,7 @@ module.exports = function (source, inputMap) {
     const carrier = relativeRequest(path.dirname(context.resourcePath), carrierPath);
     const cssImport = (css) =>
       `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(resolveResources(css)).toString("base64url"))};\n`;
+    if (projection) return callback(null, cssImport(session.baseCss()) + cssImport(plan.css));
     const finalized = host.finalizeReactModuleWithMap(output.code);
     // Append synthetic imports so RSC directives remain the first statements.
     const code =

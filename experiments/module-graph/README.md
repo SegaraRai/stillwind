@@ -42,6 +42,8 @@ The following separate tasks use the real Stillwind compiler, not `styleToken`:
 - `vp run verify:rsbuild`: Rsbuild wrapper over the same adapter.
 - `vp run verify:react-router`: React Router 8.3.1 Framework Mode and Vite+.
 - `vp run verify:solidstart`: SolidStart 2.0.4, Solid 1.9.15, Nitro, and Vite+.
+- `vp run verify:tanstack-vite`: TanStack Start 1.168.50 with Vite+ and Nitro.
+- `vp run verify:tanstack-rsbuild`: TanStack Start 1.168.50 with Rsbuild 2.2.4.
 
 Next checks RSC/client rendering, hydration, dependency edits, macro removal,
 client navigation, prefetch, and cold/warm production builds. Rspack/Rsbuild
@@ -64,3 +66,18 @@ SolidStart uses port 43177 and writes `results/solidstart-real.json`. Its genera
 fixture verifies JavaScript-disabled SSR, hydration, both branches of a reactive
 comparison, lazy navigation without document replacement, CSS edits, macro
 removal/restoration, and cold/warm production builds with `stillwind/solid`.
+
+TanStack Start uses ports 43178 (Vite) and 43179 (Rsbuild). Results are in
+`results/tanstack-{vite,rsbuild}-real.json`. Both verify JavaScript-disabled SSR,
+hydration, actual server-function requests, lazy navigation, stylesheet edits,
+macro removal/restoration, projected server-style edits, and cold/warm builds.
+The client JavaScript must exclude the server function's sentinel body.
+The Rsbuild adapter runs between framework pre-loaders and SWC; Vite places
+Stillwind after `tanstackStart()` and before React's plugin.
+
+The frozen lockfile applies `patches/@tanstack__start-plugin-core@1.171.40.patch`
+to normalize Windows route module paths in the upstream Rsbuild CSS manifest.
+Without that one-line patch, SSR omits CSS belonging to split route components.
+This is an explicit dependency patch, not a claim that the unpatched upstream
+release passes this Windows acceptance fixture. `vp i --frozen-lockfile`
+reapplies it on a fresh checkout.

@@ -47,7 +47,11 @@ function pluginStillwind(options) {
       api.modifyRspackConfig((config) => {
         config.module ??= {};
         config.module.rules ??= [];
-        config.module.rules.push(...stillwindRules(options));
+        const [javascript, ...stylesheets] = stillwindRules(options);
+        // Framework pre-loaders must split routes/server functions before CSS
+        // ownership is determined. Appending a normal loader still runs before SWC.
+        delete javascript.enforce;
+        config.module.rules.push(javascript, ...stylesheets);
         return config;
       });
     },

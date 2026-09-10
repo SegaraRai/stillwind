@@ -1,0 +1,31 @@
+{
+  "framework": "TanStack Start",
+  "version": "1.168.50",
+  "bundler": "rsbuild",
+  "checks": [
+    {
+      "name": "dev-ssr-hydration-server-function-lazy-navigation",
+      "passed": true
+    },
+    {
+      "name": "dev-css-edit",
+      "passed": true
+    },
+    {
+      "name": "dev-macro-removal-restoration",
+      "passed": true
+    },
+    {
+      "name": "dev-server-css-projection-edit",
+      "passed": true
+    },
+    {
+      "name": "cold-ssr-hydration-server-function-lazy-navigation",
+      "passed": true
+    },
+    {
+      "name": "warm-ssr-hydration-server-function-lazy-navigation",
+      "passed": true
+    }
+  ]
+}

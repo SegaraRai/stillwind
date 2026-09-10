@@ -70,3 +70,10 @@ CSS edits, macro removal/restoration, and cold/warm production builds.
 The local linked-package fixture explicitly allows the repository in Vite's
 `server.fs.allow`. Carriers end in `.css`, including their immutable payload and
 development revision, so framework CSS discovery and `?inline` reads work.
+
+For TanStack Start, put `stillwind()` **after** `tanstackStart()` and before the
+React plugin. Route splitting must run before Stillwind assigns CSS ownership;
+otherwise route CSS becomes eager. Server-function-only producers use the
+explicit `?stillwind.css` projection described above. Run
+`vp run verify:tanstack-vite` in `experiments/module-graph` (port 43178) to verify
+SSR, hydration, server-function calls, lazy CSS, edits, and cold/warm builds.
