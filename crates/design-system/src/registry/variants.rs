@@ -277,6 +277,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn separates_builtin_variants_from_userland() {
+        let css = "@utility user-* { color:red; }\
+                       @stillwind-utility builtin-* { color:blue; }\
+                       @variant user-state { &:hover { @slot; } }\
+                       @stillwind-variant builtin-state { &:focus { @slot; } }";
+
+        let user_variants = parse_variant_definitions(css);
+        let builtin_variants = parse_builtin_variant_definitions(css);
+        assert_eq!(user_variants.len(), 1);
+        assert_eq!(user_variants[0].name, "user-state");
+        assert_eq!(user_variants[0].builtin_order, None);
+        assert_eq!(builtin_variants.len(), 1);
+        assert_eq!(builtin_variants[0].name, "builtin-state");
+        assert_eq!(builtin_variants[0].builtin_order, Some(0));
+    }
+
+    #[test]
     fn serializes_class_identifier_modifiers_for_css_selectors() {
         let kind = BuiltinVariantModifierType::ClassIdentifier;
         assert_eq!(kind.serialize("menu").as_deref(), Some("menu"));

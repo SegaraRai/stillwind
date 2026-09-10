@@ -25,6 +25,3 @@ mod visit;
 
 pub use analyzer::OxcSourceAnalyzer;
 pub use entry::{ParsedJavaScript, parse, parse_with_type_facts};
-
-#[cfg(test)]
-mod tests;

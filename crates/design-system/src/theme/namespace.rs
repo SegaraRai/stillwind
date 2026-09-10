@@ -122,6 +122,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_multiple_namespace_value_types() {
+        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
+                       @stillwind-animation-option-property transition-duration: animation-duration;\
+                       @stillwind-theme-namespace --duration-* [time];\
+                       @stillwind-theme-namespace --leading-* [number] [length];";
+        let namespaces = parse_theme_namespace_types(css);
+        assert_eq!(namespaces[&ThemeNamespace::Duration], vec![ValueType::Time]);
+        assert_eq!(
+            namespaces[&ThemeNamespace::Leading],
+            vec![ValueType::Number, ValueType::Length]
+        );
+    }
+
+    #[test]
     fn namespace_names_round_trip_and_metadata_ignores_unknown_types() {
         for name in [
             "animate",

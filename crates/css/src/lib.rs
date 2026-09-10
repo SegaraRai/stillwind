@@ -27,6 +27,3 @@ pub use math::*;
 pub use output::*;
 pub use resources::*;
 pub use values::*;
-
-#[cfg(test)]
-mod tests;

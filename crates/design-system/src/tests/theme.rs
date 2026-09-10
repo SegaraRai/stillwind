@@ -228,3 +228,98 @@ fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
     assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
     assert_eq!(theme.tokens[2].kind, ThemeTokenKind::Custom);
 }
+
+#[test]
+fn resolves_theme_reference_fallbacks_generically() {
+    let source = SourceFile::new(
+        FileId(7),
+        "theme.css",
+        r"@theme { --known: blue; --alias: --theme(--known, initial); }",
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+
+    assert_eq!(
+        theme.resolve_theme_references("--theme(--known, initial)"),
+        Some("var(--known)".to_owned())
+    );
+    assert_eq!(
+        theme.resolve_theme_references("calc(1px + --theme(--missing, 2px))"),
+        Some("calc(1px + 2px)".to_owned())
+    );
+    assert_eq!(
+        theme.resolve_theme_references("--theme(--missing, initial)"),
+        None
+    );
+    assert_eq!(
+        theme.resolve_theme_references("\"--theme(--missing, initial)\""),
+        Some("\"--theme(--missing, initial)\"".to_owned())
+    );
+}
+
+#[test]
+fn parses_block_variants_and_omits_them_from_authored_output() {
+    let source = SourceFile::new(
+        FileId(7),
+        "stillwind.css",
+        "@variant pressed { &:active { @slot; } }\n.card { color: red; }",
+    )
+    .unwrap();
+
+    let theme = parse_theme(&source).unwrap();
+
+    assert_eq!(
+        theme.variant("pressed").unwrap().body,
+        "&:active { @slot; }"
+    );
+    assert!(theme.custom_css().contains(".card"));
+    assert!(!theme.custom_css().contains("@variant"));
+}
+
+#[test]
+fn separates_compiler_property_definitions_from_authored_property_rules() {
+    let source = SourceFile::new(
+        FileId(7),
+        "stillwind.css",
+        r#"
+                @stillwind-property --example-value {
+                  syntax: "<number>";
+                  inherits: false;
+                  initial-value: 0;
+                }
+                @property --authored-value {
+                  syntax: "<color>";
+                  inherits: false;
+                  initial-value: red;
+                }
+                .example { color: var(--authored-value); }
+            "#,
+    )
+    .unwrap();
+
+    let theme = parse_theme(&source).unwrap();
+
+    assert_eq!(theme.properties.len(), 1);
+    assert_eq!(theme.properties[0].name, "--example-value");
+    assert!(theme.authored_properties.contains("--authored-value"));
+    assert!(!theme.custom_css().contains("@stillwind-property"));
+    assert!(theme.custom_css().contains("@property --authored-value"));
+}
+
+#[test]
+fn extracts_block_custom_variant() {
+    let source = SourceFile::new(
+        FileId(1),
+        "fixture.css",
+        "@custom-variant theme-dark { &:where([data-theme=dark] *) { @slot; } }",
+    )
+    .unwrap();
+    let theme = parse_fixture_theme(&source).expect("theme");
+    assert_eq!(theme.variants.len(), 1);
+    assert_eq!(theme.variants[0].name, "theme-dark");
+    assert!(
+        theme.variants[0].body.contains("@slot"),
+        "{:?}",
+        theme.variants[0].body
+    );
+}

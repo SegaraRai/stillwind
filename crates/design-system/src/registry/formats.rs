@@ -111,6 +111,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_animation_option_property_mapping() {
+        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
+                       @stillwind-animation-option-property transition-duration: animation-duration;\
+                       @stillwind-theme-namespace --duration-* [time];\
+                       @stillwind-theme-namespace --leading-* [number] [length];";
+        assert_eq!(
+            parse_animation_option_property_mappings(css).get("transition-duration"),
+            Some(&"animation-duration".to_owned())
+        );
+    }
+
+    #[test]
+    fn merges_declaration_and_function_format_metadata() {
+        let formats = parse_declaration_formats(
+            "@stillwind-format transform var-fallback; @stillwind-format transform compose-space;",
+        );
+        assert_eq!(
+            formats.get("transform").map(String::as_str),
+            Some("var-fallback compose-space")
+        );
+        let functions =
+            parse_function_formats("@stillwind-format-functions color-mix linear-gradient;");
+        assert!(functions.contains("color-mix"));
+        assert!(functions.contains("linear-gradient"));
+        assert_eq!(
+            parse_omit_token_prefixes("@stillwind-omit-token-prefix --shadow- --tw-shadow:;"),
+            vec![("--shadow-".to_owned(), "--tw-shadow:".to_owned())]
+        );
+    }
+
+    #[test]
     fn metadata_preserves_order_deduplicates_sets_and_rejects_incomplete_entries() {
         assert_eq!(
             parse_function_formats("@stillwind-format-functions rgb calc rgb;"),

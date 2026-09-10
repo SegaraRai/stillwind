@@ -39,19 +39,40 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
 }
 
 #[test]
-fn exposes_the_first_frontends_through_one_compiler_api() {
-    let js = SourceFile::new(FileId(1), "App.tsx", "export const App = () => <main />;").unwrap();
+fn compiles_theme_backed_styles_through_the_source_analyzer() {
+    let js = SourceFile::new(
+        FileId(1),
+        "App.tsx",
+        r#"import { style } from "stillwind/react"; export const props = style("bg-accent");"#,
+    )
+    .unwrap();
     let css = crate::css_fixture::source(
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; }",
     )
     .unwrap();
-
-    assert!(stillwind_js_oxc::parse(&js).diagnostics.is_empty());
-    let theme = Compiler::read_theme(&css).unwrap();
-    assert_eq!(theme.value("color", "accent"), Some("red"));
-    assert!(theme.token("color", "red-500").is_some());
+    let result = Compiler::compile_source(&stillwind_js_oxc::OxcSourceAnalyzer, &js, &css);
+    assert!(result.diagnostics.is_empty(), "{result:?}");
+    assert!(result.css.contains("--color-accent:red;"), "{}", result.css);
+    assert!(
+        result.css.contains("background-color:var(--color-accent)"),
+        "{}",
+        result.css
+    );
+    assert_eq!(result.classes.len(), 1);
+    let class = &result.classes[0].class_name;
+    assert!(result.css.contains(&format!(".{class}")));
+    let transformed = result.apply_to_source(&js).unwrap();
+    assert!(transformed.contains(class), "{transformed}");
+    assert!(transformed.contains("className"), "{transformed}");
+    assert!(!transformed.contains("style("), "{transformed}");
+    assert_eq!(
+        transformed,
+        format!(
+            "import {{ style }} from \"stillwind/react\"; export const props = {{className:\"{class}\"}};"
+        )
+    );
 }
 
 #[test]

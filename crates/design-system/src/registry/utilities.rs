@@ -166,6 +166,98 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_animation_option_definitions() {
+        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
+                       @stillwind-animation-option-property transition-duration: animation-duration;\
+                       @stillwind-theme-namespace --duration-* [time];\
+                       @stillwind-theme-namespace --leading-* [number] [length];";
+        let options = parse_builtin_animation_option_definitions(css);
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0].name, "duration-*");
+    }
+
+    #[test]
+    fn separates_builtin_utilities_from_userland() {
+        let css = "@utility user-* { color:red; }\
+                       @stillwind-utility builtin-* { color:blue; }\
+                       @variant user-state { &:hover { @slot; } }\
+                       @stillwind-variant builtin-state { &:focus { @slot; } }";
+
+        let user_utilities = parse_utility_definitions(css);
+        let builtin_utilities = parse_builtin_utility_definitions(css);
+        assert_eq!(user_utilities.len(), 1);
+        assert_eq!(user_utilities[0].name, "user-*");
+        assert_eq!(user_utilities[0].builtin_order, None);
+        assert_eq!(builtin_utilities.len(), 1);
+        assert_eq!(builtin_utilities[0].name, "builtin-*");
+        assert_eq!(
+            builtin_utilities[0].builtin_order,
+            css.find("@stillwind-utility")
+        );
+    }
+
+    #[test]
+    fn expands_compact_utility_families_without_enumerating_values() {
+        let utilities = parse_utility_definitions(
+            "@utility-family value=--value(--spacing-*, --spacing(), [length]) { inset: inset; inset-x: inset-inline; }",
+        );
+
+        assert_eq!(
+            utilities,
+            vec![
+                CustomUtility {
+                    name: "inset-*".to_owned(),
+                    body: "inset:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                    builtin_order: None,
+                },
+                CustomUtility {
+                    name: "inset-x-*".to_owned(),
+                    body: "inset-inline:--value(--spacing-*, --spacing(), [length]);".to_owned(),
+                    builtin_order: None,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn preserves_explicit_colour_modifier_bodies() {
+        let utilities = parse_utility_definitions(
+            "@utility border { border-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); } @utility outline { outline-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }",
+        );
+
+        assert_eq!(utilities.len(), 2);
+        assert_eq!(utilities[0].name, "border");
+        assert!(utilities[0].body.contains("border-color:color-mix"));
+        assert_eq!(utilities[1].name, "outline");
+        assert!(utilities[1].body.contains("outline-color:color-mix"));
+    }
+
+    #[test]
+    fn preserves_repeated_mask_utility_definitions_in_source_order() {
+        let utilities = parse_utility_definitions(
+            "@utility mask-x-from-* { --tw-mask-left-from-position:--value(--spacing-*); } @utility mask-x-from-* { --tw-mask-right-from-color:--value(--color-*); } @utility mask-x-from-* { --alpha(--modifier()); }",
+        );
+
+        assert_eq!(utilities.len(), 3);
+        assert!(
+            utilities
+                .iter()
+                .all(|utility| utility.name == "mask-x-from-*")
+        );
+        assert!(
+            utilities[0]
+                .body
+                .contains("--tw-mask-left-from-position:--value(--spacing-*")
+        );
+        assert!(
+            utilities[1]
+                .body
+                .contains("--tw-mask-right-from-color:--value(--color-*")
+        );
+        assert!(utilities[2].body.contains("--alpha(--modifier())"));
+    }
+
+    #[test]
     fn named_and_ordered_utilities_preserve_bodies_and_exclude_family_headers() {
         let css = "@utility user { color:red; } @stillwind-utility builtin {color:blue;}";
         let users = parse_utility_definitions(css);

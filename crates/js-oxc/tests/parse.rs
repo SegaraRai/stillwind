@@ -1,10 +1,9 @@
 //! Integration of import binding, declarations, reference resolution and module summaries.
 
-use stillwind_ir::StyleInput;
+use stillwind_ir::{AdapterKind, StyleInput};
+use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile};
-
-use crate::parse;
 
 #[test]
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
@@ -32,7 +31,7 @@ fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
 fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
     let source = SourceFile::new(FileId(1), "solid.tsx", "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
     let parsed = parse(&source);
-    assert_eq!(parsed.module.adapter, stillwind_ir::AdapterKind::Solid);
+    assert_eq!(parsed.module.adapter, AdapterKind::Solid);
     assert!(parsed.diagnostics.is_empty());
     let mixed = SourceFile::new(FileId(2), "mixed.tsx", "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex');").unwrap();
     assert!(
@@ -268,4 +267,58 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             "{body}"
         );
     }
+}
+
+#[test]
+fn extracts_aria_and_data_attributes_with_value_expression_spans() {
+    let source = SourceFile::new(
+        FileId(1),
+        "Button.tsx",
+        r#"import { style } from "stillwind/react";
+const props = style({ "aria-busy": loading, "data-state": state });"#,
+    )
+    .unwrap();
+
+    let parsed = parse(&source);
+
+    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+    let Some(StyleInput::Attributes(entries)) = parsed.module.style_calls[0].inputs.first() else {
+        panic!("the first input should be an attribute object");
+    };
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].name.value, "aria-busy");
+    assert_eq!(source.slice(entries[0].value).unwrap(), "loading");
+    assert_eq!(entries[1].name.value, "data-state");
+    assert_eq!(source.slice(entries[1].value).unwrap(), "state");
+}
+
+#[test]
+fn flattens_arrays_and_retains_element_local_selectors() {
+    let source = SourceFile::new(
+        FileId(1),
+        "Button.tsx",
+        r#"import { style } from "stillwind/react";
+declare const loading: boolean;
+const props = style(["px-4", loading && "opacity-60"], { "&:hover": "bg-accent" });"#,
+    )
+    .unwrap();
+
+    let parsed = parse(&source);
+
+    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+    assert!(matches!(
+        parsed.module.style_calls[0].inputs[0],
+        StyleInput::UtilityString(_)
+    ));
+    assert!(matches!(
+        parsed.module.style_calls[0].inputs[1],
+        StyleInput::ConditionalUtilityString { .. }
+    ));
+    let Some(StyleInput::SelectorUtilityString { selector, value }) =
+        parsed.module.style_calls[0].inputs.get(2)
+    else {
+        panic!("the selector should be preserved in the style IR");
+    };
+    assert_eq!(selector.value, "&:hover");
+    assert_eq!(value.value, "bg-accent");
 }

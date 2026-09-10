@@ -22,6 +22,26 @@ pub fn parse_builtin_arbitrary_property_order(css: &str) -> Vec<BuiltinArbitrary
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::registry::utilities::parse_builtin_utility_definitions;
+
+    #[test]
+    fn shares_source_order_between_utilities_and_arbitrary_properties() {
+        let css = "@stillwind-arbitrary-property margin;\
+                       @stillwind-utility m-* { margin:--value([length]); }\
+                       @stillwind-arbitrary-property --tw-*;\
+                       @stillwind-arbitrary-property *;";
+        let utility = parse_builtin_utility_definitions(css)
+            .into_iter()
+            .next()
+            .expect("utility");
+        let properties = parse_builtin_arbitrary_property_order(css);
+
+        assert_eq!(properties.len(), 3);
+        assert!(properties[0].builtin_order < utility.builtin_order.unwrap());
+        assert!(utility.builtin_order.unwrap() < properties[1].builtin_order);
+        assert_eq!(properties[1].pattern, "--tw-*");
+        assert_eq!(properties[2].pattern, "*");
+    }
 
     #[test]
     fn rejects_whitespace_patterns_and_keeps_source_offsets() {
