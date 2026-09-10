@@ -40,11 +40,9 @@ pub(crate) fn animation_option_property_mappings(theme: &ThemeIndex) -> &BTreeMa
 }
 
 #[cfg(test)]
-pub(crate) use crate::test_defaults::BUILTIN_REGISTRY_CSS;
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 
     #[test]
     fn arbitrary_property_order_prefers_exact_patterns_and_sorts_unknowns_last() {

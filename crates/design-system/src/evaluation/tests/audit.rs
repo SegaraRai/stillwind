@@ -1,5 +1,5 @@
 use super::*;
-use crate::evaluation::builtins::registry::BUILTIN_REGISTRY_CSS;
+use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 
 #[test]
 fn builtin_negative_value_definitions_author_their_sign_explicitly() {

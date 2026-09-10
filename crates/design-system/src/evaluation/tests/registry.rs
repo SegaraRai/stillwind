@@ -1,5 +1,5 @@
 use super::*;
-use crate::evaluation::builtins::registry::BUILTIN_REGISTRY_CSS;
+use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 
 #[test]
 fn derives_arbitrary_property_order_from_builtin_css() {
