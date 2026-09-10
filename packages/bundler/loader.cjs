@@ -119,7 +119,7 @@ module.exports = function (source, inputMap) {
           }
         : undefined;
     const cssImport = (output) =>
-      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root, upstream)).toString("base64url"))};\n`;
+      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root, upstream, !projection)).toString("base64url"))};\n`;
     const base = JSON.parse(session.baseCssWithMap());
     if (projection) return callback(null, cssImport(base) + cssImport(plan));
     const finalized = host.finalizeReactModuleWithMap(output.code);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
@@ -152,6 +153,8 @@ try {
   results.checks.push({ name: "dev-css-edit", passed: true });
   await write("src/routes/index.jsx", home.replace("{...style('brand')}", ""));
   await page.waitForFunction(() => !document.querySelector("#static").className);
+  // Let the file watcher finish the removal before issuing the next disk edit.
+  await delay(300);
   await write("src/routes/index.jsx", home);
   await page.waitForFunction(
     () => getComputedStyle(document.querySelector("#static")).color === "rgb(44, 55, 66)",

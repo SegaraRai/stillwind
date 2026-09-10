@@ -36,6 +36,13 @@ void test("CSS maps retain imported authored text, theme tokens and macro origin
     ),
   );
   const decoded = decodeCssSourceMap(cssWithSourceMap(output, new Map(), process.cwd()));
+  const projected = decodeCssSourceMap(
+    cssWithSourceMap(output, new Map(), process.cwd(), undefined, false),
+  );
+  assert.equal(projected.map.sourcesContent, undefined);
+  assert.equal(projected.code, decoded.code);
+  assert.deepEqual(projected.map.sources, decoded.map.sources);
+  assert.equal(projected.map.mappings, decoded.map.mappings);
   const map = new TraceMap(decoded.map);
   for (const [needle, original, file, text] of [
     ["color: blue", child.indexOf("color: blue"), "child.css", child],

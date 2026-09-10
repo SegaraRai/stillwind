@@ -339,6 +339,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       ): Promise<{ id: string; external?: boolean | string } | null>;
       watch(id: string): void;
       upstream?: CssUpstreamMap;
+      includeSourcesContent?: boolean;
     },
   ) => {
     const plan = JSON.parse(
@@ -370,7 +371,16 @@ export function stillwind(options: StillwindOptions): Plugin {
         JSON.stringify(`/@fs/${file.replaceAll("\\", "/")}`).slice(1, -1),
       );
     }
-    return { ...plan, css: cssWithSourceMap(plan, resources, projectRoot, host.upstream) };
+    return {
+      ...plan,
+      css: cssWithSourceMap(
+        plan,
+        resources,
+        projectRoot,
+        host.upstream,
+        host.includeSourcesContent,
+      ),
+    };
   };
 
   return {
@@ -435,6 +445,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         );
         if (!output) return "";
         const css = await renderCarrier(state, output.path, {
+          includeSourcesContent: false,
           resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
           watch,
         });

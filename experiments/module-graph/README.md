@@ -109,3 +109,13 @@ Next/Turbopack 16.3.4 emits a CSS map with the correct macro line/column but the
 wrong source file (`packages/core/index.css` instead of `app/client.jsx`). The
 runner records that exact mismatch as `cssSourceMap.supported: false`; it is not
 a CSS-map acceptance pass. Any different mismatch still fails the runner.
+
+Explicit server CSS projections omit `sourcesContent` while retaining source
+paths and positions. The React Router probe checks both JavaScript and map
+files for its server-only sentinel; CSS provenance must not copy the projected
+server implementation into client artifacts.
+
+The SolidStart removal/restoration fixture lets the disk watcher settle for
+300 ms after observing removal. Faster consecutive writes were coalesced in
+this Windows run; the fixture does not claim lossless handling of every
+intermediate edit in a rapid-write burst.
