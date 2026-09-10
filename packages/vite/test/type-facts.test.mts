@@ -62,22 +62,20 @@ const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   }))
   .map((source) => ({
     ...source,
-    probes: (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary).type_probes,
+    probes: (summarizeReact(source.source, source.path) as ModuleSummary).type_probes,
   }));
 
 const summaries = new Map(
   sources.map((source) => [
     source.path,
-    JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
+    summarizeReact(source.source, source.path) as ModuleSummary,
   ]),
 );
 
 void test("TypeScript is required for cross-module conditional handle propagation", () => {
-  const withoutFacts = JSON.parse(
-    compileReactProject(
-      JSON.stringify(sources.map(({ path: sourcePath, source }) => ({ path: sourcePath, source }))),
-      resolveFixtureCss('@import "stillwind";'),
-    ),
+  const withoutFacts = compileReactProject(
+    sources.map(({ path: sourcePath, source }) => ({ path: sourcePath, source })),
+    resolveFixtureCss('@import "stillwind";'),
   ) as { modules: Array<{ path: string; diagnostics: Array<{ code: string }> }> };
   assert(
     withoutFacts.modules.find((module) => module.path === "src/consumer.ts")?.diagnostics.length,
@@ -105,17 +103,13 @@ void test("TypeScript is required for cross-module conditional handle propagatio
     restarts: 0,
   });
   service.close();
-  const withFacts = JSON.parse(
-    compileReactProject(
-      JSON.stringify(
-        sources.map(({ path: sourcePath, source }) => ({
-          path: sourcePath,
-          source,
-          type_facts: facts.get(sourcePath) ?? [],
-        })),
-      ),
-      resolveFixtureCss('@import "stillwind";'),
-    ),
+  const withFacts = compileReactProject(
+    sources.map(({ path: sourcePath, source }) => ({
+      path: sourcePath,
+      source,
+      type_facts: facts.get(sourcePath) ?? [],
+    })),
+    resolveFixtureCss('@import "stillwind";'),
   ) as {
     modules: Array<{
       path: string;
@@ -141,16 +135,12 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "fixture.css", resolveFixtureCss('@import "stillwind";'));
   const session = new NativeProjectSession(loader, true);
-  const selected = JSON.parse(
-    session.compile(
-      JSON.stringify(
-        sources.map((source) => ({
-          ...source,
-          type_facts: facts.get(source.path) ?? [],
-        })),
-      ),
-      "src/consumer.ts",
-    ),
+  const selected = session.compile(
+    sources.map((source) => ({
+      ...source,
+      type_facts: facts.get(source.path) ?? [],
+    })),
+    "src/consumer.ts",
   ) as typeof withFacts;
   assert.deepEqual(
     selected.modules.map((module) => module.path),
@@ -158,12 +148,12 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   );
   assert.deepEqual(selected.modules[0].diagnostics, []);
   assert.match(session.moduleCss("src/consumer.ts"), /animation-name:--sw-a-/);
-  const selection = {
+  const selection: import("@stillwind/native").NativeStylesheetSelection = {
     modules: ["src/consumer.ts"],
     coverage: { kind: "complete", target: "consumer-route", revision: "graph-1" },
     placement: "carrier",
   };
-  const plan = JSON.parse(session.planStylesheet(JSON.stringify(selection))) as {
+  const plan = session.planStylesheet(selection) as {
     resources: { owner: string; specifier: string }[];
     css: string;
     coverage: typeof selection.coverage;
@@ -186,29 +176,25 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.match(plan.producers[0].semanticRevision, /^[a-f0-9]{64}$/);
   assert.throws(
     () =>
-      session.planStylesheet(
-        JSON.stringify({
-          ...selection,
-          modules: [...selection.modules, "src/unvisited.ts"],
-        }),
-      ),
+      session.planStylesheet({
+        ...selection,
+        modules: [...selection.modules, "src/unvisited.ts"],
+      }),
     /unregistered modules/,
   );
   assert.throws(() => session.moduleCss("src/producer.ts"), /Unknown Stillwind module/);
   session.compile(
-    JSON.stringify(
-      sources.map((source) => ({
-        ...source,
-        source:
-          source.path === "src/producer.ts"
-            ? source.source.replaceAll("opacity-0", "opacity-5")
-            : source.source,
-        type_facts: facts.get(source.path) ?? [],
-      })),
-    ),
+    sources.map((source) => ({
+      ...source,
+      source:
+        source.path === "src/producer.ts"
+          ? source.source.replaceAll("opacity-0", "opacity-5")
+          : source.source,
+      type_facts: facts.get(source.path) ?? [],
+    })),
     "src/consumer.ts",
   );
-  const changedPlan = JSON.parse(session.planStylesheet(JSON.stringify(selection))) as typeof plan;
+  const changedPlan = session.planStylesheet(selection) as typeof plan;
   assert.notEqual(changedPlan.producers[0].semanticRevision, plan.producers[0].semanticRevision);
   assert.match(changedPlan.css, /opacity:5%/);
 

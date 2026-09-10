@@ -72,11 +72,9 @@ void test("host compiles raw SFCs and updates session CSS after edits", async ()
 void test("SFC output fails on residual macros or mismatched attribute context", async () => {
   const compile = (input: Awaited<ReturnType<typeof projectFrameworkSource>>) =>
     (
-      JSON.parse(
-        compileReactProject(
-          JSON.stringify([input]),
-          "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
-        ),
+      compileReactProject(
+        [input],
+        "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
       ) as ProjectCompilerOutput
     ).modules[0]!;
   const input = await projectFrameworkSource({
@@ -192,11 +190,9 @@ for (const { extension, source, name, imports } of [
     assert.equal(projected.fw_code, source);
     assert.ok(projected.converter?.version);
     assert.ok(projected.import_realms?.length);
-    const output = JSON.parse(
-      compileReactProject(
-        JSON.stringify([projected]),
-        "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
-      ),
+    const output = compileReactProject(
+      [projected],
+      "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
     ) as ProjectCompilerOutput;
     const module = output.modules[0]!;
     assert.deepEqual(module.diagnostics, []);

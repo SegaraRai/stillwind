@@ -390,8 +390,10 @@ export function verifyPropertyOrderParity(
       if (applicable.length < 2) continue;
 
       const source = `import { style } from "stillwind/react"; style(${JSON.stringify(applicable.join(" "))});`;
-      const native = JSON.parse(
-        compileReact(source, "src/PropertyOrderParity.tsx", stillwindFixtureCss(fixtureCase.input)),
+      const native = compileReact(
+        source,
+        "src/PropertyOrderParity.tsx",
+        stillwindFixtureCss(fixtureCase.input),
       ) as NativeOutput;
       if (native.diagnostics.length > 0 || native.classes.length !== 1) {
         throw new Error(

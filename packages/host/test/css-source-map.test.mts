@@ -20,21 +20,17 @@ void test("CSS maps retain imported authored text, theme tokens and macro origin
   const root =
     "@import 'child.css';\n@theme static { --color-brand: red; }\n@utility red {color:red;}\n@stillwind-slot utilities;";
   const child = "/* 日本語 🧭 */\n.authored { color: blue; }";
-  const step = JSON.parse(loader.provide(0, "design.css", root));
+  const step = loader.provide(0, "design.css", root);
   loader.provide(step.requests[0].id, "child.css", child);
   const session = new NativeProjectSession(loader, false);
   const source =
     "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props = style('red');";
-  session.compile(JSON.stringify([{ path: "entry.tsx", source }]));
-  const output = JSON.parse(
-    session.planStylesheet(
-      JSON.stringify({
-        modules: ["entry.tsx"],
-        coverage: { kind: "observed" },
-        placement: "document",
-      }),
-    ),
-  );
+  session.compile([{ path: "entry.tsx", source }]);
+  const output = session.planStylesheet({
+    modules: ["entry.tsx"],
+    coverage: { kind: "observed" },
+    placement: "document",
+  });
   const decoded = decodeCssSourceMap(cssWithSourceMap(output, new Map(), process.cwd()));
   const projected = decodeCssSourceMap(
     cssWithSourceMap(output, new Map(), process.cwd(), undefined, false),

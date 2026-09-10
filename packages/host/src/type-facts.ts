@@ -1,6 +1,13 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+import type {
+  NativeIdentity,
+  NativeAssetRecord,
+  NativeTypeFact,
+  NativeSymbolicValue,
+  NativeExportedValue,
+} from "@stillwind/native";
 import type { Node, SourceFile } from "typescript/unstable/ast";
 import { isExpression } from "typescript/unstable/ast/is";
 import { API } from "typescript/unstable/sync";
@@ -16,26 +23,9 @@ export interface TypeFactSource {
   resolutions?: readonly { start: number; end: number; id: string }[];
 }
 
-export interface IdentityId {
-  kind: "scope" | "ref" | "animation" | "view-transition";
-  module_path: string;
-  start: number;
-  end: number;
-  binding_name: string;
-}
-
-export interface AssetRecord {
-  identity: IdentityId;
-  metadata: { label: string | null };
-  call_start: number;
-  call_end: number;
-}
-
-export interface TypeFact {
-  start: number;
-  end: number;
-  value: unknown;
-}
+export type IdentityId = NativeIdentity;
+export type AssetRecord = NativeAssetRecord;
+export type TypeFact = NativeTypeFact;
 
 interface ShadowEdit {
   at: number;
@@ -135,15 +125,18 @@ function knownIdentities(
   return result;
 }
 
-function symbolic(kind: IdentityId["kind"], identities: readonly IdentityId[]) {
-  return { kind, candidates: { Finite: identities } };
+function symbolic(
+  kind: IdentityId["kind"],
+  identities: readonly IdentityId[],
+): NativeSymbolicValue {
+  return { kind, candidates: { kind: "finite", values: [...identities] } };
 }
 
 function typeFactValue(
   checker: Checker,
   type: Type,
   identities: ReadonlyMap<string, IdentityId>,
-): object | null {
+): NativeExportedValue | null {
   const constituents = type.isUnionType() ? type.getTypes() : [type];
   const refs = [];
   const scopes: IdentityId[] = [];

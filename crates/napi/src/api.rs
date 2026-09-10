@@ -3,27 +3,29 @@ use std::collections::{BTreeMap, BTreeSet};
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, ModuleCompiler};
+use stillwind_compiler::{
+    CompileResult, Compiler, CompilerOptions, ModuleCompiler, render_transforms,
+};
 use stillwind_design_system::{DesignSystemError, DesignSystemOptionsError, DesignSystemSnapshot};
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
-use stillwind_source::{FileId, Fingerprint, SourceFile};
+use stillwind_source::{FileId, Fingerprint, SourceError, SourceFile};
 
+use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput};
-use crate::session::{ProjectBindingOutput, ProjectModuleOutput};
-use crate::source_input::ProjectSource;
+use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
+use crate::semantic::{NativeModuleSummary, NativeTypeProbe};
+use crate::source_input::{NativeProjectSource, ProjectSource};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BindingApiError {
     #[error("invalid source input: {0}")]
     Input(String),
     #[error("{0}")]
-    Source(#[from] stillwind_source::SourceError),
+    Source(#[from] SourceError),
     #[error("source graph exceeds the 32-bit file ID limit")]
     TooManySources,
-    #[error("{0}")]
-    Json(#[from] serde_json::Error),
     #[error("{0}")]
     DesignSystem(#[from] DesignSystemError),
     #[error("{0}")]
@@ -43,27 +45,28 @@ impl From<BindingApiError> for Error {
 ///
 /// # Errors
 ///
-/// Returns an error only when serializing a successful compiler result fails.
-pub fn compile_react_json(
+/// Returns invalid source coordinates or compiler options.
+pub fn compile_react_input(
     source: &str,
     source_path: &str,
     theme: &str,
-) -> Result<String, BindingApiError> {
-    compile_react_json_with_options(source, source_path, theme, &CompilerOptions::default())
+) -> Result<BindingOutput, BindingApiError> {
+    compile_react_input_with_options(source, source_path, theme, &CompilerOptions::default())
 }
 
-pub fn compile_react_json_with_options(
+pub fn compile_react_input_with_options(
     source: &str,
     source_path: &str,
     theme: &str,
     options: &CompilerOptions,
-) -> Result<String, BindingApiError> {
+) -> Result<BindingOutput, BindingApiError> {
+    options.validate()?;
     let source = SourceFile::new(FileId(1), source_path, source)?;
     let theme =
         SourceFile::new(FileId(2), "stillwind.css", theme).map_err(BindingApiError::from)?;
     let result =
         Compiler::compile_source_with_options(&OxcSourceAnalyzer, &source, &theme, options);
-    serde_json::to_string(&binding_output(result, &source, &theme)).map_err(BindingApiError::Json)
+    Ok(binding_output(result, &source, &theme))
 }
 
 pub(super) fn binding_output(
@@ -72,7 +75,7 @@ pub(super) fn binding_output(
     theme: &SourceFile,
 ) -> BindingOutput {
     let (code, mappings) = if result.diagnostics.is_empty() {
-        match stillwind_compiler::render_transforms(source, &result.transforms) {
+        match render_transforms(source, &result.transforms) {
             Ok(output) => (Some(output.code), output.mappings),
             Err(_) => (None, Vec::new()),
         }
@@ -136,12 +139,12 @@ pub(super) fn binding_output(
         })
         .collect();
     BindingOutput {
-        resources: result.resources,
+        resources: result.resources.into_iter().map(Into::into).collect(),
         css: result.css,
         code,
-        mappings,
-        classes: result.classes,
-        symbols: result.symbols,
+        mappings: mappings.into_iter().map(Into::into).collect(),
+        classes: result.classes.into_iter().map(Into::into).collect(),
+        symbols: result.symbols.into_iter().map(Into::into).collect(),
         diagnostics,
         lint_findings,
         lint_policy: result.lint_policy,
@@ -150,26 +153,24 @@ pub(super) fn binding_output(
 
 /// Compiles a complete source graph and returns one output per input module.
 ///
-/// The source graph is encoded as a JSON array of `{ path, source }` records so
-/// the native ABI can remain stable while bundler adapters evolve.
+/// The source graph uses the same domain records as the typed Node adapter.
 ///
 /// # Errors
 ///
-/// Returns an error when the input JSON is invalid, module edges cannot be
-/// resolved, or the compiler output cannot be serialized.
-pub fn compile_react_project_json(
-    sources_json: &str,
+/// Returns invalid sources, options, or unresolved module edges.
+pub fn compile_react_project_input(
+    input: &[ProjectSource],
     theme: &str,
-) -> Result<String, BindingApiError> {
-    compile_react_project_json_with_options(sources_json, theme, &CompilerOptions::default())
+) -> Result<ProjectBindingOutput, BindingApiError> {
+    compile_react_project_input_with_options(input, theme, &CompilerOptions::default())
 }
 
-pub fn compile_react_project_json_with_options(
-    sources_json: &str,
+pub fn compile_react_project_input_with_options(
+    input: &[ProjectSource],
     theme: &str,
     options: &CompilerOptions,
-) -> Result<String, BindingApiError> {
-    let input: Vec<ProjectSource> = serde_json::from_str(sources_json)?;
+) -> Result<ProjectBindingOutput, BindingApiError> {
+    options.validate()?;
     let scans = input
         .iter()
         .enumerate()
@@ -207,7 +208,7 @@ pub fn compile_react_project_json_with_options(
     let compiler = ModuleCompiler::new(snapshot.clone(), options.clone());
     let mut results = scans
         .iter()
-        .zip(&input)
+        .zip(input)
         .map(|(scan, source)| {
             let type_facts = &source.type_facts;
             let facts = TypeFacts {
@@ -236,53 +237,60 @@ pub fn compile_react_project_json_with_options(
             // Project consumers assemble one shared stylesheet from these
             // fragments instead of repeating theme/base layers per module.
             result.css.clone_from(&result.module_css);
-            ProjectModuleOutput {
-                path: scan.source.path().to_owned(),
-                output: binding_output(result, &scan.source, &theme),
-            }
+            ProjectModuleOutput::new(
+                scan.source.path().to_owned(),
+                binding_output(result, &scan.source, &theme),
+            )
         })
         .collect();
-    serde_json::to_string(&ProjectBindingOutput { modules }).map_err(BindingApiError::Json)
+    Ok(ProjectBindingOutput { modules })
 }
 
 /// Extracts the versioned cross-module summary for a React source module.
 ///
 /// # Errors
 ///
-/// Returns an error only when serializing the summary fails.
-pub fn summarize_react_json(source: &str, source_path: &str) -> Result<String, BindingApiError> {
+/// Returns invalid source coordinates.
+pub fn summarize_react_input(
+    source: &str,
+    source_path: &str,
+) -> Result<NativeModuleSummary, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source)?;
     let parsed = parse(&source);
-    let mut summary = serde_json::to_value(&parsed.summary).map_err(BindingApiError::Json)?;
-    summary["module_css_imports"] = serde_json::json!(parsed.module.imports.module_css.len());
-    summary["macro_imports"] = serde_json::json!(parsed.module.imports.macros.len());
-    summary["type_probes"] = serde_json::json!(
+    let count = |length| {
+        u32::try_from(length).map_err(|_| BindingApiError::Input("Too many imports".into()))
+    };
+    Ok(NativeModuleSummary::new(
+        parsed.summary,
+        count(parsed.module.imports.module_css.len())?,
+        count(parsed.module.imports.macros.len())?,
         parsed
             .type_probes
             .iter()
-            .map(|span| { serde_json::json!({ "start": span.start.0, "end": span.end.0 }) })
-            .collect::<Vec<_>>()
-    );
-    serde_json::to_string(&summary).map_err(BindingApiError::Json)
+            .map(|span| NativeTypeProbe {
+                start: span.start.0,
+                end: span.end.0,
+            })
+            .collect(),
+    ))
 }
 
 /// Native Node entrypoint used by `@stillwind/vite`.
 ///
-/// The result is JSON to keep the N-API surface stable and exactly aligned with
-/// the CLI protocol during the migration period.
+/// napi-rs converts inputs and outputs directly to JavaScript values.
 ///
 /// # Errors
 ///
-/// Returns a JavaScript error if the compiler result cannot be serialized.
-#[napi(js_name = "compileReact")]
+/// Returns a JavaScript error for invalid source or options.
+#[napi(js_name = "compileReact", strict)]
 pub fn compile_react(
     source: String,
     source_path: Option<String>,
     theme: String,
-    options_json: Option<String>,
-) -> napi::Result<String> {
-    let options = parse_options(options_json.as_deref())?;
-    compile_react_json_with_options(
+    options: Option<NativeCompilerOptions>,
+) -> napi::Result<BindingOutput> {
+    let options = compiler_options(options)?;
+    compile_react_input_with_options(
         &source,
         source_path.as_deref().unwrap_or("Component.tsx"),
         &theme,
@@ -296,14 +304,18 @@ pub fn compile_react(
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid input or an unresolved graph edge.
-#[napi(js_name = "compileReactProject")]
+#[napi(js_name = "compileReactProject", strict)]
 pub fn compile_react_project(
-    sources_json: String,
+    sources: Vec<NativeProjectSource>,
     theme: String,
-    options_json: Option<String>,
-) -> napi::Result<String> {
-    let options = parse_options(options_json.as_deref())?;
-    compile_react_project_json_with_options(&sources_json, &theme, &options)
+    options: Option<NativeCompilerOptions>,
+) -> napi::Result<ProjectBindingOutput> {
+    let options = compiler_options(options)?;
+    let sources = sources
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<napi::Result<Vec<ProjectSource>>>()?;
+    compile_react_project_input_with_options(&sources, &theme, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
@@ -312,38 +324,30 @@ pub fn compile_react_project(
 /// # Errors
 ///
 /// Returns a JavaScript error when the theme or compiler options are invalid.
-#[napi(js_name = "renderReactStylesheet")]
+#[napi(js_name = "renderReactStylesheet", strict)]
 pub fn render_react_stylesheet(
     module_css: String,
     theme: String,
-    options_json: Option<String>,
+    options: Option<NativeCompilerOptions>,
 ) -> napi::Result<String> {
-    let options = parse_options(options_json.as_deref())?;
+    let options = compiler_options(options)?;
     let theme =
         SourceFile::new(FileId(1), "stillwind.css", theme).map_err(BindingApiError::from)?;
     Compiler::render_react_stylesheet(&theme, &module_css, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
-pub(super) fn parse_options(
-    options_json: Option<&str>,
-) -> Result<CompilerOptions, BindingApiError> {
-    let options = options_json.map_or_else(
-        || Ok(CompilerOptions::default()),
-        |value| serde_json::from_str(value).map_err(BindingApiError::Json),
-    )?;
-    options.validate()?;
-    Ok(options)
-}
-
 /// Returns the versioned Stillwind module summary used for cross-module values.
 ///
 /// # Errors
 ///
-/// Returns a JavaScript error if the summary cannot be serialized.
+/// Returns a JavaScript error for invalid source coordinates.
 #[napi(js_name = "summarizeReact")]
-pub fn summarize_react(source: String, source_path: Option<String>) -> napi::Result<String> {
-    summarize_react_json(&source, source_path.as_deref().unwrap_or("Component.tsx"))
+pub fn summarize_react(
+    source: String,
+    source_path: Option<String>,
+) -> napi::Result<NativeModuleSummary> {
+    summarize_react_input(&source, source_path.as_deref().unwrap_or("Component.tsx"))
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
@@ -377,17 +381,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn json_options_apply_defaults_and_keep_parse_and_validation_failures_distinct() {
-        assert_eq!(parse_options(None).unwrap(), CompilerOptions::default());
+    fn object_options_apply_defaults_and_validate_values() {
+        assert_eq!(compiler_options(None).unwrap(), CompilerOptions::default());
         assert_eq!(
-            parse_options(Some("{}")).unwrap(),
+            compiler_options(Some(NativeCompilerOptions::default())).unwrap(),
             CompilerOptions::default()
         );
-        assert!(matches!(
-            parse_options(Some("{")),
-            Err(BindingApiError::Json(_))
-        ));
-        assert!(parse_options(Some(r#"{"prefix":"bad"}"#)).is_err());
+        assert!(
+            compiler_options(Some(NativeCompilerOptions {
+                prefix: Some("bad".into()),
+                ..Default::default()
+            }))
+            .is_err()
+        );
     }
 
     #[test]

@@ -13,9 +13,14 @@
 )]
 
 mod api;
+mod options;
 mod output;
+mod semantic;
 mod session;
 mod source_input;
+mod stylesheet;
 
 pub use api::*;
+pub use output::{BindingOutput, ProjectBindingOutput, ProjectModuleOutput};
 pub use session::NativeSessionError;
+pub use source_input::ProjectSource;

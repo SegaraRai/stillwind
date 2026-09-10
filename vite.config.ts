@@ -7,6 +7,7 @@ export default defineConfig({
       "apps/fixtures-viewer/public/fixtures.json",
       "experiments/sfc-projection-research/fixtures/**",
       "experiments/sfc-projection-research/results/**",
+      "packages/native/binding.d.ts",
     ],
     options: { typeAware: true },
   },
@@ -15,6 +16,7 @@ export default defineConfig({
     ignorePatterns: [
       "experiments/sfc-projection-research/fixtures/**",
       "experiments/sfc-projection-research/results/**",
+      "packages/native/binding.d.ts",
     ],
     sortImports: true,
     sortPackageJson: true,

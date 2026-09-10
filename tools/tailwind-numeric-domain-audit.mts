@@ -83,12 +83,10 @@ for (const file of readdirSync(caseRoot)
         if (!hasGeneratedUtility(tailwind, baseline)) continue;
         acceptedByTailwind += 1;
         const source = `import { style } from "stillwind/react"; style(${JSON.stringify(candidate)});`;
-        const result = JSON.parse(
-          compileReact(
-            source,
-            "src/NumericDomainAudit.tsx",
-            stillwindFixtureCss(fixtureCase.input),
-          ),
+        const result = compileReact(
+          source,
+          "src/NumericDomainAudit.tsx",
+          stillwindFixtureCss(fixtureCase.input),
         ) as { classes: unknown[]; diagnostics: unknown[] };
         if (result.classes.length === 0 || result.diagnostics.length !== 0) {
           failures.push(`${file}: ${original} -> ${candidate}`);

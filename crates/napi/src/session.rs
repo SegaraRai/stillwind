@@ -4,12 +4,8 @@ use std::collections::BTreeMap;
 
 use napi::Error;
 use napi_derive::napi;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 
-use stillwind_compiler::{
-    CompilerOptions, StylesheetMapping, StylesheetPlacement, StylesheetRenderer,
-};
+use stillwind_compiler::{CompilerOptions, StylesheetPlacement, StylesheetRenderer};
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
@@ -19,9 +15,11 @@ use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, Stylesh
 use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
 use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
 
-use crate::api::{binding_output, parse_options};
-use crate::output::BindingOutput;
-use crate::source_input::ProjectSource;
+use crate::api::binding_output;
+use crate::options::{NativeCompilerOptions, compiler_options};
+use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
+use crate::source_input::{NativeProjectSource, ProjectSource};
+use crate::stylesheet::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {
@@ -37,40 +35,6 @@ impl From<NativeSessionError> for Error {
     fn from(error: NativeSessionError) -> Self {
         Self::from_reason(error.to_string())
     }
-}
-
-#[derive(Serialize)]
-pub struct ProjectBindingOutput {
-    pub modules: Vec<ProjectModuleOutput>,
-}
-
-#[derive(Serialize)]
-pub struct ProjectModuleOutput {
-    pub path: String,
-    #[serde(flatten)]
-    pub output: BindingOutput,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-enum HostCoverage {
-    Observed,
-    Complete { target: String, revision: String },
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum HostPlacement {
-    Document,
-    Carrier,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct HostSelection {
-    modules: Vec<String>,
-    coverage: HostCoverage,
-    placement: HostPlacement,
 }
 
 #[napi(object)]
@@ -89,9 +53,9 @@ pub struct NativeDesignSystemLoader {
 
 #[napi]
 impl NativeDesignSystemLoader {
-    #[napi(constructor)]
-    pub fn new(options_json: Option<String>) -> napi::Result<Self> {
-        let options = parse_options(options_json.as_deref())?;
+    #[napi(constructor, strict)]
+    pub fn new(options: Option<NativeCompilerOptions>) -> napi::Result<Self> {
+        let options = compiler_options(options)?;
         Ok(Self {
             loader: DesignSystemLoader::new(options.design_system()),
             options,
@@ -100,12 +64,20 @@ impl NativeDesignSystemLoader {
     }
 
     #[napi]
-    pub fn provide(&mut self, id: u32, name: String, content: String) -> napi::Result<String> {
+    pub fn provide(
+        &mut self,
+        id: u32,
+        name: String,
+        content: String,
+    ) -> napi::Result<NativeCssLoadStep> {
         self.provide_many(vec![NativeCssFileInput { id, name, content }])
     }
 
-    #[napi]
-    pub fn provide_many(&mut self, files: Vec<NativeCssFileInput>) -> napi::Result<String> {
+    #[napi(strict)]
+    pub fn provide_many(
+        &mut self,
+        files: Vec<NativeCssFileInput>,
+    ) -> napi::Result<NativeCssLoadStep> {
         match self
             .loader
             .provide_many(files.into_iter().map(|file| CssFileInput {
@@ -113,28 +85,38 @@ impl NativeDesignSystemLoader {
                 name: file.name.as_str().into(),
                 content: file.content.into(),
             })) {
-            DesignSystemLoadStep::NeedFile(requests) => Ok(json!({
-              "kind": "needFile",
-              "requests": requests.iter().map(|request| json!({
-                "id": request.id,
-                "importer": request.importer.0.as_ref(),
-                "specifier": request.specifier
-              })).collect::<Vec<_>>()
-            })
-            .to_string()),
+            DesignSystemLoadStep::NeedFile(requests) => Ok(NativeCssLoadStep::NeedFile {
+                requests: requests
+                    .into_iter()
+                    .map(|request| NativeCssRequest {
+                        id: request.id,
+                        importer: request.importer.0.to_string(),
+                        specifier: request.specifier,
+                    })
+                    .collect(),
+            }),
             DesignSystemLoadStep::Complete(Ok(snapshot)) => {
-                let output = json!({
-                  "kind": "complete",
-                  "revision": snapshot.revision().0.to_string(),
-                  "resources": snapshot.sources().resources.iter().map(|resource| json!({
-                    "placeholder": resource.placeholder,
-                    "owner": resource.owner,
-                    "specifier": resource.specifier,
-                    "start": resource.span.start.0,
-                    "end": resource.span.end.0,
-                  })).collect::<Vec<_>>(),
-                  "sources": snapshot.sources().sources.iter().map(|source| source.name.0.as_ref()).collect::<Vec<_>>()
-                }).to_string();
+                let output = NativeCssLoadStep::Complete {
+                    revision: snapshot.revision().0.to_string(),
+                    resources: snapshot
+                        .sources()
+                        .resources
+                        .iter()
+                        .map(|resource| NativeCssResource {
+                            placeholder: resource.placeholder.clone(),
+                            owner: resource.owner.clone(),
+                            specifier: resource.specifier.clone(),
+                            start: resource.span.start.0,
+                            end: resource.span.end.0,
+                        })
+                        .collect(),
+                    sources: snapshot
+                        .sources()
+                        .sources
+                        .iter()
+                        .map(|source| source.name.0.to_string())
+                        .collect(),
+                };
                 self.snapshot = Some(snapshot);
                 Ok(output)
             }
@@ -219,7 +201,7 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> napi::Result<String> {
+    pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> napi::Result<NativeReload> {
         let update = self
             .session
             .reload(Ok(loader.completed()?), loader.options.clone())
@@ -230,11 +212,14 @@ impl NativeProjectSession {
             }
             .into());
         }
-        Ok(json!({
-          "cssChanged": update.css_changed,
-          "transformedModules": update.transformed_modules
+        Ok(NativeReload {
+            css_changed: update.css_changed,
+            transformed_modules: update
+                .transformed_modules
+                .into_iter()
+                .map(|module| module.0)
+                .collect(),
         })
-        .to_string())
     }
 
     #[napi]
@@ -245,19 +230,20 @@ impl NativeProjectSession {
     }
 
     /// Plans an explicit host selection and returns CSS with coverage and producer revisions.
-    #[napi]
-    pub fn plan_stylesheet(&self, selection_json: String) -> napi::Result<String> {
-        let input: HostSelection = serde_json::from_str(&selection_json)
-            .map_err(|error| Error::from_reason(error.to_string()))?;
+    #[napi(strict)]
+    pub fn plan_stylesheet(
+        &self,
+        input: NativeStylesheetSelection,
+    ) -> napi::Result<NativeStylesheetPlan> {
         let coverage = match input.coverage {
-            HostCoverage::Observed => StylesheetCoverage::Observed,
-            HostCoverage::Complete { target, revision } => {
+            NativeCoverage::Observed => StylesheetCoverage::Observed,
+            NativeCoverage::Complete { target, revision } => {
                 StylesheetCoverage::Complete { target, revision }
             }
         };
         let placement = match input.placement {
-            HostPlacement::Document => StylesheetPlacement::Document,
-            HostPlacement::Carrier => StylesheetPlacement::Carrier,
+            NativeStylesheetPlacement::Document => StylesheetPlacement::Document,
+            NativeStylesheetPlacement::Carrier => StylesheetPlacement::Carrier,
         };
         let plan = self
             .session
@@ -270,26 +256,31 @@ impl NativeProjectSession {
             )
             .map_err(|error| Error::from_reason(error.to_string()))?;
         let coverage = match plan.coverage {
-            StylesheetCoverage::Observed => json!({"kind": "observed"}),
+            StylesheetCoverage::Observed => NativeCoverage::Observed,
             StylesheetCoverage::Complete { target, revision } => {
-                json!({"kind": "complete", "target": target, "revision": revision})
+                NativeCoverage::Complete { target, revision }
             }
         };
-        Ok(json!({
-            "css": plan.css,
-            "sourceMap": stylesheet_locations(&plan.mappings),
-            "resources": plan.resources,
-            "coverage": coverage,
-            "placement": match placement { StylesheetPlacement::Document => "document", StylesheetPlacement::Carrier => "carrier" },
-            "designSystem": plan.design_system.0,
-            "producers": plan.producers.iter().map(|(module, key)| json!({
-                "module": module.as_str(), "sourceRevision": key.source_revision.0,
-                "semanticRevision": key.semantic_revision.as_ref().map(|revision| &revision.0),
-                "compilerVersion": key.compiler_version,
-                "compilerOptions": key.compiler_options.0,
-                "analysisRevision": key.analysis_revision.0,
-            })).collect::<Vec<_>>(),
-        }).to_string())
+        Ok(NativeStylesheetPlan {
+            css: plan.css,
+            source_map: stylesheet_locations(&plan.mappings)?,
+            resources: plan.resources.into_iter().map(Into::into).collect(),
+            coverage,
+            placement: input.placement,
+            design_system: plan.design_system.0,
+            producers: plan
+                .producers
+                .into_iter()
+                .map(|(module, key)| NativeStylesheetProducer {
+                    module: module.0,
+                    source_revision: key.source_revision.0,
+                    semantic_revision: key.semantic_revision.map(|revision| revision.0),
+                    compiler_version: key.compiler_version,
+                    compiler_options: key.compiler_options.0,
+                    analysis_revision: key.analysis_revision.0,
+                })
+                .collect(),
+        })
     }
 
     /// Stable document CSS independent of which JS modules have been visited.
@@ -301,14 +292,14 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn base_css_with_map(&self) -> napi::Result<String> {
+    pub fn base_css_with_map(&self) -> napi::Result<NativeStylesheetOutput> {
         let output = StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
             .render_base_stylesheet_with_map()
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        Ok(
-            json!({"css": output.css, "sourceMap": stylesheet_locations(&output.mappings)})
-                .to_string(),
-        )
+        Ok(NativeStylesheetOutput {
+            css: output.css,
+            source_map: stylesheet_locations(&output.mappings)?,
+        })
     }
 
     /// Complete CSS for one producer, safe to transport across loader workers.
@@ -332,14 +323,16 @@ impl NativeProjectSession {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
-    #[napi]
+    #[napi(strict)]
     pub fn compile(
         &mut self,
-        sources_json: String,
+        sources: Vec<NativeProjectSource>,
         producer: Option<String>,
-    ) -> napi::Result<String> {
-        let sources: Vec<ProjectSource> = serde_json::from_str(&sources_json)
-            .map_err(|error| Error::from_reason(error.to_string()))?;
+    ) -> napi::Result<ProjectBindingOutput> {
+        let sources = sources
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<napi::Result<Vec<ProjectSource>>>()?;
         if let Some(producer) = &producer
             && !sources.iter().any(|source| &source.path == producer)
         {
@@ -392,51 +385,11 @@ impl NativeProjectSession {
                 result.diagnostics.clone_from(diagnostics);
             }
             result.css.clone_from(&result.module_css);
-            modules.push(ProjectModuleOutput {
-                path: scan.module_id.0,
-                output: binding_output(result, &scan.source, &theme),
-            });
+            modules.push(ProjectModuleOutput::new(
+                scan.module_id.0,
+                binding_output(result, &scan.source, &theme),
+            ));
         }
-        serde_json::to_string(&ProjectBindingOutput { modules })
-            .map_err(|error| Error::from_reason(error.to_string()))
-    }
-}
-
-fn stylesheet_locations(mappings: &[StylesheetMapping]) -> serde_json::Value {
-    let mut sources = Vec::new();
-    let mut indices = BTreeMap::new();
-    let entries =
-        mappings
-            .iter()
-            .map(|mapping| {
-                let index = *indices.entry(mapping.source.path().to_owned()).or_insert_with(|| {
-            let index = sources.len();
-            sources.push(json!({"path": mapping.source.path(), "content": mapping.source.text()}));
-            index
-        });
-                json!({"source": index, "generatedStart": mapping.generated.start,
-            "generatedEnd": mapping.generated.end, "originalStart": mapping.original.start,
-            "originalEnd": mapping.original.end, "exact": mapping.exact})
-            })
-            .collect::<Vec<_>>();
-    json!({"sources": sources, "entries": entries})
-}
-
-#[cfg(test)]
-mod tests {
-    use stillwind_project::SessionUpdate;
-
-    use super::*;
-
-    #[test]
-    fn module_ids_remain_strings_in_host_json() {
-        let update = SessionUpdate {
-            transformed_modules: [ModuleId::from("src/entry.tsx")].into(),
-            ..SessionUpdate::default()
-        };
-        assert_eq!(
-            json!({ "transformedModules": update.transformed_modules }),
-            json!({ "transformedModules": ["src/entry.tsx"] })
-        );
+        Ok(ProjectBindingOutput { modules })
     }
 }

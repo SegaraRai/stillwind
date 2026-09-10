@@ -80,7 +80,7 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
   const tokenSource =
     "import {style} from 'stillwind/react';export const token=style.ref('token');";
   const source = (name: string, text: string) => {
-    const summary = JSON.parse(summarizeReact(text, name));
+    const summary = summarizeReact(text, name);
     writeFileSync(path.join(root, name), text);
     return {
       id: path.join(root, name),

@@ -10,7 +10,6 @@ import {
   TypeScriptFactsService,
   finalizeReactModuleWithMap,
   type FinalizedModuleEdit,
-  type ModuleSummary,
 } from "../packages/host/src/index.ts";
 import { resolveFixtureCss } from "./lib/stillwind-fixture-css.ts";
 
@@ -82,10 +81,7 @@ function compileProject(root: string, manifest: Manifest) {
     };
   });
   const summaries = new Map(
-    sources.map((source) => [
-      source.path,
-      JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
-    ]),
+    sources.map((source) => [source.path, summarizeReact(source.source, source.path)]),
   );
   const service = new TypeScriptFactsService(repositoryRoot);
   const assets = new Map(
@@ -102,17 +98,13 @@ function compileProject(root: string, manifest: Manifest) {
   const facts = service.collect(probeSources, assets);
   service.close();
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
-  const output = JSON.parse(
-    compileReactProject(
-      JSON.stringify(
-        sources.map(({ path: sourcePath, source }) => ({
-          path: sourcePath,
-          source,
-          type_facts: facts.get(sourcePath) ?? [],
-        })),
-      ),
-      theme,
-    ),
+  const output = compileReactProject(
+    sources.map(({ path: sourcePath, source }) => ({
+      path: sourcePath,
+      source,
+      type_facts: facts.get(sourcePath) ?? [],
+    })),
+    theme,
   ) as { modules: ModuleOutput[] };
   const diagnostics = output.modules.flatMap((module) =>
     module.diagnostics.map(

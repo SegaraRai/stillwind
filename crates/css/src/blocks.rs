@@ -1,7 +1,4 @@
-/// Expands composable edge-mask stop utilities. The CSS source owns the
-/// utility roots and the affected edges; this helper merely stamps the shared
-/// custom-property protocol into each definition. It deliberately enumerates
-/// neither colors nor spacing values.
+/// Removes complete block comments and preserves an unterminated comment tail.
 pub fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
     let mut remaining = css;

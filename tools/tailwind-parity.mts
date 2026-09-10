@@ -285,8 +285,10 @@ for (const file of readdirSync(caseRoot)
         diagnostics: unknown[];
       };
       try {
-        native = JSON.parse(
-          compileReact(source, "src/Parity.tsx", stillwindFixtureCss(fixtureCase.input)),
+        native = compileReact(
+          source,
+          "src/Parity.tsx",
+          stillwindFixtureCss(fixtureCase.input),
         ) as typeof native;
       } catch (error) {
         failures.push(`${file} ${candidate}: native exception ${String(error)}`);

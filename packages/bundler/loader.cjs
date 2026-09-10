@@ -81,7 +81,7 @@ module.exports = function (source, inputMap, additionalData) {
     const compilerOptions = { classIdentity: "module", ...options };
     delete compilerOptions.css;
     delete compilerOptions.root;
-    const loaded = await host.loadCssGraph(css, JSON.stringify(compilerOptions), {
+    const loaded = await host.loadCssGraph(css, compilerOptions, {
       resolve: resolveCss,
       read,
       watch,
@@ -117,15 +117,11 @@ module.exports = function (source, inputMap, additionalData) {
     );
     if (!output?.code)
       return callback(null, projection ? "" : source, projection ? null : inputMap);
-    const plan = JSON.parse(
-      session.planStylesheet(
-        JSON.stringify({
-          modules: [output.path],
-          coverage: { kind: "observed" },
-          placement: cssValue ? "document" : "carrier",
-        }),
-      ),
-    );
+    const plan = session.planStylesheet({
+      modules: [output.path],
+      coverage: { kind: "observed" },
+      placement: cssValue ? "document" : "carrier",
+    });
     const replacements = new Map();
     const valueResources = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
@@ -155,7 +151,7 @@ module.exports = function (source, inputMap, additionalData) {
         : undefined;
     const cssImport = (output) =>
       `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root, upstream, !projection)).toString("base64url"))};\n`;
-    const base = JSON.parse(session.baseCssWithMap());
+    const base = session.baseCssWithMap();
     if (cssValue) {
       // This JavaScript module owns the literal; the original SFC only receives
       // an import. Asset imports let the caller's bundler choose final URLs.

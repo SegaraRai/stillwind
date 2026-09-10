@@ -2,7 +2,9 @@ use std::error::Error;
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_napi::{
-    BindingApiError, compile_react_project_json, compile_react_project_json_with_options,
+    BindingApiError, ProjectSource, compile_react_input, compile_react_project_input,
+    compile_react_project_input_with_options, generate_react_types, render_react_stylesheet,
+    summarize_react_input,
 };
 
 #[test]
@@ -27,9 +29,9 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
         "regions":[{"import_realm":1,"start":a,"end":a+first.len()},{"import_realm":2,"start":b,"end":b+second.len()}]
     });
     let compile = |input: &serde_json::Value| -> serde_json::Value {
-        serde_json::from_str(
-            &compile_react_project_json(
-                &serde_json::json!([input]).to_string(),
+        serde_json::to_value(
+            compile_react_project_input(
+                &sources_from_value(serde_json::json!([input])),
                 "@utility flex {display:flex;} @stillwind-slot utilities;",
             )
             .unwrap(),
@@ -82,12 +84,12 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
         "import_realms":[{"id":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}],
         "regions":[{"import_realm":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}]
     });
-    let output = compile_react_project_json(
-        &serde_json::json!([source]).to_string(),
+    let output = compile_react_project_input(
+        &sources_from_value(serde_json::json!([source])),
         "@utility flex {display:flex;} @stillwind-slot utilities;",
     )
     .unwrap();
-    let result: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let result: serde_json::Value = serde_json::to_value(&output).unwrap();
     let module = &result["modules"][0];
     assert_eq!(module["diagnostics"], serde_json::json!([]));
     let code = module["code"].as_str().unwrap();
@@ -108,14 +110,14 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
 fn serializes_a_layered_compile_result_for_node_consumers() {
     let source = r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90");"#;
-    let output = stillwind_napi::compile_react_json(
+    let output = compile_react_input(
         source,
         "Button.tsx",
         &css_fixture::with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
     )
     .unwrap();
 
-    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert!(value["css"].as_str().unwrap().contains("@layer utilities{"));
     assert!(value["css"].as_str().unwrap().contains(":hover{"));
     assert!(value["code"].as_str().unwrap().contains("className"));
@@ -140,7 +142,7 @@ const props = style("bg-accent hover:bg-accent/90");"#;
 
 #[test]
 fn exposes_generated_symbols_for_build_wide_collision_checks() {
-    let output = stillwind_napi::compile_react_json(
+    let output = compile_react_input(
         r#"import { style } from "stillwind/react";
 const menu = style.ref();
 const props = style(menu.anchor);"#,
@@ -149,7 +151,7 @@ const props = style(menu.anchor);"#,
     )
     .unwrap();
 
-    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert_eq!(value["symbols"][0]["kind"], "ref");
     assert!(
         value["symbols"][0]["name"]
@@ -161,7 +163,7 @@ const props = style(menu.anchor);"#,
 
 #[test]
 fn serializes_cross_module_handle_summaries() {
-    let output = stillwind_napi::summarize_react_json(
+    let output = summarize_react_input(
         r#"import { style } from "stillwind/react";
 export const menu = style.scope("menu");
 export const trigger = style.ref("trigger");"#,
@@ -169,11 +171,13 @@ export const trigger = style.ref("trigger");"#,
     )
     .unwrap();
 
-    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert_eq!(value["schema"], 1);
     assert_eq!(value["module_path"], "src/Parent.tsx");
-    assert_eq!(value["exports"]["menu"]["kind"], "scopes");
-    assert_eq!(value["exports"]["trigger"]["kind"], "refs");
+    assert_eq!(value["exports"][0]["name"], "menu");
+    assert_eq!(value["exports"][0]["value"]["kind"], "scopes");
+    assert_eq!(value["exports"][1]["name"], "trigger");
+    assert_eq!(value["exports"][1]["value"]["kind"], "refs");
 }
 
 #[test]
@@ -192,13 +196,13 @@ import { menu } from "./Parent";
 export const child = style({ [menu`&:hover`]: "text-white" });"#
         }
     ]);
-    let output = stillwind_napi::compile_react_project_json(
-        &sources.to_string(),
+    let output = compile_react_project_input(
+        &sources_from_value(sources),
         &css_fixture::with_defaults("@theme { --color-white: white; }"),
     )
     .unwrap();
 
-    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert_eq!(value["modules"].as_array().unwrap().len(), 2);
     assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SHTS001");
 }
@@ -226,8 +230,8 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
         r#"@import "stillwind";
 @theme { --color-white: white; }"#,
     );
-    let output = stillwind_napi::compile_react_project_json(&sources.to_string(), &theme).unwrap();
-    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let output = compile_react_project_input(&sources_from_value(sources), &theme).unwrap();
+    let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     let fragments = value["modules"]
         .as_array()
         .unwrap()
@@ -247,9 +251,7 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
             .sum::<usize>(),
         1
     );
-    let stylesheet =
-        stillwind_napi::render_react_stylesheet(fragments.join("\n"), theme.to_owned(), None)
-            .unwrap();
+    let stylesheet = render_react_stylesheet(fragments.join("\n"), theme.to_owned(), None).unwrap();
     assert_eq!(
         stylesheet
             .matches("@layer theme, base, components, utilities;")
@@ -263,14 +265,14 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
 
 #[test]
 fn serializes_editor_positions_for_diagnostics() {
-    let output = stillwind_napi::compile_react_json(
+    let output = compile_react_input(
         "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
         "Button.tsx",
         &css_fixture::with_defaults("@theme { --color-accent: red; }"),
     )
     .unwrap();
 
-    let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+    let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     let diagnostic = &value["lint_findings"][0];
     assert_eq!(diagnostic["file"], "Button.tsx");
     assert!(diagnostic["start"].as_u64().unwrap() > 0);
@@ -278,7 +280,7 @@ fn serializes_editor_positions_for_diagnostics() {
 
 #[test]
 fn generates_theme_backed_react_type_augmentations() {
-    let output = stillwind_napi::generate_react_types(css_fixture::with_defaults(
+    let output = generate_react_types(css_fixture::with_defaults(
         "@theme { --color-accent: red; }",
     ))
     .unwrap();
@@ -288,19 +290,20 @@ fn generates_theme_backed_react_type_augmentations() {
 }
 
 #[test]
-fn project_api_preserves_json_and_configuration_errors() {
-    let error = compile_react_project_json("{", "").unwrap_err();
-    let BindingApiError::Json(cause) = &error else {
-        panic!("expected JSON error")
-    };
-    assert_eq!(cause.line(), 1);
+fn project_api_preserves_configuration_errors() {
     let options = CompilerOptions {
         prefix: "invalid".into(),
         ..CompilerOptions::default()
     };
-    let error = compile_react_project_json_with_options("[]", "", &options).unwrap_err();
-    assert!(matches!(error, BindingApiError::DesignSystem(_)));
+    let error = compile_react_project_input_with_options(&[], "", &options)
+        .err()
+        .unwrap();
+    assert!(matches!(error, BindingApiError::Options(_)));
     assert!(error.source().is_some());
+}
+
+fn sources_from_value(value: serde_json::Value) -> Vec<ProjectSource> {
+    serde_json::from_value(value).unwrap()
 }
 
 #[allow(dead_code)]

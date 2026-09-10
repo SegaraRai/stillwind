@@ -16,12 +16,7 @@ import {
   TypeScriptFactsService,
   finalizeReactModuleWithMap as finalizeModuleWithMap,
 } from "@stillwind/host";
-import type {
-  CssLocations,
-  CssUpstreamMap,
-  PlayOutput,
-  ProjectCompilerOutput,
-} from "@stillwind/host";
+import type { CssLocations, CssUpstreamMap, PlayOutput } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
@@ -79,14 +74,14 @@ function cssEntrypoint(options: StillwindOptions): string {
   return path;
 }
 
-function compilerOptions(options: StillwindOptions): string {
-  return JSON.stringify({
+function compilerOptions(options: StillwindOptions) {
+  return {
     prefix: options.prefix ?? "--sw-",
     tailwindPrefix: options.tailwindPrefix ?? "--tw-",
     forbidTailwindRelationships: options.forbidTailwindRelationships ?? false,
     classIdentity: options.classIdentity ?? "module",
     classNamespace: options.classNamespace ?? "",
-  });
+  };
 }
 
 function sendJson(response: ServerResponse, value: unknown, statusCode = 200) {
@@ -350,15 +345,11 @@ export function stillwind(options: StillwindOptions): Plugin {
       placement?: "document" | "carrier";
     },
   ) => {
-    const plan = JSON.parse(
-      state.session!.planStylesheet(
-        JSON.stringify({
-          modules: [modulePath],
-          coverage: { kind: "observed" },
-          placement: host.placement ?? "carrier",
-        }),
-      ),
-    ) as {
+    const plan = state.session!.planStylesheet({
+      modules: [modulePath],
+      coverage: { kind: "observed" },
+      placement: host.placement ?? "carrier",
+    }) as {
       css: string;
       sourceMap: CssLocations;
       coverage: { kind: string };
@@ -473,11 +464,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (cleanModuleId(id) === resolvedVirtualCssId) {
         await ensureSession(state, this);
         return decodeCssSourceMap(
-          cssWithSourceMap(
-            JSON.parse(state.session!.baseCssWithMap()),
-            state.resources,
-            projectRoot,
-          ),
+          cssWithSourceMap(state.session!.baseCssWithMap(), state.resources, projectRoot),
         );
       }
       if (cleanModuleId(id) === resolvedModuleCssId) {
@@ -531,7 +518,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           dependencies,
         );
         if (revision !== state.revision) return [];
-        const update = JSON.parse(state.session!.reload(loader)) as {
+        const update = state.session!.reload(loader) as {
           cssChanged: boolean;
           transformedModules: string[];
         };
@@ -669,13 +656,9 @@ export function stillwind(options: StillwindOptions): Plugin {
             );
             const playSession = new NativeProjectSession(playLoader, false);
             // Preserve byte length for the Play shorthand's source positions.
-            const playProject = JSON.parse(
-              playSession.compile(
-                JSON.stringify([
-                  { path: "Play.tsx", source: source.replace(/\bexport App;/g, "export{App}") },
-                ]),
-              ),
-            ) as ProjectCompilerOutput;
+            const playProject = playSession.compile([
+              { path: "Play.tsx", source: source.replace(/\bexport App;/g, "export{App}") },
+            ]);
             const output = playProject.modules[0]!;
             output.css = resolveResources(playSession.css(), loaderResources.get(playLoader));
             let previewUrl: string | null = null;

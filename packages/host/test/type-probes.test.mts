@@ -18,7 +18,7 @@ const unrelated = tuple(123);
 const token = style.animation({from: 'opacity-0', to: 'opacity-100'});
 const selected = token;
 export const props = style(selected('infinite'));`;
-  const summary = JSON.parse(summarizeReact(source, "probe-document.ts")) as ModuleSummary;
+  const summary = summarizeReact(source, "probe-document.ts") as ModuleSummary;
   const service = new TypeScriptFactsService(root);
   try {
     const facts = service

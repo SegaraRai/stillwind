@@ -1,4 +1,5 @@
 import { NativeDesignSystemLoader } from "@stillwind/native";
+import type { NativeCompilerOptions, NativeCssLoadStep } from "@stillwind/native";
 export interface CssHost {
   resolve(specifier: string, importer: string): Promise<string>;
   read(id: string): Promise<string>;
@@ -6,22 +7,15 @@ export interface CssHost {
 }
 export async function loadCssGraph(
   root: string,
-  optionsJson: string,
+  options: NativeCompilerOptions,
   host: CssHost,
   rootContent?: string,
 ) {
-  const loader = new NativeDesignSystemLoader(optionsJson);
+  const loader = new NativeDesignSystemLoader(options);
   host.watch(root);
-  type LoadStep =
-    | { kind: "needFile"; requests: { id: number; importer: string; specifier: string }[] }
-    | {
-        kind: "complete";
-        resources: { placeholder: string; owner: string; specifier: string }[];
-      };
+  type LoadStep = NativeCssLoadStep;
   let resourceReferences: Extract<LoadStep, { kind: "complete" }>["resources"] = [];
-  const initial = JSON.parse(
-    loader.provide(0, root, rootContent ?? (await host.read(root))),
-  ) as LoadStep;
+  const initial = loader.provide(0, root, rootContent ?? (await host.read(root)));
   await new Promise<void>((resolveLoad, rejectLoad) => {
     const started = new Set<number>();
     let stopped = false;
@@ -47,7 +41,7 @@ export async function loadCssGraph(
           const content = await host.read(name);
           if (stopped) return;
           // JS callbacks serialize provide/step processing; I/O remains concurrent.
-          advance(JSON.parse(loader.provide(request.id, name, content)) as LoadStep);
+          advance(loader.provide(request.id, name, content));
         };
         // Handle every rejection, including reads finishing after another read failed.
         void read().catch(fail);

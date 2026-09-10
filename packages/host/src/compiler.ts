@@ -4,7 +4,7 @@ import { summarizeReact } from "@stillwind/native";
 import type { NativeProjectSession } from "@stillwind/native";
 import { projectFrameworkSource } from "@stillwind/projection";
 
-import type { ModuleSummary, ProjectSource, ProjectCompilerOutput } from "./protocol.ts";
+import type { ModuleSummary, ProjectSource } from "./protocol.ts";
 import type { TypeScriptFactsService, TypeFact } from "./type-facts.ts";
 export interface CompilerHost {
   resolve(
@@ -29,8 +29,9 @@ export function cleanModuleId(id: string): string {
 
 function semanticDependencies(summary: ModuleSummary, requested: string | null) {
   if (requested === null) return summary.probe_imports;
-  if (requested !== "*" && Object.hasOwn(summary.export_imports, requested)) {
-    return summary.export_imports[requested];
+  const selected = summary.export_imports.find((entry) => entry.name === requested);
+  if (requested !== "*" && selected) {
+    return selected.imports;
   }
   const reExports = summary.re_exports.filter(
     (entry) => requested === "*" || entry.exported === requested || entry.exported === "*",
@@ -64,14 +65,12 @@ export async function compileModule(
     path: compilerModulePath(projectRoot, entryId),
     source: code,
   });
-  const entrySummary = JSON.parse(
-    summarizeReact(
-      entrySource.source,
-      entrySource.fw_code === undefined
-        ? entrySource.path
-        : `${entrySource.path}.${entrySource.language}`,
-    ),
-  ) as ModuleSummary;
+  const entrySummary = summarizeReact(
+    entrySource.source,
+    entrySource.fw_code === undefined
+      ? entrySource.path
+      : `${entrySource.path}.${entrySource.language}`,
+  );
   const hasModuleCssImport = entrySummary.module_css_imports > 0;
   if (entrySummary.macro_imports > 0) entrySource.stylesheet_imports = options.stylesheetImports;
   if (hasModuleCssImport) entrySource.module_css_import = options.moduleCssImport;
@@ -97,9 +96,7 @@ export async function compileModule(
     sourcesById.set(source.id, source);
     const summary =
       summaries.get(source.path) ??
-      (source.id === entryId
-        ? entrySummary
-        : (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary));
+      (source.id === entryId ? entrySummary : summarizeReact(source.source, source.path));
     summaries.set(source.path, summary);
     if (!needsTypeFacts) continue;
     for (const dependency of semanticDependencies(summary, requested)) {
@@ -151,9 +148,7 @@ export async function compileModule(
     ...source,
     type_facts: typeFacts.get(source.path) ?? [],
   }));
-  const projectOutput = JSON.parse(
-    session.compile(JSON.stringify(typedSources), compilerModulePath(projectRoot, entryId)),
-  ) as ProjectCompilerOutput;
+  const projectOutput = session.compile(typedSources, compilerModulePath(projectRoot, entryId));
   const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
   for (const output of projectOutput.modules) {
     const moduleId = idsByPath.get(output.path);
