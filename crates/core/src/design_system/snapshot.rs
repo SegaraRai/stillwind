@@ -97,9 +97,13 @@ impl DesignSystemSnapshot {
         }
         config.validate()?;
         let config_hash = Fingerprint::of(format!("{config:?}"));
-        let ordering = Fingerprint::of(format!("{:?}{:?}", theme.imports, builtin_theme_order()));
+        let ordering = Fingerprint::of(format!(
+            "{:?}{:?}",
+            theme.imports,
+            builtin_theme_order(&theme)
+        ));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
-        let builtins = theme.imports.builtins.then(builtin_definitions);
+        let builtins = theme.imports.builtins.then(|| builtin_definitions(&theme));
         let mut declaration_formats = builtins.as_ref().map_or_else(BTreeMap::new, |definitions| {
             definitions.declaration_formats.clone()
         });
@@ -197,7 +201,7 @@ impl DesignSystemSnapshot {
             content.0,
             builtins
                 .as_ref()
-                .map_or("", |definitions| definitions.source)
+                .map_or("", |definitions| definitions.source.as_str())
         ));
         let utilities = utility_registry.fingerprints();
         let variants = variant_registry.fingerprints();

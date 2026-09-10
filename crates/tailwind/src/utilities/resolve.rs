@@ -41,7 +41,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             let mut resolution = UtilityResolution::plain(format!("{property}:{value};"));
-            resolution.builtin_order = Some(arbitrary_property_order(property));
+            resolution.builtin_order = Some(arbitrary_property_order(property, theme));
             resolution
         }
         Utility::Named { name, modifier } => {
@@ -98,7 +98,7 @@ pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String>
         return project_animation_option_utility(raw, theme);
     };
     if let Some(resolution) = resolve_css_utility_branches(
-        matching_utilities(builtin_animation_options(), name),
+        matching_utilities(builtin_animation_options(theme), name),
         name,
         modifier.as_ref(),
         theme,
@@ -120,7 +120,7 @@ pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) ->
     {
         return None;
     }
-    let mappings = animation_option_property_mappings();
+    let mappings = animation_option_property_mappings(theme);
     let mut projected = String::new();
     for declaration in utility
         .declaration
@@ -141,8 +141,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn css_registries_are_isolated_without_process_defaults() {
+        let first = ThemeIndex {
+            registry: std::sync::Arc::new(stillwind_css::BuiltinDefinitions::from_css(
+                "@stillwind-utility sample { color: red; }",
+            )),
+            ..ThemeIndex::default()
+        };
+        let second = ThemeIndex {
+            registry: std::sync::Arc::new(stillwind_css::BuiltinDefinitions::from_css(
+                "@stillwind-utility sample { color: blue; }",
+            )),
+            ..ThemeIndex::default()
+        };
+        assert_eq!(
+            resolve_utility("sample", &first).unwrap().declaration,
+            "color:red;"
+        );
+        assert_eq!(
+            resolve_utility("sample", &second).unwrap().declaration,
+            "color:blue;"
+        );
+        assert_eq!(
+            resolve_utility("sample", &first).unwrap().declaration,
+            "color:red;"
+        );
+        assert!(resolve_utility("sample", &ThemeIndex::default()).is_none());
+        assert!(resolve_utility("flex", &ThemeIndex::default()).is_none());
+    }
+
+    #[test]
     fn animation_projection_keeps_only_mapped_properties_and_rejects_variants() {
-        let theme = ThemeIndex::default();
+        let theme = ThemeIndex {
+            registry: std::sync::Arc::new(stillwind_css::BuiltinDefinitions::from_css(
+                "@stillwind-animation-option-property transition-duration: animation-duration;\n@stillwind-animation-option-property transition-timing-function: animation-timing-function;",
+            )),
+            ..ThemeIndex::default()
+        };
         assert_eq!(
             project_animation_option_utility("[transition-duration:120ms]", &theme).as_deref(),
             Some("animation-duration:120ms;")

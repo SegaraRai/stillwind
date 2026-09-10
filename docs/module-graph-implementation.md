@@ -9,7 +9,7 @@ with a target of 5–30 commits including the initial integration.
 | Work                                                                  | Status           | Evidence / next check                                                                                           |
 | --------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
 | Module CSS transport and class identity                               | Done (`77ba639`) | Rust, Vite build, Chrome edit/remove/restore, fixtures; workspace commit gates                                  |
-| Self-contained `stillwind` package and CSS exports                    | In progress      | Recursive exported CSS graph must stay within the package                                                       |
+| Self-contained `stillwind` package and CSS exports                    | Done (`30aff1a`) | Six package tests and seven Vite tests; recursive exported CSS imports stay within the package                  |
 | CSS-derived registries; remove Rust CSS embedding and magic imports   | Pending          | Changed CSS definitions must change behavior without rebuilding Rust; no-import input must not acquire defaults |
 | Import modifiers, utilities slot, source provenance and relative URLs | Pending          | Layer/supports/media placement, explicit diagnostics, URL and mapping fixtures                                  |
 | Demand-driven semantic reads and environment/session isolation        | Pending          | Unreached sources, imported/re-exported assets, cache, deletion, stale async updates                            |
@@ -22,3 +22,11 @@ with a target of 5–30 commits including the initial integration.
 
 Every step records tests actually run. A successful surrogate transport probe
 does not substitute for acceptance using the Stillwind compiler.
+
+Registry ownership now belongs to each immutable theme snapshot. Utility,
+variant, property, formatting and ordering consumers read that snapshot, with
+no process-global semantic registry. Core/CSS tests: 204 passed; Tailwind tests:
+87 passed, one pre-existing ignored parity audit. An isolation test resolves
+different declarations from the same utility name in separate registries and
+checks that an empty registry does not acquire builtins. The legacy CSS input
+fallback remains temporarily in the CSS parser until the entry/template step.

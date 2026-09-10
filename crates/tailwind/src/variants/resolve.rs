@@ -73,7 +73,7 @@ pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool
         theme
             .relationship_patterns
             .iter()
-            .chain(builtin_relationship_patterns().iter())
+            .chain(builtin_relationship_patterns(theme).iter())
             .any(|pattern| {
                 pattern
                     .strip_suffix('*')
@@ -104,7 +104,7 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
         return None;
     };
     if !theme.marker_utilities.contains(name.as_str())
-        && !builtin_marker_utilities().contains(name.as_str())
+        && !builtin_marker_utilities(theme).contains(name.as_str())
     {
         return None;
     }
@@ -125,7 +125,7 @@ pub(crate) fn resolve_registered_variant(
     theme
         .imports
         .builtins
-        .then(|| resolve_registered_variant_from(builtin_variants(), value, theme))?
+        .then(|| resolve_registered_variant_from(builtin_variants(theme), value, theme))?
 }
 
 pub(crate) fn resolve_bare_registered_variant(
@@ -133,7 +133,7 @@ pub(crate) fn resolve_bare_registered_variant(
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
     theme.imports.builtins.then(|| {
-        builtin_variants().iter().find_map(|variant| {
+        builtin_variants(theme).iter().find_map(|variant| {
             let sort = variant.sort.as_ref().filter(|sort| sort.bare)?;
             let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
             theme.token_in(namespace, value)?;

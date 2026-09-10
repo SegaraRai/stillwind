@@ -76,8 +76,8 @@ pub(crate) fn resolve_builtin_css_utility(
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
-        matching_utilities(&builtin_utilities().wildcards, lookup).chain(
-            builtin_utilities()
+        matching_utilities(&builtin_utilities(theme).wildcards, lookup).chain(
+            builtin_utilities(theme)
                 .builtin_exact
                 .get(lookup)
                 .into_iter()

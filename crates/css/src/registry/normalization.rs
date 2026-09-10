@@ -1,11 +1,11 @@
-use super::metadata::builtin_function_formats;
+use std::collections::BTreeSet;
 
 /// Removes non-semantic whitespace from vendored declarations.
 ///
 /// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
 /// their authored serialization. Quoted values are preserved byte-for-byte.
 #[allow(clippy::too_many_lines)]
-pub(crate) fn canonical_builtin_body(value: &str) -> String {
+pub fn canonical_builtin_body(value: &str, function_formats: &BTreeSet<String>) -> String {
     let mut output = String::with_capacity(value.len());
     let mut quote = None;
     let mut escaped = false;
@@ -61,9 +61,8 @@ pub(crate) fn canonical_builtin_body(value: &str) -> String {
             }
             ',' => {
                 output.push(character);
-                let preserve_function_spacing = functions
-                    .iter()
-                    .any(|name| builtin_function_formats().contains(name));
+                let preserve_function_spacing =
+                    functions.iter().any(|name| function_formats.contains(name));
                 if custom_property_declaration || preserve_function_spacing {
                     output.push(' ');
                 }
@@ -88,9 +87,8 @@ pub(crate) fn canonical_builtin_body(value: &str) -> String {
                     // utility serializer retains this spelling in function
                     // arguments (notably color-mix/gradient stop lists), and
                     // LightningCSS does not normalize it away in its output.
-                    let preserve_function_spacing = functions
-                        .iter()
-                        .any(|name| builtin_function_formats().contains(name));
+                    let preserve_function_spacing =
+                        functions.iter().any(|name| function_formats.contains(name));
                     if adjacent_words
                         || function_followed_by_word
                         || (previous == ','
@@ -121,11 +119,11 @@ mod tests {
     #[test]
     fn canonicalization_keeps_quoted_content_and_token_boundaries() {
         assert_eq!(
-            canonical_builtin_body("color: red; width: 1px;"),
+            canonical_builtin_body("color: red; width: 1px;", &BTreeSet::new()),
             "color:red;width:1px;"
         );
         assert_eq!(
-            canonical_builtin_body("content: 'a  b'; font: bold 12px serif;"),
+            canonical_builtin_body("content: 'a  b'; font: bold 12px serif;", &BTreeSet::new()),
             "content:'a  b';font:bold 12px serif;"
         );
         assert!(is_word_character('%'));

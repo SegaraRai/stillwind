@@ -90,7 +90,7 @@ impl DesignSystemQuery {
         let properties = theme
             .properties
             .iter()
-            .chain(builtin_property_definitions());
+            .chain(builtin_property_definitions(theme));
         let required_properties = properties
             .filter(|property| css.contains(&property.name))
             .map(|property| property.name.clone())
@@ -126,7 +126,7 @@ impl DesignSystemQuery {
             .map(str::to_owned)
             .collect();
         if theme.imports.builtins {
-            let token_prefixes = builtin_utility_token_prefixes();
+            let token_prefixes = builtin_utility_token_prefixes(theme);
             for token in theme.active_tokens() {
                 for (prefix, namespace) in &token_prefixes {
                     if let Some(name) = token.name.value.strip_prefix(&format!("--{namespace}-")) {

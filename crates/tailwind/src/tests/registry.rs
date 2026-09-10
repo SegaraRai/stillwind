@@ -4,31 +4,31 @@ use super::*;
 
 #[test]
 fn derives_arbitrary_property_order_from_builtin_css() {
-    let transform = resolve_utility("transform-gpu", &ThemeIndex::default())
+    let transform = resolve_utility("transform-gpu", &theme())
         .expect("transform utility")
         .builtin_order
         .expect("built-in order");
-    let margin = resolve_utility("[margin:0]", &ThemeIndex::default())
+    let margin = resolve_utility("[margin:0]", &theme())
         .expect("arbitrary margin")
         .builtin_order
         .expect("built-in order");
-    let margin_left = resolve_utility("[margin-left:1px]", &ThemeIndex::default())
+    let margin_left = resolve_utility("[margin-left:1px]", &theme())
         .expect("arbitrary margin-left")
         .builtin_order
         .expect("derived order");
-    let all = resolve_utility("[all:unset]", &ThemeIndex::default())
+    let all = resolve_utility("[all:unset]", &theme())
         .expect("arbitrary all")
         .builtin_order
         .expect("derived order");
-    let background = resolve_utility("[background:red]", &ThemeIndex::default())
+    let background = resolve_utility("[background:red]", &theme())
         .expect("arbitrary background")
         .builtin_order
         .expect("derived order");
-    let translate_variable = resolve_utility("[--tw-translate-x:1px]", &ThemeIndex::default())
+    let translate_variable = resolve_utility("[--tw-translate-x:1px]", &theme())
         .expect("positioned Tailwind variable")
         .builtin_order
         .expect("declared order");
-    let unknown_tailwind_variable = resolve_utility("[--tw-unknown:1]", &ThemeIndex::default())
+    let unknown_tailwind_variable = resolve_utility("[--tw-unknown:1]", &theme())
         .expect("fallback Tailwind variable")
         .builtin_order
         .expect("declared order");
@@ -197,7 +197,7 @@ fn every_tailwind_theme_namespace_has_a_typed_arbitrary_value_domain() {
         ThemeNamespace::Duration,
     ] {
         assert!(
-            !theme_arbitrary_types(namespace).is_empty(),
+            !theme_arbitrary_types(namespace, &theme()).is_empty(),
             "{namespace:?} must not fall back to an unchecked arbitrary value"
         );
     }

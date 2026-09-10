@@ -8,7 +8,6 @@ use stillwind_css::{
 use stillwind_grammar::{Utility, VariantKind, parse_candidate};
 use stillwind_source::{FileId, SourceFile};
 
-use super::builtins::normalization::canonical_builtin_body;
 use super::utilities::body::resolve_css_utility_body;
 use super::utilities::matching::resolve_css_utility_branches;
 use super::values::theme::theme_arbitrary_types;

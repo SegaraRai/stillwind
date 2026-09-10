@@ -28,7 +28,10 @@ pub(in crate::compiler) fn prepend_missing_declarations(
 
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
-    combine_declarations_with_formats(utilities, builtin_declaration_formats())
+    combine_declarations_with_formats(
+        utilities,
+        &stillwind_css::parse_declaration_formats(stillwind_css::BUILTIN_REGISTRY_CSS),
+    )
 }
 
 pub(in crate::compiler) fn combine_declarations_for_theme(
@@ -36,7 +39,7 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
     theme: &ThemeIndex,
 ) -> String {
     let formats = if theme.declaration_formats.is_empty() {
-        builtin_declaration_formats()
+        builtin_declaration_formats(theme)
     } else {
         &theme.declaration_formats
     };

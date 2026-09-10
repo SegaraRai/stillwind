@@ -6,13 +6,13 @@ use stillwind_tailwind::{
 pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     let mut utilities = Vec::new();
     if theme.imports.builtins {
-        utilities.extend(builtin_utility_names());
+        utilities.extend(builtin_utility_names(theme));
         for token in &theme.tokens {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
             else {
                 continue;
             };
-            for (prefix, expected_namespace) in builtin_utility_token_prefixes() {
+            for (prefix, expected_namespace) in builtin_utility_token_prefixes(theme) {
                 if namespace == expected_namespace {
                     utilities.push(format!("{prefix}-{name}"));
                 }
@@ -28,7 +28,7 @@ pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
         .join("\n");
     let mut variants = Vec::new();
     if theme.imports.builtins {
-        variants.extend(builtin_variant_names());
+        variants.extend(builtin_variant_names(theme));
         variants.extend(theme.tokens.iter().filter_map(|token| {
             if let ThemeTokenKind::Token {
                 namespace: ThemeNamespace::Breakpoint,

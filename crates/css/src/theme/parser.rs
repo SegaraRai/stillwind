@@ -46,6 +46,7 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
         .map_err(|error| ThemeError::Parse(error.into_owned()))?;
 
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
+    theme.registry = std::sync::Arc::new(crate::BuiltinDefinitions::from_css(source.text()));
     theme.custom_css = strip_framework_directives(source.text());
     theme.utilities = extract_custom_utilities(source.text());
     theme.variants = extract_custom_variants(source.text());
@@ -98,6 +99,11 @@ pub fn parse_tailwind_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeErro
     let mut custom_css = strip_framework_directives(source.text());
     custom_css.push_str(&extract_keyframe_blocks(source.text()));
     Ok(ThemeIndex {
+        registry: std::sync::Arc::new(crate::BuiltinDefinitions::from_css(&if imports.builtins {
+            format!("{}\n{}", crate::BUILTIN_REGISTRY_CSS, source.text())
+        } else {
+            source.text().to_owned()
+        })),
         tokens,
         custom_css,
         utilities: extract_custom_utilities(source.text()),
@@ -174,6 +180,7 @@ pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex
     }
 
     Ok(ThemeIndex {
+        registry: std::sync::Arc::default(),
         tokens,
         custom_css: String::new(),
         utilities: Vec::new(),

@@ -61,10 +61,10 @@ fn render(
         let mut required_tokens = theme.tokens_required_by_with_omit_rules(
             &used_css,
             document && imports.base_layer.is_some(),
-            builtin_omit_token_prefixes(),
+            builtin_omit_token_prefixes(theme),
         );
         required_tokens.sort_by_key(|token| (token.name.span.file, token.name.span.start));
-        let theme_order = builtin_theme_order();
+        let theme_order = builtin_theme_order(theme);
         if !theme_order.is_empty()
             && required_tokens
                 .iter()

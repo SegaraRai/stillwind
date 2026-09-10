@@ -10,8 +10,10 @@ pub(crate) fn theme_value(
     theme: &ThemeIndex,
 ) -> Option<String> {
     let value = match (namespace, value) {
-        _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
-        _ if let Some(value) = typed_css_variable(namespace, value) => format!("var({value})"),
+        _ if let Some(value) = typed_theme_arbitrary(namespace, value, theme) => value,
+        _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
+            format!("var({value})")
+        }
         // Tailwind's candidate grammar accepts ASCII identifier tokens only;
         // Unicode theme names remain valid CSS but are not utility candidates.
         _ if !value.is_ascii() => return None,
@@ -54,19 +56,25 @@ pub(crate) fn theme_value_literal(
     theme: &ThemeIndex,
 ) -> Option<String> {
     let value = match (namespace, value) {
-        _ if let Some(value) = typed_theme_arbitrary(namespace, value) => value,
-        _ if let Some(value) = typed_css_variable(namespace, value) => format!("var({value})"),
+        _ if let Some(value) = typed_theme_arbitrary(namespace, value, theme) => value,
+        _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
+            format!("var({value})")
+        }
         _ if let Some(token) = theme.token_in(namespace, value) => token.value.value.clone(),
         _ => return theme_value(namespace, value, theme),
     };
     Some(value)
 }
 
-pub(crate) fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> Option<String> {
+pub(crate) fn typed_theme_arbitrary(
+    namespace: ThemeNamespace,
+    value: &str,
+    theme: &ThemeIndex,
+) -> Option<String> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
     let value = decode_arbitrary(value);
-    let types = theme_arbitrary_types(namespace);
+    let types = theme_arbitrary_types(namespace, theme);
     let hint_is_compatible = hint.is_empty()
         || types.is_empty()
         || ValueType::from_hint(hint)
@@ -75,8 +83,8 @@ pub(crate) fn typed_theme_arbitrary(namespace: ThemeNamespace, value: &str) -> O
         .then_some(value)
 }
 
-pub(crate) fn theme_arbitrary_types(namespace: ThemeNamespace) -> &'static [ValueType] {
-    builtin_theme_namespace_types()
+pub(crate) fn theme_arbitrary_types(namespace: ThemeNamespace, theme: &ThemeIndex) -> &[ValueType] {
+    builtin_theme_namespace_types(theme)
         .get(&namespace)
         .map_or(&[], Vec::as_slice)
 }
@@ -108,9 +116,13 @@ pub(crate) fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String
     Some(value)
 }
 
-pub(crate) fn typed_css_variable(namespace: ThemeNamespace, value: &str) -> Option<&str> {
+pub(crate) fn typed_css_variable<'a>(
+    namespace: ThemeNamespace,
+    value: &'a str,
+    theme: &ThemeIndex,
+) -> Option<&'a str> {
     let variable = parse_css_variable(value)?;
-    let types = theme_arbitrary_types(namespace);
+    let types = theme_arbitrary_types(namespace, theme);
     (variable.hint.is_none()
         || types.is_empty()
         || variable
@@ -138,20 +150,26 @@ mod tests {
 
     #[test]
     fn arbitrary_values_and_variables_must_match_namespace_types() {
+        let configured = ThemeIndex {
+            registry: std::sync::Arc::new(stillwind_css::BuiltinDefinitions::from_css(
+                stillwind_css::BUILTIN_REGISTRY_CSS,
+            )),
+            ..ThemeIndex::default()
+        };
         assert_eq!(
-            typed_theme_arbitrary(ThemeNamespace::Spacing, "[length:2px]"),
+            typed_theme_arbitrary(ThemeNamespace::Spacing, "[length:2px]", &configured),
             Some("2px".into())
         );
         assert_eq!(
-            typed_theme_arbitrary(ThemeNamespace::Spacing, "[time:2s]"),
+            typed_theme_arbitrary(ThemeNamespace::Spacing, "[time:2s]", &configured),
             None
         );
         assert_eq!(
-            typed_css_variable(ThemeNamespace::Color, "(color:--x)"),
+            typed_css_variable(ThemeNamespace::Color, "(color:--x)", &configured),
             Some("--x")
         );
         assert_eq!(
-            typed_css_variable(ThemeNamespace::Color, "(length:--x)"),
+            typed_css_variable(ThemeNamespace::Color, "(length:--x)", &configured),
             None
         );
         let theme = ThemeIndex::default();

@@ -166,7 +166,7 @@ pub(crate) fn normalize_registered_var_fallbacks(
             .iter()
             .find(|property| property.name == name)
             .or_else(|| {
-                builtin_property_definitions()
+                builtin_property_definitions(theme)
                     .iter()
                     .find(|property| property.name == name)
             });

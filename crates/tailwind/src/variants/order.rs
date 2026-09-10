@@ -12,8 +12,11 @@ use crate::values::theme::theme_arbitrary_types;
 use super::resolve::{parse_nested_variant, split_variant_modifier};
 use super::substitution::registered_variant_candidates;
 
-pub(crate) fn direct_builtin_variant(value: &str) -> Option<&'static CustomVariant> {
-    builtin_variants()
+pub(crate) fn direct_builtin_variant<'a>(
+    value: &str,
+    theme: &'a ThemeIndex,
+) -> Option<&'a CustomVariant> {
+    builtin_variants(theme)
         .iter()
         .filter_map(|variant| {
             if !variant.wildcard && variant.name == value {
@@ -34,11 +37,11 @@ pub(crate) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
     ThemeNamespace::parse(key.strip_prefix("--")?.strip_suffix("-*")?)
 }
 
-pub(crate) fn bare_builtin_variant(
+pub(crate) fn bare_builtin_variant<'a>(
     value: &str,
-    theme: &ThemeIndex,
-) -> Option<&'static CustomVariant> {
-    builtin_variants().iter().find(|variant| {
+    theme: &'a ThemeIndex,
+) -> Option<&'a CustomVariant> {
+    builtin_variants(theme).iter().find(|variant| {
         let Some(sort) = variant.sort.as_ref().filter(|sort| sort.bare) else {
             return false;
         };
@@ -49,14 +52,14 @@ pub(crate) fn bare_builtin_variant(
     })
 }
 
-pub(crate) fn builtin_variant_for_order(
+pub(crate) fn builtin_variant_for_order<'a>(
     variant: &Variant,
-    theme: &ThemeIndex,
-) -> Option<&'static CustomVariant> {
+    theme: &'a ThemeIndex,
+) -> Option<&'a CustomVariant> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    direct_builtin_variant(value).or_else(|| bare_builtin_variant(value, theme))
+    direct_builtin_variant(value, theme).or_else(|| bare_builtin_variant(value, theme))
 }
 
 pub(crate) fn variant_group(variant: &CustomVariant) -> &str {
@@ -72,7 +75,7 @@ pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
         return usize::MAX;
     };
     let group = variant_group(variant);
-    builtin_variants()
+    builtin_variants(theme)
         .iter()
         .filter(|candidate| variant_group(candidate) == group)
         .filter_map(|candidate| candidate.builtin_order)
@@ -128,7 +131,7 @@ pub(crate) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
         .and_then(|capture| capture.strip_suffix(']'))
     {
         let arbitrary = decode_arbitrary(arbitrary);
-        return theme_arbitrary_types(namespace)
+        return theme_arbitrary_types(namespace, theme)
             .iter()
             .any(|value_type| value_type.accepts(&arbitrary))
             .then_some(arbitrary);
@@ -175,7 +178,7 @@ pub(crate) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
         theme
             .imports
             .builtins
-            .then(|| compound_variant_capture(builtin_variants(), value))?
+            .then(|| compound_variant_capture(builtin_variants(theme), value))?
     })?;
     Some(parse_nested_variant(split_variant_modifier(&capture).0))
 }

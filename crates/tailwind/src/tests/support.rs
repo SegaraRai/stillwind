@@ -2,6 +2,16 @@ use crate::variants::resolve::resolve_registered_variant_candidate;
 
 use super::*;
 
+pub(super) fn canonical_builtin_body(value: &str) -> String {
+    static FORMATS: std::sync::OnceLock<BTreeSet<String>> = std::sync::OnceLock::new();
+    stillwind_css::canonical_builtin_body(
+        value,
+        FORMATS.get_or_init(|| {
+            stillwind_css::parse_function_formats(stillwind_css::BUILTIN_REGISTRY_CSS)
+        }),
+    )
+}
+
 pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "angle",
     "angle-percentage",

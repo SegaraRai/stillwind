@@ -32,7 +32,7 @@ pub(crate) fn finalize_declaration(
 
 pub(crate) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
-        builtin_declaration_formats()
+        builtin_declaration_formats(theme)
     } else {
         &theme.declaration_formats
     };
@@ -57,7 +57,7 @@ pub(crate) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIn
 
 pub(crate) fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
-        builtin_declaration_formats()
+        builtin_declaration_formats(theme)
     } else {
         &theme.declaration_formats
     };
@@ -90,7 +90,7 @@ pub(crate) fn normalize_format_var_fallbacks(
     theme: &ThemeIndex,
 ) -> String {
     let formats = if theme.declaration_formats.is_empty() {
-        builtin_declaration_formats()
+        builtin_declaration_formats(theme)
     } else {
         &theme.declaration_formats
     };

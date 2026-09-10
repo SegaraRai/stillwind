@@ -1,5 +1,4 @@
 pub(super) mod metadata;
-pub(super) mod normalization;
 pub(super) mod registry;
 
 pub use metadata::{
