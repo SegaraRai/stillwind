@@ -267,14 +267,21 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
     assert.match(String(await readCss(client)), /color: red/);
     assert.match(String(await readCss(ssr)), /color: blue/);
     const sourcePath = path.join(root, "shared.ts");
-    const source = 'import { style } from "stillwind/react"; export const a = style("paint");';
+    const source =
+      'import { style } from "stillwind/react"; import { unrelated } from "./unrelated"; export const a = style("paint"); console.log(unrelated);';
     writeFileSync(sourcePath, source);
     const compile = (environment: typeof client) =>
       transform.call(
         {
           environment,
-          resolve: (specifier: string, importer: string) =>
-            environment.pluginContainer.resolveId(specifier, importer),
+          resolve: (specifier: string, importer: string) => {
+            assert.notEqual(
+              specifier,
+              "./unrelated",
+              "a local style needs no semantic dependency reads",
+            );
+            return environment.pluginContainer.resolveId(specifier, importer);
+          },
           addWatchFile: () => {},
           warn: () => {},
           error: (message: string) => {

@@ -75,6 +75,7 @@ interface PlayOutput extends CompilerOutput {
 }
 
 interface ModuleSummary {
+  type_probes: Array<{ start: number; end: number }>;
   imports: Array<{ source: string }>;
   re_exports: Array<{ source: string }>;
   assets: AssetRecord[];
@@ -120,8 +121,7 @@ function cleanModuleId(id: string): string {
   return id.replace(/[?#].*$/, "");
 }
 
-function localDependencies(source: string, path: string): string[] {
-  const summary = JSON.parse(summarizeReact(source, path)) as ModuleSummary;
+function localDependencies(summary: ModuleSummary): string[] {
   return [
     ...summary.imports.map((entry) => entry.source),
     ...summary.re_exports.map((entry) => entry.source),
@@ -484,6 +484,11 @@ export function stillwind(options: StillwindOptions): Plugin {
         return undefined;
       }
       const entryId = cleanModuleId(id);
+      const entrySummary = JSON.parse(
+        summarizeReact(code, compilerModulePath(projectRoot, entryId)),
+      ) as ModuleSummary;
+      const needsTypeFacts = entrySummary.type_probes.length > 0;
+      const summaries = new Map<string, ModuleSummary>();
       const sourcesById = new Map<string, ProjectSource>();
       const pending: ProjectSource[] = [
         { id: entryId, path: compilerModulePath(projectRoot, entryId), source: code },
@@ -492,7 +497,13 @@ export function stillwind(options: StillwindOptions): Plugin {
         const source = pending.pop()!;
         if (sourcesById.has(source.id)) continue;
         sourcesById.set(source.id, source);
-        for (const specifier of localDependencies(source.source, source.path)) {
+        const summary =
+          source.id === entryId
+            ? entrySummary
+            : (JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary);
+        summaries.set(source.path, summary);
+        if (!needsTypeFacts) continue;
+        for (const specifier of localDependencies(summary)) {
           const resolved = await this.resolve(specifier, source.id, { skipSelf: true });
           if (!resolved || resolved.external) continue;
           const dependencyId = cleanModuleId(resolved.id);
@@ -507,22 +518,18 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
 
       const sources = [...sourcesById.values()];
-      const summaries = new Map(
-        sources.map((source) => [
-          source.path,
-          JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
-        ]),
-      );
-      const typeFacts = (state.typeFacts ??= new TypeScriptFactsService(projectRoot)).collect(
-        sources,
-        new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
-      );
+      const typeFacts = needsTypeFacts
+        ? (state.typeFacts ??= new TypeScriptFactsService(projectRoot)).collect(
+            sources,
+            new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
+          )
+        : new Map<string, TypeFact[]>();
       const typedSources = sources.map((source) => ({
         ...source,
         type_facts: typeFacts.get(source.path) ?? [],
       }));
       const projectOutput = JSON.parse(
-        session.compile(JSON.stringify(typedSources)),
+        session.compile(JSON.stringify(typedSources), compilerModulePath(projectRoot, entryId)),
       ) as ProjectCompilerOutput;
       const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
       for (const output of projectOutput.modules) {

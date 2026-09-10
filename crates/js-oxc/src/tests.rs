@@ -16,6 +16,10 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
     .unwrap();
 
     let parsed = parse(&source);
+    assert!(
+        parsed.type_probes.is_empty(),
+        "literal utilities need no checker queries"
+    );
 
     assert!(parsed.diagnostics.is_empty());
     assert_eq!(parsed.module.style_calls.len(), 1);

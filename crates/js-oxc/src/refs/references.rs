@@ -18,7 +18,7 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
     ) -> Option<Vec<HandleDefinition>> {
         let span = expression.span();
-        self.type_probes.borrow_mut().insert((span.start, span.end));
+        self.record_type_probe(expression);
         if let Some(ExportedValue::Refs(alternatives)) =
             self.type_facts.get(&(span.start, span.end))
         {
@@ -68,7 +68,7 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
     ) -> Option<Vec<ScopeDefinition>> {
         let span = expression.span();
-        self.type_probes.borrow_mut().insert((span.start, span.end));
+        self.record_type_probe(expression);
         if let Some(ExportedValue::Scopes(value)) = self.type_facts.get(&(span.start, span.end)) {
             return value
                 .finite_candidates()?

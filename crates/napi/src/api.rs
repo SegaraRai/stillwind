@@ -255,8 +255,16 @@ pub fn compile_react_project_json_with_options(
 /// Returns an error only when serializing the summary fails.
 pub fn summarize_react_json(source: &str, source_path: &str) -> Result<String, BindingApiError> {
     let source = SourceFile::new(FileId(1), source_path, source)?;
-    serde_json::to_string(&Compiler::analyze_javascript(&source).summary)
-        .map_err(BindingApiError::Json)
+    let parsed = Compiler::analyze_javascript(&source);
+    let mut summary = serde_json::to_value(&parsed.summary).map_err(BindingApiError::Json)?;
+    summary["type_probes"] = serde_json::json!(
+        parsed
+            .type_probes
+            .iter()
+            .map(|span| { serde_json::json!({ "start": span.start.0, "end": span.end.0 }) })
+            .collect::<Vec<_>>()
+    );
+    serde_json::to_string(&summary).map_err(BindingApiError::Json)
 }
 
 /// Native Node entrypoint used by `@stillwind/vite`.

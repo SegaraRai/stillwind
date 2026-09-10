@@ -49,7 +49,7 @@ export declare class NativeDesignSystemLoader {
 export declare class NativeProjectSession {
   constructor(loader: NativeDesignSystemLoader, watch: boolean);
   reload(loader: NativeDesignSystemLoader): string;
-  compile(sourcesJson: string): string;
+  compile(sourcesJson: string, producer?: string): string;
   css(): string;
   baseCss(): string;
   moduleCss(module: string): string;

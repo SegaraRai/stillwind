@@ -85,3 +85,12 @@ A real Vite server test resolves the same import to different client/SSR CSS,
 checks each module carrier, reloads only the client and releases an older load
 after a newer successful reload. Ten Vite tests passed. The Chrome real-compiler
 probe passed initial CSS, CSS-only edit, macro removal and restoration checks.
+
+Native summaries expose checker probe spans. Literal utilities no longer create
+probe candidates; Vite skips recursive semantic input reads and checker startup
+when the entry has no probes. Semantic inputs can now be supplied to a native
+session while selecting only one producer for compilation and registration.
+The cross-module fixture verifies animation support on the selected consumer
+without registering its source producer. Vite tests: ten passed; Oxc: eleven;
+native binding: eight. Probe-bearing graphs still use conservative recursive
+local dependency discovery; finer checker-driven discovery remains pending.

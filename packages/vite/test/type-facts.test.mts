@@ -4,7 +4,12 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { compileReactProject, summarizeReact } from "@stillwind/native";
+import {
+  compileReactProject,
+  summarizeReact,
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+} from "@stillwind/native";
 
 import { resolveFixtureCss } from "../../../tools/lib/stillwind-fixture-css.ts";
 import { finalizeReactModule } from "../src/index.ts";
@@ -89,6 +94,27 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.equal(consumer.css.match(/animation-name:--sw-a-/g)?.length, 2);
   assert.match(consumer.css, /view-transition-name:var\(--sw-vt-name\)/);
   assert.match(consumer.css, /view-transition-class:var\(--sw-vt-class\)/);
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "fixture.css", resolveFixtureCss('@import "stillwind";'));
+  const session = new NativeProjectSession(loader, true);
+  const selected = JSON.parse(
+    session.compile(
+      JSON.stringify(
+        sources.map((source) => ({
+          ...source,
+          type_facts: facts.get(source.path) ?? [],
+        })),
+      ),
+      "src/consumer.ts",
+    ),
+  ) as typeof withFacts;
+  assert.deepEqual(
+    selected.modules.map((module) => module.path),
+    ["src/consumer.ts"],
+  );
+  assert.deepEqual(selected.modules[0].diagnostics, []);
+  assert.match(session.moduleCss("src/consumer.ts"), /animation-name:--sw-a-/);
+  assert.throws(() => session.moduleCss("src/producer.ts"), /Unknown Stillwind module/);
 
   const runnable = finalizeReactModule(consumer.code, false);
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);

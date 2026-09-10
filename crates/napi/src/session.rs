@@ -254,9 +254,20 @@ impl NativeProjectSession {
     }
 
     #[napi]
-    pub fn compile(&mut self, sources_json: String) -> napi::Result<String> {
+    pub fn compile(
+        &mut self,
+        sources_json: String,
+        producer: Option<String>,
+    ) -> napi::Result<String> {
         let sources: Vec<ProjectSource> = serde_json::from_str(&sources_json)
             .map_err(|error| Error::from_reason(error.to_string()))?;
+        if let Some(producer) = &producer
+            && !sources.iter().any(|source| &source.path == producer)
+        {
+            return Err(Error::from_reason(format!(
+                "Unknown Stillwind producer: {producer}"
+            )));
+        }
         let scans: Vec<_> = sources
             .iter()
             .map(|source| {
@@ -274,6 +285,12 @@ impl NativeProjectSession {
             .map_err(|error| Error::from_reason(error.to_string()))?;
         let mut modules = Vec::new();
         for scan in scans {
+            if producer
+                .as_ref()
+                .is_some_and(|producer| producer != scan.module_id.as_str())
+            {
+                continue;
+            }
             let analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
             let update = self

@@ -11,6 +11,20 @@ use stillwind_source::CompileError;
 use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
+        if matches!(
+            expression,
+            Expression::StringLiteral(_)
+                | Expression::NumericLiteral(_)
+                | Expression::BooleanLiteral(_)
+                | Expression::NullLiteral(_)
+        ) {
+            return;
+        }
+        let span = expression.span();
+        self.type_probes.borrow_mut().insert((span.start, span.end));
+    }
+
     pub(super) fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
