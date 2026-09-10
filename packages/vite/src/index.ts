@@ -274,23 +274,38 @@ function previewHtml(id: string) {
 
 /** Runs the native compiler and renders Play user modules only inside a sandboxed iframe. */
 export function stillwind(options: StillwindOptions): Plugin {
-  let session: NativeProjectSession;
+  type EnvironmentState = {
+    session?: NativeProjectSession;
+    resources: Map<string, string>;
+    producers: Set<string>;
+    cssFiles: Set<string>;
+    typeFacts?: TypeScriptFactsService;
+    revision: number;
+  };
+  const environments = new Map<string, EnvironmentState>();
+  const environmentState = (name = "client") => {
+    let state = environments.get(name);
+    if (!state) {
+      state = { resources: new Map(), producers: new Set(), cssFiles: new Set(), revision: 0 };
+      environments.set(name, state);
+    }
+    return state;
+  };
   let watching = false;
   const cssFiles = new Set<string>();
   const previewBundles = new Map<string, string>();
   let projectRoot = "";
-  let typeFactsService: TypeScriptFactsService | undefined;
-  const producers = new Set<string>();
   const loaderResources = new WeakMap<NativeDesignSystemLoader, Map<string, string>>();
-  let resources = new Map<string, string>();
-  const resolveResources = (css: string, references = resources) => {
+  const resolveResources = (css: string, references = new Map<string, string>()) => {
     for (const [placeholder, url] of references) css = css.replaceAll(placeholder, url);
     return css;
   };
 
   const closeTypeFacts = () => {
-    typeFactsService?.close();
-    typeFactsService = undefined;
+    for (const state of environments.values()) {
+      state.typeFacts?.close();
+      state.typeFacts = undefined;
+    }
   };
 
   const loadDesignSystem = async (
@@ -371,11 +386,15 @@ export function stillwind(options: StillwindOptions): Plugin {
   return {
     name: "stillwind",
     enforce: "pre",
+    perEnvironmentStartEndDuringDev: true,
+    perEnvironmentWatchChangeDuringDev: true,
     resolveId(id) {
       return id === virtualCssId || id.startsWith(moduleCssPrefix) ? `\0${id}` : undefined;
     },
     load(id) {
-      if (id === resolvedVirtualCssId) return resolveResources(session.baseCss());
+      const state = environmentState(this.environment?.name);
+      if (id === resolvedVirtualCssId)
+        return resolveResources(state.session!.baseCss(), state.resources);
       if (id.startsWith(`\0${moduleCssPrefix}`))
         return Buffer.from(id.slice(moduleCssPrefix.length + 1), "base64url").toString("utf8");
       return undefined;
@@ -384,44 +403,62 @@ export function stillwind(options: StillwindOptions): Plugin {
       projectRoot = config.root;
       watching = config.command === "serve";
       closeTypeFacts();
-      typeFactsService = new TypeScriptFactsService(projectRoot);
     },
     async buildStart() {
-      const loader = await loadDesignSystem(async (specifier, importer) => {
-        const result = await this.resolve(specifier, importer, { skipSelf: true });
-        if (!result || result.external)
-          throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
-        return result.id;
-      });
-      session = new NativeProjectSession(loader, watching);
-      resources = loaderResources.get(loader) ?? new Map();
-      for (const path of cssFiles) this.addWatchFile(path);
-      writeTypes(loader);
-    },
-    async handleHotUpdate(context) {
-      if (!cssFiles.has(context.file) && !cssFiles.has(realpathSync(context.file))) return;
-      try {
-        const loader = await loadDesignSystem(async (specifier, importer) => {
-          const result = await context.server.pluginContainer.resolveId(specifier, importer);
+      const state = environmentState(this.environment?.name);
+      const revision = ++state.revision;
+      const dependencies = new Set<string>();
+      const loader = await loadDesignSystem(
+        async (specifier, importer) => {
+          const result = await this.resolve(specifier, importer, { skipSelf: true });
           if (!result || result.external)
             throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
           return result.id;
-        });
-        const update = JSON.parse(session.reload(loader)) as {
+        },
+        undefined,
+        dependencies,
+      );
+      if (state.revision !== revision) return;
+      state.session = new NativeProjectSession(loader, watching);
+      state.resources = loaderResources.get(loader) ?? new Map();
+      state.cssFiles = dependencies;
+      state.producers.clear();
+      for (const path of dependencies) this.addWatchFile(path);
+      writeTypes(loader);
+    },
+    async hotUpdate(context) {
+      const state = environmentState(this.environment.name);
+      if (!state.cssFiles.has(context.file) && !state.cssFiles.has(resolve(context.file))) return;
+      const revision = ++state.revision;
+      const dependencies = new Set<string>();
+      try {
+        const loader = await loadDesignSystem(
+          async (specifier, importer) => {
+            const result = await this.environment.pluginContainer.resolveId(specifier, importer);
+            if (!result || result.external)
+              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+            return result.id;
+          },
+          undefined,
+          dependencies,
+        );
+        if (revision !== state.revision) return [];
+        const update = JSON.parse(state.session!.reload(loader)) as {
           cssChanged: boolean;
           transformedModules: string[];
         };
-        resources = loaderResources.get(loader) ?? new Map();
-        context.server.watcher.add([...cssFiles]);
+        state.resources = loaderResources.get(loader) ?? new Map();
+        state.cssFiles = dependencies;
+        context.server.watcher.add([...dependencies]);
         writeTypes(loader);
         // A CSS-only semantic change must also refresh the producer's payload
         // import, even when its class names and JS transforms are unchanged.
-        const modules = [...producers].flatMap((id) => [
-          ...(context.server.moduleGraph.getModulesByFile(cleanModuleId(id)) ?? []),
+        const modules = [...state.producers].flatMap((id) => [
+          ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(id)) ?? []),
         ]);
-        const cssModule = context.server.moduleGraph.getModuleById(resolvedVirtualCssId);
+        const cssModule = this.environment.moduleGraph.getModuleById(resolvedVirtualCssId);
         if (update.cssChanged && cssModule) modules.push(cssModule);
-        for (const module of modules) context.server.moduleGraph.invalidateModule(module);
+        for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
         return modules;
       } catch (error) {
         this.warn(
@@ -431,16 +468,19 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
     },
     watchChange(id, change) {
+      const state = environmentState(this.environment?.name);
       if (change.event === "delete") {
-        session?.remove(compilerModulePath(projectRoot, id));
-        producers.delete(id);
+        state.session?.remove(compilerModulePath(projectRoot, id));
+        state.producers.delete(id);
       }
     },
     async transform(code, id) {
       if (!/\.[cm]?[jt]sx?$/.test(id) || id.includes("node_modules")) return undefined;
+      const state = environmentState(this.environment?.name);
+      const session = state.session!;
       if (!code.includes("stillwind/react")) {
         session.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
-        producers.delete(id);
+        state.producers.delete(id);
         return undefined;
       }
       const entryId = cleanModuleId(id);
@@ -473,7 +513,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           JSON.parse(summarizeReact(source.source, source.path)) as ModuleSummary,
         ]),
       );
-      const typeFacts = (typeFactsService ??= new TypeScriptFactsService(projectRoot)).collect(
+      const typeFacts = (state.typeFacts ??= new TypeScriptFactsService(projectRoot)).collect(
         sources,
         new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
       );
@@ -511,8 +551,8 @@ export function stillwind(options: StillwindOptions): Plugin {
         (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
       );
       if (!output?.code) return undefined;
-      producers.add(id);
-      const css = resolveResources(session.moduleCss(output.path));
+      state.producers.add(id);
+      const css = resolveResources(session.moduleCss(output.path), state.resources);
       const carrier = `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}`;
       const finalized = finalizeReactModuleWithMap(output.code, false);
       const imports = `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;

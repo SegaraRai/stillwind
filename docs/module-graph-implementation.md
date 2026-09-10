@@ -77,3 +77,11 @@ call. CRLF, non-BMP text, unchanged statements and unmapped synthetic imports
 are covered separately. Vite tests: nine passed, including TypeScript checks.
 CSS rule provenance maps remain outstanding. Installing the map encoder also
 refreshes the workspace lock to the current Vite override and renamed core package.
+
+Vite sessions, TypeScript services, producer sets, CSS dependencies and resource
+resolutions are now scoped by Vite environment. The per-environment hot-update
+hook reloads only that environment and rejects outdated asynchronous loads.
+A real Vite server test resolves the same import to different client/SSR CSS,
+checks each module carrier, reloads only the client and releases an older load
+after a newer successful reload. Ten Vite tests passed. The Chrome real-compiler
+probe passed initial CSS, CSS-only edit, macro removal and restoration checks.
