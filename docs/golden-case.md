@@ -207,6 +207,17 @@ style({ [trigger("hover:active")]: "text-accent" });
 style(`${trigger`hover:active`}:text-accent`);
 ```
 
+An argument-free call tests ref presence without a state condition:
+
+```tsx
+style({ [trigger()]: "text-accent" });
+style(`${trigger()}:text-accent`);
+```
+
+For a scoped ref, this requires a matching element within that scope
+(`.scope:has(.ref) .target`). For an unscoped ref, the matching element must be
+an ancestor (`.ref .target`).
+
 The variants inside `trigger(...)` test the referenced element. Variants outside
 it apply to the styled target. Both forms below test a hovered trigger and an
 active target:

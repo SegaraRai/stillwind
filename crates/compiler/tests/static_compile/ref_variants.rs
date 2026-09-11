@@ -43,6 +43,34 @@ fn compile(args: &str, scoped: bool) -> (String, String) {
 }
 
 #[test]
+fn ref_presence_uses_the_existing_scope_or_ancestor_relation() {
+    for scoped in [false, true] {
+        let (css, code) = compile(r#"{ [trigger()]: "text-accent" }"#, scoped);
+        assert_eq!(
+            compile(r"`${trigger()}:text-accent`", scoped),
+            (css.clone(), code.clone())
+        );
+        let utilities = css.split("@layer utilities{").nth(1).unwrap();
+        assert!(
+            utilities.contains("color:var(--color-accent)"),
+            "{utilities}"
+        );
+        assert!(!utilities.contains(":where("), "{utilities}");
+        assert!(!code.contains("trigger()"), "{code}");
+        if scoped {
+            assert!(css.contains(":has(.s_trigger_"), "{css}");
+        } else {
+            assert!(css.contains(".s_trigger_"), "{css}");
+            assert!(!css.contains(":has("), "{css}");
+        }
+        assert_eq!(
+            compile(r"`${trigger()}:active:text-accent`", scoped),
+            compile(r#"{ [trigger()]: { "active:": "text-accent" } }"#, scoped)
+        );
+    }
+}
+
+#[test]
 fn ref_calls_and_tags_normalize_optional_trailing_separators() {
     for scoped in [false, true] {
         let expected = compile(r#"{ [trigger`hover:active:`]: "text-accent" }"#, scoped);

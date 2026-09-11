@@ -31,6 +31,8 @@ void variantWrapperTypes;
 
 function refVariantTypes(active: boolean) {
   const trigger = react.ref("trigger");
+  react({ [trigger()]: "text-accent" });
+  react(`${trigger()}:text-accent`);
   react({ [trigger`hover:active:`]: "text-accent" });
   react({ [trigger("hover:active")]: ["text-accent", { "active:": "opacity-50" }] });
   react({ "md:": { [trigger("hover")]: { "active:": "text-accent" } } });

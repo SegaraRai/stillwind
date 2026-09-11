@@ -3,6 +3,31 @@ use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile, Span};
 
 #[test]
+fn argument_free_ref_variants_retain_identity_in_both_forms() {
+    for expression in [
+        r"`${trigger()}:text-accent`",
+        r#"{ [trigger()]: "text-accent" }"#,
+    ] {
+        let source = SourceFile::new(FileId(1), "Presence.tsx", format!(
+            "import {{style}} from 'stillwind/react'; const trigger = style.ref('trigger'); const props = style({expression});"
+        )).unwrap();
+        let parsed = parse(&source);
+        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        let StyleInput::Variant {
+            variant: StyleVariant::Ref { handles, prefix },
+            ..
+        } = &parsed.module.style_calls[0].inputs[0]
+        else {
+            panic!("ref variant")
+        };
+        assert!(prefix.value.is_empty());
+        assert_eq!(handles.len(), 1);
+        assert_eq!(handles[0].name.value, "trigger");
+        assert_eq!(source.slice(prefix.span).unwrap(), "trigger()");
+    }
+}
+
+#[test]
 fn template_interpolation_retains_ref_identity_and_original_utility_spans() {
     let source = SourceFile::new(
         FileId(1),

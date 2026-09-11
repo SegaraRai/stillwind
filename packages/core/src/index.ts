@@ -69,6 +69,7 @@ export type StyleRef<RefId extends string = string, ScopeId extends string = nev
   container(type: "size" | "inline-size"): StyleRefProjection<RefId, ScopeId>;
   at(query: string, utilities: string): StyleRefProjection<RefId, ScopeId>;
   (strings: TemplateStringsArray): StyleRefVariant<RefId, ScopeId>;
+  (): StyleRefVariant<RefId, ScopeId>;
   (variants: string): StyleRefVariant<RefId, ScopeId>;
 };
 

@@ -148,6 +148,10 @@ impl<'a> MacroExtractor<'a> {
                     ),
                 )
             }
+            Expression::CallExpression(call) if call.arguments.is_empty() && !call.optional => (
+                &call.callee,
+                Spanned::new(String::new(), self.source_span(call.span)),
+            ),
             Expression::CallExpression(call) if call.arguments.len() == 1 && !call.optional => {
                 let Expression::StringLiteral(value) = call.arguments[0].as_expression()? else {
                     self.diagnostics.push(CompileError::new(

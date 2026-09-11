@@ -424,6 +424,8 @@ identities and the prefix applied to that ref.
 - ordinary wrapper keys end with `:`;
 - ref wrappers accept `trigger` tagged with a static variant string or
   `trigger("hover:active")`; the final `:` in the argument is optional;
+- `trigger()` is a ref variant with no state conditions: scoped refs test
+  presence within their scope, and unscoped refs require a matching ancestor;
 - utility templates inside `style(...)` accept direct ref-variant substitutions
   at complete variant boundaries, such as `` `${trigger`hover:`}:active:text-accent` ``;
 - the ref's variants apply to the referenced element, and the surrounding
