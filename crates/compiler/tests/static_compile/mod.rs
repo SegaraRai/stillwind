@@ -11,6 +11,7 @@ mod support;
 use support::*;
 
 mod acceptance;
+mod conditional_flow;
 mod motion;
 mod numeric;
 mod parity;
