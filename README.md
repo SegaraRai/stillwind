@@ -102,6 +102,9 @@ Conditional and nested utilities keep their source structure: each expression is
 evaluated once, in source order, and the per-framework fragment runtime combines
 the generated classes. See
 [structure-preserving style lowering](docs/style-fragment-lowering.md).
+The four ordering levels - declaration, class unit, module unit, and delivered
+CSS - and the cascade rules that go with them are described in
+[CSS ordering](docs/css-ordering.md).
 
 Vite imports document CSS once, then transports each producer's CSS and support
 dependencies through a self-contained CSS module. Late transforms and dynamic

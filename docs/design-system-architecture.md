@@ -620,6 +620,9 @@ source module changes
 
 `ProjectStylesheet` owns structured rule contributions and stable output order.
 It does not concatenate module CSS strings.
+The stylesheet ordering rules themselves are described in
+[CSS ordering](css-ordering.md); the registry and candidate ordering recorded
+here is a separate axis.
 
 ```rust
 pub struct ProjectStylesheet {

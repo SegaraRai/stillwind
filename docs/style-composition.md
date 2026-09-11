@@ -31,6 +31,9 @@ specificity, importance, and layers. This is not utility-string merging and is
 not an unconditional derived-style override. A derived normal declaration does
 not defeat a base hover declaration with higher specificity.
 
+[CSS ordering](css-ordering.md) describes the four levels - declaration, class
+unit, module unit, and delivered CSS - that this contract sits in.
+
 Sort style nodes topologically within a module. Reject style dependency cycles.
 Project composition edges onto CSS producer modules and reject cycles in that
 module graph, even when the style graph itself is acyclic. Do not reject unrelated

@@ -107,6 +107,9 @@ order never affects the cascade; no global interleaver or chunk sorter is
 introduced. The position-independent rule "a conditional unit overrides the
 base unit" stays as documented, and the new tests must pin it.
 
+The four levels - declaration, class unit, module unit, and delivered CSS - are
+described in [CSS ordering](css-ordering.md).
+
 ## Fragment runtime
 
 ### Fragment shape and symbols

@@ -541,9 +541,12 @@ CSS. CSS rules and all generated names already exist in the build output.
 ### Rule units and cascade correctness
 
 The compilation unit is a callsite branch, not a global atomic declaration.
-Within a branch, declaration order is preserved. Unconditional utilities form
-the base unit and are emitted first; conditional units follow in source order
-of their literals, whatever their nesting depth.
+Within one rule, built-in utilities keep their registry definition order while
+user definitions keep their source position. Unconditional utilities form the
+base unit and are emitted first; conditional units follow in source order of
+their literals, whatever their nesting depth. [CSS
+ordering](css-ordering.md) describes all four levels and the cascade rules that
+go with them.
 
 Lowering preserves the source expression structure: every user expression is
 emitted once and evaluated once per call, in source order, with short-circuiting
