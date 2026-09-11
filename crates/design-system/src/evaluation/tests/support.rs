@@ -348,6 +348,69 @@ pub(super) fn resolve_registry_variant_branches(
 
 pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, crate::ThemeError> {
     crate::parse_theme(
-        &crate::css_fixture::source(source.id(), source.path(), source.text()).unwrap(),
+        &crate::css_fixture::source(
+            source.id(),
+            source.path(),
+            stillwind_fixture_css(source.text()),
+        )
+        .unwrap(),
     )
+}
+
+/// Runs an upstream parity fixture against Stillwind's registry, mirroring
+/// `tools/lib/stillwind-fixture-css.ts`.
+fn stillwind_fixture_css(css: &str) -> String {
+    // Only upstream fixture inputs select the registry explicitly; the other
+    // fixtures keep relying on the default Stillwind entry point.
+    if !css.contains("tailwindcss") {
+        return css.to_owned();
+    }
+    let selected = css
+        .replace(
+            "@import \"tailwindcss/theme\"",
+            "@import \"stillwind/theme.css\"",
+        )
+        .replace(
+            "@import 'tailwindcss/theme'",
+            "@import 'stillwind/theme.css'",
+        )
+        .replace(
+            "@import \"tailwindcss/preflight\"",
+            "@import \"stillwind/preflight.css\"",
+        )
+        .replace(
+            "@import 'tailwindcss/preflight'",
+            "@import 'stillwind/preflight.css'",
+        )
+        .replace(
+            "@import \"tailwindcss/utilities\"",
+            "@import \"stillwind/utilities.css\"",
+        )
+        .replace(
+            "@import 'tailwindcss/utilities'",
+            "@import 'stillwind/utilities.css'",
+        )
+        .replace("@import \"tailwindcss\"", "@import \"stillwind\"")
+        .replace("@import 'tailwindcss'", "@import 'stillwind'");
+    // `source(...)` scopes which files Tailwind scans; the fixture candidates are
+    // explicit, so the modifier does not change what this audit exercises.
+    let selected = selected
+        .replace(
+            "@import \"stillwind\" source(none);",
+            "@import \"stillwind\";",
+        )
+        .replace("@import 'stillwind' source(none);", "@import 'stillwind';");
+    let has_entry = [
+        "@import \"stillwind\"",
+        "@import 'stillwind'",
+        "@import \"stillwind/builtins.css\"",
+        "@import 'stillwind/builtins.css'",
+    ]
+    .iter()
+    .any(|entry| selected.contains(entry));
+    if has_entry {
+        selected
+    } else {
+        format!("{selected}\n@import \"stillwind/builtins.css\";")
+    }
 }

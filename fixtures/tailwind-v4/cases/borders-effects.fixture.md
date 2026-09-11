@@ -13,6 +13,7 @@
 
 ```text
 border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-2 outline-offset-2 -outline-offset-[1px] -underline-offset-[1px] ring-2 ring-red-500 shadow-lg shadow-red-500/50 opacity-50 mix-blend-multiply bg-blend-multiply
+drop-shadow-[0_1px_2px_rgb(0_0_0/0.25)]
 ```
 
 ### Expected CSS
@@ -89,6 +90,11 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
   }
   .outline-offset-2 {
     outline-offset: 2px;
+  }
+  .drop-shadow-\[0_1px_2px_rgb\(0_0_0\/0\.25\)\] {
+    --tw-drop-shadow-size: drop-shadow(0 1px 2px var(--tw-drop-shadow-color, rgb(0 0 0/0.25)));
+    --tw-drop-shadow: var(--tw-drop-shadow-size);
+    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
 }
 @property --tw-divide-y-reverse {
@@ -171,6 +177,59 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
   inherits: false;
   initial-value: solid;
 }
+@property --tw-blur {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-brightness {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-contrast {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-grayscale {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-hue-rotate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-invert {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-opacity {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-saturate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-sepia {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-drop-shadow-size {
+  syntax: "*";
+  inherits: false;
+}
 @layer properties {
   @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
@@ -191,6 +250,19 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
       --tw-ring-offset-color: #fff;
       --tw-ring-offset-shadow: 0 0 #0000;
       --tw-outline-style: solid;
+      --tw-blur: initial;
+      --tw-brightness: initial;
+      --tw-contrast: initial;
+      --tw-grayscale: initial;
+      --tw-hue-rotate: initial;
+      --tw-invert: initial;
+      --tw-opacity: initial;
+      --tw-saturate: initial;
+      --tw-sepia: initial;
+      --tw-drop-shadow: initial;
+      --tw-drop-shadow-color: initial;
+      --tw-drop-shadow-alpha: 100%;
+      --tw-drop-shadow-size: initial;
     }
   }
 }
@@ -209,6 +281,8 @@ border border-red-500 border-x-2 divide-y divide-slate-200 rounded-full outline-
 
 ```text
 border-8 border-x-4 border-l-2 rounded-3xl rounded-s-xl rounded-ss-sm
+rounded-e-xl rounded-se-sm rounded-ee-sm rounded-es-sm rounded-t-xl rounded-l-xl rounded-tl-sm
+rounded-r-xl rounded-tr-sm rounded-b-xl rounded-br-sm rounded-bl-sm
 ```
 
 ### Expected CSS
@@ -233,6 +307,47 @@ border-8 border-x-4 border-l-2 rounded-3xl rounded-s-xl rounded-ss-sm
   }
   .rounded-ss-sm {
     border-start-start-radius: var(--radius-sm);
+  }
+  .rounded-e-xl {
+    border-start-end-radius: var(--radius-xl);
+    border-end-end-radius: var(--radius-xl);
+  }
+  .rounded-se-sm {
+    border-start-end-radius: var(--radius-sm);
+  }
+  .rounded-ee-sm {
+    border-end-end-radius: var(--radius-sm);
+  }
+  .rounded-es-sm {
+    border-end-start-radius: var(--radius-sm);
+  }
+  .rounded-t-xl {
+    border-top-left-radius: var(--radius-xl);
+    border-top-right-radius: var(--radius-xl);
+  }
+  .rounded-l-xl {
+    border-top-left-radius: var(--radius-xl);
+    border-bottom-left-radius: var(--radius-xl);
+  }
+  .rounded-tl-sm {
+    border-top-left-radius: var(--radius-sm);
+  }
+  .rounded-r-xl {
+    border-top-right-radius: var(--radius-xl);
+    border-bottom-right-radius: var(--radius-xl);
+  }
+  .rounded-tr-sm {
+    border-top-right-radius: var(--radius-sm);
+  }
+  .rounded-b-xl {
+    border-bottom-right-radius: var(--radius-xl);
+    border-bottom-left-radius: var(--radius-xl);
+  }
+  .rounded-br-sm {
+    border-bottom-right-radius: var(--radius-sm);
+  }
+  .rounded-bl-sm {
+    border-bottom-left-radius: var(--radius-sm);
   }
   .border-8 {
     border-style: var(--tw-border-style);

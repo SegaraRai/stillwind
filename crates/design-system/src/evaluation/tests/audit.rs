@@ -59,7 +59,9 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
     for path in fixture_paths {
         let markdown = fs::read_to_string(&path).expect("parity fixture");
         for (case_index, (input, candidates)) in parity_cases(&markdown).into_iter().enumerate() {
-            if ["@source", "@config", "@plugin", "@reference"]
+            // `prefix(...)` import modifiers are explicitly unsupported, and the
+            // scope directives select sources outside a resolved stylesheet.
+            if ["@source", "@config", "@plugin", "@reference", "prefix("]
                 .iter()
                 .any(|directive| input.contains(directive))
             {
