@@ -125,6 +125,7 @@ void test("tier 1 and tier 2 produce the same classes", async () => {
   );
   assert.doesNotMatch(tier1.code!, /stillwindMerge/);
   assert.match(tier2.code!, /stillwindMerge\(stillwindToFragment\(\(base\)\)/);
+  const bases = { tier1: new Set<string>(), tier2: new Set<string>() };
   for (const context of [
     { enabled: false, nested: false },
     { enabled: true, nested: false },
@@ -137,7 +138,12 @@ void test("tier 1 and tier 2 produce the same classes", async () => {
     const secondClasses = String(second.props.className).split(" ");
     assert.equal(secondClasses.length, firstClasses.length, JSON.stringify(context));
     assert.equal(secondClasses.length > 1, firstClasses.length > 1, JSON.stringify(context));
+    // The unconditional base unit stays first and stable in both tiers.
+    bases.tier1.add(firstClasses[0]);
+    bases.tier2.add(secondClasses[0]);
   }
+  assert.equal(bases.tier1.size, 1);
+  assert.equal(bases.tier2.size, 1);
 });
 
 void test("fragments stay inside the call expression", async () => {
