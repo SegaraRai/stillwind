@@ -62,9 +62,9 @@ Class names in this document are illustrative.
   argument list).
 - Short-circuiting of `&&` and `?:` is preserved by construction; a nested
   test is only evaluated when its enclosing test allows it.
-- Composite expressions that a tier would otherwise evaluate twice (for example
-  a conditional composition base) are bound to a temporary with the existing
-  IIFE mechanism.
+- A tier that would otherwise evaluate a composite expression twice binds it to
+  a temporary with the existing IIFE mechanism. No current tier needs one; see
+  the tier rules below.
 - Guards keep working in async and class contexts: `await` and `this` stay in
   their original positions.
 
@@ -190,10 +190,14 @@ is still Tier 1 because `"p-4"` is static.
 Additional tier rules:
 
 - The object-literal property order is chosen to match source evaluation order.
-- A tier that would read a composite base twice binds it to a temporary first.
 - Composition bases are always materialized in their own module, so Tier 2
   wraps every base in `stillwindToFragment`.
 - Tier 0 and Tier 1 are the only shapes that may omit a runtime import.
+
+The implemented tiers never read a composite expression twice: a composition
+base appears once as a merge argument and forces Tier 2, and Tier 0/1 exclude
+bases entirely. The IIFE temporary mechanism therefore has no current use; it
+returns with any tier that would otherwise evaluate a base or a test twice.
 
 ## Metadata and transport
 

@@ -1,10 +1,11 @@
-use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression};
+use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression, StyleFormat};
 
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",
     runtime_import: "stillwind/vue/runtime",
     class_property: "class",
+    style_format: StyleFormat::Object,
     projected_input: true,
     normalize,
 };

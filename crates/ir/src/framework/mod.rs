@@ -48,9 +48,20 @@ pub struct FrameworkSpec {
     pub macro_import: &'static str,
     pub runtime_import: &'static str,
     pub class_property: &'static str,
+    /// How the framework runtime materializes the style payload of a fragment.
+    pub style_format: StyleFormat,
     /// Enabled only after the original-source projection path is validated.
     pub projected_input: bool,
     pub normalize: fn(ProjectionExpression<'_>) -> ProjectionDecision,
+}
+
+/// The materialized style form of a framework runtime.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum StyleFormat {
+    /// React, Preact, Solid, and Vue receive custom properties as an object.
+    Object,
+    /// Svelte and Astro receive them as a serialized style string.
+    String,
 }
 
 /// Parser-neutral view of a possible converter-generated expression wrapper.
@@ -100,3 +111,27 @@ pub fn from_macro_import(source: &str) -> Option<&'static FrameworkSpec> {
 /// Default host-facing request for an explicit module stylesheet value.
 /// Bundler-specific CSS requests and query conventions are separate from this default.
 pub const MODULE_CSS_IMPORT: &str = "stillwind/module-css";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frameworks_declare_their_materialized_style_format() {
+        for spec in [&react::SPEC, &preact::SPEC, &solid::SPEC] {
+            assert_eq!(
+                spec.style_format,
+                StyleFormat::Object,
+                "{}",
+                spec.macro_import
+            );
+        }
+        assert_eq!(vue::SPEC.style_format, StyleFormat::Object);
+        assert_eq!(svelte::SPEC.style_format, StyleFormat::String);
+        assert_eq!(astro::SPEC.style_format, StyleFormat::String);
+        for spec in FRAMEWORKS {
+            assert!(spec.class_property == "className" || spec.class_property == "class");
+            assert!(spec.runtime_import.ends_with("/runtime"));
+        }
+    }
+}

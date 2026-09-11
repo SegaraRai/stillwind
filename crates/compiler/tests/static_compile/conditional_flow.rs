@@ -94,6 +94,26 @@ fn base_rules_precede_conditional_rules_in_the_stylesheet() {
 }
 
 #[test]
+fn await_and_this_tests_keep_their_positions() {
+    for (body, expected) in [
+        (
+            "declare function ready(): Promise<boolean>;\n\
+             export async function make() { return style(await ready() ? 'p-2' : 'm-2'); }",
+            "(await ready()) ? (",
+        ),
+        (
+            "export class Panel { ready = true; props = style(this.ready ? 'p-2' : 'm-2'); }",
+            "(this.ready) ? (",
+        ),
+    ] {
+        let result = compile(body);
+        let replacement = emitted(&result);
+        assert!(replacement.contains(expected), "{replacement}");
+        assert_eq!(result.classes.len(), 2);
+    }
+}
+
+#[test]
 fn unsupported_forms_still_report_their_existing_diagnostics() {
     for (body, code) in [
         ("const props = style(a || \"p-2\");", "SHJS002"),
