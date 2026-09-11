@@ -5,8 +5,7 @@ use oxc::ast::ast::{
 };
 use oxc::ast_visit::{Visit, walk};
 
-use stillwind_ir::StyleCall;
-use stillwind_ir::framework::from_macro_import;
+use stillwind_ir::{StyleCall, from_macro_import};
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, RefAlternative,
     SymbolicValue,
@@ -166,6 +165,20 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         };
         if !self.style_symbols.contains(&symbol_id) {
             walk::walk_call_expression(self, call);
+            return;
+        }
+
+        let span = self.source_span(call.span);
+        if self
+            .style_calls
+            .iter()
+            .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
+        {
+            self.diagnostics.push(CompileError::new(
+                "SHCOMP001",
+                "nested style() calls are not supported; bind the base to a variable",
+                span,
+            ));
             return;
         }
 

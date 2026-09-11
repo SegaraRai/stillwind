@@ -35,7 +35,6 @@ export interface StillwindOptions {
   /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
   forbidTailwindRelationships?: boolean;
   /** Module identity isolates generated classes. Content identity permits sharing. */
-  classIdentity?: "module" | "content";
   /** Stable namespace shared by the project's client and server builds. */
   classNamespace?: string;
 }
@@ -79,7 +78,6 @@ function compilerOptions(options: StillwindOptions) {
     prefix: options.prefix ?? "--sw-",
     tailwindPrefix: options.tailwindPrefix ?? "--tw-",
     forbidTailwindRelationships: options.forbidTailwindRelationships ?? false,
-    classIdentity: options.classIdentity ?? "module",
     classNamespace: options.classNamespace ?? "",
   };
 }
@@ -206,10 +204,11 @@ export function stillwind(options: StillwindOptions): Plugin {
     projectionDependencies: Map<string, Set<string>>;
     resources: Map<string, string>;
     producers: Set<string>;
+    compositionDependencies: Map<string, Set<string>>;
+    compositionTopologies: Map<string, string>;
     cssFiles: Set<string>;
     typeFacts?: TypeScriptFactsService;
     revision: number;
-    carrierRevision: number;
   };
   const environments = new Map<string, EnvironmentState>();
   const carrierPayloads = new Map<string, string>();
@@ -220,10 +219,11 @@ export function stillwind(options: StillwindOptions): Plugin {
       state = {
         resources: new Map(),
         producers: new Set(),
+        compositionDependencies: new Map(),
+        compositionTopologies: new Map(),
         cssFiles: new Set(),
         projectionDependencies: new Map(),
         revision: 0,
-        carrierRevision: 0,
       };
       environments.set(name, state);
     }
@@ -238,11 +238,16 @@ export function stillwind(options: StillwindOptions): Plugin {
     for (const [placeholder, url] of references) css = css.replaceAll(placeholder, url);
     return css;
   };
-  const carrierSpecifier = (state: EnvironmentState, css: string) => {
-    // A restored macro must not reuse a CSS module which an earlier HMR prune
-    // can still dispose. The payload is self-contained; only dev import identity changes.
-    const version = watching ? ++state.carrierRevision : 0;
-    return `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}&version=${version}&lang.css`;
+  const carrierSpecifier = (_state: EnvironmentState, css: string) => {
+    // Development requests must not put a complete source map in the HTTP URL.
+    // A fresh reference also prevents delayed HMR pruning from removing restored CSS.
+    if (watching) {
+      const reference = String(++carrierSequence);
+      carrierPayloads.set(reference, css);
+      return `${registeredCssPrefix}${reference}&lang.css`;
+    }
+    // Production transport remains self-contained across independent cached transforms.
+    return `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}&lang.css`;
   };
 
   const closeTypeFacts = () => {
@@ -453,6 +458,10 @@ export function stillwind(options: StillwindOptions): Plugin {
           },
         );
         if (!output) return "";
+        if (output.compositionModules.length > 0)
+          this.error(
+            "Cross-module style composition is not supported by standalone CSS projections; import the producer JavaScript through Vite instead.",
+          );
         const css = await renderCarrier(state, output.path, {
           includeSourcesContent: false,
           resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
@@ -493,6 +502,20 @@ export function stillwind(options: StillwindOptions): Plugin {
     },
     async hotUpdate(context) {
       const state = environmentState(this.environment.name);
+      const changed = cleanModuleId(context.file).replaceAll("\\", "/");
+      const hasComposition = state.compositionDependencies.size > 0;
+      const touchesComposition = [...state.compositionDependencies].some(
+        ([producer, dependencies]) => producer === changed || dependencies.has(changed),
+      );
+      // Replacing a carrier can move its style element behind a derived carrier.
+      // Reload until a transport can prove it preserves that relative position.
+      if (touchesComposition && !state.cssFiles.has(context.file)) {
+        for (const module of this.environment.moduleGraph.idToModuleMap.values()) {
+          this.environment.moduleGraph.invalidateModule(module);
+        }
+        this.environment.hot.send({ type: "full-reload" });
+        return [];
+      }
       if (!state.cssFiles.has(context.file) && !state.cssFiles.has(resolve(context.file))) {
         const projections = state.projectionDependencies.get(context.file.replaceAll("\\", "/"));
         if (!projections) return;
@@ -538,6 +561,10 @@ export function stillwind(options: StillwindOptions): Plugin {
         const cssModule = this.environment.moduleGraph.getModuleById(resolvedVirtualCssId);
         if (update.cssChanged && cssModule) modules.push(cssModule);
         for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
+        if (hasComposition) {
+          this.environment.hot.send({ type: "full-reload" });
+          return [];
+        }
         return modules;
       } catch (error) {
         this.warn(
@@ -569,6 +596,9 @@ export function stillwind(options: StillwindOptions): Plugin {
         if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
           state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
           state.producers.delete(id);
+          const removed = cleanModuleId(id).replaceAll("\\", "/");
+          state.compositionDependencies.delete(removed);
+          state.compositionTopologies.delete(removed);
           return undefined;
         }
         await ensureSession(state, this);
@@ -595,7 +625,35 @@ export function stillwind(options: StillwindOptions): Plugin {
           },
         );
         if (!output?.code) return undefined;
+        if (output.hasModuleCssImport && output.compositionModules.length > 0)
+          this.error(
+            "Cross-module style composition requires automatic CSS transport; explicit module CSS values currently support same-module composition only.",
+          );
         state.producers.add(id);
+        const producerId = cleanModuleId(id).replaceAll("\\", "/");
+        const previousTopology = state.compositionTopologies.get(producerId);
+        state.compositionTopologies.set(producerId, output.compositionTopology);
+        if (
+          watching &&
+          this.environment &&
+          "hot" in this.environment &&
+          previousTopology !== undefined &&
+          previousTopology !== output.compositionTopology
+        ) {
+          this.environment.hot.send({ type: "full-reload" });
+        }
+        if (output.compositionTopology !== "[]") {
+          state.compositionDependencies.set(
+            producerId,
+            new Set(
+              output.compositionModules.map((module) =>
+                resolve(projectRoot, module).replaceAll("\\", "/"),
+              ),
+            ),
+          );
+        } else {
+          state.compositionDependencies.delete(producerId);
+        }
         const upstreamMap = this.getCombinedSourcemap?.();
         const plan = await renderCarrier(state, output.path, {
           placement: output.hasModuleCssImport ? "document" : "carrier",
@@ -611,17 +669,18 @@ export function stillwind(options: StillwindOptions): Plugin {
         const finalized = sfc
           ? { code: output.code, removed: [], prefix: "" }
           : finalizeReactModuleWithMap(output.code, false);
-        const imports =
-          sfc || output.hasModuleCssImport
-            ? ""
-            : `import "${virtualCssId}";\nimport ${JSON.stringify(carrier)};\n`;
+        const imports = sfc || output.hasModuleCssImport ? "" : `import "${virtualCssId}";\n`;
+        const suffix =
+          sfc || output.hasModuleCssImport ? "" : `\nimport ${JSON.stringify(carrier)};\n`;
         return {
-          code: imports + finalized.code,
+          code: imports + finalized.code + suffix,
           meta: {
             stillwind: {
               coverage: plan.coverage,
               designSystem: plan.designSystem,
               producers: plan.producers,
+              compositionModules: output.compositionModules,
+              compositionTopology: output.compositionTopology,
             },
           },
           map: JSON.stringify(

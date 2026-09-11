@@ -48,6 +48,7 @@ export interface BindingLintFinding {
 }
 
 export interface BindingOutput {
+  composition: Array<NativeStyleDependency>
   resources: Array<NativeModuleResource>
   css: string
   code: string | null
@@ -104,7 +105,8 @@ export interface HostRegion {
   attribute_quote?: NativeAttributeQuote
 }
 
-export type NativeAssetKind =  'scope'|
+export type NativeAssetKind =  'style'|
+'scope'|
 'ref'|
 'animation'|
 'view-transition';
@@ -127,15 +129,11 @@ export type NativeCandidates =
   | { kind: 'universe' }
   | { kind: 'finite'; values: Array<NativeIdentity> }
 
-export type NativeClassIdentity =  'module'|
-'content';
-
 /** Optional host overrides; omitted fields keep the compiler defaults. */
 export interface NativeCompilerOptions {
   prefix?: string
   tailwindPrefix?: string
   forbidTailwindRelationships?: boolean
-  classIdentity?: NativeClassIdentity
   classNamespace?: string
 }
 
@@ -180,6 +178,7 @@ export interface NativeExport {
 }
 
 export type NativeExportedValue =
+  | { kind: 'styles'; value: NativeSymbolicValue }
   | { kind: 'scopes'; value: NativeSymbolicValue }
   | { kind: 'refs'; value: Array<NativeRefAlternative> }
   | { kind: 'animations'; value: NativeSymbolicValue }
@@ -317,6 +316,11 @@ export interface NativeSpan {
   end: number
 }
 
+export interface NativeStyleDependency {
+  derived: NativeIdentity
+  base: NativeIdentity
+}
+
 export interface NativeStylesheetMap {
   sources: Array<NativeMapSource>
   entries: Array<NativeMapEntry>
@@ -390,6 +394,7 @@ export interface ProjectBindingOutput {
 }
 
 export interface ProjectModuleOutput {
+  composition: Array<NativeStyleDependency>
   path: string
   resources: Array<NativeModuleResource>
   css: string

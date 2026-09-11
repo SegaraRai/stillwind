@@ -102,7 +102,7 @@ export function SaveButton() {
     assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("@layer base"));
-    assert!(result.css.contains("._s_bc6dda5a{display:inline-flex;padding-inline:var(--spacing-4);align-items:center;text-align:center;background-color:var(--color-accent);border-radius:var(--radius-md);}"), "{}", result.css);
+    assert!(result.css.contains(&format!(".{}{{display:inline-flex;padding-inline:var(--spacing-4);align-items:center;text-align:center;background-color:var(--color-accent);border-radius:var(--radius-md);}}", result.classes[0].class_name)), "{}", result.css);
 }
 
 #[test]

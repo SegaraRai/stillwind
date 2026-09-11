@@ -140,7 +140,8 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                                 }
                             }
                         }
-                        ExportedValue::Scopes(value)
+                        ExportedValue::Styles(value)
+                        | ExportedValue::Scopes(value)
                         | ExportedValue::Animations(value)
                         | ExportedValue::ViewTransitions(value) => {
                             assets.extend(value.finite_candidates().into_iter().flatten().cloned());

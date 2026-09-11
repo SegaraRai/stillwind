@@ -3,7 +3,6 @@ export interface StillwindBundlerOptions {
   root?: string;
   prefix?: string;
   tailwindPrefix?: string;
-  classIdentity?: "module" | "content";
   classNamespace?: string;
   forbidTailwindRelationships?: boolean;
 }

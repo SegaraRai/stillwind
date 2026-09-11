@@ -312,14 +312,21 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
         sourcePath,
       );
     const outputs = await Promise.all([compile(client), compile(ssr)]);
-    const moduleCss = outputs.map((output) => {
-      assert.ok(output && typeof output === "object" && output.code);
-      const encoded = output.code
-        .toString()
-        .match(/virtual:stillwind\/module\.css\?css=([^"&]+)/)?.[1];
-      assert.ok(encoded);
-      return Buffer.from(encoded, "base64url").toString("utf8");
-    });
+    const moduleCss = await Promise.all(
+      outputs.map(async (output, index) => {
+        assert.ok(output && typeof output === "object" && output.code);
+        const carrier = output.code
+          .toString()
+          .match(/"(virtual:stillwind\/module\.css\?[^"\n]+)"/)?.[1];
+        assert.ok(carrier);
+        const environment = index === 0 ? client : ssr;
+        const resolved = await environment.pluginContainer.resolveId(carrier);
+        assert.ok(resolved);
+        const loaded = await environment.pluginContainer.load(resolved.id);
+        assert.ok(loaded);
+        return typeof loaded === "string" ? loaded : loaded.code;
+      }),
+    );
     assert.match(moduleCss[0], /red/);
     assert.match(moduleCss[1], /blue/);
     writeFileSync(

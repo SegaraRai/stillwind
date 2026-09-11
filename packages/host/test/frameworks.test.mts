@@ -113,6 +113,14 @@ void test("SFC output fails on residual macros or mismatched attribute context",
 const extra = [
   ...Object.entries(examples).map(([extension, source]) => ({
     extension,
+    name: "local composition",
+    source: source
+      .replace("const active", "const base=style('flex'); const active")
+      .replace("style(active", "style(base, active"),
+    imports: 1,
+  })),
+  ...Object.entries(examples).map(([extension, source]) => ({
+    extension,
     name: "explicit module CSS",
     source: source.replace(
       "import {style}",
@@ -196,6 +204,15 @@ for (const { extension, source, name, imports } of [
     ) as ProjectCompilerOutput;
     const module = output.modules[0]!;
     assert.deepEqual(module.diagnostics, []);
+    if (source.includes("const base=style")) {
+      assert.equal(module.composition.length, 1);
+      assert.equal(
+        Buffer.from(source)
+          .subarray(module.composition[0].base.start, module.composition[0].base.end)
+          .toString("utf8"),
+        "style('flex')",
+      );
+    }
     assert.ok(module.code);
     const explicit = source.includes("stillwind/module-css");
     assert.equal(module.code.split('import "virtual:stillwind.css";').length, explicit ? 1 : 2);

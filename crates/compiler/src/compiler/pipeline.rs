@@ -3,7 +3,9 @@ use std::collections::BTreeSet;
 use stillwind_design_system::{
     DesignSystemSnapshot, compatibility_marker_class, is_tailwind_relationship_candidate,
 };
-use stillwind_ir::{ModuleAnalysis, StyleInput};
+use stillwind_ir::{
+    ModuleAnalysis, StyleInput, composition_dependencies, ordered_style_calls, validate_composition,
+};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CompileError, LintFinding, SourceFile, filter_lint_findings};
 
@@ -18,7 +20,8 @@ use super::motion::{
 };
 use super::output::CompileResult;
 use super::props::{
-    DynamicAssetClassEntry, GeneratedClass, PropsParts, ViewTransitionStyleEntry, render_props,
+    DynamicAssetClassEntry, ExpressionSource, GeneratedClass, PropsParts, ViewTransitionStyleEntry,
+    render_props,
 };
 use super::style_variants::{StyleVariantPlan, flatten_inputs};
 use super::symbols::{
@@ -63,6 +66,7 @@ impl Compiler {
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
         let mut result = CompileResult {
+            composition: composition_dependencies(parsed),
             diagnostics: parsed.diagnostics.clone(),
             lint_findings: parsed.lint_findings.clone(),
             ..CompileResult::default()
@@ -71,6 +75,9 @@ impl Compiler {
         let options = compiler_options;
         result.lint_policy.clone_from(&theme.config.lint_rules);
         filter_lint_findings(source, &mut result.lint_findings);
+        result
+            .diagnostics
+            .extend(validate_composition(&[parsed], source.full_span(), false));
 
         if !result.diagnostics.is_empty() {
             return result;
@@ -78,7 +85,8 @@ impl Compiler {
 
         let mut utility_css = String::new();
         let mut emitted_utility_classes = BTreeSet::new();
-        let module = parsed.ir.clone();
+        let mut module = parsed.ir.clone();
+        module.style_calls = ordered_style_calls(parsed);
         let mut runtime = RuntimeBindings::new(parsed);
         result
             .symbols
@@ -131,6 +139,7 @@ impl Compiler {
             );
         }
         for call in module.style_calls {
+            let mut bases = Vec::new();
             let mut branches = vec![(None, true, String::new(), Vec::new())];
             let mut attributes = Vec::new();
             let mut handle_markers = Vec::new();
@@ -146,6 +155,17 @@ impl Compiler {
                     continue;
                 };
                 let (guard, guard_when_true, input) = match input {
+                    StyleInput::Composition { value, .. } => {
+                        if !wrappers.is_empty() {
+                            result.diagnostics.push(CompileError::new(
+                                "SHCOMP002",
+                                "style bases cannot appear inside variant wrappers",
+                                value,
+                            ));
+                        }
+                        bases.push(value);
+                        continue;
+                    }
                     StyleInput::ViewTransitionUse { transition, key } => {
                         if view_transition_style.is_some() {
                             result.diagnostics.push(CompileError::new(
@@ -261,7 +281,11 @@ impl Compiler {
                                     variant_plan.canonical, options.value
                                 )
                             };
-                            let canonical = compiler_options.class_input(source.path(), &canonical);
+                            let canonical = compiler_options.style_class_input(
+                                source.path(),
+                                call.span.start.0,
+                                &canonical,
+                            );
                             let class_name = class_name(&canonical);
                             let mut utility = resolve_animation_use(
                                 &animation,
@@ -288,7 +312,11 @@ impl Compiler {
                             }
                             classes.push((identity, class_name));
                         }
-                        dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
+                        dynamic_asset_classes.push(DynamicAssetClassEntry {
+                            value,
+                            classes,
+                            helper: RuntimeHelper::AssetClass,
+                        });
                         continue;
                     }
                     StyleInput::ContainerQuery {
@@ -360,15 +388,22 @@ impl Compiler {
                         handles,
                         projection,
                     } => {
-                        dynamic_handle_classes.push(value);
+                        let mut classes = Vec::new();
                         for handle in handles {
                             runtime_assets.insert(ref_identity(&handle));
-                            let class_name = runtime_projection_class(&handle, &projection);
+                            let marker = runtime_projection_class(&handle, &projection);
                             let canonical = format!(
                                 "dynamic-handle:{}:{}",
                                 ref_symbol_name(&handle),
                                 handle_projection_name(&projection)
                             );
+                            let canonical = options.style_class_input(
+                                source.path(),
+                                call.span.start.0,
+                                &canonical,
+                            );
+                            let class_name = class_name(&canonical);
+                            classes.push((marker.clone(), format!("{marker} {class_name}")));
                             if emitted_utility_classes
                                 .insert((class_name.clone(), canonical.clone()))
                             {
@@ -395,6 +430,11 @@ impl Compiler {
                                 ));
                             }
                         }
+                        dynamic_asset_classes.push(DynamicAssetClassEntry {
+                            value,
+                            classes,
+                            helper: RuntimeHelper::HandleClass,
+                        });
                         continue;
                     }
                     StyleInput::ScopeAttachment(scope) => {
@@ -516,11 +556,17 @@ impl Compiler {
             }
 
             let mut call_classes = Vec::new();
-            for (guard, guard_when_true, canonical_input, utilities) in branches {
+            for (branch_index, (guard, guard_when_true, canonical_input, utilities)) in
+                branches.into_iter().enumerate()
+            {
                 if utilities.is_empty() {
                     continue;
                 }
-                let canonical_input = options.class_input(source.path(), &canonical_input);
+                let canonical_input = options.style_class_input(
+                    source.path(),
+                    call.span.start.0,
+                    &format!("{branch_index}:{canonical_input}"),
+                );
                 let class_name = class_name(&canonical_input);
                 if emitted_utility_classes.insert((class_name.clone(), canonical_input.clone())) {
                     emit_utility_rules(&mut utility_css, &class_name, &utilities, theme);
@@ -544,21 +590,75 @@ impl Compiler {
                 call_classes.push(class.clone());
                 result.classes.push(class);
             }
-            if let Some(replacement) = render_props(
+            let parts = PropsParts {
+                classes: &call_classes,
+                attributes: &attributes,
+                handle_markers: &handle_markers,
+                external_classes: &external_classes,
+                dynamic_handle_classes: &dynamic_handle_classes,
+                dynamic_asset_classes: &dynamic_asset_classes,
+                view_transition_style: view_transition_style.as_ref(),
+            };
+            let mut evaluated = parts.expressions();
+            let interleaved = bases
+                .last()
+                .is_some_and(|base| evaluated.iter().any(|value| value.start < base.start));
+            let bindings = if interleaved {
+                evaluated.extend(bases.iter().copied());
+                evaluated.sort_by_key(|span| (span.start, span.end));
+                evaluated.dedup();
+                evaluated
+                    .into_iter()
+                    .map(|span| (span, runtime.temporary()))
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            let expressions = ExpressionSource {
                 source,
-                &PropsParts {
-                    classes: &call_classes,
-                    attributes: &attributes,
-                    handle_markers: &handle_markers,
-                    external_classes: &external_classes,
-                    dynamic_handle_classes: &dynamic_handle_classes,
-                    dynamic_asset_classes: &dynamic_asset_classes,
-                    view_transition_style: view_transition_style.as_ref(),
-                },
+                bindings: &bindings,
+            };
+            if let Some(replacement) = render_props(
+                &expressions,
+                &parts,
                 module.adapter,
                 &mut runtime,
                 call.span,
             ) {
+                let replacement = if bases.is_empty() {
+                    replacement
+                } else {
+                    let mut bases = bases
+                        .iter()
+                        .filter_map(|span| expressions.get(*span).map(|value| format!("({value})")))
+                        .collect::<Vec<_>>();
+                    if replacement != "{}" {
+                        bases.push(replacement);
+                    }
+                    format!(
+                        "{}(\"{}\",{})",
+                        runtime.require(RuntimeHelper::Merge, call.span),
+                        module.adapter.spec().class_property,
+                        bases.join(",")
+                    )
+                };
+                let replacement = if bindings.is_empty() {
+                    replacement
+                } else {
+                    let names = bindings
+                        .iter()
+                        .map(|(_, name)| name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let arguments = bindings
+                        .iter()
+                        .filter_map(|(span, _)| {
+                            source.slice(*span).ok().map(|value| format!("({value})"))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    format!("(({names})=>({replacement}))({arguments})")
+                };
                 result.transforms.push(SourceTransform {
                     call_span: call.span,
                     replacement,

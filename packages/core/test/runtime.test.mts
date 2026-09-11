@@ -7,9 +7,32 @@ import {
   stillwindHandleClass,
   stillwindRef,
   stillwindScope,
+  stillwindMerge,
   stillwindViewTransition,
   stillwindViewTransitionStyle,
 } from "../src/runtime.ts";
+
+void test("composition joins base classes, preserves delta props, and leaves inputs untouched", () => {
+  const first = Object.freeze({ className: "a" });
+  const second = Object.freeze({ className: "b" });
+  const delta = Object.freeze({ className: "own", "data-state": "ready" });
+  assert.deepEqual(stillwindMerge("className", first, second, delta), {
+    className: "a b own",
+    "data-state": "ready",
+  });
+  assert.deepEqual(stillwindMerge("className", first, second), { className: "a b" });
+  assert.deepEqual(stillwindMerge("class", { class: "a" }, { class: "b" }), { class: "a b" });
+  assert.deepEqual(stillwindMerge("className", {}, {}), {});
+});
+
+void test("dynamic projections select the calling style's own CSS class", () => {
+  const projection = stillwindRef("ref").anchor;
+  assert.equal(
+    stillwindHandleClass(projection, { _swp_ref_anchor: "_swp_ref_anchor own" }),
+    "_swp_ref_anchor own",
+  );
+  assert.throws(() => stillwindHandleClass(projection, {}), /unknown ref projection/);
+});
 
 void test("selects the marker carried by a dynamic compiled handle", () => {
   const first = stillwindRef("s_first_01234567");

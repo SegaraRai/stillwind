@@ -1,13 +1,73 @@
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    ClassIdentity, CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform,
-    StylesheetRenderer,
+    CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::{HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile, Span, Spanned};
+
+#[test]
+fn composition_keeps_distinct_calls_and_merges_selected_bases() {
+    let source = SourceFile::new(FileId(1), "composition.ts", "import {style} from 'stillwind/react'; const a=style('m-10 hover:m-20'); const b=style(a,'m-4'); const c=style(b,'m-10'); const d=style(flag?a:c); const e=style(a,c);").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
+    let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(output.classes.len(), 3);
+    let names: BTreeSet<_> = output
+        .classes
+        .iter()
+        .map(|class| &class.class_name)
+        .collect();
+    assert_eq!(names.len(), 3);
+    let transformed = output.apply_to_source(&source).unwrap();
+    assert!(
+        transformed.contains("stillwindMerge(\"className\",(a),"),
+        "{transformed}"
+    );
+    assert!(
+        transformed.contains("stillwindMerge(\"className\",(flag?a:c))"),
+        "{transformed}"
+    );
+    assert!(
+        transformed.contains("stillwindMerge(\"className\",(a),(c))"),
+        "{transformed}"
+    );
+}
+
+#[test]
+fn composition_rejects_props_and_nested_calls() {
+    let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
+    for (code, expected) in [
+        (
+            "const a=style({'data-x':1});const b=style(a,'flex');",
+            "SHCOMP006",
+        ),
+        ("const a=style(style('flex'),'block');", "SHCOMP001"),
+        (
+            "const a=style(b,'flex');const b=style(a,'block');",
+            "SHCOMP003",
+        ),
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            "composition.ts",
+            format!("import {{style}} from 'stillwind/react'; {code}"),
+        )
+        .unwrap();
+        let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|error| error.code == expected),
+            "{:?}",
+            output.diagnostics
+        );
+    }
+}
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
@@ -235,7 +295,6 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
         ModuleCompiler::new(
             snapshot.clone(),
             CompilerOptions {
-                class_identity: ClassIdentity::Module,
                 class_namespace: namespace.into(),
                 ..CompilerOptions::default()
             },

@@ -1,0 +1,202 @@
+//! Composition graph validation; this graph never emits dependency CSS.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use serde::{Deserialize, Serialize};
+
+use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_source::{CompileError, Span};
+
+use crate::{ModuleAnalysis, StyleCall, StyleInput};
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+pub struct StyleDependency {
+    pub derived: IdentityId,
+    pub base: IdentityId,
+}
+
+pub fn composition_dependencies(module: &ModuleAnalysis) -> Vec<StyleDependency> {
+    let mut result = BTreeSet::new();
+    for call in &module.ir.style_calls {
+        let mut dependencies = BTreeSet::new();
+        inputs(&call.inputs, &mut dependencies);
+        result.extend(dependencies.into_iter().map(|base| StyleDependency {
+            derived: identity(module, call),
+            base,
+        }));
+    }
+    result.into_iter().collect()
+}
+
+fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
+    IdentityId::new(
+        AssetKind::Style,
+        module.source.path(),
+        call.span.start.0,
+        call.span.end.0,
+        "",
+    )
+}
+
+fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> bool {
+    let mut props = false;
+    for input in values {
+        match input {
+            StyleInput::Composition { candidates, .. } => {
+                dependencies.extend(candidates.iter().cloned());
+            }
+            StyleInput::Attributes(entries) => {
+                props |= !entries.is_empty();
+            }
+            StyleInput::ViewTransitionUse { .. } | StyleInput::DynamicViewTransitionUse { .. } => {
+                props = true;
+            }
+            StyleInput::Variant {
+                inputs: children, ..
+            } => {
+                props |= inputs(children, dependencies);
+            }
+            _ => {}
+        }
+    }
+    props
+}
+
+fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
+    fn visit<K: Clone + Ord>(
+        key: &K,
+        edges: &BTreeMap<K, BTreeSet<K>>,
+        pending: &mut BTreeSet<K>,
+        done: &mut BTreeSet<K>,
+        output: &mut Vec<K>,
+    ) -> bool {
+        if done.contains(key) {
+            return true;
+        }
+        if !pending.insert(key.clone()) {
+            return false;
+        }
+        for dependency in edges.get(key).into_iter().flatten() {
+            if edges.contains_key(dependency) && !visit(dependency, edges, pending, done, output) {
+                return false;
+            }
+        }
+        pending.remove(key);
+        done.insert(key.clone());
+        output.push(key.clone());
+        true
+    }
+    let mut output = Vec::new();
+    let mut pending = BTreeSet::new();
+    let mut done = BTreeSet::new();
+    for key in edges.keys() {
+        if !visit(key, edges, &mut pending, &mut done, &mut output) {
+            return None;
+        }
+    }
+    Some(output)
+}
+
+/// Checks every possible base and both style and producer-module cycles.
+pub fn validate_composition(
+    modules: &[&ModuleAnalysis],
+    at: Span,
+    require_complete: bool,
+) -> Vec<CompileError> {
+    let mut edges = BTreeMap::new();
+    let mut props = BTreeSet::new();
+    let mut class_properties = BTreeMap::new();
+    let mut module_edges: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for module in modules {
+        for call in &module.ir.style_calls {
+            let key = identity(module, call);
+            class_properties.insert(key.clone(), module.ir.adapter.spec().class_property);
+            let mut dependencies = BTreeSet::new();
+            if inputs(&call.inputs, &mut dependencies) {
+                props.insert(key.clone());
+            }
+            for dependency in &dependencies {
+                if dependency.module_path != key.module_path {
+                    module_edges
+                        .entry(key.module_path.clone())
+                        .or_default()
+                        .insert(dependency.module_path.clone());
+                    module_edges
+                        .entry(dependency.module_path.clone())
+                        .or_default();
+                }
+            }
+            edges.insert(key, dependencies);
+        }
+    }
+    let Some(order) = ordered(&edges) else {
+        return vec![CompileError::new(
+            "SHCOMP003",
+            "style composition dependency cycle",
+            at,
+        )];
+    };
+    if ordered(&module_edges).is_none() {
+        return vec![CompileError::new(
+            "SHCOMP004",
+            "style composition requires cyclic CSS module ordering",
+            at,
+        )];
+    }
+    for key in order {
+        for dependency in &edges[&key] {
+            if require_complete && !edges.contains_key(dependency) {
+                return vec![CompileError::new(
+                    "SHCOMP005",
+                    "style base producer is unavailable",
+                    at,
+                )];
+            }
+            if props.contains(dependency) {
+                return vec![CompileError::new(
+                    "SHCOMP006",
+                    "style bases with additional props are not supported",
+                    at,
+                )];
+            }
+            if class_properties
+                .get(dependency)
+                .is_some_and(|property| *property != class_properties[&key])
+            {
+                return vec![CompileError::new(
+                    "SHCOMP007",
+                    "style bases must use the same framework class property",
+                    at,
+                )];
+            }
+        }
+    }
+    Vec::new()
+}
+
+/// Deterministic topological order within one producer, seeded by source order.
+pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {
+    let edges = module
+        .ir
+        .style_calls
+        .iter()
+        .map(|call| {
+            let mut dependencies = BTreeSet::new();
+            inputs(&call.inputs, &mut dependencies);
+            (identity(module, call), dependencies)
+        })
+        .collect();
+    let Some(order) = ordered(&edges) else {
+        return module.ir.style_calls.clone();
+    };
+    let calls: BTreeMap<_, _> = module
+        .ir
+        .style_calls
+        .iter()
+        .map(|call| (identity(module, call), call))
+        .collect();
+    order
+        .into_iter()
+        .filter_map(|key| calls.get(&key).map(|call| (*call).clone()))
+        .collect()
+}

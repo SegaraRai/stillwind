@@ -77,6 +77,7 @@ pub(super) fn ref_symbol_name(definition: &HandleDefinition) -> String {
 
 fn kind_name(kind: AssetKind) -> &'static str {
     match kind {
+        AssetKind::Style => "style",
         AssetKind::Ref => "ref",
         AssetKind::Scope => "scope",
         AssetKind::Animation => "animation",
@@ -98,6 +99,7 @@ pub(super) fn asset_symbol_name(
     definition: &Spanned<String>,
 ) -> String {
     let prefix = match kind {
+        AssetKind::Style => "_s_",
         AssetKind::Ref => "--sw-r-",
         AssetKind::Scope => "--sw-s-",
         AssetKind::Animation => "--sw-a-",

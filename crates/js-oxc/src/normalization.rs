@@ -9,10 +9,9 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::parser::Parser;
 use oxc::span::GetSpan;
 
-use stillwind_ir::framework::{
-    AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression,
+use stillwind_ir::{
+    AdapterKind, FrameworkSpec, ModuleIr, ProjectionDecision, ProjectionExpression, ScriptLanguage,
 };
-use stillwind_ir::{ModuleIr, ScriptLanguage};
 use stillwind_source::{
     FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance, Span,
 };

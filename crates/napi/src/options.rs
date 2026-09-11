@@ -1,13 +1,7 @@
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_compiler::{ClassIdentity, CompilerOptions};
-
-#[napi(string_enum = "camelCase")]
-pub enum NativeClassIdentity {
-    Module,
-    Content,
-}
+use stillwind_compiler::CompilerOptions;
 
 /// Optional host overrides; omitted fields keep the compiler defaults.
 #[napi(object)]
@@ -16,7 +10,6 @@ pub struct NativeCompilerOptions {
     pub prefix: Option<String>,
     pub tailwind_prefix: Option<String>,
     pub forbid_tailwind_relationships: Option<bool>,
-    pub class_identity: Option<NativeClassIdentity>,
     pub class_namespace: Option<String>,
 }
 
@@ -31,11 +24,6 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
             forbid_tailwind_relationships: input
                 .forbid_tailwind_relationships
                 .unwrap_or(defaults.forbid_tailwind_relationships),
-            class_identity: match input.class_identity {
-                None => defaults.class_identity,
-                Some(NativeClassIdentity::Module) => ClassIdentity::Module,
-                Some(NativeClassIdentity::Content) => ClassIdentity::Content,
-            },
             class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),
         };
         options

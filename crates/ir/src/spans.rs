@@ -134,7 +134,9 @@ fn map_input<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match input {
-        StyleInput::UtilityString(value) => map_value(value, map)?,
+        StyleInput::UtilityString(value) => {
+            map_value(value, map)?;
+        }
         StyleInput::ConditionalUtilityString { guard, value, .. } => {
             *guard = map(*guard)?;
             map_value(value, map)?;
@@ -183,8 +185,12 @@ fn map_input<E>(
             map_value(query, map)?;
             map_value(value, map)?;
         }
-        StyleInput::ScopeAttachment(scope) => map_scope(scope, map)?,
-        StyleInput::HandleAttachment(handle) => map_handle(handle, map)?,
+        StyleInput::ScopeAttachment(scope) => {
+            map_scope(scope, map)?;
+        }
+        StyleInput::HandleAttachment(handle) => {
+            map_handle(handle, map)?;
+        }
         StyleInput::DynamicScopeAttachment { value, scopes } => {
             *value = map(*value)?;
             for scope in scopes {
@@ -197,7 +203,17 @@ fn map_input<E>(
                 map_handle(handle, map)?;
             }
         }
-        StyleInput::ExternalClass(value) => *value = map(*value)?,
+        StyleInput::ExternalClass(value) => {
+            *value = map(*value)?;
+        }
+        StyleInput::Composition { value, candidates } => {
+            for candidate in candidates {
+                let span = map(Span::new(value.file, candidate.start, candidate.end))?;
+                candidate.start = span.start.0;
+                candidate.end = span.end.0;
+            }
+            *value = map(*value)?;
+        }
         StyleInput::AnimationUse { animation, options } => {
             map_asset(animation, map)?;
             map_value(options, map)?;

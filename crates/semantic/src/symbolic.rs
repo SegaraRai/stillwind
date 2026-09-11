@@ -112,6 +112,7 @@ impl RefAlternative {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
 pub enum ExportedValue {
+    Styles(SymbolicValue),
     Scopes(SymbolicValue),
     Refs(Vec<RefAlternative>),
     Animations(SymbolicValue),
@@ -121,6 +122,7 @@ pub enum ExportedValue {
 impl ExportedValue {
     pub const fn kind(&self) -> AssetKind {
         match self {
+            Self::Styles(_) => AssetKind::Style,
             Self::Scopes(_) => AssetKind::Scope,
             Self::Refs(_) => AssetKind::Ref,
             Self::Animations(_) => AssetKind::Animation,

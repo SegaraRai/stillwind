@@ -13,11 +13,14 @@
 )]
 
 mod analysis;
-pub mod framework;
+mod composition;
+mod framework;
 mod input;
 mod model;
 mod spans;
 
 pub use analysis::*;
+pub use composition::*;
+pub use framework::*;
 pub use input::*;
 pub use model::*;

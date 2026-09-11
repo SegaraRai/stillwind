@@ -10,7 +10,7 @@ import type { NativeProjectSource, NativeStylesheetSelection } from "../index.js
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {
   const sources: NativeProjectSource[] = [{ path: "x.ts", source: "export {};" }];
-  const output = compileReact("export {};", "x.ts", "", { classIdentity: "module" });
+  const output = compileReact("export {};", "x.ts", "", {});
   const code: string | null = output.code;
   const project = compileReactProject(sources, "");
   const modulePath: string = project.modules[0].path;

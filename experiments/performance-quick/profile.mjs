@@ -11,7 +11,7 @@ assert.ok(process.argv.includes("--binding"), "Pass --binding <instrumented.node
 if (process.argv.includes("--worker")) {
   const native = createRequire(import.meta.url)(path.resolve(binding));
   const count = Number(option("--count"));
-  const loader = new native.NativeDesignSystemLoader({ classIdentity: "module" });
+  const loader = new native.NativeDesignSystemLoader({});
   loader.provide(
     0,
     "root.css",

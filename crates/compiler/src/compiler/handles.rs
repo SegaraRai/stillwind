@@ -87,7 +87,8 @@ pub(super) fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<Identi
                     }
                 }
             }
-            ExportedValue::Scopes(value)
+            ExportedValue::Styles(value)
+            | ExportedValue::Scopes(value)
             | ExportedValue::Animations(value)
             | ExportedValue::ViewTransitions(value) => {
                 if let Candidates::Finite(candidates) = &value.candidates {

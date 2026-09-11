@@ -1,7 +1,9 @@
 //! Typed Node transport for semantic identities. Domain crates do not depend on napi-rs.
+
 use napi::Error;
 use napi_derive::napi;
 use serde::Serialize;
+
 use stillwind_semantic::{
     AssetKind, AssetRecord, Candidates, ExportedValue, IdentityId, ImportBinding, ModuleSpecifier,
     ModuleSummary, ReExport, RefAlternative, SymbolicValue, TypeFact,
@@ -11,6 +13,7 @@ use stillwind_semantic::{
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NativeAssetKind {
+    Style,
     Scope,
     Ref,
     Animation,
@@ -20,6 +23,7 @@ pub enum NativeAssetKind {
 impl From<NativeAssetKind> for AssetKind {
     fn from(value: NativeAssetKind) -> Self {
         match value {
+            NativeAssetKind::Style => Self::Style,
             NativeAssetKind::Scope => Self::Scope,
             NativeAssetKind::Ref => Self::Ref,
             NativeAssetKind::Animation => Self::Animation,
@@ -31,6 +35,7 @@ impl From<NativeAssetKind> for AssetKind {
 impl From<AssetKind> for NativeAssetKind {
     fn from(value: AssetKind) -> Self {
         match value {
+            AssetKind::Style => Self::Style,
             AssetKind::Scope => Self::Scope,
             AssetKind::Ref => Self::Ref,
             AssetKind::Animation => Self::Animation,
@@ -130,6 +135,7 @@ pub struct NativeRefAlternative {
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum NativeExportedValue {
+    Styles { value: NativeSymbolicValue },
     Scopes { value: NativeSymbolicValue },
     Refs { value: Vec<NativeRefAlternative> },
     Animations { value: NativeSymbolicValue },
@@ -138,8 +144,12 @@ pub enum NativeExportedValue {
 
 impl TryFrom<NativeExportedValue> for ExportedValue {
     type Error = Error;
+
     fn try_from(input: NativeExportedValue) -> napi::Result<Self> {
         let (value, expected) = match input {
+            NativeExportedValue::Styles { value } => {
+                (Self::Styles(value.try_into()?), AssetKind::Style)
+            }
             NativeExportedValue::Scopes { value } => {
                 (Self::Scopes(value.try_into()?), AssetKind::Scope)
             }
@@ -166,9 +176,10 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
             }
         };
         let actual = match &value {
-            Self::Scopes(value) | Self::Animations(value) | Self::ViewTransitions(value) => {
-                value.kind
-            }
+            Self::Styles(value)
+            | Self::Scopes(value)
+            | Self::Animations(value)
+            | Self::ViewTransitions(value) => value.kind,
             Self::Refs(_) => AssetKind::Ref,
         };
         if actual != expected {
@@ -183,6 +194,9 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
 impl From<ExportedValue> for NativeExportedValue {
     fn from(input: ExportedValue) -> Self {
         match input {
+            ExportedValue::Styles(value) => Self::Styles {
+                value: value.into(),
+            },
             ExportedValue::Scopes(value) => Self::Scopes {
                 value: value.into(),
             },

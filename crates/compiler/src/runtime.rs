@@ -13,6 +13,7 @@ pub(crate) enum RuntimeHelper {
     AssetClass,
     Clsx,
     HandleClass,
+    Merge,
     Ref,
     Scope,
     ViewTransition,
@@ -26,6 +27,7 @@ impl RuntimeHelper {
             Self::AssetClass => "stillwindAssetClass",
             Self::Clsx => "stillwindClsx",
             Self::HandleClass => "stillwindHandleClass",
+            Self::Merge => "stillwindMerge",
             Self::Ref => "stillwindRef",
             Self::Scope => "stillwindScope",
             Self::ViewTransition => "stillwindViewTransition",
@@ -75,6 +77,17 @@ impl<'a> RuntimeBindings<'a> {
                 name
             })
             .clone()
+    }
+
+    pub(crate) fn temporary(&mut self) -> String {
+        let mut suffix = 0_u64;
+        loop {
+            let name = format!("__stillwindValue{suffix}");
+            if self.reserved.insert(name.clone()) {
+                return name;
+            }
+            suffix += 1;
+        }
     }
 
     pub(crate) fn plan(

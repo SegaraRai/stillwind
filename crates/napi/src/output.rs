@@ -6,10 +6,15 @@ use serde::Serialize;
 use stillwind_compiler::{
     GeneratedClass, GeneratedSymbol, ModuleResourceReference, TransformMapping,
 };
+use stillwind_ir::StyleDependency;
+use stillwind_source::Span;
+
+use crate::semantic::NativeIdentity;
 
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
 pub struct BindingOutput {
+    pub composition: Vec<NativeStyleDependency>,
     pub resources: Vec<NativeModuleResource>,
     pub css: String,
     pub code: Option<String>,
@@ -24,6 +29,22 @@ pub struct BindingOutput {
         ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
     )]
     pub lint_policy: BTreeMap<String, String>,
+}
+
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct NativeStyleDependency {
+    pub derived: NativeIdentity,
+    pub base: NativeIdentity,
+}
+
+impl From<StyleDependency> for NativeStyleDependency {
+    fn from(value: StyleDependency) -> Self {
+        Self {
+            derived: value.derived.into(),
+            base: value.base.into(),
+        }
+    }
 }
 
 #[napi(object, object_from_js = false)]
@@ -110,8 +131,8 @@ pub struct NativeSpan {
     pub end: u32,
 }
 
-impl From<stillwind_source::Span> for NativeSpan {
-    fn from(value: stillwind_source::Span) -> Self {
+impl From<Span> for NativeSpan {
+    fn from(value: Span) -> Self {
         Self {
             file: value.file.0,
             start: value.start.0,
@@ -177,6 +198,7 @@ pub struct ProjectBindingOutput {
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
 pub struct ProjectModuleOutput {
+    pub composition: Vec<NativeStyleDependency>,
     pub path: String,
     pub resources: Vec<NativeModuleResource>,
     pub css: String,
@@ -197,6 +219,7 @@ pub struct ProjectModuleOutput {
 impl ProjectModuleOutput {
     pub(crate) fn new(path: String, output: BindingOutput) -> Self {
         let BindingOutput {
+            composition,
             resources,
             css,
             code,
@@ -208,6 +231,7 @@ impl ProjectModuleOutput {
             lint_policy,
         } = output;
         Self {
+            composition,
             path,
             resources,
             css,

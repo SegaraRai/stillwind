@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use stillwind_compiler::{ClassIdentity, CompilerOptions, StylesheetPlacement, StylesheetRenderer};
+use stillwind_compiler::{CompilerOptions, StylesheetPlacement, StylesheetRenderer};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -40,7 +40,6 @@ fn module(name: &str, candidate: &str) -> ModuleAnalysis {
 fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     let snapshot = snapshot("red");
     let options = CompilerOptions {
-        class_identity: ClassIdentity::Module,
         class_namespace: "first".into(),
         ..CompilerOptions::default()
     };
@@ -115,10 +114,9 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
 }
 
 #[test]
-fn module_salt_is_stable_and_content_identity_remains_available() {
-    let compile = |identity, namespace: &str, path: &str| {
+fn call_identity_is_stable_and_module_and_namespace_specific() {
+    let compile = |namespace: &str, path: &str| {
         let options = CompilerOptions {
-            class_identity: identity,
             class_namespace: namespace.into(),
             ..CompilerOptions::default()
         };
@@ -133,15 +131,11 @@ fn module_salt_is_stable_and_content_identity_remains_available() {
         session.update_module(analysis);
         session.artifacts()[&id].classes[0].class_name.clone()
     };
-    let a = compile(ClassIdentity::Module, "app", "src/a.tsx");
-    assert_eq!(a, compile(ClassIdentity::Module, "app", "src\\a.tsx"));
-    assert_eq!(a, compile(ClassIdentity::Module, "app", "src/a.tsx"));
-    assert_ne!(a, compile(ClassIdentity::Module, "app", "src/b.tsx"));
-    assert_ne!(a, compile(ClassIdentity::Module, "other", "src/a.tsx"));
-    assert_eq!(
-        compile(ClassIdentity::Content, "app", "src/a.tsx"),
-        compile(ClassIdentity::Content, "app", "src/b.tsx")
-    );
+    let a = compile("app", "src/a.tsx");
+    assert_eq!(a, compile("app", "src\\a.tsx"));
+    assert_eq!(a, compile("app", "src/a.tsx"));
+    assert_ne!(a, compile("app", "src/b.tsx"));
+    assert_ne!(a, compile("other", "src/a.tsx"));
 }
 
 #[test]
@@ -166,11 +160,11 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
             .update_module(module("b.tsx", "bg-brand hover:flex"))
             .transformed
     );
-    assert_eq!(session.css().unwrap(), shared_css);
-    assert_eq!(session.stylesheet().rule_count(), count);
+    assert_ne!(session.css().unwrap(), shared_css);
+    assert_eq!(session.stylesheet().rule_count(), 2 * count);
     assert!(session.remove_module("a.tsx"));
     assert!(!session.remove_module("a.tsx"));
-    assert_eq!(session.css().unwrap(), shared_css);
+    assert_ne!(session.css().unwrap(), shared_css);
     assert_eq!(session.stylesheet().rule_count(), count);
     let old_css = session.css().unwrap();
     assert!(
@@ -264,7 +258,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
         let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
         assert!(session.update_module(analysis).diagnostics.is_empty());
     }
-    assert_eq!(session.dependencies().assets.len(), 2);
+    assert_eq!(session.dependencies().assets.len(), 4);
     assert!(!session.dependencies().utilities.is_empty());
     assert!(!session.dependencies().variants.is_empty());
     assert!(!session.dependencies().properties.is_empty());
@@ -279,7 +273,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
             .diagnostics
             .is_empty()
     );
-    assert_eq!(session.dependencies().assets.len(), 1);
+    assert_eq!(session.dependencies().assets.len(), 3);
     assert_eq!(
         session.dependencies().theme_tokens["--color-brand"],
         ["b.tsx".into()].into()
@@ -296,7 +290,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     assert_eq!(session.css().unwrap(), rebuilt.css().unwrap());
 
     assert!(session.remove_module("b.tsx"));
-    assert!(session.dependencies().assets.is_empty());
+    assert_eq!(session.dependencies().assets.len(), 1);
     assert!(session.dependencies().theme_tokens.is_empty());
     assert!(
         !session

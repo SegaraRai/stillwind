@@ -88,9 +88,12 @@ pub(crate) fn parse_projected(
                     }
                 }
             }
-            ExportedValue::Scopes(value)
+            ExportedValue::Styles(value)
+            | ExportedValue::Scopes(value)
             | ExportedValue::Animations(value)
-            | ExportedValue::ViewTransitions(value) => map_symbolic(value, &normalized)?,
+            | ExportedValue::ViewTransitions(value) => {
+                map_symbolic(value, &normalized)?;
+            }
         }
     }
     Ok((parsed, provenance))

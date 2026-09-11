@@ -31,7 +31,7 @@ function project(
       warn: () => {},
     },
     () => {
-      const loader = new NativeDesignSystemLoader({ classIdentity: "module" });
+      const loader = new NativeDesignSystemLoader({});
       loader.provide(0, path.join(root, "root.css"), css);
       return loader;
     },

@@ -64,7 +64,7 @@ can be exchanged independently of the module's extracted style operations.
 resolves those defaults against CSS configuration and retains only the resolved
 definition settings, theme, registries, source provenance, and fingerprints.
 
-`CompilerOptions` contains host defaults plus class identity, application
+`CompilerOptions` contains host defaults plus class namespace, application
 namespace, and generation policy. `design_system()` projects the loader inputs;
 module compilers and renderers combine generation policy with the snapshot's
 resolved prefixes. Different compilation settings can share one snapshot.

@@ -113,7 +113,10 @@ export function stillwindScope(className: string): StillwindRuntimeHandle {
 }
 
 /** Reads a marker without accepting arbitrary user objects as Stillwind handles. */
-export function stillwindHandleClass(value: unknown): string {
+export function stillwindHandleClass(
+  value: unknown,
+  classes?: Readonly<Record<string, string>>,
+): string {
   if (
     !value ||
     typeof value !== "object" ||
@@ -123,6 +126,12 @@ export function stillwindHandleClass(value: unknown): string {
     typeof value.className !== "string"
   ) {
     throw new TypeError("Stillwind expected a compiled ref or scope value.");
+  }
+  if (classes) {
+    if (!Object.hasOwn(classes, value.className)) {
+      throw new TypeError("Stillwind received an unknown ref projection identity.");
+    }
+    return classes[value.className];
   }
   return value.className;
 }
@@ -138,4 +147,19 @@ function flatten(value: unknown): string[] {
       .map(([name]) => name);
   }
   return [];
+}
+/** Compiler-emitted composition. Bases are validated to contain only classes. */
+export function stillwindMerge(
+  classProperty: "class" | "className",
+  ...parts: readonly Record<string, unknown>[]
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const classes: string[] = [];
+  for (const part of parts) {
+    Object.assign(result, part);
+    const value = part[classProperty];
+    if (typeof value === "string" && value.length > 0) classes.push(value);
+  }
+  if (classes.length > 0) result[classProperty] = classes.join(" ");
+  return result;
 }

@@ -5,6 +5,7 @@ use stillwind_source::normalized_module_path;
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AssetKind {
+    Style,
     Scope,
     Ref,
     Animation,

@@ -74,6 +74,20 @@ impl<'a> MacroExtractor<'a> {
             .clone_from(&self.module_specifiers);
         summary.re_exports.clone_from(&self.re_exports);
 
+        for call in &self.style_calls {
+            summary.assets.push(AssetRecord {
+                identity: IdentityId::new(
+                    AssetKind::Style,
+                    self.source.path(),
+                    call.span.start.0,
+                    call.span.end.0,
+                    "",
+                ),
+                metadata: AssetMetadata { label: None },
+                call_start: call.span.start.0,
+                call_end: call.span.end.0,
+            });
+        }
         for definition in &self.scope_definitions {
             summary.assets.push(AssetRecord {
                 identity: self.identity(AssetKind::Scope, &definition.name),

@@ -9,8 +9,9 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 use oxc::span::GetSpan;
 
-use stillwind_ir::framework::{MODULE_CSS_IMPORT, from_macro_import};
-use stillwind_ir::{MacroImport, MacroImportSpecifier, ModuleImports};
+use stillwind_ir::{
+    MODULE_CSS_IMPORT, MacroImport, MacroImportSpecifier, ModuleImports, from_macro_import,
+};
 use stillwind_source::{FileId, Span};
 
 pub(crate) fn collect(program: &Program<'_>, scoping: &Scoping, file: FileId) -> ModuleImports {

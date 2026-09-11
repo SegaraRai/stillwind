@@ -9,7 +9,7 @@ use stillwind_source::{
     CompileError, Fingerprint, LintDirective, LintFinding, SourceFile, SourceProvenance, Span,
 };
 
-use crate::{ModuleIr, SourceInput};
+use crate::{ModuleIr, SourceInput, validate_composition};
 
 #[derive(Clone, Debug)]
 pub struct TypeProbe {
@@ -66,6 +66,14 @@ pub trait SourceAnalyzer {
 impl ModuleAnalysis {
     /// Attaches referenced declaration CSS without registering semantic inputs as producers.
     pub fn attach_asset_support(&mut self, inputs: &[Self]) {
+        let mut modules = vec![&*self];
+        modules.extend(
+            inputs
+                .iter()
+                .filter(|input| input.module_id != self.module_id),
+        );
+        let diagnostics = validate_composition(&modules, self.source.full_span(), true);
+        self.diagnostics.extend(diagnostics);
         self.asset_support.clear();
         for input in inputs {
             if input.module_id == self.module_id {

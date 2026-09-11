@@ -1,7 +1,6 @@
 //! Integration of import binding, declarations, reference resolution and module summaries.
 
-use stillwind_ir::framework::FRAMEWORKS;
-use stillwind_ir::{AdapterKind, StyleInput, StyleVariant};
+use stillwind_ir::{AdapterKind, FRAMEWORKS, StyleInput, StyleVariant};
 use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile, Span};

@@ -1,16 +1,59 @@
 use oxc::ast::ast::{
-    ArrayExpressionElement, Expression, ObjectExpression, ObjectPropertyKind, PropertyKey,
-    PropertyKind,
+    ArrayExpressionElement, CallExpression, Expression, ObjectExpression, ObjectPropertyKind,
+    PropertyKey, PropertyKind,
 };
 use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
 
 use stillwind_ir::{AttributeEntry, StyleInput, StyleVariant};
+use stillwind_semantic::{ExportedValue, IdentityId};
 use stillwind_source::{CompileError, Span};
 
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    pub(crate) fn is_style_call(&self, call: &CallExpression<'a>) -> bool {
+        let Expression::Identifier(identifier) = &call.callee else {
+            return false;
+        };
+        identifier
+            .reference_id
+            .get()
+            .and_then(|reference| self.scoping.get_reference(reference).symbol_id())
+            .is_some_and(|symbol| self.style_symbols.contains(&symbol))
+    }
+
+    pub(crate) fn style_candidates(&self, expression: &Expression<'a>) -> Option<Vec<IdentityId>> {
+        self.record_type_probe(expression);
+        let span = expression.span();
+        if let Some(ExportedValue::Styles(value)) = self.type_facts.get(&(span.start, span.end)) {
+            return Some(value.finite_candidates()?.iter().cloned().collect());
+        }
+        match expression {
+            Expression::Identifier(identifier) => {
+                let symbol = self
+                    .scoping
+                    .get_reference(identifier.reference_id.get()?)
+                    .symbol_id()?;
+                let ExportedValue::Styles(value) = self.local_values.get(&symbol)? else {
+                    return None;
+                };
+                Some(value.finite_candidates()?.iter().cloned().collect())
+            }
+            Expression::ConditionalExpression(conditional) => {
+                let mut candidates = self.style_candidates(&conditional.consequent)?;
+                candidates.extend(self.style_candidates(&conditional.alternate)?);
+                candidates.sort();
+                candidates.dedup();
+                Some(candidates)
+            }
+            Expression::ParenthesizedExpression(parenthesized) => {
+                self.style_candidates(&parenthesized.expression)
+            }
+            _ => None,
+        }
+    }
+
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
         if matches!(
             expression,
@@ -30,6 +73,23 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) {
+        if let Expression::CallExpression(call) = expression
+            && self.is_style_call(call)
+        {
+            self.diagnostics.push(CompileError::new(
+                "SHCOMP001",
+                "nested style() calls are not supported; bind the base to a variable",
+                self.source_span(call.span),
+            ));
+            return;
+        }
+        if let Some(candidates) = self.style_candidates(expression) {
+            inputs.push(StyleInput::Composition {
+                value: self.source_span(expression.span()),
+                candidates,
+            });
+            return;
+        }
         if self.collect_dynamic_handle_attachment(expression, inputs) {
             return;
         }

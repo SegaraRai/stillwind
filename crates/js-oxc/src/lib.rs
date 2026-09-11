@@ -24,6 +24,7 @@ mod normalization;
 mod projected_scan;
 mod refs;
 mod state;
+mod style_bindings;
 mod templates;
 mod visit;
 

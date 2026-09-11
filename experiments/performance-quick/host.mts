@@ -11,7 +11,7 @@ const root = fileURLToPath(new URL("../../packages/host/test/", import.meta.url)
 const results = fileURLToPath(new URL("./results/", import.meta.url));
 const labelIndex = process.argv.indexOf("--label");
 const label = labelIndex < 0 ? "host" : process.argv[labelIndex + 1];
-const loader = new NativeDesignSystemLoader({ classIdentity: "module" });
+const loader = new NativeDesignSystemLoader({});
 loader.provide(
   0,
   "root.css",

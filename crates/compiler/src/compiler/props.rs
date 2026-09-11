@@ -25,6 +25,7 @@ pub(super) struct ViewTransitionStyleEntry {
 pub(super) struct DynamicAssetClassEntry {
     pub(super) value: Span,
     pub(super) classes: Vec<(String, String)>,
+    pub(super) helper: RuntimeHelper,
 }
 
 #[derive(Clone, Copy)]
@@ -38,11 +39,44 @@ pub(super) struct PropsParts<'a> {
     pub(super) view_transition_style: Option<&'a ViewTransitionStyleEntry>,
 }
 
-fn guarded_class(source: &SourceFile, class: &GeneratedClass) -> Option<String> {
+impl PropsParts<'_> {
+    pub(super) fn expressions(&self) -> Vec<Span> {
+        self.classes
+            .iter()
+            .filter_map(|class| class.guard)
+            .chain(self.attributes.iter().map(|entry| entry.value))
+            .chain(self.external_classes.iter().copied())
+            .chain(self.dynamic_handle_classes.iter().copied())
+            .chain(self.dynamic_asset_classes.iter().map(|entry| entry.value))
+            .chain(
+                self.view_transition_style
+                    .into_iter()
+                    .flat_map(|entry| [entry.value, entry.key].into_iter().flatten()),
+            )
+            .collect()
+    }
+}
+
+pub(super) struct ExpressionSource<'a> {
+    pub(super) source: &'a SourceFile,
+    pub(super) bindings: &'a [(Span, String)],
+}
+
+impl ExpressionSource<'_> {
+    pub(super) fn get(&self, span: Span) -> Option<&str> {
+        if let Some((_, name)) = self.bindings.iter().find(|(at, _)| *at == span) {
+            Some(name)
+        } else {
+            self.source.slice(span).ok()
+        }
+    }
+}
+
+fn guarded_class(source: &ExpressionSource<'_>, class: &GeneratedClass) -> Option<String> {
     let Some(span) = class.guard else {
         return Some(format!("\"{}\"", class.class_name));
     };
-    let guard = source.slice(span).ok()?;
+    let guard = source.get(span)?;
     let guard = if guard
         .chars()
         .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
@@ -56,7 +90,7 @@ fn guarded_class(source: &SourceFile, class: &GeneratedClass) -> Option<String> 
 }
 
 pub(super) fn render_props(
-    source: &SourceFile,
+    source: &ExpressionSource<'_>,
     parts: &PropsParts<'_>,
     adapter: AdapterKind,
     runtime: &mut RuntimeBindings<'_>,
@@ -91,14 +125,14 @@ pub(super) fn render_props(
         class_names.extend(
             external_classes
                 .iter()
-                .map(|value| source.slice(*value).ok().map(str::to_owned))
+                .map(|value| source.get(*value).map(str::to_owned))
                 .collect::<Option<Vec<_>>>()?,
         );
         class_names.extend(
             dynamic_handle_classes
                 .iter()
                 .map(|value| {
-                    source.slice(*value).ok().map(|value| {
+                    source.get(*value).map(|value| {
                         format!(
                             "{}({value})",
                             runtime.require(RuntimeHelper::HandleClass, call_span)
@@ -111,7 +145,7 @@ pub(super) fn render_props(
             dynamic_asset_classes
                 .iter()
                 .map(|entry| {
-                    let value = source.slice(entry.value).ok()?;
+                    let value = source.get(entry.value)?;
                     let classes = entry
                         .classes
                         .iter()
@@ -120,7 +154,7 @@ pub(super) fn render_props(
                         .join(",");
                     Some(format!(
                         "{}({value},{{{classes}}})",
-                        runtime.require(RuntimeHelper::AssetClass, call_span)
+                        runtime.require(entry.helper, call_span)
                     ))
                 })
                 .collect::<Option<Vec<_>>>()?,
@@ -138,7 +172,7 @@ pub(super) fn render_props(
         entries.push(format!("{property}:{class_value}"));
     }
     for attribute in attributes {
-        let value = source.slice(attribute.value).ok()?;
+        let value = source.get(attribute.value)?;
         entries.push(format!("\"{}\":{value}", attribute.name.value));
     }
     if let Some(entry) = view_transition_style {
@@ -148,18 +182,18 @@ pub(super) fn render_props(
 }
 
 fn render_view_transition(
-    source: &SourceFile,
+    source: &ExpressionSource<'_>,
     entry: &ViewTransitionStyleEntry,
     runtime: &mut RuntimeBindings<'_>,
     call_span: Span,
 ) -> Option<String> {
     let value = match (entry.value, &entry.identity) {
-        (Some(value), None) => source.slice(value).ok()?.to_owned(),
+        (Some(value), None) => source.get(value)?.to_owned(),
         (None, Some(identity)) => format!("\"{identity}\""),
         _ => return None,
     };
     let key = match entry.key {
-        Some(key) => source.slice(key).ok()?.to_owned(),
+        Some(key) => source.get(key)?.to_owned(),
         None => "undefined".to_owned(),
     };
     let candidates = entry

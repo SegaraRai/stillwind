@@ -31,7 +31,7 @@ pub use module_compiler::{
     CompilationDependencies, CompiledModule, GeneratedRule, ModuleArtifactKey, ModuleCompiler,
     ModuleCssArtifact, ModuleResourceReference, ModuleTransformError, RuleKey,
 };
-pub use options::{ClassIdentity, CompilerOptions};
+pub use options::CompilerOptions;
 pub use query::{
     CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
     DesignSystemQuery,

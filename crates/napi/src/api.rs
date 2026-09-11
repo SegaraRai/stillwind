@@ -139,6 +139,7 @@ pub(super) fn binding_output(
         })
         .collect();
     BindingOutput {
+        composition: result.composition.into_iter().map(Into::into).collect(),
         resources: result.resources.into_iter().map(Into::into).collect(),
         css: result.css,
         code,

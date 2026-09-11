@@ -106,7 +106,7 @@ let declarations = renderer.generate_react_types();
 
 The snapshot owns definition settings. Rendering and class-generation policy
 belong to the compiler. CSS-resolved prefixes override the loader defaults;
-class identity and application namespace remain independent compiler settings.
+application namespace remains a separate compiler setting; each style call has its own identity.
 
 ## Sessions and reloads
 

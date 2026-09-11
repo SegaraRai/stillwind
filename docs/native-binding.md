@@ -5,7 +5,7 @@ The Node binding accepts JavaScript objects and arrays and returns typed objects
 ```ts
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-const loader = new NativeDesignSystemLoader({ classIdentity: "module" });
+const loader = new NativeDesignSystemLoader({});
 const step = loader.provide(
   0,
   "root.css",

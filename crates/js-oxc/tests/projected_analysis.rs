@@ -5,6 +5,7 @@ use stillwind_ir::{
     SourceInput,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
+use stillwind_semantic::AssetKind;
 use stillwind_source::{FileId, ProjectionMap, SourceFile, VolarMapping};
 
 fn projected() -> SourceInput {
@@ -123,7 +124,12 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
             "'stillwind/svelte'"
         );
     }
-    let asset = &scan.summary.assets[0];
+    let asset = scan
+        .summary
+        .assets
+        .iter()
+        .find(|asset| asset.identity.kind == AssetKind::Ref)
+        .unwrap();
     assert_eq!(asset.identity.module_path, "Component.svelte");
     assert_eq!(
         &original.text()[asset.identity.start as usize..asset.identity.end as usize],

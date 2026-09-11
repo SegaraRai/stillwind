@@ -47,6 +47,11 @@ declare const scopeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
 declare const animationIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
+declare const styleIdentity: unique symbol;
+
+export type StyleResult<Id extends string = string, Props = StyleProps> = Props & {
+  readonly [styleIdentity]: Id;
+};
 
 export type StillwindDeclarationIdentity<Id extends string> = {
   readonly __stillwindDeclarationIdentity: Id;
@@ -129,6 +134,7 @@ type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
   };
 
 export type StyleArgument =
+  | StyleResult<string, object>
   | UtilityString
   | false
   | null
@@ -143,7 +149,10 @@ export type StyleArgument =
   | StyleViewTransitionUse;
 
 export type StyleMacro<Props = StyleProps> = {
-  (...inputs: readonly StyleArgument[]): Props;
+  <Id extends string>(
+    ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
+  ): StyleResult<Id, Props>;
+  (...inputs: readonly StyleArgument[]): StyleResult<string, Props>;
   scope(): StyleScope;
   scope(name: string): StyleScope;
   scope<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleScope<Id>;

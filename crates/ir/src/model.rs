@@ -2,9 +2,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use stillwind_semantic::IdentityId;
 use stillwind_source::{Span, Spanned};
 
-pub use crate::framework::AdapterKind;
+pub use crate::AdapterKind;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ModuleIr {
@@ -143,6 +144,10 @@ pub enum StyleVariant {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
+    Composition {
+        value: Span,
+        candidates: Vec<IdentityId>,
+    },
     UtilityString(Spanned<String>),
     ConditionalUtilityString {
         guard: Span,

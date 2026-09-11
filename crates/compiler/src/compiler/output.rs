@@ -1,15 +1,21 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
+
+use stillwind_ir::StyleDependency;
 use stillwind_source::{CompileError, LintFinding, SourceFile};
 
 use super::props::GeneratedClass;
 use super::symbols::GeneratedSymbol;
-use crate::transforms::{SourceTransform, TransformError, apply_transforms};
+use crate::{
+    ModuleResourceReference,
+    transforms::{SourceTransform, TransformError, apply_transforms},
+};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CompileResult {
-    pub resources: Vec<crate::ModuleResourceReference>,
+    pub composition: Vec<StyleDependency>,
+    pub resources: Vec<ModuleResourceReference>,
     pub css: String,
     /// Unwrapped utility rules used to assemble one stylesheet for a module graph.
     #[serde(skip)]

@@ -78,7 +78,7 @@ module.exports = function (source, inputMap, additionalData) {
     }
     const root = path.resolve(context.rootContext, options.root ?? ".");
     const css = path.resolve(root, options.css);
-    const compilerOptions = { classIdentity: "module", ...options };
+    const compilerOptions = { ...options };
     delete compilerOptions.css;
     delete compilerOptions.root;
     const loaded = await host.loadCssGraph(css, compilerOptions, {
@@ -117,6 +117,11 @@ module.exports = function (source, inputMap, additionalData) {
     );
     if (!output?.code)
       return callback(null, projection ? "" : source, projection ? null : inputMap);
+    if (output.compositionModules.length > 0) {
+      throw new Error(
+        "Cross-module style composition requires the verified Vite CSS transport; this loader currently supports same-module composition only.",
+      );
+    }
     const plan = session.planStylesheet({
       modules: [output.path],
       coverage: { kind: "observed" },

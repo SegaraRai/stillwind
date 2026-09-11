@@ -76,7 +76,7 @@ void test("explicit module CSS exports scoped values without adding document CSS
   }
 });
 
-void test("relative JS resources preserve distinct origins even with content class identity", async () => {
+void test("relative JS resources preserve distinct producer origins", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
   const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
@@ -97,9 +97,7 @@ void test("relative JS resources preserve distinct origins even with content cla
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [
-        stillwind({ css: path.join(root, "root.css"), types: false, classIdentity: "content" }),
-      ],
+      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
       build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
     });
     if (!("output" in result)) throw new Error("expected a single build output");

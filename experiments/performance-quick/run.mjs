@@ -22,7 +22,7 @@ const label = argument("--label", legacyPath ? "legacy" : "current");
 const directory = fileURLToPath(new URL("./results/", import.meta.url));
 const input = (value) => (legacyPath ? JSON.stringify(value) : value);
 const output = (value) => (legacyPath ? JSON.parse(value) : value);
-const options = { classIdentity: "module" };
+const options = {};
 const minimal =
   "@utility flex {display:flex;} @utility block {display:block;} @utility red {color:red;} @stillwind-slot utilities;";
 const full = resolveFixtureCss('@import "stillwind";');

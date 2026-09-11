@@ -9,8 +9,26 @@ import type {
   NativeExportedValue,
 } from "@stillwind/native";
 import type { Node, SourceFile } from "typescript/unstable/ast";
-import { isExpression } from "typescript/unstable/ast/is";
-import { API } from "typescript/unstable/sync";
+import { SyntaxKind } from "typescript/unstable/ast";
+import {
+  isExpression,
+  isIdentifier,
+  isVariableDeclaration,
+  isBinaryExpression,
+  isConditionalExpression,
+  isParenthesizedExpression,
+  isPropertyAccessExpression,
+  isCallExpression,
+  isFunctionDeclaration,
+  isFunctionExpression,
+  isArrowFunction,
+  isBlock,
+  isReturnStatement,
+  isPropertyAssignment,
+  isObjectLiteralExpression,
+  isShorthandPropertyAssignment,
+} from "typescript/unstable/ast/is";
+import { API, SymbolFlags, TypeFlags } from "typescript/unstable/sync";
 import type { Checker, Snapshot, Type } from "typescript/unstable/sync";
 
 export interface TypeFactSource {
@@ -90,12 +108,19 @@ function shadowSource(source: TypeFactSource, assets: readonly AssetRecord[]) {
   return { text, edits, identities };
 }
 
-function shadowToOriginal(position: number, edits: readonly ShadowEdit[]): number | null {
+function shadowToOriginal(
+  position: number,
+  edits: readonly ShadowEdit[],
+  end = false,
+): number | null {
   let inserted = 0;
   for (const edit of edits) {
     const shadowStart = edit.at + inserted;
     const shadowEnd = shadowStart + edit.text.length;
     if (position < shadowStart) break;
+    // A real argument can end exactly where the hidden identity is inserted.
+    // Its end belongs to the original source, not to the inserted argument.
+    if (end && position === shadowStart) return edit.at;
     if (position < shadowEnd) return null;
     inserted += edit.text.length - (edit.end - edit.at);
   }
@@ -142,10 +167,17 @@ function typeFactValue(
   const scopes: IdentityId[] = [];
   const animations: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
+  const styles: IdentityId[] = [];
 
   for (const constituent of constituents) {
     const symbol = constituent.getAliasSymbol() ?? constituent.getSymbol();
     const args = typeArguments(checker, constituent);
+    if (symbol?.name === "StyleResult") {
+      const candidates = knownIdentities(args[0], identities, "style");
+      if (!candidates) return null;
+      styles.push(...candidates);
+      continue;
+    }
     if (symbol?.name === "StyleScope") {
       const candidates = knownIdentities(args[0], identities, "scope");
       if (!candidates) return null;
@@ -183,10 +215,11 @@ function typeFactValue(
     return null;
   }
 
-  const populated = [refs, scopes, animations, viewTransitions].filter(
+  const populated = [refs, scopes, animations, viewTransitions, styles].filter(
     (values) => values.length > 0,
   );
   if (populated.length !== 1) return null;
+  if (styles.length > 0) return { kind: "styles", value: symbolic("style", styles) };
   if (refs.length > 0) return { kind: "refs", value: refs };
   if (scopes.length > 0) return { kind: "scopes", value: symbolic("scope", scopes) };
   if (animations.length > 0)
@@ -197,6 +230,183 @@ function typeFactValue(
       value: symbolic("view-transition", viewTransitions),
     };
   return null;
+}
+
+/** Hidden nominal identities must not discard later, source-valid assignments.
+ * Collect every assignment to the checker-resolved binding, irrespective of flow.
+ */
+function styleFlow(
+  checker: Checker,
+  sources: readonly SourceFile[],
+  identities: ReadonlyMap<string, IdentityId>,
+) {
+  const definitions: { target: Node; value: Node }[] = [];
+  for (const source of sources)
+    visit(source, (node) => {
+      if (isVariableDeclaration(node) && isIdentifier(node.name) && node.initializer)
+        definitions.push({ target: node.name, value: node.initializer });
+      if (isFunctionDeclaration(node) && node.name)
+        definitions.push({ target: node.name, value: node });
+      if (isPropertyAssignment(node))
+        definitions.push({ target: node.name, value: node.initializer });
+      if (
+        isBinaryExpression(node) &&
+        node.operatorToken.kind === SyntaxKind.EqualsToken &&
+        (isIdentifier(node.left) || isPropertyAccessExpression(node.left))
+      )
+        definitions.push({ target: node.left, value: node.right });
+    });
+  const cachedSymbols = new Map(
+    checker
+      .getSymbolAtLocation(definitions.map(({ target }) => target))
+      .map((symbol, index) => [definitions[index].target, symbol]),
+  );
+  const symbolId = (node: Node) => {
+    if (!cachedSymbols.has(node)) cachedSymbols.set(node, checker.getSymbolAtLocation(node));
+    let symbol = cachedSymbols.get(node);
+    if (symbol && symbol.flags & SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    return symbol?.getExportSymbol().id;
+  };
+  const assignments = new Map<number, Node[]>();
+  for (const { target, value } of definitions) {
+    const id = symbolId(target);
+    if (id === undefined) continue;
+    const values = assignments.get(id) ?? [];
+    values.push(value);
+    assignments.set(id, values);
+  }
+  const unite = (values: (IdentityId[] | null)[]): IdentityId[] | null => {
+    if (values.some((value) => value === null)) return null;
+    const unique = new Map(
+      values.flatMap((value) => value ?? []).map((identity) => [identityKey(identity), identity]),
+    );
+    return [...unique.values()];
+  };
+  const resolve = (
+    node: Node,
+    pending: Set<number>,
+    parameters = new Map<number, Node>(),
+  ): IdentityId[] | null => {
+    if (isParenthesizedExpression(node)) return resolve(node.expression, pending, parameters);
+    if (isConditionalExpression(node))
+      return unite([
+        resolve(node.whenTrue, pending, parameters),
+        resolve(node.whenFalse, pending, parameters),
+      ]);
+    if (isPropertyAccessExpression(node) && isIdentifier(node.expression)) {
+      const objectId = symbolId(node.expression);
+      const objects = objectId === undefined ? undefined : assignments.get(objectId);
+      if (objects?.every(isObjectLiteralExpression)) {
+        const propertyId = symbolId(node);
+        if (propertyId !== undefined && pending.has(propertyId)) return null;
+        const next = new Set(pending);
+        if (propertyId !== undefined) next.add(propertyId);
+        const property = node.name.text;
+        const values: Node[] = [];
+        for (const object of objects)
+          for (const entry of object.properties) {
+            if (
+              isPropertyAssignment(entry) &&
+              isIdentifier(entry.name) &&
+              entry.name.text === property
+            )
+              values.push(entry.initializer);
+            if (
+              isShorthandPropertyAssignment(entry) &&
+              isIdentifier(entry.name) &&
+              entry.name.text === property
+            )
+              values.push(entry.name);
+          }
+        for (const assignment of definitions)
+          if (
+            isPropertyAccessExpression(assignment.target) &&
+            assignment.target.name.text === property &&
+            symbolId(assignment.target.expression) === objectId
+          )
+            values.push(assignment.value);
+        return values.length
+          ? unite(values.map((value) => resolve(value, next, parameters)))
+          : null;
+      }
+    }
+    if (isCallExpression(node) && isIdentifier(node.expression)) {
+      const id = symbolId(node.expression);
+      const values = id === undefined ? undefined : assignments.get(id);
+      if (
+        id !== undefined &&
+        values?.every(
+          (value) =>
+            isArrowFunction(value) || isFunctionDeclaration(value) || isFunctionExpression(value),
+        )
+      ) {
+        if (pending.has(id)) return null;
+        const results: (IdentityId[] | null)[] = [];
+        for (const value of values) {
+          if (
+            !(
+              isArrowFunction(value) ||
+              isFunctionDeclaration(value) ||
+              isFunctionExpression(value)
+            ) ||
+            !value.body
+          )
+            return null;
+          const frame = new Map(parameters);
+          for (let index = 0; index < value.parameters.length; index++) {
+            const parameter = value.parameters[index];
+            if (!isIdentifier(parameter.name) || parameter.dotDotDotToken) return null;
+            const argument = node.arguments[index] ?? parameter.initializer;
+            const parameterId = symbolId(parameter.name);
+            if (argument && parameterId !== undefined) frame.set(parameterId, argument);
+          }
+          const returned: Node[] = [];
+          if (!isBlock(value.body)) returned.push(value.body);
+          else {
+            const collect = (child: Node) => {
+              if (
+                isArrowFunction(child) ||
+                isFunctionDeclaration(child) ||
+                isFunctionExpression(child)
+              )
+                return;
+              if (isReturnStatement(child)) {
+                if (child.expression) returned.push(child.expression);
+                return;
+              }
+              child.forEachChild(collect);
+            };
+            value.body.forEachChild(collect);
+          }
+          results.push(
+            ...returned.map((returned) => resolve(returned, new Set(pending).add(id), frame)),
+          );
+        }
+        return unite(results);
+      }
+    }
+    if (isIdentifier(node) || isPropertyAccessExpression(node)) {
+      const id = symbolId(node);
+      const values =
+        id === undefined
+          ? undefined
+          : [...(assignments.get(id) ?? []), ...(parameters.has(id) ? [parameters.get(id)!] : [])];
+      if (id !== undefined && values?.length) {
+        if (pending.has(id)) return null;
+        const next = new Set(pending).add(id);
+        return unite(values.map((value) => resolve(value, next, parameters)));
+      }
+    }
+    const type = checker.getTypeAtLocation(node);
+    const value = type && typeFactValue(checker, type, identities);
+    return value?.kind === "styles" && value.value.candidates.kind === "finite"
+      ? value.value.candidates.values
+      : null;
+  };
+  return (node: Node): NativeExportedValue | null => {
+    const candidates = resolve(node, new Set());
+    return candidates?.length ? { kind: "styles", value: symbolic("style", candidates) } : null;
+  };
 }
 
 interface PreparedProject {
@@ -363,13 +573,19 @@ export class TypeScriptFactsService {
     try {
       const project = next.getProject(this.#configFile);
       if (!project) throw new Error("TypeScript 7 could not open the Stillwind shadow project");
+      const sourceFiles = [...prepared.mappings.values()].map((mapping) => {
+        const sourceFile = project.program.getSourceFile(mapping.source.id);
+        if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.source.id}`);
+        return sourceFile;
+      });
+      const possibleStyles = styleFlow(project.checker, sourceFiles, prepared.identities);
       const result = new Map<string, TypeFact[]>();
       for (const mapping of prepared.mappings.values()) {
         const sourceFile = project.program.getSourceFile(mapping.source.id);
         if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.source.id}`);
         result.set(
           mapping.source.path,
-          factsForSource(project.checker, sourceFile, mapping, prepared.identities),
+          factsForSource(project.checker, sourceFile, mapping, prepared.identities, possibleStyles),
         );
       }
       return result;
@@ -399,6 +615,7 @@ function factsForSource(
   sourceFile: SourceFile,
   mapping: { source: TypeFactSource; edits: ShadowEdit[] },
   identities: ReadonlyMap<string, IdentityId>,
+  possibleStyles: (node: Node) => NativeExportedValue | null,
 ): TypeFact[] {
   const expressions: Node[] = [];
   const probes = new Set(mapping.source.probes.map(({ start, end }) => `${start}:${end}`));
@@ -406,7 +623,7 @@ function factsForSource(
   visit(sourceFile, (node) => {
     if (!isExpression(node)) return;
     const start = shadowToOriginal(node.getStart(sourceFile), mapping.edits);
-    const end = shadowToOriginal(node.end, mapping.edits);
+    const end = shadowToOriginal(node.end, mapping.edits, true);
     if (start === null || end === null) return;
     if (
       probes.has(
@@ -420,10 +637,14 @@ function factsForSource(
   for (let index = 0; index < expressions.length; index += 1) {
     const type = types[index];
     if (!type) continue;
-    const value = typeFactValue(checker, type, identities);
+    const checked = typeFactValue(checker, type, identities);
+    const value =
+      checked?.kind === "styles" || (!checked && type.flags & TypeFlags.Any)
+        ? possibleStyles(expressions[index])
+        : checked;
     if (!value) continue;
     const start = shadowToOriginal(expressions[index].getStart(sourceFile), mapping.edits);
-    const end = shadowToOriginal(expressions[index].end, mapping.edits);
+    const end = shadowToOriginal(expressions[index].end, mapping.edits, true);
     if (start === null || end === null) continue;
     facts.push({
       start: utf16ToByte(mapping.source.source, start),

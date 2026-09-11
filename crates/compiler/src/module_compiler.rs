@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_ir::{ModuleAnalysis, StyleInput, StyleVariant};
+use stillwind_ir::{ModuleAnalysis, StyleDependency, StyleInput, StyleVariant};
 use stillwind_semantic::{IdentityId, ModuleId};
 use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile};
 
@@ -143,6 +143,7 @@ pub struct CompilationDependencies {
 
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
+    pub composition: Vec<StyleDependency>,
     pub resources: Vec<ModuleResourceReference>,
     pub key: ModuleArtifactKey,
     pub code_transforms: Vec<SourceTransform>,
@@ -172,6 +173,7 @@ impl CompiledModule {
     pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {
+            composition: self.composition.clone(),
             resources: self.resources.clone(),
             css: module_css.clone(),
             module_css,
@@ -372,6 +374,7 @@ impl ModuleCompiler {
         };
         let success = diagnostics.is_empty();
         CompiledModule {
+            composition: result.composition,
             resources: result.resources,
             key: self.key_for(module),
             code_transforms: if success {

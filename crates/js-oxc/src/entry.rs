@@ -60,6 +60,7 @@ pub fn parse_with_language(
 
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
     let mut extractor = MacroExtractor::new(source, semantic.scoping(), type_facts, assets);
+    extractor.seed_style_bindings(&result.program);
     extractor.visit_program(&result.program);
     extractor.validate_handles();
     let mut summary = extractor.module_summary();

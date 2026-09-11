@@ -1,6 +1,6 @@
 use oxc::ast::ast::{CallExpression, Expression, ImportDeclaration};
 
-use stillwind_ir::framework::from_macro_import;
+use stillwind_ir::from_macro_import;
 
 use super::state::MacroExtractor;
 

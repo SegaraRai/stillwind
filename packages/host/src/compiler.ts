@@ -175,13 +175,27 @@ export async function compileModule(
   const output = projectOutput.modules.find(
     (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
   );
+  const composition = output?.composition ?? [];
+  const compositionModules = [...new Set(composition.map(({ base }) => base.module_path))].filter(
+    (module) => module !== entrySource.path,
+  );
+  const compositionTopology = JSON.stringify(
+    composition
+      .map(({ derived, base }) => [
+        `${derived.module_path}:${derived.start}`,
+        `${base.module_path}:${base.start}`,
+      ])
+      .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1])),
+  );
   if (options.diagnostics === "collect" && output) {
     return {
       ...output,
       hasModuleCssImport,
+      compositionModules,
+      compositionTopology,
       diagnostics: projectOutput.modules.flatMap((module) => module.diagnostics),
     };
   }
   if (!output?.code) return undefined;
-  return { ...output, hasModuleCssImport };
+  return { ...output, hasModuleCssImport, compositionModules, compositionTopology };
 }

@@ -12,7 +12,9 @@ use stillwind_ir::{
     ProjectionRegion, ScriptLanguage, SourceInput,
 };
 use stillwind_semantic::TypeFact;
-use stillwind_source::{CoordinateIndex, FileId, ProjectionMap, SourceFile, Span, Utf16Offset};
+use stillwind_source::{
+    CoordinateIndex, FileId, ProjectionMap, SourceFile, Span, Utf16Offset, VolarMapping,
+};
 
 #[napi(string_enum = "lowercase")]
 pub enum NativeScriptLanguage {
@@ -138,7 +140,7 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
                 NativeProjectionMap::Volar { mappings } => ProjectionMap::Volar {
                     mappings: mappings
                         .into_iter()
-                        .map(|mapping| stillwind_source::VolarMapping {
+                        .map(|mapping| VolarMapping {
                             source_offsets: mapping.source_offsets,
                             generated_offsets: mapping.generated_offsets,
                             lengths: mapping.lengths,

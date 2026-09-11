@@ -10,7 +10,25 @@
 ::view-transition-new(.--sw-v-5ce18560) {
   opacity: 0%;
 }
-._s_9ea3eea9 {
+._s_dd456996 {
+  --sw-vt-name: none;
+  --sw-vt-class: none;
+  view-transition-name: var(--sw-vt-name);
+  view-transition-class: var(--sw-vt-class);
+}
+._s_4de531c3 {
+  --sw-vt-name: none;
+  --sw-vt-class: none;
+  view-transition-name: var(--sw-vt-name);
+  view-transition-class: var(--sw-vt-class);
+}
+._s_3977cd6f {
+  --sw-vt-name: none;
+  --sw-vt-class: none;
+  view-transition-name: var(--sw-vt-name);
+  view-transition-class: var(--sw-vt-class);
+}
+._s_bca849c5 {
   --sw-vt-name: none;
   --sw-vt-class: none;
   view-transition-name: var(--sw-vt-name);

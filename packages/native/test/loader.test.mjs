@@ -11,7 +11,7 @@ void test("native object transport returns typed values and rejects the former J
   } = await import("../index.js");
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   const css = "@utility flex {display:flex;} @stillwind-slot utilities;";
-  const output = compileReact(source, "🧭.tsx", css, { classIdentity: "module" });
+  const output = compileReact(source, "🧭.tsx", css, {});
   assert.equal(typeof output, "object");
   assert.equal(Object.getPrototypeOf(output), Object.prototype);
   assert.deepEqual(output.diagnostics, []);
@@ -39,7 +39,6 @@ void test("native object transport returns typed values and rejects the former J
   assert.throws(() => compileReactProject("[]", css), /array/i);
   assert.throws(() => compileReact(source, "x.ts", css, "{}"));
   assert.throws(() => new NativeDesignSystemLoader('{"prefix":"--x-"}'));
-  assert.throws(() => new NativeDesignSystemLoader({ classIdentity: "invalid" }), /classIdentity/);
   const loader = new NativeDesignSystemLoader();
   assert.equal(loader.provide(0, "root", css).kind, "complete");
   const session = new NativeProjectSession(loader, false);
@@ -72,7 +71,7 @@ void test("native object transport returns typed values and rejects the former J
 
 void test("removal reports producer presence independently of shared CSS", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
-  const loader = new NativeDesignSystemLoader({ classIdentity: "content" });
+  const loader = new NativeDesignSystemLoader({});
   loader.provide(0, "root.css", "@utility flex {display:flex;} @stillwind-slot utilities;");
   const session = new NativeProjectSession(loader, true);
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
@@ -82,7 +81,7 @@ void test("removal reports producer presence independently of shared CSS", async
   ]);
   const shared = session.css();
   assert.equal(session.remove("a.ts"), true);
-  assert.equal(session.css(), shared);
+  assert.notEqual(session.css(), shared);
   assert.equal(session.remove("a.ts"), false);
   assert.equal(session.remove("b.ts"), true);
   assert.notEqual(session.css(), shared);
@@ -237,7 +236,7 @@ void test("loads the current platform package through the public loader", async 
 void test("session reload applies code generation options independently of CSS definitions", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const load = (classNamespace) => {
-    const loader = new NativeDesignSystemLoader({ classIdentity: "module", classNamespace });
+    const loader = new NativeDesignSystemLoader({ classNamespace });
     const result = loader.provide(
       0,
       "root",
@@ -264,7 +263,7 @@ void test("session reload applies code generation options independently of CSS d
   assert.deepEqual(after.modules[0].diagnostics, []);
 });
 
-void test("native sessions retain shared rules and replace CSS revisions", async () => {
+void test("native sessions retain independent producer rules and replace CSS revisions", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const loader = new NativeDesignSystemLoader();
   assert.deepEqual(
@@ -293,7 +292,8 @@ void test("native sessions retain shared rules and replace CSS revisions", async
   const before = session.css();
   assert.ok(before.length > 0);
   assert.equal(session.remove("a.tsx"), true);
-  assert.equal(session.css(), before);
+  assert.notEqual(session.css(), before);
+  assert.equal((session.css().match(/background-color:/g) ?? []).length, 1);
   const next = new NativeDesignSystemLoader();
   next.provide(
     0,

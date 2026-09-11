@@ -81,11 +81,23 @@ stillwind({
 
 Both prefixes must start with `--`, end with `-`, and differ from each other.
 
-The Vite adapter defaults to `classIdentity: "module"`. It salts generated style
-classes with the project-relative producer path. Set `classNamespace` to a stable
+Every rule-bearing `style()` call has its own class identity, including the
+project-relative producer path. Set `classNamespace` to a stable
 package/application name when independently built projects share a document; use
-the same namespace for client and server builds. `classIdentity: "content"` keeps
-content-based names (the default of the lower-level Rust API).
+the same namespace for client and server builds. Content deduplication and the
+former `classIdentity` option have been removed to preserve composition order.
+
+Compose existing results without rewriting their utility strings:
+
+```tsx
+const base = style("m-10 hover:m-20");
+const compact = style(base, "m-4");
+const selected = style(flag ? base : compact, "hover:m-30");
+```
+
+Each base's CSS precedes the derived CSS; normal CSS specificity and importance
+still apply. Bases with additional props and dependency cycles are errors.
+See [composition support and transport limits](docs/style-composition.md).
 
 Vite imports document CSS once, then transports each producer's CSS and support
 dependencies through a self-contained CSS module. Late transforms and dynamic
