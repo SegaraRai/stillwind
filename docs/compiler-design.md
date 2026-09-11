@@ -541,9 +541,15 @@ CSS. CSS rules and all generated names already exist in the build output.
 ### Rule units and cascade correctness
 
 The compilation unit is a callsite branch, not a global atomic declaration.
-Within a branch, declaration order is preserved. Conditional branches generate
-their own class/rule units and are emitted after their base unit for that
-callsite.
+Within a branch, declaration order is preserved. Unconditional utilities form
+the base unit and are emitted first; conditional units follow in source order
+of their literals, whatever their nesting depth.
+
+Lowering preserves the source expression structure: every user expression is
+emitted once and evaluated once per call, in source order, with short-circuiting
+intact. Utility literals become class names in place, and class contributions
+are combined at runtime by the per-framework fragment merge. See
+[structure-preserving style lowering](style-fragment-lowering.md).
 
 This avoids the incorrect assumption that HTML class attribute order controls
 CSS cascade order. It also makes a future duplicate-declaration lint possible.

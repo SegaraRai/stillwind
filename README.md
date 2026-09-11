@@ -98,6 +98,10 @@ const selected = style(flag ? base : compact, "hover:m-30");
 Each base's CSS precedes the derived CSS; normal CSS specificity and importance
 still apply. Bases with additional props and dependency cycles are errors.
 See [composition support and transport limits](docs/style-composition.md).
+Conditional and nested utilities keep their source structure: each expression is
+evaluated once, in source order, and the per-framework fragment runtime combines
+the generated classes. See
+[structure-preserving style lowering](docs/style-fragment-lowering.md).
 
 Vite imports document CSS once, then transports each producer's CSS and support
 dependencies through a self-contained CSS module. Late transforms and dynamic

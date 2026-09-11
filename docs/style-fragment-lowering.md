@@ -1,6 +1,6 @@
 # Structure-preserving style lowering and the fragment runtime
 
-Status: accepted design (2026-09-11), not implemented. It replaces the
+Status: implemented (2026-09-12). It replaces the
 flattened conditional lowering described in
 [style composition](style-composition.md) and the "rule units and cascade
 correctness" section of [compiler design](compiler-design.md).

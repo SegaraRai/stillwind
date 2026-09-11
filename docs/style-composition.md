@@ -6,13 +6,16 @@ Status: implemented and verified within the transport boundaries listed below.
 
 `style(base, utilities)` lowers only the call to a small runtime merge of the
 base props and the independently compiled delta props. Variable declarations,
-JavaScript evaluation, and conditional selection remain ordinary JavaScript.
-`style(a, b)` lowers to a merge without allocating a new CSS class.
+JavaScript evaluation, and conditional selection remain ordinary JavaScript:
+each user expression is emitted once and evaluated once per call, in source
+order. `style(a, b)` lowers to a merge without allocating a new CSS class.
 
 Every rule-bearing style call has its own identity, regardless of whether a
 consumer composes it. Content deduplication must not join distinct calls.
-Conditional utility branches retain the existing compilation behavior and have
-distinct branch identities within the call.
+Conditional utilities keep their source structure and have distinct class
+identities within the call, at any nesting depth. See
+[structure-preserving style lowering](style-fragment-lowering.md) for the
+fragment runtime, the emission tiers, and the ordering contract.
 
 Bases must have statically enumerable style producers. All possible producers
 contribute dependency edges, including dynamically selected alternatives. Bases
@@ -68,11 +71,14 @@ JavaScript. Unknown producer sets are errors. Style results are intended to be
 immutable; arbitrary mutation through opaque heap aliases is outside this
 compile-time contract.
 
-The compiler emits `stillwindMerge("className", base, delta)` (or `"class"` for
-the corresponding framework). Interleaved runtime inputs use local call-expression
-temporaries to preserve their evaluation order. Variable declarations and
-conditional base expressions remain ordinary JavaScript. Native outputs expose
-the validated `composition` edges for host invalidation and transport decisions.
+The compiler emits either a plain props object (no runtime class expression), a
+single `stillwindClsx(...)` class property (runtime class expressions that no
+other user expression separates), or `stillwindMerge(...)` with fragments in
+source order. Composition bases are converted with `stillwindToFragment`. The
+runtime merge materializes the framework class and style formats and never
+leaves a symbol key in the result. Variable declarations and conditional base
+expressions remain ordinary JavaScript. Native outputs expose the validated
+`composition` edges for host invalidation and transport decisions.
 
 `classIdentity` and content deduplication have been removed. `classNamespace`
 remains available and must agree between server and client builds. Existing
