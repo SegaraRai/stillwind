@@ -1,4 +1,5 @@
 mod api;
+mod emission;
 mod handles;
 mod lexer;
 mod motion;
@@ -17,7 +18,7 @@ pub struct Compiler;
 
 pub use api::CompilerThemeError;
 pub use output::CompileResult;
-pub use props::GeneratedClass;
+pub use props::{GeneratedClass, GuardStep};
 pub use stylesheet::render::StylesheetError;
 pub use symbols::GeneratedSymbol;
 

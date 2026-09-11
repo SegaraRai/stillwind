@@ -24,7 +24,8 @@ mod stylesheet_map;
 mod transforms;
 
 pub use compiler::{
-    CompileResult, Compiler, CompilerThemeError, GeneratedClass, GeneratedSymbol, StylesheetError,
+    CompileResult, Compiler, CompilerThemeError, GeneratedClass, GeneratedSymbol, GuardStep,
+    StylesheetError,
 };
 pub use imports::{ImportPlanError, plan_macro_import_removals};
 pub use module_compiler::{

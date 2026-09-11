@@ -1,209 +1,262 @@
 use serde::Serialize;
 
-use stillwind_ir::{AdapterKind, AttributeEntry};
-use stillwind_source::{SourceFile, Span};
+use stillwind_source::Span;
 
+use super::emission::{render_fragment, render_plain};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
+
+/// One conditional step of a class contribution's guard path.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GuardStep {
+    pub test: Span,
+    pub when_true: bool,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedClass {
     pub class_name: String,
     pub call_span: Span,
-    pub guard: Option<Span>,
-    pub guard_when_true: bool,
+    /// Outermost to innermost conditional tests that select this class.
+    pub guard_path: Vec<GuardStep>,
 }
 
-#[derive(Clone, Debug)]
-pub(super) struct ViewTransitionStyleEntry {
-    pub(super) value: Option<Span>,
-    pub(super) identity: Option<String>,
-    pub(super) candidates: Vec<String>,
-    pub(super) key: Option<Span>,
+/// A class expression that keeps the source structure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum Emitted {
+    /// Generated class names plus user expressions in one leaf.
+    Leaf { names: Vec<String> },
+    /// A helper call whose result is a class value (handles, assets).
+    Expression(String),
+    /// `[a, b]`; `None` marks a contribution that folded into the base unit.
+    Array(Vec<Option<Emitted>>),
+    /// `test ? a : b` or `test && a`.
+    Conditional {
+        test: String,
+        kind: stillwind_ir::ConditionalKind,
+        consequent: Option<Box<Emitted>>,
+        alternate: Option<Box<Emitted>>,
+    },
+    /// An object literal inside a conditional expression.
+    Group(Vec<Option<EmittedEntry>>),
 }
 
-#[derive(Clone, Debug)]
-pub(super) struct DynamicAssetClassEntry {
-    pub(super) value: Span,
-    pub(super) classes: Vec<(String, String)>,
-    pub(super) helper: RuntimeHelper,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum EmittedEntry {
+    Attribute(String),
+    Class(Emitted),
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct PropsParts<'a> {
-    pub(super) classes: &'a [GeneratedClass],
-    pub(super) attributes: &'a [AttributeEntry],
-    pub(super) handle_markers: &'a [String],
-    pub(super) external_classes: &'a [Span],
-    pub(super) dynamic_handle_classes: &'a [Span],
-    pub(super) dynamic_asset_classes: &'a [DynamicAssetClassEntry],
-    pub(super) view_transition_style: Option<&'a ViewTransitionStyleEntry>,
+/// One source-ordered contribution to a compiled call site.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum StyleEmissionPart {
+    /// A runtime class expression.
+    Class {
+        emitted: Emitted,
+        position: u32,
+        /// Contains user expressions, so it is a runtime class expression.
+        user_code: bool,
+        /// Contains a user-owned class or asset value (external class, handle,
+        /// animation, or dynamic attachment).
+        user_value: bool,
+    },
+    /// A single attribute entry, rendered as `"name": value`.
+    Attributes { text: String, position: u32 },
+    /// A composition base expression (a materialized props object).
+    Base { text: String, position: u32 },
+    /// The style payload expression.
+    Style { text: String, position: u32 },
 }
 
-impl PropsParts<'_> {
-    pub(super) fn expressions(&self) -> Vec<Span> {
-        self.classes
-            .iter()
-            .filter_map(|class| class.guard)
-            .chain(self.attributes.iter().map(|entry| entry.value))
-            .chain(self.external_classes.iter().copied())
-            .chain(self.dynamic_handle_classes.iter().copied())
-            .chain(self.dynamic_asset_classes.iter().map(|entry| entry.value))
-            .chain(
-                self.view_transition_style
-                    .into_iter()
-                    .flat_map(|entry| [entry.value, entry.key].into_iter().flatten()),
-            )
-            .collect()
-    }
-}
-
-pub(super) struct ExpressionSource<'a> {
-    pub(super) source: &'a SourceFile,
-    pub(super) bindings: &'a [(Span, String)],
-}
-
-impl ExpressionSource<'_> {
-    pub(super) fn get(&self, span: Span) -> Option<&str> {
-        if let Some((_, name)) = self.bindings.iter().find(|(at, _)| *at == span) {
-            Some(name)
-        } else {
-            self.source.slice(span).ok()
+impl StyleEmissionPart {
+    fn position(&self) -> u32 {
+        match self {
+            Self::Class { position, .. }
+            | Self::Attributes { position, .. }
+            | Self::Base { position, .. }
+            | Self::Style { position, .. } => *position,
         }
     }
+
+    fn user_code(&self) -> bool {
+        matches!(
+            self,
+            Self::Class {
+                user_code: true,
+                ..
+            }
+        )
+    }
+
+    fn user_value(&self) -> bool {
+        matches!(
+            self,
+            Self::Class {
+                user_value: true,
+                ..
+            }
+        )
+    }
 }
 
-fn guarded_class(source: &ExpressionSource<'_>, class: &GeneratedClass) -> Option<String> {
-    let Some(span) = class.guard else {
-        return Some(format!("\"{}\"", class.class_name));
-    };
-    let guard = source.get(span)?;
-    let guard = if guard
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-    {
-        guard.to_owned()
-    } else {
-        format!("({guard})")
-    };
-    let negation = if class.guard_when_true { "" } else { "!" };
-    Some(format!("{negation}{guard}&&\"{}\"", class.class_name))
+pub(super) struct StyleEmission {
+    pub(super) class_property: &'static str,
+    /// Class names that are always applied (the unconditional base unit).
+    pub(super) static_names: Vec<String>,
+    pub(super) parts: Vec<StyleEmissionPart>,
+    pub(super) classes: Vec<GeneratedClass>,
+    /// The call carries props inside a conditional expression.
+    pub(super) conditional_props: bool,
+    pub(super) call_span: Span,
 }
 
-pub(super) fn render_props(
-    source: &ExpressionSource<'_>,
-    parts: &PropsParts<'_>,
-    adapter: AdapterKind,
-    runtime: &mut RuntimeBindings<'_>,
-    call_span: Span,
-) -> Option<String> {
-    let PropsParts {
-        classes,
-        attributes,
-        handle_markers,
-        external_classes,
-        dynamic_handle_classes,
-        dynamic_asset_classes,
-        view_transition_style,
-    } = *parts;
-    let mut entries = Vec::new();
-    if !classes.is_empty()
-        || !handle_markers.is_empty()
-        || !external_classes.is_empty()
-        || !dynamic_handle_classes.is_empty()
-        || !dynamic_asset_classes.is_empty()
-    {
-        let mut class_names = handle_markers
+impl StyleEmission {
+    /// Renders the call site.
+    ///
+    /// Tier 0 folds a call without runtime class expressions into a plain
+    /// object literal. Tier 1 keeps runtime class expressions at one class
+    /// property when no other user expression can fall between two of them and
+    /// every class value has a plain form. Every other call materializes
+    /// fragments through `stillwindMerge` with arguments in source evaluation
+    /// order.
+    ///
+    /// Property and class order in the emitted expression never affects the
+    /// cascade: the compiler keeps emitting the base unit first and conditional
+    /// units after it.
+    pub(super) fn render(&self, runtime: &mut RuntimeBindings<'_>) -> String {
+        let mut parts = self.parts.iter().collect::<Vec<_>>();
+        parts.sort_by_key(|part| part.position());
+        let has_class = parts.iter().any(|part| part.user_code());
+        let has_base = parts
             .iter()
-            .map(|marker| format!("\"{marker}\""))
-            .collect::<Vec<_>>();
-        class_names.extend(
-            classes
+            .any(|part| matches!(part, StyleEmissionPart::Base { .. }));
+        let has_style = parts
+            .iter()
+            .any(|part| matches!(part, StyleEmissionPart::Style { .. }));
+        if !has_class && !has_base && !has_style {
+            return self.render_static(&parts);
+        }
+        let first = parts
+            .iter()
+            .find(|part| part.user_code())
+            .map_or(0, |part| part.position());
+        let last = parts
+            .iter()
+            .rev()
+            .find(|part| part.user_code())
+            .map_or(0, |part| part.position());
+        let hazard = parts.iter().any(|part| {
+            part.position() > first
+                && part.position() < last
+                && (matches!(
+                    part,
+                    StyleEmissionPart::Attributes { .. } | StyleEmissionPart::Style { .. }
+                ) || part.user_value())
+        });
+        if !has_base && !has_style && !hazard && !self.conditional_props {
+            let plain = parts
                 .iter()
-                .map(|class| guarded_class(source, class))
-                .collect::<Option<Vec<_>>>()?,
-        );
-        class_names.extend(
-            external_classes
-                .iter()
-                .map(|value| source.get(*value).map(str::to_owned))
-                .collect::<Option<Vec<_>>>()?,
-        );
-        class_names.extend(
-            dynamic_handle_classes
-                .iter()
-                .map(|value| {
-                    source.get(*value).map(|value| {
-                        format!(
-                            "{}({value})",
-                            runtime.require(RuntimeHelper::HandleClass, call_span)
-                        )
-                    })
+                .filter_map(|part| match part {
+                    StyleEmissionPart::Class { emitted, .. } => Some(render_plain(emitted)),
+                    _ => None,
                 })
-                .collect::<Option<Vec<_>>>()?,
-        );
-        class_names.extend(
-            dynamic_asset_classes
-                .iter()
-                .map(|entry| {
-                    let value = source.get(entry.value)?;
-                    let classes = entry
-                        .classes
-                        .iter()
-                        .map(|(identity, class_name)| format!("\"{identity}\":\"{class_name}\""))
-                        .collect::<Vec<_>>()
-                        .join(",");
-                    Some(format!(
-                        "{}({value},{{{classes}}})",
-                        runtime.require(entry.helper, call_span)
-                    ))
-                })
-                .collect::<Option<Vec<_>>>()?,
-        );
-        let class_value = if external_classes.is_empty() && class_names.len() == 1 {
-            class_names.into_iter().next()?
-        } else {
-            format!(
-                "{}({})",
-                runtime.require(RuntimeHelper::Clsx, call_span),
-                class_names.join(",")
-            )
-        };
-        let property = adapter.spec().class_property;
-        entries.push(format!("{property}:{class_value}"));
+                .collect::<Option<Vec<_>>>();
+            if let Some(plain) = plain {
+                return self.render_class_property(runtime, &parts, &plain, first, last);
+            }
+        }
+        self.render_merge(runtime, &parts)
     }
-    for attribute in attributes {
-        let value = source.get(attribute.value)?;
-        entries.push(format!("\"{}\":{value}", attribute.name.value));
+
+    fn render_static(&self, parts: &[&StyleEmissionPart]) -> String {
+        let mut entries = Vec::new();
+        if !self.static_names.is_empty() {
+            entries.push(format!(
+                "{}:\"{}\"",
+                self.class_property,
+                self.static_names.join(" ")
+            ));
+        }
+        for part in parts {
+            if let StyleEmissionPart::Attributes { text, .. } = part {
+                entries.push(text.clone());
+            }
+        }
+        format!("{{{}}}", entries.join(","))
     }
-    if let Some(entry) = view_transition_style {
-        entries.push(render_view_transition(source, entry, runtime, call_span)?);
+
+    /// Tier 1: every class contribution is evaluated at one class property.
+    fn render_class_property(
+        &self,
+        runtime: &mut RuntimeBindings<'_>,
+        parts: &[&StyleEmissionPart],
+        plain: &[String],
+        first: u32,
+        last: u32,
+    ) -> String {
+        let mut arguments = Vec::new();
+        if !self.static_names.is_empty() {
+            arguments.push(format!("\"{}\"", self.static_names.join(" ")));
+        }
+        arguments.extend(plain.iter().cloned());
+        let clsx = runtime.require(RuntimeHelper::Clsx, self.call_span);
+        let class_value = format!("{clsx}({})", arguments.join(","));
+        let mut entries = Vec::new();
+        for part in parts {
+            if let StyleEmissionPart::Attributes { text, .. } = part
+                && part.position() < first
+            {
+                entries.push(text.clone());
+            }
+        }
+        entries.push(format!("{}:{class_value}", self.class_property));
+        for part in parts {
+            if let StyleEmissionPart::Attributes { text, .. } = part
+                && part.position() > last
+            {
+                entries.push(text.clone());
+            }
+        }
+        format!("{{{}}}", entries.join(","))
     }
-    Some(format!("{{{}}}", entries.join(",")))
+
+    /// Tier 2: fragments materialized through the framework merge in source order.
+    fn render_merge(
+        &self,
+        runtime: &mut RuntimeBindings<'_>,
+        parts: &[&StyleEmissionPart],
+    ) -> String {
+        let mut arguments = Vec::new();
+        if !self.static_names.is_empty() {
+            let key = runtime.require(RuntimeHelper::ClassKey, self.call_span);
+            arguments.push(format!("{{[{key}]:\"{}\"}}", self.static_names.join(" ")));
+        }
+        for part in parts {
+            match part {
+                StyleEmissionPart::Class { emitted, .. } => {
+                    arguments.push(render_fragment(emitted, runtime, self.call_span));
+                }
+                StyleEmissionPart::Attributes { text, .. } => {
+                    arguments.push(format!("{{{text}}}"));
+                }
+                StyleEmissionPart::Base { text, .. } => {
+                    let helper = runtime.require(RuntimeHelper::ToFragment, self.call_span);
+                    arguments.push(format!("{helper}(({text}))"));
+                }
+                StyleEmissionPart::Style { text, .. } => {
+                    let key = runtime.require(RuntimeHelper::StyleKey, self.call_span);
+                    arguments.push(format!("{{[{key}]:{text}}}"));
+                }
+            }
+        }
+        let merge = runtime.require(RuntimeHelper::Merge, self.call_span);
+        format!("{merge}({})", arguments.join(","))
+    }
 }
 
-fn render_view_transition(
-    source: &ExpressionSource<'_>,
-    entry: &ViewTransitionStyleEntry,
+/// Renders the call site for one compiled `style()` call.
+pub(super) fn render_style_call(
+    emission: &StyleEmission,
     runtime: &mut RuntimeBindings<'_>,
-    call_span: Span,
-) -> Option<String> {
-    let value = match (entry.value, &entry.identity) {
-        (Some(value), None) => source.get(value)?.to_owned(),
-        (None, Some(identity)) => format!("\"{identity}\""),
-        _ => return None,
-    };
-    let key = match entry.key {
-        Some(key) => source.get(key)?.to_owned(),
-        None => "undefined".to_owned(),
-    };
-    let candidates = entry
-        .candidates
-        .iter()
-        .map(|candidate| format!("\"{candidate}\""))
-        .collect::<Vec<_>>()
-        .join(",");
-    Some(format!(
-        "style:{}({value},{key},[{candidates}],\"--sw-vt-name\",\"--sw-vt-class\")",
-        runtime.require(RuntimeHelper::ViewTransitionStyle, call_span)
-    ))
+) -> String {
+    emission.render(runtime)
 }

@@ -3,37 +3,13 @@
 use std::fmt::Write as _;
 
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
-use stillwind_ir::{StyleInput, StyleVariant};
+use stillwind_ir::StyleVariant;
 use stillwind_source::{CompileError, Spanned};
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::handles::{handle_marker_class, scope_marker_class};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
-
-pub(crate) fn flatten_inputs(inputs: Vec<StyleInput>) -> Vec<(Vec<StyleVariant>, StyleInput)> {
-    let mut pending = inputs
-        .into_iter()
-        .rev()
-        .map(|input| (Vec::new(), input))
-        .collect::<Vec<_>>();
-    let mut leaves = Vec::new();
-    while let Some((mut variants, input)) = pending.pop() {
-        match input {
-            StyleInput::Variant { variant, inputs } => {
-                variants.push(variant);
-                pending.extend(
-                    inputs
-                        .into_iter()
-                        .rev()
-                        .map(|input| (variants.clone(), input)),
-                );
-            }
-            input => leaves.push((variants, input)),
-        }
-    }
-    leaves
-}
 
 pub(super) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.

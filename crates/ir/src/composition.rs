@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CompileError, Span};
 
+use crate::{ClassExpression, GroupEntry};
 use crate::{ModuleAnalysis, StyleCall, StyleInput};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -45,21 +46,35 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
             StyleInput::Composition { candidates, .. } => {
                 dependencies.extend(candidates.iter().cloned());
             }
-            StyleInput::Attributes(entries) => {
-                props |= !entries.is_empty();
-            }
             StyleInput::ViewTransitionUse { .. } | StyleInput::DynamicViewTransitionUse { .. } => {
                 props = true;
             }
-            StyleInput::Variant {
-                inputs: children, ..
-            } => {
-                props |= inputs(children, dependencies);
-            }
+            StyleInput::Class(expression) => props |= class_expression(expression),
             _ => {}
         }
     }
     props
+}
+
+/// Returns whether the expression carries non-class props (attributes).
+fn class_expression(expression: &ClassExpression) -> bool {
+    match expression {
+        ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
+            GroupEntry::Attribute(_) => true,
+            GroupEntry::Class(expression) => class_expression(expression),
+        }),
+        ClassExpression::Array(elements) => elements.iter().any(class_expression),
+        ClassExpression::Conditional {
+            consequent,
+            alternate,
+            ..
+        } => consequent
+            .iter()
+            .chain(alternate.iter())
+            .any(class_expression),
+        ClassExpression::Variant { inputs, .. } => inputs.iter().any(class_expression),
+        _ => false,
+    }
 }
 
 fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {

@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import * as runtime from "../../core/src/runtime.ts";
+import * as runtime from "../../core/src/runtime/react.ts";
 import { compileModule } from "../src/compiler.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
@@ -213,7 +213,10 @@ void test("composition follows imported and re-exported style producers", async 
       );
     const result = await compile();
     assert.ok(result);
-    assert.match(result.code!, /stillwindMerge\("className",\(flag\?a:b\),/);
+    assert.match(
+      result.code!,
+      /stillwindMerge\(\{\[stillwindClassKey\]:"_s_[^"]*"\},stillwindToFragment\(\(flag\?a:b\)\)/,
+    );
     assert.match(result.css, /color:blue/);
     assert.doesNotMatch(result.css, /color:red|color:green/);
     files.set(

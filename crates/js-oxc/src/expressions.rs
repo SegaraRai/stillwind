@@ -5,9 +5,11 @@ use oxc::ast::ast::{
 use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
 
-use stillwind_ir::{AttributeEntry, StyleInput, StyleVariant};
+use stillwind_ir::{
+    AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleInput, StyleVariant,
+};
 use stillwind_semantic::{ExportedValue, IdentityId};
-use stillwind_source::{CompileError, Span};
+use stillwind_source::CompileError;
 
 use crate::state::MacroExtractor;
 
@@ -97,79 +99,143 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(projection);
             return;
         }
-        if let Some(animation) = self.animation_use(expression) {
-            inputs.push(animation.into_style_input());
-            return;
-        }
         if let Some(transition) = self.view_transition_use(expression) {
             inputs.push(transition);
             return;
         }
+        // A utility template keeps one class expression per utility segment, so
+        // it matches a whitespace-separated utility list.
+        if let Expression::TemplateLiteral(template) = expression
+            && let Some(expressions) = self.utility_template_expressions(template)
+        {
+            inputs.extend(expressions.into_iter().map(StyleInput::Class));
+            return;
+        }
+        if let Some(class) = self.class_expression(expression) {
+            inputs.push(StyleInput::Class(class));
+        }
+    }
+
+    /// Lowers one class-valued expression while mirroring the source structure.
+    ///
+    /// Returns `None` when the expression contributes no class, such as
+    /// `null`, `undefined`, or `false`.
+    #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
+    fn class_expression(&mut self, expression: &Expression<'a>) -> Option<ClassExpression> {
         match expression {
             Expression::StringLiteral(literal) => {
-                inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
+                Some(ClassExpression::Utilities(self.string_literal(literal)))
             }
-            Expression::TemplateLiteral(template) => self.collect_utility_template(template, inputs),
+            Expression::TemplateLiteral(template) => {
+                let mut expressions = self.utility_template_expressions(template)?;
+                match expressions.len() {
+                    0 => None,
+                    1 => expressions.pop(),
+                    _ => Some(ClassExpression::Array(expressions)),
+                }
+            }
             Expression::LogicalExpression(expression)
                 if expression.operator == LogicalOperator::And =>
             {
-                self.collect_guarded_utility(
-                    &expression.right, self.source_span(expression.left.span()), true, inputs,
-                );
+                let test = self.source_span(expression.left.span());
+                let consequent = self.class_expression_sequence(&expression.right);
+                if consequent.is_empty() {
+                    return None;
+                }
+                Some(ClassExpression::Conditional {
+                    test,
+                    kind: ConditionalKind::LogicalAnd,
+                    consequent,
+                    alternate: Vec::new(),
+                })
             }
             Expression::ConditionalExpression(expression) => {
-                let guard = self.source_span(expression.test.span());
-                self.collect_guarded_utility(&expression.consequent, guard, true, inputs);
-                self.collect_guarded_utility(&expression.alternate, guard, false, inputs);
+                let test = self.source_span(expression.test.span());
+                let consequent = self.class_expression_sequence(&expression.consequent);
+                let alternate = self.class_expression_sequence(&expression.alternate);
+                if consequent.is_empty() && alternate.is_empty() {
+                    return None;
+                }
+                Some(ClassExpression::Conditional {
+                    test,
+                    kind: ConditionalKind::Ternary,
+                    consequent,
+                    alternate,
+                })
+            }
+            Expression::ParenthesizedExpression(parenthesized) => {
+                self.class_expression(&parenthesized.expression)
             }
             Expression::ArrayExpression(array) => {
+                let mut elements = Vec::new();
                 for element in &array.elements {
                     match element {
-                        ArrayExpressionElement::SpreadElement(spread) => self.diagnostics.push(
-                            CompileError::new(
+                        ArrayExpressionElement::SpreadElement(spread) => {
+                            self.diagnostics.push(CompileError::new(
                                 "SHJS002",
                                 "style() arrays do not support spread elements",
                                 self.source_span(spread.span),
-                            ),
-                        ),
-                        ArrayExpressionElement::Elision(elision) => self.diagnostics.push(
-                            CompileError::new(
+                            ));
+                        }
+                        ArrayExpressionElement::Elision(elision) => {
+                            self.diagnostics.push(CompileError::new(
                                 "SHJS002",
                                 "style() arrays cannot contain empty slots",
                                 self.source_span(elision.span),
-                            ),
-                        ),
+                            ));
+                        }
                         _ => {
-                            if let Some(expression) = element.as_expression() {
-                                self.collect_style_expression(expression, inputs);
+                            if let Some(expression) = element.as_expression()
+                                && let Some(value) = self.class_expression(expression)
+                            {
+                                elements.push(value);
                             }
                         }
                     }
                 }
+                if elements.is_empty() {
+                    None
+                } else {
+                    Some(ClassExpression::Array(elements))
+                }
             }
-            Expression::ObjectExpression(object) => self.collect_object(object, inputs),
-            Expression::NullLiteral(_) => {},
-            Expression::BooleanLiteral(value) if !value.value => {},
-            Expression::Identifier(value) if value.name == "undefined" => {},
-            Expression::Identifier(_) => self.diagnostics.push(CompileError::new(
-                "SHTS001",
-                "non-local or conditional handles require TypeScript checker facts",
-                self.source_span(expression.span()),
-            )),
-            _ => self.diagnostics.push(CompileError::new(
-                "SHJS002",
-                "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers",
-                self.source_span(expression.span()),
-            )),
+            Expression::ObjectExpression(object) => self.object_class_expression(object),
+            Expression::NullLiteral(_) => None,
+            Expression::BooleanLiteral(value) if !value.value => None,
+            Expression::Identifier(value) if value.name == "undefined" => None,
+            Expression::Identifier(_) => {
+                self.diagnostics.push(CompileError::new(
+                    "SHTS001",
+                    "non-local or conditional handles require TypeScript checker facts",
+                    self.source_span(expression.span()),
+                ));
+                None
+            }
+            _ => {
+                if let Some(StyleInput::Class(class)) = self.collect_handle_projection(expression) {
+                    return Some(class);
+                }
+                if let Some(animation) = self.animation_use(expression) {
+                    return Some(animation.into_class_expression());
+                }
+                self.diagnostics.push(CompileError::new(
+                    "SHJS002",
+                    "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers",
+                    self.source_span(expression.span()),
+                ));
+                None
+            }
         }
     }
 
-    #[allow(clippy::too_many_lines)] // Keeps the tightly coupled object-key diagnostics together.
-    pub(crate) fn collect_object(
+    fn class_expression_sequence(&mut self, expression: &Expression<'a>) -> Vec<ClassExpression> {
+        self.class_expression(expression).into_iter().collect()
+    }
+
+    fn object_class_expression(
         &mut self,
         object: &ObjectExpression<'a>,
-        inputs: &mut Vec<StyleInput>,
-    ) {
+    ) -> Option<ClassExpression> {
         let mut entries = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
@@ -201,16 +267,18 @@ impl<'a> MacroExtractor<'a> {
                     ));
                     continue;
                 };
-                self.collect_variant_wrapper(&property.value, variant, inputs);
+                if let Some(entry) = self.variant_entry(variant, &property.value) {
+                    entries.push(entry);
+                }
                 continue;
             }
             if self
                 .property_name(&property.key)
                 .is_some_and(|name| name.value == "class")
             {
-                inputs.push(StyleInput::ExternalClass(
+                entries.push(GroupEntry::Class(Box::new(ClassExpression::External(
                     self.source_span(property.value.span()),
-                ));
+                ))));
                 continue;
             }
             let PropertyKey::StringLiteral(name) = &property.key else {
@@ -225,10 +293,10 @@ impl<'a> MacroExtractor<'a> {
             if !name.value.ends_with(':')
                 && (name.value.starts_with("aria-") || name.value.starts_with("data-"))
             {
-                entries.push(AttributeEntry {
+                entries.push(GroupEntry::Attribute(AttributeEntry {
                     name,
                     value: self.source_span(property.value.span()),
-                });
+                }));
                 continue;
             }
             if !name.value.ends_with(':') || name.value == ":" {
@@ -239,90 +307,67 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             }
-            self.collect_variant_wrapper(&property.value, StyleVariant::Prefix(name), inputs);
+            if let Some(entry) = self.variant_entry(StyleVariant::Prefix(name), &property.value) {
+                entries.push(entry);
+            }
         }
-        if !entries.is_empty() {
-            inputs.push(StyleInput::Attributes(entries));
+        if entries.is_empty() {
+            None
+        } else {
+            Some(ClassExpression::Group {
+                span: self.source_span(object.span),
+                entries,
+            })
         }
     }
 
-    fn collect_guarded_utility(
+    fn variant_entry(
         &mut self,
-        expression: &Expression<'a>,
-        guard: Span,
-        when_true: bool,
-        inputs: &mut Vec<StyleInput>,
-    ) {
-        let mut nested = Vec::new();
-        match expression {
-            Expression::StringLiteral(value) => {
-                nested.push(StyleInput::UtilityString(self.string_literal(value)));
-            }
-            Expression::TemplateLiteral(template) => {
-                self.collect_utility_template(template, &mut nested);
-            }
-            _ => {
-                self.diagnostics.push(CompileError::new(
-                    "SHJS002", "a style() conditional must contain literal utility strings or direct utility templates",
-                    self.source_span(expression.span()),
-                ));
-                return;
-            }
-        }
-        for input in &mut nested {
-            guard_utility(input, guard, when_true);
-        }
-        inputs.extend(nested);
-    }
-
-    fn collect_variant_wrapper(
-        &mut self,
-        expression: &Expression<'a>,
         variant: StyleVariant,
-        inputs: &mut Vec<StyleInput>,
-    ) {
-        let mut nested = Vec::new();
-        self.collect_style_expression(expression, &mut nested);
-        if nested.iter().any(|input| !is_variant_input(input)) {
+        value: &Expression<'a>,
+    ) -> Option<GroupEntry> {
+        let inputs = self.class_expression_sequence(value);
+        if inputs.is_empty() {
+            return None;
+        }
+        if !inputs.iter().all(variant_compatible) {
             self.diagnostics.push(CompileError::new(
                 "SHJS004",
                 "variant wrappers accept utility strings, animations, arrays, and nested variant wrappers",
-                self.source_span(expression.span()),
+                self.source_span(value.span()),
             ));
-            return;
+            return None;
         }
-        inputs.push(StyleInput::Variant {
+        Some(GroupEntry::Class(Box::new(ClassExpression::Variant {
             variant,
-            inputs: nested,
-        });
+            inputs,
+        })))
     }
 }
 
-fn is_variant_input(input: &StyleInput) -> bool {
-    match input {
-        StyleInput::UtilityString(_)
-        | StyleInput::ConditionalUtilityString { .. }
-        | StyleInput::AnimationUse { .. }
-        | StyleInput::DynamicAnimationUse { .. } => true,
-        StyleInput::Variant { inputs, .. } => inputs.iter().all(is_variant_input),
-        _ => false,
-    }
-}
-
-fn guard_utility(input: &mut StyleInput, guard: Span, when_true: bool) {
-    match input {
-        StyleInput::UtilityString(value) => {
-            *input = StyleInput::ConditionalUtilityString {
-                guard,
-                when_true,
-                value: value.clone(),
-            };
-        }
-        StyleInput::Variant { inputs, .. } => {
-            for input in inputs {
-                guard_utility(input, guard, when_true);
-            }
-        }
-        _ => {}
+/// Variant wrappers scope class declarations only; attributes and user class
+/// values cannot be variant-scoped.
+fn variant_compatible(expression: &ClassExpression) -> bool {
+    match expression {
+        ClassExpression::Utilities(_)
+        | ClassExpression::AnimationUse { .. }
+        | ClassExpression::DynamicAnimationUse { .. } => true,
+        ClassExpression::Array(elements) => elements.iter().all(variant_compatible),
+        ClassExpression::Conditional {
+            consequent,
+            alternate,
+            ..
+        } => consequent
+            .iter()
+            .chain(alternate.iter())
+            .all(variant_compatible),
+        ClassExpression::Variant { inputs, .. } => inputs.iter().all(variant_compatible),
+        ClassExpression::Group { entries, .. } => entries.iter().all(|entry| match entry {
+            GroupEntry::Attribute(_) => false,
+            GroupEntry::Class(expression) => variant_compatible(expression),
+        }),
+        ClassExpression::External(_)
+        | ClassExpression::HandleProjection { .. }
+        | ClassExpression::DynamicHandleProjection { .. } => false,
     }
 }

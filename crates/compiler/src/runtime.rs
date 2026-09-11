@@ -11,11 +11,14 @@ use crate::{ImportPlanError, SourceTransform, plan_macro_import_removals};
 pub(crate) enum RuntimeHelper {
     Animation,
     AssetClass,
+    ClassKey,
     Clsx,
     HandleClass,
     Merge,
     Ref,
     Scope,
+    StyleKey,
+    ToFragment,
     ViewTransition,
     ViewTransitionStyle,
 }
@@ -25,11 +28,14 @@ impl RuntimeHelper {
         match self {
             Self::Animation => "stillwindAnimation",
             Self::AssetClass => "stillwindAssetClass",
+            Self::ClassKey => "stillwindClassKey",
             Self::Clsx => "stillwindClsx",
             Self::HandleClass => "stillwindHandleClass",
             Self::Merge => "stillwindMerge",
             Self::Ref => "stillwindRef",
             Self::Scope => "stillwindScope",
+            Self::StyleKey => "stillwindStyleKey",
+            Self::ToFragment => "stillwindToFragment",
             Self::ViewTransition => "stillwindViewTransition",
             Self::ViewTransitionStyle => "stillwindViewTransitionStyle",
         }
@@ -77,17 +83,6 @@ impl<'a> RuntimeBindings<'a> {
                 name
             })
             .clone()
-    }
-
-    pub(crate) fn temporary(&mut self) -> String {
-        let mut suffix = 0_u64;
-        loop {
-            let name = format!("__stillwindValue{suffix}");
-            if self.reserved.insert(name.clone()) {
-                return name;
-            }
-            suffix += 1;
-        }
     }
 
     pub(crate) fn plan(

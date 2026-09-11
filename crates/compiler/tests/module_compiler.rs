@@ -5,7 +5,9 @@ use stillwind_compiler::{
     CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_ir::{HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant};
+use stillwind_ir::{
+    ClassExpression, ConditionalKind, HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant,
+};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile, Span, Spanned};
 
@@ -24,15 +26,15 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
     assert_eq!(names.len(), 3);
     let transformed = output.apply_to_source(&source).unwrap();
     assert!(
-        transformed.contains("stillwindMerge(\"className\",(a),"),
+        transformed.contains("stillwindMerge(stillwindToFragment((a)),"),
         "{transformed}"
     );
     assert!(
-        transformed.contains("stillwindMerge(\"className\",(flag?a:c))"),
+        transformed.contains("stillwindMerge(stillwindToFragment((flag?a:c)))"),
         "{transformed}"
     );
     assert!(
-        transformed.contains("stillwindMerge(\"className\",(a),(c))"),
+        transformed.contains("stillwindMerge(stillwindToFragment((a)),stillwindToFragment((c)))"),
         "{transformed}"
     );
 }
@@ -237,28 +239,35 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         call_span: span,
     };
     for input in [
-        StyleInput::Variant {
+        StyleInput::Class(ClassExpression::Variant {
             variant: StyleVariant::Ref {
                 handles: vec![handle.clone()],
                 prefix: Spanned::new(":hover".into(), span),
             },
-            inputs: vec![StyleInput::UtilityString(Spanned::new("flex".into(), span))],
-        },
-        StyleInput::Variant {
+            inputs: vec![ClassExpression::Utilities(Spanned::new(
+                "flex".into(),
+                span,
+            ))],
+        }),
+        StyleInput::Class(ClassExpression::Variant {
             variant: StyleVariant::Ref {
                 handles: vec![handle],
                 prefix: Spanned::new("hover::".into(), span),
             },
-            inputs: vec![StyleInput::ConditionalUtilityString {
-                value: Spanned::new("flex".into(), span),
-                guard: span,
-                when_true: true,
+            inputs: vec![ClassExpression::Conditional {
+                test: span,
+                kind: ConditionalKind::LogicalAnd,
+                consequent: vec![ClassExpression::Utilities(Spanned::new(
+                    "flex".into(),
+                    span,
+                ))],
+                alternate: Vec::new(),
             }],
-        },
-        StyleInput::UtilityString(Spanned::new(
+        }),
+        StyleInput::Class(ClassExpression::Utilities(Spanned::new(
             "x".into(),
             Span::new(FileId(1), u32::MAX, u32::MAX),
-        )),
+        ))),
     ] {
         let mut malformed = analysis.clone();
         malformed.ir.style_calls[0].inputs = vec![input];
@@ -333,7 +342,9 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     let upstream_key = compiler.key_for(&upstream_changed);
     assert_eq!(first.key.source_revision, upstream_key.source_revision);
     assert_ne!(first.key.analysis_revision, upstream_key.analysis_revision);
-    let StyleInput::UtilityString(value) = &mut analysis.ir.style_calls[0].inputs[0] else {
+    let StyleInput::Class(ClassExpression::Utilities(value)) =
+        &mut analysis.ir.style_calls[0].inputs[0]
+    else {
         panic!("literal utility")
     };
     value.value = "grid".into();

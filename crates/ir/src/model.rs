@@ -148,26 +148,8 @@ pub enum StyleInput {
         value: Span,
         candidates: Vec<IdentityId>,
     },
-    UtilityString(Spanned<String>),
-    ConditionalUtilityString {
-        guard: Span,
-        when_true: bool,
-        value: Spanned<String>,
-    },
-    Attributes(Vec<AttributeEntry>),
-    Variant {
-        variant: StyleVariant,
-        inputs: Vec<StyleInput>,
-    },
-    HandleProjection {
-        handle: HandleDefinition,
-        projection: HandleProjection,
-    },
-    DynamicHandleProjection {
-        value: Span,
-        handles: Vec<HandleDefinition>,
-        projection: HandleProjection,
-    },
+    /// Class contributions that keep the source expression structure.
+    Class(ClassExpression),
     ContainerQuery {
         handle: HandleDefinition,
         query: Spanned<String>,
@@ -183,20 +165,6 @@ pub enum StyleInput {
         value: Span,
         handles: Vec<HandleDefinition>,
     },
-    /// A user-owned class value evaluated by the runtime `stillwindClsx` helper.
-    ///
-    /// This is intentionally available only through `{ class: … }`, so the
-    /// surrounding object syntax remains unambiguous for attributes/selectors.
-    ExternalClass(Span),
-    AnimationUse {
-        animation: AssetReference,
-        options: Spanned<String>,
-    },
-    DynamicAnimationUse {
-        value: Span,
-        animations: Vec<AssetReference>,
-        options: Spanned<String>,
-    },
     ViewTransitionUse {
         transition: AssetReference,
         key: Option<Span>,
@@ -206,4 +174,70 @@ pub enum StyleInput {
         transitions: Vec<AssetReference>,
         key: Option<Span>,
     },
+}
+
+/// Which operator produced a conditional branch.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ConditionalKind {
+    /// `test ? consequent : alternate`
+    Ternary,
+    /// `test && consequent`
+    LogicalAnd,
+}
+
+/// A class-valued expression that mirrors the source expression.
+///
+/// Lowering replaces each leaf with the class name generated for it and emits
+/// every other part of the expression verbatim, so each user expression is
+/// evaluated exactly once, in source order, with short-circuiting intact.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ClassExpression {
+    /// A utility string or utility template literal.
+    Utilities(Spanned<String>),
+    /// `[a, b]` — elements are flattened at runtime in evaluation order.
+    Array(Vec<ClassExpression>),
+    /// `test ? a : b` or `test && a`; an empty branch contributes nothing.
+    Conditional {
+        test: Span,
+        kind: ConditionalKind,
+        consequent: Vec<ClassExpression>,
+        alternate: Vec<ClassExpression>,
+    },
+    /// `{ "hover:": … }` — the wrapper applies to every leaf below it.
+    Variant {
+        variant: StyleVariant,
+        inputs: Vec<ClassExpression>,
+    },
+    /// An object literal: attributes become props, other entries are classes.
+    Group {
+        span: Span,
+        entries: Vec<GroupEntry>,
+    },
+    /// A user-owned class value from `{ class: … }`.
+    External(Span),
+    HandleProjection {
+        handle: HandleDefinition,
+        projection: HandleProjection,
+    },
+    DynamicHandleProjection {
+        value: Span,
+        handles: Vec<HandleDefinition>,
+        projection: HandleProjection,
+    },
+    AnimationUse {
+        animation: AssetReference,
+        options: Spanned<String>,
+    },
+    DynamicAnimationUse {
+        value: Span,
+        animations: Vec<AssetReference>,
+        options: Spanned<String>,
+    },
+}
+
+/// One source-ordered entry of an object literal class expression.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum GroupEntry {
+    Attribute(AttributeEntry),
+    Class(Box<ClassExpression>),
 }

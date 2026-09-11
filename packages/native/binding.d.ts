@@ -199,8 +199,8 @@ export type NativeFramework =  'React'|
 export interface NativeGeneratedClass {
   class_name: string
   call_span: NativeSpan
-  guard: NativeSpan | null
-  guard_when_true: boolean
+  /** Outermost to innermost conditional tests that select this class. */
+  guard_path: Array<NativeGuardStep>
 }
 
 export interface NativeGeneratedSymbol {
@@ -210,6 +210,11 @@ export interface NativeGeneratedSymbol {
   source_path: string
   start: number
   end: number
+}
+
+export interface NativeGuardStep {
+  test: NativeSpan
+  when_true: boolean
 }
 
 export interface NativeIdentity {

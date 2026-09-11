@@ -1,4 +1,4 @@
-use stillwind_ir::{StyleInput, StyleVariant};
+use stillwind_ir::{ClassExpression, GroupEntry, StyleInput, StyleVariant};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile, Span};
 
@@ -13,10 +13,20 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
         )).unwrap();
         let parsed = parse(&source);
         assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-        let StyleInput::Variant {
+        let wrapper = match &parsed.module.style_calls[0].inputs[0] {
+            StyleInput::Class(expression @ ClassExpression::Variant { .. }) => expression,
+            StyleInput::Class(ClassExpression::Group { entries, .. }) => {
+                let GroupEntry::Class(inner) = &entries[0] else {
+                    panic!("wrapper object")
+                };
+                inner.as_ref()
+            }
+            _ => panic!("class expression"),
+        };
+        let ClassExpression::Variant {
             variant: StyleVariant::Ref { handles, prefix },
             ..
-        } = &parsed.module.style_calls[0].inputs[0]
+        } = wrapper
         else {
             panic!("ref variant")
         };
@@ -41,15 +51,15 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     let parsed = parse(&source);
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     let inputs = &parsed.module.style_calls[0].inputs;
-    let StyleInput::Variant {
+    let StyleInput::Class(ClassExpression::Variant {
         variant: StyleVariant::Prefix(prefix),
         inputs: nested,
-    } = &inputs[0]
+    }) = &inputs[0]
     else {
         panic!("ordinary variant")
     };
     assert_eq!(source.slice(prefix.span).unwrap(), "md:");
-    let StyleInput::Variant {
+    let ClassExpression::Variant {
         variant: StyleVariant::Ref { handles, prefix },
         inputs: nested,
     } = &nested[0]
@@ -59,11 +69,11 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     assert_eq!(source.slice(prefix.span).unwrap(), "hover:");
     assert_eq!(handles.len(), 1);
     assert_eq!(handles[0].name.value, "trigger");
-    let StyleInput::UtilityString(utility) = &nested[0] else {
+    let ClassExpression::Utilities(utility) = &nested[0] else {
         panic!("utility")
     };
     assert_eq!(source.slice(utility.span).unwrap(), "active:text-accent");
-    let StyleInput::UtilityString(plain) = &inputs[1] else {
+    let StyleInput::Class(ClassExpression::Utilities(plain)) = &inputs[1] else {
         panic!("plain utility")
     };
     assert_eq!(source.slice(plain.span).unwrap(), "p-4");
@@ -72,10 +82,12 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
         .module
         .try_map_spans::<()>(|span| Ok(Span::new(span.file, span.start.0 + 10, span.end.0 + 10)))
         .unwrap();
-    let StyleInput::Variant { inputs: nested, .. } = &shifted.style_calls[0].inputs[0] else {
+    let StyleInput::Class(ClassExpression::Variant { inputs: nested, .. }) =
+        &shifted.style_calls[0].inputs[0]
+    else {
         panic!("wrapper")
     };
-    let StyleInput::Variant {
+    let ClassExpression::Variant {
         variant:
             StyleVariant::Ref {
                 handles: moved,

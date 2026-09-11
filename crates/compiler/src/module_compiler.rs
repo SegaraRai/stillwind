@@ -7,7 +7,9 @@ use serde::Serialize;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_ir::{ModuleAnalysis, StyleDependency, StyleInput, StyleVariant};
+use stillwind_ir::{
+    ClassExpression, GroupEntry, ModuleAnalysis, StyleDependency, StyleInput, StyleVariant,
+};
 use stillwind_semantic::{IdentityId, ModuleId};
 use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile};
 
@@ -396,18 +398,8 @@ fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
     fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
         for input in inputs {
             match input {
-                StyleInput::Variant { variant, inputs } => {
-                    let prefix = match variant {
-                        StyleVariant::Prefix(value) => {
-                            format!("{prefix}{}", value.value)
-                        }
-                        StyleVariant::Ref { .. } => prefix.to_owned(),
-                    };
-                    collect(inputs, &prefix, candidates);
-                }
-                StyleInput::UtilityString(value)
-                | StyleInput::ConditionalUtilityString { value, .. }
-                | StyleInput::ContainerQuery { value, .. } => {
+                StyleInput::Class(expression) => collect_class(expression, prefix, candidates),
+                StyleInput::ContainerQuery { value, .. } => {
                     candidates.extend(
                         value
                             .value
@@ -417,6 +409,54 @@ fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    fn collect_class(
+        expression: &ClassExpression,
+        prefix: &str,
+        candidates: &mut BTreeSet<String>,
+    ) {
+        match expression {
+            ClassExpression::Utilities(value) => {
+                candidates.extend(
+                    value
+                        .value
+                        .split_whitespace()
+                        .map(|token| format!("{prefix}{token}")),
+                );
+            }
+            ClassExpression::Array(elements) => {
+                for element in elements {
+                    collect_class(element, prefix, candidates);
+                }
+            }
+            ClassExpression::Conditional {
+                consequent,
+                alternate,
+                ..
+            } => {
+                for expression in consequent.iter().chain(alternate.iter()) {
+                    collect_class(expression, prefix, candidates);
+                }
+            }
+            ClassExpression::Variant { variant, inputs } => {
+                let prefix = match variant {
+                    StyleVariant::Prefix(value) => format!("{prefix}{}", value.value),
+                    StyleVariant::Ref { .. } => prefix.to_owned(),
+                };
+                for input in inputs {
+                    collect_class(input, &prefix, candidates);
+                }
+            }
+            ClassExpression::Group { entries, .. } => {
+                for entry in entries {
+                    if let GroupEntry::Class(expression) = entry {
+                        collect_class(expression, prefix, candidates);
+                    }
+                }
+            }
+            _ => {}
         }
     }
     let mut candidates = BTreeSet::new();

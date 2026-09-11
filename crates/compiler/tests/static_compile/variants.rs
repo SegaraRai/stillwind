@@ -21,8 +21,8 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("\"group/menu\""));
-    assert!(transformed.contains("\"peer/field\""));
+    assert!(transformed.contains("group/menu"), "{transformed}");
+    assert!(transformed.contains("peer/field"), "{transformed}");
     assert!(
         result
             .css
@@ -302,6 +302,20 @@ fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
             );
             (result.css.clone(), result.apply_to_source(&source).unwrap())
         };
-        assert_eq!(compile(wrapped), compile(flat), "{wrapped}");
+        let (css, code) = compile(wrapped);
+        let (flat_css, flat_code) = compile(flat);
+        assert_eq!(css, flat_css, "{wrapped}");
+        // Wrapper spellings keep their array shape, so compare the generated
+        // class names rather than the emitted expression text.
+        let classes = |code: &str| {
+            let mut names = code
+                .split('"')
+                .filter(|part| part.starts_with("_s_"))
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            names.sort();
+            names
+        };
+        assert_eq!(classes(&code), classes(&flat_code), "{wrapped}");
     }
 }

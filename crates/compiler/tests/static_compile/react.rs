@@ -230,8 +230,10 @@ const props = style(active ? "bg-accent" : "bg-muted");"#,
     assert_eq!(result.classes.len(), 2);
     assert!(result.css.contains("background-color:var(--color-accent);"));
     assert!(result.css.contains("background-color:var(--color-muted);"));
-    assert!(result.transforms[0].replacement.contains("active&&"));
-    assert!(result.transforms[0].replacement.contains("!active&&"));
+    let replacement = &result.transforms[0].replacement;
+    assert!(replacement.contains("(active) ? ("), "{replacement}");
+    assert!(replacement.contains(") : ("), "{replacement}");
+    assert_eq!(replacement.matches("active").count(), 1, "{replacement}");
 }
 
 #[test]
@@ -255,8 +257,12 @@ const props = style(n() > 0 ? "bg-accent" : "bg-muted");"#
         let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
         assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
         let replacement = &result.transforms[0].replacement;
-        assert!(replacement.contains("(n() > 0)&&"), "{replacement}");
-        assert!(replacement.contains("!(n() > 0)&&"), "{replacement}");
+        assert!(replacement.contains("(n() > 0) ? ("), "{replacement}");
+        assert_eq!(
+            replacement.matches("n() > 0").count(),
+            1,
+            "the ternary test must be evaluated once: {replacement}"
+        );
         assert!(replacement.contains(if frontend == "solid" {
             "{class:"
         } else {
@@ -291,7 +297,7 @@ const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading
     assert_eq!(
         transform.replacement,
         format!(
-            "{{className:stillwindClsx(\"{}\",loading&&\"{}\"),\"aria-busy\":loading}}",
+            "{{className:stillwindClsx(\"{}\",(loading) && (\"{}\")),\"aria-busy\":loading}}",
             result.classes[0].class_name, result.classes[1].class_name,
         ),
     );

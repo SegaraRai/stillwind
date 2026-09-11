@@ -2,24 +2,23 @@
 
 use oxc::ast::ast::TemplateLiteral;
 
-use stillwind_ir::{StyleInput, StyleVariant};
+use stillwind_ir::{ClassExpression, StyleVariant};
 use stillwind_source::{CompileError, Span, Spanned};
 
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    pub(crate) fn collect_utility_template(
+    pub(crate) fn utility_template_expressions(
         &mut self,
         template: &TemplateLiteral<'a>,
-        inputs: &mut Vec<StyleInput>,
-    ) {
+    ) -> Option<Vec<ClassExpression>> {
         let mut token = TemplateToken::default();
         let mut collected = Vec::new();
         for (index, quasi) in template.quasis.iter().enumerate() {
             let Some(text) = quasi.value.cooked.as_ref() else {
                 self.diagnostics
                     .push(template_error(self.source_span(quasi.span)));
-                return;
+                return None;
             };
             let span = self.source_span(quasi.span);
             let mut start = 0;
@@ -32,31 +31,31 @@ impl<'a> MacroExtractor<'a> {
                     .and_then(|()| token.finish(&mut collected, span))
                 {
                     self.diagnostics.push(error);
-                    return;
+                    return None;
                 }
                 start = offset + character.len_utf8();
             }
             if let Err(error) = token.text(&text[start..], subspan(span, start, text.len())) {
                 self.diagnostics.push(error);
-                return;
+                return None;
             }
             if let Some(expression) = template.expressions.get(index) {
                 let Some(variant) = self.ref_variant(expression) else {
                     self.diagnostics
                         .push(template_error(self.source_span(template.span)));
-                    return;
+                    return None;
                 };
                 if let Err(error) = token.reference(variant, span) {
                     self.diagnostics.push(error);
-                    return;
+                    return None;
                 }
             }
         }
         if let Err(error) = token.finish(&mut collected, self.source_span(template.span)) {
             self.diagnostics.push(error);
-            return;
+            return None;
         }
-        inputs.extend(collected);
+        Some(collected)
     }
 }
 
@@ -103,19 +102,23 @@ impl TemplateToken {
         Ok(())
     }
 
-    fn finish(&mut self, inputs: &mut Vec<StyleInput>, span: Span) -> Result<(), CompileError> {
+    fn finish(
+        &mut self,
+        expressions: &mut Vec<ClassExpression>,
+        span: Span,
+    ) -> Result<(), CompileError> {
         if self.needs_separator || (!self.variants.is_empty() && self.tail.is_none()) {
             return Err(template_error(span));
         }
         if let Some(value) = self.tail.take() {
-            let mut input = StyleInput::UtilityString(value);
+            let mut expression = ClassExpression::Utilities(value);
             for variant in self.variants.drain(..).rev() {
-                input = StyleInput::Variant {
+                expression = ClassExpression::Variant {
                     variant,
-                    inputs: vec![input],
+                    inputs: vec![expression],
                 };
             }
-            inputs.push(input);
+            expressions.push(expression);
         }
         Ok(())
     }

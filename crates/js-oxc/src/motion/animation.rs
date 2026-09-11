@@ -1,7 +1,7 @@
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
-use stillwind_ir::{AnimationDefinition, AnimationFrame, AssetReference, StyleInput};
+use stillwind_ir::{AnimationDefinition, AnimationFrame, AssetReference, ClassExpression};
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{CompileError, Span, Spanned};
 
@@ -20,14 +20,16 @@ pub(crate) enum ParsedAnimationUse {
 }
 
 impl ParsedAnimationUse {
-    pub(crate) fn into_style_input(self) -> StyleInput {
+    pub(crate) fn into_class_expression(self) -> ClassExpression {
         match self {
-            Self::Static { animation, options } => StyleInput::AnimationUse { animation, options },
+            Self::Static { animation, options } => {
+                ClassExpression::AnimationUse { animation, options }
+            }
             Self::Dynamic {
                 value,
                 animations,
                 options,
-            } => StyleInput::DynamicAnimationUse {
+            } => ClassExpression::DynamicAnimationUse {
                 value,
                 animations,
                 options,

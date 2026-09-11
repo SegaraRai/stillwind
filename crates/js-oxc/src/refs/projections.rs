@@ -1,7 +1,9 @@
 use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression};
 use oxc::span::GetSpan;
 
-use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition, StyleInput};
+use stillwind_ir::{
+    ClassExpression, HandleDefinition, HandleProjection, ScopeDefinition, StyleInput,
+};
 use stillwind_source::{CompileError, Span};
 
 use crate::state::MacroExtractor;
@@ -75,16 +77,18 @@ impl<'a> MacroExtractor<'a> {
             self.record_handle_use(handle, projection_name, self.source_span(expression.span()));
         }
         if handles.len() == 1 {
-            Some(StyleInput::HandleProjection {
+            Some(StyleInput::Class(ClassExpression::HandleProjection {
                 handle: handles[0].clone(),
                 projection,
-            })
+            }))
         } else {
-            Some(StyleInput::DynamicHandleProjection {
-                value: self.source_span(expression.span()),
-                handles,
-                projection,
-            })
+            Some(StyleInput::Class(
+                ClassExpression::DynamicHandleProjection {
+                    value: self.source_span(expression.span()),
+                    handles,
+                    projection,
+                },
+            ))
         }
     }
 

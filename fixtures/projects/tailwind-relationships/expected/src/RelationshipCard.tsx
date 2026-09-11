@@ -1,8 +1,8 @@
-import { stillwindClsx } from "stillwind/react/runtime";
+
 
 export function RelationshipCard() {
   return (
-    <section {...{className:stillwindClsx("_s_c8d8de10","group/menu")}}>
+    <section {...{className:"_s_c8d8de10 group/menu"}}>
       <input type="checkbox" {...{className:"peer/field"}} />
       <h2
         {...{className:"_s_05298044"}}

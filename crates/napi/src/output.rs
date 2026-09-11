@@ -4,7 +4,7 @@ use napi_derive::napi;
 use serde::Serialize;
 
 use stillwind_compiler::{
-    GeneratedClass, GeneratedSymbol, ModuleResourceReference, TransformMapping,
+    GeneratedClass, GeneratedSymbol, GuardStep, ModuleResourceReference, TransformMapping,
 };
 use stillwind_ir::StyleDependency;
 use stillwind_source::Span;
@@ -143,14 +143,31 @@ impl From<Span> for NativeSpan {
 
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
+pub struct NativeGuardStep {
+    pub test: NativeSpan,
+    #[napi(js_name = "when_true")]
+    pub when_true: bool,
+}
+
+impl From<GuardStep> for NativeGuardStep {
+    fn from(value: GuardStep) -> Self {
+        Self {
+            test: value.test.into(),
+            when_true: value.when_true,
+        }
+    }
+}
+
+#[napi(object, object_from_js = false, use_nullable = true)]
+#[derive(Serialize)]
 pub struct NativeGeneratedClass {
     #[napi(js_name = "class_name")]
     pub class_name: String,
     #[napi(js_name = "call_span")]
     pub call_span: NativeSpan,
-    pub guard: Option<NativeSpan>,
-    #[napi(js_name = "guard_when_true")]
-    pub guard_when_true: bool,
+    /// Outermost to innermost conditional tests that select this class.
+    #[napi(js_name = "guard_path")]
+    pub guard_path: Vec<NativeGuardStep>,
 }
 
 impl From<GeneratedClass> for NativeGeneratedClass {
@@ -158,8 +175,7 @@ impl From<GeneratedClass> for NativeGeneratedClass {
         Self {
             class_name: value.class_name,
             call_span: value.call_span.into(),
-            guard: value.guard.map(Into::into),
-            guard_when_true: value.guard_when_true,
+            guard_path: value.guard_path.into_iter().map(Into::into).collect(),
         }
     }
 }

@@ -3,8 +3,8 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AnimationDefinition, AssetReference, HandleDefinition, HandleProjection, ModuleIr,
-    ScopeDefinition, StyleInput, StyleVariant,
+    AnimationDefinition, AssetReference, ClassExpression, GroupEntry, HandleDefinition,
+    HandleProjection, ModuleIr, ScopeDefinition, StyleInput, StyleVariant,
 };
 
 impl ModuleIr {
@@ -134,48 +134,7 @@ fn map_input<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match input {
-        StyleInput::UtilityString(value) => {
-            map_value(value, map)?;
-        }
-        StyleInput::ConditionalUtilityString { guard, value, .. } => {
-            *guard = map(*guard)?;
-            map_value(value, map)?;
-        }
-        StyleInput::Attributes(entries) => {
-            for entry in entries {
-                map_value(&mut entry.name, map)?;
-                entry.value = map(entry.value)?;
-            }
-        }
-        StyleInput::Variant { variant, inputs } => {
-            match variant {
-                StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
-                StyleVariant::Ref { handles, prefix } => {
-                    map_value(prefix, map)?;
-                    for handle in handles {
-                        map_handle(handle, map)?;
-                    }
-                }
-            }
-            for input in inputs {
-                map_input(input, map)?;
-            }
-        }
-        StyleInput::HandleProjection { handle, projection } => {
-            map_handle(handle, map)?;
-            map_projection(projection, map)?;
-        }
-        StyleInput::DynamicHandleProjection {
-            value,
-            handles,
-            projection,
-        } => {
-            *value = map(*value)?;
-            for handle in handles {
-                map_handle(handle, map)?;
-            }
-            map_projection(projection, map)?;
-        }
+        StyleInput::Class(expression) => map_class_expression(expression, map)?,
         StyleInput::ContainerQuery {
             handle,
             query,
@@ -203,9 +162,6 @@ fn map_input<E>(
                 map_handle(handle, map)?;
             }
         }
-        StyleInput::ExternalClass(value) => {
-            *value = map(*value)?;
-        }
         StyleInput::Composition { value, candidates } => {
             for candidate in candidates {
                 let span = map(Span::new(value.file, candidate.start, candidate.end))?;
@@ -213,21 +169,6 @@ fn map_input<E>(
                 candidate.end = span.end.0;
             }
             *value = map(*value)?;
-        }
-        StyleInput::AnimationUse { animation, options } => {
-            map_asset(animation, map)?;
-            map_value(options, map)?;
-        }
-        StyleInput::DynamicAnimationUse {
-            value,
-            animations,
-            options,
-        } => {
-            *value = map(*value)?;
-            for animation in animations {
-                map_asset(animation, map)?;
-            }
-            map_value(options, map)?;
         }
         StyleInput::ViewTransitionUse { transition, key } => {
             map_asset(transition, map)?;
@@ -247,6 +188,97 @@ fn map_input<E>(
             if let Some(key) = key {
                 *key = map(*key)?;
             }
+        }
+    }
+    Ok(())
+}
+
+fn map_group_entry<E>(
+    entry: &mut GroupEntry,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    match entry {
+        GroupEntry::Attribute(attribute) => {
+            map_value(&mut attribute.name, map)?;
+            attribute.value = map(attribute.value)?;
+        }
+        GroupEntry::Class(expression) => map_class_expression(expression, map)?,
+    }
+    Ok(())
+}
+
+fn map_class_expression<E>(
+    expression: &mut ClassExpression,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    match expression {
+        ClassExpression::Utilities(value) => map_value(value, map)?,
+        ClassExpression::Array(elements) => {
+            for element in elements {
+                map_class_expression(element, map)?;
+            }
+        }
+        ClassExpression::Conditional {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            *test = map(*test)?;
+            for expression in consequent.iter_mut().chain(alternate.iter_mut()) {
+                map_class_expression(expression, map)?;
+            }
+        }
+        ClassExpression::Variant { variant, inputs } => {
+            match variant {
+                StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
+                StyleVariant::Ref { handles, prefix } => {
+                    map_value(prefix, map)?;
+                    for handle in handles {
+                        map_handle(handle, map)?;
+                    }
+                }
+            }
+            for input in inputs {
+                map_class_expression(input, map)?;
+            }
+        }
+        ClassExpression::Group { span, entries } => {
+            *span = map(*span)?;
+            for entry in entries {
+                map_group_entry(entry, map)?;
+            }
+        }
+        ClassExpression::External(value) => *value = map(*value)?,
+        ClassExpression::HandleProjection { handle, projection } => {
+            map_handle(handle, map)?;
+            map_projection(projection, map)?;
+        }
+        ClassExpression::DynamicHandleProjection {
+            value,
+            handles,
+            projection,
+        } => {
+            *value = map(*value)?;
+            for handle in handles {
+                map_handle(handle, map)?;
+            }
+            map_projection(projection, map)?;
+        }
+        ClassExpression::AnimationUse { animation, options } => {
+            map_asset(animation, map)?;
+            map_value(options, map)?;
+        }
+        ClassExpression::DynamicAnimationUse {
+            value,
+            animations,
+            options,
+        } => {
+            *value = map(*value)?;
+            for animation in animations {
+                map_asset(animation, map)?;
+            }
+            map_value(options, map)?;
         }
     }
     Ok(())
