@@ -7,7 +7,7 @@ export function MenuItem({ alternate = false }: { alternate?: boolean }) {
   return (
     <span
       {...style("inline-flex rounded-md bg-accent px-4 py-2", {
-        [selected`&:hover`]: "text-white",
+        [selected`hover:`]: "text-white",
       })}
     >
       Cross-module symbolic ref

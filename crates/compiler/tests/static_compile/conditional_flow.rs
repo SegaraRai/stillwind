@@ -20,7 +20,8 @@ fn compile(body: &str) -> CompileResult {
         FileId(2),
         "stillwind.css",
         "@theme { --color-accent: red; --color-muted: gray; } @utility p-4 { padding: 1rem; } \
-         @utility p-2 { padding: 0.5rem; } @utility m-2 { margin: 0.5rem; }",
+         @utility p-2 { padding: 0.5rem; } @utility m-2 { margin: 0.5rem; } \
+         @utility m-4 { margin: 1rem; }",
     )
     .unwrap();
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
@@ -111,6 +112,37 @@ fn await_and_this_tests_keep_their_positions() {
         assert!(replacement.contains(expected), "{replacement}");
         assert_eq!(result.classes.len(), 2);
     }
+}
+
+#[test]
+fn nested_conditionals_keep_source_order_after_the_base_unit() {
+    let result =
+        compile("const props = style(\"p-4\", a && \"p-2\", a && (b ? \"m-2\" : \"m-4\"));");
+    let order = [
+        "padding: 1rem",   // unconditional base unit
+        "padding: 0.5rem", // `a &&` leaf
+        "margin: 0.5rem",  // nested consequent
+        "margin: 1rem",    // nested alternate
+    ]
+    .map(|rule| {
+        result
+            .css
+            .find(rule)
+            .unwrap_or_else(|| panic!("missing {rule} in {}", result.css))
+    });
+    assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{order:?}");
+    let guards = result
+        .classes
+        .iter()
+        .map(|class| {
+            class
+                .guard_path
+                .iter()
+                .map(|step| if step.when_true { '+' } else { '-' })
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(guards, ["", "+", "++", "+-"]);
 }
 
 #[test]
