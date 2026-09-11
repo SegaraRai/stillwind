@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_ir::{ModuleAnalysis, StyleInput};
+use stillwind_ir::{ModuleAnalysis, StyleInput, StyleVariant};
 use stillwind_semantic::{IdentityId, ModuleId};
 use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile};
 
@@ -334,30 +334,7 @@ impl ModuleCompiler {
         };
         let theme = self.design_system.theme();
         let dependencies = CompilationDependencies {
-            candidates: module
-                .ir
-                .style_calls
-                .iter()
-                .flat_map(|call| &call.inputs)
-                .filter_map(|input| match input {
-                    StyleInput::UtilityString(value)
-                    | StyleInput::ConditionalUtilityString { value, .. }
-                    | StyleInput::HandleSelectorUtilityString { value, .. }
-                    | StyleInput::ConditionalHandleSelectorUtilityString { value, .. }
-                    | StyleInput::ContainerQuery { value, .. } => Some(("", value)),
-                    StyleInput::VariantUtilityString { prefix, value }
-                    | StyleInput::ConditionalVariantUtilityString { prefix, value, .. } => {
-                        Some((prefix.value.as_str(), value))
-                    }
-                    _ => None,
-                })
-                .flat_map(|(prefix, value)| {
-                    value
-                        .value
-                        .split_whitespace()
-                        .map(move |token| format!("{prefix}{token}"))
-                })
-                .collect(),
+            candidates: compilation_candidates(module),
             // Conservative definition dependencies are safe for full invalidation.
             theme_tokens: theme
                 .tokens_required_by(&result.module_css, false)
@@ -410,6 +387,40 @@ impl ModuleCompiler {
             dependencies,
         }
     }
+}
+
+fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
+    fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
+        for input in inputs {
+            match input {
+                StyleInput::Variant { variant, inputs } => {
+                    let prefix = match variant {
+                        StyleVariant::Prefix(value) => {
+                            format!("{prefix}{}", value.value)
+                        }
+                        StyleVariant::Ref { .. } => prefix.to_owned(),
+                    };
+                    collect(inputs, &prefix, candidates);
+                }
+                StyleInput::UtilityString(value)
+                | StyleInput::ConditionalUtilityString { value, .. }
+                | StyleInput::ContainerQuery { value, .. } => {
+                    candidates.extend(
+                        value
+                            .value
+                            .split_whitespace()
+                            .map(|token| format!("{prefix}{token}")),
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut candidates = BTreeSet::new();
+    for call in &module.ir.style_calls {
+        collect(&call.inputs, "", &mut candidates);
+    }
+    candidates
 }
 
 #[cfg(test)]

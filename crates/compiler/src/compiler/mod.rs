@@ -7,6 +7,7 @@ mod output;
 mod pipeline;
 mod props;
 mod react;
+mod style_variants;
 mod stylesheet;
 mod symbols;
 mod utilities;

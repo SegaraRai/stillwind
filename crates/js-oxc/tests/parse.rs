@@ -1,7 +1,7 @@
 //! Integration of import binding, declarations, reference resolution and module summaries.
 
 use stillwind_ir::framework::FRAMEWORKS;
-use stillwind_ir::{AdapterKind, StyleInput};
+use stillwind_ir::{AdapterKind, StyleInput, StyleVariant};
 use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile, Span};
@@ -432,12 +432,17 @@ const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" }
         parsed.module.style_calls[0].inputs[1],
         StyleInput::ConditionalUtilityString { .. }
     ));
-    let Some(StyleInput::VariantUtilityString { prefix, value }) =
-        parsed.module.style_calls[0].inputs.get(2)
+    let Some(StyleInput::Variant {
+        variant: StyleVariant::Prefix(prefix),
+        inputs,
+    }) = parsed.module.style_calls[0].inputs.get(2)
     else {
         panic!("the variant prefix should be preserved in the style IR");
     };
     assert_eq!(prefix.value, "hover:");
+    let StyleInput::UtilityString(value) = &inputs[0] else {
+        panic!("expected utility")
+    };
     assert_eq!(value.value, "bg-accent");
 }
 
@@ -473,12 +478,25 @@ const props = style({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }
     .unwrap();
     let parsed = parse(&source);
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-    let StyleInput::VariantUtilityString { prefix, value } =
-        &parsed.module.style_calls[0].inputs[1]
+    let StyleInput::Variant {
+        variant: StyleVariant::Prefix(outer),
+        inputs,
+    } = &parsed.module.style_calls[0].inputs[0]
     else {
-        panic!("expected variant utility")
+        panic!("outer wrapper")
     };
-    assert_eq!(prefix.value, "hover:[&:where(.mod)]:");
+    let StyleInput::Variant {
+        variant: StyleVariant::Prefix(inner),
+        inputs,
+    } = &inputs[1]
+    else {
+        panic!("inner wrapper")
+    };
+    let StyleInput::UtilityString(value) = &inputs[0] else {
+        panic!("utility")
+    };
+    assert_eq!(outer.value, "hover:");
+    assert_eq!(inner.value, "[&:where(.mod)]:");
     assert_eq!(value.value, "text-blue");
     assert_eq!(source.slice(value.span).unwrap(), "text-blue");
 }

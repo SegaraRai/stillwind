@@ -68,13 +68,14 @@ export type StyleRef<RefId extends string = string, ScopeId extends string = nev
   readonly anchorScope: StyleRefProjection<RefId, ScopeId>;
   container(type: "size" | "inline-size"): StyleRefProjection<RefId, ScopeId>;
   at(query: string, utilities: string): StyleRefProjection<RefId, ScopeId>;
-  (strings: TemplateStringsArray): StyleRefSelector<RefId, ScopeId>;
+  (strings: TemplateStringsArray): StyleRefVariant<RefId, ScopeId>;
+  (variants: string): StyleRefVariant<RefId, ScopeId>;
 };
 
-export type StyleRefSelector<
+export type StyleRefVariant<
   RefId extends string = string,
   ScopeId extends string = never,
-> = `&${string}` & {
+> = string & {
   readonly [refProjection]: true;
   readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
 };
@@ -116,13 +117,13 @@ export type StyleVariantValue =
   | readonly StyleVariantValue[]
   | StyleVariantObject;
 
-export type StyleVariantObject = {
+export interface StyleVariantObject {
   readonly [variant: StyleVariant]: StyleVariantValue;
-};
+  readonly [variant: StyleRefVariant]: StyleVariantValue;
+}
 
 type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
-  StyleVariantObject &
-  Partial<Record<StyleRefSelector, UtilityString | false | null | undefined>> & {
+  StyleVariantObject & {
     readonly class?: StillwindClassValue;
   };
 
@@ -136,7 +137,7 @@ export type StyleArgument =
   | StyleScope
   | StyleRef
   | StyleRefProjection
-  | StyleRefSelector
+  | StyleRefVariant
   | StyleAnimationUse
   | StyleViewTransitionUse;
 

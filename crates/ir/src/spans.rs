@@ -4,7 +4,7 @@ use stillwind_source::{Span, Spanned};
 
 use crate::{
     AnimationDefinition, AssetReference, HandleDefinition, HandleProjection, ModuleIr,
-    ScopeDefinition, StyleInput,
+    ScopeDefinition, StyleInput, StyleVariant,
 };
 
 impl ModuleIr {
@@ -145,40 +145,19 @@ fn map_input<E>(
                 entry.value = map(entry.value)?;
             }
         }
-        StyleInput::VariantUtilityString { prefix, value } => {
-            map_value(prefix, map)?;
-            map_value(value, map)?;
-        }
-        StyleInput::ConditionalVariantUtilityString {
-            prefix,
-            guard,
-            value,
-            ..
-        } => {
-            map_value(prefix, map)?;
-            *guard = map(*guard)?;
-            map_value(value, map)?;
-        }
-        StyleInput::HandleSelectorUtilityString {
-            handle,
-            selector,
-            value,
-        } => {
-            map_handle(handle, map)?;
-            map_value(selector, map)?;
-            map_value(value, map)?;
-        }
-        StyleInput::ConditionalHandleSelectorUtilityString {
-            handle,
-            selector,
-            guard,
-            value,
-            ..
-        } => {
-            map_handle(handle, map)?;
-            map_value(selector, map)?;
-            *guard = map(*guard)?;
-            map_value(value, map)?;
+        StyleInput::Variant { variant, inputs } => {
+            match variant {
+                StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
+                StyleVariant::Ref { handles, prefix } => {
+                    map_value(prefix, map)?;
+                    for handle in handles {
+                        map_handle(handle, map)?;
+                    }
+                }
+            }
+            for input in inputs {
+                map_input(input, map)?;
+            }
         }
         StyleInput::HandleProjection { handle, projection } => {
             map_handle(handle, map)?;
@@ -228,28 +207,6 @@ fn map_input<E>(
             animations,
             options,
         } => {
-            *value = map(*value)?;
-            for animation in animations {
-                map_asset(animation, map)?;
-            }
-            map_value(options, map)?;
-        }
-        StyleInput::VariantAnimationUse {
-            prefix,
-            animation,
-            options,
-        } => {
-            map_value(prefix, map)?;
-            map_asset(animation, map)?;
-            map_value(options, map)?;
-        }
-        StyleInput::DynamicVariantAnimationUse {
-            prefix,
-            value,
-            animations,
-            options,
-        } => {
-            map_value(prefix, map)?;
             *value = map(*value)?;
             for animation in animations {
                 map_asset(animation, map)?;

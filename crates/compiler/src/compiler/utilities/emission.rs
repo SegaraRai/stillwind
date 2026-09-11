@@ -17,7 +17,10 @@ pub(crate) fn emit_utility_rules(
         .iter()
         .copied()
         .filter(|utility| {
-            utility.variants.is_empty() && utility.selector.is_none() && utility.container.is_none()
+            utility.variants.is_empty()
+                && utility.variant_applications.is_empty()
+                && utility.selector.is_none()
+                && utility.container.is_none()
         })
         .collect::<Vec<_>>();
     let mut plain = Vec::new();
@@ -36,6 +39,7 @@ pub(crate) fn emit_utility_rules(
         .copied()
         .filter(|utility| {
             !utility.variants.is_empty()
+                || !utility.variant_applications.is_empty()
                 || utility.selector.is_some()
                 || utility.container.is_some()
         })

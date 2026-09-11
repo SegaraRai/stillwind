@@ -30,19 +30,6 @@ pub(super) fn handle_marker_class(handle: &HandleDefinition) -> String {
     }
 }
 
-pub(super) fn handle_parent_selector(handle: &HandleDefinition, selector: &str) -> Option<String> {
-    let marker = handle_marker_class(handle);
-    let reference = match selector.strip_prefix('&') {
-        Some("") => format!(".{marker}"),
-        Some(suffix) => format!(".{marker}:where({suffix})"),
-        None => return None,
-    };
-    Some(match &handle.scope {
-        Some(scope) => format!("{}:has({reference}) &", scope_marker_class(scope)),
-        None => format!("{reference} &"),
-    })
-}
-
 pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
     let hash = &blake3::hash(asset_identity(&scope.module_path, "scope", &scope.name).as_bytes())
         .to_hex()[..8];
@@ -130,14 +117,6 @@ mod tests {
             call_span: name.span,
         };
         let marker = handle_marker_class(&handle);
-        assert_eq!(
-            handle_parent_selector(&handle, "&").unwrap(),
-            format!(".{marker} &")
-        );
-        assert_eq!(
-            handle_parent_selector(&handle, "&:hover").unwrap(),
-            format!(".{marker}:where(:hover) &")
-        );
         let anchor = render_handle_projection(&handle, &HandleProjection::Anchor);
         let reference = anchor.strip_prefix("anchor-name:").unwrap();
         assert_eq!(
@@ -163,10 +142,6 @@ mod tests {
         });
         let scope = scope_marker_class(handle.scope.as_ref().unwrap());
         assert!(scope.starts_with(".s_ref_"));
-        assert_eq!(
-            handle_parent_selector(&handle, "&").unwrap(),
-            format!("{scope}:has(.{marker}) &")
-        );
         handle.label = Some(name);
         assert_eq!(
             handle_marker_class(&handle),

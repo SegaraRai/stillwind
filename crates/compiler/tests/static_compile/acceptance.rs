@@ -9,8 +9,8 @@ fn validates_ref_selector_ancestry_when_jsx_placement_is_known() {
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
-export const Good = () => <div {...style(trigger.anchor)}><span {...style({ [trigger`&:hover`]: "text-accent" })} /></div>;
-export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
+export const Good = () => <div {...style(trigger.anchor)}><span {...style({ [trigger`hover:`]: "text-accent" })} /></div>;
+export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),

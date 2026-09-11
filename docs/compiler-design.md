@@ -346,7 +346,8 @@ style(
   ["rounded", compact && "p-2"],
   { class: ["legacy-button", loading && "is-loading"], "aria-busy": loading },
   { "hover:": "bg-accent/90" },
-  { [trigger`&:hover`]: "text-accent" },
+  { [trigger`hover:`]: "text-accent" },
+  `${trigger`hover:`}:active:text-accent`,
 );
 ```
 
@@ -375,8 +376,7 @@ pub struct StyleCall {
 pub enum StyleInput {
     Utilities { text: DecodedText, guard: Guard, origin: Origin },
     Attributes { entries: Vec<AttributeEntry>, guard: Guard, origin: Origin },
-    VariantWrapper { prefix: VariantPrefix, body: Vec<StyleInput>, guard: Guard },
-    RefSelector { reference: Ref, selector: SelectorFragment, body: Vec<StyleInput>, guard: Guard },
+    Variant { variant: StyleVariant, inputs: Vec<StyleInput> },
     ScopeAttachment { scope: Scope, origin: Origin },
     RefAttachment { reference: Ref, origin: Origin },
     Projection { reference: Ref, kind: ProjectionKind, origin: Origin },
@@ -417,12 +417,20 @@ utility records variants, token family, token reference, modifiers, and exact
 spans. A utility registry maps this representation to CSS declarations and the
 theme namespace it may reference.
 
-Selector keys are parsed by a separate restricted grammar:
+Variant wrappers and direct utility templates share an ordered `StyleVariant`
+representation: an ordinary prefix or a ref with its correlated ref/scope
+identities and the prefix applied to that ref.
 
-- variant wrapper: ends with `:` and prepends its variants to each nested utility;
-- ref selector: tagged template must begin with `&`;
-- permitted pseudos, attribute selectors, `:has()`, and supported at-rules;
-- no arbitrary descendant/global selector in the safe API.
+- ordinary wrapper keys end with `:`;
+- ref wrappers accept `trigger` tagged with a static variant string or
+  `trigger("hover:active")`; the final `:` in the argument is optional;
+- utility templates inside `style(...)` accept direct ref-variant substitutions
+  at complete variant boundaries, such as `` `${trigger`hover:`}:active:text-accent` ``;
+- the ref's variants apply to the referenced element, and the surrounding
+  variants apply to the target; media conditions and custom alternatives survive
+  lowering through the same variant registry;
+- following interpolated strings stored in variables, locally or across modules,
+  is an intentional non-goal. Runtime string evaluation is not a fallback.
 
 The parser emits an AST, not concatenated selector strings. This is essential
 for lints such as invalid `aria-*` value checks and for future selector-aware

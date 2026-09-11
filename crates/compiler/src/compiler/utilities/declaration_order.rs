@@ -141,6 +141,7 @@ mod tests {
         let declarations = [
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "margin-left:0.5rem;".to_owned(),
                 selector: None,
                 container: None,
@@ -150,6 +151,7 @@ mod tests {
             },
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "margin-inline:0.75rem;".to_owned(),
                 selector: None,
                 container: None,
@@ -159,6 +161,7 @@ mod tests {
             },
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "margin:1rem;".to_owned(),
                 selector: None,
                 container: None,
@@ -180,6 +183,7 @@ mod tests {
         let declarations = [
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "all:unset;".to_owned(),
                 selector: None,
                 container: None,
@@ -189,6 +193,7 @@ mod tests {
             },
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_owned(),
                 selector: None,
                 container: None,
@@ -210,6 +215,7 @@ mod tests {
         let declarations = [
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "color:red;display:block;".to_owned(),
                 selector: None,
                 container: None,
@@ -219,6 +225,7 @@ mod tests {
             },
             CompiledUtility {
                 variants: Vec::new(),
+                variant_applications: Vec::new(),
                 declaration: "opacity:0.5;".to_owned(),
                 selector: None,
                 container: None,

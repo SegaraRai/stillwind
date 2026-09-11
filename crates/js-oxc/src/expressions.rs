@@ -5,8 +5,8 @@ use oxc::ast::ast::{
 use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
 
-use stillwind_ir::{AttributeEntry, StyleInput};
-use stillwind_source::CompileError;
+use stillwind_ir::{AttributeEntry, StyleInput, StyleVariant};
+use stillwind_source::{CompileError, Span};
 
 use crate::state::MacroExtractor;
 
@@ -49,45 +49,18 @@ impl<'a> MacroExtractor<'a> {
             Expression::StringLiteral(literal) => {
                 inputs.push(StyleInput::UtilityString(self.string_literal(literal)));
             }
+            Expression::TemplateLiteral(template) => self.collect_utility_template(template, inputs),
             Expression::LogicalExpression(expression)
                 if expression.operator == LogicalOperator::And =>
             {
-                let Expression::StringLiteral(literal) = &expression.right else {
-                    self.diagnostics.push(CompileError::new(
-                        "SHJS002",
-                        "a style() conditional must have a literal utility string on its right side",
-                        self.source_span(expression.right.span()),
-                    ));
-                    return;
-                };
-                inputs.push(StyleInput::ConditionalUtilityString {
-                    guard: self.source_span(expression.left.span()),
-                    when_true: true,
-                    value: self.string_literal(literal),
-                });
+                self.collect_guarded_utility(
+                    &expression.right, self.source_span(expression.left.span()), true, inputs,
+                );
             }
             Expression::ConditionalExpression(expression) => {
-                let (Expression::StringLiteral(consequent), Expression::StringLiteral(alternate)) =
-                    (&expression.consequent, &expression.alternate)
-                else {
-                    self.diagnostics.push(CompileError::new(
-                        "SHJS002",
-                        "a style() ternary must contain literal utility strings on both sides",
-                        self.source_span(expression.span),
-                    ));
-                    return;
-                };
                 let guard = self.source_span(expression.test.span());
-                inputs.push(StyleInput::ConditionalUtilityString {
-                    guard,
-                    when_true: true,
-                    value: self.string_literal(consequent),
-                });
-                inputs.push(StyleInput::ConditionalUtilityString {
-                    guard,
-                    when_true: false,
-                    value: self.string_literal(alternate),
-                });
+                self.collect_guarded_utility(&expression.consequent, guard, true, inputs);
+                self.collect_guarded_utility(&expression.alternate, guard, false, inputs);
             }
             Expression::ArrayExpression(array) => {
                 for element in &array.elements {
@@ -156,51 +129,19 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             if property.computed {
-                let Some((handles, selector)) = self.handle_tagged_selector(&property.key) else {
+                let Some(variant) = property
+                    .key
+                    .as_expression()
+                    .and_then(|key| self.ref_variant(key))
+                else {
                     self.diagnostics.push(CompileError::new(
                         "SHJS003",
-                        "computed style() keys must be static selectors tagged by style.ref()",
+                        "computed style() keys must be ref variants",
                         self.source_span(property.key.span()),
                     ));
                     continue;
                 };
-                match &property.value {
-                    Expression::StringLiteral(value) => {
-                        for handle in handles {
-                            inputs.push(StyleInput::HandleSelectorUtilityString {
-                                handle,
-                                selector: selector.clone(),
-                                value: self.string_literal(value),
-                            });
-                        }
-                    }
-                    Expression::LogicalExpression(expression)
-                        if expression.operator == LogicalOperator::And =>
-                    {
-                        let Expression::StringLiteral(value) = &expression.right else {
-                            self.diagnostics.push(CompileError::new(
-                                "SHJS004",
-                                "a ref selector conditional must have a literal utility string on its right side",
-                                self.source_span(expression.right.span()),
-                            ));
-                            continue;
-                        };
-                        for handle in handles {
-                            inputs.push(StyleInput::ConditionalHandleSelectorUtilityString {
-                                handle,
-                                selector: selector.clone(),
-                                guard: self.source_span(expression.left.span()),
-                                when_true: true,
-                                value: self.string_literal(value),
-                            });
-                        }
-                    }
-                    _ => self.diagnostics.push(CompileError::new(
-                        "SHJS004",
-                        "a ref selector must map to a literal utility string or `condition && \"…\"`",
-                        self.source_span(property.value.span()),
-                    )),
-                }
+                self.collect_variant_wrapper(&property.value, variant, inputs);
                 continue;
             }
             if self
@@ -238,99 +179,90 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             }
-            let mut nested = Vec::new();
-            self.collect_style_expression(&property.value, &mut nested);
-            for input in nested {
-                let input = match input {
-                    StyleInput::UtilityString(value) => StyleInput::VariantUtilityString {
-                        prefix: name.clone(),
-                        value,
-                    },
-                    StyleInput::ConditionalUtilityString {
-                        guard,
-                        when_true,
-                        value,
-                    } => StyleInput::ConditionalVariantUtilityString {
-                        prefix: name.clone(),
-                        guard,
-                        when_true,
-                        value,
-                    },
-                    StyleInput::AnimationUse { animation, options } => {
-                        StyleInput::VariantAnimationUse {
-                            prefix: name.clone(),
-                            animation,
-                            options,
-                        }
-                    }
-                    StyleInput::DynamicAnimationUse {
-                        value,
-                        animations,
-                        options,
-                    } => StyleInput::DynamicVariantAnimationUse {
-                        prefix: name.clone(),
-                        value,
-                        animations,
-                        options,
-                    },
-                    StyleInput::VariantUtilityString { mut prefix, value } => {
-                        prefix.value.insert_str(0, &name.value);
-                        StyleInput::VariantUtilityString { prefix, value }
-                    }
-                    StyleInput::ConditionalVariantUtilityString {
-                        mut prefix,
-                        guard,
-                        when_true,
-                        value,
-                    } => {
-                        prefix.value.insert_str(0, &name.value);
-                        StyleInput::ConditionalVariantUtilityString {
-                            prefix,
-                            guard,
-                            when_true,
-                            value,
-                        }
-                    }
-                    StyleInput::VariantAnimationUse {
-                        mut prefix,
-                        animation,
-                        options,
-                    } => {
-                        prefix.value.insert_str(0, &name.value);
-                        StyleInput::VariantAnimationUse {
-                            prefix,
-                            animation,
-                            options,
-                        }
-                    }
-                    StyleInput::DynamicVariantAnimationUse {
-                        mut prefix,
-                        value,
-                        animations,
-                        options,
-                    } => {
-                        prefix.value.insert_str(0, &name.value);
-                        StyleInput::DynamicVariantAnimationUse {
-                            prefix,
-                            value,
-                            animations,
-                            options,
-                        }
-                    }
-                    _ => {
-                        self.diagnostics.push(CompileError::new(
-                            "SHJS004",
-                            "variant wrappers accept utility strings, animations, arrays, and nested variant wrappers",
-                            self.source_span(property.value.span()),
-                        ));
-                        continue;
-                    }
-                };
-                inputs.push(input);
-            }
+            self.collect_variant_wrapper(&property.value, StyleVariant::Prefix(name), inputs);
         }
         if !entries.is_empty() {
             inputs.push(StyleInput::Attributes(entries));
         }
+    }
+
+    fn collect_guarded_utility(
+        &mut self,
+        expression: &Expression<'a>,
+        guard: Span,
+        when_true: bool,
+        inputs: &mut Vec<StyleInput>,
+    ) {
+        let mut nested = Vec::new();
+        match expression {
+            Expression::StringLiteral(value) => {
+                nested.push(StyleInput::UtilityString(self.string_literal(value)));
+            }
+            Expression::TemplateLiteral(template) => {
+                self.collect_utility_template(template, &mut nested);
+            }
+            _ => {
+                self.diagnostics.push(CompileError::new(
+                    "SHJS002", "a style() conditional must contain literal utility strings or direct utility templates",
+                    self.source_span(expression.span()),
+                ));
+                return;
+            }
+        }
+        for input in &mut nested {
+            guard_utility(input, guard, when_true);
+        }
+        inputs.extend(nested);
+    }
+
+    fn collect_variant_wrapper(
+        &mut self,
+        expression: &Expression<'a>,
+        variant: StyleVariant,
+        inputs: &mut Vec<StyleInput>,
+    ) {
+        let mut nested = Vec::new();
+        self.collect_style_expression(expression, &mut nested);
+        if nested.iter().any(|input| !is_variant_input(input)) {
+            self.diagnostics.push(CompileError::new(
+                "SHJS004",
+                "variant wrappers accept utility strings, animations, arrays, and nested variant wrappers",
+                self.source_span(expression.span()),
+            ));
+            return;
+        }
+        inputs.push(StyleInput::Variant {
+            variant,
+            inputs: nested,
+        });
+    }
+}
+
+fn is_variant_input(input: &StyleInput) -> bool {
+    match input {
+        StyleInput::UtilityString(_)
+        | StyleInput::ConditionalUtilityString { .. }
+        | StyleInput::AnimationUse { .. }
+        | StyleInput::DynamicAnimationUse { .. } => true,
+        StyleInput::Variant { inputs, .. } => inputs.iter().all(is_variant_input),
+        _ => false,
+    }
+}
+
+fn guard_utility(input: &mut StyleInput, guard: Span, when_true: bool) {
+    match input {
+        StyleInput::UtilityString(value) => {
+            *input = StyleInput::ConditionalUtilityString {
+                guard,
+                when_true,
+                value: value.clone(),
+            };
+        }
+        StyleInput::Variant { inputs, .. } => {
+            for input in inputs {
+                guard_utility(input, guard, when_true);
+            }
+        }
+        _ => {}
     }
 }

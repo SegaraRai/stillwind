@@ -6,12 +6,11 @@ use stillwind_design_system::{
 use stillwind_ir::{ModuleAnalysis, StyleInput};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CompileError, LintFinding, SourceFile, filter_lint_findings};
-use stillwind_syntax::parse_candidate;
 
 use super::Compiler;
 use super::handles::{
-    handle_marker_class, handle_parent_selector, named_identity, ref_identity,
-    render_handle_projection, scope_identity, scope_marker_class, summary_runtime_assets,
+    handle_marker_class, named_identity, ref_identity, render_handle_projection, scope_identity,
+    scope_marker_class, summary_runtime_assets,
 };
 use super::lexer::lex_utilities;
 use super::motion::{
@@ -21,6 +20,7 @@ use super::output::CompileResult;
 use super::props::{
     DynamicAssetClassEntry, GeneratedClass, PropsParts, ViewTransitionStyleEntry, render_props,
 };
+use super::style_variants::{StyleVariantPlan, flatten_inputs};
 use super::symbols::{
     asset_symbol_name, class_name, generated_class_symbol, generated_ref_marker_symbol,
     generated_ref_symbol, generated_scope_marker_symbol, generated_scope_symbol, generated_symbol,
@@ -139,9 +139,13 @@ impl Compiler {
             let mut dynamic_asset_classes = Vec::new();
             let mut view_transition_style = None;
             let mut compatibility_classes = Vec::new();
-            for input in call.inputs {
-                let mut variant_prefix = None;
-                let (guard, guard_when_true, selector, input) = match input {
+            for (wrappers, input) in flatten_inputs(call.inputs) {
+                let Some(variant_plan) =
+                    StyleVariantPlan::resolve(&wrappers, theme, &mut result.diagnostics)
+                else {
+                    continue;
+                };
+                let (guard, guard_when_true, input) = match input {
                     StyleInput::ViewTransitionUse { transition, key } => {
                         if view_transition_style.is_some() {
                             result.diagnostics.push(CompileError::new(
@@ -211,17 +215,23 @@ impl Compiler {
                     }
                     StyleInput::AnimationUse { animation, options } => {
                         let branch = &mut branches[0];
+                        if !variant_plan.canonical.is_empty() {
+                            branch.2.push_str(&variant_plan.canonical);
+                            branch.2.push('\0');
+                        }
                         branch.2.push_str("animation:");
                         branch.2.push_str(&animation.name.value);
                         branch.2.push(':');
                         branch.2.push_str(&options.value);
                         branch.2.push('\0');
-                        branch.3.push(resolve_animation_use(
+                        let mut utility = resolve_animation_use(
                             &animation,
                             &options,
                             theme,
                             &mut result.diagnostics,
-                        ));
+                        );
+                        variant_plan.apply_animation(&mut utility);
+                        branch.3.push(utility);
                         continue;
                     }
                     StyleInput::DynamicAnimationUse {
@@ -243,90 +253,14 @@ impl Compiler {
                                 AssetKind::Animation,
                                 &animation.name,
                             );
-                            let canonical =
-                                format!("dynamic-animation:{identity}:{}", options.value);
-                            let canonical = compiler_options.class_input(source.path(), &canonical);
-                            let class_name = class_name(&canonical);
-                            if emitted_utility_classes
-                                .insert((class_name.clone(), canonical.clone()))
-                            {
-                                emit_utility_rules(
-                                    &mut utility_css,
-                                    &class_name,
-                                    &[resolve_animation_use(
-                                        &animation,
-                                        &options,
-                                        theme,
-                                        &mut result.diagnostics,
-                                    )],
-                                    theme,
-                                );
-                                result.symbols.push(generated_class_symbol(
-                                    source,
-                                    &class_name,
-                                    &canonical,
-                                    call.span,
-                                ));
-                            }
-                            classes.push((identity, class_name));
-                        }
-                        dynamic_asset_classes.push(DynamicAssetClassEntry { value, classes });
-                        continue;
-                    }
-                    StyleInput::VariantAnimationUse {
-                        prefix,
-                        animation,
-                        options,
-                    } => {
-                        let branch = &mut branches[0];
-                        branch.2.push_str(&prefix.value);
-                        branch.2.push('\0');
-                        branch.2.push_str("animation:");
-                        branch.2.push_str(&animation.name.value);
-                        branch.2.push(':');
-                        branch.2.push_str(&options.value);
-                        branch.2.push('\0');
-                        let mut utility = resolve_animation_use(
-                            &animation,
-                            &options,
-                            theme,
-                            &mut result.diagnostics,
-                        );
-                        let Some(variants) = super::variants::resolve_wrapper_variants(
-                            &prefix,
-                            theme,
-                            &mut result.diagnostics,
-                        ) else {
-                            continue;
-                        };
-                        utility.variants = variants;
-                        branch.3.push(utility);
-                        continue;
-                    }
-                    StyleInput::DynamicVariantAnimationUse {
-                        prefix,
-                        value,
-                        animations,
-                        options,
-                    } => {
-                        let mut classes = Vec::new();
-                        for animation in animations {
-                            runtime_assets.insert(IdentityId::new(
-                                AssetKind::Animation,
-                                &animation.module_path,
-                                animation.name.span.start.0,
-                                animation.name.span.end.0,
-                                animation.name.value.clone(),
-                            ));
-                            let identity = asset_symbol_name(
-                                &animation.module_path,
-                                AssetKind::Animation,
-                                &animation.name,
-                            );
-                            let canonical = format!(
-                                "{}\0dynamic-animation:{identity}:{}",
-                                prefix.value, options.value
-                            );
+                            let canonical = if variant_plan.canonical.is_empty() {
+                                format!("dynamic-animation:{identity}:{}", options.value)
+                            } else {
+                                format!(
+                                    "{}\0dynamic-animation:{identity}:{}",
+                                    variant_plan.canonical, options.value
+                                )
+                            };
                             let canonical = compiler_options.class_input(source.path(), &canonical);
                             let class_name = class_name(&canonical);
                             let mut utility = resolve_animation_use(
@@ -335,14 +269,7 @@ impl Compiler {
                                 theme,
                                 &mut result.diagnostics,
                             );
-                            let Some(variants) = super::variants::resolve_wrapper_variants(
-                                &prefix,
-                                theme,
-                                &mut result.diagnostics,
-                            ) else {
-                                continue;
-                            };
-                            utility.variants = variants;
+                            variant_plan.apply_animation(&mut utility);
                             if emitted_utility_classes
                                 .insert((class_name.clone(), canonical.clone()))
                             {
@@ -418,6 +345,7 @@ impl Compiler {
                         branch.2.push('\0');
                         branch.3.push(CompiledUtility {
                             variants: Vec::new(),
+                            variant_applications: Vec::new(),
                             declaration: render_handle_projection(&handle, &projection),
                             selector: None,
                             container: None,
@@ -449,6 +377,7 @@ impl Compiler {
                                     &class_name,
                                     &[CompiledUtility {
                                         variants: Vec::new(),
+                                        variant_applications: Vec::new(),
                                         declaration: render_handle_projection(&handle, &projection),
                                         selector: None,
                                         container: None,
@@ -504,73 +433,36 @@ impl Compiler {
                         external_classes.push(value);
                         continue;
                     }
-                    StyleInput::UtilityString(input) => (None, true, None, input),
+                    StyleInput::UtilityString(input) => (None, true, input),
                     StyleInput::ConditionalUtilityString {
                         guard,
                         when_true,
                         value,
-                    } => (Some(guard), when_true, None, value),
+                    } => (Some(guard), when_true, value),
                     StyleInput::Attributes(entries) => {
                         attributes.extend(entries);
                         continue;
                     }
-                    StyleInput::VariantUtilityString { prefix, value } => {
-                        variant_prefix = Some(prefix.value);
-                        (None, true, None, value)
-                    }
-                    StyleInput::ConditionalVariantUtilityString {
-                        prefix,
-                        guard,
-                        when_true,
-                        value,
-                    } => {
-                        variant_prefix = Some(prefix.value);
-                        (Some(guard), when_true, None, value)
-                    }
-                    StyleInput::HandleSelectorUtilityString {
-                        handle,
-                        selector,
-                        value,
-                    } => {
-                        let Some(parent) = handle_parent_selector(&handle, &selector.value) else {
-                            result.diagnostics.push(CompileError::new(
-                                "SHREF003",
-                                "ref selectors must begin with `&`",
-                                selector.span,
-                            ));
-                            continue;
-                        };
-                        (None, true, Some(parent), value)
-                    }
-                    StyleInput::ConditionalHandleSelectorUtilityString {
-                        handle,
-                        selector,
-                        guard,
-                        when_true,
-                        value,
-                    } => {
-                        let Some(parent) = handle_parent_selector(&handle, &selector.value) else {
-                            result.diagnostics.push(CompileError::new(
-                                "SHREF003",
-                                "ref selectors must begin with `&`",
-                                selector.span,
-                            ));
-                            continue;
-                        };
-                        (Some(guard), when_true, Some(parent), value)
-                    }
+                    StyleInput::Variant { .. } => continue,
                 };
                 let branch_index = if let Some(guard) = guard {
-                    branches.push((Some(guard), guard_when_true, String::new(), Vec::new()));
-                    branches.len() - 1
+                    if let Some(index) = branches
+                        .iter()
+                        .position(|branch| branch.0 == Some(guard) && branch.1 == guard_when_true)
+                    {
+                        index
+                    } else {
+                        branches.push((Some(guard), guard_when_true, String::new(), Vec::new()));
+                        branches.len() - 1
+                    }
                 } else {
                     0
                 };
                 let branch = &mut branches[branch_index];
                 for mut utility in lex_utilities(&input, &mut result.diagnostics) {
-                    if let Some(prefix) = &variant_prefix {
-                        utility.value.raw.insert_str(0, prefix);
-                    }
+                    let canonical_candidate =
+                        format!("{}{}", variant_plan.canonical, utility.value.raw);
+                    utility.value.raw.insert_str(0, &variant_plan.prefix);
                     if (options.forbid_tailwind_relationships
                         || theme.config.lint_enabled("prefer-typed-relationships"))
                         && is_tailwind_relationship_candidate(&utility.value.raw, theme)
@@ -584,7 +476,7 @@ impl Compiler {
                             utility.span,
                         ));
                     }
-                    if selector.is_none()
+                    if !variant_plan.has_refs
                         && let Some(marker) = compatibility_marker_class(&utility.value.raw, theme)
                     {
                         let class = GeneratedClass {
@@ -598,11 +490,7 @@ impl Compiler {
                         }
                         continue;
                     }
-                    if let Some(selector) = &selector {
-                        branch.2.push_str(selector);
-                        branch.2.push('\0');
-                    }
-                    branch.2.push_str(&utility.value.raw);
+                    branch.2.push_str(&canonical_candidate);
                     branch.2.push('\0');
                     let resolved_input = utility
                         .value
@@ -610,29 +498,17 @@ impl Compiler {
                         .strip_prefix("tw:")
                         .unwrap_or(&utility.value.raw);
                     if let Some(mut utilities) = resolve_utility_targets(resolved_input, theme) {
-                        let candidate_variants = parse_candidate(resolved_input)
-                            .map(|candidate| candidate.variants)
-                            .unwrap_or_default();
-                        {
-                            for resolved_utility in &mut utilities {
-                                resolved_utility.variants.clone_from(&candidate_variants);
-                                if let Some(selector) = &selector {
-                                    resolved_utility.selector =
-                                        Some(resolved_utility.selector.as_deref().map_or_else(
-                                            || selector.clone(),
-                                            |nested| nested.replace('&', selector),
-                                        ));
-                                }
-                            }
-                            branch.3.append(&mut utilities);
+                        for resolved_utility in &mut utilities {
+                            variant_plan.apply(resolved_utility, theme);
                         }
+                        branch.3.append(&mut utilities);
                     } else {
                         result.lint_findings.push(LintFinding::new(
                             unresolved_utility_rule(&utility.value.raw),
                             format!("unknown or unavailable utility `{}`", utility.value.raw),
                             utility.span,
                         ));
-                        if selector.is_none() && variant_prefix.is_none() {
+                        if wrappers.is_empty() {
                             external_classes.push(utility.span);
                         }
                     }

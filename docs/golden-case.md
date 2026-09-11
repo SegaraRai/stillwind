@@ -194,8 +194,47 @@ at the ref can target its descendants.
 const trigger = style.ref("trigger");
 
 <button {...style(trigger, "inline-flex")}>
-  <span {...style({ [trigger`&:hover`]: "text-accent" })}>More</span>
+  <span {...style({ [trigger`hover:`]: "text-accent" })}>More</span>
 </button>;
+```
+
+A ref accepts a static variant sequence as either a tagged template or a call.
+The final `:` inside that sequence is optional. These forms are equivalent:
+
+```tsx
+style({ [trigger`hover:active:`]: "text-accent" });
+style({ [trigger("hover:active")]: "text-accent" });
+style(`${trigger`hover:active`}:text-accent`);
+```
+
+The variants inside `trigger(...)` test the referenced element. Variants outside
+it apply to the styled target. Both forms below test a hovered trigger and an
+active target:
+
+```tsx
+style({ [trigger("hover")]: { "active:": "text-accent" } });
+style(`${trigger`hover:`}:active:text-accent`);
+```
+
+Ref wrappers accept the same arrays, nested variants, conditional utility
+strings, and animation uses as ordinary variant wrappers. Direct utility
+templates can mix literal utilities and multiple ref variants:
+
+```tsx
+style(`p-4 md:${trigger("hover")}:active:text-accent`);
+```
+
+Interpolation is parsed at compile time; it does not stringify a ref at runtime.
+Each substitution must be a direct ref-variant call or tag occupying a complete
+variant segment, followed by `:`. Imported refs and finite conditional ref
+choices use the existing TypeScript identity facts. Arbitrary JavaScript string
+interpolation is not supported. **Following interpolated strings stored in
+variables is deliberately outside the API**, including local constants and
+cross-module strings:
+
+```tsx
+const classes = `${trigger`hover:`}:text-accent`;
+style(classes); // Not supported: write the template directly inside style(...).
 ```
 
 `style.scope()` creates a DOM boundary. Binding a ref to that scope permits the
@@ -208,7 +247,7 @@ const trigger = style.ref(menu, "trigger");
 
 <section {...style(menu, "relative")}>
   <button {...style(trigger, "inline-flex items-center rounded-md px-3 py-2")}>More</button>
-  <div {...style({ [trigger`&:hover`]: "block" })}>Menu</div>
+  <div {...style({ [trigger`hover:`]: "block" })}>Menu</div>
 </section>;
 ```
 

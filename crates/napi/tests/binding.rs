@@ -193,7 +193,7 @@ export const parent = style(menu);"#
             "path": "src/Child.tsx",
             "source": r#"import { style } from "stillwind/react";
 import { menu } from "./Parent";
-export const child = style({ [menu`&:hover`]: "text-white" });"#
+export const child = style({ [menu`hover:`]: "text-white" });"#
         }
     ]);
     let output = compile_react_project_input(

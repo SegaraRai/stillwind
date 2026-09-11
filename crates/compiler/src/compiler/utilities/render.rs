@@ -16,6 +16,21 @@ pub(in crate::compiler) fn render_utility_rule(
 ) -> String {
     let declaration = fold_calc_expressions(declaration);
     let declaration = normalize_serialized_declaration(&declaration);
+    if !utility.variant_applications.is_empty() {
+        return utility
+            .variant_applications
+            .iter()
+            .map(|applications| {
+                render_utility_rule_path(
+                    class_name,
+                    utility,
+                    &declaration,
+                    nested_rule,
+                    applications,
+                )
+            })
+            .collect();
+    }
     let mut paths = vec![Vec::new()];
     for variant in &utility.variants {
         let Some(application) = resolve_variant(variant, theme) else {

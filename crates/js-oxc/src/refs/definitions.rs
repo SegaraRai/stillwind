@@ -1,7 +1,7 @@
-use oxc::ast::ast::{CallExpression, Expression, PropertyKey};
+use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_ir::{HandleDefinition, ScopeDefinition, StyleInput};
+use stillwind_ir::{HandleDefinition, ScopeDefinition, StyleInput, StyleVariant};
 use stillwind_source::{CompileError, Span, Spanned, normalized_module_path};
 
 use crate::state::MacroExtractor;
@@ -127,58 +127,55 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
-    pub(crate) fn handle_tagged_selector(
-        &mut self,
-        key: &PropertyKey<'a>,
-    ) -> Option<(Vec<HandleDefinition>, Spanned<String>)> {
-        let PropertyKey::TaggedTemplateExpression(tagged) = key else {
-            return None;
+    pub(crate) fn ref_variant(&mut self, expression: &Expression<'a>) -> Option<StyleVariant> {
+        let (reference, mut prefix) = match expression {
+            Expression::TaggedTemplateExpression(tagged) => {
+                if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
+                    self.diagnostics.push(CompileError::new(
+                        "SHREF005",
+                        "ref variants require a static variant string",
+                        self.source_span(tagged.quasi.span),
+                    ));
+                    return None;
+                }
+                let cooked = tagged.quasi.quasis[0].value.cooked.as_ref()?;
+                let span = self.source_span(tagged.quasi.span);
+                (
+                    &tagged.tag,
+                    Spanned::new(
+                        cooked.to_string(),
+                        Span::new(span.file, span.start.0 + 1, span.end.0.saturating_sub(1)),
+                    ),
+                )
+            }
+            Expression::CallExpression(call) if call.arguments.len() == 1 && !call.optional => {
+                let Expression::StringLiteral(value) = call.arguments[0].as_expression()? else {
+                    self.diagnostics.push(CompileError::new(
+                        "SHREF005",
+                        "ref variants require a static variant string",
+                        self.source_span(call.span),
+                    ));
+                    return None;
+                };
+                (&call.callee, self.string_literal(value))
+            }
+            _ => return None,
         };
-        let Some(handles) = self.handle_references(&tagged.tag) else {
+        let Some(handles) = self.handle_references(reference) else {
             self.diagnostics.push(CompileError::new(
                 "SHTS001",
-                "non-local or conditional ref selectors require TypeScript checker facts",
-                self.source_span(tagged.tag.span()),
+                "ref variants require a statically identified style.ref()",
+                self.source_span(reference.span()),
             ));
             return None;
         };
-        if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
-            self.diagnostics.push(CompileError::new(
-                "SHREF005",
-                "a ref selector must be a template literal without substitutions",
-                self.source_span(tagged.quasi.span),
-            ));
-            return None;
-        }
-        let Some(cooked) = tagged.quasi.quasis[0].value.cooked.as_ref() else {
-            self.diagnostics.push(CompileError::new(
-                "SHREF005",
-                "a ref selector must be a valid static template literal",
-                self.source_span(tagged.quasi.span),
-            ));
-            return None;
-        };
-        let template_span = self.source_span(tagged.quasi.span);
-        let selector = Spanned::new(
-            cooked.to_string(),
-            Span::new(
-                template_span.file,
-                template_span.start.0 + 1,
-                template_span.end.0.saturating_sub(1),
-            ),
-        );
-        if !selector.value.starts_with('&') {
-            self.diagnostics.push(CompileError::new(
-                "SHREF005",
-                "a ref selector must start with `&`",
-                selector.span,
-            ));
-            return None;
+        if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
+            prefix.value.push(':');
         }
         for handle in &handles {
-            self.record_handle_use(handle, "selector", self.source_span(tagged.span));
+            self.record_handle_use(handle, "selector", self.source_span(expression.span()));
         }
-        Some((handles, selector))
+        Some(StyleVariant::Ref { handles, prefix })
     }
 
     pub(crate) fn collect_dynamic_handle_attachment(

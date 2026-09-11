@@ -28,3 +28,17 @@ function variantWrapperTypes(active: boolean) {
   react({ "hover:": { "aria-busy": true } });
 }
 void variantWrapperTypes;
+
+function refVariantTypes(active: boolean) {
+  const trigger = react.ref("trigger");
+  react({ [trigger`hover:active:`]: "text-accent" });
+  react({ [trigger("hover:active")]: ["text-accent", { "active:": "opacity-50" }] });
+  react({ "md:": { [trigger("hover")]: { "active:": "text-accent" } } });
+  react(`${trigger`hover:`}:active:text-accent`);
+  react(active && `${trigger("hover")}:text-accent`);
+  // @ts-expect-error Ref variant arguments are static strings.
+  trigger(123);
+  // @ts-expect-error Ref tags do not accept substitutions.
+  trigger`hover:${"active"}`;
+}
+void refVariantTypes;

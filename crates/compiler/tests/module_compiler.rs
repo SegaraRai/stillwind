@@ -5,7 +5,7 @@ use stillwind_compiler::{
     StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_ir::{HandleDefinition, SourceAnalyzer, StyleInput};
+use stillwind_ir::{HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile, Span, Spanned};
 
@@ -177,17 +177,23 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         call_span: span,
     };
     for input in [
-        StyleInput::HandleSelectorUtilityString {
-            handle: handle.clone(),
-            selector: Spanned::new(":hover".into(), span),
-            value: Spanned::new("flex".into(), span),
+        StyleInput::Variant {
+            variant: StyleVariant::Ref {
+                handles: vec![handle.clone()],
+                prefix: Spanned::new(":hover".into(), span),
+            },
+            inputs: vec![StyleInput::UtilityString(Spanned::new("flex".into(), span))],
         },
-        StyleInput::ConditionalHandleSelectorUtilityString {
-            handle,
-            selector: Spanned::new(":hover".into(), span),
-            value: Spanned::new("flex".into(), span),
-            guard: span,
-            when_true: true,
+        StyleInput::Variant {
+            variant: StyleVariant::Ref {
+                handles: vec![handle],
+                prefix: Spanned::new("hover::".into(), span),
+            },
+            inputs: vec![StyleInput::ConditionalUtilityString {
+                value: Spanned::new("flex".into(), span),
+                guard: span,
+                when_true: true,
+            }],
         },
         StyleInput::UtilityString(Spanned::new(
             "x".into(),

@@ -129,6 +129,18 @@ pub enum HandleProjection {
     Container(Spanned<String>),
 }
 
+/// Ordered variants shared by object wrappers and direct template interpolation.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum StyleVariant {
+    /// A normal variant prefix, including its final separator.
+    Prefix(Spanned<String>),
+    /// Correlated ref/scope alternatives, with a normalized variant prefix.
+    Ref {
+        handles: Vec<HandleDefinition>,
+        prefix: Spanned<String>,
+    },
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
     UtilityString(Spanned<String>),
@@ -138,27 +150,9 @@ pub enum StyleInput {
         value: Spanned<String>,
     },
     Attributes(Vec<AttributeEntry>),
-    VariantUtilityString {
-        prefix: Spanned<String>,
-        value: Spanned<String>,
-    },
-    ConditionalVariantUtilityString {
-        prefix: Spanned<String>,
-        guard: Span,
-        when_true: bool,
-        value: Spanned<String>,
-    },
-    HandleSelectorUtilityString {
-        handle: HandleDefinition,
-        selector: Spanned<String>,
-        value: Spanned<String>,
-    },
-    ConditionalHandleSelectorUtilityString {
-        handle: HandleDefinition,
-        selector: Spanned<String>,
-        guard: Span,
-        when_true: bool,
-        value: Spanned<String>,
+    Variant {
+        variant: StyleVariant,
+        inputs: Vec<StyleInput>,
     },
     HandleProjection {
         handle: HandleDefinition,
@@ -194,17 +188,6 @@ pub enum StyleInput {
         options: Spanned<String>,
     },
     DynamicAnimationUse {
-        value: Span,
-        animations: Vec<AssetReference>,
-        options: Spanned<String>,
-    },
-    VariantAnimationUse {
-        prefix: Spanned<String>,
-        animation: AssetReference,
-        options: Spanned<String>,
-    },
-    DynamicVariantAnimationUse {
-        prefix: Spanned<String>,
         value: Span,
         animations: Vec<AssetReference>,
         options: Spanned<String>,

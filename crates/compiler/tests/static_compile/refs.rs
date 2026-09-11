@@ -85,7 +85,7 @@ fn uses_ref_tagged_selectors_as_automatically_named_parent_groups() {
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
 const parent = style(trigger.anchor, "inline-flex");
-const child = style({ [trigger`&:hover`]: "text-accent" });"#,
+const child = style({ [trigger`hover:`]: "text-accent" });"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
@@ -112,7 +112,7 @@ fn scopes_refs_across_siblings_and_uses_readable_marker_names() {
         r#"import { style } from "stillwind/react";
 const menu = style.scope("menu");
 const trigger = style.ref(menu, "trigger");
-export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`&:hover`]: "text-accent" })} /></section>;"#,
+export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></section>;"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
@@ -152,7 +152,7 @@ fn rejects_a_scoped_ref_selector_target_outside_its_scope() {
         r#"import { style } from "stillwind/react";
 const menu = style.scope();
 const trigger = style.ref(menu);
-export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`&:hover`]: "text-accent" })} /></>;"#,
+export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),

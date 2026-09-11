@@ -12,7 +12,7 @@ export function Popover() {
           {...style(
             trigger.position,
             trigger.at("width >= 40rem", "grid-cols-2"),
-            { [trigger`&:hover`]: "text-accent" },
+            `${trigger`hover:`}:text-accent`,
             "absolute",
           )}
         />
