@@ -12,7 +12,7 @@
 use serde::Serialize;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
-use stillwind_semantic::AssetKind;
+use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use super::handles::{handle_marker_class, scope_marker_class};
@@ -244,6 +244,29 @@ pub(super) fn generated_class_symbol(
 pub(crate) fn class_name(canonical_input: &str) -> String {
     let hash = blake3::hash(canonical_input.as_bytes());
     format!("_s_{}", &hash.to_hex()[..8])
+}
+
+/// Uses declaration identity directly, without fabricating a source-buffer span.
+pub(super) fn motion_symbol_name(identity: &IdentityId) -> String {
+    let prefix = match identity.kind {
+        AssetKind::Animation => "--sw-a-",
+        AssetKind::ViewTransition => "--sw-v-",
+        AssetKind::Style => "_s_",
+        AssetKind::Ref => "--sw-r-",
+        AssetKind::Scope => "--sw-s-",
+    };
+    let content = format!(
+        "stillwind/v1\0{}\0{}\0{}:{}:{}",
+        normalized_module_path(&identity.module_path),
+        kind_name(identity.kind),
+        identity.start,
+        identity.end,
+        identity.binding_name
+    );
+    format!(
+        "{prefix}{}",
+        &blake3::hash(content.as_bytes()).to_hex()[..8]
+    )
 }
 
 #[cfg(test)]

@@ -14,7 +14,10 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::ident::Ident;
 
-use stillwind_css::blocks::{extract_named_blocks, strip_css_comments};
+use stillwind_css::blocks::{
+    extract_named_blocks, extract_named_blocks_with_offsets, extract_named_statements,
+    strip_css_comments,
+};
 
 /// Direction applied to a sort group's numeric values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -257,77 +260,48 @@ pub(crate) fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltin
     })
 }
 
-/// Extracts all three user-authored variant forms after comment stripping.
-///
-/// The line-based `@custom-variant name (selector)` shorthand is collected first, then
-/// block forms; only a line without `{` is read as the shorthand so a block header is
-/// never misparsed as one.
+/// Extracts all user-authored variant forms in their shared source order.
+/// Later definitions override earlier ones regardless of shorthand or block syntax.
 pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
-    let css = strip_css_comments(css);
-    let mut variants = css
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim();
-            if line.contains('{') {
-                return None;
-            }
-            let value = line.strip_prefix("@custom-variant ")?.trim_end_matches(';');
-            let (name, selector) = value.split_once(' ')?;
-            let (name, wildcard) = parse_variant_name(name)?;
-            Some(CustomVariant {
-                name,
-                wildcard,
-                selector: selector
-                    .trim()
-                    .trim_start_matches('(')
-                    .trim_end_matches(')')
-                    .to_owned(),
-                body: String::new(),
-                builtin_order: None,
-                sort: None,
-                value_type: None,
-                modifier_type: None,
-            })
+    let mut definitions = extract_named_statements(css, "@custom-variant")
+        .into_iter()
+        .filter_map(|(offset, header)| {
+            let split = header.find(char::is_whitespace)?;
+            let (name, wildcard) = parse_variant_name(&header[..split])?;
+            let selector = header[split..]
+                .trim()
+                .strip_prefix('(')?
+                .strip_suffix(')')?;
+            Some((offset, name, wildcard, selector.to_owned(), String::new()))
         })
         .collect::<Vec<_>>();
-    variants.extend(
-        extract_named_blocks(&css, "@custom-variant")
-            .into_iter()
-            .filter_map(|(header, body)| {
-                let (name, wildcard) = parse_variant_name(header.split_whitespace().next()?)?;
-                Some(CustomVariant {
-                    name,
-                    wildcard,
-                    selector: String::new(),
-                    body,
-                    builtin_order: None,
-                    sort: None,
-                    value_type: None,
-                    modifier_type: None,
-                })
-            }),
-    );
-    variants.extend(
-        extract_named_blocks(&css, "@variant")
-            .into_iter()
-            .filter_map(|(header, body)| {
-                if !body.contains("@slot") {
-                    return None;
-                }
-                let (name, wildcard) = parse_variant_name(header.split_whitespace().next()?)?;
-                Some(CustomVariant {
-                    name,
-                    wildcard,
-                    selector: String::new(),
-                    body,
-                    builtin_order: None,
-                    sort: None,
-                    value_type: None,
-                    modifier_type: None,
-                })
-            }),
-    );
-    variants
+    for directive in ["@custom-variant", "@variant"] {
+        definitions.extend(
+            extract_named_blocks_with_offsets(css, directive)
+                .into_iter()
+                .filter_map(|(offset, header, body)| {
+                    if directive == "@variant" && !body.contains("@slot") {
+                        return None;
+                    }
+                    let (name, wildcard) = parse_variant_name(header.split_whitespace().next()?)?;
+                    Some((offset, name, wildcard, String::new(), body))
+                }),
+        );
+    }
+    definitions.sort_by_key(|definition| definition.0);
+    definitions
+        .into_iter()
+        .map(|(_, name, wildcard, selector, body)| CustomVariant {
+            name,
+            wildcard,
+            selector,
+            body,
+            builtin_order: None,
+            sort: None,
+            value_type: None,
+            modifier_type: None,
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -132,7 +132,14 @@ fn map_asset<E>(
     asset: &mut AssetReference,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut asset.name, map)
+    asset.span = map(asset.span)?;
+    if let Some(declaration) = asset.local_declaration {
+        let declaration = map(declaration)?;
+        asset.identity.start = declaration.start.0;
+        asset.identity.end = declaration.end.0;
+        asset.local_declaration = Some(declaration);
+    }
+    Ok(())
 }
 
 fn map_projection<E>(

@@ -8,9 +8,32 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_ir::SourceAnalyzer;
-use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_semantic::TypeFacts;
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse_with_type_facts};
+use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
 use stillwind_source::{FileId, Fingerprint, SourceFile};
+
+#[test]
+fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
+    let source = Arc::new(SourceFile::new(FileId(1), "entry.tsx", "const x = 1;").unwrap());
+    let scan = OxcSourceAnalyzer.scan(source.clone());
+    let facts = TypeFacts {
+        schema: TypeFacts::SCHEMA,
+        module_id: scan.module_id.clone(),
+        source_revision: scan.source_revision.clone(),
+        semantic_revision: Fingerprint::of("fresh"),
+        facts: vec![TypeFact {
+            start: 10,
+            end: 11,
+            value: ExportedValue::Animations(SymbolicValue::universe(AssetKind::Scope)),
+        }],
+        assets: BTreeMap::new(),
+    };
+    let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
+    assert!(analysis.semantic_revision.is_none());
+    assert_eq!(analysis.integration_diagnostics.len(), 1);
+    let parsed = parse_with_type_facts(&source, &facts.facts, &facts.assets);
+    assert!(parsed.diagnostics.iter().any(|d| d.code == "SHFACT001"));
+}
 
 /// Stale or malformed checker facts must be rejected without changing the IR.
 ///

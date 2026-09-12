@@ -33,18 +33,16 @@ impl<'a> MacroExtractor<'a> {
         Span::new(self.source.id(), span.start, span.end)
     }
 
-    /// Builds an IR asset reference from an identity declared in another module.
-    ///
-    /// The name carries declaration offsets but is tagged with the current buffer id.
-    /// It is identity metadata paired with `module_path`, not a directly sliceable
-    /// diagnostic span in the importing module.
-    pub(crate) fn asset_reference(&self, identity: &IdentityId) -> AssetReference {
+    /// Pairs an external declaration identity with a genuine local use-site span.
+    pub(crate) fn asset_reference(
+        &self,
+        identity: &IdentityId,
+        span: oxc::span::Span,
+    ) -> AssetReference {
         AssetReference {
-            module_path: identity.module_path.clone(),
-            name: Spanned::new(
-                identity.binding_name.clone(),
-                Span::new(self.source.id(), identity.start, identity.end),
-            ),
+            identity: identity.clone(),
+            span: self.source_span(span),
+            local_declaration: None,
         }
     }
 

@@ -13,27 +13,17 @@
 //! never from both: a project that declares formats replaces the built-in set rather
 //! than extending it.
 
-use stillwind_css::{fold_calc_expressions, format_numeric_zero};
+use stillwind_css::{
+    declaration_ranges, fold_calc_expressions, format_numeric_zero, important_declarations,
+};
 
 use super::super::builtins::metadata::builtin_declaration_formats;
 use super::super::syntax::closing_parenthesis;
 use crate::{ThemeIndex, declaration_format};
 
-/// Appends `!important` to every declaration in `declaration`.
-///
-/// The input is a declaration list, so the marker is applied per declaration rather
-/// than once at the end of the string. An empty body stays empty instead of gaining a
-/// stray marker. This helper splits on every semicolon, including semicolons inside
-/// strings or function arguments; it does not tokenize the declaration list.
+/// Adds priority at top-level declaration boundaries, retaining existing priority.
 pub(crate) fn important(declaration: &str) -> String {
-    declaration
-        .split_terminator(';')
-        .filter(|declaration| !declaration.is_empty())
-        .fold(String::new(), |mut result, declaration| {
-            result.push_str(declaration);
-            result.push_str("!important;");
-            result
-        })
+    important_declarations(declaration)
 }
 
 /// Applies every serialization rule to one resolved declaration.
@@ -97,13 +87,9 @@ pub(crate) fn apply_zero_length_format(mut declaration: String, theme: &ThemeInd
     } else {
         &theme.declaration_formats
     };
-    let ranges = declaration
-        .split_terminator(';')
-        .scan(0, |cursor, segment| {
-            let start = *cursor;
-            *cursor += segment.len() + 1;
-            Some((start, start + segment.len(), segment))
-        })
+    let ranges = declaration_ranges(&declaration)
+        .into_iter()
+        .map(|range| (range.start, range.end, &declaration[range]))
         .filter_map(|(start, end, segment)| {
             let property = segment.split_once(':')?.0;
             declaration_format(formats, property)

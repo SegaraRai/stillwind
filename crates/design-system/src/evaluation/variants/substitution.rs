@@ -10,8 +10,8 @@
 //! definition's body, and conditions or declarations can only attach to applications
 //! that have a selector, because a bare condition has no place to carry them.
 
-use super::super::syntax::closing_parenthesis;
 use super::super::values::domains::{resolve_value_domains, split_domains, theme_domain_pattern};
+use super::super::values::expansion::expand_placeholder;
 use super::body::resolve_variant_body;
 use super::resolve::{VariantApplication, VariantDeclaration};
 use crate::{BuiltinVariantModifierType, CustomVariant, ThemeIndex};
@@ -263,13 +263,10 @@ pub(crate) fn resolve_variant_css_placeholders(
         .and_then(|prefix| value.strip_prefix(prefix))
         .map(|capture| capture.split_once('/').map_or(capture, |(value, _)| value));
     let mut body = body.to_owned();
-    while let Some(start) = body.find("--value(") {
-        let open = start + "--value".len();
-        let end = closing_parenthesis(&body, open)?;
-        let replacement = resolve_variant_value_domains(&body[open + 1..end], capture, theme)?;
-        body.replace_range(start..=end, &replacement);
-    }
-    (!body.contains("--value(")).then_some(body)
+    expand_placeholder(&mut body, "--value", |arguments| {
+        resolve_variant_value_domains(arguments, capture, theme)
+    })?;
+    Some(body)
 }
 
 /// Resolves a variant's value-domain list against a capture.
@@ -297,6 +294,26 @@ pub(crate) fn resolve_variant_value_domains(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recursive_variant_theme_values_are_rejected() {
+        let source = stillwind_source::SourceFile::new(
+            stillwind_source::FileId(1),
+            "theme.css",
+            "@theme { --breakpoint-loop: --value(--breakpoint-*); }",
+        )
+        .unwrap();
+        let theme = crate::parse_theme(&source).unwrap();
+        assert!(
+            resolve_variant_css_placeholders(
+                "@media (width >= --value(--breakpoint-*)) { @slot; }",
+                "screen-*",
+                "screen-loop",
+                &theme
+            )
+            .is_none()
+        );
+    }
 
     #[test]
     fn quoted_captures_and_typed_modifiers_require_complete_macros() {

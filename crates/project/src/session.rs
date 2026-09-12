@@ -19,7 +19,7 @@ use stillwind_compiler::{
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
-use stillwind_source::{CompileError, SourceFile, Span};
+use stillwind_source::{CompileError, Fingerprint, SourceFile, Span};
 
 use crate::DependencyIndex;
 
@@ -60,22 +60,27 @@ impl ProjectStylesheet {
     ///
     /// Rules already contributed by another module are shared, not duplicated; keys the
     /// module no longer claims are dropped when their last user goes.
+    /// Publicly constructed or edited rules are re-keyed from their current content.
     pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
         self.remove(module.as_str());
+        let mut keys = Vec::with_capacity(artifact.rules.len());
         for rule in &artifact.rules {
+            let key = RuleKey(Fingerprint::of(rule.to_css()));
+            keys.push(key.clone());
             self.rules
-                .entry(rule.key.clone())
-                .or_insert_with(|| RuleEntry {
-                    rule: rule.clone(),
-                    users: BTreeSet::new(),
+                .entry(key.clone())
+                .or_insert_with(|| {
+                    let mut rule = rule.clone();
+                    rule.key = key;
+                    RuleEntry {
+                        rule,
+                        users: BTreeSet::new(),
+                    }
                 })
                 .users
                 .insert(module.clone());
         }
-        self.contributions.insert(
-            module,
-            artifact.rules.iter().map(|rule| rule.key.clone()).collect(),
-        );
+        self.contributions.insert(module, keys);
     }
 
     /// Withdraws every rule this module contributed, keeping rules that other modules

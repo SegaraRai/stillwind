@@ -9,7 +9,7 @@
 //!
 //! [`summary_runtime_assets`] seeds runtime reachability from module exports; call
 //! emission adds uses. Unreferenced producer calls are replaced by `undefined`, but
-//! animation and view-transition definition CSS is emitted independently of that set.
+//! static motion uses retain CSS without requiring a runtime producer value.
 
 use std::collections::BTreeSet;
 
@@ -97,9 +97,8 @@ pub(super) fn named_identity(
 
 /// Every asset identity the module's exports can reach.
 ///
-/// Only finite candidate sets contribute here. A non-finite set means a use may denote any
-/// asset of its kind, which no specific declaration can satisfy, so such a use is left to the
-/// runtime path instead of pinning CSS that might never be applied.
+/// Finite candidates are exact roots. An exported universe conservatively retains all
+/// owned declarations of that kind, because the exporter cannot prove them unreachable.
 pub(super) fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<IdentityId> {
     let mut identities = BTreeSet::new();
     for value in summary.exports.values() {
@@ -120,6 +119,14 @@ pub(super) fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<Identi
             | ExportedValue::ViewTransitions(value) => {
                 if let Candidates::Finite(candidates) = &value.candidates {
                     identities.extend(candidates.iter().cloned());
+                } else {
+                    identities.extend(
+                        summary
+                            .assets
+                            .iter()
+                            .filter(|asset| asset.identity.kind == value.kind)
+                            .map(|asset| asset.identity.clone()),
+                    );
                 }
             }
         }
@@ -130,9 +137,30 @@ pub(super) fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<Identi
 #[cfg(test)]
 mod tests {
     use stillwind_ir::{HandleDefinition, ScopeDefinition};
+    use stillwind_semantic::{AssetMetadata, AssetRecord, SymbolicValue};
     use stillwind_source::{FileId, Span};
 
     use super::*;
+
+    #[test]
+    fn exported_universe_retains_owned_assets_of_its_kind() {
+        let mut summary = ModuleSummary::new("x");
+        let animation = IdentityId::new(AssetKind::Animation, "x", 0, 1, "a");
+        summary.assets.push(AssetRecord {
+            identity: animation.clone(),
+            metadata: AssetMetadata { label: None },
+            call_start: 2,
+            call_end: 8,
+        });
+        summary.exports.insert(
+            "chosen".into(),
+            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Animation)),
+        );
+        assert_eq!(
+            summary_runtime_assets(&summary),
+            BTreeSet::from([animation])
+        );
+    }
 
     #[test]
     fn projections_share_identity_and_scoped_selectors_bind_the_parent() {

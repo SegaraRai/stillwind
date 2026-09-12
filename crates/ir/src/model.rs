@@ -184,16 +184,16 @@ pub struct ViewTransitionDefinition {
     pub new: Option<Spanned<String>>,
 }
 
-/// A reference to a declared asset by the module that declares it.
-///
-/// The pair is the identity key: a use site names the declaration, never a re-exporting
-/// module, so identity does not depend on the import graph.
+/// A declaration identity paired with source provenance at its use site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetReference {
-    /// Module that declares the asset, not the module that re-exports it.
-    pub module_path: String,
-    /// Declared name of the asset.
-    pub name: Spanned<String>,
+    /// Durable declaration identity; external offsets are never interpreted in this file.
+    pub identity: stillwind_semantic::IdentityId,
+    /// Expression referring to the asset in the current module.
+    pub span: Span,
+    /// A local declaration's range, which must follow source projection alongside its
+    /// identity. External declarations have no span in the current source buffer.
+    pub local_declaration: Option<Span>,
 }
 
 /// The CSS role a ref plays at a use site.

@@ -8,12 +8,37 @@
 
 use std::sync::Arc;
 
-use stillwind_compiler::{CompilerOptions, StylesheetPlacement, StylesheetRenderer};
+use stillwind_compiler::{
+    CompilerOptions, GeneratedRule, ModuleCssArtifact, RuleKey, StylesheetPlacement,
+    StylesheetRenderer,
+};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
-use stillwind_source::{CompileError, FileId, SourceFile};
+use stillwind_project::{DependencyIndex, ProjectSession, ProjectStylesheet, SessionMode};
+use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
+
+#[test]
+fn publication_rekeys_publicly_edited_rules_before_sharing_them() {
+    let key = RuleKey(Fingerprint::of("stale"));
+    let mut artifact = ModuleCssArtifact {
+        rules: vec![GeneratedRule {
+            key,
+            prelude: ".x".into(),
+            body: Some("color:red;".into()),
+        }],
+    };
+    let mut sheet = ProjectStylesheet::default();
+    sheet.replace("a".into(), &artifact);
+    artifact.rules[0].body = Some("color:blue;".into());
+    sheet.replace("b".into(), &artifact);
+    assert_eq!(sheet.rule_count(), 2);
+    assert!(sheet.module_css().unwrap().contains("color:red;"));
+    assert!(sheet.module_css().unwrap().contains("color:blue;"));
+    sheet.remove("a");
+    assert_eq!(sheet.rule_count(), 1);
+    assert!(!sheet.module_css().unwrap().contains("color:red;"));
+}
 
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(

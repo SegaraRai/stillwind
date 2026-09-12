@@ -28,6 +28,7 @@
 pub mod blocks;
 mod colors;
 mod custom_properties;
+mod declarations;
 pub mod functions;
 mod math;
 mod output;
@@ -36,6 +37,7 @@ mod values;
 
 pub use colors::*;
 pub use custom_properties::*;
+pub use declarations::*;
 pub use math::*;
 pub use output::*;
 pub use resources::*;

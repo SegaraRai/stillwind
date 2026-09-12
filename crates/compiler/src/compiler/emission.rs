@@ -18,7 +18,7 @@ use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleCall, StyleInput,
     StyleVariant,
 };
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::IdentityId;
 use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
 
 use super::handles::{
@@ -31,8 +31,8 @@ use super::props::{
 };
 use super::style_variants::StyleVariantPlan;
 use super::symbols::{
-    asset_symbol_name, class_name, generated_class_symbol, handle_projection_name, ref_symbol_name,
-    runtime_projection_class,
+    class_name, generated_class_symbol, handle_projection_name, motion_symbol_name,
+    ref_symbol_name, runtime_projection_class,
 };
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::{
@@ -65,6 +65,7 @@ pub(super) struct CallEmitter<'a, 'b> {
     /// Identities the module references at runtime; the pipeline uses this set to decide which
     /// declarations are replaced by a runtime call and which are erased.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
+    motion_assets: &'a mut BTreeSet<IdentityId>,
     runtime: &'a mut RuntimeBindings<'b>,
     /// Canonical candidate and asset spelling for the base unit, in source order.
     static_canonical: String,
@@ -95,6 +96,8 @@ pub(super) struct CallEmitterInputs<'a, 'b> {
     pub symbols: &'a mut Vec<GeneratedSymbol>,
     pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
+    /// Motion definitions reached by static or dynamic uses.
+    pub motion_assets: &'a mut BTreeSet<IdentityId>,
     pub runtime: &'a mut RuntimeBindings<'b>,
 }
 
@@ -115,6 +118,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             symbols: inputs.symbols,
             emitted_utility_classes: inputs.emitted_utility_classes,
             runtime_assets: inputs.runtime_assets,
+            motion_assets: inputs.motion_assets,
             runtime: inputs.runtime,
             static_canonical: String::new(),
             static_utilities: Vec::new(),
@@ -234,14 +238,11 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 }
             }
             StyleInput::ViewTransitionUse { transition, key } => {
+                self.motion_assets.insert(transition.identity.clone());
                 if !self.begin_view_transition() {
                     return Some(());
                 }
-                let name = asset_symbol_name(
-                    &transition.module_path,
-                    AssetKind::ViewTransition,
-                    &transition.name,
-                );
+                let name = motion_symbol_name(&transition.identity);
                 self.emit_view_transition_class();
                 let key = match key {
                     Some(key) => self.slice(*key)?,
@@ -268,18 +269,8 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 }
                 let mut candidates = Vec::new();
                 for transition in transitions {
-                    self.runtime_assets.insert(IdentityId::new(
-                        AssetKind::ViewTransition,
-                        &transition.module_path,
-                        transition.name.span.start.0,
-                        transition.name.span.end.0,
-                        transition.name.value.clone(),
-                    ));
-                    candidates.push(asset_symbol_name(
-                        &transition.module_path,
-                        AssetKind::ViewTransition,
-                        &transition.name,
-                    ));
+                    self.runtime_assets.insert(transition.identity.clone());
+                    candidates.push(motion_symbol_name(&transition.identity));
                 }
                 self.emit_view_transition_class();
                 let key = match key {
@@ -538,13 +529,14 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 Some(Emitted::Expression(text))
             }
             ClassExpression::AnimationUse { animation, options } => {
+                self.motion_assets.insert(animation.identity.clone());
                 let plan = StyleVariantPlan::resolve(wrappers, self.theme, self.diagnostics)?;
                 let mut utility =
                     resolve_animation_use(animation, options, self.theme, self.diagnostics);
                 plan.apply_animation(&mut utility);
                 let canonical = format!(
                     "{}{}:{}:{}\u{0}",
-                    plan.canonical, "animation:", animation.name.value, options.value
+                    plan.canonical, "animation:", animation.identity.binding_name, options.value
                 );
                 let contribution = LiteralContribution {
                     canonical,
@@ -567,18 +559,8 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 let plan = StyleVariantPlan::resolve(wrappers, self.theme, self.diagnostics)?;
                 let mut table = Vec::new();
                 for animation in animations {
-                    self.runtime_assets.insert(IdentityId::new(
-                        AssetKind::Animation,
-                        &animation.module_path,
-                        animation.name.span.start.0,
-                        animation.name.span.end.0,
-                        animation.name.value.clone(),
-                    ));
-                    let identity = asset_symbol_name(
-                        &animation.module_path,
-                        AssetKind::Animation,
-                        &animation.name,
-                    );
+                    self.runtime_assets.insert(animation.identity.clone());
+                    let identity = motion_symbol_name(&animation.identity);
                     let mut utility =
                         resolve_animation_use(animation, options, self.theme, self.diagnostics);
                     plan.apply_animation(&mut utility);
@@ -1016,7 +998,7 @@ fn expression_position(expression: &ClassExpression) -> u32 {
         },
         ClassExpression::Group { span, .. } => span.start.0,
         ClassExpression::HandleProjection { handle, .. } => handle.call_span.start.0,
-        ClassExpression::AnimationUse { animation, .. } => animation.name.span.start.0,
+        ClassExpression::AnimationUse { animation, .. } => animation.span.start.0,
         ClassExpression::External(value)
         | ClassExpression::DynamicHandleProjection { value, .. }
         | ClassExpression::DynamicAnimationUse { value, .. } => value.start.0,

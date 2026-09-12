@@ -7,9 +7,7 @@
 //! `initial` (or that has no fallback) drops the containing declaration entirely,
 //! which [`None`] reports to the caller.
 
-use stillwind_css::functions::{
-    find_css_function, matching_css_delimiter, split_css_function_arguments,
-};
+use stillwind_css::functions::{find_css_functions, split_css_function_arguments};
 
 /// Rewrites every `--theme()` reference in `value`, asking `is_defined` about the
 /// referenced custom property.
@@ -23,11 +21,14 @@ pub(crate) fn resolve_theme_references(
 ) -> Option<String> {
     let mut output = String::with_capacity(value.len());
     let mut cursor = 0;
-    while let Some(start) = find_css_function(value, "--theme", cursor) {
+    for found in find_css_functions(value, &["--theme"], 0) {
+        let start = found.start;
+        if start < cursor {
+            continue;
+        }
         output.push_str(&value[cursor..start]);
-        let open = start + "--theme".len();
-        let close = matching_css_delimiter(value, open, '(', ')')?;
-        let arguments = &value[open + 1..close];
+        let end = found.end?;
+        let arguments = &value[found.arguments];
         let (reference, fallback) = split_css_function_arguments(arguments);
         let reference = reference.trim();
         if !reference.starts_with("--") {
@@ -51,7 +52,7 @@ pub(crate) fn resolve_theme_references(
             }
             output.push_str(fallback);
         }
-        cursor = close + 1;
+        cursor = end;
     }
     output.push_str(&value[cursor..]);
     Some(output)

@@ -1,0 +1,276 @@
+//! Public compiler regressions for implementation defects found during the comment audit.
+
+use std::collections::BTreeMap;
+
+use stillwind_compiler::{CompileResult, Compiler};
+use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_ir::{ClassExpression, SourceAnalyzer, StyleInput};
+use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
+use stillwind_source::{FileId, SourceFile};
+
+fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.tsx",
+        format!("import {{ style }} from 'stillwind/react'; {code}"),
+    )
+    .unwrap();
+    let theme = SourceFile::new(
+        FileId(2),
+        "theme.css",
+        format!("{css} @stillwind-slot utilities;"),
+    )
+    .unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    (source, result)
+}
+
+#[test]
+fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
+    for value in ["--value(--color-*)", "calc(--value(--color-*) + 1)"] {
+        let (_, result) = compile(
+            "const x = style('x-loop');",
+            &format!(
+                "@utility x-* {{ color: --value(--color-*); }} @theme inline {{ --color-loop: {value}; }}"
+            ),
+        );
+        assert!(
+            result
+                .lint_findings
+                .iter()
+                .any(|finding| finding.rule == "unknown-utility"),
+            "{result:#?}"
+        );
+        assert!(result.css.is_empty());
+    }
+}
+
+#[test]
+fn css_strings_survive_calc_folding_and_importance() {
+    let (_, result) = compile(
+        "const x = style('x!');",
+        r#"@utility x { content: "calc(1 + 1);a"; width:calc(1px + 2px); background:url('data:text/plain;calc(1 + 1)'); }"#,
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains(r#"content: "calc(1 + 1);a"!important;"#),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("width:3px!important"), "{}", result.css);
+    assert!(
+        result.css.contains("data:text/plain;calc(1 + 1)"),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
+fn mixed_variant_forms_override_in_source_order_even_on_one_line() {
+    for (definitions, expected) in [
+        (
+            "@variant state { &:hover { @slot; } } @custom-variant state (&:focus);",
+            ":focus",
+        ),
+        (
+            "@custom-variant state (&:focus); @variant state { &:hover { @slot; } }",
+            ":hover",
+        ),
+        (
+            "@variant state { &:hover { @slot; } } @custom-variant state { &:active { @slot; } }",
+            ":active",
+        ),
+    ] {
+        let (_, result) = compile(
+            "const x = style('state:x');",
+            &format!("@utility x {{ color:red; }} {definitions}"),
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert!(result.css.contains(expected), "{}", result.css);
+    }
+}
+
+#[test]
+fn motion_css_is_retained_for_uses_and_exports_only() {
+    for (code, expected) in [
+        ("const a = style.animation({from:'x'});", false),
+        ("export const a = style.animation({from:'x'});", true),
+        (
+            "const a = style.animation({from:'x'}); const x = style(a(''));",
+            true,
+        ),
+    ] {
+        let (_, result) = compile(code, "@utility x { opacity:0; }");
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.css.contains("@keyframes"),
+            expected,
+            "{}",
+            result.css
+        );
+    }
+    for (code, expected) in [
+        ("const a = style.viewTransition({old:'x'});", false),
+        ("export const a = style.viewTransition({old:'x'});", true),
+        (
+            "const a = style.viewTransition({old:'x'}); const x = style(a);",
+            true,
+        ),
+    ] {
+        let (_, result) = compile(code, "@utility x { opacity:0; }");
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.css.contains("::view-transition-old"),
+            expected,
+            "{}",
+            result.css
+        );
+    }
+}
+
+#[test]
+fn reset_tokens_are_absent_from_definition_fingerprints() {
+    let source = SourceFile::new(
+        FileId(1),
+        "theme.css",
+        "@theme { --color-red:red; } @theme { --color-*:initial; --color-blue:blue; }",
+    )
+    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap();
+    assert!(
+        !snapshot
+            .fingerprints()
+            .theme_tokens
+            .contains_key("--color-red")
+    );
+    assert!(
+        !snapshot
+            .fingerprints()
+            .theme_tokens
+            .contains_key("--color-*")
+    );
+    assert!(
+        snapshot
+            .fingerprints()
+            .theme_tokens
+            .contains_key("--color-blue")
+    );
+}
+
+#[test]
+fn escaped_utility_diagnostics_keep_the_literal_provenance() {
+    let (source, result) = compile(r"const x = style('\u006eot-a-utility');", "");
+    assert!(!result.lint_findings.is_empty());
+    let spans = result
+        .lint_findings
+        .iter()
+        .flat_map(|d| d.labels.iter())
+        .map(|label| source.slice(label.span).unwrap())
+        .collect::<Vec<_>>();
+    assert!(spans.contains(&r"\u006eot-a-utility"), "{spans:?}");
+}
+
+#[test]
+fn external_motion_identity_does_not_become_a_local_source_span() {
+    let source = SourceFile::new(FileId(1), "consumer.tsx", "import { style } from 'stillwind/react'; import { motion } from './producer'; const x = style(motion(''));").unwrap();
+    let start = u32::try_from(source.text().rfind("motion(").unwrap()).unwrap();
+    let identity = IdentityId::new(AssetKind::Animation, "producer.tsx", 4000, 4006, "motion");
+    let facts = [TypeFact {
+        start,
+        end: start + 6,
+        value: ExportedValue::Animations(SymbolicValue::exact(identity.clone())),
+    }];
+    let parsed = stillwind_js_oxc::parse_with_type_facts(&source, &facts, &BTreeMap::new());
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let mapped = parsed
+        .module
+        .try_map_spans(|span| {
+            source.slice(span)?;
+            Ok::<_, stillwind_source::SourceError>(span)
+        })
+        .unwrap();
+    let StyleInput::Class(ClassExpression::AnimationUse { animation, .. }) =
+        &mapped.style_calls[0].inputs[0]
+    else {
+        panic!("expected static animation");
+    };
+    assert_eq!(animation.identity, identity);
+    assert_eq!(source.slice(animation.span).unwrap(), "motion");
+    assert!(animation.local_declaration.is_none());
+}
+
+#[test]
+fn local_motion_declaration_identity_follows_projection() {
+    let source = SourceFile::new(FileId(1), "local.tsx", "import { style } from 'stillwind/react'; const a=style.animation({from:'x'}); const x=style(a(''));").unwrap();
+    let parsed = stillwind_js_oxc::parse(&source);
+    let mapped = parsed
+        .module
+        .try_map_spans(|span| {
+            Ok::<_, ()>(stillwind_source::Span::new(
+                span.file,
+                span.start.0 + 20,
+                span.end.0 + 20,
+            ))
+        })
+        .unwrap();
+    let StyleInput::Class(ClassExpression::AnimationUse { animation, .. }) =
+        &mapped.style_calls[0].inputs[0]
+    else {
+        panic!("expected animation");
+    };
+    assert_eq!(
+        animation.identity.start,
+        mapped.animation_declarations[0].name.span.start.0
+    );
+    assert_eq!(
+        animation.identity.end,
+        mapped.animation_declarations[0].name.span.end.0
+    );
+    assert_eq!(
+        animation.local_declaration,
+        Some(mapped.animation_declarations[0].name.span)
+    );
+}
+
+#[test]
+fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
+    let source = SourceFile::new(FileId(1), "dynamic.tsx", "import { style } from 'stillwind/react'; const a=style.animation({from:'x'}); const b=style.animation({to:'x'}); const selected=flag?a:b; const x=style(selected(''));").unwrap();
+    let scan = OxcSourceAnalyzer.scan(std::sync::Arc::new(source.clone()));
+    let candidates = scan
+        .summary
+        .assets
+        .iter()
+        .filter(|a| a.identity.kind == AssetKind::Animation)
+        .map(|a| a.identity.clone())
+        .collect::<Vec<_>>();
+    let start = u32::try_from(source.text().rfind("selected(").unwrap()).unwrap();
+    let facts = [TypeFact {
+        start,
+        end: start + 8,
+        value: ExportedValue::Animations(
+            SymbolicValue::finite(AssetKind::Animation, candidates).unwrap(),
+        ),
+    }];
+    let theme = SourceFile::new(
+        FileId(2),
+        "theme.css",
+        "@utility x { opacity:0; } @stillwind-slot utilities;",
+    )
+    .unwrap();
+    let result = Compiler::compile_source_with_type_facts(
+        &OxcSourceAnalyzer,
+        &source,
+        &theme,
+        &facts,
+        &BTreeMap::new(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.css.matches("@keyframes").count(), 2);
+    let code = result.apply_to_source(&source).unwrap();
+    assert!(!code.contains("const a=undefined"), "{code}");
+    assert!(!code.contains("const b=undefined"), "{code}");
+}

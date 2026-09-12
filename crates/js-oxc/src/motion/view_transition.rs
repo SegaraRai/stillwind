@@ -13,7 +13,7 @@ use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind
 use oxc::span::GetSpan;
 
 use stillwind_ir::{AssetReference, StyleInput, ViewTransitionDefinition};
-use stillwind_semantic::ExportedValue;
+use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::{CompileError, Spanned};
 
 use crate::state::MacroExtractor;
@@ -35,7 +35,7 @@ impl<'a> MacroExtractor<'a> {
             return value
                 .finite_candidates()?
                 .iter()
-                .map(|identity| Some(self.asset_reference(identity)))
+                .map(|identity| Some(self.asset_reference(identity, span)))
                 .collect();
         }
         let Expression::Identifier(identifier) = expression else {
@@ -45,8 +45,9 @@ impl<'a> MacroExtractor<'a> {
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         let transition = self.view_transition_symbols.get(&symbol_id)?;
         Some(vec![AssetReference {
-            module_path: self.source.path().to_owned(),
-            name: transition.clone(),
+            identity: self.identity(AssetKind::ViewTransition, transition),
+            span: self.source_span(span),
+            local_declaration: Some(transition.span),
         }])
     }
 

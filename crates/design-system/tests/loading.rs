@@ -12,6 +12,29 @@ use stillwind_design_system::{
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn imported_variant_blocks_obey_later_shorthand_overrides() {
+    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let step = loader.provide(
+        0,
+        "root.css".into(),
+        "@import 'child.css'; @custom-variant state (&:focus);".into(),
+    );
+    assert!(matches!(step, DesignSystemLoadStep::NeedFile(_)));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+        1,
+        "child.css".into(),
+        "@variant state { &:hover { @slot; } }".into(),
+    ) else {
+        panic!("expected loaded snapshot");
+    };
+    let candidate = stillwind_syntax::parse_candidate("state:x").unwrap();
+    let variant =
+        stillwind_design_system::resolve_variant(&candidate.variants[0], snapshot.theme()).unwrap();
+    assert!(format!("{variant:?}").contains(":focus"));
+    assert!(!format!("{variant:?}").contains(":hover"));
+}
+
+#[test]
 fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
     let mut cycle = DesignSystemLoader::new(DesignSystemOptions::default());
     let css = "@import 'self';";

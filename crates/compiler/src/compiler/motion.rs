@@ -16,7 +16,7 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{CompileError, SourceFile, Spanned};
 
 use super::lexer::lex_utilities;
-use super::symbols::{asset_symbol_name, symbol_name};
+use super::symbols::{motion_symbol_name, symbol_name};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
 
@@ -74,11 +74,7 @@ pub(super) fn resolve_animation_use(
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        asset_symbol_name(
-            &animation.module_path,
-            AssetKind::Animation,
-            &animation.name
-        )
+        motion_symbol_name(&animation.identity)
     );
     declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
     CompiledUtility {

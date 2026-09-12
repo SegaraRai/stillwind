@@ -57,6 +57,25 @@ pub struct SymbolicValue {
 }
 
 impl SymbolicValue {
+    /// Validates candidate kinds after construction or deserialization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a finite candidate has another asset kind.
+    pub fn validate(&self) -> Result<(), SymbolicError> {
+        if let Candidates::Finite(candidates) = &self.candidates {
+            for identity in candidates {
+                if identity.kind != self.kind {
+                    return Err(SymbolicError::KindMismatch {
+                        expected: self.kind,
+                        actual: identity.kind,
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// The value denoting exactly `identity`, with the kind taken from it.
     pub fn exact(identity: IdentityId) -> Self {
         Self {
@@ -133,8 +152,7 @@ pub struct RefAlternative {
 impl RefAlternative {
     /// Builds one correlated alternative, rejecting mismatched kinds.
     ///
-    /// Checks the reference kind and the scope value's outer kind. It does not
-    /// revalidate the identities inside a publicly constructed scope value.
+    /// Checks the reference, scope value and every finite scope candidate.
     ///
     /// # Errors
     ///
@@ -156,6 +174,9 @@ impl RefAlternative {
                 expected: AssetKind::Scope,
                 actual: scopes.kind,
             });
+        }
+        if let Some(scopes) = &permitted_scopes {
+            scopes.validate()?;
         }
         Ok(Self {
             reference,
@@ -188,6 +209,37 @@ pub enum ExportedValue {
 }
 
 impl ExportedValue {
+    /// Validates the tagged kind and all nested candidates, including correlated scopes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the tag, value or candidate kinds disagree.
+    pub fn validate(&self) -> Result<(), SymbolicError> {
+        match self {
+            Self::Refs(alternatives) => {
+                for alternative in alternatives {
+                    RefAlternative::new(
+                        alternative.reference.clone(),
+                        alternative.permitted_scopes.clone(),
+                    )?;
+                }
+                Ok(())
+            }
+            Self::Styles(value)
+            | Self::Scopes(value)
+            | Self::Animations(value)
+            | Self::ViewTransitions(value) => {
+                if value.kind != self.kind() {
+                    return Err(SymbolicError::KindMismatch {
+                        expected: self.kind(),
+                        actual: value.kind,
+                    });
+                }
+                value.validate()
+            }
+        }
+    }
+
     /// The asset kind this value describes.
     ///
     /// Callers compare it against the kind expected at a use site before reading the
@@ -222,6 +274,21 @@ mod tests {
         assert_ne!(
             alternatives[0].permitted_scopes,
             alternatives[1].permitted_scopes
+        );
+    }
+
+    #[test]
+    fn validates_nested_scope_candidates_and_export_tags() {
+        let malformed = SymbolicValue {
+            kind: AssetKind::Scope,
+            candidates: Candidates::Finite(BTreeSet::from([identity(AssetKind::Animation, 0)])),
+        };
+        assert!(RefAlternative::new(identity(AssetKind::Ref, 1), Some(malformed.clone())).is_err());
+        assert!(ExportedValue::Scopes(malformed).validate().is_err());
+        assert!(
+            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Scope))
+                .validate()
+                .is_err()
         );
     }
 }

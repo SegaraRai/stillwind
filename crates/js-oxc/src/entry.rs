@@ -95,6 +95,16 @@ pub fn parse_with_language(
         .map(|diagnostic| CompileError::new("SHJS001", diagnostic.to_string(), source.full_span()))
         .collect();
 
+    let type_facts = if type_facts.iter().all(|fact| fact.value.validate().is_ok()) {
+        type_facts
+    } else {
+        diagnostics.push(CompileError::new(
+            "SHFACT001",
+            "invalid symbolic kinds in TypeScript facts",
+            source.full_span(),
+        ));
+        &[]
+    };
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
     let mut extractor = MacroExtractor::new(source, semantic.scoping(), type_facts, assets);
     extractor.seed_style_bindings(&result.program);

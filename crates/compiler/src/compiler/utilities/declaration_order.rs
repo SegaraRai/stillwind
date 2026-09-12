@@ -9,7 +9,8 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use stillwind_css::fold_calc_expressions;
+use stillwind_css::functions::find_css_functions;
+use stillwind_css::{declaration_ranges, fold_calc_expressions};
 use stillwind_design_system::{
     ThemeIndex, VariantDeclaration, builtin_declaration_formats, declaration_format,
 };
@@ -25,8 +26,9 @@ pub(in crate::compiler) fn prepend_missing_declarations(
     declaration: &mut String,
     supporting: &[VariantDeclaration],
 ) {
-    let declared = declaration
-        .split_terminator(';')
+    let declared = declaration_ranges(declaration)
+        .into_iter()
+        .map(|range| &declaration[range])
         .filter_map(|declaration| declaration.split_once(':').map(|(name, _)| name.trim()))
         .collect::<BTreeSet<_>>();
     let supporting = supporting
@@ -83,7 +85,8 @@ pub(in crate::compiler) fn combine_declarations_with_formats(
     let mut composed = HashMap::<String, usize>::new();
     let mut ordered = Vec::<String>::new();
     for utility in order_builtin_utilities(utilities.to_vec()) {
-        for declaration in utility.declaration.split_terminator(';') {
+        for range in declaration_ranges(&utility.declaration) {
+            let declaration = &utility.declaration[range];
             let compose_space = declaration
                 .split_once(':')
                 .and_then(|(property, _)| declaration_format(formats, property))
@@ -115,13 +118,13 @@ pub(in crate::compiler) fn combine_declarations_with_formats(
                         format.split_whitespace().any(|item| item == "comma-space")
                     })
                 {
-                    format!("{property}:{}", value.replace(",var(", ", var("))
+                    format!("{property}:{}", space_var_fallbacks(value))
                 } else {
                     declaration.to_owned()
                 };
                 // Keep fallback `var()` comma spacing generic across all
                 // declaration values.
-                let declaration = declaration.replace(",var(", ", var(");
+                let declaration = space_var_fallbacks(&declaration);
                 let declaration = fold_calc_expressions(&declaration);
                 ordered.push(declaration);
             }
@@ -132,6 +135,21 @@ pub(in crate::compiler) fn combine_declarations_with_formats(
         declarations.push(';');
     }
     declarations
+}
+
+fn space_var_fallbacks(value: &str) -> String {
+    let mut output = value.to_owned();
+    let mut positions = Vec::new();
+    for found in find_css_functions(value, &["var"], 0) {
+        let start = found.start;
+        if start > 0 && value.as_bytes()[start - 1] == b',' {
+            positions.push(start);
+        }
+    }
+    for start in positions.into_iter().rev() {
+        output.insert(start, ' ');
+    }
+    output
 }
 
 /// Reorders the utilities that carry a built-in position, leaving every other element in place.

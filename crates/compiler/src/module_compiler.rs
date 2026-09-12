@@ -45,9 +45,9 @@ pub(crate) struct CssArtifactError {
 
 /// Content identity of one generated CSS rule.
 ///
-/// Compiler-produced keys hash the rule serialization. The project layer trusts that
-/// correspondence when sharing rules. Public tuple construction can supply an unrelated
-/// fingerprint; the doctest only rules out an implicit conversion.
+/// Compiler-produced keys hash the rule serialization. Public tuple construction can
+/// supply an unrelated fingerprint, so project publication re-keys the current content.
+/// The doctest rules out an implicit conversion.
 ///
 /// ```compile_fail
 /// use stillwind_source::Fingerprint;

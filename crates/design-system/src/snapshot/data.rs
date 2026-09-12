@@ -64,8 +64,8 @@ pub struct DefinitionFingerprints {
     pub ordering: Fingerprint,
     /// Authored lint severities.
     pub lint_policy: Fingerprint,
-    /// Last authored fingerprint per token name, including reset entries. This map is
-    /// built before effective-token filtering; use `tokens()` for active values.
+    /// Fingerprint of each effective token after namespace resets and overrides. Its
+    /// keys match the active token registry.
     pub theme_tokens: BTreeMap<String, Fingerprint>,
     /// One fingerprint per utility name group.
     pub utilities: BTreeMap<String, Fingerprint>,
@@ -228,7 +228,7 @@ impl DesignSystemSnapshot {
                 .map(|token| (token.name.value.clone(), Arc::new((*token).clone()))),
         );
         let theme_tokens = theme
-            .tokens
+            .active_tokens()
             .iter()
             .map(|token| {
                 (

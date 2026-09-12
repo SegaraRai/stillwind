@@ -1,14 +1,14 @@
 //! `calc()` folding over a CSS fragment.
 //!
-//! Folding is textual replacement guided by a real parse: every `calc(` is
-//! located by substring search, its matching parenthesis resolved, and a successfully
-//! parsed expression is reprinted. The outer search does not skip CSS strings or
-//! comments. A `calc()` that fails to parse, or whose matching parenthesis is missing,
+//! Folding locates complete `calc(` names outside strings, comments and escapes,
+//! resolves the matching parenthesis, and reprints successfully parsed expressions.
+//! A `calc()` that fails to parse, or whose matching parenthesis is missing,
 //! is copied through unchanged, so malformed input still reaches the CSS parser and
 //! produces a real error there.
 
 use super::expression::{MathExpression, MathValue};
 use super::parser::MathParser;
+use crate::functions::find_css_functions;
 
 /// Returns the byte offset of the `)` matching the `(` at `open`.
 ///
@@ -62,15 +62,17 @@ pub fn fold_calc_expressions(value: &str) -> String {
 pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>) -> String {
     let mut output = String::with_capacity(value.len());
     let mut cursor = 0;
-    while let Some(relative) = value[cursor..].find("calc(") {
-        let start = cursor + relative;
+    for found in find_css_functions(value, &["calc"], 0) {
+        let start = found.start;
+        if start < cursor {
+            continue;
+        }
         output.push_str(&value[cursor..start]);
-        let open = start + "calc".len();
-        let Some(close) = matching_parenthesis(value, open) else {
+        let Some(end) = found.end else {
             output.push_str(&value[start..]);
             return output;
         };
-        let expression = &value[open + 1..close];
+        let expression = &value[found.arguments];
         if let Some(mut expression) = MathParser::new(expression).parse() {
             if matches!(expression, MathExpression::Value(MathValue::Number(0.0)))
                 && let Some(unit) = zero_unit
@@ -89,9 +91,9 @@ pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>
                 output.push(')');
             }
         } else {
-            output.push_str(&value[start..=close]);
+            output.push_str(&value[start..end]);
         }
-        cursor = close + 1;
+        cursor = end;
     }
     output.push_str(&value[cursor..]);
     output
@@ -115,6 +117,20 @@ pub fn format_numeric_zero(value: &str, unit: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn folding_preserves_strings_comments_urls_and_identifier_suffixes() {
+        let css = r#"content:"calc(1 + 1)";/* calc(2 + 2) */background:url('data:text/plain;calc(1 + 1)');x:mycalc(2 + 2);width:calc(1px + 2px);"#;
+        assert_eq!(
+            fold_calc_expressions(css),
+            css.replace("width:calc(1px + 2px)", "width:3px")
+        );
+        let important = crate::important_declarations(css);
+        assert!(
+            fold_calc_expressions(&important).contains("data:text/plain;calc(1 + 1)"),
+            "{important}"
+        );
+    }
 
     #[test]
     fn folds_trailing_numeric_factors_without_string_rewrites() {

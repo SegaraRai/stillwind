@@ -13,7 +13,7 @@
 
 use std::collections::HashSet;
 
-use stillwind_css::ValueType;
+use stillwind_css::{ValueType, declaration_ranges};
 use stillwind_syntax::Value;
 
 use super::super::builtins::registry::builtin_utilities;
@@ -288,8 +288,9 @@ pub(crate) fn merge_nested_rules(
 
 /// The property names declared by a declaration list.
 pub(crate) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
-    declaration
-        .split_terminator(';')
+    declaration_ranges(declaration)
+        .into_iter()
+        .map(|range| &declaration[range])
         .filter_map(|declaration| declaration.split_once(':'))
         .map(|(property, _)| property.trim())
         .collect()
@@ -299,8 +300,9 @@ pub(crate) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
 /// declarations inside either body. For example `opacity-0` keeps its static
 /// declaration instead of also gaining the generic percentage overload.
 pub(crate) fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
-    let mut properties = primary
-        .split_terminator(';')
+    let mut properties = declaration_ranges(primary)
+        .into_iter()
+        .map(|range| &primary[range])
         .filter_map(|declaration| {
             declaration
                 .split_once(':')
@@ -308,7 +310,8 @@ pub(crate) fn merge_branch_declarations(primary: &str, secondary: &str) -> Strin
         })
         .collect::<HashSet<_>>();
     let mut merged = primary.to_owned();
-    for declaration in secondary.split_terminator(';') {
+    for range in declaration_ranges(secondary) {
+        let declaration = &secondary[range];
         let Some((property, _)) = declaration.split_once(':') else {
             continue;
         };

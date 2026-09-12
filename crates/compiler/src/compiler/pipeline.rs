@@ -1,10 +1,11 @@
 //! Pass order for one module.
 //!
-//! The pipeline clones the IR, orders style calls by composition topology, allocates a symbol
-//! for every declaration, emits animation and view-transition definitions, then runs one
-//! [`CallEmitter`] per call in that order. Source edits and helper imports are planned last,
-//! and prefix rewriting happens after all generated text exists, so a configured `--sw-` or
-//! `--tw-` spelling is never re-interpreted in the middle of a pass.
+//! The pipeline clones the IR, orders style calls by composition topology, allocates a
+//! symbol for every declaration, then runs one [`CallEmitter`] per call in that order.
+//! Exported or referenced motion definitions are prepended to the emitted utility CSS.
+//! Source edits and helper imports are planned last, and prefix rewriting happens after
+//! all generated text exists, so a configured `--sw-` or `--tw-` spelling is never
+//! re-interpreted in the middle of a pass.
 //!
 //! Failure is all-or-nothing: once any diagnostic exists, the transforms, classes, symbols,
 //! and CSS are cleared, so a caller never receives a plan that describes half a compilation.
@@ -72,6 +73,7 @@ impl Compiler {
         emit_source: bool,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
+        let mut motion_assets = runtime_assets.clone();
         let mut result = CompileResult {
             composition: composition_dependencies(parsed),
             diagnostics: parsed.diagnostics.clone(),
@@ -127,24 +129,6 @@ impl Compiler {
                     generated_symbol(source, AssetKind::ViewTransition, &definition.name)
                 }),
         );
-        for animation in &module.animation_declarations {
-            emit_animation_definition(
-                &mut utility_css,
-                source,
-                animation,
-                theme,
-                &mut result.diagnostics,
-            );
-        }
-        for transition in &module.view_transition_declarations {
-            emit_view_transition_definition(
-                &mut utility_css,
-                source,
-                transition,
-                theme,
-                &mut result.diagnostics,
-            );
-        }
         for call in module.style_calls {
             let Some(emission) = CallEmitter::run(CallEmitterInputs {
                 source,
@@ -158,6 +142,7 @@ impl Compiler {
                 symbols: &mut result.symbols,
                 emitted_utility_classes: &mut emitted_utility_classes,
                 runtime_assets: &mut runtime_assets,
+                motion_assets: &mut motion_assets,
                 runtime: &mut runtime,
             }) else {
                 continue;
@@ -169,6 +154,44 @@ impl Compiler {
                 replacement,
             });
         }
+        motion_assets.extend(runtime_assets.iter().cloned());
+        let mut motion_css = String::new();
+        for animation in &module.animation_declarations {
+            let mut definition_css = String::new();
+            emit_animation_definition(
+                &mut definition_css,
+                source,
+                animation,
+                theme,
+                &mut result.diagnostics,
+            );
+            if motion_assets.contains(&named_identity(
+                source,
+                AssetKind::Animation,
+                &animation.name,
+            )) {
+                motion_css.push_str(&definition_css);
+            }
+        }
+        for transition in &module.view_transition_declarations {
+            let mut definition_css = String::new();
+            emit_view_transition_definition(
+                &mut definition_css,
+                source,
+                transition,
+                theme,
+                &mut result.diagnostics,
+            );
+            if motion_assets.contains(&named_identity(
+                source,
+                AssetKind::ViewTransition,
+                &transition.name,
+            )) {
+                motion_css.push_str(&definition_css);
+            }
+        }
+        motion_css.push_str(&utility_css);
+        utility_css = motion_css;
         for handle_definition in module.handle_definitions {
             result.transforms.push(SourceTransform {
                 call_span: handle_definition.call_span,

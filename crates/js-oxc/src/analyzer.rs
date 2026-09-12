@@ -112,6 +112,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                 && facts.source_revision == scan.source_revision
                 && facts.facts.iter().all(|fact| {
                     fact.start <= fact.end
+                        && fact.value.validate().is_ok()
                         && scan
                             .source
                             .text()

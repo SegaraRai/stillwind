@@ -1,49 +1,121 @@
 //! Lexical helpers for finding and splitting CSS function calls.
 //!
-//! These scan characters rather than tokens, so they work on fragments that are not a
-//! complete stylesheet (a header, a value, an argument list). Quotes and block comments
-//! are respected: a function-looking name inside a string or comment is not a match,
-//! and an unclosed comment or delimiter returns `None` instead of guessing.
+//! Function lookup uses CSS tokens; delimiter and argument helpers scan characters.
+//! Strings, comments and URL contents are never interpreted as nested function calls.
 
-/// Finds `name(` at or after byte offset `from`, skipping quotes and comments.
-///
-/// The name must begin with `-`, which is the form the callers search for (`--theme(`);
-/// other names never match. `None` means the function is absent or the scan ran into an
-/// unterminated comment.
+use std::ops::Range;
+
+use cssparser::{ParseError, Parser, Token};
+
+/// One unescaped function invocation found during a batch scan.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CssFunctionMatch {
+    /// Index of the matching name in the caller's name list (first index for duplicates).
+    pub name_index: usize,
+    /// Byte offset of the function name.
+    pub start: usize,
+    /// Argument bytes, excluding parentheses; extends to EOF for an unclosed function.
+    pub arguments: Range<usize>,
+    /// Exclusive end including `)`, or `None` for an unclosed function.
+    pub end: Option<usize>,
+}
+
+/// Finds `name(` at or after `from`, skipping strings, comments and URL contents.
+/// This is the single-name wrapper of [`find_css_functions`].
 pub fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> {
-    let bytes = value.as_bytes();
-    let needle = format!("{name}(");
-    let mut quote = None;
-    let mut escaped = false;
-    let mut index = from;
-    while index < bytes.len() {
-        let character = bytes[index] as char;
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active_quote {
-                quote = None;
+    find_css_functions(value, &[name], from)
+        .first()
+        .map(|found| found.start)
+}
+
+/// Finds all occurrences of several complete, unescaped function names in one token walk.
+/// Results follow source order, including nested matches. Consumers replacing an outer
+/// invocation must skip matches contained in that replacement range. `from` filters
+/// results without discarding lexical context before that offset.
+pub fn find_css_functions(value: &str, names: &[&str], from: usize) -> Vec<CssFunctionMatch> {
+    let custom_only = names.iter().all(|name| name.starts_with("--"));
+    if names.is_empty()
+        || from >= value.len()
+        || !value.contains('(')
+        || (custom_only && !value.contains("--"))
+        || (names.len() == 1 && !value.contains(names[0]))
+    {
+        return Vec::new();
+    }
+    let mut found = Vec::new();
+    collect_functions(
+        &mut Parser::new(value),
+        value,
+        names,
+        from,
+        custom_only,
+        &mut found,
+    );
+    found
+}
+
+fn collect_functions(
+    parser: &mut Parser<'_>,
+    value: &str,
+    names: &[&str],
+    from: usize,
+    custom_only: bool,
+    found: &mut Vec<CssFunctionMatch>,
+) {
+    loop {
+        let start = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            return;
+        };
+        let (nested, skip_contents, name_index) = match token {
+            Token::Function(function) => {
+                let name_index = (start >= from && (!custom_only || function.starts_with("--")))
+                    .then(|| {
+                        names.iter().position(|name| {
+                            function.as_ref() == *name
+                                && value[start..]
+                                    .strip_prefix(name)
+                                    .is_some_and(|tail| tail.starts_with('('))
+                        })
+                    })
+                    .flatten();
+                (true, function.eq_ignore_ascii_case("url"), name_index)
             }
-            index += 1;
+            Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {
+                (true, false, None)
+            }
+            _ => (false, false, None),
+        };
+        if !nested {
             continue;
         }
-        match character {
-            '\'' | '"' => quote = Some(character),
-            '/' if bytes.get(index + 1) == Some(&b'*') => {
-                let end = value[index + 2..].find("*/")?;
-                index += end + 4;
-                continue;
+        let arguments_start = parser.position().byte_index();
+        let index = name_index.map(|name_index| {
+            let index = found.len();
+            found.push(CssFunctionMatch {
+                name_index,
+                start,
+                arguments: arguments_start..arguments_start,
+                end: None,
+            });
+            index
+        });
+        let mut arguments_end = arguments_start;
+        let _ = parser.parse_nested_block(|nested| {
+            if skip_contents {
+                while nested.next_including_whitespace_and_comments().is_ok() {}
+            } else {
+                collect_functions(nested, value, names, from, custom_only, found);
             }
-            _ if bytes[index] == b'-' && value[index..].starts_with(&needle) => {
-                return Some(index);
-            }
-            _ => {}
+            arguments_end = nested.position().byte_index();
+            Ok::<_, ParseError<()>>(())
+        });
+        if let Some(index) = index {
+            found[index].arguments.end = arguments_end;
+            found[index].end =
+                (value.as_bytes().get(arguments_end) == Some(&b')')).then_some(arguments_end + 1);
         }
-        index += 1;
     }
-    None
 }
 
 /// Returns the offset of the `closer` matching the `opener` at `open`.
@@ -134,6 +206,45 @@ pub fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn batch_scan_preserves_lexical_context_and_nested_ranges() {
+        let value = r"'--x(fake)' /* --y(no) */ url('--x(no)') --x(--y(1)) --y(2) --\x(3)";
+        let found = find_css_functions(value, &["--y", "--x", "--y"], 0);
+        assert_eq!(
+            found.iter().map(|m| m.name_index).collect::<Vec<_>>(),
+            [1, 0, 0]
+        );
+        assert_eq!(
+            found
+                .iter()
+                .map(|m| &value[m.arguments.clone()])
+                .collect::<Vec<_>>(),
+            ["--y(1)", "1", "2"]
+        );
+        assert_eq!(&value[found[0].start..found[0].end.unwrap()], "--x(--y(1))");
+        assert_eq!(
+            find_css_functions(value, &["--y", "--x"], found[0].start + 1),
+            found[1..]
+        );
+        assert_eq!(find_css_function(value, "--x", 0), Some(found[0].start));
+        assert!(find_css_functions(value, &[], 0).is_empty());
+        assert!(find_css_functions(value, &["--x"], value.len() + 1).is_empty());
+    }
+
+    #[test]
+    fn batch_scan_distinguishes_unclosed_outer_and_closed_inner_calls() {
+        let value = "--x(--y(1)";
+        let found = find_css_functions(value, &["--x", "--y"], 0);
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].end, None);
+        assert_eq!(&value[found[0].arguments.clone()], "--y(1)");
+        assert_eq!(found[1].end, Some(value.len()));
+        assert_eq!(&value[found[1].arguments.clone()], "1");
+        let value = "--x(')' /* ) */ [a(b)] )";
+        let found = find_css_functions(value, &["--x"], 0);
+        assert_eq!(found[0].end, Some(value.len()));
+    }
 
     #[test]
     fn ignores_quoted_and_commented_functions_and_handles_unclosed_input() {

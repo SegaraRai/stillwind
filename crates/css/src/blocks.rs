@@ -73,6 +73,15 @@ pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, Strin
         .collect()
 }
 
+/// Extracts `(offset, header)` from bodyless directives without restricting the header.
+/// Nested functions and quoted text are kept intact by the directive token scanner.
+pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
+    directive_rules(css, directive)
+        .into_iter()
+        .filter_map(|rule| rule.body.is_none().then_some((rule.start, rule.header)))
+        .collect()
+}
+
 /// One directive occurrence found by [`scan_directives`].
 ///
 /// `body` is `None` for the statement form; `start` is the offset of the `@`.

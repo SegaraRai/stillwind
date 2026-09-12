@@ -2,8 +2,8 @@
 //!
 //! Input is a [`Spanned<String>`] the host already decoded from JavaScript: the span
 //! normally covers the literal contents and the value is decoded text. Tokens are
-//! split on Unicode whitespace in value order. Spans add decoded byte offsets to the
-//! supplied start; escapes are not mapped back to their original source spelling.
+//! split on Unicode whitespace in value order. When decoding changed the byte length,
+//! tokens retain the whole literal's provenance rather than inventing raw offsets.
 //!
 //! The lexer performs no trimming, unescaping or normalization: [`UtilityToken::raw`]
 //! is the exact substring, and runs of whitespace disappear instead of producing empty
@@ -25,9 +25,8 @@ pub struct UtilityToken {
 /// Splits one decoded utility string on Unicode whitespace while retaining a source
 /// span for every token.
 ///
-/// Spans use value-relative offsets from `input.span.start`. The supplied end is not
-/// used to bound tokens, so callers must provide a sufficiently long span. Exact
-/// original-source correspondence additionally requires unchanged literal spelling.
+/// Equal-length input uses value-relative offsets. A different-length source spelling
+/// uses the whole supplied span because no per-character decoding map is available.
 ///
 /// # Errors
 ///
@@ -76,21 +75,25 @@ fn push_token(
         UtilityToken {
             raw: input.value[start as usize..end as usize].to_owned(),
         },
-        Span::new(
-            input.span.file,
-            input
-                .span
-                .start
-                .0
-                .checked_add(start)
-                .ok_or(SourceError::InvalidSpan(input.span))?,
-            input
-                .span
-                .start
-                .0
-                .checked_add(end)
-                .ok_or(SourceError::InvalidSpan(input.span))?,
-        ),
+        if input.span.len() == u32::try_from(input.value.len()).ok() {
+            Span::new(
+                input.span.file,
+                input
+                    .span
+                    .start
+                    .0
+                    .checked_add(start)
+                    .ok_or(SourceError::InvalidSpan(input.span))?,
+                input
+                    .span
+                    .start
+                    .0
+                    .checked_add(end)
+                    .ok_or(SourceError::InvalidSpan(input.span))?,
+            )
+        } else {
+            input.span
+        },
     ));
     Ok(())
 }
@@ -120,7 +123,7 @@ mod tests {
     fn retains_each_utilitys_exact_relative_span() {
         let input = Spanned::new(
             "px-4  text-center\nβeta".to_owned(),
-            Span::new(FileId(4), 12, 36),
+            Span::new(FileId(4), 12, 35),
         );
 
         let tokens = lex_utilities(&input).unwrap();
