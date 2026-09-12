@@ -1,3 +1,20 @@
+//! The loader state machine and its failures.
+//!
+//! [`DesignSystemLoader`] accepts responses, parses each supplied buffer immediately,
+//! and reports either the outstanding requests or one final snapshot. Expansion happens
+//! only when nothing is pending: sources are concatenated in postorder so an imported
+//! file's text appears where its authored `@import` was, then the whole result is
+//! parsed once, so theme tokens see the imported definitions and authored order is
+//! preserved regardless of the order in which reads finished.
+//!
+//! A source name is the loader's unit of identity and cycle detection. Supplying a
+//! known name again is allowed only with byte-identical content. Failures the loader
+//! can decide from responses (unknown IDs, invalid CSS or imports, cycles, conflicting
+//! content, exhausted IDs) become
+//! [`Complete(Err(..))`](DesignSystemLoadStep::Complete); a host that cannot read a
+//! requested source drops the loader instead, so no host failure is ever reported as a
+//! loader error.
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -14,50 +31,92 @@ use crate::{
     DesignSystemOptions, DesignSystemOptionsError, DesignSystemSnapshot, ThemeError, parse_theme,
 };
 
+/// Why a load could not produce a snapshot.
+///
+/// Every variant is decidable from the buffers the host supplied, except
+/// [`Self::Source`], which reports a buffer that exceeded the source size
+/// limit. A host resolution or read failure is not a loader error: the host
+/// reports it with the request's importer and specifier and drops the loader.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum DesignSystemLoadError {
+    /// The retained graph contradicts the retained nodes.
     #[error("inconsistent CSS source graph")]
     InvalidGraph,
+    /// A supplied buffer could not be stored as a source file.
     #[error("{0}")]
     Source(#[from] SourceError),
+    /// The monotonic request counter reached `u32::MAX`.
     #[error("CSS request IDs exhausted")]
     RequestIdExhausted,
+    /// The graph holds more sources than a 32-bit file ID can address.
     #[error("too many CSS sources")]
     SourceIdExhausted,
+    /// A response arrived after the load had already completed.
     #[error("provide called after completion")]
     AlreadyComplete,
+    /// The first batch did not contain exactly one root source.
     #[error("initial provide must contain exactly one file (conventionally ID 0), got {count}")]
-    InvalidInitialBatch { count: usize },
+    InvalidInitialBatch {
+        /// Number of files the first batch contained.
+        count: usize,
+    },
+    /// A response ID was never issued, or was answered twice.
     #[error("unknown or duplicate request ID {id}")]
-    UnknownOrDuplicateRequest { id: u32 },
+    UnknownOrDuplicateRequest {
+        /// The offending response ID.
+        id: u32,
+    },
+    /// A known name was supplied again with different content.
     #[error("conflicting content for {}", .name.0)]
-    ConflictingContent { name: CssSourceName },
+    ConflictingContent {
+        /// Name that was supplied twice.
+        name: CssSourceName,
+    },
+    /// A supplied buffer is not valid Stillwind CSS.
     #[error("{}: {cause}", .name.0)]
     InvalidCss {
+        /// Name the buffer was supplied under.
         name: CssSourceName,
         #[source]
+        /// Parser failure for that buffer.
         cause: ThemeError,
     },
+    /// A supplied `@import` could not be parsed.
     #[error("{}: {cause}", .name.0)]
     InvalidImport {
+        /// Name the buffer was supplied under.
         name: CssSourceName,
         #[source]
+        /// Import parser failure for that buffer.
         cause: CssImportError,
     },
+    /// The resolved prefix configuration is invalid.
     #[error("{0}")]
     InvalidOptions(#[from] DesignSystemOptionsError),
+    /// The import graph contains a cycle; `chain` lists the requests that
+    /// close it, in traversal order.
     #[error("CSS import cycle: {chain:?}")]
-    Cycle { chain: Vec<CssFileRequest> },
+    Cycle {
+        /// Requests that close the cycle, in traversal order.
+        chain: Vec<CssFileRequest>,
+    },
 }
 
+/// One accepted source: its imports, the requests issued for them, and the
+/// resolved target index per import slot.
 struct Node {
     imports: Vec<Import>,
     requests: Vec<CssFileRequest>,
+    /// Index into the graph's source list per import, filled as responses
+    /// arrive. `None` means the import is still outstanding.
     targets: Vec<Option<usize>>,
 }
 
 /// Caller-driven loading with independent, monotonically increasing request IDs.
 /// `NeedFile` lists all outstanding requests; hosts may respond in any order.
+///
+/// The loader performs no I/O and holds no host resources, so a host that
+/// abandons a load may simply drop it from any incomplete state.
 pub struct DesignSystemLoader {
     options: DesignSystemOptions,
     graph: CssSourceGraph,
@@ -69,6 +128,7 @@ pub struct DesignSystemLoader {
 }
 
 impl DesignSystemLoader {
+    /// Creates a loader that has not yet received its root source.
     pub fn new(options: DesignSystemOptions) -> Self {
         Self {
             options,
@@ -81,6 +141,9 @@ impl DesignSystemLoader {
         }
     }
 
+    /// Answers one request; equivalent to a one-element [`Self::provide_many`].
+    ///
+    /// The first call must carry exactly one file and becomes the root source.
     pub fn provide(
         &mut self,
         id: u32,
@@ -90,6 +153,13 @@ impl DesignSystemLoader {
         self.provide_many([CssFileInput { id, name, content }])
     }
 
+    /// Answers any subset of the outstanding requests in one step.
+    ///
+    /// A partially answered batch is still parsed immediately: each supplied
+    /// source can expose new requests before earlier reads finish, and
+    /// unresolved requests reappear in the next `NeedFile`. An empty batch
+    /// after the root simply returns the current outstanding list. Once a step
+    /// has completed, later calls report [`DesignSystemLoadError::AlreadyComplete`].
     pub fn provide_many(
         &mut self,
         files: impl IntoIterator<Item = CssFileInput>,
@@ -106,6 +176,14 @@ impl DesignSystemLoader {
         }
     }
 
+    /// Accepts one response batch and decides the next step.
+    ///
+    /// Requests are validated against the IDs issued before this batch, so a
+    /// duplicate within the batch and an ID that is unknown or already answered
+    /// are both protocol errors. Each accepted source is parsed on its own and
+    /// its imports become new requests. Expansion runs only when nothing is
+    /// pending; before that, a resolved subgraph is still traversed so a cycle
+    /// is reported without waiting for the remaining reads.
     fn accept_many(
         &mut self,
         files: Vec<CssFileInput>,
@@ -169,6 +247,9 @@ impl DesignSystemLoader {
             .ok_or(DesignSystemLoadError::InvalidGraph)?
             .name
             .clone();
+        // `u32::MAX` marks the synthetic expanded buffer: it is not a source the
+        // host supplied, so no host-visible identity may claim it. Token spans
+        // that point at it are mapped below into their original buffers.
         let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str())?;
         let mut theme =
             parse_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
@@ -200,6 +281,15 @@ impl DesignSystemLoader {
         Ok(DesignSystemLoadStep::Complete(Ok(snapshot)))
     }
 
+    /// Registers one supplied buffer, or reuses the earlier parse of the same
+    /// name after checking that the content is identical.
+    ///
+    /// The per-source `parse_theme` call is a validation pass: it rejects
+    /// unterminated blocks and invalid CSS for this file before the expensive
+    /// expansion, and its result is discarded because a source cannot be fully
+    /// interpreted until its imports are inlined. Import parsing is recorded
+    /// here; request IDs are allocated in authored import order, which is what
+    /// makes candidate ordering independent of host response order.
     fn accept_source(
         &mut self,
         name: CssSourceName,
@@ -255,6 +345,13 @@ impl DesignSystemLoader {
     }
 
     /// Postorder traversal using heap frames, including partially resolved graphs.
+    ///
+    /// Sources are numbered by acceptance order, not by dependency order, so
+    /// this walk is what makes expansion independent of response order. It also
+    /// reports a cycle as soon as the resolved subgraph contains one, even
+    /// while unrelated reads are still outstanding. A source must be reachable
+    /// from the root; the traversal starts at index 0 and errors if the graph
+    /// is empty.
     fn source_order(&self) -> Result<Vec<usize>, DesignSystemLoadError> {
         let mut state = vec![0; self.nodes.len()];
         *state
@@ -302,6 +399,11 @@ impl DesignSystemLoader {
         Ok(order)
     }
 
+    /// Inlines every source into one buffer in authored import order.
+    ///
+    /// `order` is the postorder from [`Self::source_order`], so a source is
+    /// expanded only after its imports and can reuse their cached expansion.
+    /// Returns only the root's expansion.
     fn expand(&self, order: &[usize]) -> Result<ExpandedSource, DesignSystemLoadError> {
         let mut cache: BTreeMap<usize, ExpandedSource> = BTreeMap::new();
         for &index in order {

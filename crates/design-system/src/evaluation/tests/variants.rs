@@ -1,3 +1,9 @@
+//! Variant resolution across the built-in registry.
+//!
+//! Pins attribute, responsive, selector, media, and structural variants against the
+//! same definitions the compiler uses, so a registry change that renames or retypes
+//! a variant fails here first.
+
 use super::*;
 
 #[test]

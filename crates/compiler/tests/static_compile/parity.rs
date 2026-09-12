@@ -1,3 +1,12 @@
+//! Comparison against the checked-in Tailwind v4 fixtures.
+//!
+//! Fixture candidates are compiled through Stillwind's own entry points, and the
+//! resulting rules are compared to Tailwind's output after selector substitution and,
+//! separately, after minification, so the direct and normalized comparisons cover
+//! different serialization properties. Variant generation order is compared against
+//! fixtures whose candidates are spelled out of canonical order, so the check cannot
+//! pass by preserving the input order.
+
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;

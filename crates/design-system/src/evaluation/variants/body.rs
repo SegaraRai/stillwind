@@ -1,6 +1,22 @@
+//! Classification of an authored variant body.
+//!
+//! A body must contain `@slot`, which marks where the utility's declarations go; a body
+//! without a slot cannot produce a rule and is not a variant. The body is then
+//! classified by its outermost construct: a media, container, or support condition, a
+//! starting-style block, or a selector rule, in that priority order.
+//!
+//! A selector rule may also declare properties of its own (for example a `group`
+//! variant that also sets a custom property). Those declarations are kept separate from
+//! the utility's declarations so the emitter can place them correctly.
+
 use super::super::syntax::closing_brace;
 use super::resolve::{VariantApplication, VariantDeclaration};
 
+/// Classifies one variant body.
+///
+/// A body with several top-level blocks is a compound application and is resolved per
+/// block, in authored order. [`None`] means the body has no slot, is empty, or is not a
+/// construct the emitter can place.
 pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {
         return None;
@@ -67,6 +83,10 @@ pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     }
 }
 
+/// Splits a compound body into its top-level blocks, in authored order.
+///
+/// [`None`] means a block is unterminated; a body that is only whitespace has no
+/// blocks.
 pub(crate) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
     let mut blocks = Vec::new();
     let mut cursor = 0;
@@ -86,11 +106,22 @@ pub(crate) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
     (!blocks.is_empty()).then_some(blocks)
 }
 
+/// One selector rule inside a variant body: its selector and any declarations authored
+/// beside the slot.
 pub(crate) struct VariantSelectorRule {
+    /// Selector template, containing `&` for the position of the utility.
     pub(crate) selector: String,
+    /// Declarations stated by the rule itself, in authored order.
     pub(crate) declarations: Vec<VariantDeclaration>,
 }
 
+/// Reads a selector block from a variant body.
+///
+/// The selector must contain `&` - a variant that does not reference the utility's own
+/// selector cannot wrap it - and must be the only construct in the body. Nested blocks,
+/// an empty selector, and declarations without a property or value are all rejected, so
+/// a malformed definition fails instead of emitting a selector the author did not
+/// write.
 pub(crate) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     let open = body.find('{')?;
     let close = closing_brace(body, open)?;

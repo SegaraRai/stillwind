@@ -1,4 +1,16 @@
 //! Composition graph validation; this graph never emits dependency CSS.
+//!
+//! A style call may derive from another call's payload (`style(base)`). The derived
+//! call receives the base unit first, and the base must exist, must not carry
+//! non-class props, and must use the same framework class property, because merging
+//! happens at runtime on one payload.
+//!
+//! Identity is the declaration site: a call is keyed by ([`AssetKind::Style`], module
+//! path, call span), so a re-export or a copy of a call does not inherit another call's
+//! identity.
+//!
+//! This module only reports whether an ordering exists and which one it is. Emitting
+//! the dependency's CSS and deciding ownership belong to `compiler` and `project`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -10,12 +22,18 @@ use stillwind_source::{CompileError, Span};
 use crate::{ClassExpression, GroupEntry};
 use crate::{ModuleAnalysis, StyleCall, StyleInput};
 
+/// One `derived` style call that consumes the payload of `base`.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct StyleDependency {
+    /// The call that consumes another payload.
     pub derived: IdentityId,
+    /// The call whose payload is consumed.
     pub base: IdentityId,
 }
 
+/// Every composition edge of one module, deduplicated and sorted by identity.
+///
+/// Returns an empty vector for a module whose calls are independent.
 pub fn composition_dependencies(module: &ModuleAnalysis) -> Vec<StyleDependency> {
     let mut result = BTreeSet::new();
     for call in &module.ir.style_calls {
@@ -113,6 +131,14 @@ fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
 }
 
 /// Checks every possible base and both style and producer-module cycles.
+///
+/// `require_complete` is set when the caller compiles a closed producer set, such as a
+/// whole project: an unresolved base is then an error (`SHCOMP005`). Rendering one
+/// module in isolation passes `false`, because bases owned by other modules are
+/// expected to arrive later.
+///
+/// Reports at most one error: the cycle check runs before the per-edge checks so a
+/// cyclic graph is not also reported as a hundred missing bases.
 pub fn validate_composition(
     modules: &[&ModuleAnalysis],
     at: Span,
@@ -190,6 +216,10 @@ pub fn validate_composition(
 }
 
 /// Deterministic topological order within one producer, seeded by source order.
+///
+/// Returns the source order unchanged when the graph is cyclic; callers are expected to
+/// have run [`validate_composition`], which rejects cycles, so this fallback keeps
+/// rendering deterministic instead of dropping calls.
 pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {
     let edges = module
         .ir

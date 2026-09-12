@@ -1,3 +1,9 @@
+//! Overloaded CSS definitions and compatibility output.
+//!
+//! Pins that user utilities use the same value domains as built-ins, that overloads are
+//! tried in reverse source order, that CSS fallbacks and extra selector targets survive
+//! merging, and that color alpha emits both the sRGB fallback and the oklab upgrade.
+
 use super::*;
 
 #[test]

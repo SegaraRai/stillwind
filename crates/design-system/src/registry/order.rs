@@ -1,13 +1,28 @@
+//! Authored cascade positions for arbitrary-property candidates.
+//!
+//! An arbitrary property such as `[mask-type:luminance]` has no utility definition to
+//! inherit a position from, so the registry states positions explicitly. Statements
+//! share one ordering space with utility definitions: the position is the directive's
+//! byte offset in the registry CSS, which is what lets a property sort before or after
+//! a utility that was authored between two statements.
+
 use stillwind_css::blocks::extract_order_statements;
 
+/// One authored cascade position: an exact property name or a prefix pattern ending in
+/// `*`, plus the byte offset the directive was authored at.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BuiltinArbitraryPropertyOrder {
+    /// Property name, or a prefix pattern with a trailing `*`.
     pub pattern: String,
+    /// Byte offset of the directive in the registry CSS.
     pub builtin_order: usize,
 }
 
-/// Parses explicit cascade positions for arbitrary-property candidates.
-/// Patterns use an exact property name or a trailing `*` prefix wildcard.
+/// Parses explicit cascade positions for arbitrary-property candidates. Patterns use an
+/// exact property name or a trailing `*` prefix wildcard.
+///
+/// A statement whose pattern contains whitespace is skipped rather than guessed at, and
+/// the returned order is source order, never a counter.
 #[must_use]
 pub fn parse_builtin_arbitrary_property_order(css: &str) -> Vec<BuiltinArbitraryPropertyOrder> {
     extract_order_statements(css, "@stillwind-arbitrary-property")

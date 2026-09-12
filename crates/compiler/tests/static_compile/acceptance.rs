@@ -1,3 +1,10 @@
+//! Acceptance cases for the compatibility slice.
+//!
+//! Pins that a broad CSS-first Tailwind candidate set resolves, that gradient and mask utilities
+//! emit their expected declarations, that generated names derive from normalized module paths
+//! rather than process-local file ids, and that relationship selectors and conditional ref
+//! attachments are only accepted when the available facts prove them.
+
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;

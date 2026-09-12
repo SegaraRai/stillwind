@@ -1,3 +1,10 @@
+//! Projected-input tests: framework scaffolding removal and span identity.
+//!
+//! Each case builds a converter-shaped input (a shadow module plus a map) and
+//! checks what the analyzer produces: which scaffolding was dropped, which spans
+//! belong to the original file, and how converter configuration participates in
+//! the revision.
+
 use std::sync::Arc;
 
 use stillwind_ir::{
@@ -8,6 +15,10 @@ use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{FileId, ProjectionMap, SourceFile, VolarMapping};
 
+/// A Svelte-style projection of one script block into an original file.
+///
+/// The map is deliberately simple (one interval covering the script), so a failure
+/// points at the analyzer rather than at the fixture's arithmetic.
 fn projected() -> SourceInput {
     let script = "import {style} from 'stillwind/svelte'; export const target = style.ref('target'); const active: boolean = true; const props = style(target, active ? 'flex' : 'grid');";
     let original = Arc::new(
@@ -47,6 +58,11 @@ fn projected() -> SourceInput {
     }
 }
 
+/// Only scaffolding the map proves was inserted is discarded.
+///
+/// The same generated text is analysed twice, once where the original also contains the
+/// scaffolding and once where it does not; authored scaffolding must survive, and the
+/// reference count must reflect that difference.
 #[test]
 fn only_verified_unmapped_framework_scaffolding_is_discarded() {
     let script = "import {style} from 'stillwind/vue'; const props = style('flex');";
@@ -87,6 +103,10 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
     }
 }
 
+/// Converter-only reads are flagged instead of breaking macro extraction.
+///
+/// A reference that exists only in generated text cannot be mapped, so it is recorded
+/// as unmapped on the specifier while the mapped references are kept.
 #[test]
 fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_macros() {
     let mut input = projected();
@@ -109,6 +129,11 @@ fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_mac
     }
 }
 
+/// Finalized projected analyses speak in original coordinates.
+///
+/// The source handle is the original file, every summary span slices it, asset
+/// identities point at declarations in it, and checker probes are empty because their
+/// spans would describe the generated module.
 #[test]
 fn projected_analysis_preserves_original_source_and_semantic_identity() {
     let input = projected();
@@ -152,6 +177,11 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
     );
 }
 
+/// Converter configuration is part of the input revision, and failures are atomic.
+///
+/// Changing the options fingerprint or the framework changes the revision, a
+/// conflicting framework is reported, and an unusable map yields a diagnostic scan with
+/// no partial IR.
 #[test]
 fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
     let input = projected();
@@ -184,6 +214,10 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
     assert!(scan.local_ir.handle_definitions.is_empty());
 }
 
+/// An upstream map without a projection does not change the analysed source.
+///
+/// `upstream_map` is host metadata for other tools; parsing and the edit target must
+/// stay tied to the input `SourceFile`.
 #[test]
 fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
     let source = Arc::new(

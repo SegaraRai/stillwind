@@ -1,17 +1,35 @@
+//! Theme token extraction: which custom properties a `@theme` block declares, what each
+//! one means, and where it was written.
+//!
+//! A declaration is read textually so its span can point at the authored name and value
+//! inside the buffer under parse. The span math is explicit: offsets are validated
+//! before arithmetic, so an overflowing base or a buffer beyond the 32-bit source limit
+//! is an error rather than a wrapped coordinate.
+//!
+//! Extraction is syntax-level. Namespace resets and duplicate resolution are decided
+//! later, because they depend on the whole token list rather than on one declaration.
+
 use stillwind_css::blocks::matching_brace;
 use stillwind_source::{FileId, Span, Spanned};
 
 use super::namespace::ThemeNamespace;
 use super::parser::{ThemeError, offset};
 
+/// How a `@theme` block's declarations are emitted.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeTokenMode {
+    /// Ordinary token: emitted when required and referenced by `var()`.
     Default,
+    /// Token inlined into the generated declaration instead of being emitted.
     Inline,
+    /// Token included in the required set without a reference; later resets and
+    /// registry pruning can still remove it.
     Static,
 }
 
 impl ThemeTokenMode {
+    /// Reads a `@theme` block modifier; an unrecognized modifier is treated as the
+    /// default mode rather than rejected.
     pub fn parse(modifier: &str) -> Self {
         match modifier {
             "inline" => ThemeTokenMode::Inline,
@@ -28,21 +46,38 @@ pub enum ThemeTokenKind {
     Scale(ThemeNamespace),
     /// A named token such as `--color-accent` or `--breakpoint-md`.
     Token {
+        /// Namespace the token was declared under.
         namespace: ThemeNamespace,
+        /// Token name without its namespace prefix.
         name: String,
     },
     /// A property that Stillwind emits unchanged but does not use for built-ins.
     Custom,
 }
 
+/// One custom-property declaration from a `@theme` block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeToken {
+    /// Authored custom-property name with its span in the parsed buffer.
     pub name: Spanned<String>,
+    /// Authored value with its span in the parsed buffer.
     pub value: Spanned<String>,
+    /// Which namespace and name the declaration resolved to.
     pub kind: ThemeTokenKind,
+    /// Emission policy: ordinary referenced token, inline value, or static retention.
     pub mode: ThemeTokenMode,
 }
 
+/// Reads the declarations of one `@theme` body.
+///
+/// `body_start` is the body's byte offset in its file, so returned spans refer to the
+/// file rather than to the slice. Comments, at-rules, and statements that are not
+/// custom-property declarations are skipped; a declaration with an empty value or a
+/// non-`--` name is not a token.
+///
+/// # Errors
+///
+/// Returns an invalid-offset error when a span would exceed the 32-bit source limit.
 pub(crate) fn extract_theme_declarations(
     file: FileId,
     body: &str,
@@ -124,6 +159,11 @@ pub(crate) fn extract_theme_declarations(
     Ok(tokens)
 }
 
+/// Classifies a custom-property name by theme namespace.
+///
+/// A bare namespace name is the namespace's scale, a namespaced name is a named token,
+/// and anything else is custom: a custom property stays available as authored CSS but
+/// never creates a utility or variant value.
 pub(crate) fn classify_theme_token(name: &str) -> ThemeTokenKind {
     let Some(name) = name.strip_prefix("--") else {
         return ThemeTokenKind::Custom;

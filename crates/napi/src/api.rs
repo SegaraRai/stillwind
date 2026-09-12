@@ -1,3 +1,10 @@
+//! One-shot compile entry points, kept independent of Node-API.
+//!
+//! The `*_input` functions take ordinary Rust values so the same behaviour can be
+//! tested without a JavaScript runtime. The `#[napi]` functions next to them only
+//! convert arguments, so a JavaScript caller and a Rust test exercise one
+//! implementation.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use napi::Error;
@@ -18,16 +25,23 @@ use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::semantic::{NativeModuleSummary, NativeTypeProbe};
 use crate::source_input::{NativeProjectSource, ProjectSource};
 
+/// Failures that can occur before any compiler diagnostic is produced.
 #[derive(Debug, thiserror::Error)]
 pub enum BindingApiError {
+    /// A host value was structurally invalid, such as a projection without its required
+    /// companion field.
     #[error("invalid source input: {0}")]
     Input(String),
+    /// A source buffer or coordinate was rejected.
     #[error("{0}")]
     Source(#[from] SourceError),
+    /// The source graph needs more file ids than `u32` allows.
     #[error("source graph exceeds the 32-bit file ID limit")]
     TooManySources,
+    /// The design system CSS failed to load or link.
     #[error("{0}")]
     DesignSystem(#[from] DesignSystemError),
+    /// Compiler options were rejected.
     #[error("{0}")]
     Options(#[from] DesignSystemOptionsError),
 }
@@ -40,8 +54,8 @@ impl From<BindingApiError> for Error {
 
 /// Compiles a source buffer and returns the serializable compiler result.
 ///
-/// Kept independent of Node-API so the same contract has an ordinary Rust E2E
-/// test as well as a JavaScript consumer.
+/// Kept independent of Node-API so the same contract has an ordinary Rust E2E test as
+/// well as a JavaScript consumer.
 ///
 /// # Errors
 ///
@@ -54,6 +68,7 @@ pub fn compile_react_input(
     compile_react_input_with_options(source, source_path, theme, &CompilerOptions::default())
 }
 
+/// Compiles one module with explicitly chosen compiler options.
 pub fn compile_react_input_with_options(
     source: &str,
     source_path: &str,
@@ -156,6 +171,16 @@ pub(super) fn binding_output(
 ///
 /// The source graph uses the same domain records as the typed Node adapter.
 ///
+/// Every input receives three file ids: the original source, the generated buffer, and
+/// the analysis buffer. The original of module `i` and the code of a projected module
+/// are different files even when their text matches, and only the original may appear
+/// in a published local span. Original file ids occupy the first range; generated
+/// and analysis ids follow it. Module identities themselves are host path strings.
+///
+/// Rules shared by two modules are emitted once: the first module in input order keeps
+/// the rule and the later module's duplicate is dropped, because this output is one
+/// document rather than one fragment per module.
+///
 /// # Errors
 ///
 /// Returns invalid sources, options, or unresolved module edges.
@@ -166,6 +191,7 @@ pub fn compile_react_project_input(
     compile_react_project_input_with_options(input, theme, &CompilerOptions::default())
 }
 
+/// Compiles a whole source graph with explicitly chosen compiler options.
 pub fn compile_react_project_input_with_options(
     input: &[ProjectSource],
     theme: &str,
@@ -357,9 +383,9 @@ pub fn generate_react_types(theme: String) -> napi::Result<String> {
     Compiler::generate_react_types(&source).map_err(|error| Error::from_reason(error.to_string()))
 }
 
-/// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value
-/// parser. Exposed so parity and integration tools compare both compilers
-/// after the same semantic normalization.
+/// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
+/// Exposed so parity and integration tools compare both compilers after the same
+/// semantic normalization.
 #[napi(js_name = "foldCalcExpressions")]
 pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)

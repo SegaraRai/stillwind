@@ -1,56 +1,93 @@
 //! Lossless parsing of one Tailwind-compatible candidate.
+//!
+//! A candidate is a utility string as written: variant prefixes, optional `!`
+//! importance, optional `-` negativity, a utility name and an optional `/` modifier.
+//! This module only splits that shape. Names are never validated against a registry
+//! here, because the grammar cannot separate `bg-red-500` from `translate-x-4`; the
+//! design system decides which roots exist.
+//!
+//! The parse is lossless in both directions: `raw` keeps the exact source spelling,
+//! escapes included, for hashing and diagnostics, while arbitrary values keep their
+//! decoded text for evaluation. Unbalanced delimiters and empty variant segments
+//! are rejected. Arbitrary-property names and values receive no semantic validation
+//! here, and may be empty.
 
+/// How a variant prefix was written.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariantKind {
+    /// A plain name such as `hover` or `md`.
     Named(String),
+    /// The inner text of `[...]`, kept verbatim with escapes intact.
     Arbitrary(String),
 }
 
+/// One variant prefix of a candidate.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Variant {
+    /// Source spelling of the whole prefix, brackets included.
     pub raw: String,
+    /// Form used for matching against the variant registry.
     pub kind: VariantKind,
 }
 
+/// A `/` modifier or arbitrary-property value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
+    /// Literal modifier text such as `50`.
     Named(String),
+    /// Decoded contents of a `[...]` modifier.
     Arbitrary(String),
+    /// A `(--name)` modifier, stored with its leading `--` and without the parentheses.
     CssVariable(String),
 }
 
+/// The utility part of a candidate: either a named utility or an inline
+/// arbitrary property.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Utility {
+    /// A utility name with an optional `/` modifier. Arbitrary values stay inside
+    /// `name`, so the registry supplies the longest valid root.
     Named {
         /// The complete utility name before a `/` modifier. Registry matching
-        /// determines the longest valid root, because grammar alone cannot
-        /// distinguish `bg-red-500` from `translate-x-4`.
+        /// determines the longest valid root, because grammar alone cannot distinguish
+        /// `bg-red-500` from `translate-x-4`.
         name: String,
+        /// `/` modifier, or `None` when the candidate has no slash.
         modifier: Option<Value>,
     },
+    /// A `[property:value]` candidate written directly.
     ArbitraryProperty {
+        /// Property text before the first top-level `:`, for example `--sidebar`.
         property: String,
+        /// Decoded value text after that colon.
         value: String,
     },
 }
 
-/// One parsed Tailwind-compatible candidate. The original spelling remains
-/// available through [`Candidate::raw`] for stable hashing and diagnostics.
+/// One parsed Tailwind-compatible candidate. The original spelling remains available
+/// through [`Candidate::raw`] for stable hashing and diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Candidate {
+    /// Exact source spelling, escapes included.
     pub raw: String,
+    /// Variant prefixes in source order, outermost first.
     pub variants: Vec<Variant>,
+    /// Whether `!` was written before the utility or as its trailing marker.
     pub important: bool,
+    /// Whether the utility was written with a leading `-`.
     pub negative: bool,
+    /// The parsed utility; still unvalidated against any registry.
     pub utility: Utility,
 }
 
 /// Parses a candidate after it has been lexed from a utility string.
 ///
-/// Parsing is deliberately lossless: arbitrary selectors and values retain
-/// their decoded spelling, while `raw` preserves the exact source candidate.
-/// Validation belongs to a utility or variant registry, not this grammar
-/// layer.
+/// Parsing is deliberately lossless: arbitrary selectors and values retain their
+/// decoded spelling, while `raw` preserves the exact source candidate. Validation
+/// belongs to a utility or variant registry, not this grammar layer.
+///
+/// `None` means the input is not a candidate of this shape at all, never
+/// unknown-but-well-formed; callers must not turn it into a guess.
 #[must_use]
 pub fn parse_candidate(raw: &str) -> Option<Candidate> {
     if raw.is_empty() || !balanced(raw) {
@@ -87,6 +124,8 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
     })
 }
 
+/// True when brackets and parentheses nest and close in order, quotes are closed, and
+/// no escape is left dangling at the end of the input.
 fn balanced(value: &str) -> bool {
     let mut delimiters = Vec::new();
     let mut escaped = false;
@@ -120,6 +159,12 @@ fn balanced(value: &str) -> bool {
     delimiters.is_empty() && !escaped && quote.is_none()
 }
 
+/// Parses the utility after variant prefixes have been removed.
+///
+/// A `[...]`-wrapped utility is an arbitrary property when its inner text contains a
+/// `:`; the first colon is used without checking its nesting depth; otherwise it is
+/// treated as a named utility whose name happens to be bracketed, leaving the registry
+/// to resolve it.
 fn parse_utility(raw: &str) -> Option<Utility> {
     if let Some(value) = arbitrary(raw)
         && let Some((property, value)) = value.split_once(':')
@@ -140,6 +185,10 @@ fn parse_utility(raw: &str) -> Option<Utility> {
     })
 }
 
+/// Parses one `/` modifier.
+///
+/// A parenthesized modifier is accepted only in the CSS-variable form `(--name)`; any
+/// other parenthesized text is rejected rather than kept as a name.
 fn parse_value(value: &str) -> Option<Value> {
     if let Some(value) = arbitrary(value) {
         return Some(Value::Arbitrary(decode_arbitrary(value)));
@@ -155,10 +204,19 @@ fn parse_value(value: &str) -> Option<Value> {
     (!value.is_empty()).then(|| Value::Named(value.to_owned()))
 }
 
+/// Returns the contents of a `[..]` wrapper.
+///
+/// Nesting and escaping were already checked by [`balanced`], so this only strips the
+/// outermost pair.
 fn arbitrary(value: &str) -> Option<&str> {
     value.strip_prefix('[')?.strip_suffix(']')
 }
 
+/// Splits `value` on top-level `delimiter` occurrences, ignoring delimiters inside
+/// brackets, parentheses, quotes or escapes.
+///
+/// The text after the last delimiter is returned separately and is `None` when empty,
+/// which is how a trailing or doubled delimiter is rejected.
 fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) {
     let mut parts = Vec::new();
     let mut start = 0;
@@ -200,6 +258,10 @@ fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) 
     )
 }
 
+/// Finds the first top-level `delimiter` and returns the text on both sides.
+///
+/// Returns the whole input with `None` when no unescaped, unquoted occurrence exists at
+/// depth zero.
 fn split_once_top_level(value: &str, delimiter: char) -> (&str, Option<&str>) {
     let mut depth = 0_u32;
     let mut escaped = false;
@@ -238,6 +300,10 @@ fn split_once_top_level(value: &str, delimiter: char) -> (&str, Option<&str>) {
     (value, None)
 }
 
+/// Strips a trailing `suffix` unless it is escaped.
+///
+/// A preceding odd number of backslashes escapes the marker, so `flex\!` keeps the `!`
+/// as part of the utility name instead of marking importance.
 fn strip_unescaped_suffix(value: &str, suffix: char) -> Option<&str> {
     let value = value.strip_suffix(suffix)?;
     let slash_count = value
@@ -248,6 +314,10 @@ fn strip_unescaped_suffix(value: &str, suffix: char) -> Option<&str> {
     (slash_count % 2 == 0).then_some(value)
 }
 
+/// Decodes the text inside an arbitrary value or property.
+///
+/// `\x` yields `x` and an unescaped `_` becomes a space. Escapes are resolved first, so
+/// `\_` is a literal underscore rather than a space.
 fn decode_arbitrary(value: &str) -> String {
     let mut output = String::new();
     let mut escaped = false;

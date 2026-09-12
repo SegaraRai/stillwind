@@ -1,3 +1,11 @@
+//! The public utility-resolution entry points.
+//!
+//! Resolution is stateless: the same candidate and theme always produce the same
+//! result, and nothing is memoized between calls. Candidates that fail to parse, match
+//! no definition, or match a branch that rejects their value all produce [`None`]; a
+//! caller that needs to distinguish "unknown utility" from "wrong value type" should
+//! read the diagnostics of the layer above.
+
 use std::fmt::Write;
 
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
@@ -11,28 +19,43 @@ use super::matching::{matching_utilities, resolve_css_utility_branches, resolve_
 use super::nested::NestedUtilityRule;
 use crate::ThemeIndex;
 
+/// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
+    /// The parsed candidate, including its variants, flags, and modifier.
     pub candidate: Candidate,
     /// Source order of the matched `@stillwind-utility`.
     pub builtin_order: Option<usize>,
+    /// Finalized declarations for the utility itself.
     pub declaration: String,
+    /// Selector the declarations must be nested under, when the branch has one.
     pub selector: Option<String>,
+    /// Conditional rules emitted next to the base declaration.
     pub nested: Vec<NestedUtilityRule>,
-    /// Additional selector targets produced by typed `@utility` overloads.
-    /// CSS fallbacks and selector-bearing branches must never be discarded
-    /// merely because they share one candidate spelling.
+    /// Additional selector targets produced by typed `@utility` overloads. CSS
+    /// fallbacks and selector-bearing branches must never be discarded merely because
+    /// they share one candidate spelling.
     pub additional: Vec<ResolvedUtilityTarget>,
 }
 
+/// An extra selector target a resolved utility must also be emitted under.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtilityTarget {
+    /// Finalized declarations for this target.
     pub declaration: String,
+    /// Selector this target is nested under, when it has one.
     pub selector: Option<String>,
+    /// Nested rules emitted inside this target, in authored order.
     pub nested: Vec<NestedUtilityRule>,
 }
 
 /// Resolves a candidate using only the Tailwind-compatible registry.
+///
+/// An arbitrary property (`[color:red]`) becomes a plain declaration positioned by the
+/// registry's arbitrary-property order; a named utility is resolved through the project
+/// registry and then the selected built-ins. Importance is applied to every emitted
+/// declaration, including conditional and additional targets, so the flag cannot be
+/// lost by a branch that emits several rules.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
@@ -85,8 +108,13 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
 }
 
 /// Resolves one animation option from the CSS-authored option registry. As a
-/// compatibility path, ordinary utilities may project declarations through
-/// CSS-authored property mappings without exposing their names to Rust.
+/// compatibility path, ordinary utilities may project declarations through CSS-authored
+/// property mappings without exposing their names to Rust.
+///
+/// Variants, negation, and importance are rejected: an animation option describes a
+/// value, not a qualified utility. A plain declaration list is accepted; selectors,
+/// conditionals and additional targets are rejected. The declaration list can contain
+/// several properties.
 #[must_use]
 pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
     let candidate = parse_candidate(raw)?;
@@ -110,6 +138,11 @@ pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String>
     project_animation_option_utility(raw, theme)
 }
 
+/// Projects an ordinary utility's declarations through the registry's animation-option
+/// property mappings.
+///
+/// Properties without a mapping are dropped, and a utility that produced selectors,
+/// conditionals, or extra targets is rejected rather than projected partially.
 pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
     let utility = resolve_utility(raw, theme)?;
     if !utility.candidate.variants.is_empty()

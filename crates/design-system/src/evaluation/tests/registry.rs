@@ -1,3 +1,9 @@
+//! Registry metadata as the source of resolution behavior.
+//!
+//! Pins arbitrary-property order, animation option resolution, theme suffix metadata,
+//! and the invariants that built-ins declare no untyped arbitrary domains and that
+//! every theme namespace has a typed value domain.
+
 use super::*;
 use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 

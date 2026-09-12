@@ -1,3 +1,9 @@
+//! Theme parsing against the real built-in package.
+//!
+//! Pins token extraction and classification with source spans, the `@theme` emission
+//! modes, namespace resets, CSS-first configuration, and the rule that importing the
+//! package is what selects the built-in definitions and default tokens.
+
 use super::*;
 
 #[test]

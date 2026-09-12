@@ -4,6 +4,10 @@
 //! user expression appears once in the output, is evaluated once, and keeps its
 //! source position. Class contributions are emitted either as a plain class
 //! value (Tier 1) or as a fragment (Tier 2); the renderer picks the shape.
+//!
+//! The stylesheet order is decided here and not by the JavaScript shape: the base
+//! unit's rules are written to the stylesheet before every conditional unit's rules,
+//! so the cascade result never depends on the class attribute order.
 
 use std::collections::BTreeSet;
 
@@ -34,10 +38,16 @@ use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
 };
-use crate::CompilerOptions;
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
+use crate::{CompilerOptions, GeneratedSymbol};
 
+/// One `style()` call being lowered.
+///
+/// The emitter accumulates state rather than building a tree in one pass, because the base unit
+/// has to be collected across argument positions while each conditional leaf needs its own class
+/// unit and guard path.
 pub(super) struct CallEmitter<'a, 'b> {
+    /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
     options: &'a CompilerOptions,
     theme: &'a ThemeIndex,
@@ -48,20 +58,31 @@ pub(super) struct CallEmitter<'a, 'b> {
     utility_css: &'a mut String,
     /// Leaf rules wait here so the base unit stays first in the stylesheet.
     runtime_css: String,
-    symbols: &'a mut Vec<crate::GeneratedSymbol>,
+    symbols: &'a mut Vec<GeneratedSymbol>,
+    /// Class units already generated in this compilation, keyed by name and canonical input, so
+    /// two identical units are emitted once while a collision would still be visible.
     emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    /// Identities the module references at runtime; the pipeline uses this set to decide which
+    /// declarations are replaced by a runtime call and which are erased.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
     runtime: &'a mut RuntimeBindings<'b>,
+    /// Canonical candidate and asset spelling for the base unit, in source order.
     static_canonical: String,
+    /// Utilities that will form the base unit's rule.
     static_utilities: Vec<CompiledUtility>,
+    /// Class names that are always applied: markers, external names, and the base unit.
     static_names: Vec<String>,
     parts: Vec<StyleEmissionPart>,
     classes: Vec<GeneratedClass>,
+    /// Emission-local index of the next leaf, making each branch its own class identity.
     class_index: u32,
+    /// Set when a props object sits inside a conditional expression, which forces Tier 2.
     conditional_props: bool,
+    /// Set once the call contributed a view transition, so a second one is reported.
     view_transition_seen: bool,
 }
 
+/// The borrows one call needs, grouped so the emitter can be constructed in one place.
 pub(super) struct CallEmitterInputs<'a, 'b> {
     pub source: &'a SourceFile,
     pub options: &'a CompilerOptions,
@@ -71,13 +92,14 @@ pub(super) struct CallEmitterInputs<'a, 'b> {
     pub diagnostics: &'a mut Vec<CompileError>,
     pub lint_findings: &'a mut Vec<LintFinding>,
     pub utility_css: &'a mut String,
-    pub symbols: &'a mut Vec<crate::GeneratedSymbol>,
+    pub symbols: &'a mut Vec<GeneratedSymbol>,
     pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
     pub runtime: &'a mut RuntimeBindings<'b>,
 }
 
 impl<'a, 'b> CallEmitter<'a, 'b> {
+    /// Lowers one call, or returns `None` after pushing a diagnostic.
     #[allow(clippy::needless_pass_by_value)] // The struct owns the borrows this call consumes.
     pub(super) fn run(inputs: CallEmitterInputs<'a, 'b>) -> Option<StyleEmission> {
         let emitter = Self {
@@ -106,6 +128,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         emitter.emit()
     }
 
+    /// Walks the call's inputs in source order and finishes the emission.
     fn emit(mut self) -> Option<StyleEmission> {
         for input in self.call.inputs.clone() {
             self.emit_input(&input)?;
@@ -113,6 +136,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         Some(self.finish())
     }
 
+    /// Dispatches one style input.
+    ///
+    /// Inputs that carry no user expressions fold into the base unit; everything else becomes a
+    /// part whose source position decides where it sits in the emitted expression.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the style inputs.
     fn emit_input(&mut self, input: &StyleInput) -> Option<()> {
         match input {
@@ -282,6 +309,9 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
 
     /// Reports the second view transition of one call, matching the
     /// pre-existing diagnostic.
+    ///
+    /// A call can contribute only one view-transition pair, because the pair shares one generated
+    /// name and a second use would overwrite the first.
     fn begin_view_transition(&mut self) -> bool {
         if self.view_transition_seen {
             self.diagnostics.push(CompileError::new(
@@ -295,6 +325,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         true
     }
 
+    /// Adds a class value that is a helper call over user expressions.
     fn push_expression(&mut self, text: String, position: u32) {
         self.parts.push(StyleEmissionPart::Class {
             emitted: Emitted::Expression(text),
@@ -304,6 +335,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         });
     }
 
+    /// Lowers one top-level class item of a call or of an attribute object.
     fn emit_item(&mut self, expression: &ClassExpression, position: u32) {
         let mut wrappers = Vec::new();
         let mut guard = Vec::new();
@@ -317,6 +349,11 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         }
     }
 
+    /// Lowers one class expression, tracking the guard path and the active wrappers.
+    ///
+    /// `fold` is set at the top level of a call: a leaf reached without a guard can join the base
+    /// unit, while a leaf under any test keeps its own class unit. Conditional arms clear the flag
+    /// for their contents, so a nested leaf never merges into the base unit by accident.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
     fn emit_expression(
         &mut self,
@@ -572,6 +609,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         }
     }
 
+    /// Lowers a whole branch of a conditional expression.
+    ///
+    /// Every element must be emittable: a branch is a single value, so dropping one element would
+    /// silently change what the test selects.
     fn emit_sequence(
         &mut self,
         expressions: &[ClassExpression],
@@ -589,6 +630,11 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         }
     }
 
+    /// Lowers one utility literal into its canonical input, resolved utilities, and classes.
+    ///
+    /// A compatibility marker is emitted instead of utilities when the candidate only marks a
+    /// Tailwind relationship, and an unresolved candidate becomes an external class name plus a
+    /// lint finding, which keeps the user's class in the output rather than dropping it.
     fn resolve_literal(
         &mut self,
         value: &stillwind_source::Spanned<String>,
@@ -637,6 +683,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         contribution
     }
 
+    /// Merges a contribution into the unconditional base unit.
     fn fold(&mut self, contribution: LiteralContribution) {
         self.static_canonical.push_str(&contribution.canonical);
         self.static_utilities.extend(contribution.utilities);
@@ -645,6 +692,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         self.static_names.extend(contribution.plain);
     }
 
+    /// Turns one contribution into a leaf expression, generating its class unit.
+    ///
+    /// The branch index is part of the class identity, so identical utilities in two branches
+    /// still produce distinct units and the later unit can override the earlier one.
     fn leaf(&mut self, contribution: LiteralContribution, guard: &[GuardStep]) -> Emitted {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() {
@@ -686,21 +737,29 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         Emitted::Leaf { names }
     }
 
+    /// Renders one attribute entry of an object literal, with its value verbatim.
     fn render_attribute(&mut self, attribute: &AttributeEntry) -> Option<String> {
         let value = self.slice(attribute.value)?;
         Some(format!("\"{}\":{value}", attribute.name.value))
     }
 
+    /// Contributes the class that carries a view transition's name and class properties.
     fn emit_view_transition_class(&mut self) {
         self.static_canonical.push_str("view-transition");
         self.static_canonical.push('\u{0}');
         self.static_utilities.push(view_transition_utility());
     }
 
+    /// Slices an original span, or reports that it cannot be read.
     fn slice(&self, span: Span) -> Option<String> {
         self.source.slice(span).ok().map(str::to_owned)
     }
 
+    /// Emits the base unit and returns the parts, in source order.
+    //
+    // The base unit's rules are pushed to the shared stylesheet now, after every leaf rule was
+    // collected in `runtime_css`. That ordering is what keeps a conditional unit's rule after the
+    // base rule it overrides.
     fn finish(mut self) -> StyleEmission {
         let mut names = Vec::new();
         if !self.static_utilities.is_empty() {
@@ -747,16 +806,30 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
     }
 }
 
+/// The pieces one utility literal contributes before it becomes a leaf or a base-unit entry.
+///
+/// `canonical` is the text appended to the class-hash input. Keeping markers, external names, and
+/// resolved utilities in separate lists is what lets an unresolved candidate still reach the
+/// output as a class name while contributing no rule.
 #[derive(Default)]
 struct LiteralContribution {
+    /// Canonical candidate and wrapper spelling of the literal, in source order.
     canonical: String,
+    /// Utilities to emit as this leaf's rule.
     utilities: Vec<CompiledUtility>,
+    /// Compatibility markers, emitted instead of a rule.
     markers: Vec<String>,
+    /// Class names Stillwind does not own, passed through unchanged.
     external: Vec<String>,
+    /// Names with no rule of their own, such as handle markers.
     plain: Vec<String>,
 }
 
 /// Renders a plain class value: strings that clsx can join directly.
+///
+/// Returns `None` when the value cannot be expressed without the fragment runtime, which is what
+/// makes Tier 1 a proof obligation rather than a preference. An attribute can never appear inside
+/// one class property, so any attribute entry makes the whole value unrenderable this way.
 pub(super) fn render_plain(value: &Emitted) -> Option<String> {
     match value {
         Emitted::Expression(text) => Some(text.clone()),
@@ -814,6 +887,9 @@ pub(super) fn render_plain(value: &Emitted) -> Option<String> {
 }
 
 /// Renders a fragment expression that `stillwindMerge` can consume.
+///
+/// The output is a fresh expression, not a reference to anything already emitted, so the same
+/// tree can be rendered once per tier decision without sharing state.
 pub(super) fn render_fragment(
     value: &Emitted,
     runtime: &mut RuntimeBindings<'_>,
@@ -875,12 +951,16 @@ pub(super) fn render_fragment(
     }
 }
 
+/// Builds a fragment object for one already-joined class string.
 fn fragment(runtime: &mut RuntimeBindings<'_>, span: Span, values: &[String]) -> String {
     let key = runtime.require(RuntimeHelper::ClassKey, span);
     format!("{{[{key}]:\"{}\"}}", values.join(" "))
 }
 
 /// Whether the emitted text evaluates user expressions.
+///
+/// This is what separates Tier 1 from Tier 0: a static leaf can be folded into a string, while a
+/// test, an external name, or a dynamic asset lookup has to be evaluated where the user wrote it.
 fn uses_user_code(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Conditional { .. }
@@ -898,6 +978,9 @@ fn uses_user_code(expression: &ClassExpression) -> bool {
 }
 
 /// Whether the expression carries a user-owned class or asset value.
+///
+/// Such a value can only be resolved at runtime, so it cannot be hoisted next to a static class
+/// without changing what is evaluated and in which order.
 fn is_user_value(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::External(_)
@@ -918,6 +1001,11 @@ fn is_user_value(expression: &ClassExpression) -> bool {
     }
 }
 
+/// The source position used to order an expression among a call's parts.
+///
+/// Tests order by their own span, so a conditional part sits where its test is written rather than
+/// where its first literal is. A container query or group has no single token, so it orders by its
+/// opening span, which keeps evaluation order equal to the source order the user sees.
 fn expression_position(expression: &ClassExpression) -> u32 {
     match expression {
         ClassExpression::Utilities(value) => value.span.start.0,

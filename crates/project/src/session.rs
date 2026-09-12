@@ -1,4 +1,13 @@
 //! Mutable host orchestration; snapshots and in-flight request clones stay immutable.
+//!
+//! A session is an actor: all mutation happens behind an exclusive borrow, and a
+//! request handler takes a [`ProjectSession::snapshot`] clone before doing work so it
+//! observes one revision for its whole duration.
+//!
+//! Module CSS is stored per producer and deduplicated by generated rule key, so two
+//! modules emitting the same rule contribute one copy that survives until the last user
+//! is removed. Emission order follows the contribution map, which is ordered by module
+//! id, while declaration order inside a rule is already fixed by the compiler.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -14,20 +23,32 @@ use stillwind_source::{CompileError, SourceFile, Span};
 
 use crate::DependencyIndex;
 
+/// Why a design-system reload could not be applied.
 #[derive(Debug, thiserror::Error)]
 pub enum SessionReloadError {
+    /// The new stylesheet configuration failed to load.
     #[error("{0}")]
     Load(#[from] DesignSystemLoadError),
+    /// The retained or rebuilt stylesheet could not be serialized.
     #[error("{0}")]
     Stylesheet(#[from] StylesheetError),
 }
 
+/// One generated rule plus the set of producers that depend on it.
+///
+/// The rule body is shared; only the membership varies per module. Removing a producer
+/// therefore never removes a rule another producer still needs.
 #[derive(Clone, Debug)]
 struct RuleEntry {
     rule: GeneratedRule,
     users: BTreeSet<ModuleId>,
 }
 
+/// The project-wide stylesheet assembled from published module artifacts.
+///
+/// Rules are keyed by content identity, and a per-module contribution list records which
+/// keys each module owns, so a module update can retract exactly its previous
+/// contributions.
 #[derive(Clone, Debug, Default)]
 pub struct ProjectStylesheet {
     rules: BTreeMap<RuleKey, RuleEntry>,
@@ -35,6 +56,10 @@ pub struct ProjectStylesheet {
 }
 
 impl ProjectStylesheet {
+    /// Replaces one module's contribution with the rules of `artifact`.
+    ///
+    /// Rules already contributed by another module are shared, not duplicated; keys the
+    /// module no longer claims are dropped when their last user goes.
     pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
         self.remove(module.as_str());
         for rule in &artifact.rules {
@@ -53,6 +78,8 @@ impl ProjectStylesheet {
         );
     }
 
+    /// Withdraws every rule this module contributed, keeping rules that other modules
+    /// still use. Unknown modules are ignored.
     pub fn remove(&mut self, module: &str) {
         if let Some(keys) = self.contributions.remove(module) {
             for key in keys {
@@ -66,16 +93,29 @@ impl ProjectStylesheet {
         }
     }
 
+    /// Number of distinct rules currently retained.
     pub fn rule_count(&self) -> usize {
         self.rules.len()
     }
 
+    /// Serializes the retained module CSS without design-system wrapper rules.
+    ///
+    /// This is the input to [`ProjectStylesheet::serialize`]; hosts that need the
+    /// module fragment alone, such as a CSS carrier module, use it directly.
+    ///
     /// # Errors
+    ///
     /// Returns an error if a contribution refers to a missing rule.
     pub fn module_css(&self) -> Result<String, StylesheetError> {
         Ok(self.module_css_with_origins(|_, _| None)?.css)
     }
 
+    /// Like [`ProjectStylesheet::module_css`] but reports a source location for each
+    /// rule so the renderer can emit accurate source maps.
+    ///
+    /// The callback receives the producing module and the rule and returns the original
+    /// file and span to attribute it to. Returning `None` leaves the rule unmapped; a
+    /// rule is never attributed to a location that belongs to a different file.
     pub(crate) fn module_css_with_origins(
         &self,
         mut origin: impl FnMut(&ModuleId, &GeneratedRule) -> Option<(Arc<SourceFile>, Span)>,
@@ -93,7 +133,11 @@ impl ProjectStylesheet {
         Ok(css)
     }
 
+    /// Renders the full project stylesheet: module CSS plus the design system's own
+    /// rules, wrappers, and authored directives.
+    ///
     /// # Errors
+    ///
     /// Returns an error for inconsistent contributions or invalid assembled CSS.
     pub fn serialize(
         &self,
@@ -104,28 +148,39 @@ impl ProjectStylesheet {
     }
 }
 
+/// Whether this session tolerates a failed reload.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SessionMode {
+    /// A one-shot build. A failed load invalidates artifacts so the host fails the
+    /// build instead of emitting stale output.
     Build,
+    /// A watch session. A failed load keeps the last known good revision active and
+    /// reports diagnostics for the attempted one.
     Watch,
 }
 
+/// Result of updating one producer.
 #[derive(Clone, Debug, Default)]
 pub struct ModuleUpdate {
     /// Whether a successful update published different source transforms.
     pub transformed: bool,
+    /// Errors from this update. Non-empty means nothing was published.
     pub diagnostics: Vec<CompileError>,
 }
 
+/// What changed after a design-system reload.
 #[derive(Clone, Debug, Default)]
 pub struct SessionReload {
+    /// Whether the assembled project CSS differs from the previous revision.
     pub css_changed: bool,
+    /// Modules whose code transforms changed, empty when the reload was rejected.
     pub transformed_modules: BTreeSet<ModuleId>,
+    /// Recompilation failures per module.
     pub diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
 }
 
-/// Exclusive mutation is the actor boundary. A host can put this in a mutex;
-/// request handlers pin a clone obtained from `snapshot` before doing work.
+/// Exclusive mutation is the actor boundary. A host can put this in a mutex; request
+/// handlers pin a clone obtained from `snapshot` before doing work.
 pub struct ProjectSession {
     current: DesignSystemSnapshot,
     options: CompilerOptions,
@@ -138,6 +193,7 @@ pub struct ProjectSession {
 }
 
 impl ProjectSession {
+    /// Starts a session from a completed snapshot and its generation options.
     pub fn new(
         snapshot: DesignSystemSnapshot,
         mode: SessionMode,
@@ -155,40 +211,66 @@ impl ProjectSession {
         }
     }
 
+    /// Generation options in effect for this revision.
     pub fn options(&self) -> &CompilerOptions {
         &self.options
     }
 
+    /// Pins the current immutable design-system revision. Cheap to clone.
     pub fn snapshot(&self) -> DesignSystemSnapshot {
         self.current.clone()
     }
 
+    /// The assembled module stylesheet, including rules from failed updates that watch
+    /// mode retained.
     pub fn stylesheet(&self) -> &ProjectStylesheet {
         &self.stylesheet
     }
 
+    /// Published artifacts by module. A module absent here has no current CSS or
+    /// transforms, even if an analysis for it is retained.
     pub fn artifacts(&self) -> &BTreeMap<ModuleId, CompiledModule> {
         &self.artifacts
     }
 
+    /// Analyses by module, including ones whose compilation failed.
     pub fn analyses(&self) -> &BTreeMap<ModuleId, ModuleAnalysis> {
         &self.analyses
     }
 
+    /// Reverse index from design-system definitions and assets to the modules that use
+    /// them.
     pub fn dependencies(&self) -> &DependencyIndex {
         &self.dependencies
     }
 
+    /// The most recent design-system load failure, cleared by a success.
     pub fn load_error(&self) -> Option<&DesignSystemLoadError> {
         self.load_error.as_ref()
     }
+    /// Renders the complete stylesheet for the current revision.
+    ///
     /// # Errors
+    ///
     /// Returns an error if stylesheet serialization fails.
     pub fn css(&self) -> Result<String, StylesheetError> {
         self.stylesheet.serialize(&self.current, &self.options)
     }
 
     /// Updates one producer without rendering the project stylesheet.
+    ///
+    /// Recompilation is skipped when the analysis key already matches the published
+    /// artifact, which makes repeated updates during a watch session cheap; the
+    /// analysis is still replaced so later queries see the newest one. A module whose
+    /// artifact key changed is recompiled. Previous contributions are replaced only
+    /// after successful compilation; build-mode failure removes the old artifact.
+    ///
+    /// Generated identifiers are checked against every other module's symbols, not only
+    /// this module's, because all artifacts share one document. A collision is reported
+    /// as `SHSYMBOL001` and prevents publication.
+    ///
+    /// On failure the behaviour follows [`SessionMode`]: watch keeps the last good
+    /// artifact, build removes it.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         if analysis.diagnostics.is_empty()
@@ -250,7 +332,7 @@ impl ProjectSession {
         update
     }
 
-    /// Removes a producer, returning whether it was registered.
+    /// Removes one producer, returning whether it was registered.
     pub fn remove_module(&mut self, module: &str) -> bool {
         let removed = self.analyses.remove(module).is_some();
         self.remove_artifact(module);
@@ -266,9 +348,14 @@ impl ProjectSession {
 
     /// Publishes an entirely rebuilt revision under the host's exclusive actor turn.
     ///
+    /// Every retained analysis is recompiled against the new snapshot before anything
+    /// is published, because definition changes can invalidate output that the source
+    /// revision did not touch.
+    ///
     /// # Errors
-    /// Returns the attempted load failure. Watch mode retains all active output;
-    /// build mode invalidates artifacts and requires the host to fail the build.
+    ///
+    /// Returns the attempted load failure. Watch mode retains all active output; build
+    /// mode invalidates artifacts and requires the host to fail the build.
     pub fn reload(
         &mut self,
         result: Result<DesignSystemSnapshot, DesignSystemLoadError>,
@@ -301,8 +388,8 @@ impl ProjectSession {
             }
         }
         if self.mode == SessionMode::Watch && !update.diagnostics.is_empty() {
-            // A revision is published as one coherent set, never a mixture of
-            // new registries and stale successful artifacts.
+            // A revision is published as one coherent set, never a mixture of new
+            // registries and stale successful artifacts.
             update.transformed_modules.clear();
             return Ok(update);
         }

@@ -1,3 +1,11 @@
+//! End-to-end tests for project sessions and stylesheet plans.
+//!
+//! These drive the public orchestration API with real analyses from the Oxc frontend,
+//! so they cover the behaviour a host actually depends on: artifact replacement on
+//! reload, last-known-good retention in watch mode versus invalidation in build mode,
+//! shared rules surviving removal of one producer, and dependency indexes losing
+//! memberships exactly when their last user goes.
+
 use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, StylesheetPlacement, StylesheetRenderer};

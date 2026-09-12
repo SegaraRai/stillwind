@@ -1,4 +1,18 @@
 //! Frontend-independent module compilation, code generation, and stylesheet queries.
+//!
+//! The crate owns IR lowering, class and symbol allocation, source replacements,
+//! generated CSS rules, framework type declarations, and editor queries. Its inputs
+//! are a [`stillwind_ir::ModuleAnalysis`] and an immutable
+//! [`stillwind_design_system::DesignSystemSnapshot`]; it performs no I/O and depends
+//! on neither the JavaScript frontend nor the project layer, so the host supplies
+//! opaque source names and contents.
+//!
+//! Two invariants hold for everything the crate returns. Spans always address the
+//! original, unedited source buffer, never generated text, and every generated name
+//! is a pure function of canonical content plus callsite identity, so recompiling the
+//! same inputs produces the same names. When a compilation fails, diagnostics are
+//! still reported against the real source and the transforms, classes, and symbols
+//! stay empty instead of describing a partially applied edit plan.
 
 #![cfg_attr(
     not(test),

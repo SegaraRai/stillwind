@@ -1,9 +1,29 @@
+//! Theme-token lookup for candidate values.
+//!
+//! Two lookups exist and must not be confused. [`theme_value`] produces the value the
+//! generated declaration should reference, which is a `var()` reference for an ordinary
+//! token and the authored text for an inline token. [`theme_value_literal`] always
+//! produces the authored text, because the compatibility fallback branch of a color
+//! declaration must carry a usable value even where a `var()` reference would be the
+//! only thing emitted.
+//!
+//! Typed captures - `[hint:value]`, parenthesized variables, and arbitrary lengths -
+//! are validated against the namespace's CSS-declared value types, so the accepted
+//! grammar follows the registry rather than this file.
+
 use stillwind_css::ValueType;
 
 use super::super::builtins::metadata::builtin_theme_namespace_types;
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
 
+/// Resolves a value in `namespace` to the text a declaration should contain.
+///
+/// Order matters: a typed arbitrary or variable capture wins over a named token, a
+/// named token wins over the numeric spacing scale, and a value that matches nothing
+/// returns [`None`]. The named-token path rejects non-ASCII captures; this is a
+/// restriction of this lookup, not of the general candidate parser. Typed arbitrary
+/// and variable captures are attempted before that restriction.
 pub(crate) fn theme_value(
     namespace: ThemeNamespace,
     value: &str,
@@ -14,8 +34,8 @@ pub(crate) fn theme_value(
         _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
             format!("var({value})")
         }
-        // Tailwind's candidate grammar accepts ASCII identifier tokens only;
-        // Unicode theme names remain valid CSS but are not utility candidates.
+        // This named-token lookup is ASCII-only; the earlier arbitrary-value and
+        // variable paths do not share that restriction.
         _ if !value.is_ascii() => return None,
         _ if let Some(token) = theme.token_in(namespace, value) => {
             if matches!(token.mode, ThemeTokenMode::Inline) {
@@ -44,6 +64,10 @@ pub(crate) fn theme_value(
     Some(value)
 }
 
+/// Resolves a value in `namespace` to its authored token text.
+///
+/// Use this for fallback branches that must not depend on a variable being defined
+/// elsewhere; it falls back to [`theme_value`] when no token matches.
 pub(crate) fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,
@@ -60,6 +84,11 @@ pub(crate) fn theme_value_literal(
     Some(value)
 }
 
+/// Resolves a `[hint:value]` capture against the namespace's value types.
+///
+/// A namespace without declared types accepts any spelling; a hint is checked before
+/// the value itself, so `[time:2s]` is rejected for a length-only namespace even though
+/// `2s` is a valid value of some other type.
 pub(crate) fn typed_theme_arbitrary(
     namespace: ThemeNamespace,
     value: &str,
@@ -77,12 +106,17 @@ pub(crate) fn typed_theme_arbitrary(
         .then_some(value)
 }
 
+/// The value types declared for a namespace by the selected built-ins.
 pub(crate) fn theme_arbitrary_types(namespace: ThemeNamespace, theme: &ThemeIndex) -> &[ValueType] {
     builtin_theme_namespace_types(theme)
         .get(&namespace)
         .map_or(&[], Vec::as_slice)
 }
 
+/// Resolves a `n/d` fraction capture into a percentage.
+///
+/// Zero is a valid numerator but not a denominator, and both components are limited to
+/// unsigned 16-bit integers so a fraction cannot overflow.
 pub(crate) fn fraction_value(value: &str) -> Option<String> {
     let (numerator, denominator) = value.split_once('/')?;
     let numerator = numerator.parse::<u16>().ok()?;
@@ -90,6 +124,10 @@ pub(crate) fn fraction_value(value: &str) -> Option<String> {
     (denominator != 0).then(|| format!("calc({numerator} / {denominator} * 100%)"))
 }
 
+/// Resolves a built-in axis keyword such as `full`, `screen`, or `svh`.
+///
+/// `viewport_axis` only decides which viewport unit the bare `screen` keyword expands
+/// to for the axis the utility belongs to.
 pub(crate) fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String> {
     let value = match value {
         "auto" => "auto".to_owned(),

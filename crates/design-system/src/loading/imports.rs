@@ -1,42 +1,99 @@
+//! Lexical discovery of `@import` statements and their conditional wrappers.
+//!
+//! Only the authored spelling is interpreted here: which name a specifier denotes
+//! belongs to the host. Tokenization skips comments, strings, and nested blocks, and
+//! decodes CSS escapes, so `"@import 'x';"` inside a string or a prelude is not a
+//! dependency.
+//!
+//! Classless CSS import modifiers are normalized into the wrapper at-rule text that
+//! expansion emits: `layer(...)`, `supports(...)`, and a trailing media query, in that
+//! order. Modifiers that would change how the imported file is interpreted in its own
+//! right (`theme`, `prefix`, `source`, `reference`, `important`) are rejected instead
+//! of being silently ignored.
+
 use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind, Parser, Token};
 
+/// Why an `@import` statement could not be read.
+///
+/// These are CSS errors the loader can decide from a supplied buffer, so they surface
+/// as [`crate::DesignSystemLoadError::InvalidImport`] carrying the source name and this
+/// cause.
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum CssImportError {
+    /// A modifier this grammar does not support.
     #[error("unsupported import modifier at byte {offset}: {modifier}")]
-    UnsupportedModifier { offset: usize, modifier: String },
+    UnsupportedModifier {
+        /// Byte offset of the modifier in the buffer.
+        offset: usize,
+        /// Unsupported modifier name reported by the token parser.
+        modifier: String,
+    },
+    /// Modifiers are not in the order the grammar requires.
     #[error("invalid import modifier order at byte {offset}")]
-    ModifierOrder { offset: usize },
+    ModifierOrder {
+        /// Byte offset of the offending modifier.
+        offset: usize,
+    },
+    /// A block inside the import could not be parsed.
     #[error("invalid CSS block at byte {offset}: {kind:?}")]
     Block {
+        /// Byte offset where the block starts.
         offset: usize,
+        /// Underlying token error.
         kind: ParseErrorKind<()>,
     },
+    /// The import's specifier is missing, unquoted, or malformed.
     #[error("invalid @import at byte {offset}: {kind}")]
     Specifier {
+        /// Byte offset of the failure.
         offset: usize,
+        /// Underlying token error.
         kind: BasicParseErrorKind,
     },
+    /// The modifier list could not be parsed.
     #[error("invalid import modifiers at byte {offset}: {kind}")]
     Modifiers {
+        /// Byte offset of the failure.
         offset: usize,
+        /// Underlying token error.
         kind: BasicParseErrorKind,
     },
+    /// A single modifier block could not be parsed.
     #[error("invalid import modifier at byte {offset}: {kind:?}")]
     ModifierBlock {
+        /// Byte offset of the failure.
         offset: usize,
+        /// Underlying token error.
         kind: ParseErrorKind<()>,
     },
 }
 
+/// One authored import: its byte range in the buffer, its decoded specifier, and the
+/// wrappers derived from its modifiers.
 #[derive(Clone, Debug)]
 pub(super) struct Import {
+    /// Byte offset where the statement starts in the buffer: the first byte of
+    /// the token run that ends at the `@import`, so whitespace and comments
+    /// before the keyword are included in the replaced range.
     pub(super) start: usize,
+    /// Byte offset just past the statement, including the semicolon.
     pub(super) end: usize,
+    /// Decoded specifier text, which the host resolves.
     pub(super) specifier: String,
+    /// Wrapper at-rule preludes without braces, outermost first; expansion
+    /// nests them in this order, and an empty vector means no condition.
     pub(super) wrappers: Vec<String>,
 }
 
-/// Tokenization skips comments, strings and nested blocks, and decodes CSS escapes.
+/// Finds every authored `@import` at the top level of one buffer, in source
+/// order. Blocks and function arguments are consumed as units, so an `@import`
+/// inside a rule or a parenthesized condition is body text, not a dependency.
+/// Unparsable top-level CSS ends the scan with the imports found so far.
+///
+/// # Errors
+///
+/// Returns [`CssImportError::Block`] for an unbalanced block, and the
+/// specifier and modifier errors propagated from [`import_wrappers`].
 pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
     let mut parser = Parser::new(css);
     let mut imports = Vec::new();
@@ -98,6 +155,20 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
     Ok(imports)
 }
 
+/// Turns the text after a specifier into the wrapper preludes expansion emits:
+/// at most one `layer`, then `supports`, then the media query, in that order.
+/// A misplaced or repeated modifier is reported rather than reordered, and the
+/// first unrecognized token starts the media prelude, which is kept verbatim.
+///
+/// `base_offset` locates `tail` in the buffer, so error offsets are absolute.
+///
+/// # Errors
+///
+/// Returns [`CssImportError::ModifierOrder`] for a misplaced or repeated
+/// modifier, [`CssImportError::UnsupportedModifier`] for a modifier that would
+/// change how the imported file is interpreted in its own right, and
+/// [`CssImportError::Modifiers`] or [`CssImportError::ModifierBlock`] when a
+/// modifier cannot be tokenized or its block is malformed.
 fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImportError> {
     let mut parser = Parser::new(tail);
     let mut wrappers = Vec::new();

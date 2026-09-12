@@ -1,9 +1,20 @@
+//! End-to-end tests for [`ProjectionIndex`] over both transport formats.
+//!
+//! Each test builds a real map (v3 through [`SourceMapBuilder`], Volar through
+//! hand-written offset tables), loads it against a generated and an original
+//! [`SourceFile`], and asserts the accept and reject behaviour callers rely on:
+//! exact-text verification, ambiguity rejection, file identity, and surrogate handling
+//! in both formats.
+
 use oxc_sourcemap::SourceMapBuilder;
 
 use stillwind_source::{
     BytePos, FileId, ProjectionIndex, ProjectionMap, SourceFile, Span, VolarMapping,
 };
 
+/// Builds a v3 map whose tokens all name `original` as their source, one token per
+/// `(generated, original)` UTF-16 pair. `None` emits an unmapped token, so tests can
+/// mix mapped and unmapped positions in one map.
 fn point_map(points: &[(u32, Option<u32>)], original: &str) -> ProjectionMap {
     let mut builder = SourceMapBuilder::default();
     let source = builder.set_source_and_content("component", original);
@@ -23,6 +34,8 @@ fn point_map(points: &[(u32, Option<u32>)], original: &str) -> ProjectionMap {
     }
 }
 
+/// A span needs both a mapped first and a mapped last scalar, and the result keeps the
+/// original file id rather than reusing the generated one.
 #[test]
 fn exact_range_requires_two_anchors_and_preserves_file_identity() {
     let original = SourceFile::new(FileId(1), "component", "<x>style('flex')</x>").unwrap();
@@ -47,6 +60,9 @@ fn exact_range_requires_two_anchors_and_preserves_file_identity() {
     );
 }
 
+/// Interior gaps, disagreeing duplicate tokens and non-monotonic mappings all fail
+/// verification, and `sourcesContent` that no longer matches the original is a
+/// construction error rather than a silently ignored field.
 #[test]
 fn refuses_unmapped_interior_conflicting_duplicates_and_wrong_contents() {
     let original = SourceFile::new(FileId(1), "component", "abcdabcd").unwrap();
@@ -69,6 +85,9 @@ fn refuses_unmapped_interior_conflicting_duplicates_and_wrong_contents() {
     assert!(ProjectionIndex::new(&generated, &original, &stale).is_err());
 }
 
+/// Volar offsets and lengths count UTF-16 units, so a multi-byte original maps
+/// correctly; ragged arrays and a length that cuts a surrogate pair are rejected at
+/// construction.
 #[test]
 fn volar_intervals_use_utf16_and_reject_ambiguous_or_malformed_ranges() {
     let original = SourceFile::new(FileId(1), "component", "<x>日本😀</x>").unwrap();
@@ -103,6 +122,9 @@ fn volar_intervals_use_utf16_and_reject_ambiguous_or_malformed_ranges() {
     assert!(ProjectionIndex::new(&generated, &original, &surrogate).is_err());
 }
 
+/// Adjacent intervals that a converter reordered keep their own start anchors, and
+/// overlapping intervals pointing at different originals make the offset ambiguous,
+/// which must resolve to nothing instead of to a best guess.
 #[test]
 fn adjacent_reordered_volar_ranges_keep_their_own_start_anchors() {
     let original = SourceFile::new(FileId(1), "component", "secondfirst").unwrap();
@@ -147,6 +169,9 @@ fn adjacent_reordered_volar_ranges_keep_their_own_start_anchors() {
     );
 }
 
+/// A v3 token sitting inside a surrogate pair is skipped rather than turned into a byte
+/// offset, while an interior token with no matching counterpart is still reported as a
+/// malformed map.
 #[test]
 fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
     let original = SourceFile::new(FileId(1), "component", "x😀y").unwrap();

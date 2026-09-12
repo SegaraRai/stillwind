@@ -1,3 +1,15 @@
+//! The parsed theme and its token queries.
+//!
+//! The index holds exactly what the supplied CSS declared, in authored order, with the
+//! output template and the selected built-in definitions alongside it. Queries that
+//! answer "what is active" or "what is required" compute their answer from the token
+//! list instead of maintaining a second index, so a reset, a redefinition, and a
+//! dependency all stay consistent with the authored order.
+//!
+//! [`ThemeIndex::active_tokens`] is the single definition of token effectiveness: a
+//! later declaration replaces an earlier one, and a namespace reset removes the tokens
+//! it covers. Every other lookup goes through it.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
@@ -10,25 +22,41 @@ use crate::registry::utilities::CustomUtility;
 use crate::registry::variants::CustomVariant;
 use crate::{BuiltinDefinitions, ThemeTokenMode};
 
+/// Everything one parsed CSS buffer declared, before it is resolved into a snapshot.
+///
+/// The fields are the authored data, not a resolved lookup view: `tokens` keeps
+/// superseded declarations and resets, so queries must go through the methods below
+/// rather than reading the vector directly.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThemeIndex {
+    /// Structured output positions from the authored entry CSS.
     pub output_template: CssOutputTemplate,
+    /// Built-in definitions selected by this CSS; empty when it imports none.
     pub registry: std::sync::Arc<BuiltinDefinitions>,
+    /// Every token in authored order, including resets and superseded values.
     pub tokens: Vec<ThemeToken>,
+    /// Authored CSS outside definition blocks, retained verbatim.
     pub custom_css: String,
+    /// User `@utility` definitions in authored order.
     pub utilities: Vec<CustomUtility>,
+    /// User variant definitions grouped by syntax form; source order within each form.
     pub variants: Vec<CustomVariant>,
+    /// Compiler-owned `@stillwind-property` definitions in authored order.
     pub properties: Vec<CustomPropertyDefinition>,
     /// Utility names whose declarations provide compatibility marker classes.
     pub marker_utilities: BTreeSet<String>,
     /// Generic serialization formats attached to CSS declarations.
     pub declaration_formats: BTreeMap<String, String>,
+    /// Candidate patterns identifying compatibility relationships, such as `group-*`.
     pub relationship_patterns: BTreeSet<String>,
+    /// Property names declared by authored `@property` rules.
     pub authored_properties: BTreeSet<String>,
+    /// Resolved `@stillwind-config` values for this stylesheet.
     pub config: StillwindConfig,
 }
 
 impl ThemeIndex {
+    /// The named token in `namespace`, or `None` when it is not active.
     #[must_use]
     pub fn token_in(&self, namespace: ThemeNamespace, name: &str) -> Option<&ThemeToken> {
         self.active_tokens().into_iter().find(|token| {
@@ -40,6 +68,7 @@ impl ThemeIndex {
         })
     }
 
+    /// Every active named token in `namespace`, ordered by custom-property name.
     #[must_use]
     pub fn tokens_in(&self, namespace: ThemeNamespace) -> Vec<&ThemeToken> {
         self.active_tokens()
@@ -56,6 +85,7 @@ impl ThemeIndex {
             .collect()
     }
 
+    /// The namespace's scalar scale token, when one is active.
     #[must_use]
     pub fn scale(&self, namespace: ThemeNamespace) -> Option<&ThemeToken> {
         self.active_tokens()
@@ -63,6 +93,11 @@ impl ThemeIndex {
             .find(|token| token.kind == ThemeTokenKind::Scale(namespace))
     }
 
+    /// Looks up a token by authored namespace text and bare name.
+    ///
+    /// A namespace that is not a known theme namespace falls back to treating the
+    /// arguments as a custom-property name, so callers may query an arbitrary property
+    /// without knowing whether it participates in a namespace.
     #[must_use]
     pub fn token(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
         if let Some(namespace) = ThemeNamespace::parse(namespace) {
@@ -74,12 +109,14 @@ impl ThemeIndex {
             .find(|token| token.name.value == expected)
     }
 
+    /// The authored value of a token, looked up as [`Self::token`] does.
     #[must_use]
     pub fn value(&self, namespace: &str, name: &str) -> Option<&str> {
         self.token(namespace, name)
             .map(|token| token.value.value.as_str())
     }
 
+    /// The active token with exactly this custom-property name, if any.
     #[must_use]
     pub fn custom_property(&self, name: &str) -> Option<&ThemeToken> {
         self.active_tokens()
@@ -89,15 +126,20 @@ impl ThemeIndex {
 
     /// Lowers build-time `--theme()` references in a theme-token value.
     ///
-    /// An available token becomes a standard `var()` reference. An unavailable
-    /// token uses its authored fallback; `initial` is the sentinel Tailwind
-    /// uses to omit the containing alias altogether.
+    /// An available token becomes a standard `var()` reference. An unavailable token
+    /// uses its authored fallback; `initial` is the sentinel Tailwind uses to omit the
+    /// containing alias altogether.
+    ///
+    /// `None` means the containing declaration must not be emitted at all.
     #[must_use]
     pub fn resolve_theme_references(&self, value: &str) -> Option<String> {
         resolve_theme_references(value, |name| self.custom_property(name).is_some())
     }
 
     /// Returns the effective CSS custom properties after v4 namespace resets.
+    ///
+    /// Resets and replacements are applied in authored order. The result is sorted
+    /// by custom-property name because the effective values are stored in a `BTreeMap`.
     #[must_use]
     pub fn active_tokens(&self) -> Vec<&ThemeToken> {
         let mut values = BTreeMap::new();
@@ -125,15 +167,21 @@ impl ThemeIndex {
         values.into_values().collect()
     }
 
-    /// Selects the effective tokens required by emitted declarations. Project
-    /// tokens are retained as authored; vendored defaults are tree-shaken and
-    /// their `var()` dependencies are followed transitively.
+    /// Selects effective tokens by lexical custom-property references and follows
+    /// their dependencies transitively. Ordinary project and built-in tokens are
+    /// both omitted when unused; static mode requests retention.
+    ///
+    /// Static tokens seed the required set, inline tokens are never emitted, and the
+    /// dependency walk terminates on cyclic aliases.
     #[must_use]
     pub fn tokens_required_by(&self, css: &str, include_preflight: bool) -> Vec<&ThemeToken> {
         self.tokens_required_by_with_omit_rules(css, include_preflight, &[])
     }
 
     /// Selects required tokens while applying registry-authored pruning rules.
+    ///
+    /// Pruning runs after dependency closure, so a rule may drop an intermediate alias
+    /// without changing which declarations were considered.
     #[must_use]
     pub fn tokens_required_by_with_omit_rules(
         &self,
@@ -166,8 +214,8 @@ impl ThemeIndex {
                 }
             }
         }
-        // Registry-authored pruning rules can remove intermediate aliases
-        // after dependency closure, without embedding property names here.
+        // Registry-authored pruning rules can remove intermediate aliases after
+        // dependency closure, without embedding property names here.
         for (prefix, condition) in omit_rules {
             if css.contains(condition) {
                 required.retain(|name| !name.starts_with(prefix));
@@ -182,13 +230,17 @@ impl ThemeIndex {
             .collect()
     }
 
-    /// CSS outside of `@theme` blocks, retained verbatim for custom properties,
-    /// theme selectors, layers, and ordinary authored CSS.
+    /// CSS outside of `@theme` blocks, retained verbatim for custom properties, theme
+    /// selectors, layers, and ordinary authored CSS.
     #[must_use]
     pub fn custom_css(&self) -> &str {
         &self.custom_css
     }
 
+    /// The last authored user utility with this exact name.
+    ///
+    /// Wildcard definitions are not matched here; candidate resolution owns
+    /// prefix matching.
     #[must_use]
     pub fn utility(&self, name: &str) -> Option<&CustomUtility> {
         self.utilities
@@ -197,6 +249,7 @@ impl ThemeIndex {
             .find(|utility| utility.name == name)
     }
 
+    /// The last authored user variant with this exact name.
     #[must_use]
     pub fn variant(&self, name: &str) -> Option<&CustomVariant> {
         self.variants

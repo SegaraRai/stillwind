@@ -1,9 +1,30 @@
+//! Final serialization of resolved declarations.
+//!
+//! The registry describes how its declarations must be spelled, and this module applies
+//! that description: `!important` on every declaration in the body, fallback
+//! normalization for selected properties, slash spacing, zero-length units, and folding
+//! of compile-time values inside `calc()`.
+//!
+//! The order of those steps is semantic, not incidental. Importance is added before
+//! formatting so a formatted property can still be recognized, and `calc()` folding
+//! runs last so it sees the final text.
+//!
+//! Declaration formats come from either the project CSS or the selected built-ins,
+//! never from both: a project that declares formats replaces the built-in set rather
+//! than extending it.
+
 use stillwind_css::{fold_calc_expressions, format_numeric_zero};
 
 use super::super::builtins::metadata::builtin_declaration_formats;
 use super::super::syntax::closing_parenthesis;
 use crate::{ThemeIndex, declaration_format};
 
+/// Appends `!important` to every declaration in `declaration`.
+///
+/// The input is a declaration list, so the marker is applied per declaration rather
+/// than once at the end of the string. An empty body stays empty instead of gaining a
+/// stray marker. This helper splits on every semicolon, including semicolons inside
+/// strings or function arguments; it does not tokenize the declaration list.
 pub(crate) fn important(declaration: &str) -> String {
     declaration
         .split_terminator(';')
@@ -15,6 +36,11 @@ pub(crate) fn important(declaration: &str) -> String {
         })
 }
 
+/// Applies every serialization rule to one resolved declaration.
+///
+/// Fallback normalization runs before the format rules because a format string may
+/// describe a fallback that normalization would otherwise leave untouched; `calc()`
+/// folding runs last so it operates on the final spelling.
 pub(crate) fn finalize_declaration(
     declaration: String,
     is_important: bool,
@@ -31,6 +57,11 @@ pub(crate) fn finalize_declaration(
     fold_calc_expressions(&declaration)
 }
 
+/// Applies formats that rewrite a property's value text, currently the slash spacing
+/// required by `span` values such as `grid-row`.
+///
+/// Only a declaration that starts with the property and whose value contains `span` is
+/// rewritten, so an unrelated property spelling the same prefix is left alone.
 pub(crate) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
         builtin_declaration_formats(theme)
@@ -56,6 +87,10 @@ pub(crate) fn apply_declaration_formats(mut declaration: String, theme: &ThemeIn
     declaration
 }
 
+/// Adds the unit to zero lengths for properties whose format requires it.
+///
+/// Both the property lookup and the replacement run on whole declarations, so a zero in
+/// another property's value or in a function argument is not touched.
 pub(crate) fn apply_zero_length_format(mut declaration: String, theme: &ThemeIndex) -> String {
     let formats = if theme.declaration_formats.is_empty() {
         builtin_declaration_formats(theme)
@@ -86,6 +121,11 @@ pub(crate) fn apply_zero_length_format(mut declaration: String, theme: &ThemeInd
     declaration
 }
 
+/// Normalizes `var()` fallbacks for properties whose format asks for it.
+///
+/// `var-fallback` adds an empty fallback to a reference that has none, which is how a
+/// property is reset without losing the custom property; a fallback that is already
+/// present, even an empty one, is preserved.
 pub(crate) fn normalize_format_var_fallbacks(
     mut declaration: String,
     theme: &ThemeIndex,
@@ -121,6 +161,11 @@ pub(crate) fn normalize_format_var_fallbacks(
     declaration
 }
 
+/// Rewrites every `var(--x)` (or `var(--x, fallback)`) reference in a value.
+///
+/// The scan is paren-aware and leaves a malformed reference as written instead of
+/// dropping it, because a value that already reaches this point has been accepted for
+/// emission.
 pub(crate) fn normalize_var_fallbacks(value: &str, add_missing: bool) -> String {
     let mut output = String::with_capacity(value.len());
     let mut cursor = 0;

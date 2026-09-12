@@ -1,3 +1,16 @@
+//! Candidate-to-branch matching and branch merging.
+//!
+//! Because user CSS is the authoritative registry layer, a project definition must be
+//! able to replace any built-in name when its branch resolves. If all user branches
+//! fail, resolution still tries the built-in registry. Within one layer, every matching
+//! definition is a typed declaration branch, and a candidate selects the branches whose
+//! value domains accept it.
+//!
+//! Ordering is by branch specificity: an exact name outranks a wildcard, and a wildcard
+//! with typed arbitrary or theme domains outranks a generic one. When an exact
+//! definition exists, wildcard overloads are alternative grammar branches rather than
+//! extra declarations for the same spelling.
+
 use std::collections::HashSet;
 
 use stillwind_css::ValueType;
@@ -10,6 +23,8 @@ use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
 use crate::{CustomUtility, ThemeIndex};
 
+/// Definitions whose name matches `name`: the exact definition plus any wildcard family
+/// whose prefix matches, in reverse authored order.
 pub(crate) fn matching_utilities<'a>(
     utilities: &'a [CustomUtility],
     name: &'a str,
@@ -23,31 +38,36 @@ pub(crate) fn matching_utilities<'a>(
     })
 }
 
+/// Resolves a named candidate through the registry layers.
+///
+/// Project CSS is consulted first; a successfully resolved project branch wins. If
+/// no project branch resolves, built-in definitions are tried. There is deliberately no
+/// property-prefix fallback: a definition that rejects the candidate's value type is a
+/// non-match, not an invitation to reinterpret the candidate.
 pub(crate) fn resolve_named_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
 ) -> Option<UtilityResolution> {
-    // Application CSS is the authoritative registry layer. It must be able to
-    // replace every built-in name.
+    // Application CSS is the authoritative registry layer. It must be able to replace
+    // every built-in name.
     if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
     if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
         return Some(declaration);
     }
-    // A failed `@utility` branch is a type error, not an invitation to use a
-    // legacy property-prefix fallback. Keeping that fallback here made
-    // `p-[color:red]` and `border-[time:1ms]` appear valid after the typed
-    // registry correctly rejected them. Arbitrary properties (`[x:y]`) are
-    // handled explicitly by the candidate grammar above; named utilities are
-    // defined solely by CSS registry entries.
+    // A failed `@utility` branch is a type error, not an invitation to use a legacy
+    // property-prefix fallback. Keeping that fallback here made `p-[color:red]` and
+    // `border-[time:1ms]` appear valid after the typed registry correctly rejected
+    // them. Arbitrary properties (`[x:y]`) are handled explicitly by the candidate
+    // grammar above; named utilities are defined solely by CSS registry entries.
     None
 }
 
-/// Resolves the same `@utility` body language for user CSS and vendored
-/// built-ins. `--value(...)` tries its comma-separated value domains in order.
+/// Resolves the same `@utility` body language for user CSS and vendored built-ins.
+/// `--value(...)` tries its comma-separated value domains in order.
 pub(crate) fn resolve_user_css_utility(
     name: &str,
     modifier: Option<&Value>,
@@ -64,6 +84,11 @@ pub(crate) fn resolve_user_css_utility(
     )
 }
 
+/// Resolves a candidate against the selected built-ins.
+///
+/// Wildcard families are searched before exact-name groups, and both iterate in reverse
+/// authored order so the most recently registered definition is considered first;
+/// branch specificity then decides which one wins.
 pub(crate) fn resolve_builtin_css_utility(
     name: &str,
     modifier: Option<&Value>,
@@ -86,10 +111,15 @@ pub(crate) fn resolve_builtin_css_utility(
     )
 }
 
-/// Every matching `@utility` block is a typed declaration branch. A candidate
-/// such as `bg-[url(...)]` may therefore select the image branch while a
-/// colour candidate selects the colour branch, without giving the root an
-/// implementation-specific special case.
+/// Every matching `@utility` block is a typed declaration branch. A candidate such as
+/// `bg-[url(...)]` may therefore select the image branch while a color candidate
+/// selects the color branch, without giving the root an implementation-specific special
+/// case.
+///
+/// Branches are ordered by specificity, then merged: branches sharing a selector
+/// contribute one declaration list, and branches with distinct selectors become
+/// additional targets. A property already claimed by a more-specific branch is not
+/// overwritten by a broader one.
 pub(crate) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
@@ -111,9 +141,9 @@ pub(crate) fn resolve_css_utility_branches<'a>(
     branches.sort_by_key(|(specificity, _, _, _)| std::cmp::Reverse(*specificity));
     let has_exact = branches.iter().any(|(_, exact, _, _)| *exact);
     if has_exact {
-        // An exact registration defines the complete utility. Wildcard
-        // overloads are alternative candidate grammar branches, not a source
-        // of extra declarations for a spelling that has an exact definition.
+        // An exact registration defines the complete utility. Wildcard overloads are
+        // alternative candidate grammar branches, not a source of extra declarations
+        // for a spelling that has an exact definition.
         branches.retain(|(_, exact, _, _)| *exact);
     } else if let Some(arbitrary) = unhinted_arbitrary_value(name) {
         let available = branches
@@ -132,10 +162,9 @@ pub(crate) fn resolve_css_utility_branches<'a>(
     }
     let (_, _, _, mut resolution) = branches.first()?.clone();
     for (_, _, _, branch) in branches.into_iter().skip(1) {
-        // Overloads with a shared selector form one declaration list. CSS
-        // fallbacks authored within one overload intentionally retain their
-        // order, while competing overloads cannot overwrite a more-specific
-        // property branch.
+        // Overloads with a shared selector form one declaration list. CSS fallbacks
+        // authored within one overload intentionally retain their order, while
+        // competing overloads cannot overwrite a more-specific property branch.
         if branch.selector == resolution.selector {
             resolution.declaration =
                 merge_branch_declarations(&resolution.declaration, &branch.declaration);
@@ -153,6 +182,11 @@ pub(crate) fn resolve_css_utility_branches<'a>(
     Some(resolution)
 }
 
+/// The value types a definition mentions in its `[type]` hints, in authored order and
+/// without duplicates.
+///
+/// Used to pick between wildcard branches when an arbitrary value carries no hint of
+/// its own.
 pub(crate) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
     let mut types = Vec::new();
     let mut rest = utility.body.as_str();
@@ -171,6 +205,11 @@ pub(crate) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
     types
 }
 
+/// The value of an arbitrary capture that carries no type hint, decoded, or the `var()`
+/// text of a variable capture.
+///
+/// [`None`] means the candidate named a hinted arbitrary value or is not an arbitrary
+/// capture at all; hinted values are matched by domain instead.
 pub(crate) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
     if let Some(start) = name.rfind("-[")
         && let Some(value) = name[start + 2..].strip_suffix(']')
@@ -185,6 +224,11 @@ pub(crate) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
         .then(|| format!("var({variable})"))
 }
 
+/// Chooses the value type an unhinted arbitrary value most likely means.
+///
+/// Only types the branch actually accepts are considered, the image and color families
+/// are tried before geometry, and CSS-wide keywords and `var()` references are never
+/// inferred because they can stand for any type.
 pub(crate) fn infer_arbitrary_value_type(
     value: &str,
     available: &[ValueType],
@@ -218,6 +262,10 @@ pub(crate) fn infer_arbitrary_value_type(
     })
 }
 
+/// Adds conditional rules that do not conflict with an existing rule.
+///
+/// A conflict is the same conditional and placement declaring one of the same
+/// properties; the primary rule keeps its position and value.
 pub(crate) fn merge_nested_rules(
     primary: &mut Vec<NestedUtilityRule>,
     secondary: Vec<NestedUtilityRule>,
@@ -238,6 +286,7 @@ pub(crate) fn merge_nested_rules(
     }
 }
 
+/// The property names declared by a declaration list.
 pub(crate) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
     declaration
         .split_terminator(';')
@@ -271,6 +320,12 @@ pub(crate) fn merge_branch_declarations(primary: &str, secondary: &str) -> Strin
     merged
 }
 
+/// How strongly a branch claims a candidate spelling.
+///
+/// An exact name contributes a large constant so it outranks any combination of
+/// wildcard metadata, and within wildcards the typed arbitrary, theme, and modifier
+/// domains add weight. The exact-registration term keeps canonical spellings such as
+/// `opacity-60` on their dedicated definition.
 pub(crate) fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
     let body = utility.body.as_str();
     let typed_arbitrary = body
@@ -279,10 +334,9 @@ pub(crate) fn utility_branch_specificity(utility: &CustomUtility, name: &str) ->
         .saturating_sub(body.matches("[*]").count());
     let theme_domain = body.matches("--value(--").count();
     let modifier = body.matches("--modifier(").count();
-    // An exact registration is a semantic override of a wildcard family.
-    // This keeps the canonical Tailwind spelling (`opacity-60`, `bg-none`,
-    // …) intact while still letting typed wildcard branches discriminate
-    // arbitrary values among themselves.
+    // An exact registration is a semantic override of a wildcard family. This keeps the
+    // canonical Tailwind spelling (`opacity-60`, `bg-none`, …) intact while still
+    // letting typed wildcard branches discriminate arbitrary values among themselves.
     usize::from(utility.name == name) * 32 + typed_arbitrary * 4 + theme_domain * 2 + modifier
 }
 

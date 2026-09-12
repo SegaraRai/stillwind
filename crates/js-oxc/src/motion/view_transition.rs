@@ -1,3 +1,14 @@
+//! `style.viewTransition()` declarations and their uses.
+//!
+//! A declaration is an object with any of `group`, `old`, `new`, each a literal utility
+//! string; the generated `view-transition-name` and its pseudo-element rules come from
+//! that declaration identity. A use may add a stable key through `.for(key)`, which
+//! stays a user expression rather than being evaluated here.
+//!
+//! Keyed uses are always dynamic in the IR even when only one transition is possible,
+//! because the key expression must be evaluated at runtime for every instance that
+//! renders.
+
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
@@ -8,6 +19,10 @@ use stillwind_source::{CompileError, Spanned};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// Resolves an expression to the view transitions it may denote.
+    ///
+    /// Facts win over local bindings, exactly as for animations; `None` means the
+    /// expression is not a view-transition value.
     pub(crate) fn view_transition_references(
         &self,
         expression: &Expression<'a>,
@@ -35,6 +50,12 @@ impl<'a> MacroExtractor<'a> {
         }])
     }
 
+    /// Recognizes `<transition>` and `<transition>.for(key)` uses.
+    ///
+    /// A `.for(...)` argument is kept as a user span, never evaluated. A use that the
+    /// checker already described through a type fact becomes dynamic even when only one
+    /// candidate remains. A singleton fact does not prove runtime variation; this is
+    /// the lowering policy for fact-backed uses.
     pub(crate) fn view_transition_use(
         &mut self,
         expression: &Expression<'a>,
@@ -92,6 +113,11 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Validates and records one `style.viewTransition({...})` declaration.
+    ///
+    /// Only `group`, `old` and `new` are accepted, each with a literal utility string.
+    /// Unknown or non-literal keys are reported and skipped; the result needs at least
+    /// one of the three to be usable.
     pub(crate) fn collect_view_transition_definition(
         &mut self,
         name: Spanned<String>,

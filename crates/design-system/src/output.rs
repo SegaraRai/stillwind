@@ -1,3 +1,15 @@
+//! Parsing of the host's Stillwind CSS into a structured output template.
+//!
+//! An output template records where generated output may be placed: the `@theme`
+//! blocks, the `@stillwind-slot utilities` slot, and the authored CSS that must survive
+//! verbatim. Every node keeps its byte offsets, and theme tokens keep spans into the
+//! buffer under parse, so a caller can map those spans back to the originally supplied
+//! source.
+//!
+//! Definitions are compile-time only: an `@theme`, `@utility`, or `@custom-variant`
+//! nested inside a conditional is rejected, because emitting it would make the registry
+//! depend on runtime conditions. `@stillwind-slot` is the exception and may be nested.
+
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::{CssOutputError, CssOutputNode, CssOutputTemplate};
@@ -5,8 +17,16 @@ use stillwind_source::{FileId, Span};
 
 use crate::ThemeToken;
 
+/// Parses one CSS buffer into its output nodes and theme-block ranges.
+///
+/// `tokens` are the already extracted theme tokens; each `@theme` node records the
+/// indices of the tokens whose name spans fall inside that block, so theme output can
+/// be emitted per block in authored order.
+///
 /// # Errors
-/// Returns malformed blocks or unknown output slots.
+///
+/// Returns malformed blocks, definitions inside a conditional group, or unknown output
+/// slots.
 pub fn parse_output_template(
     css: &str,
     tokens: &[ThemeToken],
@@ -17,6 +37,15 @@ pub fn parse_output_template(
     })
 }
 
+/// Collects the inner byte range and the modifier header of every `@theme` block, in
+/// source order.
+///
+/// Callers use this to extract declarations per block, so a block's mode (`inline`,
+/// `static`, or default) can be attributed to its own tokens.
+///
+/// # Errors
+///
+/// Returns a block error for unparsable or unterminated `@theme` syntax.
 pub(crate) fn theme_blocks(
     css: &str,
 ) -> Result<Vec<(std::ops::Range<usize>, String)>, CssOutputError> {
@@ -25,6 +54,8 @@ pub(crate) fn theme_blocks(
     Ok(blocks)
 }
 
+/// Whether an at-keyword defines compile-time semantics and therefore may not appear
+/// inside a conditional group.
 fn is_definition(name: &str) -> bool {
     name.starts_with("stillwind-")
         || matches!(
@@ -33,6 +64,14 @@ fn is_definition(name: &str) -> bool {
         )
 }
 
+/// Consumes the block or statement that follows an at-keyword.
+///
+/// Returns the inner range for a `{}` block and `None` when the construct ends at a
+/// semicolon or cannot be parsed, which the caller treats as a statement.
+///
+/// # Errors
+///
+/// Returns a block error when a nested block cannot be parsed.
 fn consume_block(
     parser: &mut Parser<'_>,
     base: usize,
@@ -57,6 +96,17 @@ fn consume_block(
     }
 }
 
+/// Parses one nesting level into output nodes.
+///
+/// `base` is the byte offset of `css` inside the root buffer, so every origin span and
+/// error offset refers to the root buffer rather than to the slice. `conditional`
+/// records whether an enclosing group is conditional; a definition below such a group
+/// is rejected.
+///
+/// # Errors
+///
+/// Returns an error for conditional definitions, malformed blocks, unknown slots, and
+/// offsets that exceed the 32-bit source limit.
 fn parse_nodes(
     css: &str,
     base: usize,

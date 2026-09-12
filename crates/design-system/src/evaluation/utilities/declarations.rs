@@ -1,19 +1,39 @@
+//! Per-declaration placeholder resolution.
+//!
+//! A utility body is a list of declarations, and each one is a branch: the declarations
+//! that match the candidate survive and the others are dropped. Resolving the body as a
+//! whole instead would make a broad definition with one unmatched typed value emit
+//! nothing at all, or would emit a static supporting declaration for a candidate that
+//! never matched.
+//!
+//! Two gates guard a body. A declaration list containing placeholders must resolve at
+//! least one of them, and a list containing `--value(...)` or `--modifier(...)` must
+//! resolve the value and modifier it depends on; a modifier-only sibling cannot make an
+//! unrelated branch valid.
+
 use stillwind_syntax::Value;
 
 use super::super::values::colors::CompatColorMode;
 use super::super::values::placeholders::resolve_css_placeholders;
 use crate::ThemeIndex;
 
+/// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ResolvedCssDeclarations {
+    /// Declarations for the base branch, joined in authored order.
     pub(crate) base: String,
+    /// Modern-color variants of the base declarations that differ from the legacy text,
+    /// to be emitted inside the capability query.
     pub(crate) compat_modern: Vec<String>,
 }
 
 /// Resolves each declaration independently. `@utility` overloads are often
-/// intentionally broad: a single body can expose both colour and length
-/// forms. A failed typed placeholder must remove only the incompatible
-/// declaration, never the compatible siblings.
+/// intentionally broad: a single body can expose both color and length forms. A failed
+/// typed placeholder must remove only the incompatible declaration, never the
+/// compatible siblings.
+///
+/// Returns [`None`] when no declaration resolved or when a dependency of the body stayed
+/// unresolved, so the caller can try another overload.
 pub(crate) fn resolve_css_declarations(
     body: &str,
     utility_name: &str,
@@ -97,23 +117,22 @@ pub(crate) fn resolve_css_declarations(
         }
     }
 
-    // Static declarations in a functional body are supporting declarations,
-    // not an independent branch. For example the generic `translate-*` body
-    // must not emit `translate: …` when none of its typed values match.
+    // Static declarations in a functional body are supporting declarations, not an
+    // independent branch. For example the generic `translate-*` body must not emit
+    // `translate: …` when none of its typed values match.
     (!uses_placeholder || resolved_placeholder)
         .then_some(())
-        // A modifier-only sibling (such as `text-*/leading`) cannot make an
-        // unresolved value branch valid. This is what prevents a colour token
-        // from being misinterpreted as a spacing value merely because both
-        // spellings use a slash.
+        // A modifier-only sibling (such as `text-*/leading`) cannot make an unresolved
+        // value branch valid. This is what prevents a color token from being
+        // misinterpreted as a spacing value merely because both spellings use a slash.
         .filter(|()| !uses_value || resolved_value)
         .filter(|()| !requires_modifier || resolved_modifier)
         .filter(|()| resolved_required_declarations == required_declarations)
         .map(|()| output)
 }
 
-/// Splits a declaration list without mistaking a semicolon in a string or a
-/// function argument for a CSS declaration boundary.
+/// Splits a declaration list without mistaking a semicolon in a string or a function
+/// argument for a CSS declaration boundary.
 pub(crate) fn split_css_declarations(body: &str) -> Vec<&str> {
     let mut declarations = Vec::new();
     let mut start = 0;

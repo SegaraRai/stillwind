@@ -1,4 +1,14 @@
 //! Immutable styling semantics shared by compilation and editor requests.
+//!
+//! [`DesignSystemSnapshot`] is an `Arc` handle to one fully resolved revision. Cloning
+//! it is cheap and never copies registries, and no method on it mutates shared state,
+//! so a request may pin one clone and stay consistent even while another thread
+//! publishes a replacement.
+//!
+//! A revision number identifies one successful load inside the process. Fingerprints
+//! identify content, so caches that outlive the process must key on fingerprints; in
+//! particular a fingerprint must not include source IDs or spans, which vary with host
+//! read order for identical content.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -13,29 +23,60 @@ use crate::{
     ThemeIndex, builtin_definitions, builtin_theme_order,
 };
 
+/// Why a snapshot could not be produced from an already supplied buffer.
+///
+/// A host resolution or read failure is not represented here: the loader reports its
+/// own protocol errors, and the host keeps resolution failures.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum DesignSystemError {
+    /// Loading failed; see [`DesignSystemLoadError`].
     #[error("{0}")]
     Load(#[from] DesignSystemLoadError),
+    /// The buffer is valid but imports sources the host must resolve first.
     #[error("host must resolve CSS imports using DesignSystemLoader: {requests:?}")]
-    UnresolvedImports { requests: Vec<CssFileRequest> },
+    UnresolvedImports {
+        /// Imports that must be resolved before the buffer can be loaded.
+        requests: Vec<CssFileRequest>,
+    },
 }
 
+/// Process-local identity of one successful load.
+///
+/// Values increase monotonically within a process and are only meaningful for comparing
+/// two live revisions; persist [`DefinitionFingerprints`] instead.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DesignSystemRevision(pub u64);
 
+/// Content fingerprints of independently invalidatable semantic groups.
+///
+/// `content` covers the whole resolved snapshot and is the fingerprint a cache key
+/// should use. The other fields narrow an invalidation to configuration, ordering, lint
+/// policy, or one definition group. They are content-derived, so two loads of identical
+/// CSS agree even when their revisions differ.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionFingerprints {
+    /// Whole-snapshot content, including the compiler version and the selected built-in
+    /// CSS.
     pub content: Fingerprint,
+    /// Resolved prefix configuration only.
     pub config: Fingerprint,
+    /// Output template and theme-order metadata, which decide emitted ordering.
     pub ordering: Fingerprint,
+    /// Authored lint severities.
     pub lint_policy: Fingerprint,
+    /// Last authored fingerprint per token name, including reset entries. This map is
+    /// built before effective-token filtering; use `tokens()` for active values.
     pub theme_tokens: BTreeMap<String, Fingerprint>,
+    /// One fingerprint per utility name group.
     pub utilities: BTreeMap<String, Fingerprint>,
+    /// One fingerprint per variant name group.
     pub variants: BTreeMap<String, Fingerprint>,
+    /// One fingerprint per `@property` definition name.
     pub properties: BTreeMap<String, Fingerprint>,
 }
 
+/// The resolved data behind a snapshot. Never mutated after construction, and never
+/// handed out by value: callers reach it through accessors on the snapshot.
 #[derive(Debug)]
 struct DesignSystemData {
     revision: DesignSystemRevision,
@@ -53,6 +94,9 @@ struct DesignSystemData {
 }
 
 /// A cheaply cloneable, immutable revision. All access is read-only.
+///
+/// Cloning shares the same resolved registries; creating a new revision is the only way
+/// to change semantics, and it never alters a snapshot already in use.
 #[derive(Clone, Debug)]
 pub struct DesignSystemSnapshot {
     inner: Arc<DesignSystemData>,
@@ -61,7 +105,13 @@ pub struct DesignSystemSnapshot {
 impl DesignSystemSnapshot {
     /// Parses a single supplied buffer without performing I/O.
     ///
+    /// This is the convenience path for a stylesheet with no host-resolved imports. A
+    /// buffer that does contain imports is rejected with
+    /// [`DesignSystemError::UnresolvedImports`] rather than silently dropping them;
+    /// drive [`DesignSystemLoader`] instead when the host must resolve them.
+    ///
     /// # Errors
+    ///
     /// Returns invalid CSS or invalid resolved configuration.
     pub fn from_source(
         source: &SourceFile,
@@ -79,6 +129,19 @@ impl DesignSystemSnapshot {
         }
     }
 
+    /// Resolves one parsed theme, its supplied source graph, and the host options into
+    /// a snapshot.
+    ///
+    /// CSS-authored prefixes override the host defaults before validation, so the
+    /// stored configuration is the resolved one. Source IDs and spans are deliberately
+    /// excluded from every fingerprint: they depend on the order in which host reads
+    /// completed, and identical content must fingerprint identically regardless of that
+    /// order. Built-ins are parsed from the supplied theme CSS rather than injected;
+    /// that CSS may declare a registry directly or receive one through imports.
+    ///
+    /// # Errors
+    ///
+    /// Returns an invalid resolved prefix configuration.
     #[allow(clippy::too_many_lines)] // Resolve and fingerprint one immutable set of semantic registries.
     pub(crate) fn from_loaded_theme(
         theme: ThemeIndex,
@@ -235,54 +298,82 @@ impl DesignSystemSnapshot {
         })
     }
 
+    /// Revision of the snapshot's load, for cache identity within one process.
+    ///
+    /// This is process-local load identity. Two successful loads of identical CSS still
+    /// differ here; compare [`Self::fingerprints`] for content equality.
     pub fn revision(&self) -> DesignSystemRevision {
         self.inner.revision
     }
 
+    /// Stable content hashes of the snapshot and its invalidatable groups.
+    ///
+    /// Use these to key caches and to compare two revisions; the revision number is
+    /// process-local and must not be persisted.
     pub fn fingerprints(&self) -> &DefinitionFingerprints {
         &self.inner.fingerprints
     }
 
+    /// The resolved prefixes, including CSS-authored overrides of the host defaults.
     pub fn config(&self) -> &DesignSystemOptions {
         &self.inner.config
     }
 
+    /// Every source the host supplied, with its resolved edges and the expansion
+    /// mapping. Hosts use this to watch files and to attribute generated CSS.
     pub fn sources(&self) -> &CssSourceGraph {
         &self.inner.sources
     }
 
+    /// Utilities from the selected built-ins and from the project CSS, grouped by name.
     pub fn utilities(&self) -> &UtilityRegistry {
         &self.inner.utilities
     }
 
+    /// Declaration-format metadata after project CSS overrides are merged over the
+    /// selected built-ins.
     pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
         &self.inner.declaration_formats
     }
 
+    /// Relationship patterns after project CSS overrides are merged over the selected
+    /// built-ins.
     pub fn relationships(&self) -> &BTreeSet<String> {
         &self.inner.relationships
     }
 
+    /// Authored lint severities, mapped from rule name to `warn`, `deny`, or `off`.
+    /// Lint policy never changes generated CSS or generated names.
     pub fn lint_policy(&self) -> &BTreeMap<String, String> {
         &self.inner.theme.config.lint_rules
     }
 
+    /// Variants from the selected built-ins and from the project CSS, grouped by name.
     pub fn variants(&self) -> &VariantRegistry {
         &self.inner.variants
     }
 
+    /// `@stillwind-property` definitions from the selected built-ins and the project
+    /// CSS.
     pub fn properties(&self) -> &PropertyRegistry {
         &self.inner.properties
     }
 
+    /// The effective theme tokens after namespace resets, keyed by custom property
+    /// name.
     pub fn tokens(&self) -> &ThemeRegistry {
         &self.inner.tokens
     }
 
+    /// The built-in definition set selected by the loaded CSS. Current construction
+    /// returns `Some` even for an empty registry; emptiness is not represented by
+    /// `None`.
     pub fn builtins(&self) -> Option<&Arc<BuiltinDefinitions>> {
         self.inner.builtins.as_ref()
     }
 
+    /// The parsed theme, including token spans into the original supplied buffers and
+    /// the authored output template.
     pub fn theme(&self) -> &ThemeIndex {
         &self.inner.theme
     }

@@ -1,4 +1,17 @@
-//! Cross-module identities, finite candidate values, and module summaries.
+//! Cross-module identities, symbolic candidate values, and module summaries.
+//!
+//! This crate is the shared vocabulary between the JS frontend (`js-oxc`), the host
+//! type checker, and the compiler: declaration-site [`IdentityId`] values, the
+//! [`SymbolicValue`] / [`ExportedValue`] algebra that carries candidate sets across
+//! module boundaries, per-module [`ModuleSummary`] values, and the versioned
+//! [`TypeFacts`] a checker hands back for one module.
+//!
+//! Two rules dominate. Identity is created at the declaration site and derives from the
+//! normalized module path plus the declaration span, so an asset keeps one identity
+//! however it is imported or re-exported. Symbolic values stay sound: a value becomes
+//! finite only when the frontend proved the candidates, because a wrongly finite set
+//! pins CSS that may never apply. No I/O happens here, and nothing in this crate knows
+//! what CSS will be generated.
 
 #![cfg_attr(
     not(test),

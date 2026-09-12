@@ -1,3 +1,14 @@
+//! Pass order for one module.
+//!
+//! The pipeline clones the IR, orders style calls by composition topology, allocates a symbol
+//! for every declaration, emits animation and view-transition definitions, then runs one
+//! [`CallEmitter`] per call in that order. Source edits and helper imports are planned last,
+//! and prefix rewriting happens after all generated text exists, so a configured `--sw-` or
+//! `--tw-` spelling is never re-interpreted in the middle of a pass.
+//!
+//! Failure is all-or-nothing: once any diagnostic exists, the transforms, classes, symbols,
+//! and CSS are cleared, so a caller never receives a plan that describes half a compilation.
+
 use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
@@ -25,6 +36,7 @@ use crate::transforms::SourceTransform;
 use crate::{CompilerOptions, ImportPlanError};
 
 impl Compiler {
+    /// Compiles a module that owns source edits, including its runtime imports.
     pub(crate) fn compile_with_snapshot(
         source: &SourceFile,
         parsed: &ModuleAnalysis,
@@ -34,6 +46,10 @@ impl Compiler {
         Self::compile_snapshot(source, parsed, snapshot, compiler_options, true)
     }
 
+    /// Compiles a module whose only role is to supply support declarations.
+    ///
+    /// Support modules are analyzed like any other module, but their transforms are dropped:
+    /// they are not compiled into a file anyone applies edits to.
     pub(crate) fn compile_support_with_snapshot(
         source: &SourceFile,
         parsed: &ModuleAnalysis,
@@ -43,6 +59,10 @@ impl Compiler {
         Self::compile_snapshot(source, parsed, snapshot, compiler_options, false)
     }
 
+    /// The shared pass sequence; `emit_source` selects whether edits are returned.
+    ///
+    /// `parsed.ir` is cloned before ordering, because the call order is a property of the
+    /// compilation, not of the frontend's output, and the analysis may be reused.
     #[allow(clippy::too_many_lines)]
     fn compile_snapshot(
         source: &SourceFile,

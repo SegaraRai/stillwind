@@ -1,3 +1,13 @@
+//! Selection and serialization of `@property` registrations.
+//!
+//! Registration is driven by usage: a definition is emitted when the CSS declares or
+//! references its name, or when one of its activating properties appears. Activation
+//! pulls in each definition's dependencies and group members up to a fixed point. Only
+//! registered definitions can be emitted; a missing dependency name has no definition
+//! to emit. An authored `@property` rule wins over a built-in of the same name, and
+//! built-in definitions are emitted through the compatibility wrapper the built-in
+//! stylesheet uses, so a browser that lacks the at-rule still gets fallback values.
+
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
@@ -6,6 +16,16 @@ use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
 
 use crate::CompilerOptions;
 
+/// Renders the `@property` rules `css` needs, or an empty string when none are needed.
+///
+/// Duplicates are resolved while walking the registry backwards, so a theme definition
+/// wins over a built-in of the same name, and the list is reversed once more before
+/// emission, so the output keeps the registry's own order.
+///
+/// # Errors
+///
+/// Returns [`PropertyUsageError`] when CSS usage cannot be parsed. Values are not
+/// checked against the registered `@property` syntax descriptor.
 #[allow(clippy::too_many_lines)]
 pub(in crate::compiler) fn render_used_properties(
     theme: &ThemeIndex,

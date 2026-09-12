@@ -1,3 +1,9 @@
+//! JavaScript-facing compiler options.
+//!
+//! Every field is optional and falls back to the Rust default, so a host can pass `{}`
+//! and get the documented defaults. Values are validated here, which turns a bad prefix
+//! or namespace into a JavaScript error before any source is read.
+
 use napi::Error;
 use napi_derive::napi;
 
@@ -7,9 +13,13 @@ use stillwind_compiler::CompilerOptions;
 #[napi(object)]
 #[derive(Default)]
 pub struct NativeCompilerOptions {
+    /// Prefix for Stillwind-owned identifiers. Must start with `--` and end with `-`.
     pub prefix: Option<String>,
+    /// Prefix for the retained Tailwind-compatibility namespace.
     pub tailwind_prefix: Option<String>,
+    /// Whether theme relationships that only Tailwind needs are rejected.
     pub forbid_tailwind_relationships: Option<bool>,
+    /// Identifier namespace for generated class names.
     pub class_namespace: Option<String>,
 }
 
@@ -33,6 +43,7 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
     }
 }
 
+/// Resolves optional host overrides into validated compiler options.
 pub(crate) fn compiler_options(
     options: Option<NativeCompilerOptions>,
 ) -> napi::Result<CompilerOptions> {

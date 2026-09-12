@@ -1,3 +1,15 @@
+//! Scanning a converter's shadow module and answering in original coordinates.
+//!
+//! The pipeline is: build a [`SourceFile`] for the generated text, normalize it against
+//! the projection, parse the normalized source, map the IR back to the original file,
+//! then rewrite every diagnostic label, lint label, module specifier, asset record and
+//! exported symbolic value into original spans. Anything that cannot be mapped is
+//! reported rather than left in generated coordinates.
+//!
+//! Checker-fact application for projected inputs is not implemented, so
+//! [`ParsedJavaScript::type_probes`] is cleared and the analysis is intentionally
+//! fact-free.
+
 use std::collections::BTreeMap;
 
 use stillwind_ir::SourceInput;
@@ -7,6 +19,12 @@ use stillwind_source::{ProjectionError, SourceFile, SourceProvenance, Span};
 use crate::normalization::normalize_with_language;
 use crate::{NormalizedProjection, ParsedJavaScript, parse_with_language};
 
+/// Parses a projected input and returns IR plus the provenance it collected.
+///
+/// The converter identity must be complete (name, version, options fingerprint),
+/// because the cache key of the resulting artifact depends on it. Diagnostics whose
+/// labels cannot be mapped point at the start of the original file instead of at a
+/// generated offset.
 pub(crate) fn parse_projected(
     input: &SourceInput,
 ) -> Result<(ParsedJavaScript, Vec<SourceProvenance>), ProjectionError> {
@@ -99,6 +117,10 @@ pub(crate) fn parse_projected(
     Ok((parsed, provenance))
 }
 
+/// Rewrites an identity's declaration span into the original file.
+///
+/// The module path and declaration offsets in the identity are rewritten together.
+/// The resulting key names the original declaration rather than the generated copy.
 fn map_identity(
     identity: &mut IdentityId,
     normalized: &NormalizedProjection<'_>,
@@ -115,6 +137,9 @@ fn map_identity(
     Ok(())
 }
 
+/// Rewrites every finite candidate of a symbolic value into original spans.
+///
+/// A universe value needs no mapping, because it holds no identities.
 fn map_symbolic(
     value: &mut SymbolicValue,
     normalized: &NormalizedProjection<'_>,

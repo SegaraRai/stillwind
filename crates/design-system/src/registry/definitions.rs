@@ -1,3 +1,9 @@
+//! The complete built-in definition set parsed from one CSS buffer.
+//!
+//! A snapshot keeps the selected built-ins as one immutable value so callers never
+//! consult a process-global registry: two snapshots built from different CSS stay
+//! independent, and no load can leak definitions into another.
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use stillwind_css::{CustomPropertyDefinition, ValueType, parse_property_definitions};
@@ -13,27 +19,55 @@ use crate::{
 };
 
 /// Immutable registries parsed from the CSS supplied by a host.
+///
+/// `utilities`, `variants`, and the metadata collections stay in authored order,
+/// including repeated names; consumers resolve duplicates by their own documented
+/// precedence rules and may not sort these vectors.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BuiltinDefinitions {
+    /// The exact CSS this value was parsed from. It participates in snapshot
+    /// fingerprints, so an upstream definition change invalidates artifacts even when
+    /// the parsed structures happen to compare equal.
     pub source: String,
+    /// All `@stillwind-utility` definitions in authored order.
     pub utilities: Vec<CustomUtility>,
+    /// All `@stillwind-variant` definitions in authored order.
     pub variants: Vec<CustomVariant>,
+    /// All `@stillwind-property` definitions in authored order.
     pub properties: Vec<CustomPropertyDefinition>,
+    /// Exact-name utilities, grouped without losing authored order.
     pub builtin_exact: HashMap<String, Vec<CustomUtility>>,
+    /// Wildcard utilities, which are matched by longest name prefix.
     pub wildcards: Vec<CustomUtility>,
+    /// Source order for arbitrary properties, used when a utility body sets several of
+    /// them and declaration order is observable.
     pub arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
+    /// Animation option definitions, kept apart from ordinary utilities so option
+    /// spellings never become utilities.
     pub animation_options: Vec<CustomUtility>,
+    /// Animation option name to the property it rewrites.
     pub animation_property_mappings: BTreeMap<String, String>,
+    /// Declaration format name to its serialized value grammar.
     pub declaration_formats: BTreeMap<String, String>,
+    /// Function names that accept a declaration format as an argument.
     pub function_formats: BTreeSet<String>,
+    /// Candidate patterns identifying compatibility relationships.
     pub relationships: BTreeSet<String>,
+    /// Utilities that emit only a marker class and no declarations.
     pub marker_utilities: BTreeSet<String>,
+    /// Namespace to the prefix a token name omits when it is referenced.
     pub omit_token_prefixes: Vec<(String, String)>,
+    /// Theme namespace names in the order utilities consume them.
     pub theme_order: Vec<String>,
+    /// CSS-authored value types per namespace.
     pub theme_namespace_types: BTreeMap<ThemeNamespace, Vec<ValueType>>,
 }
 
 impl BuiltinDefinitions {
+    /// Parses every registry that can be expressed as CSS from `css`.
+    ///
+    /// Utility bodies are canonicalized before use; the raw declarations are not
+    /// retained, so a definition's identity is its normalized body.
     pub fn from_css(css: &str) -> Self {
         let function_formats = parse_function_formats(css);
         let normalize = |mut utility: CustomUtility| {

@@ -1,21 +1,44 @@
+//! The folded numeric tree and its printer.
+//!
+//! Values are kept in their authored unit spelling, so `2rem + 3rem` folds to `5rem`
+//! but `1cm + 1mm` does not fold at all - no conversion happens here. Anything the
+//! parser cannot reduce to a number, dimension or percentage becomes an `Atom` and is
+//! preserved verbatim.
+//!
+//! Serialization uses operator precedence. It may flatten equal-precedence sums and
+//! products, so the printed syntax tree need not be identical to the stored tree.
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MathValue {
+    /// A unitless number.
     Number(f64),
+    /// A number with its authored unit, for example `2px` or `3rem`.
     Dimension(f64, String),
+    /// A percentage, stored as the numeric part only.
     Percentage(f64),
 }
 
+/// One node of a parsed `calc()` expression.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MathExpression {
+    /// A fully known numeric value.
     Value(MathValue),
+    /// Text that is not numeric, such as `var(--x)` or an unknown function call, kept
+    /// exactly as it was written.
     Atom(String),
+    /// Addition of two operands.
     Sum(Box<Self>, Box<Self>),
+    /// Multiplication of two operands.
     Product(Box<Self>, Box<Self>),
+    /// Division of two operands, kept only when it cannot be folded.
     Quotient(Box<Self>, Box<Self>),
+    /// Unary minus, kept when the operand is not a value.
     Negate(Box<Self>),
 }
 
 impl MathExpression {
+    /// Negates the expression, folding the sign into a numeric value and cancelling an
+    /// existing negation.
     pub(crate) fn negate(self) -> Self {
         match self {
             Self::Value(MathValue::Number(value)) => Self::Value(MathValue::Number(-value)),
@@ -28,6 +51,11 @@ impl MathExpression {
         }
     }
 
+    /// Multiplies two operands, folding what is exactly foldable.
+    ///
+    /// Multiplying by a dimensionless number keeps the other operand's unit, and
+    /// multiplying a zero by a percentage stays a percentage so the result keeps
+    /// percentage semantics in CSS. Anything else is kept as a product.
     pub(crate) fn product(left: Self, right: Self) -> Self {
         if let (
             Self::Product(value, coefficient),
@@ -72,6 +100,10 @@ impl MathExpression {
         }
     }
 
+    /// Adds two operands, folding only values of the same kind.
+    ///
+    /// Dimensions fold only when their unit spellings match case-insensitively; no unit
+    /// conversion is attempted, so mixed units stay symbolic.
     pub(crate) fn sum(left: Self, right: Self) -> Self {
         match (left, right) {
             (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
@@ -91,6 +123,10 @@ impl MathExpression {
         }
     }
 
+    /// The unit of the first numeric dimension anywhere in the tree.
+    ///
+    /// Used to give a folded bare zero the dimension the surrounding declaration
+    /// expects; it never invents a unit where none exists.
     pub(crate) fn numeric_unit(&self) -> Option<&str> {
         match self {
             Self::Value(MathValue::Dimension(_, unit)) => Some(unit),
@@ -102,6 +138,7 @@ impl MathExpression {
         }
     }
 
+    /// Binding strength of the node, used only to decide parentheses.
     pub(crate) fn precedence(&self) -> u8 {
         match self {
             Self::Sum(..) => 1,
@@ -111,6 +148,11 @@ impl MathExpression {
         }
     }
 
+    /// Prints the expression, parenthesizing operands weaker than `parent_precedence`.
+    ///
+    /// A negation on the right of a sum prints as subtraction, and division prints its
+    /// right operand one level tighter. Equal-precedence sums and products may be
+    /// flattened during printing.
     pub(crate) fn serialize(&self, parent_precedence: u8) -> String {
         let precedence = self.precedence();
         let value = match self {
@@ -155,6 +197,10 @@ impl MathExpression {
     }
 }
 
+/// Prints a number the way Stillwind emits CSS numbers.
+///
+/// Negative zero prints as `0`, integral values lose their fractional part, and
+/// fractions below one drop the leading zero (`.5`, `-.5`).
 pub(crate) fn serialize_number(value: f64) -> String {
     if value == 0.0 {
         return "0".to_owned();

@@ -1,6 +1,20 @@
+//! `calc()` folding over a CSS fragment.
+//!
+//! Folding is textual replacement guided by a real parse: every `calc(` is
+//! located by substring search, its matching parenthesis resolved, and a successfully
+//! parsed expression is reprinted. The outer search does not skip CSS strings or
+//! comments. A `calc()` that fails to parse, or whose matching parenthesis is missing,
+//! is copied through unchanged, so malformed input still reaches the CSS parser and
+//! produces a real error there.
+
 use super::expression::{MathExpression, MathValue};
 use super::parser::MathParser;
 
+/// Returns the byte offset of the `)` matching the `(` at `open`.
+///
+/// Quoted strings and escaped characters are skipped, so parentheses inside a string do
+/// not affect the depth. `None` means the parenthesis is never closed or a `)` appears
+/// first.
 pub(crate) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
@@ -39,8 +53,11 @@ pub fn fold_calc_expressions(value: &str) -> String {
     fold_calc_expressions_with_zero_unit(value, None)
 }
 
-/// Parses and folds `calc()` expressions, assigning a dimension to a folded
-/// zero when the surrounding declaration metadata requires one.
+/// Parses and folds `calc()` expressions, assigning a dimension to a folded zero when
+/// the surrounding declaration metadata requires one.
+///
+/// The unit applies only to a value that really folded to the bare number zero,
+/// including `calc(0)`, but never to a bare `0` outside `calc()` or to an atom.
 #[must_use]
 pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>) -> String {
     let mut output = String::with_capacity(value.len());
@@ -80,8 +97,8 @@ pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>
     output
 }
 
-/// Applies a declaration's length-zero format after parsing the value as CSS
-/// numeric syntax. Non-zero and non-numeric values are returned unchanged.
+/// Applies a declaration's length-zero format after parsing the value as CSS numeric
+/// syntax. Non-zero and non-numeric values are returned unchanged.
 #[must_use]
 pub fn format_numeric_zero(value: &str, unit: &str) -> String {
     let folded = fold_calc_expressions_with_zero_unit(value, Some(unit));

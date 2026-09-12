@@ -1,8 +1,22 @@
+//! The Tailwind theme namespaces that participate in utility and variant resolution,
+//! and their CSS-authored value types.
+//!
+//! Namespace membership is a closed list. A custom property outside it stays available
+//! as authored CSS but never creates a candidate value, which is what stops a project's
+//! own variable from accidentally becoming a utility.
+//!
+//! Value types are declared in CSS, not here, so a registry update can change which
+//! arbitrary values a namespace accepts without a Rust change.
+
 use std::collections::BTreeMap;
 
 use stillwind_css::ValueType;
 
 /// Parses the CSS-authored type set for each Tailwind theme namespace.
+///
+/// Each statement names one namespace pattern and the value types it accepts; unknown
+/// namespaces, types, and statements without any recognized type are skipped, and a
+/// later statement replaces an earlier one for the same namespace.
 #[must_use]
 pub fn parse_theme_namespace_types(css: &str) -> BTreeMap<ThemeNamespace, Vec<ValueType>> {
     css.split('@')
@@ -28,36 +42,60 @@ pub fn parse_theme_namespace_types(css: &str) -> BTreeMap<ThemeNamespace, Vec<Va
         .collect()
 }
 
-/// Tailwind v4 theme namespaces that participate in built-in utility and
-/// variant resolution. Unknown custom properties remain available as authored
-/// CSS but never accidentally create a utility.
+/// Tailwind v4 theme namespaces that participate in built-in utility and variant
+/// resolution. Unknown custom properties remain available as authored CSS but never
+/// accidentally create a utility.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ThemeNamespace {
+    /// `--animate-*`: animation shorthand values.
     Animate,
+    /// `--aspect-ratio-*`: `aspect-ratio` values.
     AspectRatio,
+    /// `--blur-*`: blur radii for filter utilities.
     Blur,
+    /// `--breakpoint-*`: media-query minimum widths for responsive variants.
     Breakpoint,
+    /// `--color-*`: color values.
     Color,
+    /// `--container-*`: container-query widths for `@container` variants.
     Container,
+    /// `--drop-shadow-*`: `drop-shadow()` filter values.
     DropShadow,
+    /// `--ease-*`: transition timing functions.
     Ease,
+    /// `--font-*`: font family lists.
     Font,
+    /// `--font-stretch-*`: `font-stretch` percentages.
     FontStretch,
+    /// `--font-weight-*`: numeric font weights.
     FontWeight,
+    /// `--inset-shadow-*`: inset box-shadow values.
     InsetShadow,
+    /// `--leading-*`: line heights.
     Leading,
+    /// `--perspective-*`: 3D perspective distances.
     Perspective,
+    /// `--radius-*`: corner radii.
     Radius,
+    /// `--shadow-*`: box-shadow values.
     Shadow,
+    /// `--spacing-*`: the spacing scale used by padding, margin, gap, and size utilities.
     Spacing,
+    /// `--text-*`: font sizes.
     Text,
+    /// `--text-shadow-*`: text-shadow values.
     TextShadow,
+    /// `--tracking-*`: letter spacing.
     Tracking,
+    /// `--z-index-*`: stacking order values.
     ZIndex,
+    /// `--duration-*`: transition durations.
     Duration,
 }
 
 impl ThemeNamespace {
+    /// The namespace's name as it appears in CSS custom properties, for example `color`
+    /// for `--color-*`.
     #[must_use]
     pub const fn css_name(self) -> &'static str {
         match self {
@@ -86,6 +124,11 @@ impl ThemeNamespace {
         }
     }
 
+    /// Parses a namespace name; matching is case-sensitive.
+    ///
+    /// The order of the candidates is checked by the test suite against
+    /// [`Self::css_name`] for every variant, so a new namespace must be added to both
+    /// lists.
     #[must_use]
     pub fn parse(value: &str) -> Option<Self> {
         [

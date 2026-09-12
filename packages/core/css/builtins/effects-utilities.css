@@ -265,9 +265,11 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-/* A token shadow with a slash opacity modifier needs its authored colour,
- * rather than a `var()` reference. `--relative-color` is the generic registry
- * extension for this CSS Color 5 relative-colour operation. */
+/*
+A token shadow with a slash opacity modifier needs its authored color, rather than a
+`var()` reference. `--stillwind-builtin-shadow-color` is the registry extension for this
+CSS Color 5 relative-color operation.
+*/
 @stillwind-utility inset-shadow-* {
   --tw-inset-shadow-alpha: --alpha(--modifier());
   --tw-inset-shadow: --stillwind-builtin-shadow-color(

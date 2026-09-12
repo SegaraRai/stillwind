@@ -1,3 +1,16 @@
+//! One parse of a module into IR, diagnostics and a module summary.
+//!
+//! [`parse_with_language`] is the single entry point: it runs Oxc, builds the semantic
+//! scoping table, seeds direct producer bindings, visits the program with
+//! [`MacroExtractor`], and then adds the demand-driven import slices. Checker facts are
+//! optional inputs that let expressions imported from other modules resolve without a
+//! type checker in this crate.
+//!
+//! Diagnostics are split by code: the codes listed in [`lint_rule_for_code`] become
+//! [`LintFinding`]s so `swlint-*` comments can suppress them, and every other
+//! diagnostic stays an error. The split happens here so both consumers see consistent
+//! sets.
+
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -14,21 +27,40 @@ use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
 use crate::imports::collect;
 use crate::state::MacroExtractor;
 
+#[cfg(doc)]
+use {crate::OxcSourceAnalyzer, stillwind_ir::SourceAnalyzer};
+
+/// The result of parsing one module.
+///
+/// The fields are independent: [`Self::module`] is the IR, [`Self::summary`] the
+/// cross-module facts, and the two diagnostic vectors the findings. Every span they
+/// carry belongs to `source`.
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
+    /// Adapter selected from the macro import, when one was imported.
     pub framework: Option<AdapterKind>,
+    /// Expression spans the host checker should resolve, deduplicated.
     pub type_probes: Vec<Span>,
+    /// Errors; lint-coded diagnostics are moved to `lint_findings` instead.
     pub diagnostics: Vec<CompileError>,
+    /// Suppressible findings, one per lint-coded diagnostic.
     pub lint_findings: Vec<LintFinding>,
+    /// Module IR lowered from the parsed program.
     pub module: ModuleIr,
+    /// Cross-module facts published for this module.
     pub summary: ModuleSummary,
 }
 
+/// Parses a module with optional checker facts and extension-based language detection.
 pub fn parse(source: &SourceFile) -> ParsedJavaScript {
     parse_with_type_facts(source, &[], &BTreeMap::new())
 }
 
 /// Parses a module using expression facts produced by the TypeScript checker.
+///
+/// Facts are matched by expression span and are only as trustworthy as their enclosing
+/// `TypeFacts` revisions; [`OxcSourceAnalyzer::finalize`] validates those before
+/// calling here.
 pub fn parse_with_type_facts(
     source: &SourceFile,
     type_facts: &[TypeFact],
@@ -42,6 +74,11 @@ pub fn parse_with_type_facts(
     )
 }
 
+/// Parses a module with an explicit language and checker facts.
+///
+/// The language decides the Oxc source type, so a shadow module for a `.vue` or
+/// `.svelte` file must be given the language of its script rather than one
+/// guessed from the path.
 pub fn parse_with_language(
     source: &SourceFile,
     type_facts: &[TypeFact],
@@ -113,6 +150,11 @@ pub fn parse_with_language(
     }
 }
 
+/// Chooses the Oxc source type for a path and an explicit language.
+///
+/// The language wins over the extension, because a projection or an opaque host name
+/// may not carry a usable suffix; an unknown extension falls back to the Oxc default
+/// rather than failing.
 pub(crate) fn source_type(path: &str, language: ScriptLanguage) -> SourceType {
     let typescript = matches!(language, ScriptLanguage::Ts | ScriptLanguage::Tsx);
     let jsx = matches!(language, ScriptLanguage::Jsx | ScriptLanguage::Tsx);
@@ -124,6 +166,10 @@ pub(crate) fn source_type(path: &str, language: ScriptLanguage) -> SourceType {
         .with_standard(!jsx)
 }
 
+/// Maps a diagnostic code to the lint rule that may suppress it.
+///
+/// Rules are stable names used in `swlint-disable` comments. A code that is not listed
+/// here stays a hard error and can never be suppressed.
 fn lint_rule_for_code(code: &str) -> Option<&'static str> {
     Some(match code {
         "SHREF003" => "require-anchor-provider",

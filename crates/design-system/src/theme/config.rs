@@ -1,7 +1,19 @@
+//! The `@stillwind` configuration block.
+//!
+//! Only the settings the loader can resolve from CSS itself live here: the two
+//! custom-property prefixes and lint severities. A key is stored as a lint rule only
+//! when its value is `warn`, `deny`, or `off`, so an unrelated declaration in the same
+//! block cannot silently become a policy.
+
 use std::collections::BTreeMap;
 
 use stillwind_css::blocks::{extract_named_blocks, strip_css_comments};
 
+/// Extracts the configuration from every `@stillwind` block, after comments are removed
+/// so a commented example cannot configure a project.
+///
+/// Declarations are read in authored order and the last occurrence of a key wins.
+/// Quoted values are accepted, and only the keys this parser knows are kept.
 pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
     let mut config = StillwindConfig::default();
     for (_, body) in extract_named_blocks(&strip_css_comments(css), "@stillwind") {
@@ -26,14 +38,20 @@ pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
     config
 }
 
+/// CSS-authored configuration before it is resolved against host defaults.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StillwindConfig {
+    /// Stillwind-owned prefix, when the CSS configures one.
     pub prefix: Option<String>,
+    /// Tailwind-compatibility prefix, when the CSS configures one.
     pub tailwind_prefix: Option<String>,
+    /// Severities for lint rules named by the CSS.
     pub lint_rules: BTreeMap<String, String>,
 }
 
 impl StillwindConfig {
+    /// Whether a rule is active, which is the case for `warn` and `deny` and never for
+    /// `off` or an unmentioned rule.
     #[must_use]
     pub fn lint_enabled(&self, rule: &str) -> bool {
         self.lint_rules

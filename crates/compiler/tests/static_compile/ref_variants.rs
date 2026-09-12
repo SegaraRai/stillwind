@@ -1,3 +1,10 @@
+//! Ref variants in selectors and templates.
+//!
+//! Pins that ref presence uses the existing scope or ancestor relation, that call and tag spellings
+//! normalize the same way, that direct interpolation matches ordered nested wrappers, that custom
+//! alternatives and media conditions survive lowering, and that an unusable ref variant reports a
+//! diagnostic instead of emitting an unscoped selector.
+
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;

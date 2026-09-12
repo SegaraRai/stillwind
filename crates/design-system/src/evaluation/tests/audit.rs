@@ -1,3 +1,9 @@
+//! Registry audits over the vendored CSS and the parity fixtures.
+//!
+//! The regular test checks that negative-value definitions state their sign explicitly.
+//! The ignored, opt-in audit checks built-in reachability from parity fixtures; normal
+//! test runs do not enforce that exhaustive coverage requirement.
+
 use super::*;
 use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 
@@ -59,8 +65,8 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
     for path in fixture_paths {
         let markdown = fs::read_to_string(&path).expect("parity fixture");
         for (case_index, (input, candidates)) in parity_cases(&markdown).into_iter().enumerate() {
-            // `prefix(...)` import modifiers are explicitly unsupported, and the
-            // scope directives select sources outside a resolved stylesheet.
+            // `prefix(...)` import modifiers are explicitly unsupported, and the scope
+            // directives select sources outside a resolved stylesheet.
             if ["@source", "@config", "@plugin", "@reference", "prefix("]
                 .iter()
                 .any(|directive| input.contains(directive))

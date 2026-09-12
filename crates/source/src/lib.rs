@@ -1,4 +1,14 @@
-//! Source buffers, spans, line indexes, and diagnostics used by every compiler pass.
+//! Source buffers, spans, line indexes, diagnostics, and lint suppression.
+//!
+//! Two coordinate systems are kept apart. Rust passes address text in UTF-8 bytes
+//! ([`BytePos`], [`Span`]); hosts and source maps address it in UTF-16 code units
+//! ([`Position`], [`Utf16Offset`]). [`CoordinateIndex`] is the only sanctioned
+//! translation between them, and it rejects offsets inside a surrogate pair.
+//!
+//! [`SourceFile`] owns immutable text and validates every slice, so a [`Span`] is
+//! meaningless outside the file that produced it. [`Fingerprint`] provides
+//! process-independent content identity, and the lint module owns the `swlint-*`
+//! suppression rules shared by all passes. The crate performs no I/O.
 
 #![cfg_attr(
     not(test),

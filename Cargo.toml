@@ -41,6 +41,7 @@ proptest = "1.11.0"
 [workspace.lints.rust]
 unsafe_code = "forbid"
 unused_must_use = "deny"
+missing_docs = "warn"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

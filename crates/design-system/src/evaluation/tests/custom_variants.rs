@@ -1,3 +1,9 @@
+//! User-authored variants and the CSS value functions they use.
+//!
+//! Pins that `@variant` blocks, wildcard selector variants, and container variants
+//! resolve with the same slot syntax as built-ins, and that theme wildcards and typed
+//! modifiers expand inside them.
+
 use super::*;
 use crate::evaluation::builtins::metadata::COMPAT_COLOR_SUPPORT;
 

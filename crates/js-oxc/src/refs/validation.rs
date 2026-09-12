@@ -1,3 +1,17 @@
+//! In-file validation of ref and scope usage rules.
+//!
+//! These checks run after the whole module is visited, because they compare uses with
+//! declarations and with each other. A rule is only decided when the relevant JSX is
+//! visible in this file: a use without a JSX path, or a ref whose provider lives in
+//! another module, is skipped rather than reported, since nothing here can prove a
+//! violation.
+//!
+//! Codes are stable and suppressible through `swlint-*` where the registry allows it:
+//! `SHREF003` (position without anchor), `SHREF006` (container query without
+//! container), `SHREF007` (selector without a known ancestor ref), `SHSCOPE002` (bound
+//! scope never attached), `SHSCOPE003` (scope not an ancestor) and `SHSCOPE004` (scoped
+//! selector outside its scope).
+
 use std::collections::HashSet;
 
 use stillwind_source::CompileError;
@@ -5,6 +19,12 @@ use stillwind_source::CompileError;
 use crate::state::MacroExtractor;
 
 impl MacroExtractor<'_> {
+    /// Checks every ref use whose rule can be decided from this module.
+    ///
+    /// Anchors are collected across the whole module rather than per JSX tree, because
+    /// a ref may be attached in one element and used in a nested one. A selector use is
+    /// only reported when at least one anchor path is known and none of them is an
+    /// ancestor.
     pub(crate) fn validate_handles(&mut self) {
         let names = self
             .handle_uses
@@ -82,6 +102,11 @@ impl MacroExtractor<'_> {
         self.validate_scoped_refs();
     }
 
+    /// Checks that every bound scope is attached to a strict ancestor.
+    ///
+    /// Only scoped refs take part: an unscoped ref uses the descendant-only relation
+    /// and has no provider to look for. Selector uses are checked separately from other
+    /// uses because they target a different element.
     pub(crate) fn validate_scoped_refs(&mut self) {
         for (definition, scope) in self
             .handle_definitions
@@ -155,6 +180,10 @@ impl MacroExtractor<'_> {
     }
 }
 
+/// True when `ancestor` is a strict prefix of `descendant`.
+///
+/// Equality is not ancestry, and the whole path must match, so two sibling subtrees
+/// never look nested.
 fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
 }

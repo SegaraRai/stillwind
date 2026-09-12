@@ -1,3 +1,9 @@
+//! Ref and scope projection.
+//!
+//! Pins that one declaration projects into anchor, position, scope, and container names sharing one
+//! identity, that named container queries emit rules for the ref's target, that scopes get readable
+//! marker names, and that a selector which cannot hold the required ancestry is rejected.
+
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;

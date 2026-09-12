@@ -1,29 +1,57 @@
+//! `swlint-*` comment directives and the filter that applies them.
+//!
+//! Directives are parsed out of the raw source text by scanning comments while skipping
+//! string literals, so directive-shaped text inside a string or template is not a
+//! directive. A parsed directive carries the kind, the byte offset and zero-based line
+//! of its keyword, and the rule names it names; an empty rule list means every rule.
+//!
+//! The compiler filters analysis findings before lowering and filters the combined
+//! findings again after emission; suppression therefore cannot depend on which pass
+//! noticed a problem. A finding is judged by its first label, and a finding without
+//! labels is treated as covering the whole file.
+
 use std::collections::BTreeSet;
 
 use crate::diagnostics::LintFinding;
 use crate::text::SourceFile;
 
+/// What a directive switches off, as determined by its keyword.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LintDirectiveKind {
+    /// `swlint-disable`: the listed rules stay off until a matching `enable`.
     Disable,
+    /// `swlint-enable`: re-enables the listed rules from this point on.
     Enable,
+    /// `swlint-disable-line`: applies to the line the directive sits on.
     DisableLine,
+    /// `swlint-disable-next-line`: applies to the following line only.
     DisableNextLine,
 }
 
+/// One parsed `swlint-*` comment.
 #[derive(Clone, Debug)]
 pub struct LintDirective {
+    /// Which suppression form the comment used.
     pub kind: LintDirectiveKind,
+    /// Byte offset of the directive keyword, used to order it against findings.
     pub offset: usize,
+    /// Zero-based line containing the directive keyword.
     pub line: usize,
+    /// Rule names following the keyword; empty means every rule.
     pub rules: Vec<String>,
 }
 
 /// Removes lint findings suppressed by `swlint-disable*` comments.
 ///
-/// The source span is deliberately used after all analysis has completed, so
-/// findings produced by different compiler passes share the same suppression
-/// semantics. Both line and block comments are accepted.
+/// The source span is deliberately used after all analysis has completed, so findings
+/// produced by different compiler passes share the same suppression semantics. Both
+/// line and block comments are accepted.
+///
+/// Scope follows the directive kind: `disable-line` covers the directive's own line,
+/// `disable-next-line` the following line, and `disable` / `enable` every finding at or
+/// after the directive offset, applied in source order. A `disable` never reaches
+/// backwards, findings not named by a rule list are kept, and this function can only
+/// remove findings, never add them.
 pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>) {
     let directives = collect_lint_directives(source.text());
     if directives.is_empty() {
@@ -85,6 +113,16 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
     });
 }
 
+/// Parses the `swlint-*` directives in `source`, in source order.
+///
+/// Comment bodies are scanned with string and template literals skipped, so directive
+/// text inside a literal is ignored. A rule list ends at `--`, which lets the directive
+/// carry a trailing human explanation; rules are separated by whitespace or commas.
+///
+/// A comment yields at most one directive, and only from its first `swlint-`
+/// occurrence; if the text after that occurrence names no keyword, the comment
+/// contributes nothing. There is no requirement that the keyword start the comment:
+/// prose containing a recognized directive spelling is parsed too.
 pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
     let bytes = source.as_bytes();
     let mut comments = Vec::new();
@@ -130,6 +168,8 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
             let relative = body.find("swlint-")?;
             let directive_offset = offset + relative;
             let rest = &body[relative + "swlint-".len()..];
+            // Longest keyword first: `disable` would otherwise swallow `disable-line`
+            // and `disable-next-line` and never see their kind.
             let (kind, rest) = [
                 ("disable-next-line", LintDirectiveKind::DisableNextLine),
                 ("disable-line", LintDirectiveKind::DisableLine),

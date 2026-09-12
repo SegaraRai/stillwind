@@ -1,8 +1,16 @@
+//! Shared fixture and catalog helpers for the evaluation test modules.
+//!
+//! The helpers load the real vendored registry and the parity fixtures, expand CSSWG
+//! formal syntax over property references, and resolve variants through the same code
+//! path the compiler uses, so the suites never validate a simplified stand-in for
+//! production behavior.
+
 use stillwind_css::csswg_formal_syntax;
 
 use super::*;
 use crate::evaluation::variants::resolve::resolve_registered_variant_candidate;
 
+/// Canonicalizes a vendored body using the formats of the standard package.
 pub(super) fn canonical_builtin_body(value: &str) -> String {
     static FORMATS: std::sync::OnceLock<BTreeSet<String>> = std::sync::OnceLock::new();
     crate::canonical_builtin_body(
@@ -13,6 +21,7 @@ pub(super) fn canonical_builtin_body(value: &str) -> String {
     )
 }
 
+/// The formal-syntax terms the catalog treats as primitives.
 pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "angle",
     "angle-percentage",
@@ -32,6 +41,7 @@ pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "url",
 ];
 
+/// Property names a formal syntax references through `<'property'>`.
 pub(super) fn property_references(syntax: &str) -> Vec<&str> {
     let mut references = Vec::new();
     let mut remainder = syntax;
@@ -46,6 +56,10 @@ pub(super) fn property_references(syntax: &str) -> Vec<&str> {
     references
 }
 
+/// Expands a property's formal syntax with the syntaxes it references.
+///
+/// `visited` breaks reference cycles; `None` means an unknown property or a reference
+/// the CSS data does not describe.
 pub(super) fn expanded_csswg_syntax(
     property: &str,
     visited: &mut BTreeSet<String>,
@@ -62,6 +76,7 @@ pub(super) fn expanded_csswg_syntax(
     Some(expanded)
 }
 
+/// Splits a CSS value into the formal-syntax terms it mentions.
 pub(super) fn formal_terms(syntax: &str) -> BTreeSet<&str> {
     let mut terms = BTreeSet::new();
     let mut remainder = syntax;
@@ -86,6 +101,7 @@ pub(super) fn formal_terms(syntax: &str) -> BTreeSet<&str> {
     terms
 }
 
+/// Reads a property's own value domains without following references.
 pub(super) fn direct_value_domains(value: &str) -> Vec<ValueType> {
     if !value.trim_start().starts_with("--value(") {
         return Vec::new();
@@ -105,12 +121,14 @@ pub(super) fn direct_value_domains(value: &str) -> Vec<ValueType> {
     domains
 }
 
+/// Whether a formal syntax uses constructs the simple-term model does not cover.
 pub(super) fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) -> bool {
     syntax.contains("&&")
         || syntax.contains("||")
         || terms.iter().any(|term| !SIMPLE_CSSWG_TERMS.contains(term))
 }
 
+/// A theme parsed from the standard package, for tests that need built-ins.
 pub(super) fn theme() -> ThemeIndex {
     parse_fixture_theme(&SourceFile::new(
             FileId(1),
@@ -120,6 +138,7 @@ pub(super) fn theme() -> ThemeIndex {
         .unwrap()
 }
 
+/// Rows of a markdown catalog section, up to the next heading.
 pub(super) fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
     let start = markdown
         .find(heading)
@@ -137,6 +156,7 @@ pub(super) fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a s
         .collect()
 }
 
+/// The vendored registry CSS files and the name each is reported under.
 pub(super) const REGISTRY_FILES: &[(&str, &str)] = &[
     (
         "registry-metadata.css",
@@ -224,6 +244,7 @@ pub(super) const REGISTRY_FILES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Every utility the vendored registry defines, with its originating file.
 pub(super) fn registry_utilities() -> Vec<(String, CustomUtility)> {
     let mut definitions = Vec::new();
     for (file, css) in REGISTRY_FILES {
@@ -238,6 +259,7 @@ pub(super) fn registry_utilities() -> Vec<(String, CustomUtility)> {
     definitions
 }
 
+/// Every variant the vendored registry defines, with its originating file.
 pub(super) fn registry_variants() -> Vec<(String, CustomVariant)> {
     let mut definitions = Vec::new();
     for (file, css) in REGISTRY_FILES {
@@ -251,6 +273,7 @@ pub(super) fn registry_variants() -> Vec<(String, CustomVariant)> {
     definitions
 }
 
+/// The contents of the first fenced block under a markdown heading.
 pub(super) fn fenced_section<'a>(
     section: &'a str,
     heading: &str,
@@ -262,6 +285,7 @@ pub(super) fn fenced_section<'a>(
     after_fence.split_once("```").map(|(body, _)| body.trim())
 }
 
+/// Candidate spellings grouped by the catalog section that lists them.
 pub(super) fn parity_cases(markdown: &str) -> Vec<(&str, Vec<&str>)> {
     markdown
         .split("\n## `")
@@ -276,6 +300,7 @@ pub(super) fn parity_cases(markdown: &str) -> Vec<(&str, Vec<&str>)> {
         .collect()
 }
 
+/// The registry definitions whose names match a candidate spelling.
 pub(super) fn matched_registry_utilities<'a>(
     definitions: &'a [(String, CustomUtility)],
     lookup: &str,
@@ -304,6 +329,7 @@ pub(super) fn matched_registry_utilities<'a>(
         .collect()
 }
 
+/// Resolves a variant through its definition, bypassing the theme wrapper.
 pub(super) fn resolve_registry_variant(
     definition: &CustomVariant,
     value: &str,
@@ -317,6 +343,7 @@ pub(super) fn resolve_registry_variant(
     (matched, resolved)
 }
 
+/// Resolves every definition that can capture a variant spelling.
 pub(super) fn resolve_registry_variant_branches(
     definitions: &[(String, CustomVariant)],
     excluded: Option<usize>,
@@ -346,6 +373,7 @@ pub(super) fn resolve_registry_variant_branches(
         })
 }
 
+/// Parses a fixture buffer wrapped in the standard package CSS.
 pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, crate::ThemeError> {
     crate::parse_theme(
         &crate::css_fixture::source(

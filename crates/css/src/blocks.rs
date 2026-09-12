@@ -1,3 +1,16 @@
+//! Directive-block scanning for Stillwind's at-rule dialect.
+//!
+//! These helpers read `@directive header { body }` and `@directive name;` forms out of
+//! raw CSS text. Extraction uses cssparser tokens; stripping and brace helpers use
+//! simpler textual scans with different handling of strings, escapes and comments. They
+//! operate without understanding the declarations they carry: callers decide what a
+//! body means.
+//!
+//! Two behaviours matter for callers. Malformed input is never half-consumed: an
+//! unclosed block is skipped (or, when stripping, preserved from the directive onward)
+//! so the CSS parser can still report it. The textual stripping helpers specially skip
+//! `{modifier}` markers; that exception is not shared by the token scanner.
+
 use cssparser::{ParseError, Parser, Token};
 
 /// Removes complete block comments and preserves an unterminated comment tail.
@@ -16,6 +29,11 @@ pub fn strip_css_comments(css: &str) -> String {
     output
 }
 
+/// Extracts `(header, body)` for every `directive` block, in source order.
+///
+/// Header text is trimmed and excludes the braces; body text is trimmed. Comment text,
+/// strings and other directives are not mistaken for blocks, and a block whose body is
+/// unterminated is skipped entirely.
 pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
@@ -23,6 +41,12 @@ pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)>
         .collect()
 }
 
+/// Like [`extract_named_blocks`], but also returns the byte offset of the directive's
+/// `@`.
+///
+/// Callers use the offset to attribute a block to a position in the original source;
+/// offsets index `css` itself, so callers that stripped comments must map them back
+/// before reporting.
 pub fn extract_named_blocks_with_offsets(
     css: &str,
     directive: &str,
@@ -33,6 +57,10 @@ pub fn extract_named_blocks_with_offsets(
         .collect()
 }
 
+/// Extracts `(offset, name)` for `directive name;` statements.
+///
+/// A statement must have no body, a non-empty name, and no whitespace in that name, so
+/// `@order a b;` is ignored rather than reported as a name.
 pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
     directive_rules(css, directive)
         .into_iter()
@@ -45,12 +73,18 @@ pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, Strin
         .collect()
 }
 
+/// One directive occurrence found by [`scan_directives`].
+///
+/// `body` is `None` for the statement form; `start` is the offset of the `@`.
 struct DirectiveRule {
     start: usize,
     header: String,
     body: Option<String>,
 }
 
+/// Collects every occurrence of one directive name.
+///
+/// The name is compared without its leading `@`.
 fn directive_rules(css: &str, directive: &str) -> Vec<DirectiveRule> {
     let mut rules = Vec::new();
     scan_directives(
@@ -62,6 +96,12 @@ fn directive_rules(css: &str, directive: &str) -> Vec<DirectiveRule> {
     rules
 }
 
+/// Walks a token stream, recording matches and recursing into rule blocks.
+///
+/// Nested curly blocks are descended into, because a directive may appear inside
+/// `@layer`; function, parenthesis and square-bracket blocks are consumed but not
+/// searched, so directive-shaped text inside `url()` or a string value is never treated
+/// as a directive.
 fn scan_directives(
     parser: &mut Parser<'_>,
     css: &str,
@@ -126,6 +166,11 @@ fn scan_directives(
     }
 }
 
+/// Removes every `directive { ... }` block, including nested braces.
+///
+/// `{modifier}` is skipped as literal text rather than counted as an opening brace. An
+/// unterminated body is preserved from the directive onward. This textual helper does
+/// not distinguish strings or comments from directive text and braces.
 pub fn strip_blocks(css: &str, directive: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
@@ -175,6 +220,7 @@ pub fn strip_blocks(css: &str, directive: &str) -> String {
     output
 }
 
+/// Byte offset of the first `{` that is not the start of a `{modifier}` marker.
 pub fn find_block_open(value: &str) -> Option<usize> {
     let mut offset = 0;
     while offset < value.len() {
@@ -191,6 +237,10 @@ pub fn find_block_open(value: &str) -> Option<usize> {
     None
 }
 
+/// Returns the offset of the `}` matching the `{` at `open`.
+///
+/// Quoted strings and escapes are respected; `None` means the brace is never closed or
+/// a `}` appears first.
 pub fn matching_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
@@ -221,8 +271,11 @@ pub fn matching_brace(value: &str, open: usize) -> Option<usize> {
     None
 }
 
-/// Detect EOF inside a block before CSS parsers implicitly close it.
-/// Strings, comments and escaped delimiters do not change block depth.
+/// Detect EOF inside a block before CSS parsers implicitly close it. Strings, comments
+/// and escaped delimiters do not change block depth.
+///
+/// Returns the offset of the outermost `{` that is still open at end of input, or
+/// `None` when every block was closed.
 pub fn unterminated_block(css: &str) -> Option<usize> {
     let mut openings = Vec::new();
     let mut quote = None;

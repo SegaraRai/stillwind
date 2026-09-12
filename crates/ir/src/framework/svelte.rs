@@ -1,5 +1,8 @@
+//! Svelte adapter policy.
+
 use super::{AdapterKind, FrameworkSpec, StyleFormat};
 
+/// Svelte receives custom properties as a serialized style string.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Svelte,
     macro_import: "stillwind/svelte",

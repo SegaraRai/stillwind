@@ -1,3 +1,14 @@
+//! Deterministic generated identifiers.
+//!
+//! Every name is the first eight hex digits of a hash over an identity string of the
+//! form `stillwind/v1\0<module>\0<kind>\0<start>:<end>:<text>`, with normalized module
+//! paths so the same declaration yields the same name on Windows and on POSIX. Class
+//! names additionally mix in the callsite offset and a per-call branch index, which is
+//! what keeps two callsites with identical utility sets in different class units. The
+//! truncation makes a collision conceivable, so [`GeneratedSymbol`] reports the full
+//! identity next to the name and a consumer that must be certain compares identities
+//! instead of names.
+
 use serde::Serialize;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
@@ -7,16 +18,29 @@ use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 use super::handles::{handle_marker_class, scope_marker_class};
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
+/// One generated CSS identifier with the canonical identity it was allocated from.
+///
+/// Names are unique within a compilation by construction; `identity` is what makes that
+/// checkable across producers, because two producers that independently generate a name
+/// can compare identities to decide whether they generated the same thing.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedSymbol {
+    /// The generated name, without a leading dot.
     pub name: String,
+    /// Symbol family: `ref`, `scope`, `ref-marker`, `scope-marker`, `animation`,
+    /// `view-transition`, or `class`.
     pub kind: String,
+    /// Canonical identity the name hashes.
     pub identity: String,
+    /// Normalized source path of the module that declared the symbol.
     pub source_path: String,
+    /// Byte offset of the declaration's first character.
     pub start: u32,
+    /// Byte offset just past the declaration.
     pub end: u32,
 }
 
+/// Diagnostic-facing name of a handle projection.
 pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static str {
     match projection {
         HandleProjection::Anchor => "anchor",
@@ -26,6 +50,10 @@ pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static 
     }
 }
 
+/// Class name used by the runtime projection lookup table.
+///
+/// The table key is the marker class of the handle, so the runtime picks the projected
+/// class of whichever handle it was given.
 pub(super) fn runtime_projection_class(
     handle: &HandleDefinition,
     projection: &HandleProjection,
@@ -39,6 +67,7 @@ pub(super) fn runtime_projection_class(
     format!("_swp_{}_{suffix}", handle_marker_class(handle))
 }
 
+/// Identity string for a declaration inside one source file.
 pub(super) fn symbol_identity(
     source: &SourceFile,
     kind: &str,
@@ -53,6 +82,10 @@ pub(super) fn symbol_identity(
     )
 }
 
+/// Identity string for a declaration addressed by module path.
+///
+/// Used where the source buffer is not available, for example when a use site refers to
+/// an asset declared in another module.
 pub(super) fn asset_identity(
     module_path: &str,
     kind: &str,
@@ -67,6 +100,7 @@ pub(super) fn asset_identity(
     )
 }
 
+/// Generated custom-property name of a ref's anchor identity.
 pub(super) fn ref_symbol_name(definition: &HandleDefinition) -> String {
     let identity = asset_identity(&definition.module_path, "ref", &definition.name);
     format!(
@@ -85,6 +119,7 @@ fn kind_name(kind: AssetKind) -> &'static str {
     }
 }
 
+/// Generated name of a class or motion asset, prefix selected by kind.
 pub(super) fn symbol_name(
     source: &SourceFile,
     kind: AssetKind,
@@ -93,6 +128,8 @@ pub(super) fn symbol_name(
     asset_symbol_name(source.path(), kind, definition)
 }
 
+/// Generated name of a class or motion asset, prefixed by kind so declarations of
+/// different kinds at the same span cannot collide.
 pub(super) fn asset_symbol_name(
     module_path: &str,
     kind: AssetKind,
@@ -110,6 +147,7 @@ pub(super) fn asset_symbol_name(
     format!("{prefix}{}", &hash.to_hex()[..8])
 }
 
+/// Builds the reportable symbol for a named class or motion declaration.
 pub(super) fn generated_symbol(
     source: &SourceFile,
     kind: AssetKind,
@@ -125,6 +163,7 @@ pub(super) fn generated_symbol(
     }
 }
 
+/// Builds the reportable symbol for a ref declaration's projection name.
 pub(super) fn generated_ref_symbol(definition: &HandleDefinition) -> GeneratedSymbol {
     let identity = asset_identity(&definition.module_path, "ref", &definition.name);
     GeneratedSymbol {
@@ -137,6 +176,7 @@ pub(super) fn generated_ref_symbol(definition: &HandleDefinition) -> GeneratedSy
     }
 }
 
+/// Builds the reportable symbol for a scope declaration's projection name.
 pub(super) fn generated_scope_symbol(definition: &ScopeDefinition) -> GeneratedSymbol {
     let identity = asset_identity(&definition.module_path, "scope", &definition.name);
     GeneratedSymbol {
@@ -152,6 +192,7 @@ pub(super) fn generated_scope_symbol(definition: &ScopeDefinition) -> GeneratedS
     }
 }
 
+/// Builds the reportable symbol for a ref's marker class.
 pub(super) fn generated_ref_marker_symbol(definition: &HandleDefinition) -> GeneratedSymbol {
     GeneratedSymbol {
         name: handle_marker_class(definition),
@@ -163,6 +204,7 @@ pub(super) fn generated_ref_marker_symbol(definition: &HandleDefinition) -> Gene
     }
 }
 
+/// Builds the reportable symbol for a scope's marker class.
 pub(super) fn generated_scope_marker_symbol(definition: &ScopeDefinition) -> GeneratedSymbol {
     GeneratedSymbol {
         name: scope_marker_class(definition)
@@ -176,6 +218,12 @@ pub(super) fn generated_scope_marker_symbol(definition: &ScopeDefinition) -> Gen
     }
 }
 
+/// Builds the reportable symbol for a generated utility class.
+///
+/// The identity keeps the whole canonical input - namespace, module, callsite, branch,
+/// and rule spelling - rather than the truncated name, so two producers can prove they
+/// generated the same class or detect that they generated different ones with equal
+/// names.
 pub(super) fn generated_class_symbol(
     source: &SourceFile,
     name: &str,
@@ -192,6 +240,7 @@ pub(super) fn generated_class_symbol(
     }
 }
 
+/// Class unit name for a canonical input.
 pub(crate) fn class_name(canonical_input: &str) -> String {
     let hash = blake3::hash(canonical_input.as_bytes());
     format!("_s_{}", &hash.to_hex()[..8])

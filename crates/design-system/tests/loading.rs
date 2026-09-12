@@ -1,3 +1,10 @@
+//! Loader and snapshot integration through the public API.
+//!
+//! Pins the host-visible protocol: response order and batch shape never change the
+//! resulting snapshot, opaque names identify sources, cycles and conflicting content
+//! are reported with the offending chain, and token spans keep pointing into the buffer
+//! the host supplied.
+
 use stillwind_design_system::{
     CssFileInput, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
     DesignSystemOptions, DesignSystemSnapshot,
@@ -294,6 +301,8 @@ fn diamond_sources_share_pending_requests_and_preserve_graph_edges() {
     assert_eq!(snapshot.sources().edges.len(), 3);
 }
 
+/// Builds a response the way a host would after reading a file. The loader never
+/// inspects the name, so a test may use any string it likes.
 fn input(id: u32, name: &str, content: &str) -> CssFileInput {
     CssFileInput {
         id,

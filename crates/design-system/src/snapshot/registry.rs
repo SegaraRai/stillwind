@@ -1,4 +1,12 @@
 //! Resolved immutable lookup views, including selected built-ins and overloads.
+//!
+//! Definitions are stored as shared values grouped by name. Grouping is not a merge: a
+//! name with several definitions keeps them in insertion order, which callers rely on
+//! when they pick the last matching branch, and the fingerprint of a group changes if
+//! that order changes.
+//!
+//! Iteration order is the name order of an ordered map, so callers that need authored
+//! order must read the underlying definition vectors instead.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -8,12 +16,21 @@ use stillwind_source::Fingerprint;
 
 use crate::{CustomUtility, CustomVariant, ThemeToken};
 
+/// Immutable name-to-definitions lookup produced by one snapshot.
+///
+/// The type parameter is the definition value; every alias below names one concrete
+/// registry so callers do not have to repeat it.
 #[derive(Clone, Debug)]
 pub struct DefinitionRegistry<T> {
     entries: BTreeMap<String, Vec<Arc<T>>>,
 }
 
 impl<T> DefinitionRegistry<T> {
+    /// Groups definitions by name, keeping insertion order inside each group.
+    ///
+    /// The grouping is the resolved view of built-ins, framework imports, theme CSS,
+    /// and authored definitions in the order the snapshot supplied them; this
+    /// constructor must not reorder or deduplicate.
     pub(crate) fn new(entries: impl IntoIterator<Item = (String, Arc<T>)>) -> Self {
         let mut grouped: BTreeMap<String, Vec<Arc<T>>> = BTreeMap::new();
         for (name, value) in entries {
@@ -21,28 +38,41 @@ impl<T> DefinitionRegistry<T> {
         }
         Self { entries: grouped }
     }
+
+    /// Returns every definition registered under `name`, in insertion order, or `None`
+    /// when the name is unknown.
     pub fn get(&self, name: &str) -> Option<&[Arc<T>]> {
         self.entries.get(name).map(Vec::as_slice)
     }
+
+    /// Iterates groups in name order.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &[Arc<T>])> {
         self.entries
             .iter()
             .map(|(name, values)| (name.as_str(), values.as_slice()))
     }
+
+    /// Iterates names in ascending order.
     pub fn names(&self) -> impl Iterator<Item = &str> {
         self.entries.keys().map(String::as_str)
     }
 }
 
+/// Active theme tokens, keyed by custom-property name.
 pub type ThemeRegistry = DefinitionRegistry<ThemeToken>;
 
+/// Selected built-in and authored utilities, keyed by authored name.
 pub type UtilityRegistry = DefinitionRegistry<CustomUtility>;
 
+/// Selected built-in and authored variants, keyed by authored name.
 pub type VariantRegistry = DefinitionRegistry<CustomVariant>;
 
+/// `@stillwind-property` definitions, keyed by property name.
 pub type PropertyRegistry = DefinitionRegistry<CustomPropertyDefinition>;
 
 impl<T: std::fmt::Debug> DefinitionRegistry<T> {
+    /// One content fingerprint per group, derived from the ordered definitions so an
+    /// overload reorder or edit invalidates dependents.
     pub(crate) fn fingerprints(&self) -> BTreeMap<String, Fingerprint> {
         self.entries
             .iter()

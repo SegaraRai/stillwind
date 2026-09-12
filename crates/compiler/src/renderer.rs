@@ -1,3 +1,14 @@
+//! Stylesheet rendering entry points over one immutable snapshot.
+//!
+//! [`StylesheetRenderer`] assembles CSS from the design system's output template: it
+//! expands authored directives, selects the theme tokens, keyframes, and `@property`
+//! registrations the CSS actually needs, and walks the template's layers and slots.
+//! [`StylesheetPlacement`] decides whether authored document rules and Preflight
+//! participate, so a per-module carrier does not duplicate them. Assembly failures come
+//! back as [`StylesheetError`], or, when rendering a whole compilation, as a `SHCSS001`
+//! diagnostic that invalidates the generated output instead of shipping CSS known to be
+//! incomplete.
+
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_source::{CompileError, Span};
 
@@ -6,18 +17,26 @@ use crate::compiler::{
 };
 use crate::{CompileResult, CompiledModule, CompilerOptions, MappedStylesheet, StylesheetError};
 
+/// Where a rendered stylesheet is going to be used.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StylesheetPlacement {
+    /// The single document stylesheet: authored rules and the support layer are included.
     Document,
+    /// A module's own CSS carrier: only what that module needs, without document rules.
     Carrier,
 }
 
+/// Renders stylesheets against a snapshot held for the renderer's lifetime.
 pub struct StylesheetRenderer<'a> {
     snapshot: &'a DesignSystemSnapshot,
     options: CompilerOptions,
 }
 
 impl<'a> StylesheetRenderer<'a> {
+    /// Creates a renderer for `snapshot`.
+    ///
+    /// The options' prefixes are resolved against the snapshot, so rendered text always
+    /// agrees with the theme being rendered.
     pub fn new(snapshot: &'a DesignSystemSnapshot, options: &CompilerOptions) -> Self {
         Self {
             snapshot,
@@ -25,12 +44,17 @@ impl<'a> StylesheetRenderer<'a> {
         }
     }
 
+    /// Ambient TypeScript declarations for the framework vocabulary of this theme.
     pub fn generate_react_types(&self) -> String {
         render_react_types(self.snapshot.theme())
     }
 
     /// Produces standalone compilation output, including document CSS.
     /// Assembly failures become diagnostics and invalidate the generated output.
+    ///
+    /// On success `css` holds the assembled document stylesheet and `module_css`
+    /// retains the unwrapped module rules. Assembly failure clears both output rules
+    /// and source edits and records a diagnostic.
     pub fn render_compilation(
         &self,
         module: &CompiledModule,
@@ -57,7 +81,10 @@ impl<'a> StylesheetRenderer<'a> {
         result
     }
 
+    /// Assembles document CSS for the given utility rules.
+    ///
     /// # Errors
+    ///
     /// Returns an error when the assembled CSS cannot be analyzed.
     pub fn render_stylesheet(&self, module_css: &str) -> Result<String, StylesheetError> {
         render_stylesheet(self.snapshot.theme(), module_css, &self.options)
@@ -65,7 +92,11 @@ impl<'a> StylesheetRenderer<'a> {
 
     /// Document CSS with the support layer reserved before any late producer.
     ///
+    /// The `properties` layer statement is prepended when the template does not already
+    /// open with it, so a later producer can add `@property` rules in the right layer.
+    ///
     /// # Errors
+    ///
     /// Returns an error when the authored CSS cannot be analyzed.
     pub fn render_base_stylesheet(&self) -> Result<String, StylesheetError> {
         let mut css = self.render_stylesheet("")?;
@@ -76,15 +107,21 @@ impl<'a> StylesheetRenderer<'a> {
     }
 
     /// Renders one producer's CSS and required tokens, keyframes and properties.
-    /// Authored global rules and Preflight belong to `render_base_stylesheet()`.
+    /// The output is a carrier fragment: authored document rules and Preflight are
+    /// included only when the placement is [`StylesheetPlacement::Document`], so this
+    /// form is for a host that transports one module's CSS on its own.
     ///
     /// # Errors
+    ///
     /// Returns an error when the support closure cannot be analyzed.
     pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, StylesheetError> {
         render_module_stylesheet(self.snapshot.theme(), module_css, &self.options)
     }
 
+    /// Renders a producer's CSS with source provenance attached.
+    ///
     /// # Errors
+    ///
     /// Returns invalid CSS support closure or missing utility slots.
     pub fn render_mapped_stylesheet(
         &self,
@@ -103,7 +140,11 @@ impl<'a> StylesheetRenderer<'a> {
 
     /// Document CSS with source provenance and a stable support-layer reservation.
     ///
+    /// This is the mapped counterpart of [`Self::render_base_stylesheet`] and keeps the
+    /// same guarantee that the layer statement comes first.
+    ///
     /// # Errors
+    ///
     /// Returns invalid authored CSS.
     pub fn render_base_stylesheet_with_map(&self) -> Result<MappedStylesheet, StylesheetError> {
         let mut output = self.render_mapped_stylesheet(

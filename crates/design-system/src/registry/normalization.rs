@@ -1,9 +1,27 @@
+//! Canonicalization of vendored built-in declaration bodies.
+//!
+//! Vendored definitions are re-serialized so a built-in body is byte-identical after
+//! removing selected whitespace. Preserved spacing and the raw registry source can
+//! still affect serialization and snapshot fingerprints. The rules are conservative:
+//! quoted content is preserved byte-for-byte, spacing that Tailwind's own serializer
+//! keeps after commas in selected functions and custom-property declarations is
+//! retained, and a separator before a `var()` fallback list is always kept.
+//!
+//! Only built-in CSS is canonicalized. User `@utility` bodies keep their authored
+//! serialization, because rewriting them would change the CSS a project wrote on
+//! purpose.
+
 use std::collections::BTreeSet;
 
 /// Removes non-semantic whitespace from vendored declarations.
 ///
-/// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep
-/// their authored serialization. Quoted values are preserved byte-for-byte.
+/// This applies only to Stillwind-maintained CSS; user `@utility` bodies keep their
+/// authored serialization. Quoted values are preserved byte-for-byte.
+///
+/// `function_formats` names the functions whose argument separators must keep their
+/// authored spacing; the caller supplies it because the spacing rule is declared in the
+/// same registry CSS. The result depends only on `value` and `function_formats`, so
+/// repeated parsing yields identical bodies.
 #[allow(clippy::too_many_lines)]
 pub fn canonical_builtin_body(value: &str, function_formats: &BTreeSet<String>) -> String {
     let mut output = String::with_capacity(value.len());
@@ -83,10 +101,10 @@ pub fn canonical_builtin_body(value: &str, function_formats: &BTreeSet<String>) 
                     let adjacent_words = is_word_character(previous)
                         && (is_word_character(character) || character == '#');
                     let function_followed_by_word = previous == ')' && is_word_character(character);
-                    // Keep a separator after commas. Tailwind's vendored
-                    // utility serializer retains this spelling in function
-                    // arguments (notably color-mix/gradient stop lists), and
-                    // LightningCSS does not normalize it away in its output.
+                    // Keep a separator after commas. Tailwind's vendored utility
+                    // serializer retains this spelling in function arguments (notably
+                    // color-mix/gradient stop lists), and LightningCSS does not
+                    // normalize it away in its output.
                     let preserve_function_spacing =
                         functions.iter().any(|name| function_formats.contains(name));
                     if adjacent_words
@@ -103,11 +121,14 @@ pub fn canonical_builtin_body(value: &str, function_formats: &BTreeSet<String>) 
         }
     }
 
-    // Fallback lists retain a separator before `var()` regardless of the
-    // surrounding property; this is a value-level serialization rule.
+    // Fallback lists retain a separator before `var()` regardless of the surrounding
+    // property; this is a value-level serialization rule.
     output.replace(",var(", ", var(")
 }
 
+/// Whether two adjacent characters may not be separated by a dropped space.
+///
+/// `%` counts as a word character so `10 %` does not collapse into `10%`.
 pub(crate) fn is_word_character(character: char) -> bool {
     character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '%')
 }

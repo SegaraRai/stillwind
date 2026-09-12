@@ -1,4 +1,12 @@
 //! Explicit host selections; observing transforms never proves graph completeness.
+//!
+//! A selection names the producers whose CSS belongs in one output target, and a plan
+//! is the rendered result plus the provenance a host needs to attribute and watch it.
+//! The completeness question is deliberately not answered here: the compiler can see
+//! which modules it transformed, but only the host knows whether that set is the whole
+//! module graph for a target. A selection therefore states its coverage explicitly, and
+//! a plan for retained output after a failed load is rejected rather than reported as
+//! current.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,44 +21,72 @@ use stillwind_source::{Fingerprint, Span};
 
 use crate::{ProjectSession, ProjectStylesheet};
 
+/// Why a stylesheet plan could not be produced.
 #[derive(Debug, thiserror::Error)]
 pub enum StylesheetPlanError {
+    /// The selection names modules with no published artifact.
     #[error("Stillwind selection contains unregistered modules: {0:?}")]
     MissingModules(BTreeSet<ModuleId>),
+    /// A complete-coverage claim came without a target or graph revision.
     #[error("Complete coverage requires a nonempty host target and graph revision")]
     MissingCoverageIdentity,
+    /// A selected artifact was compiled against a different snapshot or failed its
+    /// current analysis, so its CSS is not a valid output for this plan.
     #[error("Stillwind selection contains stale producers: {0:?}")]
     StaleModules(BTreeSet<ModuleId>),
+    /// The retained revision follows a failed load, so it is not a current plan.
     #[error("The latest design-system load failed; retained CSS is not a current output plan")]
     FailedDesignSystemLoad,
+    /// Rendering the selected CSS failed.
     #[error("{0}")]
     Stylesheet(#[from] StylesheetError),
 }
 
+/// How much the host knows about the selected producer set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StylesheetCoverage {
+    /// The selection is what this session has seen so far. It makes no claim about
+    /// modules that were never compiled, so it cannot justify emitting a complete
+    /// target stylesheet.
     Observed,
     /// The host guarantees this selection for this target and graph revision.
+    ///
+    /// Both fields must be non-empty: they are the host's statement of which build
+    /// output and which module-graph revision the claim belongs to, and they travel
+    /// into the plan so a consumer can detect a stale claim.
     Complete {
+        /// Host-defined identity of the output being planned, for example a route id.
         target: String,
+        /// Host-defined revision of the module graph the selection came from.
         revision: String,
     },
 }
 
+/// The producers one output should contain, with their coverage claim.
 #[derive(Clone, Debug)]
 pub struct StylesheetSelection {
+    /// Modules to include. Order does not matter; rules keep their own order.
     pub modules: BTreeSet<ModuleId>,
+    /// What the host knows about the completeness of `modules`.
     pub coverage: StylesheetCoverage,
 }
 
+/// A rendered stylesheet plus everything needed to place and attribute it.
 #[derive(Clone, Debug)]
 pub struct StylesheetPlan {
+    /// Generated-to-original mappings for the rules that have a source location.
     pub mappings: Vec<StylesheetMapping>,
+    /// Assets and resources the selected producers reference.
     pub resources: Vec<ModuleResourceReference>,
+    /// The rendered CSS text.
     pub css: String,
+    /// Coverage claim carried over from the selection.
     pub coverage: StylesheetCoverage,
+    /// Where the host should place this stylesheet.
     pub placement: StylesheetPlacement,
+    /// Content fingerprint of the design system this CSS was rendered against.
     pub design_system: Fingerprint,
+    /// Artifact key per selected module, for cache identity and invalidation.
     pub producers: BTreeMap<ModuleId, ModuleArtifactKey>,
 }
 
@@ -65,7 +101,13 @@ impl ProjectSession {
 
     /// Plans a module, chunk, entry, or document selection supplied by the host.
     ///
+    /// Rejects the request instead of guessing when a selected module has no artifact,
+    /// when its artifact is stale with respect to the current snapshot, or when
+    /// coverage is claimed without a target and revision. Staleness is checked per
+    /// module so the error names exactly the producers the host must recompile.
+    ///
     /// # Errors
+    ///
     /// Rejects unavailable producers, incomplete coverage metadata, or invalid CSS.
     pub fn plan_stylesheet(
         &self,
@@ -156,8 +198,12 @@ impl ProjectSession {
     }
 }
 
-// Use CSS tokens so strings, comments and identifier escapes cannot masquerade
-// as a generated identifier. Locations themselves come from compiler metadata.
+/// Collects identifier tokens from generated CSS.
+///
+/// Matching is done on parsed CSS tokens rather than raw text so that a class name
+/// appearing inside a string, a comment, or an escape sequence cannot be mistaken for
+/// the generated identifier; locations themselves come from compiler metadata, never
+/// from this scan.
 fn rule_identifiers(css: &str) -> BTreeSet<String> {
     fn visit(parser: &mut Parser<'_>, names: &mut BTreeSet<String>) {
         while let Ok(token) = parser.next() {

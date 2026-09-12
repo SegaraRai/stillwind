@@ -1,3 +1,14 @@
+//! Grammar check for one arbitrary value against one [`ValueType`].
+//!
+//! Lightning CSS owns the browser CSS grammars, so this module delegates each variant
+//! to the matching parser and only adds the checks Stillwind needs on top. The hint
+//! spellings documented on [`ValueType`] are part of the authored grammar: a variant
+//! may not be renamed without changing what users write in a hint.
+//!
+//! Validation is total and side-effect free. It is deliberately permissive in two
+//! places, both documented on [`ValueType::accepts`]: a CSS-wide keyword and a `var()`
+//! reference are accepted without consulting the grammar.
+
 use lightningcss::properties::background::BackgroundSize;
 use lightningcss::properties::border::BorderSideWidth;
 use lightningcss::properties::box_shadow::BoxShadow;
@@ -22,62 +33,115 @@ use super::syntax::{
 
 /// A CSS value type accepted by a typed `--value([type])` domain.
 ///
-/// The variants intentionally model CSS value definitions, rather than the
-/// utility that happens to consume them. This keeps `p-*`, `border-*`, and
-/// `z-*` distinct even when their source spelling contains the same digits.
+/// The variants intentionally model CSS value definitions, rather than the utility that
+/// happens to consume them. This keeps `p-*`, `border-*`, and `z-*` distinct even when
+/// their source spelling contains the same digits.
+///
+/// Each variant documents the hint spelling that resolves to it. Hints are part of the
+/// authored grammar, so a variant may not be renamed without changing what users write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ValueType {
+    /// `*`: any non-empty value, with no grammar check.
     Any,
+    /// `integer`: an integral `<number>`, including a `calc()` that folds to one.
     Integer,
+    /// `number`: `<number>`.
     Number,
+    /// `percentage`: `<percentage>`.
     Percentage,
+    /// `number-percentage`: `<number> | <percentage>`.
     NumberPercentage,
+    /// `length`: `<length>`, which also accepts `<length-percentage>` values.
     Length,
+    /// `length-percentage`: `<length-percentage>`.
     LengthPercentage,
+    /// `angle`: `<angle>`, which also accepts `<angle-percentage>` values.
     Angle,
+    /// `angle-percentage`: `<angle-percentage>`.
     AnglePercentage,
+    /// `time`: `<time>`.
     Time,
+    /// `ratio`: `<ratio>`, such as `16 / 9`.
     Ratio,
+    /// `easing`: `<easing-function>`.
     Easing,
+    /// `line-width`: a border-width keyword or `<length>`; percentages are not lengths here.
     LineWidth,
+    /// `z-index`: `auto` or an integer.
     ZIndex,
+    /// `color`: `<color>`.
     Color,
+    /// `image`: `<image>`, including gradients.
     Image,
+    /// `url`: a `url()` value.
     Url,
+    /// `position`: `<position>`.
     Position,
+    /// `bg-size`: `<bg-size>`.
     BackgroundSize,
+    /// `shadow`: one box shadow; list splitting is a separate operation.
     Shadow,
+    /// `content`: the primitive `content` productions; bare identifiers are rejected.
     Content,
+    /// `linear-gradient-arguments`: the argument list of `linear-gradient()`.
     LinearGradientArguments,
+    /// `radial-gradient-arguments`: the argument list of `radial-gradient()`.
     RadialGradientArguments,
+    /// `conic-gradient-arguments`: the argument list of `conic-gradient()`.
     ConicGradientArguments,
+    /// `skew-arguments`: the argument list of `skew()`.
     SkewArguments,
+    /// `skew-x-arguments`: the argument list of `skewX()`.
     SkewXArguments,
+    /// `skew-y-arguments`: the argument list of `skewY()`.
     SkewYArguments,
+    /// `animation`: an animation shorthand value, including comma-separated animations.
     Animation,
+    /// `font-family`: a font family list.
     FontFamily,
+    /// `font-size`: `<font-size>`.
     FontSize,
+    /// `font-weight`: `<font-weight>`.
     FontWeight,
+    /// `vertical-align`: `<vertical-align>`.
     VerticalAlign,
+    /// `grid-track-size`: one track size, validated as `grid-auto-columns`.
     GridTrackSize,
+    /// `grid-line`: one grid line, validated as `grid-column`.
     GridLine,
+    /// `columns`: the `columns` shorthand.
     Columns,
+    /// `contain`: the `contain` property.
     Contain,
+    /// `cursor`: the `cursor` property.
     Cursor,
+    /// `font-feature-settings`: an OpenType feature list such as `"liga" 1`.
     FontFeatureSettings,
+    /// `font-stretch`: `<font-stretch>`.
     FontStretch,
+    /// `grid-track-list`: a track list, validated as `grid-template-columns`.
     GridTrackList,
+    /// `flex`: the `flex` shorthand.
     Flex,
+    /// `list-style-type`: the `list-style-type` property.
     ListStyleType,
+    /// `list-style-image`: the `list-style-image` property.
     ListStyleImage,
+    /// `tab-size`: the `tab-size` property.
     TabSize,
+    /// `transition-property`: the `transition-property` property.
     TransitionProperty,
+    /// `will-change`: the `will-change` property.
     WillChange,
+    /// `zoom`: the `zoom` property.
     Zoom,
 }
 
 impl ValueType {
     /// Parses the public arbitrary-value hint used inside `[hint:value]`.
+    ///
+    /// `None` means the hint is not part of the grammar at all; a registry that sees an
+    /// unknown hint must report it rather than fall back to [`ValueType::Any`].
     #[must_use]
     pub fn from_hint(value: &str) -> Option<Self> {
         match value {
@@ -132,19 +196,22 @@ impl ValueType {
         }
     }
 
-    /// Returns the CSSWG formal-syntax productions used to audit this simple
-    /// value domain. `None` denotes a compound domain whose grammar is
-    /// validated by Lightning CSS (or a focused parser) instead.
+    /// Returns the CSSWG formal-syntax productions used to audit this simple value
+    /// domain. `None` denotes a compound domain whose grammar is validated by Lightning
+    /// CSS (or a focused parser) instead.
     ///
-    /// The terms deliberately name CSS value productions, not CSS properties:
-    /// a registry audit can therefore discover newly used properties without
-    /// maintaining a property allow-list.
+    /// The terms deliberately name CSS value productions, not CSS properties: a
+    /// registry audit can therefore discover newly used properties without maintaining
+    /// a property allow-list.
+    ///
+    /// The lists are deliberately loose where CSS is (for example `Integer` also lists
+    /// `number`); this is audit metadata, never a validity check.
     #[must_use]
     pub const fn csswg_formal_terms(self) -> Option<&'static [&'static str]> {
         match self {
             Self::Any => Some(&[]),
-            // `<integer>` is a valid restricted production wherever the
-            // formal syntax accepts `<number>` (for example `tab-size`).
+            // `<integer>` is a valid restricted production wherever the formal syntax
+            // accepts `<number>` (for example `tab-size`).
             Self::Integer => Some(&["integer", "number"]),
             Self::Number => Some(&["number"]),
             Self::Percentage => Some(&[
@@ -201,19 +268,23 @@ impl ValueType {
 
     /// Validates a decoded arbitrary value against its CSS value definition.
     ///
-    /// Lightning CSS owns the grammar for browser CSS types. The small
-    /// integer check is layered on top because CSS exposes `<number>`, while
-    /// Stillwind's utility grammar needs the narrower integral subset.
+    /// Lightning CSS owns the grammar for browser CSS types. The small integer check is
+    /// layered on top because CSS exposes `<number>`, while Stillwind's utility grammar
+    /// needs the narrower integral subset.
+    ///
+    /// Two rules apply before the grammar: a CSS-wide keyword is always valid, and a
+    /// `var()` reference is accepted because a custom property's type is only known at
+    /// runtime.
     #[must_use]
     pub fn accepts(&self, value: &str) -> bool {
         if is_css_wide_keyword(value) {
             return true;
         }
-        // Custom properties are substituted before a property's value grammar
-        // is computed. Without generated project typings we cannot know a
-        // referenced variable's domain, so `var(--token)` (including inside a
-        // `calc()`) is correctly a runtime-typed value rather than a static
-        // type error. Plain literals continue through the strict parsers.
+        // Custom properties are substituted before a property's value grammar is
+        // computed. Without generated project typings we cannot know a referenced
+        // variable's domain, so `var(--token)` (including inside a `calc()`) is
+        // correctly a runtime-typed value rather than a static type error. Plain
+        // literals continue through the strict parsers.
         if contains_custom_property_reference(value) {
             return true;
         }
@@ -240,10 +311,10 @@ impl ValueType {
             Self::Position => Position::parse_string(value).is_ok(),
             Self::BackgroundSize => BackgroundSize::parse_string(value).is_ok(),
             Self::Shadow => BoxShadow::parse_string(value).is_ok(),
-            // Lightning CSS has no typed `content` property parser yet. Keep
-            // this narrow exception here rather than treating the whole
-            // property as unchecked: it accepts the primitive content
-            // productions used by Tailwind and rejects bare identifiers.
+            // Lightning CSS has no typed `content` property parser yet. Keep this
+            // narrow exception here rather than treating the whole property as
+            // unchecked: it accepts the primitive content productions used by Tailwind
+            // and rejects bare identifiers.
             Self::Content => content_value(value),
             Self::LinearGradientArguments => gradient_arguments("linear-gradient", value),
             Self::RadialGradientArguments => gradient_arguments("radial-gradient", value),
@@ -274,10 +345,12 @@ impl ValueType {
         }
     }
 
-    /// Returns whether an arbitrary-value hint is a valid narrower spelling
-    /// for this CSS value type. For example, `<length>` and `<percentage>`
-    /// may annotate a `<length-percentage>` value, while `<integer>` may
-    /// annotate a `z-index` value.
+    /// Returns whether an arbitrary-value hint is a valid narrower spelling for this
+    /// CSS value type. For example, `<length>` and `<percentage>` may annotate a
+    /// `<length-percentage>` value, while `<integer>` may annotate a `z-index` value.
+    ///
+    /// The relation is one-way: a broader domain does not accept a narrower hint's
+    /// siblings, and `Any` accepts every hint.
     #[must_use]
     pub fn accepts_hint(self, actual: Self) -> bool {
         self == Self::Any

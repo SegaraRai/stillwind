@@ -1,39 +1,69 @@
+//! Utility definition parsing.
+//!
+//! User-authored `@utility` blocks and compiler-owned `@stillwind-utility` blocks use
+//! the same body language but carry different identity: built-ins record the byte
+//! offset they were authored at, while user definitions have none. That offset is the
+//! tie-breaker for candidate ordering, so it must stay the authored position rather
+//! than a counter over parsed definitions.
+//!
+//! Trailing-`*` names are ordinary here; wildcard matching happens when a candidate is
+//! resolved. Duplicate names are preserved in source order because they are separate
+//! declaration branches, not a replacement.
+
 use std::collections::BTreeSet;
 
 use stillwind_css::blocks::{
     extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments,
 };
 
+/// One utility definition: its name, its body, and where it was registered.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomUtility {
+    /// Authored name; a trailing `*` marks a prefix pattern.
     pub name: String,
+    /// Declaration body, excluding the selector block or `@slot`.
     pub body: String,
     /// Global registration order for built-in utilities (`@stillwind-utility`).
     pub builtin_order: Option<usize>,
 }
 
-/// Parses user-authored `@utility` definitions without requiring a complete
-/// theme stylesheet.
+/// Parses user-authored `@utility` definitions without requiring a complete theme
+/// stylesheet.
+///
+/// Returned definitions carry no `builtin_order`, because application CSS participates
+/// in candidate resolution by registry layer rather than by authored position among
+/// built-ins.
 #[must_use]
 pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
     extract_custom_utilities(css)
 }
 
-/// Parses compiler-owned `@stillwind-utility` definitions and attaches their
-/// global source order.
+/// Parses compiler-owned `@stillwind-utility` definitions and attaches their global
+/// source order.
+///
+/// The order is the directive's byte offset, which orders built-ins relative to one
+/// another and to arbitrary-property positions.
 #[must_use]
 pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
     parse_ordered_utility_definitions(css, "@stillwind-utility")
 }
 
-/// Parses compiler-owned animation option definitions. These use the same
-/// value-domain language as utilities without making the core know utility
-/// spellings or CSS property projections.
+/// Parses compiler-owned animation option definitions. These use the same value-domain
+/// language as utilities without making the core know utility spellings or CSS property
+/// projections.
+///
+/// Options are held apart from utilities so an option spelling never becomes a class
+/// candidate of its own.
 #[must_use]
 pub fn parse_builtin_animation_option_definitions(css: &str) -> Vec<CustomUtility> {
     parse_ordered_utility_definitions(css, "@stillwind-animation-option")
 }
 
+/// Shared body of the ordered parsers: matches `directive` exactly and keeps the
+/// authored offset.
+///
+/// A name that is missing from a block header is skipped rather than stored under an
+/// empty name.
 pub(crate) fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
@@ -49,15 +79,23 @@ pub(crate) fn parse_ordered_utility_definitions(css: &str, directive: &str) -> V
 }
 
 /// Extracts compatibility marker utility names declared by CSS metadata.
+///
+/// A marker utility emits a literal class that relational selectors can find across
+/// independent style calls, so the set is data about the registry, not a list of
+/// utilities to resolve.
 pub fn parse_marker_utilities(css: &str) -> BTreeSet<String> {
     extract_marker_utilities(css)
 }
 
+/// Extracts user `@utility` definitions after comment stripping, so commented example
+/// CSS cannot register a definition.
 pub(crate) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
     let css = strip_css_comments(css);
     extract_named_utility_blocks(&css, "@utility")
 }
 
+/// Shared body of the unordered parsers: matches `directive` exactly and leaves
+/// [`CustomUtility::builtin_order`] unset.
 pub(crate) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, directive)
         .into_iter()
@@ -72,6 +110,10 @@ pub(crate) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<Cu
         .collect()
 }
 
+/// Reads `@stillwind-marker` statements into a deduplicated set.
+///
+/// The set only answers membership, so authored order and repeats carry no meaning
+/// here.
 pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-marker"))
@@ -117,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn preserves_explicit_colour_modifier_bodies() {
+    fn preserves_explicit_color_modifier_bodies() {
         let utilities = parse_utility_definitions(
             "@utility border { border-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); } @utility outline { outline-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }",
         );

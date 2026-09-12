@@ -1,5 +1,8 @@
+//! Preact adapter policy. It matches React except for the class property name.
+
 use super::{AdapterKind, FrameworkSpec, StyleFormat};
 
+/// Preact uses `class`, not `className`.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Preact,
     macro_import: "stillwind/preact",

@@ -1,4 +1,18 @@
 //! Source variants keep ref identity until they are lowered to CSS applications.
+//!
+//! A [`StyleVariantPlan`] walks the wrappers around one utility literal. Ordinary
+//! prefixes are collected into a string and handed to the ordinary candidate resolver,
+//! which is what makes a utility prefixed by `hover:` behave exactly like the same
+//! candidate written as one token. A ref wrapper cannot be spelled as a string: the
+//! selector depends on which element declares the ref and where it sits relative to the
+//! target, so the wrapper is lowered into [`VariantApplication`] alternatives that
+//! carry the generated marker and scope selectors.
+//!
+//! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
+//! records the ref's generated identifiers and the authored prefix, independent of how
+//! the source spelled them. This is one part of class identity; module, callsite, and
+//! branch information also participate, so equivalent wrappers alone do not guarantee
+//! equal class names.
 
 use std::fmt::Write as _;
 
@@ -11,6 +25,7 @@ use super::handles::{handle_marker_class, scope_marker_class};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 
+/// The lowered form of the variant wrappers around one utility literal.
 pub(super) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
     pub prefix: String,
@@ -23,6 +38,13 @@ pub(super) struct StyleVariantPlan {
 }
 
 impl StyleVariantPlan {
+    /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
+    ///
+    /// A ref wrapper with no known ref identity is an error rather than a fallthrough
+    /// to an unscoped selector, because that would silently target the wrong element.
+    ///
+    /// Returns `None` after pushing a diagnostic; the caller must abandon the
+    /// contribution.
     pub fn resolve(
         wrappers: &[StyleVariant],
         theme: &ThemeIndex,
@@ -116,6 +138,11 @@ impl StyleVariantPlan {
         Some(plan)
     }
 
+    /// Applies the plan to a utility the ordinary resolver already prefixed.
+    ///
+    /// The ordinary count is skipped, so only the wrappers the string resolver could
+    /// not express are converted into applications; the utility's own variant list is
+    /// rebuilt from the ref wrappers plus that suffix.
     pub fn apply(&self, utility: &mut CompiledUtility, theme: &ThemeIndex) {
         // The utility resolver already parsed the ordinary wrapper prefixes.
         let suffix = utility
@@ -142,6 +169,7 @@ impl StyleVariantPlan {
         }
     }
 
+    /// Applies the plan to an animation use, which has no candidate text to re-parse.
     pub fn apply_animation(&self, utility: &mut CompiledUtility) {
         utility.variants.clone_from(&self.variants);
         if self.has_refs {
@@ -150,6 +178,12 @@ impl StyleVariantPlan {
     }
 }
 
+/// Parses a wrapper prefix into its variants, requiring complete `name:` segments.
+///
+/// The prefix is parsed as a candidate followed by a placeholder utility, which reuses
+/// the candidate grammar instead of duplicating it here. A prefix that does not end in
+/// `:` or that yields an empty variant is rejected, so a malformed wrapper cannot
+/// silently shift the meaning of the utility it wraps.
 fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
     if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
         return None;
@@ -165,6 +199,14 @@ fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
     Some(candidate.variants)
 }
 
+/// Builds the selector and conditions that make the utility apply under a ref variant.
+///
+/// The reference element's own variants are folded into one `:where()`-guarded
+/// reference, and the target keeps the combinator relative to it. Wrapping in
+/// `:where()` keeps the specificity of the target's own selector, so a ref variant does
+/// not outrank an ordinary variant by accident. A scoped ref requires the scope marker
+/// to contain the reference, which is how an unrelated element with a matching marker
+/// outside the scope is excluded.
 fn reference_path(
     marker: &str,
     scope: Option<&str>,

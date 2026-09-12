@@ -1,4 +1,15 @@
-//! Validated correspondence from generated JavaScript to an original source.
+//! Validated correspondence from generated JavaScript back to the original source.
+//!
+//! A [`ProjectionMap`] is one of the two transport formats a host converter produces: a
+//! source map v3 document (points) or a Volar-style mapping table (intervals).
+//! [`ProjectionIndex`] loads either format against the generated (shadow) and original
+//! (editable) [`SourceFile`]s and answers queries about the correspondence between
+//! them.
+//!
+//! Exact-span verification succeeds only when the mapped original text equals the
+//! retained projected text. Coordinate lookup alone does not verify text equality.
+//! Converters rewrite code, so a correspondence that merely looks plausible must fail
+//! rather than produce an edit against the wrong characters.
 
 use std::collections::BTreeMap;
 
@@ -9,52 +20,103 @@ use crate::{
     BytePos, CoordinateError, CoordinateIndex, Position, SourceError, SourceFile, Span, Utf16Offset,
 };
 
+/// A projection map in the shape the host converter produced it.
+///
+/// The variant decides how offsets are read: v3 tokens are points in UTF-16
+/// coordinates, Volar entries are intervals in UTF-16 coordinates. Neither variant is
+/// normalized into the other.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ProjectionMap {
-    V3 { json: String, source: String },
-    Volar { mappings: Vec<VolarMapping> },
+    /// A source map v3 document plus the source name that identifies the
+    /// original file.
+    V3 {
+        /// The source map document.
+        json: String,
+        /// Name the map uses for the original file.
+        source: String,
+    },
+    /// Volar-style offset tables, one entry per mapped interval.
+    Volar {
+        /// The mapping entries.
+        mappings: Vec<VolarMapping>,
+    },
 }
 
+/// One batch of parallel Volar arrays.
+///
+/// All four arrays describe the same entries by index; [`Self::lengths`] and
+/// [`Self::generated_lengths`] may differ, which is how a converter records an interval
+/// that changed size. Offsets are UTF-16 code units in the original and generated texts
+/// respectively. A length of zero is a boundary anchor, not an empty range.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VolarMapping {
+    /// UTF-16 start offsets in the original text.
     pub source_offsets: Vec<u32>,
+    /// UTF-16 start offsets in the generated text.
     pub generated_offsets: Vec<u32>,
+    /// Original-side lengths in UTF-16 units; `0` marks a boundary anchor.
     pub lengths: Vec<u32>,
+    /// Generated-side lengths; `None` means both sides use [`Self::lengths`].
     #[serde(default)]
     pub generated_lengths: Option<Vec<u32>>,
 }
 
+/// Why a projection map could not be loaded or a query could not be answered.
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectionError {
+    /// The transport itself is malformed, or contradicts the sources it names.
     #[error("invalid projection map: {0}")]
     Map(String),
+    /// A host coordinate did not address a scalar boundary.
     #[error(transparent)]
     Coordinate(#[from] CoordinateError),
+    /// A span was not a valid slice of the source it claims to belong to.
     #[error(transparent)]
     Source(#[from] SourceError),
+    /// The map has no single original location for the span.
     #[error("projection has no unique original location for {0:?}")]
     Unmapped(Span),
+    /// The mapped original text differs from the projected text.
     #[error("projected text does not match original source at {0:?}")]
     Content(Span),
 }
 
 /// A span in each source, kept together rather than changing its coordinate system.
+///
+/// Both halves are half-open spans in their own [`SourceFile`]; the original span
+/// returned by exact verification contains the same text. Fragment verification may
+/// omit synthetic gaps inside the projected envelope. Public construction and
+/// deserialization do not validate this correspondence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SourceProvenance {
+    /// The span that was asked about, in the generated (shadow) source.
     pub projected: Span,
+    /// The original (editable) span holding the same text.
     pub original: Span,
 }
 
+/// A generated/original pair of equal length with identical text.
+///
+/// Only pairs verified at construction are stored, so interior byte offsets can be
+/// translated by simple addition. Ranges are sorted by generated start and may be
+/// adjacent or overlapping. Queries reject disagreement between covering mappings.
 #[derive(Clone, Debug)]
 struct LinearRange {
     generated: Span,
     original: Span,
 }
 
-/// v3 points remain points; Volar intervals remain intervals. We never infer an
-/// editable interval merely by extrapolating a greatest-lower-bound token.
+/// A loaded projection map, queried by generated span.
+///
+/// The index keeps points and intervals separate: v3 points remain points and Volar
+/// intervals remain intervals. We never infer an editable interval merely by
+/// extrapolating a greatest-lower-bound token.
+///
+/// A point maps to `None` when it is missing, when it belongs to another source, or
+/// when tokens disagree about it; `None` propagates to queries as unmapped instead of
+/// choosing one candidate.
 pub struct ProjectionIndex<'a> {
     generated: &'a SourceFile,
     original: &'a SourceFile,
@@ -63,7 +125,14 @@ pub struct ProjectionIndex<'a> {
 }
 
 impl<'a> ProjectionIndex<'a> {
+    /// Loads `map` and validates it against both sources.
+    ///
+    /// Rejects stale `sourcesContent`, mismatched Volar arrays, and malformed
+    /// coordinates. Matching v3 tokens inside the same surrogate scalar are accepted
+    /// but skipped: they cannot serve as byte-oriented edit anchors.
+    ///
     /// # Errors
+    ///
     /// Rejects malformed coordinates, stale contents, and invalid map structure.
     #[allow(clippy::too_many_lines)] // Keep the two transport formats and their validation together.
     pub fn new(
@@ -110,10 +179,10 @@ impl<'a> ProjectionIndex<'a> {
                         line: token.get_src_line(),
                         utf16_column: token.get_src_col(),
                     };
-                    // v3 permits UTF-16-unit tokens inside a surrogate pair. They
-                    // are not byte boundaries and cannot be edit anchors. Accept
-                    // only a matching pair of interiors; malformed coordinates
-                    // still fail instead of being silently dropped.
+                    // v3 permits UTF-16-unit tokens inside a surrogate pair. They are
+                    // not byte boundaries and cannot be edit anchors. Accept only a
+                    // matching pair of interiors; malformed coordinates still fail
+                    // instead of being silently dropped.
                     if token.get_source_id() == Some(source_id)
                         && let Some(generated_scalar) =
                             surrogate_scalar(generated, &generated_index, generated_position)
@@ -257,6 +326,12 @@ impl<'a> ProjectionIndex<'a> {
         Ok(result)
     }
 
+    /// Translates one generated byte offset to its original byte offset.
+    ///
+    /// Returns `None` unless the offset is a character boundary, is covered by
+    /// at least one point or interval, and every mapping that covers it agrees. `None`
+    /// means unmapped and must not be treated as the start of the file or as the
+    /// nearest mapped neighbor.
     pub fn original_byte(&self, byte: BytePos) -> Option<BytePos> {
         if !self.generated.text().is_char_boundary(byte.0 as usize) {
             return None;
@@ -278,8 +353,12 @@ impl<'a> ProjectionIndex<'a> {
         found.flatten().map(BytePos)
     }
 
-    /// True only when valid, nonempty syntax has no map entries or intervals.
-    /// Ambiguous points count as entries, never as evidence of generated syntax.
+    /// True only when valid, nonempty syntax has no map entries or intervals. Ambiguous
+    /// points count as entries, never as evidence of generated syntax.
+    ///
+    /// Callers use this to recognize scaffolding a converter inserted (a retyped
+    /// type-alias header, an added reference list) and drop it from the analysis view
+    /// without touching the original text.
     pub fn is_unmapped_syntax(&self, span: Span) -> bool {
         self.generated.slice(span).is_ok()
             && span.start < span.end
@@ -290,9 +369,12 @@ impl<'a> ProjectionIndex<'a> {
                 .any(|range| range.generated.start < span.end && span.start < range.generated.end)
     }
 
+    /// Verifies one projected span and returns where it came from.
+    ///
     /// # Errors
-    /// Requires mapped first/last scalars and exact original text. In particular,
-    /// an exclusive-end token is not required (some converters move it).
+    ///
+    /// Requires mapped first/last scalars and exact original text. In particular, an
+    /// exclusive-end token is not required (some converters move it).
     pub fn verify_exact(&self, projected: Span) -> Result<SourceProvenance, ProjectionError> {
         self.verify_fragments(&[projected])
     }
@@ -301,7 +383,9 @@ impl<'a> ProjectionIndex<'a> {
     /// Omitted synthetic text never becomes part of the emitted original expression.
     ///
     /// # Errors
-    /// Rejects invalid, overlapping, nonmonotonic, unmapped or text-mismatched fragments.
+    ///
+    /// Rejects invalid, overlapping, nonmonotonic, unmapped or text-mismatched
+    /// fragments.
     pub fn verify_fragments(
         &self,
         fragments: &[Span],
@@ -384,9 +468,9 @@ impl<'a> ProjectionIndex<'a> {
             .all(|(_, mapped)| mapped.is_none_or(|mapped| mapped == provenance.original.start.0))
     }
 
-    /// Checks that all mapped pieces of a wrapper originate within the retained
-    /// source range. This also supports duplicated identifiers in expanded
-    /// shorthand properties without treating authored `key: value` as shorthand.
+    /// Checks that all mapped pieces of a wrapper originate within the retained source
+    /// range. This also supports duplicated identifiers in expanded shorthand
+    /// properties without treating authored `key: value` as shorthand.
     pub fn is_collapsed_wrapper(&self, whole: Span, retained: Span) -> bool {
         if whole.file != self.generated.id()
             || retained.file != whole.file
@@ -427,6 +511,11 @@ impl<'a> ProjectionIndex<'a> {
     }
 }
 
+/// Returns the scalar whose surrogate pair surrounds `position`.
+///
+/// Applies only when `position` is the interior UTF-16 unit of a pair in `source`,
+/// which is a location no byte offset can name. Anything else returns `None`, so
+/// callers treat it as a real coordinate rather than as text to skip.
 fn surrogate_scalar<'a>(
     source: &'a SourceFile,
     index: &CoordinateIndex,

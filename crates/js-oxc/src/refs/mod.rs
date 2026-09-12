@@ -1,3 +1,13 @@
+//! Ref and scope extraction: definitions, references, projections, validation.
+//!
+//! [`definitions`] validates `style.ref()` / `style.scope()` calls and the ref variant
+//! forms, [`references`] resolves uses back to declarations or checker facts,
+//! [`projections`] lowers `anchor` / `position` / `scope` / `container` / `at`
+//! projections, and [`validation`] checks the JSX ancestry rules that can be decided
+//! within one file.
+//!
+//! Only the pieces other modules need are re-exported.
+
 mod definitions;
 mod projections;
 mod references;

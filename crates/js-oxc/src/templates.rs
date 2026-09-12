@@ -1,4 +1,15 @@
 //! Direct utility templates retain each ref substitution as an IR variant.
+//!
+//! A utility template is a whitespace-separated list in which a ref may occupy a
+//! complete variant segment, as in `` `md:${trigger`hover:`}:active:p-4` ``. The
+//! scanner rebuilds those segments into nested variant wrappers, so each utility
+//! keeps its own source span and the substitution stays a ref variant rather
+//! than becoming text.
+//!
+//! The accepted grammar is narrow on purpose. A substitution must be a direct
+//! ref call or tag, the text after it must begin with `:`, and any text before it
+//! must already be a complete `variant:` prefix; anything else fails with
+//! `SHJS005` instead of guessing how the author meant to splice a string.
 
 use oxc::ast::ast::TemplateLiteral;
 
@@ -8,6 +19,11 @@ use stillwind_source::{CompileError, Span, Spanned};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// Lowers a template into one class expression per `variant:utility` segment.
+    ///
+    /// Returns `None` after pushing a diagnostic when a substitution is not a ref
+    /// variant or a segment is incomplete, so a caller can treat the whole template as
+    /// unusable.
     pub(crate) fn utility_template_expressions(
         &mut self,
         template: &TemplateLiteral<'a>,
@@ -59,14 +75,27 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+/// Accumulator for the segment currently being read.
+///
+/// [`Self::needs_separator`] is set after a ref substitution; the next text must then
+/// start with `:`, which is what keeps `${ref}` from silently gluing onto the
+/// surrounding utility text.
 #[derive(Default)]
 struct TemplateToken {
+    /// Variants collected for the current segment, outermost first.
     variants: Vec<StyleVariant>,
+    /// Literal text still to be assigned to the segment's utility.
     tail: Option<Spanned<String>>,
+    /// True while the next text must begin with `:`.
     needs_separator: bool,
 }
 
 impl TemplateToken {
+    /// Feeds literal text into the current segment.
+    ///
+    /// Text arrives already split on whitespace. When a separator is required, exactly
+    /// one leading `:` is consumed and the span is advanced so it still points at the
+    /// text the value came from.
     fn text(&mut self, text: &str, mut span: Span) -> Result<(), CompileError> {
         if text.is_empty() {
             return Ok(());
@@ -87,6 +116,10 @@ impl TemplateToken {
         Ok(())
     }
 
+    /// Ends the current text run and starts a substitution.
+    ///
+    /// The text before a substitution is a variant prefix only when it ends with `:`,
+    /// so `` `${trigger`hover:`}x` `` is rejected rather than read as a prefix.
     fn reference(&mut self, variant: StyleVariant, span: Span) -> Result<(), CompileError> {
         if self.needs_separator {
             return Err(template_error(span));
@@ -102,6 +135,11 @@ impl TemplateToken {
         Ok(())
     }
 
+    /// Closes the current segment and appends the wrapped expression.
+    ///
+    /// A segment with variants but no utility, or an unterminated separator, is a
+    /// template error; wrappers are applied innermost-first so the emitted expression
+    /// nests in source order.
     fn finish(
         &mut self,
         expressions: &mut Vec<ClassExpression>,
@@ -124,9 +162,14 @@ impl TemplateToken {
     }
 }
 
+/// Re-bases a byte interval inside a quasi onto the quasi's source span.
+///
+/// Cooked text can be shorter than the original spelling, so offsets are clamped into
+/// the literal: a diagnostic may be imprecise but never points outside the string it
+/// is about.
 fn subspan(span: Span, start: usize, end: usize) -> Span {
-    // Cooked text is no longer than the original spelling. Keep diagnostics
-    // inside the literal even when JavaScript escape sequences were decoded.
+    // Cooked text is no longer than the original spelling. Keep diagnostics inside the
+    // literal even when JavaScript escape sequences were decoded.
     Span::new(
         span.file,
         span.start
@@ -140,6 +183,7 @@ fn subspan(span: Span, start: usize, end: usize) -> Span {
     )
 }
 
+/// The single diagnostic for every rejection path in this module.
 fn template_error(span: Span) -> CompileError {
     CompileError::new(
         "SHJS005",

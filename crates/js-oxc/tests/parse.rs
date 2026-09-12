@@ -1,4 +1,9 @@
 //! Integration of import binding, declarations, reference resolution and module summaries.
+//!
+//! Every test here goes through the public [`parse`] entry point with real source
+//! text, because most of the contracts are about what a module looks like from
+//! the outside: which framework was selected, which spans are recorded, which
+//! exports denote assets, and which shapes are rejected.
 
 use stillwind_ir::{
     AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, StyleInput, StyleVariant,
@@ -7,6 +12,10 @@ use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile, Span};
 
+/// IR span mapping visits every span and fails atomically.
+///
+/// A projection that fails partway must leave the original IR untouched, so callers can
+/// retry with another map without repairing state.
 #[test]
 fn ir_span_mapping_relocates_nested_expressions_transactionally() {
     let source = SourceFile::new(FileId(1), "entry.tsx", "import {style} from 'stillwind/react'; const ref = style.ref('target'); const props = style(ref, active ? 'flex' : 'grid', {class: external, 'aria-label': label});").unwrap();
@@ -42,6 +51,7 @@ fn ir_span_mapping_relocates_nested_expressions_transactionally() {
     assert_eq!(parsed.module, before);
 }
 
+/// Aliased macro imports are recognized, and a shadowing local is not.
 #[test]
 fn framework_registry_preserves_import_aliases_and_shadowing() {
     for spec in FRAMEWORKS {
@@ -60,6 +70,7 @@ fn framework_registry_preserves_import_aliases_and_shadowing() {
     }
 }
 
+/// A type-only import never selects an adapter or expands calls.
 #[test]
 fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
     for declaration in [
@@ -92,6 +103,10 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
     }
 }
 
+/// Macro specifier spans, references and reserved names stay usable for edits.
+///
+/// The reference list must contain only real uses of the macro binding, so a host edit
+/// can remove the import without touching unrelated code.
 #[test]
 fn import_edit_metadata_tracks_macro_references_and_preserves_mixed_bindings() {
     let source = SourceFile::new(FileId(1), "entry.tsx", "import fallback, {style as s, type StyleArgument, other} from 'stillwind/react'; const a = s('flex'); const retained = s; function f(s: Function, stillwindRef: string) { return s('grid') + stillwindClsx; }").unwrap();
@@ -124,6 +139,7 @@ fn import_edit_metadata_tracks_macro_references_and_preserves_mixed_bindings() {
     }
 }
 
+/// Specifier spans cover the literal including its quotes, even after non-ASCII text.
 #[test]
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     let source = SourceFile::new(
@@ -146,6 +162,7 @@ fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     }
 }
 
+/// Only the imported macro selects the framework; two frontends are an error.
 #[test]
 fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
     let source = SourceFile::new(FileId(1), "solid.tsx", "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
@@ -161,6 +178,10 @@ fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
     );
 }
 
+/// Import slices follow local aliases and drop unreachable imports.
+///
+/// Both `probe_imports` and per-export slices must reach through a reassigned local,
+/// while an import nothing reads stays out of the result.
 #[test]
 fn semantic_reads_follow_local_aliases_without_unrelated_imports() {
     let source = SourceFile::new(
@@ -192,6 +213,7 @@ export const attached = style(alias);
     assert_eq!(parsed.summary.export_imports["attached"].len(), 2);
 }
 
+/// A parameter that shadows an import contributes no probe import.
 #[test]
 fn semantic_reads_preserve_binding_shadowing() {
     let source = SourceFile::new(
@@ -207,6 +229,7 @@ export function attach(handle: unknown) { return style(handle); }
     assert!(parse(&source).summary.probe_imports.is_empty());
 }
 
+/// Only the macro-bound callee is a style call, and literal utilities cost no probe.
 #[test]
 fn extracts_only_an_import_bound_style_call_with_literal_spans() {
     let source = SourceFile::new(
@@ -235,6 +258,7 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
     assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
 }
 
+/// `style.ref()`/`style.scope()` argument forms map onto definition fields.
 #[test]
 fn parses_named_and_scoped_ref_declarations() {
     let source = SourceFile::new(
@@ -288,6 +312,7 @@ export const Menu = () => <div {...style(menu)}><button {...style(scoped)} /></d
     );
 }
 
+/// Exports and re-exports become summary entries with normalized paths.
 #[test]
 fn summarizes_exported_assets_and_module_edges() {
     let source = SourceFile::new(
@@ -322,6 +347,7 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
     assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");
 }
 
+/// A conditional handle choice is left for the checker instead of being widened.
 #[test]
 fn leaves_conditional_handle_propagation_to_typescript() {
     let source = SourceFile::new(
@@ -339,6 +365,7 @@ export const selected = enabled ? alias : second;"#,
     assert!(!parsed.summary.exports.contains_key("selected"));
 }
 
+/// Spread arguments in every asset macro are reported at the spread itself.
 #[test]
 fn spread_arguments_in_asset_macros_report_diagnostics() {
     for (body, code) in [
@@ -390,6 +417,7 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
     }
 }
 
+/// Attribute entries keep the span of the value expression.
 #[test]
 fn extracts_aria_and_data_attributes_with_value_expression_spans() {
     let source = SourceFile::new(
@@ -422,6 +450,7 @@ const props = style({ "aria-busy": loading, "data-state": state });"#,
     assert_eq!(source.slice(entries[1].value).unwrap(), "state");
 }
 
+/// Arrays stay arrays and variant wrappers keep their prefix text.
 #[test]
 fn flattens_arrays_and_retains_variant_prefixes() {
     let source = SourceFile::new(
@@ -465,6 +494,7 @@ const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" }
     assert_eq!(value.value, "bg-accent");
 }
 
+/// Raw selector keys and non-scopable wrapper values are rejected.
 #[test]
 fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
     for argument in [
@@ -486,6 +516,7 @@ fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
     }
 }
 
+/// Nested wrappers keep each utility's own source span.
 #[test]
 fn nested_variant_wrappers_preserve_utility_source_spans() {
     let source = SourceFile::new(

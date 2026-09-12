@@ -1,3 +1,12 @@
+//! The standard package's builtin CSS, concatenated for tests.
+//!
+//! The data is `packages/core/css/builtins/*.css` plus `builtins.css`, read at compile
+//! time with `include_str!`. The list is hand-maintained: nothing generates it, so
+//! adding or renaming a builtin file means updating it here. Order matters and mirrors
+//! the package's own layering (registry metadata, then utility families, then variant
+//! families, then the package entry).
+
+/// The full builtin CSS of the standard package, in package order.
 pub const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../packages/core/css/builtins/registry-metadata.css"),
     include_str!("../../packages/core/css/builtins/relationship-metadata.css"),

@@ -1,8 +1,18 @@
+//! The generated ambient declaration file for the React vocabulary.
+//!
+//! The file declares the utility and variant names the current theme resolves, so a
+//! misspelled class is a TypeScript error at the call site. Names come from three
+//! sources: the built-in registry, the theme's own `@utility` and `@custom-variant`
+//! definitions, and theme tokens rewritten through their utility prefixes. The result
+//! is sorted and deduplicated, so the same theme always produces the same file and a
+//! diff only shows real vocabulary changes.
+
 use stillwind_design_system::{
     ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_utility_names,
     builtin_utility_token_prefixes, builtin_variant_names,
 };
 
+/// Renders the whole declaration file for `theme`.
 pub(crate) fn render_react_types(theme: &ThemeIndex) -> String {
     let mut utilities = Vec::new();
     {

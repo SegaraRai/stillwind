@@ -1,9 +1,26 @@
+//! Capture substitution and composition of nested variants.
+//!
+//! Substitution is a fixed sequence of textual replacements rather than a template
+//! language: `--value()`, an escaped capture marker, the modifier forms, and the two
+//! placeholders used by `nth`-style selectors are replaced in that order. Inserted
+//! capture text can therefore be changed by later replacements. This path replaces
+//! underscores and modifier slashes; it is not a general CSS selector escaper.
+//!
+//! Composition goes the other way: an inner variant's selector is folded into the outer
+//! definition's body, and conditions or declarations can only attach to applications
+//! that have a selector, because a bare condition has no place to carry them.
+
 use super::super::syntax::closing_parenthesis;
 use super::super::values::domains::{resolve_value_domains, split_domains, theme_domain_pattern};
 use super::body::resolve_variant_body;
 use super::resolve::{VariantApplication, VariantDeclaration};
 use crate::{BuiltinVariantModifierType, CustomVariant, ThemeIndex};
 
+/// Substitutes a typed modifier into a definition's quoted macro.
+///
+/// A definition that declares a modifier type requires a modifier and fails without
+/// one; a definition without a type leaves the body untouched, so an unused modifier
+/// never changes the emitted selector.
 pub(crate) fn substitute_typed_modifier(
     body: &str,
     modifier_type: Option<BuiltinVariantModifierType>,
@@ -16,10 +33,15 @@ pub(crate) fn substitute_typed_modifier(
     substitute_quoted_macro(body, ":--modifier(\"", "{modifier}", &modifier)
 }
 
+/// Substitutes a capture into the quoted `:--value("...")` macro form.
 pub(crate) fn substitute_quoted_variant_value(body: &str, value: &str) -> Option<String> {
     substitute_quoted_macro(body, ":--value(\"", "{value}", value)
 }
 
+/// Replaces one quoted macro template with its expanded text.
+///
+/// The template's closing delimiter must be present; a truncated macro fails rather
+/// than leaving half a selector behind.
 pub(crate) fn substitute_quoted_macro(
     body: &str,
     prefix: &str,
@@ -36,6 +58,11 @@ pub(crate) fn substitute_quoted_macro(
     Some(result)
 }
 
+/// Applies an inner variant's application to an outer definition's body.
+///
+/// Only applications that produce a selector can be folded in: a media, container, or
+/// support condition has no position in the outer body, so combining them fails instead
+/// of dropping the condition.
 pub(crate) fn apply_nested_variant(
     body: &str,
     inner: &VariantApplication,
@@ -73,11 +100,19 @@ pub(crate) fn apply_nested_variant(
     }
 }
 
+/// Folds an inner selector into the definition body at its `:--value()` slot.
+///
+/// The selector must be relative to the utility - it starts with `&` - and the fragment
+/// after `&` is what replaces the slot.
 pub(crate) fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     let fragment = selector.strip_prefix('&')?;
     resolve_variant_body(&body.replace(":--value()", fragment))
 }
 
+/// Attaches a media condition to a selector application.
+///
+/// A condition can only wrap an application that already has a selector; the compound
+/// and rule-less variants are rejected.
 pub(crate) fn attach_media(
     application: VariantApplication,
     condition: &str,
@@ -99,6 +134,7 @@ pub(crate) fn attach_media(
     }
 }
 
+/// Attaches a variant's own declarations to a selector application.
 pub(crate) fn attach_declarations(
     application: VariantApplication,
     declarations: Vec<VariantDeclaration>,
@@ -120,6 +156,12 @@ pub(crate) fn attach_declarations(
     }
 }
 
+/// The definitions that can capture `value`, most specific first.
+///
+/// Exact names are collected before wildcards so a definition that names the variant
+/// exactly is never shadowed by a broader family, and wildcards are tried in reverse
+/// authored order so the newest registration wins. A wildcard that would capture an
+/// empty string is skipped.
 pub(crate) fn registered_variant_candidates<'a, 'b>(
     variants: &'a [CustomVariant],
     value: &'b str,
@@ -151,6 +193,11 @@ pub(crate) fn registered_variant_candidates<'a, 'b>(
     candidates
 }
 
+/// Fills a definition body's capture placeholders.
+///
+/// A body without any placeholder is returned as an unchanged owned copy. An arbitrary
+/// selector capture loses its `&` and underscore escapes, and a modifier is escaped as
+/// `\/` so it stays part of the selector rather than starting a new one.
 pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
     if !value.contains("--value()")
         && !value.contains(r"\*")
@@ -200,6 +247,11 @@ pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> 
     Some(expanded)
 }
 
+/// Resolves `--value(...)` placeholders in a variant body.
+///
+/// A theme namespace domain yields the authored token value, not a `var()` reference,
+/// because the value becomes part of a selector or condition where a variable cannot
+/// appear. A placeholder that cannot be resolved fails the body.
 pub(crate) fn resolve_variant_css_placeholders(
     body: &str,
     variant_name: &str,
@@ -220,6 +272,10 @@ pub(crate) fn resolve_variant_css_placeholders(
     (!body.contains("--value(")).then_some(body)
 }
 
+/// Resolves a variant's value-domain list against a capture.
+///
+/// Theme namespace domains read the token value directly; every other domain uses the
+/// utility resolver, so a variant and a utility accept the same spellings.
 pub(crate) fn resolve_variant_value_domains(
     domains: &str,
     capture: Option<&str>,

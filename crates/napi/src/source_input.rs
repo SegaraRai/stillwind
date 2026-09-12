@@ -1,4 +1,15 @@
 //! Host transport for normal and projected source buffers.
+//!
+//! The JavaScript side describes a module with two texts: the buffer a parser sees,
+//! and, when a converter produced it, the original buffer the user edits. Offsets
+//! arriving from JavaScript are UTF-16 code units, so projection records are translated
+//! through [`CoordinateIndex`] before they become spans; a surrogate interior is
+//! rejected rather than rounded.
+//!
+//! The conversion also enforces the pairing: a projected input must carry its map,
+//! converter identity, language, and framework, and a plain input must not carry
+//! projection metadata at all. This validation applies to transport conversion;
+//! domain records remain publicly constructible and need validation at use sites.
 
 use std::sync::Arc;
 
@@ -6,7 +17,6 @@ use napi::Error;
 use napi_derive::napi;
 use serde::Deserialize;
 
-use crate::semantic::NativeTypeFact;
 use stillwind_ir::{
     AdapterKind, AttributeQuote, ConverterIdentity, FrameworkProjection, ImportRealm,
     ProjectionRegion, ScriptLanguage, SourceInput,
@@ -16,11 +26,18 @@ use stillwind_source::{
     CoordinateIndex, FileId, ProjectionMap, SourceFile, Span, Utf16Offset, VolarMapping,
 };
 
+use crate::semantic::NativeTypeFact;
+
+/// Script dialect requested by the host.
 #[napi(string_enum = "lowercase")]
 pub enum NativeScriptLanguage {
+    /// Plain JavaScript.
     Js,
+    /// JavaScript with JSX syntax.
     Jsx,
+    /// TypeScript without JSX.
     Ts,
+    /// TypeScript with JSX syntax.
     Tsx,
 }
 impl From<NativeScriptLanguage> for ScriptLanguage {
@@ -34,13 +51,20 @@ impl From<NativeScriptLanguage> for ScriptLanguage {
     }
 }
 
+/// Framework adapter requested by the host.
 #[napi(string_enum)]
 pub enum NativeFramework {
+    /// React.
     React,
+    /// Preact.
     Preact,
+    /// Solid.
     Solid,
+    /// Vue.
     Vue,
+    /// Svelte.
     Svelte,
+    /// Astro.
     Astro,
 }
 impl From<NativeFramework> for AdapterKind {
@@ -56,62 +80,100 @@ impl From<NativeFramework> for AdapterKind {
     }
 }
 
+/// Quote character that delimited a converted attribute value.
 #[napi(string_enum = "lowercase")]
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NativeAttributeQuote {
+    /// Single-quoted attribute.
     Single,
+    /// Double-quoted attribute.
     Double,
 }
 
 /// Plain JavaScript source input. Optional vectors default to empty in native code.
 #[napi(object, object_to_js = false)]
 pub struct NativeProjectSource {
+    /// Module path as the host knows it; used for identity, never for reading.
     pub path: String,
+    /// Text the parser sees, and the buffer edits are applied to when there is no
+    /// projection.
     pub source: String,
+    /// Facts the host produced for this module, empty when it has none.
     #[napi(js_name = "type_facts")]
     pub type_facts: Option<Vec<NativeTypeFact>>,
+    /// Explicit dialect; defaults to the extension of [`Self::path`].
     pub language: Option<NativeScriptLanguage>,
+    /// Adapter to use; absent for plain JavaScript/TypeScript.
     pub framework: Option<NativeFramework>,
+    /// Source map from `source` back to the file it was generated from.
     pub map: Option<String>,
+    /// Original framework source, present only for projected inputs.
     #[napi(js_name = "fw_code")]
     pub fw_code: Option<String>,
+    /// Mapping between [`Self::fw_code`] and [`Self::source`].
     #[napi(js_name = "fw2js_map")]
     pub fw2js_map: Option<NativeProjectionMap>,
+    /// Source map from [`Self::fw_code`] to its own upstream file.
     #[napi(js_name = "fw_map")]
     pub fw_map: Option<String>,
+    /// Converter that produced [`Self::source`], part of the input revision.
     pub converter: Option<NativeConverterIdentity>,
+    /// Import scopes of [`Self::fw_code`].
     #[napi(js_name = "import_realms")]
     pub import_realms: Option<Vec<HostRealm>>,
+    /// Converted regions of [`Self::fw_code`].
     pub regions: Option<Vec<HostRegion>>,
     #[napi(js_name = "stylesheet_imports")]
+    /// Host-allocated stylesheet modules to insert at the macro import.
     pub stylesheet_imports: Option<Vec<String>>,
     #[napi(js_name = "module_css_import")]
+    /// Host-allocated module that exports this module's CSS value.
     pub module_css_import: Option<String>,
 }
 
+/// Projection map in either supported encoding.
 #[napi(
     discriminant = "kind",
     discriminant_case = "camelCase",
     object_to_js = false
 )]
 pub enum NativeProjectionMap {
-    V3 { json: String, source: String },
-    Volar { mappings: Vec<NativeVolarMapping> },
+    /// Standard source-map JSON.
+    V3 {
+        /// Source-map JSON text.
+        json: String,
+        /// Source name identifying the original file within the source map.
+        source: String,
+    },
+    /// Volar/Vue language-tool mappings.
+    Volar {
+        /// Mapping entries, in generated order.
+        mappings: Vec<NativeVolarMapping>,
+    },
 }
 
+/// One Volar mapping entry; the four arrays are parallel.
 #[napi(object, object_to_js = false)]
 pub struct NativeVolarMapping {
+    /// UTF-16 offsets in the original source.
     pub source_offsets: Vec<u32>,
+    /// UTF-16 offsets in the generated source.
     pub generated_offsets: Vec<u32>,
+    /// Length of each mapping in the original source.
     pub lengths: Vec<u32>,
+    /// Optional per-mapping generated lengths, when they differ.
     pub generated_lengths: Option<Vec<u32>>,
 }
 
+/// Converter that produced a projected input.
 #[napi(object, object_to_js = false)]
 pub struct NativeConverterIdentity {
+    /// Tool name.
     pub name: String,
+    /// Tool version.
     pub version: String,
+    /// Fingerprint of the converter settings that produced the mapping.
     #[napi(js_name = "options_fingerprint")]
     pub options_fingerprint: String,
 }
@@ -162,25 +224,40 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
     }
 }
 
+/// Domain-side projection record deserialized from the host transport.
 #[derive(Deserialize)]
 pub struct ProjectSource {
+    /// Module path as the host knows it.
     pub path: String,
+    /// Text the parser sees.
     pub source: String,
+    /// Facts the host produced for this module.
     #[serde(default)]
     pub type_facts: Vec<TypeFact>,
+    /// Explicit dialect, or `None` to derive it from [`Self::path`].
     pub language: Option<ScriptLanguage>,
+    /// Adapter to use, or `None` for plain JavaScript/TypeScript.
     pub framework: Option<AdapterKind>,
+    /// Source map from `source` to its upstream file.
     pub map: Option<String>,
+    /// Original framework source for a projected input.
     pub fw_code: Option<String>,
+    /// Mapping between [`Self::fw_code`] and [`Self::source`].
     pub fw2js_map: Option<ProjectionMap>,
+    /// Source map from [`Self::fw_code`] to its own upstream file.
     pub fw_map: Option<String>,
+    /// Converter identity for a projected input.
     pub converter: Option<ConverterIdentity>,
+    /// Import scopes of [`Self::fw_code`].
     #[serde(default)]
     pub import_realms: Vec<HostRealm>,
+    /// Converted regions of [`Self::fw_code`].
     #[serde(default)]
     pub regions: Vec<HostRegion>,
+    /// Host-allocated stylesheet modules.
     #[serde(default)]
     pub stylesheet_imports: Vec<String>,
+    /// Host-allocated module that exports this module's CSS value.
     pub module_css_import: Option<String>,
 }
 
@@ -188,24 +265,39 @@ pub struct ProjectSource {
 #[napi(object, object_to_js = false)]
 #[derive(Deserialize)]
 pub struct HostRealm {
+    /// Host-chosen realm identifier.
     pub id: u32,
+    /// UTF-16 start of the realm in the original source.
     pub start: u32,
+    /// UTF-16 end of the realm in the original source.
     pub end: u32,
+    /// Enclosing realm, or `None` for the file-level script scope.
     pub parent: Option<u32>,
 }
 
+/// Converted region of the original source, in UTF-16 offsets.
 #[napi(object, object_to_js = false)]
 #[derive(Deserialize)]
 pub struct HostRegion {
+    /// UTF-16 start in the original source.
     pub start: u32,
+    /// UTF-16 end in the original source.
     pub end: u32,
+    /// Realm whose imports are visible inside this region.
     #[napi(js_name = "import_realm")]
     pub import_realm: u32,
+    /// Delimiter of the enclosing attribute, when there is one.
     #[napi(js_name = "attribute_quote")]
     pub attribute_quote: Option<NativeAttributeQuote>,
 }
 
 impl ProjectSource {
+    /// Builds the analyzer input, translating UTF-16 projection offsets into
+    /// byte spans and validating that the projection metadata is complete.
+    ///
+    /// `original_id` names the editable file, `generated_id` the buffer the
+    /// parser sees, and `analysis_id` the file id used for spans created while
+    /// analyzing that buffer.
     pub fn input(
         &self,
         original_id: FileId,

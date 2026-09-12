@@ -1,4 +1,14 @@
 //! Runs host-converter outputs through normalization, Oxc and original IR mapping.
+//!
+//! Reads an array of cases from stdin, each with the generated text, the original text,
+//! a projection map and a framework, then prints one JSON result per case: the
+//! normalized analysis source, the mapped IR, the collected provenance, the
+//! diagnostics, or the error that stopped the conversion.
+//!
+//! Every case also runs the same input through `OxcSourceAnalyzer` and asserts that the
+//! direct normalization and the analyzer's projected scan agree, so the harness checks
+//! the two code paths against each other rather than only reporting what each one
+//! produced.
 
 use std::io::{self, Read};
 use std::sync::Arc;
@@ -13,15 +23,25 @@ use stillwind_ir::{
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_source::{FileId, ProjectionMap, SourceFile};
 
+/// One converter-output case as supplied by the test driver.
 #[derive(Deserialize)]
 struct Input {
+    /// Label echoed back in the result so a failing case stays identifiable.
     name: String,
+    /// Shadow module text the converter produced.
     generated: String,
+    /// Editable original the converter projected from.
     original: String,
+    /// The map linking the two, in either transport format.
     map: ProjectionMap,
+    /// Framework whose scaffolding rules apply.
     framework: AdapterKind,
 }
 
+/// Processes every case and prints the results as one JSON array.
+///
+/// A failed normalization is reported per case as data, so one bad converter output
+/// does not hide the rest; the process fails only on I/O or JSON errors.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;

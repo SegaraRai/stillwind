@@ -1,7 +1,13 @@
+//! Placeholder and value-domain families exercised through real built-ins.
+//!
+//! Pins pseudo-element colors, gradient direction and interpolation, size and filter
+//! keywords, and the rule that application CSS may override any compatibility utility
+//! name.
+
 use super::*;
 
 #[test]
-fn resolves_placeholder_colours_as_typed_pseudo_element_utilities() {
+fn resolves_placeholder_colors_as_typed_pseudo_element_utilities() {
     let resolved = resolve_utility("placeholder-current/50", &theme()).unwrap();
     assert_eq!(resolved.selector.as_deref(), Some("&::placeholder"));
     assert!(

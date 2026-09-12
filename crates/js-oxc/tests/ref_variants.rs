@@ -1,7 +1,14 @@
+//! Ref-variant tests: substitution forms, spans, and the rejected shapes.
+//!
+//! Ref variants are the one place a JavaScript expression may appear inside a utility
+//! string, so the tests pin down which expressions count, which spans are recorded, and
+//! which near-misses are errors.
+
 use stillwind_ir::{ClassExpression, GroupEntry, StyleInput, StyleVariant};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile, Span};
 
+/// `trigger()` keeps its identity in both the tag and object-key forms.
 #[test]
 fn argument_free_ref_variants_retain_identity_in_both_forms() {
     for expression in [
@@ -37,6 +44,10 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
     }
 }
 
+/// Interpolated templates keep ref identity and original utility spans.
+///
+/// Spans must be relocatable too, so the test shifts the whole IR and checks that ref
+/// and prefix spans moved with it.
 #[test]
 fn template_interpolation_retains_ref_identity_and_original_utility_spans() {
     let source = SourceFile::new(
@@ -105,6 +116,10 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     );
 }
 
+/// Near-miss substitutions are rejected rather than interpreted.
+///
+/// Non-ref substitutions, missing separators, partial utilities, multiple refs in one
+/// segment, spread arguments and optional calls all fail.
 #[test]
 fn utility_templates_require_direct_ref_variant_segments() {
     for expression in [
@@ -125,6 +140,7 @@ fn utility_templates_require_direct_ref_variant_segments() {
     }
 }
 
+/// A template stored in a variable is not followed into the `style()` call.
 #[test]
 fn saved_interpolated_strings_are_not_followed() {
     let source = SourceFile::new(

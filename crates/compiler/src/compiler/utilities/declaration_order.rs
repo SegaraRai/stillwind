@@ -1,3 +1,12 @@
+//! Declaration-level ordering inside one rule.
+//!
+//! Built-in utilities are reordered into their registry definition order, which is what makes
+//! shorthand and longhand precedence reproducible; a user definition records no position and stays
+//! where the author wrote it. Two equal positions fall back to the candidate spelling, so output is
+//! stable for a given input. Combining, rather than concatenating, the declarations is also where
+//! declaration formats apply and where `calc()` expressions are folded, so a caller must always go
+//! through `combine_declarations_for_theme` instead of joining declaration strings itself.
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use stillwind_css::fold_calc_expressions;
@@ -7,6 +16,11 @@ use stillwind_design_system::{
 
 use super::resolve::CompiledUtility;
 
+/// Prepends the declarations a variant contributes, skipping properties the body already sets.
+///
+/// A property the body writes explicitly keeps its authored position and value, and repeating the
+/// call is a no-op, so a variant that is applied through several paths cannot accumulate
+/// duplicates.
 pub(in crate::compiler) fn prepend_missing_declarations(
     declaration: &mut String,
     supporting: &[VariantDeclaration],
@@ -28,6 +42,7 @@ pub(in crate::compiler) fn prepend_missing_declarations(
     declaration.insert_str(0, &supporting);
 }
 
+/// Test-only combination against the built-in fixture registry.
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     use stillwind_design_system::parse_declaration_formats;
@@ -38,6 +53,10 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     )
 }
 
+/// Combines the declarations of several utilities into one block body.
+//
+// A theme that carries its own declaration formats overrides the built-in set entirely, which is
+// how a project can redefine how a property composes without patching the registry.
 pub(in crate::compiler) fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
@@ -50,6 +69,12 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
     combine_declarations_with_formats(utilities, formats)
 }
 
+/// The combination itself, with declaration formats supplied by the caller.
+///
+/// Formats decide three behaviors: `compose-space` appends a later value to the property's first
+/// occurrence instead of repeating the property, `empty-space` keeps an intentionally empty value
+/// visible, and `comma-space` normalizes fallback `var()` spacing. Declarations that no format
+/// mentions are emitted verbatim in their ordered position.
 pub(in crate::compiler) fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
     formats: &BTreeMap<String, String>,
@@ -109,6 +134,11 @@ pub(in crate::compiler) fn combine_declarations_with_formats(
     declarations
 }
 
+/// Reorders the utilities that carry a built-in position, leaving every other element in place.
+///
+/// Only the slots already occupied by built-ins are permuted: a user definition or an arbitrary
+/// property keeps its source position, which is what keeps a user's own `@utility` from moving
+/// when the registry changes.
 pub(in crate::compiler) fn order_builtin_utilities(
     mut utilities: Vec<&CompiledUtility>,
 ) -> Vec<&CompiledUtility> {

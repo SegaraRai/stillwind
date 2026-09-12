@@ -1,4 +1,14 @@
 //! Bundler-facing command line adapter for the Stillwind compiler.
+//!
+//! The CLI owns filesystem and package resolution for command-line compilation: it
+//! reads the source and theme files, resolves CSS imports through `oxc-resolver`, and
+//! rebases resource URLs relative to the entry. Everything downstream is composed from
+//! the library crates in the same order a host would use them: scan, finalize without
+//! checker facts, compile, render, and print one JSON object on stdout.
+//!
+//! It is a debugging and acceptance adapter, not a bundler integration: no watcher, no
+//! module graph, no caching. Diagnostics and lint findings are flattened to byte ranges
+//! in the emitted JSON, because a CLI consumer has no way to use the labeled form.
 
 #![cfg_attr(
     not(test),
@@ -31,56 +41,92 @@ mod loading;
 use arguments::{ArgumentError, argument, has_flag, optional_argument};
 use loading::{FileLoadError, load_design_system, read_source};
 
+/// Everything the command can fail with.
+///
+/// Variants wrap the underlying error, so the message a user sees is the specific
+/// failure rather than a generic command error.
 #[derive(Debug, thiserror::Error)]
 enum CommandError {
+    /// The source or theme could not be read as a valid buffer.
     #[error("{0}")]
     Source(#[from] SourceError),
+    /// No command word was given.
     #[error("expected `compile` command")]
     MissingCommand,
+    /// The command word is not one this binary implements.
     #[error("unknown command `{command}`; expected `compile`")]
     UnknownCommand { command: String },
+    /// A required argument was absent or missing its value.
     #[error("{0}")]
     Argument(#[from] ArgumentError),
+    /// A source, theme or imported CSS file could not be loaded.
     #[error("{0}")]
     File(#[from] FileLoadError),
+    /// The theme path could not be made absolute.
     #[error("cannot resolve theme {path}: {source}")]
     ThemePath {
         path: String,
         #[source]
         source: std::io::Error,
     },
+    /// Design-system options or the loaded design system are invalid.
     #[error("{0}")]
     Options(#[from] DesignSystemOptionsError),
+    /// The result could not be serialized.
     #[error("{0}")]
     Output(#[from] serde_json::Error),
 }
 
+/// The JSON object written to stdout for a successful compile.
 #[derive(Serialize)]
 struct CliOutput {
+    /// Rendered stylesheet, with resource placeholders already rebased.
     css: String,
+    /// Rewritten module source, or `None` when replacement failed.
     code: Option<String>,
+    /// Generated classes, for a caller that wants names without the CSS.
     classes: Vec<GeneratedClass>,
+    /// Compilation errors, flattened to byte ranges.
     diagnostics: Vec<DiagnosticOutput>,
+    /// Suppressible lint findings, flattened the same way.
     lint_findings: Vec<LintFindingOutput>,
+    /// Effective lint policy, keyed by rule name.
     lint_policy: std::collections::BTreeMap<String, String>,
 }
 
+/// One diagnostic with its primary label reduced to offsets.
 #[derive(Serialize)]
 struct DiagnosticOutput {
+    /// Stable compiler code.
     code: String,
+    /// Human-readable message.
     message: String,
+    /// Start offset of the first label, in the accepted source.
     start: u32,
+    /// End offset, exclusive.
     end: u32,
 }
 
+/// One lint finding with its primary label reduced to offsets.
 #[derive(Serialize)]
 struct LintFindingOutput {
+    /// Suppressible rule name.
     rule: String,
+    /// Human-readable message.
     message: String,
+    /// Start offset of the first label, in the accepted source.
     start: u32,
+    /// End offset, exclusive.
     end: u32,
 }
 
+/// Rewrites emitted resource URLs to be relative to the theme's directory.
+///
+/// Both the design system's own resources and the module's resource references carry a
+/// placeholder per resource; each placeholder is replaced by the path of the target
+/// relative to the entry, with `/` separators so the result is usable from any
+/// platform. The replacement is a raw URL, not a CSS string literal, so the JSON
+/// escaping used to quote it is stripped again before substitution.
 fn rebase_resources(
     mut css: String,
     theme: &SourceFile,
@@ -118,6 +164,12 @@ fn rebase_resources(
     Ok(css)
 }
 
+/// Runs one `compile` command and prints its result.
+///
+/// Source and theme may be given as text or as paths; a text theme is named
+/// `stillwind.css` because diagnostics and resource rebasing need a path. Checker facts
+/// are deliberately absent, so this path exercises the frontend without a TypeScript
+/// checker.
 fn run() -> Result<(), CommandError> {
     let command = env::args()
         .nth(1)
@@ -201,6 +253,7 @@ fn run() -> Result<(), CommandError> {
     Ok(())
 }
 
+/// Prints the error and usage to stderr and exits with status 2.
 fn main() {
     if let Err(error) = run() {
         eprintln!("stillwind: {error}");

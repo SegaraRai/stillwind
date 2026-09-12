@@ -1,9 +1,23 @@
+//! Value-domain resolution: which spellings a `--value(...)` placeholder accepts.
+//!
+//! A domain list is tried in authored order and the first matching domain wins, so a
+//! definition controls precedence by ordering its alternatives. Domains come in four
+//! shapes: literal keywords, CSS grammar hints such as `[length]`, the special forms
+//! `integer`, `number`, `percentage`, `--spacing()`, `--fraction()`, and the axis-size
+//! built-ins, and theme namespace patterns such as `--color-*`.
+
 use stillwind_css::ValueDomain;
 
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use super::theme::{axis_size_value, fraction_value, theme_value, theme_value_literal};
 use crate::{ThemeIndex, ThemeNamespace};
 
+/// Resolves the first matching domain in a comma-separated domain list.
+///
+/// A theme namespace domain looks the capture up in that namespace and may append an
+/// authored suffix; a CSS grammar domain accepts either a parenthesized variable (whose
+/// optional hint must fit) or an arbitrary value (whose value and hint must fit).
+/// [`None`] means no domain matched.
 pub(crate) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
@@ -69,6 +83,9 @@ pub(crate) fn resolve_value_domains(
 /// Resolves a typed domain to its authored theme token value rather than a
 /// `var(--token)` reference. Tailwind uses this form for broad-gamut-safe sRGB
 /// fallbacks, while retaining the variable reference in the upgraded branch.
+///
+/// Non-theme domains fallback to [`resolve_value_domains`] so a list mixing literal and
+/// theme domains keeps its authored order.
 pub(crate) fn resolve_literal_value_domains(
     domains: &str,
     capture: Option<&str>,
@@ -85,6 +102,11 @@ pub(crate) fn resolve_literal_value_domains(
     })
 }
 
+/// Splits a domain list on top-level commas.
+///
+/// Commas inside parentheses or brackets belong to a function argument list and are not
+/// separators. Surrounding whitespace is preserved, because a domain may be a prefix
+/// pattern such as `--spacing-*` followed by an authored suffix.
 pub(crate) fn split_domains(value: &str) -> Vec<&str> {
     let mut domains = Vec::new();
     let mut start = 0;
@@ -104,6 +126,11 @@ pub(crate) fn split_domains(value: &str) -> Vec<&str> {
     domains
 }
 
+/// Splits a theme namespace pattern into its namespace and trailing suffix.
+///
+/// Only a pattern of the form `--namespace-*` is recognized; an unknown namespace or a
+/// missing `-*` marker is not a theme domain, which keeps a custom property out of
+/// utility resolution.
 pub(crate) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
     let domain = domain.strip_prefix("--")?;
     let (namespace, suffix) = domain.split_once("-*")?;

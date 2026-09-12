@@ -1,5 +1,14 @@
-//! Explicit CSS fixtures for compiler tests that exercise the standard package.
-//! This module is included only by tests, never by a production host.
+//! Explicit CSS fixtures for compiler tests that exercise the standard package. This
+//! module is used by test and example targets rather than production hosts.
+//!
+//! The helpers read the real `packages/core` CSS from disk instead of embedding copies,
+//! so a fixture cannot drift from the package it claims to use. `@import` expansion is
+//! intentionally minimal: only `stillwind`, `stillwind/…` and relative paths inside the
+//! fixture directory are supported, and an unsupported tail asserts instead of being
+//! ignored.
+//!
+//! This is a fixture helper included through `#[path]` by test and example targets;
+//! it is not part of the library API.
 
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -7,18 +16,28 @@ use std::sync::OnceLock;
 
 use stillwind_source::{FileId, SourceError, SourceFile};
 
+/// Builds a source buffer from CSS that has the standard package prepended.
+///
+/// CSS that imports `stillwind` itself is expanded instead, so a fixture can choose
+/// between the defaults and an explicit import list.
 pub fn source(id: FileId, path: &str, css: impl AsRef<str>) -> Result<SourceFile, SourceError> {
     SourceFile::new(id, path, with_defaults(css.as_ref()))
 }
 
+/// Root of the standard CSS package, resolved from the crate the test builds.
 pub fn package_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/core")
 }
 
+/// Expands `@import` statements against the standard package.
 pub fn expand(css: &str) -> String {
     expand_from(css, &package_root())
 }
 
+/// Expands imports relative to `directory`, recursively.
+///
+/// An import that cannot be handled is copied through unchanged, so the caller decides
+/// what to do with it; a `layer(...)` tail wraps the imported body.
 fn expand_from(css: &str, directory: &Path) -> String {
     let mut output = String::new();
     let mut remaining = css;
@@ -66,6 +85,10 @@ fn expand_from(css: &str, directory: &Path) -> String {
     output
 }
 
+/// Prepends the expanded default package to CSS that does not import it.
+///
+/// The defaults are expanded once and cached, because every fixture would otherwise
+/// re-read the package from disk.
 pub fn with_defaults(css: &str) -> String {
     static DEFAULTS: OnceLock<String> = OnceLock::new();
     if css.contains("\"stillwind") || css.contains("'stillwind") {

@@ -1,3 +1,15 @@
+//! The single pass that replaces every placeholder in one resolved declaration.
+//!
+//! Placeholders are resolved in a fixed order because later ones may depend on earlier
+//! text: nested macros first, then `--value(...)`, then the modifier forms, then
+//! `--alpha(...)`, and finally the color forms. Every remaining placeholder at the end
+//! from the recognized marker list fails the declaration. Unknown function names
+//! are not rejected by this check and can remain in generated CSS.
+//!
+//! The capture a placeholder sees is the candidate text after the matched definition's
+//! prefix, with a slash modifier kept separately; a fraction domain is the one case
+//! where the two are reassembled, and only when both sides are unsigned integers.
+
 use stillwind_syntax::Value;
 
 use super::super::syntax::closing_parenthesis;
@@ -10,6 +22,12 @@ use super::macros::{
 };
 use crate::ThemeIndex;
 
+/// Resolves all placeholders in `body` for one candidate.
+///
+/// `utility_name` supplies the wildcard prefix that yields the capture; `modifier` is
+/// the authored slash modifier, which is optional and may be an arbitrary value or a
+/// variable. [`None`] means the declaration does not apply to this candidate, which
+/// lets the caller try the next overload.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn resolve_css_placeholders(
     body: &str,
@@ -30,10 +48,10 @@ pub(crate) fn resolve_css_placeholders(
         let open = start + "--value".len();
         let end = closing_parenthesis(&body, open)?;
         let domains = &body[open + 1..end];
-        // The candidate grammar deliberately represents the slash in `w-1/2`
-        // as a modifier. Value domains that explicitly opt into fractions can
-        // reassemble that spelling without changing slash semantics for color
-        // opacity, fonts, or arbitrary modifiers.
+        // The candidate grammar deliberately represents the slash in `w-1/2` as a
+        // modifier. Value domains that explicitly opt into fractions can reassemble
+        // that spelling without changing slash semantics for color opacity, fonts, or
+        // arbitrary modifiers.
         let fraction_capture = if domains.contains("--fraction()") {
             capture.zip(modifier).and_then(|(capture, modifier)| {
                 let modifier = match modifier {
@@ -63,9 +81,9 @@ pub(crate) fn resolve_css_placeholders(
         } else {
             let capture = match modifier {
                 Value::Named(value) => value.clone(),
-                // `Value::Arbitrary` is decoded by the grammar. Re-wrap it
-                // so the same typed-domain resolver used by `--value(...)`
-                // can check an optional arbitrary-value hint.
+                // `Value::Arbitrary` is decoded by the grammar. Re-wrap it so the same
+                // typed-domain resolver used by `--value(...)` can check an optional
+                // arbitrary-value hint.
                 Value::Arbitrary(value) => format!("[{value}]"),
                 Value::CssVariable(value) => format!("({value})"),
             };

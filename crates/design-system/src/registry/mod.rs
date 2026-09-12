@@ -1,3 +1,18 @@
+//! Parsing of the CSS registry language into typed definitions.
+//!
+//! Two definition origins exist and are deliberately separate: compiler-owned
+//! directives (`@stillwind-utility`, `@stillwind-variant`, `@stillwind-format`, …)
+//! carry a `builtin_order`, while user-authored directives (`@utility`, `@variant`,
+//! `@custom-variant`) do not. Order is used later to decide candidate precedence, so a
+//! built-in parsers preserve authored order. User variants are grouped by syntax form
+//! and do not preserve cross-form order. Built-in order is carried as a byte offset
+//! where a definition must compare against another kind - utilities and
+//! arbitrary properties share one ordering space - and as a simple counter for
+//! variants, which only ever compare against other variants.
+//!
+//! Every entry point is usable without a complete theme stylesheet so a host can build
+//! a registry once and share it.
+
 mod definitions;
 pub(super) mod formats;
 mod normalization;

@@ -1,3 +1,15 @@
+//! Custom-property discovery, registration metadata, and usage classification.
+//!
+//! Three related questions live here. [`references`] finds `--name` occurrences
+//! lexically, [`registration`] parses compiler-owned `@stillwind-property` blocks and
+//! authored `@property` names, and [`usage`] classifies an emitted stylesheet into
+//! declared properties, `var()` references and declaring properties. The split matters:
+//! registration decides what the compiler may emit, while usage decides which
+//! registrations an output actually needs.
+//!
+//! Authored `@property` rules are never rewritten or removed by these
+//! functions; they only report names.
+
 pub(super) mod references;
 pub(super) mod registration;
 pub(super) mod usage;

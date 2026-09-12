@@ -1,3 +1,15 @@
+//! Lowering of the expressions a `style()` call accepts.
+//!
+//! The mapping is structure-preserving: a conditional stays a conditional, an array
+//! stays an array, a variant wrapper stays a wrapper, and each authored expression is
+//! lowered exactly once. That is what lets the compiler emit one JavaScript expression
+//! per user expression with short-circuiting intact.
+//!
+//! Anything the frontend cannot resolve locally is not guessed: the expression is
+//! recorded as a type probe (when a checker could answer) or reported as a diagnostic
+//! (when it cannot be a class value at all). Every produced span is a span of the
+//! analysed source.
+
 use oxc::ast::ast::{
     ArrayExpressionElement, CallExpression, Expression, ObjectExpression, ObjectPropertyKind,
     PropertyKey, PropertyKind,
@@ -14,6 +26,7 @@ use stillwind_source::CompileError;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// True when this call is a direct `style(...)` call on the imported macro.
     pub(crate) fn is_style_call(&self, call: &CallExpression<'a>) -> bool {
         let Expression::Identifier(identifier) = &call.callee else {
             return false;
@@ -25,6 +38,12 @@ impl<'a> MacroExtractor<'a> {
             .is_some_and(|symbol| self.style_symbols.contains(&symbol))
     }
 
+    /// Resolves an expression to the style identities it may denote.
+    ///
+    /// Checker facts win over local knowledge; otherwise an identifier is resolved
+    /// through local binding values and a conditional is the union of its branches. The
+    /// result is a deduplicated set, so callers must not read the order as source
+    /// order. `None` means the value is not a resolvable style candidate at all.
     pub(crate) fn style_candidates(&self, expression: &Expression<'a>) -> Option<Vec<IdentityId>> {
         self.record_type_probe(expression);
         let span = expression.span();
@@ -56,6 +75,11 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Records an expression the host checker should resolve.
+    ///
+    /// Literals are skipped because their type is already known, and the probe set
+    /// deduplicates spans. Probes are what keep a module of literal utilities from
+    /// asking the checker anything.
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
         if matches!(
             expression,
@@ -70,6 +94,12 @@ impl<'a> MacroExtractor<'a> {
         self.type_probes.borrow_mut().insert((span.start, span.end));
     }
 
+    /// Lowers one `style()` argument into zero or more IR inputs.
+    ///
+    /// The order of the attempts is the precedence order of the accepted forms: nested
+    /// `style()` calls are reported, then style candidates, then handle and scope
+    /// attachments, projections, view transitions, utility templates and finally plain
+    /// class expressions.
     pub(crate) fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
@@ -103,8 +133,8 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(transition);
             return;
         }
-        // A utility template keeps one class expression per utility segment, so
-        // it matches a whitespace-separated utility list.
+        // A utility template keeps one class expression per utility segment, so it
+        // matches a whitespace-separated utility list.
         if let Expression::TemplateLiteral(template) = expression
             && let Some(expressions) = self.utility_template_expressions(template)
         {
@@ -118,8 +148,12 @@ impl<'a> MacroExtractor<'a> {
 
     /// Lowers one class-valued expression while mirroring the source structure.
     ///
-    /// Returns `None` when the expression contributes no class, such as
-    /// `null`, `undefined`, or `false`.
+    /// Returns `None` when the expression contributes no class, such as `null`,
+    /// `undefined`, or `false`.
+    ///
+    /// Falsy literals and `undefined` disappear rather than becoming a branch, and a
+    /// spread or an empty array slot is an error, so the emitted IR is never a guess
+    /// about the author's intent.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
     fn class_expression(&mut self, expression: &Expression<'a>) -> Option<ClassExpression> {
         match expression {
@@ -228,10 +262,21 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Lowers an expression to the sequence of class expressions it contributes.
+    ///
+    /// Today at most one expression is produced; the vector shape is what lets a future
+    /// multi-part form reuse the wrapper logic unchanged.
     fn class_expression_sequence(&mut self, expression: &Expression<'a>) -> Vec<ClassExpression> {
         self.class_expression(expression).into_iter().collect()
     }
 
+    /// Lowers a `style({...})` object into attribute entries and wrappers.
+    ///
+    /// Keys are interpreted by shape: `class` passes a user value through, quoted
+    /// `aria-*`/`data-*` keys become attributes, a key ending in `:` becomes a variant
+    /// wrapper, and a computed key must be a ref variant. Spread properties and any
+    /// other key shapes are errors, because guessing at them would change what the
+    /// object means.
     fn object_class_expression(
         &mut self,
         object: &ObjectExpression<'a>,
@@ -321,6 +366,7 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Wraps a value in one variant, rejecting values a variant cannot scope.
     fn variant_entry(
         &mut self,
         variant: StyleVariant,
@@ -345,8 +391,12 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
-/// Variant wrappers scope class declarations only; attributes and user class
-/// values cannot be variant-scoped.
+/// Variant wrappers scope class declarations only; attributes and user class values
+/// cannot be variant-scoped.
+///
+/// Returns true only for the node kinds a wrapper may contain, so an attribute or an
+/// external class value inside a `:`-keyed wrapper is reported instead of silently
+/// emitting a selector that cannot apply.
 fn variant_compatible(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Utilities(_)

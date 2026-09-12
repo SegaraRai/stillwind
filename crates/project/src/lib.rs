@@ -1,4 +1,20 @@
 //! Mutable artifact ownership, reloads, and explicit stylesheet coverage and placement.
+//!
+//! This crate is the orchestration layer a host (Vite, CLI watch, LSP workspace)
+//! embeds. It owns the current snapshot, the analyses and compiled artifacts keyed by
+//! module, the reverse dependency index, and the assembled project stylesheet. It does
+//! not parse, compile, or render by itself: every such operation is delegated to the
+//! immutable services in [`stillwind_compiler`] and [`stillwind_design_system`], which
+//! stay cheap to clone and safe to use concurrently.
+//!
+//! Two state rules define the behaviour of the whole layer. A revision is published as
+//! one coherent set, so a failed watch reload retains the previous snapshot, artifacts,
+//! and CSS rather than mixing new registries with stale output. A failed design-system
+//! load in build mode clears artifacts even if a previous revision existed. A build
+//! reload with module errors publishes the new revision with successful modules only.
+//! And coverage is only as good as the host says: observing a transform never proves
+//! that the module graph is complete, so a selection must carry an explicit
+//! [`StylesheetCoverage`].
 
 #![cfg_attr(
     not(test),

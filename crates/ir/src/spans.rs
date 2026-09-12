@@ -1,4 +1,17 @@
 //! Transactional conversion of IR coordinates at a frontend boundary.
+//!
+//! A frontend that analyzes a converted or shadow buffer produces spans in that
+//! buffer's coordinates, but every consumer downstream edits the original file. This
+//! module walks an entire `ModuleIr` and rewrites each span through one supplied
+//! mapping function.
+//!
+//! The conversion is all-or-nothing: the receiver is untouched and the first error is
+//! returned, because a partially mapped IR would silently mix two coordinate systems.
+//! Frontends own the mapping itself, including correspondence validation and their
+//! provenance records; this module only enforces that no span is forgotten.
+//!
+//! [`map_input`] deliberately matches exhaustively with no wildcard arm so that a new
+//! IR variant fails to compile until its mapping policy is stated.
 
 use stillwind_source::{Span, Spanned};
 
@@ -8,10 +21,14 @@ use crate::{
 };
 
 impl ModuleIr {
-    /// Maps every local source span, retaining this IR unchanged on failure.
-    /// The frontend owns correspondence validation and keeps its provenance.
+    /// Maps every local source span, retaining this IR unchanged on failure. The
+    /// frontend owns correspondence validation and keeps its provenance.
+    ///
+    /// The mapping function is called once per span and must be pure with respect to
+    /// the IR: it sees only the incoming span, not its role.
     ///
     /// # Errors
+    ///
     /// Returns the first error from the supplied source correspondence function.
     pub fn try_map_spans<E>(
         &self,

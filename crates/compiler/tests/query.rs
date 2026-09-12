@@ -1,3 +1,9 @@
+//! Editor queries against a live snapshot.
+//!
+//! Pins that a query resolves the theme's own `@utility` definitions, that the declarations it
+//! reports match what a real compilation emits for the same candidate, that every answer carries
+//! the snapshot revision, and that hover, completion, and diagnostics agree about what resolves.
+
 use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, CompletionInput, DesignSystemQuery, ModuleCompiler};

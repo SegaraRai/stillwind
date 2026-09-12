@@ -1,3 +1,10 @@
+//! Structure-preserving lowering of conditional class expressions.
+//!
+//! Checks emitted code structure and occurrences of test expressions (without executing
+//! JS), that `&&` and `?:` keep their short-circuiting and source evaluation order
+//! (attribute values included), that base rules precede conditional rules in the
+//! stylesheet, and that unsupported forms keep reporting their existing diagnostics.
+
 use stillwind_compiler::CompileResult;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 

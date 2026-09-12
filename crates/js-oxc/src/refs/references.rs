@@ -1,3 +1,13 @@
+//! Resolving an expression back to the refs and scopes it may denote.
+//!
+//! Resolution order is fixed: checker facts for the exact expression span, then a local
+//! declaration, then a local symbolic value. Imported assets are reconstructed from
+//! their identities plus host metadata, so a ref declared in another module behaves
+//! like a local one without this module seeing that file.
+//!
+//! A value that resolves to several candidates stays plural. Callers that need exactly
+//! one candidate use the singular helpers, which return `None` instead of picking one.
+
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
@@ -8,11 +18,19 @@ use stillwind_source::{Span, Spanned};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// Resolves an expression to exactly one ref, or `None`.
+    ///
+    /// Prefer this over [`Self::handle_references`] wherever a single identity is
+    /// required; an ambiguous value must not be resolved by choosing.
     pub(crate) fn handle_reference(&self, expression: &Expression<'a>) -> Option<HandleDefinition> {
         let handles = self.handle_references(expression)?;
         (handles.len() == 1).then(|| handles[0].clone())
     }
 
+    /// Resolves an expression to every ref it may denote.
+    ///
+    /// Records a type probe for non-literal expressions, so the host checker can answer
+    /// on a later pass when local analysis cannot.
     pub(crate) fn handle_references(
         &self,
         expression: &Expression<'a>,
@@ -38,6 +56,12 @@ impl<'a> MacroExtractor<'a> {
         self.handles_from_alternatives(alternatives)
     }
 
+    /// Expands correlated alternatives into the handle definitions they denote.
+    ///
+    /// Each alternative keeps its own permitted scope: an alternative with a finite
+    /// scope set expands to one handle per scope, while an alternative whose scope set
+    /// is a universe yields `None`, because no single scope could be chosen without
+    /// changing the selector's meaning.
     pub(crate) fn handles_from_alternatives(
         &self,
         alternatives: &[RefAlternative],
@@ -58,11 +82,17 @@ impl<'a> MacroExtractor<'a> {
         Some(handles)
     }
 
+    /// Resolves an expression to exactly one scope, or `None`.
     pub(crate) fn scope_reference(&self, expression: &Expression<'a>) -> Option<ScopeDefinition> {
         let scopes = self.scope_references(expression)?;
         (scopes.len() == 1).then(|| scopes[0].clone())
     }
 
+    /// Resolves an expression to every scope it may denote.
+    ///
+    /// A scope value must be finite: a universe scope set means the checker could not
+    /// narrow the value, so the use stays unresolved instead of being widened to every
+    /// scope.
     pub(crate) fn scope_references(
         &self,
         expression: &Expression<'a>,
@@ -96,6 +126,11 @@ impl<'a> MacroExtractor<'a> {
         )
     }
 
+    /// Rebuilds a scope definition from an identity declared elsewhere.
+    ///
+    /// A locally declared scope is reused when the identity matches, so local and
+    /// imported scopes compare equal; otherwise the definition is synthesized with the
+    /// identity's declaration span and the host's metadata label.
     pub(crate) fn imported_scope(&self, identity: &IdentityId) -> ScopeDefinition {
         if let Some(scope) = self
             .scope_definitions
@@ -116,6 +151,10 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Rebuilds a ref definition from a correlated alternative.
+    ///
+    /// Returns `None` when the alternative's permitted scopes are not exactly one
+    /// finite candidate, because a handle definition carries at most one scope.
     pub(crate) fn imported_ref(&self, alternative: &RefAlternative) -> Option<HandleDefinition> {
         let span = Span::new(
             self.source.id(),

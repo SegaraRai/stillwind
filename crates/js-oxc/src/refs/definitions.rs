@@ -1,3 +1,14 @@
+//! Validation and extraction of `style.ref()`, `style.scope()` and ref variants.
+//!
+//! Both producers accept an optional literal marker name, and a ref may instead bind to
+//! a scope identity. Marker names are restricted to a small ASCII alphabet because they
+//! become part of generated class names; anything else is reported and the declaration
+//! is dropped rather than sanitized.
+//!
+//! Ref variants accept the tagged-template, no-argument call and single-literal call
+//! forms; every other shape is reported. The prefix is normalized to end with `:` so
+//! later stages can concatenate without re-checking.
+
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
@@ -7,6 +18,10 @@ use stillwind_source::{CompileError, Span, Spanned, normalized_module_path};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// Validates one `style.scope()` declaration.
+    ///
+    /// Accepts no argument or one literal name; the returned definition keeps the call
+    /// span so diagnostics and identity creation can point at it.
     pub(crate) fn collect_scope_definition(
         &mut self,
         name: Spanned<String>,
@@ -53,6 +68,11 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
+    /// Validates one `style.ref()` declaration.
+    ///
+    /// Accepts `()`, `(name)`, `(scope)` and `(scope, name)`. The scope argument must
+    /// resolve to a `style.scope()` identity, so a ref can never be bound to an
+    /// arbitrary value.
     pub(crate) fn collect_ref_definition(
         &mut self,
         name: Spanned<String>,
@@ -127,6 +147,11 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
+    /// Extracts one ref variant from a computed key or template substitution.
+    ///
+    /// The tag or callee must resolve to a ref, and a tag must be static (no
+    /// interpolations). `None` means the expression is not a ref variant, which lets
+    /// callers try other forms before reporting an error.
     pub(crate) fn ref_variant(&mut self, expression: &Expression<'a>) -> Option<StyleVariant> {
         let (reference, mut prefix) = match expression {
             Expression::TaggedTemplateExpression(tagged) => {
@@ -182,6 +207,11 @@ impl<'a> MacroExtractor<'a> {
         Some(StyleVariant::Ref { handles, prefix })
     }
 
+    /// Recognizes a scope or ref used as a `style()` argument.
+    ///
+    /// Returns true when the expression was consumed as an attachment; a set of several
+    /// candidates becomes an explicitly dynamic attachment rather than one of them
+    /// being chosen.
     pub(crate) fn collect_dynamic_handle_attachment(
         &mut self,
         expression: &Expression<'a>,
@@ -219,6 +249,11 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+/// True for a marker name usable in a generated class name.
+///
+/// Empty names are rejected so an unset label and an empty one cannot be confused, and
+/// only ASCII letters, digits, `_` and `-` are allowed because the name is embedded in
+/// a CSS identifier.
 fn is_marker_label(label: &Spanned<String>) -> bool {
     !label.value.is_empty()
         && label

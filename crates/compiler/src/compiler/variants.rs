@@ -1,7 +1,14 @@
 //! Non-compound steps shared by authored and generated CSS renderers.
+//!
+//! A [`VariantStep`] is one effect a variant has on a rule, expressed without reference to
+//! which renderer is applying it: a selector suffix or template, the declarations a variant
+//! contributes, and the at-rules that contain everything else. Compound applications are
+//! flattened here into alternative paths, so the authored `@variant` path and the generated
+//! utility path expand the same inputs through the same code and cannot drift apart.
 
 use stillwind_design_system::{VariantApplication, VariantDeclaration};
 
+/// One non-compound effect of a variant.
 #[derive(Clone, Copy)]
 pub(super) enum VariantStep<'a> {
     SelectorSuffix(&'a str),
@@ -26,6 +33,10 @@ pub(super) enum VariantStep<'a> {
 }
 
 /// Expand alternatives without recursion, preserving authored branch order.
+///
+/// The returned order is the order a reader sees in the source: alternatives of one compound
+/// application keep their written order, and later applications only multiply the paths. The
+/// traversal uses an explicit stack, so deeply nested compounds cannot overflow the stack.
 pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<VariantStep<'_>>> {
     let mut paths = vec![Vec::new()];
     for application in applications {

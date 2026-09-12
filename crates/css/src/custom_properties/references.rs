@@ -1,5 +1,18 @@
+//! Lexical discovery of `--name` occurrences in CSS text.
+//!
+//! The scan is purely textual: it does not parse declarations or functions, so
+//! a `--name` inside a comment, a string or a declaration is reported the same
+//! way. Callers that need statement context strip comments or blocks first.
+//! This is the cheap dependency set used for activation decisions, not a
+//! substitute for the AST-based classification in [`super::usage`].
+
 use std::collections::BTreeSet;
 
+/// Returns every distinct `--name` occurrence in `css`, in `BTreeSet` order.
+///
+/// Names continue only with ASCII letters, digits, `-` and `_`, so bare `--` and
+/// `--` followed by anything else are skipped. The scan never fails and never
+/// decodes escapes.
 pub fn custom_property_references(css: &str) -> BTreeSet<String> {
     let mut references = BTreeSet::new();
     let mut cursor = 0;

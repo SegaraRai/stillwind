@@ -1,3 +1,15 @@
+//! Animation and view-transition definitions, and the declarations their uses emit.
+//!
+//! A definition is emitted once per declaration under a name hashed from the declaration's
+//! identity, and every use references that name, so a keyframe pair or view-transition pair is
+//! written to the stylesheet once however many call sites use it. Utilities inside a definition
+//! must be unconditional: a variant needs a target element to attach to, and a pseudo-element
+//! rule has none, so those are reported with the definition's own diagnostic code instead of
+//! being lowered into something that cannot work.
+//!
+//! Options are resolved through the shared candidate resolver, which is why a theme duration
+//! is usable as an animation option even though it is not a utility.
+
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
 use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition};
 use stillwind_semantic::AssetKind;
@@ -8,6 +20,10 @@ use super::symbols::{asset_symbol_name, symbol_name};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
 
+/// Writes the `@keyframes` rule for one animation declaration.
+///
+/// Frames keep their authored order and selectors; each frame's utilities are combined with
+/// the same declaration ordering the utilities layer uses.
 pub(super) fn emit_animation_definition(
     output: &mut String,
     source: &SourceFile,
@@ -46,6 +62,10 @@ pub(super) fn emit_animation_definition(
     output.push('}');
 }
 
+/// Builds the declarations one animation use contributes.
+///
+/// The `animation-name` always names this declaration's keyframes, and the options follow in
+/// their written order.
 pub(super) fn resolve_animation_use(
     animation: &AssetReference,
     options: &Spanned<String>,
@@ -73,6 +93,11 @@ pub(super) fn resolve_animation_use(
     }
 }
 
+/// Resolves a whitespace-separated option list into declarations.
+///
+/// Each option contributes its own declarations, so writing two durations is not rejected here
+/// but resolves in source order. An unknown option is reported at its own span and contributes
+/// nothing.
 pub(super) fn resolve_motion_options(
     options: &Spanned<String>,
     theme: &ThemeIndex,
@@ -93,6 +118,11 @@ pub(super) fn resolve_motion_options(
     declaration
 }
 
+/// Writes the view-transition rules for one declaration.
+///
+/// The group rule carries the transition options, and the `old` and `new` pseudo-element rules
+/// carry their utility lists. Both pseudo-elements are keyed by the same generated name, which
+/// is what pairs them at runtime.
 pub(super) fn emit_view_transition_definition(
     output: &mut String,
     source: &SourceFile,
@@ -127,6 +157,7 @@ pub(super) fn emit_view_transition_definition(
     }
 }
 
+/// Resolves a definition's utility list, rejecting variant-qualified utilities.
 pub(super) fn resolve_static_utility_list(
     input: &Spanned<String>,
     theme: &ThemeIndex,

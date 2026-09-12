@@ -1,26 +1,41 @@
 //! Source locations retained while assembling CSS, before a host rewrites URLs.
+//!
+//! A [`MappedStylesheet`] pairs generated CSS with mappings back into the immutable source
+//! files it came from. Generated ranges are byte offsets into the assembled CSS, original
+//! ranges are byte offsets into one specific [`SourceFile`], and `exact` records whether the
+//! generated text is byte-for-byte the authored slice or a rendering of it. Mappings are
+//! appended in output order and survive [`MappedStylesheet::append`] and
+//! [`MappedStylesheet::prepend_unmapped`], which shift only the generated side.
 
 use std::ops::Range;
 use std::sync::Arc;
 
 use stillwind_source::{SourceFile, Span};
 
+/// One generated range and the authored range it came from.
 #[derive(Clone, Debug)]
 pub struct StylesheetMapping {
+    /// Byte range in the assembled CSS.
     pub generated: Range<usize>,
+    /// Immutable buffer the original range addresses.
     pub source: Arc<SourceFile>,
+    /// Byte range in `source`.
     pub original: Range<usize>,
     /// Byte-for-byte authored text; other mappings identify a generated rule's origin.
     pub exact: bool,
 }
 
+/// Generated CSS plus the mappings that explain where each part came from.
 #[derive(Clone, Debug, Default)]
 pub struct MappedStylesheet {
+    /// The assembled CSS.
     pub css: String,
+    /// Mappings in output order; ranges never overlap.
     pub mappings: Vec<StylesheetMapping>,
 }
 
 impl MappedStylesheet {
+    /// Appends another stylesheet, shifting its generated ranges by the current length.
     pub(crate) fn append(&mut self, other: &Self) {
         let offset = self.css.len();
         self.css.push_str(&other.css);
@@ -32,6 +47,12 @@ impl MappedStylesheet {
             }));
     }
 
+    /// Appends `text`, recording a mapping when `origin` names a sliceable source range.
+    ///
+    /// An empty text or an unusable span drops only the mapping; the text is always
+    /// appended, so a caller that passes no origin still gets the CSS. A mapping that is not
+    /// `exact` starts after the original's leading whitespace, because generated text has no
+    /// leading indentation for those bytes to point at.
     pub fn text(&mut self, text: &str, origin: Option<(Arc<SourceFile>, Span)>) {
         let start = self.css.len();
         self.css.push_str(text);
@@ -56,6 +77,7 @@ impl MappedStylesheet {
         }
     }
 
+    /// Inserts `text` at the start and shifts every generated range past it.
     pub(crate) fn prepend_unmapped(&mut self, text: &str) {
         self.css.insert_str(0, text);
         for mapping in &mut self.mappings {

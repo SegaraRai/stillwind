@@ -1,3 +1,9 @@
+//! Value-family coverage: theme values, keywords, fractions, and arbitrary values.
+//!
+//! Pins discrete keyword utilities, directional theme values, fraction and theme
+//! families, and the difference between unhinted and hint-checked arbitrary values
+//! against Tailwind's unbracketed grammar catalog.
+
 use super::*;
 
 #[test]

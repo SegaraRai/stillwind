@@ -1,3 +1,10 @@
+//! Variant lowering and the utilities layer.
+//!
+//! Pins Tailwind's group, peer, and container compatibility (and the lint rule that can forbid it),
+//! breakpoint queries inlined without lookup tokens, fallbacks and selector overloads from
+//! CSS-defined utilities, nested supports and media rules, starting-style wrappers, and that a
+//! variant wrapper is equivalent to the same prefix written on the utility.
+
 use stillwind_compiler::CompilerOptions;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 

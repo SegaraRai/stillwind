@@ -1,3 +1,15 @@
+//! Placeholder forms that are rewritten inside a body before the main value pass.
+//!
+//! These macros are resolved by text substitution in place, and each one consumes a
+//! whole macro invocation. Replacement text may be longer or contain another macro;
+//! these loops do not enforce a decreasing measure or detect cycles. An unclosed or
+//! unresolvable macro fails the whole body rather than leaving the placeholder text in
+//! generated CSS.
+//!
+//! `--stillwind-theme-suffix(...)` is the one form that composes a name from two parts:
+//! the candidate capture plus an authored suffix, which is how a wildcard definition
+//! resolves a token whose name it cannot spell in advance.
+
 use super::super::syntax::closing_parenthesis;
 use super::colors::CompatColorMode;
 use super::domains::{
@@ -6,6 +18,11 @@ use super::domains::{
 use super::theme::theme_value;
 use crate::ThemeIndex;
 
+/// Replaces every `--value-literal(...)` with the authored token text.
+///
+/// The compatibility mode decides the lookup: the fallback branch must read the literal
+/// value, while the modern branch takes the same reference the ordinary `--value(...)`
+/// form would produce.
 pub(crate) fn resolve_literal_value_placeholders(
     body: &mut String,
     capture: Option<&str>,
@@ -26,6 +43,11 @@ pub(crate) fn resolve_literal_value_placeholders(
     Some(())
 }
 
+/// Replaces every `--stillwind-theme-suffix(...)` with a composed token value.
+///
+/// The first argument is a theme namespace pattern, the second a suffix that is
+/// appended to the candidate capture; both the capture and a matching token are
+/// required, so a missing token fails the branch.
 pub(crate) fn resolve_theme_suffix_placeholders(
     body: &mut String,
     capture: Option<&str>,
@@ -51,6 +73,10 @@ pub(crate) fn resolve_theme_suffix_placeholders(
     Some(())
 }
 
+/// Replaces every `--value-map(...)` with the entry matching the capture.
+///
+/// Keys are compared exactly as authored and the first matching entry wins; a candidate
+/// without a capture, or with no matching key, fails the branch.
 pub(crate) fn resolve_value_map_placeholders(
     body: &mut String,
     capture: Option<&str>,

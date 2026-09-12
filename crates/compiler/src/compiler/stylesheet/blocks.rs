@@ -1,3 +1,16 @@
+//! Byte-level scanning of authored CSS at-rules.
+//!
+//! These helpers locate `@name <prelude> { ... }` blocks in CSS text without building a parse
+//! tree, skipping braces that appear inside strings, comments, or parenthesized functions. Every
+//! returned index is a byte offset into the input text. A name only matches at a token boundary,
+//! so `@apply-extra` is not mistaken for `@apply`, and a block whose braces never close reports
+//! `None` rather than a truncated range.
+
+/// Locates the first `@<name>` block that is followed by a prelude and a braced body.
+///
+/// Returns `(start, prelude, open, close)`: the offset of the `@`, the trimmed text between the
+/// name and the opening brace, and the offsets of the braces themselves. A statement form without
+/// a body, such as `@<name> x;`, does not match.
 pub(in crate::compiler) fn find_at_rule_block(
     css: &str,
     name: &str,
@@ -54,6 +67,10 @@ pub(in crate::compiler) fn find_at_rule_block(
     None
 }
 
+/// Offset of the `{` that opens the block whose name ends at `from`.
+///
+/// A `;` before the brace means the at-rule is a statement, so the search reports `None` instead
+/// of matching a later block.
 pub(in crate::compiler) fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
     let mut stack = Vec::new();
     let mut quote = None;
@@ -101,6 +118,9 @@ pub(in crate::compiler) fn find_at_rule_block_open(css: &str, from: usize) -> Op
     None
 }
 
+/// Offset of the `}` matching the `{` at `open`, ignoring braces in strings and comments.
+///
+/// `open` must itself be a `{`; an unbalanced body returns `None`.
 pub(in crate::compiler) fn matching_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;

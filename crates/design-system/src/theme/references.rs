@@ -1,7 +1,22 @@
+//! Lowering of build-time `--theme()` references inside token values.
+//!
+//! Tailwind resolves these while generating CSS rather than in the browser, so the
+//! result depends on which tokens are active. Three outcomes exist and must stay
+//! distinguishable: a defined token becomes a `var()` reference, an undefined token
+//! with a fallback uses that fallback, and an undefined token whose fallback is
+//! `initial` (or that has no fallback) drops the containing declaration entirely,
+//! which [`None`] reports to the caller.
+
 use stillwind_css::functions::{
     find_css_function, matching_css_delimiter, split_css_function_arguments,
 };
 
+/// Rewrites every `--theme()` reference in `value`, asking `is_defined` about the
+/// referenced custom property.
+///
+/// Scanning respects CSS syntax, so a reference inside a string is left alone. A
+/// reference that does not name a `--` property, or one with an unterminated argument
+/// list, fails the whole value instead of being passed through.
 pub(crate) fn resolve_theme_references(
     value: &str,
     mut is_defined: impl FnMut(&str) -> bool,

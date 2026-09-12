@@ -1,17 +1,43 @@
+//! Host configuration of the two CSS custom-property prefixes.
+//!
+//! The options belong to the snapshot: they are validated once while a snapshot is
+//! built, so evaluation can rewrite identifiers without re-checking them. CSS-authored
+//! settings override the host defaults during loading, which is why the loader
+//! validates the resolved pair again.
+
 use serde::{Deserialize, Serialize};
 
+/// Rejects a prefix pair that cannot produce distinct custom properties.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum DesignSystemOptionsError {
+    /// A prefix does not have the `--name-` shape custom properties need.
     #[error("{option} must start with `--` and end with `-`")]
-    InvalidPrefix { option: &'static str, value: String },
+    InvalidPrefix {
+        /// Name of the option, for example `prefix`.
+        option: &'static str,
+        /// The rejected value.
+        value: String,
+    },
+    /// Both namespaces resolve to the same prefix, so the two families of generated
+    /// properties would collide.
     #[error("prefix and tailwindPrefix must be different")]
-    ConflictingPrefixes { prefix: String },
+    ConflictingPrefixes {
+        /// The shared prefix.
+        prefix: String,
+    },
 }
 
+/// The `--sw-` and `--tw-` namespaces used by generated custom properties.
+///
+/// Deserialization is camelCase and fills omitted fields from [`Default`], so a host
+/// may send only the prefix it changes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DesignSystemOptions {
+    /// Prefix of Stillwind-owned generated properties.
     pub prefix: String,
+    /// Prefix of the Tailwind-compatibility namespace, which stays distinct from
+    /// `prefix` even when both are customized.
     pub tailwind_prefix: String,
 }
 
@@ -26,6 +52,10 @@ impl Default for DesignSystemOptions {
 
 impl DesignSystemOptions {
     /// Validates that generated and Tailwind-compatible namespaces are distinct CSS prefixes.
+    ///
+    /// A prefix must start with `--`, end with `-`, and span at least four bytes. The
+    /// error names the offending option so a host can report which configured field was
+    /// rejected.
     ///
     /// # Errors
     ///
@@ -50,6 +80,12 @@ impl DesignSystemOptions {
         Ok(())
     }
 
+    /// Rewrites literal `--sw-` and `--tw-` markers in generated CSS to the configured
+    /// prefixes.
+    ///
+    /// Both namespaces are replaced in one pass through private sentinels, so swapped
+    /// or overlapping-looking prefixes cannot rewrite each other's output. Markers that
+    /// match neither namespace are left untouched.
     pub fn rewrite_generated(&self, value: &str) -> String {
         value
             .replace("--sw-", "\u{e000}stillwind-prefix\u{e001}")

@@ -1,3 +1,17 @@
+//! The [`SourceAnalyzer`] implementation that ties scanning and facts together.
+//!
+//! [`SourceAnalyzer::scan_input`] is the cheap pass: it parses the edit source,
+//! projects when the input carries a converter map, and returns IR plus a module
+//! summary without any type checker. [`SourceAnalyzer::finalize`] is the expensive
+//! pass: it validates optional [`TypeFacts`] against the scan and re-parses with them
+//! when they are usable.
+//!
+//! The split exists so a host can cache scans across edits and only pay for
+//! finalization when the checker's answers change. Neither pass may panic on bad input:
+//! a failed projection becomes an `SHPRJ001` diagnostic on a best-effort scan, and
+//! unusable facts become an [`IntegrationDiagnostic`] while the scan's own result is
+//! used unchanged.
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -8,10 +22,20 @@ use stillwind_source::{CompileError, Fingerprint, collect_lint_directives};
 use crate::projected_scan::parse_projected;
 use crate::{ParsedJavaScript, parse_with_language};
 
+/// Oxc-backed analyser. Holds no state, because Oxc arenas are request-local.
+///
+/// Reusing one value across modules is expected; anything module-specific lives in the
+/// [`ModuleScan`] it returns.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct OxcSourceAnalyzer;
 
 impl SourceAnalyzer for OxcSourceAnalyzer {
+    /// Parses the editable source and returns IR, diagnostics and a summary.
+    ///
+    /// A projected input is normalized and mapped back to original spans before
+    /// the IR is produced, so every span in the result belongs to the original
+    /// file. Projection failures do not propagate as errors: the scan carries an
+    /// `SHPRJ001` diagnostic and empty IR so the caller can report and continue.
     fn scan_input(&self, input: SourceInput) -> ModuleScan {
         let source = Arc::clone(input.edit_source());
         let (mut parsed, provenance) = if input.projection.is_some() {
@@ -63,6 +87,14 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         }
     }
 
+    /// Applies checker facts to a scan, returning the analysis to cache.
+    ///
+    /// Facts are used only when the schema, module id and source revision all match and
+    /// every fact span slices the scanned source; otherwise the scan's own IR is kept
+    /// and an [`IntegrationDiagnostic`] records why. Facts for projected sources are
+    /// rejected entirely: applying checker facts after projection is not implemented.
+    /// [`ModuleAnalysis::semantic_revision`] is copied from accepted facts and is
+    /// `None` when they were rejected.
     fn finalize(&self, scan: ModuleScan, facts: Option<&TypeFacts>) -> ModuleAnalysis {
         let mut integration_diagnostics = Vec::new();
         let facts = facts.filter(|facts| {
@@ -165,6 +197,10 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     }
 }
 
+/// Applies an explicitly requested framework to a parsed module.
+///
+/// A request that contradicts the macro import is reported as `SHJS008` instead of
+/// silently overriding either side.
 fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
     if let Some(framework) = input.framework {
         if parsed

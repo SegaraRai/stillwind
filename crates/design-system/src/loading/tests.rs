@@ -1,4 +1,9 @@
 //! Integration of import/theme errors with loader and snapshot error propagation.
+//!
+//! Pins that a package import stays a host request, that parse failures keep the opaque
+//! source name and a typed `#[source]` cause, and that
+//! [`DesignSystemSnapshot::from_source`] reports unresolved imports and invalid options
+//! as distinct errors instead of flattening them.
 
 use stillwind_source::{FileId, SourceFile};
 

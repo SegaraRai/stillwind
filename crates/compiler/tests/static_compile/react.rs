@@ -1,3 +1,10 @@
+//! React adapter behavior.
+//!
+//! Pins the shape of the generated call site and of the runtime imports: helper names avoid the
+//! bindings a module already uses, imports come from the framework-specific runtime module, a
+//! residual macro reference fails the whole compilation, and diagnostics, lint directives,
+//! conditional branches, and explicit `class` entries behave as documented.
+
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 
 use super::*;

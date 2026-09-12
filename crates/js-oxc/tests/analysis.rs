@@ -1,3 +1,9 @@
+//! Analyzer-level tests: fact validation and probe production.
+//!
+//! Both tests exercise the public [`SourceAnalyzer`] surface rather than the
+//! extractor directly, because the contract a host depends on is which facts are
+//! accepted and which spans are reported for a scan.
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -6,6 +12,10 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
 use stillwind_source::{FileId, Fingerprint, SourceFile};
 
+/// Stale or malformed checker facts must be rejected without changing the IR.
+///
+/// The rejected run additionally reports why, and its `semantic_revision` stays `None`
+/// so a cache cannot mistake it for a fact-backed analysis.
 #[test]
 fn analysis_is_design_system_independent_and_rejects_stale_facts() {
     let source = Arc::new(
@@ -41,6 +51,10 @@ fn analysis_is_design_system_independent_and_rejects_stale_facts() {
     assert_eq!(accepted.ir, local.ir);
 }
 
+/// A value the frontend cannot resolve locally becomes a checker probe.
+///
+/// The probe span must slice the analysed source exactly, because the host matches its
+/// own expressions by that span.
 #[test]
 fn scan_reports_expression_probes_for_non_local_asset_values() {
     let source = Arc::new(SourceFile::new(

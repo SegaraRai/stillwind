@@ -1,3 +1,13 @@
+//! End-to-end tests for the pure Rust entry points behind the Node binding.
+//!
+//! The binding itself is a thin conversion layer, so these tests drive
+//! `compile_react_*`, [`summarize_react_input`], [`render_react_stylesheet`], and
+//! [`generate_react_types`] directly and serialize the result the way a JavaScript
+//! caller would see it. They pin the transport contract that is easy to break without a
+//! JavaScript test: projected runtime imports stay inside their verified script realms,
+//! invalid projection metadata fails the compile instead of producing partial code, and
+//! options are validated rather than defaulted silently.
+
 use std::error::Error;
 
 use stillwind_compiler::CompilerOptions;

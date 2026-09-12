@@ -1,3 +1,14 @@
+//! Variant definition parsing.
+//!
+//! `@custom-variant` and `@variant` are user-authored, so a definition is identified by
+//! its body or selector alone. `@stillwind-variant` is compiler-owned and may add a
+//! typed header - a value type, a modifier type, or sort metadata - which is parsed
+//! here and used only for built-ins.
+//!
+//! A trailing `*` captures the variant's argument; an escaped `\*` is a literal
+//! asterisk in the name. Capture and sort handling stay in the evaluator; this module
+//! only records what the CSS declared and never invents defaults for missing metadata.
+
 use lightningcss::printer::PrinterOptions;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
@@ -5,26 +16,39 @@ use lightningcss::values::ident::Ident;
 
 use stillwind_css::blocks::{extract_named_blocks, strip_css_comments};
 
+/// Direction applied to a sort group's numeric values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuiltinVariantSortDirection {
+    /// Smaller values sort first.
     Ascending,
+    /// Larger values sort first.
     Descending,
 }
 
+/// Sort metadata authored in a built-in variant header.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BuiltinVariantSort {
+    /// Variants sharing a group are ordered by their group's first built-in position;
+    /// the name itself is the group when none is declared.
     pub group: Option<String>,
+    /// Theme namespace pattern whose token value orders variants in the group.
     pub key: Option<String>,
+    /// Which end of the key's ordering comes first.
     pub direction: Option<BuiltinVariantSortDirection>,
+    /// Whether the variant also matches a bare token name, such as `lg` for a
+    /// breakpoint variant.
     pub bare: bool,
 }
 
+/// One variant definition, from user CSS or from the compiler-owned registry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomVariant {
+    /// Decoded name, retaining a trailing capture `*` when `wildcard` is true.
     pub name: String,
-    /// Whether the final `*` in `name` captures a value. Escaped `\*` in a
-    /// definition header is decoded as a literal asterisk instead.
+    /// Whether the final `*` in `name` captures a value. Escaped `\*` in a definition
+    /// header is decoded as a literal asterisk instead.
     pub wildcard: bool,
+    /// Selector shorthand from `@custom-variant name (selector)`.
     pub selector: String,
     /// Full `@variant` body. Empty for the `@custom-variant` selector shorthand.
     pub body: String,
@@ -38,12 +62,18 @@ pub struct CustomVariant {
     pub modifier_type: Option<BuiltinVariantModifierType>,
 }
 
+/// Grammar and semantic kind of a variant's wildcard capture.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuiltinVariantValueType {
+    /// The capture is itself a variant stack, applied inside the definition.
     Variant,
+    /// `aria-*` style captures resolved through attribute selectors.
     Aria,
+    /// `data-*` style captures resolved through attribute selectors.
     Data,
+    /// An `nth-child()` argument validated by CSS itself.
     Nth,
+    /// A `@supports` condition validated by CSS itself.
     SupportsCondition,
 }
 
@@ -59,9 +89,10 @@ impl BuiltinVariantValueType {
         }
     }
 
-    /// Validates CSS-defined captures whose grammar can be delegated to
-    /// Lightning CSS. Compound variants and attribute shorthands are resolved
-    /// structurally by the Tailwind registry instead.
+    /// Validates CSS-defined captures whose grammar can be delegated to Lightning CSS.
+    /// Compound variants and attribute shorthands are resolved structurally by the
+    /// Tailwind registry instead, so those types report `false` here rather than
+    /// accepting anything.
     #[must_use]
     pub fn accepts_css(self, value: &str) -> bool {
         let stylesheet = match self {
@@ -75,8 +106,10 @@ impl BuiltinVariantValueType {
     }
 }
 
+/// Grammar required when a capture carries a `/modifier` suffix.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuiltinVariantModifierType {
+    /// The modifier after `/` is a CSS class identifier, escaped for a selector.
     ClassIdentifier,
 }
 
@@ -88,8 +121,8 @@ impl BuiltinVariantModifierType {
         }
     }
 
-    /// Parses the logical class identifier and serializes it for insertion
-    /// into a CSS selector, including any escapes required by CSS syntax.
+    /// Parses the logical class identifier and serializes it for insertion into a CSS
+    /// selector, including any escapes required by CSS syntax.
     #[must_use]
     pub fn serialize(self, value: &str) -> Option<String> {
         match self {
@@ -101,16 +134,24 @@ impl BuiltinVariantModifierType {
     }
 }
 
-/// Parses `@custom-variant` and block `@variant` definitions without
-/// requiring a complete theme stylesheet. This mirrors the utility registry
-/// entry point so tools can build a registry once and share it at runtime.
+/// Parses `@custom-variant` and block `@variant` definitions without requiring a
+/// complete theme stylesheet. This mirrors the utility registry entry point so tools
+/// can build a registry once and share it at runtime.
+///
+/// Only blocks whose body contains `@slot` are treated as `@variant` definitions; a
+/// `@variant` block without a slot is ignored. Results are grouped by syntax form:
+/// selector `@custom-variant`, block `@custom-variant`, then block `@variant`. Source
+/// order is retained within each group, not across forms; repeated names are retained.
 #[must_use]
 pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
     extract_custom_variants(css)
 }
 
-/// Parses compiler-owned `@stillwind-variant` definitions and attaches their
-/// global source order.
+/// Parses compiler-owned `@stillwind-variant` definitions and attaches their global
+/// source order.
+///
+/// Here the order is a counter over parsed built-in variants, not a byte offset, which
+/// is what `compare_variant_sequences` uses as the ordering bit of a variant stack.
 #[must_use]
 pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
     extract_named_blocks(&strip_css_comments(css), "@stillwind-variant")
@@ -132,6 +173,7 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
         .collect()
 }
 
+/// The parsed header of a `@stillwind-variant` definition.
 pub(crate) struct ParsedBuiltinVariantHeader {
     name: String,
     wildcard: bool,
@@ -140,6 +182,11 @@ pub(crate) struct ParsedBuiltinVariantHeader {
     modifier_type: Option<BuiltinVariantModifierType>,
 }
 
+/// Splits an authored variant name into its decoded name and whether it captures a
+/// value.
+///
+/// An escaped trailing asterisk is a literal character in the name, so it does not make
+/// the variant a wildcard. An empty name is rejected.
 pub(crate) fn parse_variant_name(value: &str) -> Option<(String, bool)> {
     if value.is_empty() {
         return None;
@@ -148,6 +195,12 @@ pub(crate) fn parse_variant_name(value: &str) -> Option<(String, bool)> {
     Some((value.replace(r"\*", "*"), wildcard))
 }
 
+/// Parses the optional `(key: value, ...)` descriptor list of a built-in variant
+/// header.
+///
+/// Unknown keys, unparsable values, and a missing parenthesis pair are all rejected, so
+/// a mistyped built-in registration fails visibly instead of silently dropping its
+/// ordering or typing metadata.
 pub(crate) fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHeader> {
     let name_end = header.find(char::is_whitespace).unwrap_or(header.len());
     let (name, wildcard) = parse_variant_name(&header[..name_end])?;
@@ -204,6 +257,11 @@ pub(crate) fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltin
     })
 }
 
+/// Extracts all three user-authored variant forms after comment stripping.
+///
+/// The line-based `@custom-variant name (selector)` shorthand is collected first, then
+/// block forms; only a line without `{` is read as the shorthand so a block header is
+/// never misparsed as one.
 pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
     let css = strip_css_comments(css);
     let mut variants = css

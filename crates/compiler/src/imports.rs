@@ -1,31 +1,69 @@
 //! Import edits derived from resolved references and successful macro replacements.
+//!
+//! Removing a macro binding is only sound when every resolved read of it was replaced by
+//! a lowering, so the plan is built from the frontend's reference list and rejected
+//! wholesale when any read is unaccounted for; a partial removal would leave a dangling
+//! specifier or a reference to a deleted binding. Only the named macro specifiers and
+//! their list separators are removed. Delimiters, comments, default bindings, and
+//! non-macro specifiers stay verbatim, so user formatting inside the declaration
+//! survives.
 
 use stillwind_ir::ModuleImports;
 use stillwind_source::{SourceError, SourceFile, Span};
 
 use crate::SourceTransform;
 
+/// Reasons a macro import cannot be removed.
+///
+/// Every variant carries the span a diagnostic should point at. Returning any variant
+/// means no edit is produced for that compilation at all.
 #[derive(Debug, thiserror::Error)]
 pub enum ImportPlanError {
+    /// No macro import statement exists in the import realm that needs a helper import.
     #[error("no verified macro import anchor for runtime use at {span:?}")]
-    MissingRuntimeAnchor { span: Span },
+    MissingRuntimeAnchor {
+        /// Span a diagnostic should point at.
+        span: Span,
+    },
+    /// The frontend's import metadata cannot be sliced out of the source buffer.
     #[error("invalid macro import source span: {0}")]
     Source(#[from] SourceError),
+    /// Specifier spans are out of order, nested wrongly, or otherwise inconsistent.
     #[error("invalid macro import metadata at {span:?}")]
-    InvalidMetadata { span: Span },
+    InvalidMetadata {
+        /// Span a diagnostic should point at.
+        span: Span,
+    },
+    /// The source names a virtual module-CSS import that the host did not allocate.
     #[error("explicit module CSS import requires a host-allocated virtual module at {span:?}")]
-    MissingModuleCssTarget { span: Span },
+    MissingModuleCssTarget {
+        /// Span a diagnostic should point at.
+        span: Span,
+    },
+    /// A macro binding has a read that no lowering replaced.
     #[error("macro binding `{local}` has a reference that was not transformed at {span:?}")]
-    UntransformedReference { local: String, span: Span },
+    UntransformedReference {
+        /// Name the module bound the macro to.
+        local: String,
+        /// Span of the untransformed read.
+        span: Span,
+    },
+    /// A macro binding has a read whose source correspondence could not be verified.
     #[error(
         "macro binding `{local}` has references without verified source correspondence at {span:?}"
     )]
-    UnmappedReference { local: String, span: Span },
+    UnmappedReference {
+        /// Name the module bound the macro to.
+        local: String,
+        /// Span of the read whose correspondence could not be verified.
+        span: Span,
+    },
 }
 
 /// Remove macro bindings only when every resolved read was successfully replaced.
-/// Edits replace declarations
-/// as a unit so adjacent removed specifiers cannot create overlapping edits.
+///
+/// Edits replace a declaration as a unit, so adjacent removed specifiers cannot create
+/// overlapping edits, and the returned spans always cover the original import statement.
 ///
 /// # Errors
 /// Rejects invalid metadata, untransformed macro reads, and unverified projection
@@ -139,8 +177,11 @@ pub fn plan_macro_import_removals(
     Ok(edits)
 }
 
-// Gaps contain trivia and delimiters. A brace ends the named-specifier list;
-// commas inside comments or beyond it must never be used as separators.
+/// Byte offset of the comma joining two named specifiers inside `gap`.
+///
+/// Only commas outside comments and before the closing brace count. A `{` means the gap
+/// has already left the named-specifier list, so the search stops instead of matching a
+/// comma inside a nested clause.
 fn list_comma(gap: &str) -> Option<usize> {
     let bytes = gap.as_bytes();
     let mut index = 0;
@@ -171,8 +212,11 @@ fn list_comma(gap: &str) -> Option<usize> {
     comma
 }
 
-// A lowering removes the macro callee, but may copy argument expressions into
-// its replacement. Only the leading callee reference is therefore consumed.
+/// True when `prefix` holds nothing but trivia up to the end of the callee reference.
+///
+/// The check accepts whitespace, comments, and an opening parenthesis, because none of
+/// those can themselves be a reference to the macro binding. Any other token means the
+/// replacement kept a read of the binding, so the import must stay.
 fn callee_prefix(mut prefix: &str) -> bool {
     loop {
         prefix = prefix.trim_start_matches(|ch: char| ch.is_whitespace() || ch == '\u{feff}');

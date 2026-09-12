@@ -1,5 +1,20 @@
+//! Declaration metadata directives that shape serialization without emitting CSS of
+//! their own.
+//!
+//! These directives let the vendored registry describe how its declarations must be
+//! spelled after evaluation: which properties need a separator before a `var()`
+//! fallback, which need a zero length normalized, which functions keep their argument
+//! spacing, and which tokens may be pruned when a marker is present. Keeping the
+//! knowledge in CSS means the Rust evaluator never encodes a Tailwind property family.
+//!
+//! Parsing is textual and permissive: an entry that cannot be read contributes nothing.
+//! This metadata only tunes how an already resolved declaration is spelled, so an
+//! unreadable entry cannot make a stylesheet fail to load.
+
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Names of functions whose argument lists keep authored spacing and comma separators
+/// during canonicalization.
 pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-format-functions"))
@@ -11,6 +26,10 @@ pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
 }
 
 /// Parses generic token-pruning rules authored by the registry CSS.
+///
+/// Each rule pairs a token-name prefix with a condition string; when generated CSS
+/// contains the condition, the prefixed tokens are dropped after dependency closure.
+/// Rules keep authored order and incomplete entries are skipped.
 pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-omit-token-prefix"))
@@ -25,8 +44,8 @@ pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Parses the authored order of theme namespaces used when serializing the
-/// generated theme layer.
+/// Parses the authored order of theme namespaces used when serializing the generated
+/// theme layer.
 pub fn parse_theme_order(css: &str) -> Vec<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-theme-order"))
@@ -37,12 +56,14 @@ pub fn parse_theme_order(css: &str) -> Vec<String> {
         .collect()
 }
 
+/// Parses the utility-name patterns whose presence marks a relationship candidate, for
+/// example `group-*`, as a set.
 pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
     extract_relationship_patterns(css)
 }
 
-/// Parses source-to-target declaration mappings used when an ordinary utility
-/// is accepted as an animation option.
+/// Parses source-to-target declaration mappings used when an ordinary utility is
+/// accepted as an animation option.
 #[must_use]
 pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<String, String> {
     css.split('@')
@@ -54,12 +75,17 @@ pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<String, S
         .collect()
 }
 
+/// Parses declaration-format metadata, keyed by property name or by a pattern with a
+/// single `*` wildcard.
+///
+/// Repeated entries for one key accumulate into one space-separated list and keep their
+/// authored order.
 pub fn parse_declaration_formats(css: &str) -> BTreeMap<String, String> {
     extract_declaration_formats(css)
 }
 
-/// Resolves declaration metadata by exact property name first, then by an
-/// authored single-wildcard property pattern.
+/// Resolves declaration metadata by exact property name first, then by an authored
+/// single-wildcard property pattern.
 #[must_use]
 pub fn declaration_format<'a>(
     formats: &'a BTreeMap<String, String>,
@@ -73,6 +99,8 @@ pub fn declaration_format<'a>(
     })
 }
 
+/// Reads `@stillwind-format` statements, merging repeats for one property into a single
+/// space-separated format list.
 pub(crate) fn extract_declaration_formats(css: &str) -> BTreeMap<String, String> {
     let mut formats = BTreeMap::new();
     for (property, format) in css
@@ -97,6 +125,7 @@ pub(crate) fn extract_declaration_formats(css: &str) -> BTreeMap<String, String>
     formats
 }
 
+/// Reads `@stillwind-relationship` statements into a deduplicated set.
 pub(crate) fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-relationship"))

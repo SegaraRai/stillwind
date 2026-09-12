@@ -1,3 +1,9 @@
+//! Conditional declarations, relationships, and shared value families.
+//!
+//! Pins support and media conditions authored in CSS utilities, Tailwind relationship
+//! primitives, numeric and CSS-wide keyword domains, and the compact spacing families
+//! that mix negative and fractional values.
+
 use super::*;
 
 #[test]
@@ -117,7 +123,7 @@ fn resolves_numeric_css_domains_and_default_filter_tokens() {
 }
 
 #[test]
-fn resolves_theme_shadow_opacity_with_a_relative_colour_function() {
+fn resolves_theme_shadow_opacity_with_a_relative_color_function() {
     let shadow = resolve_utility("inset-shadow-sm/50", &theme()).unwrap();
 
     assert!(shadow.declaration.contains("--tw-inset-shadow-alpha:50%;"));

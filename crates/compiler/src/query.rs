@@ -1,4 +1,11 @@
 //! Editor requests use precisely the compiler's candidate resolution and emitter.
+//!
+//! [`DesignSystemQuery`] answers hover, completion, and diagnostic questions about
+//! single candidates without compiling a module. It resolves against one immutable
+//! snapshot and reports that snapshot's revision with every answer, so an editor can
+//! discard results that belong to a superseded design system. Completion labels are
+//! verified by resolving them before they are offered, so inserting a completion never
+//! produces a diagnostic.
 
 use std::collections::BTreeSet;
 
@@ -12,49 +19,79 @@ use stillwind_syntax::{Candidate, parse_candidate};
 use crate::compiler::{
     class_name, emit_utility_rules, resolve_utility_targets, unresolved_utility_rule,
 };
-use crate::{GeneratedRule, ModuleCssArtifact};
+use crate::{CompilerOptions, GeneratedRule, ModuleCssArtifact};
 
+/// One reason a candidate did not resolve; the message is already user-facing.
 #[derive(Clone, Debug)]
 pub struct CandidateDiagnostic {
+    /// Text to show the user; already formatted for display.
     pub message: String,
 }
 
+/// Everything one candidate produces for an editor.
+///
+/// Use `diagnostics` as the validity check. The rules are a candidate preview, without
+/// the document's theme and property-support closure.
 #[derive(Clone, Debug)]
 pub struct CandidateResolution {
+    /// Snapshot revision this answer was computed from; compare before reusing it.
     pub revision: DesignSystemRevision,
+    /// The parsed candidate, `None` when the text is not candidate syntax at all.
     pub parsed: Option<Candidate>,
+    /// Rendered rules for the candidate, keyed by their own serialization.
     pub generated_rules: Vec<GeneratedRule>,
+    /// Registered property names textually present in the preview. This is a lexical
+    /// hint, not the renderer's activation, dependency, and group closure.
     pub required_properties: Vec<String>,
+    /// Theme tokens the rendered CSS references.
     pub referenced_tokens: Vec<String>,
+    /// Reasons the candidate did not resolve.
     pub diagnostics: Vec<CandidateDiagnostic>,
 }
 
+/// A partially typed candidate, as spelled in the editor.
 #[derive(Clone, Debug)]
 pub struct CompletionInput {
+    /// Text before the cursor, variant prefix included.
     pub prefix: String,
 }
 
+/// One label the editor may insert.
 #[derive(Clone, Debug)]
 pub struct CompletionItem {
+    /// Text to insert, ending in `:` for a variant.
     pub label: String,
+    /// Snapshot revision the label is valid for.
     pub revision: DesignSystemRevision,
 }
 
+/// Rendered CSS for a candidate that resolves.
 #[derive(Clone, Debug)]
 pub struct CandidateHover {
+    /// The candidate that was asked about, as the caller spelled it.
     pub candidate: String,
+    /// Concatenated rules for the candidate.
     pub css: String,
+    /// Snapshot revision the CSS was rendered from.
     pub revision: DesignSystemRevision,
 }
 
+/// Answers candidate questions against one immutable snapshot.
+///
+/// Holding the snapshot rather than a project keeps editor answers independent of
+/// module state and deterministic for as long as the revision does not change.
 #[derive(Clone, Debug)]
 pub struct DesignSystemQuery {
     design_system: DesignSystemSnapshot,
-    options: crate::CompilerOptions,
+    options: CompilerOptions,
 }
 
 impl DesignSystemQuery {
-    pub fn new(design_system: DesignSystemSnapshot, options: crate::CompilerOptions) -> Self {
+    /// Creates a query pinned to `design_system`.
+    ///
+    /// The options' prefixes are resolved against the snapshot so rendered previews match
+    /// what a compilation would emit.
+    pub fn new(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
         let options = options.resolved(&design_system);
         Self {
             design_system,
@@ -62,6 +99,13 @@ impl DesignSystemQuery {
         }
     }
 
+    /// Resolves one candidate, including its variant prefix, into rendered rules.
+    ///
+    /// The preview uses the compiler's own emitter and a class name derived from the
+    /// candidate text alone, so the declarations a caller sees are the declarations the
+    /// candidate would contribute, independent of any module. A candidate whose
+    /// variants do not all resolve is reported as unresolved rather than previewed
+    /// partially.
     pub fn resolve_candidate(&self, candidate: &str) -> CandidateResolution {
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
@@ -120,6 +164,13 @@ impl DesignSystemQuery {
         }
     }
 
+    /// Offers labels that continue `input.prefix`.
+    ///
+    /// The vocabulary is the design system's utility names plus tokens rewritten
+    /// through their utility prefixes, and the variant vocabulary adds breakpoint token
+    /// names. A label is only returned when it resolves, so the editor never suggests
+    /// text that would be reported as unknown. The variant prefix the user already
+    /// typed is kept and the remainder is completed after it.
     pub fn complete_candidate(&self, input: CompletionInput) -> Vec<CompletionItem> {
         let prefix = input.prefix;
         let theme = self.design_system.theme();
@@ -183,6 +234,10 @@ impl DesignSystemQuery {
             .collect()
     }
 
+    /// CSS for a candidate that resolves, `None` otherwise.
+    ///
+    /// Diagnostics are deliberately not part of a hover result: an unresolved candidate
+    /// has no CSS to show.
     pub fn hover_candidate(&self, candidate: &str) -> Option<CandidateHover> {
         let result = self.resolve_candidate(candidate);
         result.diagnostics.is_empty().then(|| CandidateHover {
@@ -196,6 +251,10 @@ impl DesignSystemQuery {
         })
     }
 
+    /// Lint findings for a candidate that does not resolve.
+    ///
+    /// The finding carries a synthetic span over the candidate text, because a query
+    /// has no source buffer to point into.
     pub fn diagnose_candidate(&self, candidate: &str) -> Vec<LintFinding> {
         self.resolve_candidate(candidate)
             .diagnostics

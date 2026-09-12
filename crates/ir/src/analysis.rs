@@ -1,3 +1,13 @@
+//! The two-phase analysis contract every frontend implements.
+//!
+//! Analysis runs in two steps because TypeScript facts are computed across modules:
+//! [`SourceAnalyzer::scan`] extracts what one module contains locally, the host may
+//! then feed all scans to a [`TypeScriptFactsProvider`], and
+//! [`SourceAnalyzer::finalize`] produces the IR the compiler consumes. Without facts,
+//! [`SourceAnalyzer::finalize`] must support only the intentionally limited local
+//! cases; cross-module values and non-trivial conditionals are reported as unsupported
+//! rather than approximated in Rust.
+
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -11,56 +21,107 @@ use stillwind_source::{
 
 use crate::{ModuleIr, SourceInput, validate_composition};
 
+/// An expression whose TypeScript type the host must report back.
 #[derive(Clone, Debug)]
 pub struct TypeProbe {
+    /// Span of the expression whose type the host must report.
     pub span: Span,
 }
 
+/// Local extraction for one module, before cross-module facts exist.
+///
+/// A scan is a valid input for its own [`SourceAnalyzer::finalize`] call. Its spans
+/// refer to `source`, which is the editable original, while `input` records how that
+/// source was obtained.
 #[derive(Clone, Debug)]
 pub struct ModuleScan {
+    /// The input this scan was produced from, including its projection.
     pub input: SourceInput,
+    /// Projection provenance, empty when the input had no projection.
     pub provenance: Vec<SourceProvenance>,
+    /// Identity of the module being analyzed.
     pub module_id: ModuleId,
+    /// Editable source the spans refer to.
     pub source: Arc<SourceFile>,
+    /// Content revision of `source`, part of the artifact identity.
     pub source_revision: Fingerprint,
+    /// IR built from local information only.
     pub local_ir: ModuleIr,
+    /// Producer identities and metadata other modules may consume.
     pub summary: ModuleSummary,
+    /// Expressions the host should resolve through the TypeScript checker.
     pub type_probes: Vec<TypeProbe>,
+    /// Suppression directives whose scope may still cover later findings.
     pub lint_directives: Vec<LintDirective>,
+    /// Scan-time errors. Finalization with accepted facts may replace these with
+    /// diagnostics from a new parse.
     pub diagnostics: Vec<CompileError>,
+    /// Findings that do not depend on cross-module facts.
     pub lint_findings: Vec<LintFinding>,
 }
 
-#[derive(Clone, Debug)]
-pub struct ModuleAnalysis {
-    pub input: SourceInput,
-    pub provenance: Vec<SourceProvenance>,
-    /// Declaration-only semantic inputs needed by this producer's standalone CSS.
-    pub asset_support: Vec<ModuleAnalysis>,
-    pub external_assets: BTreeSet<IdentityId>,
-    pub module_id: ModuleId,
-    pub source: Arc<SourceFile>,
-    pub source_revision: Fingerprint,
-    pub ir: ModuleIr,
-    pub summary: ModuleSummary,
-    pub lint_directives: Vec<LintDirective>,
-    pub diagnostics: Vec<CompileError>,
-    pub lint_findings: Vec<LintFinding>,
-    pub semantic_revision: Option<Fingerprint>,
-    pub integration_diagnostics: Vec<IntegrationDiagnostic>,
-    pub frontend_kind: String,
-}
-
+/// Host-side TypeScript integration. Implementations own dependency traversal, checker
+/// lifetime, and invalidation; they must not leak checker objects into the analysis.
 pub trait TypeScriptFactsProvider {
+    /// Resolves the probes of every scan in one batch and returns versioned facts.
+    /// Implementations may omit facts they cannot prove.
     fn update(&mut self, scans: &[ModuleScan]) -> TypeFactsUpdate;
 }
 
+/// Frontend entry point used by every host.
 pub trait SourceAnalyzer {
+    /// Scans a plain source buffer with no projection.
     fn scan(&self, source: Arc<SourceFile>) -> ModuleScan {
         self.scan_input(SourceInput::normal(source))
     }
+
+    /// Scans one host-provided input, projection included.
     fn scan_input(&self, input: SourceInput) -> ModuleScan;
+
+    /// Produces the final analysis. `facts` is present only after the host has run its
+    /// provider over all scans.
     fn finalize(&self, scan: ModuleScan, facts: Option<&TypeFacts>) -> ModuleAnalysis;
+}
+
+/// Finalized module IR plus everything the compiler and project layer need.
+#[derive(Clone, Debug)]
+pub struct ModuleAnalysis {
+    /// The input this analysis was produced from.
+    pub input: SourceInput,
+    /// Projection provenance, empty when the input had no projection.
+    pub provenance: Vec<SourceProvenance>,
+    /// Declaration-only semantic inputs needed by this producer's standalone CSS.
+    ///
+    /// These are attached by [`ModuleAnalysis::attach_asset_support`] and are not
+    /// dependencies for invalidation: they exist so a single module can be rendered in
+    /// isolation, and they never add producers to a project.
+    pub asset_support: Vec<ModuleAnalysis>,
+    /// Assets this module consumes from elsewhere. A module may only use assets it
+    /// declares itself or that appear here.
+    pub external_assets: BTreeSet<IdentityId>,
+    /// Identity of the module being analyzed.
+    pub module_id: ModuleId,
+    /// Editable source the spans refer to; the target of source transforms.
+    pub source: Arc<SourceFile>,
+    /// Content revision of `source`, part of the artifact identity.
+    pub source_revision: Fingerprint,
+    /// Final IR, after any fact-driven decisions.
+    pub ir: ModuleIr,
+    /// Producer identities and metadata other modules may consume.
+    pub summary: ModuleSummary,
+    /// Suppression directives whose scope may still cover later findings.
+    pub lint_directives: Vec<LintDirective>,
+    /// Final errors. Compilation must not produce an artifact when this is non-empty.
+    pub diagnostics: Vec<CompileError>,
+    /// Lint findings. They never change generated names or output.
+    pub lint_findings: Vec<LintFinding>,
+    /// Fingerprint of the facts used, or `None` when analysis ran without them.
+    pub semantic_revision: Option<Fingerprint>,
+    /// Problems reported by the host's fact provider, such as a missing manifest for a
+    /// package whose asset semantics are required.
+    pub integration_diagnostics: Vec<IntegrationDiagnostic>,
+    /// Frontend implementation name, part of artifact identity.
+    pub frontend_kind: String,
 }
 
 impl ModuleAnalysis {

@@ -1,3 +1,9 @@
+//! Property tests over numeric candidates.
+//!
+//! Deliberately independent of the Tailwind fixtures: these check the grammar and registry contract
+//! across a wide numeric domain and assert on the CSS the whole pipeline generates, including typed
+//! arbitrary values and the property families that must reject them.
+
 use super::*;
 
 proptest! {

@@ -1,3 +1,14 @@
+//! Assembly of the final stylesheet from the design system's output template.
+//!
+//! The template is a tree of layer-order, authored, theme, group, and slot nodes. This
+//! pass walks it once: authored nodes contribute only to a document stylesheet, a slot
+//! splices in the  caller's utility rules (an error when rules exist and no slot can
+//! hold them), theme nodes emit the tokens the used CSS requires plus the authored
+//! keyframes those tokens name, and anonymous layers get one stable generated name each
+//! so a carrier and a document build agree on them. [`render_mapped`] keeps a mapping
+//! for every piece of text that comes from a real source span, and the `@property`
+//! block is prepended last so it always lands in the [`super::properties`] layer.
+
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -15,6 +26,7 @@ use super::properties::render_used_properties;
 use super::render::StylesheetError;
 use crate::{CompilerOptions, MappedStylesheet};
 
+/// Renders a stylesheet and discards the source mappings.
 pub(super) fn render(
     template: &CssOutputTemplate,
     theme: &ThemeIndex,
@@ -36,6 +48,16 @@ pub(super) fn render(
     .map(|output| output.css)
 }
 
+/// Renders a stylesheet with source provenance, for a document or a single carrier.
+///
+/// `sources` is what lets an origin be recorded: without it, nodes render but no
+/// mapping is kept, which is the standalone case where nothing downstream consumes a
+/// map.
+///
+/// # Errors
+///
+/// Returns [`StylesheetError`] for unusable authored CSS, a missing utilities slot, or
+/// invalid CSS usage parsing.
 pub(crate) fn render_mapped(
     template: &CssOutputTemplate,
     theme: &ThemeIndex,
@@ -102,6 +124,7 @@ pub(crate) fn render_mapped(
     Ok(css)
 }
 
+/// State carried through one template walk.
 struct Context<'a> {
     theme: &'a ThemeIndex,
     utility_css: &'a MappedStylesheet,
@@ -116,6 +139,10 @@ struct Context<'a> {
 }
 
 impl Context<'_> {
+    /// Resolves a template origin into a source buffer and span, when both are known.
+    ///
+    /// A missing source graph or an unknown file id drops the mapping; the CSS is still
+    /// emitted.
     fn origin(&self, span: Option<Span>) -> Option<(Arc<SourceFile>, Span)> {
         let span = span?;
         let source = self
@@ -126,6 +153,13 @@ impl Context<'_> {
         Some((source.source.clone(), span))
     }
 
+    /// Renders a template node list into mapped CSS.
+    ///
+    /// Anonymous layers are numbered by a counter that runs over the whole template,
+    /// including groups a carrier omits, so the same layer gets the same name in every
+    /// output that contains it. A carrier that omits an empty layer still emits the
+    /// layer statement, because dropping it would change the layer order the document
+    /// establishes.
     fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, StylesheetError> {
         let mut output = MappedStylesheet::default();
         for node in nodes {
@@ -200,6 +234,11 @@ impl Context<'_> {
     }
 }
 
+/// Generated prefix for anonymous layers, stable for one template and class namespace.
+///
+/// The namespace participates so two applications that share a design system still get
+/// distinct layer names, and the hash keeps the generated name from colliding with an
+/// authored layer.
 fn anonymous_layer_prefix(template: &CssOutputTemplate, options: &CompilerOptions) -> String {
     let identity = format!(
         "stillwind/layer/v1:{}:{}{}",
@@ -213,17 +252,22 @@ fn anonymous_layer_prefix(template: &CssOutputTemplate, options: &CompilerOption
     )
 }
 
+/// True when the header is an `@layer` with no name, which the template uses for
+/// anonymous layers.
 fn is_anonymous_layer(header: &str) -> bool {
     let mut parser = Parser::new(header);
     matches!(parser.next(), Ok(Token::AtKeyword(name)) if name.eq_ignore_ascii_case("layer"))
         && parser.is_exhausted()
 }
 
+/// True when the header starts with the `@layer` at-keyword.
 fn is_layer(header: &str) -> bool {
     let mut parser = Parser::new(header);
     matches!(parser.next(), Ok(Token::AtKeyword(name)) if name.eq_ignore_ascii_case("layer"))
 }
 
+/// Expands authored directives and resolves `--theme()` references, or reports the
+/// failure.
 fn render_authored(css: &str, theme: &ThemeIndex) -> Result<String, StylesheetError> {
     theme
         .resolve_theme_references(&expand_authored_directives(css, theme))

@@ -1,4 +1,14 @@
 //! Stateful Node host binding. Resolution and I/O remain in JavaScript.
+//!
+//! [`NativeDesignSystemLoader`] exposes the loader state machine directly: it returns
+//! the outstanding CSS requests and accepts the host's answers, so the JavaScript side
+//! keeps full control of resolution, package lookup, and reading order. The snapshot
+//! only exists after a `Complete` step, and every method that needs it reports
+//! [`NativeSessionError::IncompleteCssLoad`] instead of loading anything itself.
+//!
+//! [`NativeProjectSession`] wraps the project session. It receives TypeScript facts the
+//! host already produced through its long-lived TS7 service rather than running a
+//! checker of its own.
 
 use std::collections::BTreeMap;
 
@@ -21,12 +31,17 @@ use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::source_input::{NativeProjectSource, ProjectSource};
 use crate::stylesheet::*;
 
+/// Failures specific to the stateful bindings.
 #[derive(Debug, thiserror::Error)]
 pub enum NativeSessionError {
+    /// A snapshot was requested before the CSS load completed.
     #[error("CSS load is incomplete")]
     IncompleteCssLoad,
+    /// Recompiling retained modules against the new stylesheet failed. Watch sessions
+    /// keep the previous revision active while reporting this error.
     #[error("CSS reload compilation failed: {diagnostics:?}")]
     ReloadCompilation {
+        /// Failures per module, keyed by module path.
         diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
     },
 }
@@ -37,13 +52,22 @@ impl From<NativeSessionError> for Error {
     }
 }
 
+/// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`] call.
 #[napi(object)]
 pub struct NativeCssFileInput {
+    /// Request id being answered; `0` is the root source.
     pub id: u32,
+    /// Opaque host-chosen source name. The loader never interprets it.
     pub name: String,
+    /// Full text of the source.
     pub content: String,
 }
 
+/// Caller-driven design-system loader.
+///
+/// Feed the root source first, then answer each requested id. The loader reports parse
+/// and link failures; a host that cannot read a requested file reports its own error
+/// and drops the loader.
 #[napi]
 pub struct NativeDesignSystemLoader {
     loader: DesignSystemLoader,
@@ -53,6 +77,7 @@ pub struct NativeDesignSystemLoader {
 
 #[napi]
 impl NativeDesignSystemLoader {
+    /// Creates a loader for the given compiler options.
     #[napi(constructor, strict)]
     pub fn new(options: Option<NativeCompilerOptions>) -> napi::Result<Self> {
         let options = compiler_options(options)?;
@@ -63,6 +88,7 @@ impl NativeDesignSystemLoader {
         })
     }
 
+    /// Answers one outstanding request; equivalent to [`Self::provide_many`] with one file.
     #[napi]
     pub fn provide(
         &mut self,
@@ -73,6 +99,11 @@ impl NativeDesignSystemLoader {
         self.provide_many(vec![NativeCssFileInput { id, name, content }])
     }
 
+    /// Answers any subset of the outstanding requests, in any order.
+    ///
+    /// A partially supplied batch does not block parsing: each supplied source is
+    /// parsed immediately and its imports appear in the next step. Unknown or duplicate
+    /// ids are protocol errors.
     #[napi(strict)]
     pub fn provide_many(
         &mut self,
@@ -126,6 +157,7 @@ impl NativeDesignSystemLoader {
         }
     }
 
+    /// Generates the TypeScript augmentation for the completed snapshot.
     #[napi]
     pub fn generate_react_types(&self) -> napi::Result<String> {
         Ok(StylesheetRenderer::new(&self.completed()?, &self.options).generate_react_types())
@@ -133,6 +165,7 @@ impl NativeDesignSystemLoader {
 }
 
 impl NativeDesignSystemLoader {
+    /// Snapshot of a completed load, or an error naming the missing step.
     fn completed(&self) -> Result<DesignSystemSnapshot, NativeSessionError> {
         self.snapshot
             .clone()
@@ -141,7 +174,11 @@ impl NativeDesignSystemLoader {
 }
 
 /// Adapter for facts already produced by the host's long-lived TS7 service.
+///
+/// The host pairs its facts with the scans it sent; this adapter only wraps them with
+/// the module and asset metadata the domain type requires.
 struct ProvidedTypeScriptFacts<'a> {
+    /// Host sources in the same order as the scans passed to `update`.
     sources: &'a [ProjectSource],
 }
 
@@ -178,6 +215,7 @@ impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
     }
 }
 
+/// Mutable project state for one Vite or CLI session.
 #[napi]
 pub struct NativeProjectSession {
     session: ProjectSession,
@@ -185,6 +223,8 @@ pub struct NativeProjectSession {
 
 #[napi]
 impl NativeProjectSession {
+    /// Creates a session from a completed loader. `watch` selects whether a failed
+    /// reload retains the last known good revision.
     #[napi(constructor)]
     pub fn new(loader: &NativeDesignSystemLoader, watch: bool) -> napi::Result<Self> {
         Ok(Self {
@@ -200,6 +240,11 @@ impl NativeProjectSession {
         })
     }
 
+    /// Publishes a reloaded design system and reports what changed.
+    ///
+    /// Recompiling retained modules can fail; the error then lists the failing modules.
+    /// Watch mode retains the previous revision. Build mode has already published the
+    /// new revision with failed modules omitted when this error is returned.
     #[napi]
     pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> napi::Result<NativeReload> {
         let update = self
@@ -222,6 +267,7 @@ impl NativeProjectSession {
         })
     }
 
+    /// Renders the complete stylesheet for the current revision.
     #[napi]
     pub fn css(&self) -> napi::Result<String> {
         self.session
@@ -283,7 +329,7 @@ impl NativeProjectSession {
         })
     }
 
-    /// Stable document CSS independent of which JS modules have been visited.
+    /// Stable document CSS without a source map, independent of visited JS modules.
     #[napi]
     pub fn base_css(&self) -> napi::Result<String> {
         StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
@@ -291,6 +337,7 @@ impl NativeProjectSession {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
+    /// Base document CSS with a source map, for review tooling.
     #[napi]
     pub fn base_css_with_map(&self) -> napi::Result<NativeStylesheetOutput> {
         let output = StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
@@ -315,12 +362,16 @@ impl NativeProjectSession {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
-    #[napi]
     /// Removes a producer, returning whether it was registered.
+    #[napi]
     pub fn remove(&mut self, module: String) -> bool {
         self.session.remove_module(&module)
     }
 
+    /// Scans, finalizes, and publishes the given modules.
+    ///
+    /// `producer` narrows the returned output to one module, but every supplied module
+    /// is still compiled: cross-module values need the whole set.
     #[napi(strict)]
     pub fn compile(
         &mut self,

@@ -1,3 +1,13 @@
+//! Expansion of `@apply` and `@variant` in authored CSS.
+//!
+//! Authored directives resolve through the same registry, and the same declaration ordering, as
+//! generated utilities, so `@apply px-4` cannot produce different declarations than a `px-4`
+//! class does. Expansion is textual and proceeds directive by directive: `@apply` is replaced by
+//! the declarations of the candidates it names, and each `@variant` block is replaced by the
+//! rules its variants select. A candidate that does not resolve contributes nothing, and a
+//! directive that cannot be parsed at all ends the pass, leaving the remaining CSS untouched
+//! rather than deleting it.
+
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_syntax::parse_candidate;
 
@@ -8,6 +18,10 @@ use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
 use super::blocks::find_at_rule_block;
 
+/// Rewrites every `@apply` and `@variant` in `css` that can be expanded.
+///
+/// The pass is iterative rather than recursive: each replaced range is rescanned from the start,
+/// so an expansion that contains no directive of its own terminates after one step.
 pub(in crate::compiler) fn expand_authored_directives(css: &str, theme: &ThemeIndex) -> String {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
@@ -35,6 +49,11 @@ pub(in crate::compiler) fn expand_authored_directives(css: &str, theme: &ThemeIn
     output
 }
 
+/// Expands one `@variant <prelude> { body }` block.
+///
+/// The prelude is a comma-separated list of variant sequences, and each sequence expands to its
+/// own copy of the body. Returns `None` when a sequence is empty or an unknown variant appears, so
+/// the caller can leave the block unexpanded instead of emitting partial rules.
 pub(in crate::compiler) fn expand_authored_variant(
     prelude: &str,
     body: &str,
@@ -71,6 +90,10 @@ pub(in crate::compiler) fn expand_authored_variant(
     Some(output)
 }
 
+/// Splits `value` on `separator` at the top level only.
+///
+/// Separators inside quotes, parentheses, brackets, or braces stay part of the item they belong
+/// to, which is what allows a variant prelude to contain `:is(a, b)`.
 pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
@@ -105,6 +128,11 @@ pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> 
     parts
 }
 
+/// Wraps `body` in every application of one variant path.
+///
+/// The innermost step is applied first, so the outermost at-rule of the path ends up containing
+/// the whole rule. Declarations a variant contributes are prepended only when the body does not
+/// already set that property, which keeps an explicit authored value authoritative.
 pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],

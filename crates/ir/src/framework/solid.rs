@@ -1,5 +1,8 @@
+//! Solid adapter policy.
+
 use super::{AdapterKind, FrameworkSpec, StyleFormat};
 
+/// Solid passes `class` and materializes custom properties as an object.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Solid,
     macro_import: "stillwind/solid",

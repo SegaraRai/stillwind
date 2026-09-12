@@ -1,4 +1,16 @@
 //! Snapshot-pinned compilation and structured, independently owned CSS rules.
+//!
+//! [`ModuleCompiler`] compiles one module analysis against one immutable design-system
+//! snapshot and returns a [`CompiledModule`]: source transforms, a CSS artifact split
+//! into independently owned rules, generated classes and symbols, diagnostics, and the
+//! dependency sets a cache needs. Rule identity is content identity, so the project
+//! layer can compare, move, or drop rules it did not emit itself. URLs found in
+//! generated CSS are replaced with placeholders and reported, because the compiler
+//! never resolves a path.
+//!
+//! A failed compilation still returns the artifact shape, but with empty transforms,
+//! classes, symbols, and CSS. Callers must check [`CompiledModule::is_success`] before
+//! applying anything from it.
 
 use std::collections::BTreeSet;
 
@@ -19,10 +31,12 @@ use crate::{
     TransformError,
 };
 
+/// A source-transform failure as reported by [`CompiledModule::apply_to_source`].
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
 pub struct ModuleTransformError(#[from] pub TransformError);
 
+/// The emitter produced CSS that cannot be split into rules.
 #[derive(Debug, thiserror::Error)]
 #[error("invalid generated CSS block at byte {offset}")]
 pub(crate) struct CssArtifactError {
@@ -30,6 +44,10 @@ pub(crate) struct CssArtifactError {
 }
 
 /// Content identity of one generated CSS rule.
+///
+/// Compiler-produced keys hash the rule serialization. The project layer trusts that
+/// correspondence when sharing rules. Public tuple construction can supply an unrelated
+/// fingerprint; the doctest only rules out an implicit conversion.
 ///
 /// ```compile_fail
 /// use stillwind_source::Fingerprint;
@@ -39,8 +57,15 @@ pub(crate) struct CssArtifactError {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct RuleKey(pub Fingerprint);
 
+/// One independently owned CSS rule.
+///
+/// The rule is kept as prelude plus body so a consumer can reorder, deduplicate, or
+/// re-serialize it without parsing CSS. `prelude` preserves the authored serialization
+/// whitespace, so [`GeneratedRule::to_css`] reproduces the emitter's bytes exactly for
+/// a rule produced by `ModuleCssArtifact::from_css`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
+    /// Content identity of the rule's serialization.
     pub key: RuleKey,
     /// Selector or at-rule header, including authored serialization whitespace.
     pub prelude: String,
@@ -49,6 +74,10 @@ pub struct GeneratedRule {
 }
 
 impl GeneratedRule {
+    /// The rule's serialization, ending in `;` for an at-rule statement.
+    ///
+    /// Re-serializing is not a parse: the stored strings are emitted as they are, so a
+    /// round trip through [`ModuleCssArtifact`] is byte-for-byte lossless.
     pub fn to_css(&self) -> String {
         self.body.as_ref().map_or_else(
             || self.prelude.clone(),
@@ -57,25 +86,45 @@ impl GeneratedRule {
     }
 }
 
+/// The CSS one module contributes, split into rules other producers can own
+/// individually.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ModuleCssArtifact {
+    /// Rules in emission order; the split never reorders them.
     pub rules: Vec<GeneratedRule>,
 }
 
+/// A URL in generated CSS that only the host can resolve.
+///
+/// The compiler cannot know where a file lives, so each reference becomes a unique
+/// placeholder string and the host rewrites it later. Repeated references with the
+/// same owner and decoded specifier share a placeholder; different owners are hashed
+/// separately.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ModuleResourceReference {
+    /// Token standing in for the URL in the emitted CSS, quoted or inside `url(...)`.
     pub placeholder: String,
+    /// Source path of the module whose CSS contained the reference.
     pub owner: String,
+    /// Decoded URL specifier, without the surrounding CSS syntax.
     pub specifier: String,
 }
 
 impl ModuleCssArtifact {
+    /// Concatenates the rules in stored order.
     pub fn to_css(&self) -> String {
         self.rules.iter().map(GeneratedRule::to_css).collect()
     }
 
-    /// Lossless boundary between the existing emitter and rule ownership. CSS
-    /// tokenization keeps braces inside strings, functions and comments intact.
+    /// Splits emitted CSS into independently owned rules without changing its bytes.
+    /// CSS tokenization keeps braces inside strings, functions and comments intact.
+    ///
+    /// Every rule is keyed by the fingerprint of its own serialization, so keys agree
+    /// with [`GeneratedRule::to_css`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the byte offset where an unterminated block starts.
     pub(crate) fn from_css(css: &str) -> Result<Self, CssArtifactError> {
         let mut parser = Parser::new(css);
         let mut start = 0;
@@ -118,47 +167,97 @@ impl ModuleCssArtifact {
     }
 }
 
+/// Everything that can change a module's compiled output, and nothing else.
+///
+/// Two equal keys mean the previously compiled artifact can be reused. The compiler's
+/// own build fingerprint participates through `compiler_version`, so rebuilding the
+/// compiler invalidates every cached artifact, and `analysis_revision` covers the
+/// frontend's actual inputs rather than its implementation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleArtifactKey {
+    /// Compiler version plus the build fingerprint of the compiler and its dependencies.
     pub compiler_version: String,
+    /// Fingerprint of the resolved [`CompilerOptions`]; a prefix change is a separate key.
     pub compiler_options: Fingerprint,
     /// The frontend's actual compiler inputs, independent of its implementation.
     pub analysis_revision: Fingerprint,
+    /// Content fingerprint of the design system the module was compiled against.
     pub design_system: Fingerprint,
+    /// Fingerprint of the source buffer, so an edit invalidates the artifact.
     pub source_revision: Fingerprint,
+    /// Identity of the module inside the project graph.
     pub module_id: ModuleId,
+    /// Identity of the source file, which may differ from the module id after projection.
     pub source_file_id: u32,
+    /// Which frontend produced the analysis, for example `oxc`.
     pub frontend_kind: String,
+    /// Adapter mode the analysis was extracted under.
     pub adapter_mode: String,
+    /// Fingerprint of the type facts and asset metadata that shaped the analysis, when any.
     pub semantic_revision: Option<Fingerprint>,
 }
 
+/// Definition sets a compiled module's output was derived from.
+///
+/// The sets are conservative: they may hold more names than the output actually uses,
+/// so a change can invalidate a still-valid artifact. They must never hold fewer,
+/// because an omission would keep stale CSS. `assets` lists the handle, scope,
+/// animation, and view-transition identities the module referenced.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CompilationDependencies {
+    /// Candidate spellings the module mentions, including their variant prefixes.
     pub candidates: BTreeSet<String>,
+    /// Theme token names whose values appear in the module's generated CSS.
     pub theme_tokens: BTreeSet<String>,
+    /// All currently registered utility definition names, recorded conservatively.
     pub utilities: BTreeSet<String>,
+    /// All currently registered variant definition names, recorded conservatively.
     pub variants: BTreeSet<String>,
+    /// All currently registered custom-property definition names.
     pub properties: BTreeSet<String>,
+    /// Identities of the assets the module used.
     pub assets: BTreeSet<IdentityId>,
 }
 
+/// One module's complete compiled output.
+///
+/// This is the compiler-to-project boundary. The fields are produced together, so a
+/// consumer receives generated classes and symbols alongside CSS and source edits.
+/// Marker classes need not have a CSS rule. Transform validity is checked when the
+/// edits are rendered.
+/// They are only meaningful when the module compiled without diagnostics.
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
+    /// Style dependencies the project layer must order this module after.
     pub composition: Vec<StyleDependency>,
+    /// URLs found in `css`, replaced there by their placeholders.
     pub resources: Vec<ModuleResourceReference>,
+    /// Cache identity of this artifact.
     pub key: ModuleArtifactKey,
+    /// Replacements for the original source; empty after a failed compilation.
     pub code_transforms: Vec<SourceTransform>,
+    /// The rules this module owns; empty after a failed compilation.
     pub css: ModuleCssArtifact,
+    /// Classes generated for this module's callsites.
     pub classes: Vec<GeneratedClass>,
+    /// Generated CSS identifiers with the identities they were allocated from.
     pub symbols: Vec<GeneratedSymbol>,
+    /// Errors that failed the compilation, if any.
     pub diagnostics: Vec<CompileError>,
+    /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
+    /// Definitions a change to which invalidates this artifact.
     pub dependencies: CompilationDependencies,
 }
 
 impl CompiledModule {
+    /// Applies the module's transforms to the original source and returns the new text.
+    ///
+    /// The input source is not modified; the result is a fresh string with untouched
+    /// intervals preserved byte for byte.
+    ///
     /// # Errors
+    ///
     /// Rejects failed compilation and invalid or overlapping source-transform spans.
     pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, ModuleTransformError> {
         if !self.is_success() {
@@ -167,11 +266,19 @@ impl CompiledModule {
         apply_transforms(source, &self.code_transforms).map_err(ModuleTransformError::from)
     }
 
+    /// True when the module compiled without diagnostics.
+    ///
+    /// Transforms, classes, symbols, and CSS are empty whenever this is false, so a
+    /// caller can use it as the single gate before applying output.
     pub fn is_success(&self) -> bool {
         self.diagnostics.is_empty()
     }
 
     /// Builds a producer's output without assembling document CSS or support layers.
+    ///
+    /// `css` and `module_css` are both the module's own rules here: the stylesheet
+    /// renderer later replaces `css` with the assembled document stylesheet while
+    /// leaving `module_css` addressable for a host that transports CSS per module.
     pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {
@@ -189,6 +296,7 @@ impl CompiledModule {
     }
 }
 
+/// Compiles module analyses against one immutable design system.
 #[derive(Clone, Debug)]
 pub struct ModuleCompiler {
     design_system: DesignSystemSnapshot,
@@ -196,6 +304,10 @@ pub struct ModuleCompiler {
 }
 
 impl ModuleCompiler {
+    /// Creates a compiler pinned to `design_system`.
+    ///
+    /// The options' prefixes are resolved against the snapshot, so a stale options
+    /// value cannot emit text that disagrees with the theme it is compiled against.
     pub fn new(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
         let options = options.resolved(&design_system);
         Self {
@@ -204,10 +316,16 @@ impl ModuleCompiler {
         }
     }
 
+    /// The snapshot this compiler was created with.
     pub fn design_system(&self) -> &DesignSystemSnapshot {
         &self.design_system
     }
 
+    /// The cache key for `module`; computing it does not compile anything.
+    ///
+    /// When the module carries asset support modules, their revisions are folded into
+    /// `semantic_revision`, because changing a supporting module changes this module's
+    /// output even though its own source did not move.
     pub fn key_for(&self, module: &ModuleAnalysis) -> ModuleArtifactKey {
         ModuleArtifactKey {
             compiler_options: Fingerprint::of(format!("{:?}", self.options)),
@@ -250,6 +368,10 @@ impl ModuleCompiler {
         }
     }
 
+    /// Compiles the module together with the support modules its assets came from.
+    ///
+    /// Support modules contribute declaration CSS and symbols, with resources owned by
+    /// their own source paths. Their source transforms are not returned here.
     fn compile_support_closure(&self, module: &ModuleAnalysis) -> CompileResult {
         let mut result = Compiler::compile_with_snapshot(
             &module.source,
@@ -274,6 +396,12 @@ impl ModuleCompiler {
         result
     }
 
+    /// Replaces every resolvable URL in the emitted CSS with an opaque placeholder.
+    ///
+    /// References the design system already owns a placeholder for are left alone, so a
+    /// theme asset keeps its host-facing identity. Placeholders are derived from the
+    /// owner path and the specifier, and references are rewritten from the end of the
+    /// CSS towards the start so earlier byte ranges stay valid.
     fn capture_resources(&self, result: &mut CompileResult, owner: &str) {
         let mut references = relative_css_urls(&result.module_css);
         references.retain(|reference| {
@@ -311,6 +439,12 @@ impl ModuleCompiler {
         }
     }
 
+    /// Compiles one module into its artifact.
+    ///
+    /// Integration diagnostics from the frontend are converted to source-spanning
+    /// errors before any CSS is split, and the CSS artifact is empty as long as any
+    /// diagnostic remains: a failed module must not hand half an artifact to the
+    /// project layer.
     pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
         let result = self.compile_support_closure(module);
         let mut diagnostics = result.diagnostics;
@@ -394,6 +528,12 @@ impl ModuleCompiler {
     }
 }
 
+/// Candidate spellings a module can mention, including `container` query bodies.
+///
+/// The walk is a conservative superset of what the module resolves: variant prefixes
+/// are concatenated so a qualified candidate is recorded in its spelled form, and
+/// unresolved candidates are included too, because they may resolve after a
+/// design-system change.
 fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
     fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
         for input in inputs {

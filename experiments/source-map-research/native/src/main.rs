@@ -1,23 +1,46 @@
-use oxc_sourcemap::SourceMapBuilder;
-use serde::Deserialize;
-use serde_json::json;
+// Benchmark binary and shared algorithms for the source-map research addon.
+//
+// Two entry points share this file. With `bench-edits` the binary compares a
+// naive right-to-left `String::replace_range` edit pass against a single forward
+// pass over the same ranges, which is the measurement the experiment exists for.
+// Otherwise it reads JSON on stdin and answers with either an encoded source map
+// or the emitted code plus map for a batch of edits, so a JavaScript driver can
+// check the output against the real consumer contract.
+//
+// This file is included into `lib.rs`, so it cannot carry inner doc comments:
+// the same text is written as regular comments on purpose.
+//
+// Source-map coordinates count UTF-16 units; edit ranges count UTF-8 bytes. The
+// emitter also accepts an unmapped prefix before the edited source.
+
 use std::{
     hint::black_box,
     io::{self, Read},
     time::Instant,
 };
+
+use oxc_sourcemap::SourceMapBuilder;
+use serde::Deserialize;
+use serde_json::json;
+
 use stillwind_source::{BytePos, FileId, SourceFile};
 
+/// One source-map encoding request.
 #[derive(Deserialize)]
 struct Input {
+    /// Optional generated-file name recorded in the map.
     #[serde(default)]
     file: Option<String>,
+    /// Source names, parallel to `contents`.
     sources: Vec<String>,
+    /// Source texts, so the map can carry `sourcesContent`.
     contents: Vec<String>,
     // generated line, column, optional source, original line, column
+    /// Token rows: generated line/column, optional source, original line/column.
     tokens: Vec<(u32, u32, Option<u32>, u32, u32)>,
 }
 
+/// Encodes one `Input` into a v3 source map JSON string.
 fn encode(input: &Input) -> String {
     let mut builder = SourceMapBuilder::default();
     if let Some(file) = &input.file {
@@ -32,14 +55,25 @@ fn encode(input: &Input) -> String {
     builder.into_sourcemap().to_json_string()
 }
 
+/// One replacement-emitter request.
 #[derive(Deserialize)]
 struct SourceInput {
+    /// Original source text the edits apply to.
     source: String,
+    /// File name used as both source and generated name.
     id: String,
+    /// Text emitted before the source, such as a generated import block.
     prefix: String,
+    /// Replacements as `(start, end, text)`, in byte offsets, in order.
     edits: Vec<(usize, usize, String)>,
 }
 
+/// Emits edited code plus a map that points every emitted unit at its original.
+///
+/// A token is emitted per UTF-16 unit rather than per line, because the consumer
+/// needs a mapping at every position it may cut. The final empty edit terminator
+/// makes the trailing unchanged text part of the same loop instead of a special
+/// case.
 // A replacement-only emitter. UTF-16 units intentionally match the current JS
 // consumer contract, including the second surrogate and the newline position.
 fn emit(input: &SourceInput) -> (String, String) {
@@ -100,11 +134,18 @@ fn emit(input: &SourceInput) -> (String, String) {
     (output, builder.into_sourcemap().to_json_string())
 }
 
+/// Median of `values`, using `total_cmp` so the ordering is total for floats.
 fn median(mut values: Vec<f64>) -> f64 {
     values.sort_by(f64::total_cmp);
     values[values.len() / 2]
 }
 
+/// Applies `ranges` to `source` in both implementations and returns the map.
+///
+/// The two branches are the experiment: `fused == false` applies the ranges
+/// backwards with `replace_range` and then computes offsets, while `fused == true`
+/// makes one forward pass and records the mapping as it copies. Both must produce
+/// the same output and offsets, which the caller asserts before timing them.
 fn edits(
     source: &str,
     ranges: &[(usize, usize, String)],
@@ -150,6 +191,10 @@ fn edits(
     }
 }
 
+/// Times both edit implementations over increasing edit counts and prints JSON.
+///
+/// Each size asserts that the two implementations agree first, so a faster wrong
+/// answer cannot be reported as a result.
 fn benchmark() {
     let mut results = Vec::new();
     for count in [100, 1000, 5000] {
@@ -194,6 +239,7 @@ fn benchmark() {
     println!("{}", json!(results));
 }
 
+/// Dispatches on the subcommand word and otherwise encodes a source map.
 fn main() {
     if std::env::args().any(|arg| arg == "bench-edits") {
         benchmark();
@@ -244,6 +290,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Every scalar-boundary range pair must give both implementations one answer.
     #[test]
     fn valid_scalar_boundary_edits() {
         let source = "a🧭\r\né中\nxyz";

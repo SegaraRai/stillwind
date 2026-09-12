@@ -1,6 +1,13 @@
+//! `stillwind/module-css` import recognition.
+//!
+//! The module-css import is a value import: a type-only binding must not count,
+//! while a mixed clause with at least one value specifier must. Spans must cover
+//! the literal including its quotes, because the host rewrites that exact range.
+
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile};
 
+/// Only value imports of the module-css entry point are recorded.
 #[test]
 fn explicit_module_css_tracks_value_import_literals_only() {
     for (text, expected) in [

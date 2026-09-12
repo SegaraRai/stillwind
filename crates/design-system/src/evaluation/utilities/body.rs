@@ -1,3 +1,16 @@
+//! Expansion of one CSS utility body into resolved declarations.
+//!
+//! A body may carry a selector, base declarations, conditional declarations, and a
+//! parent selector wrapper. This module splits those apart and resolves each
+//! declaration group independently, which is what lets one broad definition serve
+//! several candidate spellings: a declaration whose typed placeholder does not match
+//! the candidate is dropped while its siblings survive.
+//!
+//! A slash modifier is only accepted when a branch actually consumes it, so a color
+//! branch cannot silently accept an opacity modifier by accident. Conditional rules are
+//! emitted as authored, including support queries that the compatibility color path
+//! adds as a second branch of one declaration.
+
 use stillwind_syntax::Value;
 
 use super::super::builtins::metadata::{COMPAT_COLOR_SUPPORT, builtin_property_definitions};
@@ -10,16 +23,23 @@ use super::nested::{
 use super::resolve::ResolvedUtilityTarget;
 use crate::{CustomUtility, ThemeIndex, ThemeNamespace};
 
+/// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UtilityResolution {
+    /// Declarations for the matched selector, or for the utility itself.
     pub(crate) declaration: String,
+    /// Selector template from the body, when the body wrapped its declarations.
     pub(crate) selector: Option<String>,
+    /// Conditional declarations to emit next to the base declaration.
     pub(crate) nested: Vec<NestedUtilityRule>,
+    /// Extra selector targets produced by further overloads.
     pub(crate) additional: Vec<ResolvedUtilityTarget>,
+    /// Authored position of the matched built-in, used for ordering.
     pub(crate) builtin_order: Option<usize>,
 }
 
 impl UtilityResolution {
+    /// A declaration with no selector, conditionals, or ordering.
     pub(crate) fn plain(declaration: String) -> Self {
         Self {
             declaration,
@@ -31,6 +51,11 @@ impl UtilityResolution {
     }
 }
 
+/// Resolves one definition body against a candidate name and modifier.
+///
+/// Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
+/// the candidate carries a modifier no branch consumes, or when no declaration group
+/// matches.
 pub(crate) fn resolve_css_utility_body(
     utility: &CustomUtility,
     name: &str,
@@ -42,11 +67,11 @@ pub(crate) fn resolve_css_utility_body(
     }
     let (selector, body, parent_body) = split_utility_selector(&utility.body)?;
     let (body, nested) = split_nested_conditions(body)?;
-    // A slash modifier is meaningful only when a branch explicitly consumes
-    // it. This prevents a broad base branch (for example `bg-*`'s colour
-    // declaration) from accepting `bg-red-500/not-an-opacity` merely because
-    // another overload happened to define modifiers. Fractions are the one
-    // exception: their slash is deliberately reassembled by `--fraction()`.
+    // A slash modifier is meaningful only when a branch explicitly consumes it. This
+    // prevents a broad base branch (for example `bg-*`'s color declaration) from
+    // accepting `bg-red-500/not-an-opacity` merely because another overload happened to
+    // define modifiers. Fractions are the one exception: their slash is deliberately
+    // reassembled by `--fraction()`.
     let consumes_modifier = body.contains("--modifier")
         || body.contains("--fraction()")
         || nested
@@ -186,6 +211,12 @@ pub(crate) fn normalize_registered_var_fallbacks(
     declaration
 }
 
+/// Expands a conditional whose prelude names a theme namespace pattern into one rule
+/// per active token, ordered by numeric value.
+///
+/// This is how a wildcard definition such as `max-w-*` learns its variants from the
+/// theme. Tokens that are not numeric lengths sort last, so an unparsable value cannot
+/// displace a real scale.
 pub(crate) fn expand_theme_wildcard_nested(
     condition: &str,
     body: &str,
@@ -225,6 +256,10 @@ pub(crate) fn expand_theme_wildcard_nested(
         .collect()
 }
 
+/// Sort key for a CSS length, normalizing `rem` and `em` to pixels.
+///
+/// A value that is not a plain length is infinite, which keeps it after every
+/// measurable length regardless of the author's unit choice.
 pub(crate) fn css_length_sort_key(value: &str) -> f64 {
     let value = value.trim();
     for (unit, scale) in [("rem", 16.0), ("em", 16.0), ("px", 1.0)] {

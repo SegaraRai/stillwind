@@ -1,3 +1,14 @@
+//! Ref projections: `anchor`, `position`, `scope`, `container` and `at`.
+//!
+//! A projection turns a ref identity into something a style call can attach to an
+//! element or use as a container query source. Projections need the ref to be
+//! resolvable to finite candidates, from local analysis or checker facts. Unresolved
+//! refs are reported as `SHTS001` instead of being guessed.
+//!
+//! Every use is also recorded with the JSX path it appeared on, which is what the
+//! ancestry validation later reads. A projection over several candidates becomes an
+//! explicitly dynamic projection instead of one candidate.
+
 use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression};
 use oxc::span::GetSpan;
 
@@ -9,6 +20,12 @@ use stillwind_source::{CompileError, Span};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// Lowers one ref projection expression, if it is one.
+    ///
+    /// Recognizes the member projections and `ref.container("type")`, and returns
+    /// `None` when the expression is not a projection so callers can try other forms.
+    /// Arguments must be literal, because the projection becomes generated CSS rather
+    /// than a runtime value.
     pub(crate) fn collect_handle_projection(
         &mut self,
         expression: &Expression<'a>,
@@ -92,6 +109,10 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Lowers `ref.at("query", "utilities")` into a container query input.
+    ///
+    /// Both arguments must be literals and the receiver must resolve to a single ref,
+    /// so the query can be emitted as CSS instead of evaluated at runtime.
     pub(crate) fn collect_container_query_projection(
         &mut self,
         call: &CallExpression<'a>,
@@ -132,6 +153,11 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
+    /// Records one ref use for later ancestry validation.
+    ///
+    /// `projection` is the use kind that `validation` reads and `span` is the whole
+    /// expression the user wrote. The JSX path is recorded only when the use is inside
+    /// a JSX tree, because the ancestry rules cannot be checked otherwise.
     pub(crate) fn record_handle_use(
         &mut self,
         handle: &HandleDefinition,
@@ -146,6 +172,7 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
+    /// Records one scope use, which makes the scope a provider for its JSX path.
     pub(crate) fn record_scope_use(&mut self, scope: &ScopeDefinition) {
         self.scope_uses.push(ScopeUse {
             name: scope.name.value.clone(),
@@ -154,16 +181,25 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+/// One recorded ref use.
 #[derive(Clone, Debug)]
 pub(crate) struct HandleUse {
+    /// Marker name of the ref that was used, as written at its declaration.
     pub(crate) name: String,
+    /// Use kind: `ref`, `selector`, `anchor`, `position`, `scope`, `container` or
+    /// `container-query`.
     pub(crate) projection: &'static str,
+    /// Whole expression the use came from.
     pub(crate) span: Span,
+    /// JSX ancestor path of the use, when it appeared inside JSX.
     pub(crate) jsx_path: Option<Vec<usize>>,
 }
 
+/// One recorded scope use.
 #[derive(Clone, Debug)]
 pub(crate) struct ScopeUse {
+    /// Marker name of the scope that was used.
     pub(crate) name: String,
+    /// JSX ancestor path of the use, when it appeared inside JSX.
     pub(crate) jsx_path: Option<Vec<usize>>,
 }

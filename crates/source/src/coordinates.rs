@@ -1,23 +1,49 @@
 //! Explicit UTF-16 coordinates at host and source-map boundaries.
+//!
+//! Editors, language servers and source maps count UTF-16 code units, while every Rust
+//! pass in this workspace addresses text in UTF-8 bytes. [`CoordinateIndex`] snapshots
+//! the scalar boundaries of one [`SourceFile`] in both systems and converts in either
+//! direction. A coordinate that falls inside a surrogate pair names no character, so it
+//! is rejected instead of rounded to the nearest boundary; rounding would silently
+//! attach an edit to the wrong text. Build one index per source and reuse it:
+//! construction walks the whole text, while each query is a binary search.
 
 use serde::{Deserialize, Serialize};
 
 use crate::{BytePos, Position, SourceFile};
 
+/// A UTF-16 code-unit offset from the start of a source.
+///
+/// The value counts code units, not characters: an offset inside a surrogate pair is
+/// representable but is not a valid coordinate. Only [`CoordinateIndex`] decides which
+/// values address a real scalar.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Utf16Offset(pub u32);
 
+/// Failure to translate between a host coordinate and a source byte offset.
+///
+/// The variant names the rejected input: a UTF-16 offset, a line/column [`Position`],
+/// or a [`BytePos`] that does not start a character.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum CoordinateError {
+    /// The offset is out of range or inside a surrogate pair.
     #[error("invalid UTF-16 offset {0:?}")]
     Offset(Utf16Offset),
+    /// The line does not exist, or the column crosses the end of the line.
     #[error("invalid UTF-16 position {0:?}")]
     Position(Position),
+    /// The byte offset is out of range or splits a multi-byte character.
     #[error("invalid UTF-8 byte offset {0:?}")]
     Byte(BytePos),
 }
 
-/// Bidirectional scalar-boundary index. Surrogate interiors have no entry.
+/// Bidirectional scalar-boundary index between UTF-16 code units and UTF-8 bytes.
+///
+/// Every character boundary of the source appears exactly once, in both coordinate
+/// systems. Surrogate interiors, multi-byte interiors and out-of-range values have no
+/// entry and therefore fail to convert instead of being rounded. The index borrows
+/// nothing, so it may outlive the temporary borrows used to build it.
+///
 /// Built once per source so mapping many spans never rescans the source prefix.
 #[derive(Clone, Debug)]
 pub struct CoordinateIndex {
@@ -26,6 +52,10 @@ pub struct CoordinateIndex {
 }
 
 impl CoordinateIndex {
+    /// Builds the index in one pass over the source.
+    ///
+    /// The cost is proportional to the character count, which is why callers should
+    /// build it once and reuse it for many span mappings.
     #[allow(clippy::cast_possible_truncation)] // A scalar occupies at most four bytes/two units.
     pub fn new(source: &SourceFile) -> Self {
         let mut boundaries = Vec::new();
@@ -45,7 +75,10 @@ impl CoordinateIndex {
         Self { boundaries, lines }
     }
 
+    /// Returns the byte offset of the scalar that starts at `offset`.
+    ///
     /// # Errors
+    ///
     /// Rejects out-of-range coordinates and surrogate interiors.
     pub fn byte(&self, offset: Utf16Offset) -> Result<BytePos, CoordinateError> {
         self.boundaries
@@ -54,7 +87,10 @@ impl CoordinateIndex {
             .map_err(|_| CoordinateError::Offset(offset))
     }
 
+    /// Returns the UTF-16 offset of the scalar that starts at `byte`.
+    ///
     /// # Errors
+    ///
     /// Rejects out-of-range coordinates and UTF-8 interiors.
     pub fn utf16(&self, byte: BytePos) -> Result<Utf16Offset, CoordinateError> {
         self.boundaries
@@ -63,7 +99,15 @@ impl CoordinateIndex {
             .map_err(|_| CoordinateError::Byte(byte))
     }
 
+    /// Resolves a zero-based line and UTF-16 column to the byte offset of the scalar at
+    /// that position.
+    ///
+    /// The terminating newline itself is addressable; a column reaching the next
+    /// line's start is rejected. EOF is also addressable, including column zero on
+    /// the empty line after a trailing newline.
+    ///
     /// # Errors
+    ///
     /// Rejects nonexistent lines, columns crossing a newline, and surrogate interiors.
     pub fn at_position(&self, position: Position) -> Result<BytePos, CoordinateError> {
         let invalid = || CoordinateError::Position(position);

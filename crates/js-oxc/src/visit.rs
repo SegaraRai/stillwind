@@ -1,3 +1,16 @@
+//! The main AST visit that turns a program into [`stillwind_ir::ModuleIr`] and a
+//! summary.
+//!
+//! The visit records four kinds of fact: module structure (imports, re-exports,
+//! specifier literals, exported bindings), declarations of assets (`style.ref()`,
+//! `style.scope()`, animations, view transitions), `style()` call sites, and the JSX
+//! ancestry of each visited element so ref/scope validation can check containment
+//! later.
+//!
+//! Recognition always goes through resolved symbols. The one place spelling is used is
+//! [`ImportBinding`], because an import declaration is the only construct that can
+//! associate a name with a module before any symbol exists.
+
 use oxc::ast::ast::{
     Argument, BindingPattern, CallExpression, Declaration, ExportAllDeclaration, ExportDeclaration,
     ExportFromDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration,
@@ -15,6 +28,10 @@ use stillwind_source::{CompileError, Spanned};
 use crate::state::MacroExtractor;
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
+    /// Tracks the JSX ancestor path and gives each element a stable index.
+    ///
+    /// Path indices are assigned in visit order, so a sibling comparison later uses the
+    /// same numbering the path was recorded with.
     fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
         let element_id = self.next_jsx_element;
         self.next_jsx_element += 1;
@@ -23,6 +40,12 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         self.jsx_path.pop();
     }
 
+    /// Records module specifiers, macro imports and ordinary import bindings.
+    ///
+    /// A specifier literal is recorded for every import, because the host needs the
+    /// exact span to resolve shadow modules; only value imports of a macro entry point
+    /// contribute style symbols, and only non-macro imports contribute
+    /// [`ImportBinding`]s.
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
         self.module_specifiers.push(ModuleSpecifier {
             source: declaration.source.value.to_string(),
@@ -86,6 +109,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_import_declaration(self, declaration);
     }
 
+    /// Records exported variable names so their imports can be sliced later.
+    ///
+    /// Only direct `export const x = ...` bindings are recorded; destructuring patterns
+    /// are left to the host checker.
     fn visit_export_declaration(&mut self, declaration: &ExportDeclaration<'a>) {
         if let Declaration::VariableDeclaration(variables) = &declaration.declaration {
             for declarator in &variables.declarations {
@@ -100,6 +127,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_export_declaration(self, declaration);
     }
 
+    /// Records `export { local as name }` as an exported binding.
+    ///
+    /// The local side must be an identifier reference so the exported name can be
+    /// attached to a symbol; string-literal locals are skipped.
     fn visit_export_named_declaration(&mut self, declaration: &ExportNamedDeclaration<'a>) {
         for specifier in &declaration.specifiers {
             let ModuleExportName::IdentifierReference(local) = &specifier.local else {
@@ -117,6 +148,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_export_named_declaration(self, declaration);
     }
 
+    /// Records `export ... from` specifiers, literals and re-export edges.
+    ///
+    /// The re-export edge keeps both spellings, so a consumer can follow the chain
+    /// without re-parsing this module.
     fn visit_export_from_declaration(&mut self, declaration: &ExportFromDeclaration<'a>) {
         self.module_specifiers.push(ModuleSpecifier {
             source: declaration.source.value.to_string(),
@@ -133,6 +168,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_export_from_declaration(self, declaration);
     }
 
+    /// Records `export * from` as a re-export with `*` on both sides.
+    ///
+    /// A named `export * as ns from` keeps its exported name, so the star form is
+    /// distinguishable from a genuine `*` re-export.
     fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
         self.module_specifiers.push(ModuleSpecifier {
             source: declaration.source.value.to_string(),
@@ -150,6 +189,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_export_all_declaration(self, declaration);
     }
 
+    /// Collects one `style(...)` call site.
+    ///
+    /// Only calls whose callee resolves to the imported macro are collected. A call
+    /// nested inside an already-collected one is reported as `SHCOMP001` instead of
+    /// being lowered, and spread arguments are errors.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         let Expression::Identifier(callee) = &call.callee else {
             walk::walk_call_expression(self, call);
@@ -202,6 +246,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_call_expression(self, call);
     }
 
+    /// Recognizes the four asset producers in one `const x = style.<member>(...)`.
+    ///
+    /// Each producer records its definition, its symbol, and the symbolic value the
+    /// binding denotes, so later uses resolve without re-checking the call.
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
         if let (
             BindingPattern::BindingIdentifier(identifier),

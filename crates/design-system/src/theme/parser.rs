@@ -1,3 +1,15 @@
+//! Parsing one supplied CSS buffer into a [`ThemeIndex`].
+//!
+//! This is the syntactic entry point used both for a single file
+//! ([`crate::DesignSystemSnapshot::from_source`]) and for each source the loader
+//! accepts. It reads declared semantics only: no package name, default theme, reset, or
+//! built-in registry is injected, so the definitions a snapshot ends up with are
+//! exactly the ones the host supplied, expanded in authored import order.
+//!
+//! Because directives are found textually, the buffer is first checked for an
+//! unterminated block, and the retained authored CSS is re-parsed by Lightning CSS so
+//! that a syntax error surfaces as a typed [`ThemeError`].
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -20,24 +32,39 @@ use crate::registry::formats::{extract_declaration_formats, extract_relationship
 use crate::registry::utilities::{extract_custom_utilities, extract_marker_utilities};
 use crate::registry::variants::extract_custom_variants;
 
+/// Why one supplied CSS buffer could not be parsed as Stillwind CSS.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ThemeError {
+    /// The output template is invalid.
     #[error("{0}")]
     Output(#[from] CssOutputError),
+    /// A CSS offset does not fit the 32-bit coordinate space.
     #[error("CSS source offset {0} exceeds the 32-bit source limit")]
     InvalidOffset(usize),
+    /// The buffer is not valid CSS.
     #[error("CSS parse error: {0}")]
     Parse(#[source] Error<ParserError<'static>>),
+    /// A `@theme` block reached the end of the buffer.
     #[error("unterminated @theme block")]
     UnterminatedTheme,
+    /// A block reached the end of the buffer.
     #[error("unterminated CSS block at byte {offset}")]
-    UnterminatedBlock { offset: usize },
+    UnterminatedBlock {
+        /// Byte offset where the block starts.
+        offset: usize,
+    },
 }
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
 ///
+/// Directive text inside comments and strings is not a definition, and spans in the
+/// returned template and tokens refer to `source`. The selected built-ins are taken
+/// from the same buffer, so a caller that supplies no registry CSS receives an empty
+/// registry.
+///
 /// # Errors
+///
 /// Returns invalid CSS, unterminated blocks, or unsupported output slots.
 pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     if let Some(offset) = unterminated_block(source.text()) {
@@ -64,6 +91,11 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
     Ok(theme)
 }
 
+/// Extracts the top-level `@keyframes` rules of a `@theme` body, in authored order.
+///
+/// Keyframes cannot be represented as custom properties, so they are copied textually
+/// and emitted with the theme layer. An unterminated keyframes block ends the scan
+/// rather than being emitted partially.
 pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
@@ -95,10 +127,25 @@ pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
     output
 }
 
+/// Converts a byte offset to the 32-bit source coordinate space.
+///
+/// # Errors
+///
+/// Returns an invalid-offset error when the value does not fit, so no caller can
+/// truncate a span silently.
 pub(crate) fn offset(value: usize) -> Result<u32, ThemeError> {
     u32::try_from(value).map_err(|_| ThemeError::InvalidOffset(value))
 }
 
+/// Collects the tokens of every `@theme` block, applying each block's mode to the
+/// declarations it contains.
+///
+/// Only tokens are filled in; the remaining `ThemeIndex` fields are defaults, because
+/// they depend on the whole buffer and are assembled by [`parse_theme`].
+///
+/// # Errors
+///
+/// Returns a block or offset error, or an unterminated `@theme` block error.
 pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeError> {
     let mut tokens = Vec::new();
     for (range, modifier) in theme_blocks(css)? {

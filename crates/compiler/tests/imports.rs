@@ -1,3 +1,9 @@
+//! Macro import removal.
+//!
+//! Pins that a binding is only deleted when every reference was lowered, that a residual
+//! reference fails the plan instead of leaving a free identifier, and that mixed imports keep
+//! their other specifiers, comments, and separators intact.
+
 use stillwind_compiler::{
     ImportPlanError, SourceTransform, plan_macro_import_removals, render_transforms,
 };

@@ -1,3 +1,10 @@
+//! Module compilation through the public API.
+//!
+//! Pins composition ordering and the merging of selected bases, artifact identity (an options or
+//! frontend-IR change is a different key for the same source revision), structured CSS and
+//! transform output against a pinned snapshot, invalid IR and byte boundaries returning
+//! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
+
 use std::collections::BTreeSet;
 use std::sync::Arc;
 

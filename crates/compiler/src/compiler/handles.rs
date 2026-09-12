@@ -1,3 +1,16 @@
+//! Derived names and identities for ref and scope assets.
+//!
+//! Marker class names and anchor custom-property names are hashes of the declaration's
+//! stable identity, so unchanged declarations keep their names across recompiles.
+//! Truncated hashes may collide; symbol validation reports conflicting identities. A
+//! declaration's identity is independent of its projections: `anchor`, `position`,
+//! `scope`, and `container` all reference the same generated name, which is what makes
+//! anchor positioning resolve to the element the ref was attached to.
+//!
+//! [`summary_runtime_assets`] seeds runtime reachability from module exports; call
+//! emission adds uses. Unreferenced producer calls are replaced by `undefined`, but
+//! animation and view-transition definition CSS is emitted independently of that set.
+
 use std::collections::BTreeSet;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
@@ -6,6 +19,7 @@ use stillwind_source::{SourceFile, Spanned};
 
 use super::symbols::{asset_identity, ref_symbol_name};
 
+/// The declaration that makes a projection usable on the element itself.
 pub(super) fn render_handle_projection(
     handle: &HandleDefinition,
     projection: &HandleProjection,
@@ -21,6 +35,10 @@ pub(super) fn render_handle_projection(
     }
 }
 
+/// Marker class applied where a ref is attached, without the leading dot.
+//
+// The hash is over the stable identity, not the label, so renaming the label changes only the
+// human-readable part of the class name.
 pub(super) fn handle_marker_class(handle: &HandleDefinition) -> String {
     let hash = &blake3::hash(asset_identity(&handle.module_path, "ref", &handle.name).as_bytes())
         .to_hex()[..8];
@@ -30,6 +48,7 @@ pub(super) fn handle_marker_class(handle: &HandleDefinition) -> String {
     }
 }
 
+/// Marker class applied where a scope is attached, with the leading dot.
 pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
     let hash = &blake3::hash(asset_identity(&scope.module_path, "scope", &scope.name).as_bytes())
         .to_hex()[..8];
@@ -39,6 +58,7 @@ pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
     }
 }
 
+/// Identity of a ref declaration, spanning its name token.
 pub(super) fn ref_identity(handle: &HandleDefinition) -> IdentityId {
     IdentityId::new(
         AssetKind::Ref,
@@ -49,6 +69,7 @@ pub(super) fn ref_identity(handle: &HandleDefinition) -> IdentityId {
     )
 }
 
+/// Identity of a scope declaration, spanning its name token.
 pub(super) fn scope_identity(scope: &ScopeDefinition) -> IdentityId {
     IdentityId::new(
         AssetKind::Scope,
@@ -59,6 +80,7 @@ pub(super) fn scope_identity(scope: &ScopeDefinition) -> IdentityId {
     )
 }
 
+/// Identity of a named motion asset, spanning its name token.
 pub(super) fn named_identity(
     source: &SourceFile,
     kind: AssetKind,
@@ -73,6 +95,11 @@ pub(super) fn named_identity(
     )
 }
 
+/// Every asset identity the module's exports can reach.
+///
+/// Only finite candidate sets contribute here. A non-finite set means a use may denote any
+/// asset of its kind, which no specific declaration can satisfy, so such a use is left to the
+/// runtime path instead of pinning CSS that might never be applied.
 pub(super) fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<IdentityId> {
     let mut identities = BTreeSet::new();
     for value in summary.exports.values() {

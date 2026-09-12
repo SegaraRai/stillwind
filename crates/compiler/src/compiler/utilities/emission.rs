@@ -1,3 +1,12 @@
+//! Emission of one class unit.
+//!
+//! A class unit's blocks are ordered before they are serialized: the plain block first, then the
+//! variant blocks in the canonical variant order, then the rules that exist only inside an at-rule
+//! from a CSS-defined utility. A plain utility that carries a nested rule stays where it appears in
+//! the plain run, because splitting there would move declarations relative to each other. Nested
+//! declarations that live inside the same rule are inserted after the property they override, so a
+//! nested at-rule cannot win by appearing before the value it is meant to replace.
+
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
@@ -6,6 +15,10 @@ use super::declaration_order::{combine_declarations_for_theme, order_builtin_uti
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
 
+/// Writes the blocks of one class unit for `class_name`.
+///
+/// The class name is generated from the unit's canonical content, so this function never has to
+/// deduplicate: two equal units were already merged by the caller.
 pub(crate) fn emit_utility_rules(
     output: &mut String,
     class_name: &str,
@@ -79,6 +92,11 @@ pub(crate) fn emit_utility_rules(
     }
 }
 
+/// Writes one `.class{...}` block for a run of plain utilities.
+///
+/// Nested rules whose property is present in the combined declarations are inlined right after that
+/// property; the rest follow the declarations in their own order. Utilities with no declarations at
+/// all produce no block, which is why a marker-only unit still costs nothing in the CSS.
 pub(in crate::compiler) fn emit_base_utility_group(
     output: &mut String,
     class_name: &str,
@@ -146,6 +164,7 @@ pub(in crate::compiler) fn emit_base_utility_group(
     }
 }
 
+/// Inserts a nested at-rule after the property it overrides, or at the end when it has no match.
 pub(in crate::compiler) fn insert_nested_declaration(
     declaration: &mut String,
     nested: &NestedUtilityRule,

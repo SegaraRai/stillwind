@@ -1,3 +1,9 @@
+//! Animation and view-transition compilation.
+//!
+//! Pins keyframe emission for local `@utility` frames, selector-scoped animation uses, keyed view
+//! transitions, the independent `--sw-` and `--tw-` prefix configuration, and the rejection of a
+//! second view transition in one call.
+
 use stillwind_compiler::CompilerOptions;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 

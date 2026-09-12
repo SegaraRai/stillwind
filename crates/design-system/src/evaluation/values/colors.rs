@@ -1,3 +1,14 @@
+//! Color compatibility branches and theme shadow color modifiers.
+//!
+//! The compatibility path can emit a color declaration twice: an sRGB branch and a
+//! modern branch guarded by a capability query. The legacy branch mixes in sRGB, the
+//! modern branch uses `oklab`, and both are produced here so the two passes stay
+//! visibly paired.
+//!
+//! Legacy `currentcolor` skips mixing, while its modern branch can still mix. `inherit`
+//! and `transparent` select oklab in both passes when no extra modern alpha is
+//! supplied. Identical branch text can then be emitted without a capability wrapper.
+
 use stillwind_css::{shadow_with_color_fallback, shadow_with_color_override};
 
 use super::super::builtins::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
@@ -5,20 +16,28 @@ use super::domains::split_domains;
 use super::theme::theme_value_literal;
 use crate::{ThemeIndex, ThemeNamespace};
 
+/// Which of the two compatibility branches is being produced.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CompatColorMode {
+    /// Fallback branch.
     Legacy,
+    /// Upgraded branch, guarded by the capability query.
     Modern,
 }
 
+/// How an authored color interacts with the compatibility branches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CompatColorKind {
+    /// `currentcolor`, which the legacy branch cannot mix.
     CurrentColor,
+    /// `inherit` or `transparent`, selecting the modern space in both passes by default.
     ModernOnlyKeyword,
+    /// Any other authored color.
     General,
 }
 
 impl CompatColorKind {
+    /// Classifies an authored color spelling, case-insensitively.
     pub(crate) fn from_css(color: &str) -> Self {
         if color.eq_ignore_ascii_case("currentcolor") {
             Self::CurrentColor
@@ -31,9 +50,14 @@ impl CompatColorKind {
     }
 }
 
-/// Produces the legacy Color 4 fallback for an authored color and alpha.
-/// The caller also emits the modern upgrade guarded by the capability query
-/// intrinsic to `--compat-color()`.
+/// Produces the legacy Color 4 fallback for an authored color and alpha. The caller
+/// also emits the modern upgrade guarded by the capability query intrinsic to
+/// `--compat-color()`.
+///
+/// The argument list is a domain list: a color and an alpha, optionally with a second
+/// alpha for the modern branch. `100%` alpha and legacy `currentcolor` are emitted
+/// without a `color-mix()` at the initial mixing step. The modern branch may still
+/// differ, particularly for `currentcolor` or an additional modern alpha.
 pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String> {
     let arguments = split_domains(arguments);
     let (color, alpha, modern_alpha) = match arguments.as_slice() {
@@ -53,8 +77,8 @@ pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Op
     let color_space = match (mode, color_kind, modern_alpha.is_none()) {
         // Tailwind does not synthesize an sRGB compatibility branch for CSS
         // wide/transparent keywords. Keeping both passes identical makes the
-        // declaration unconditional instead of wrapping the modern form in
-        // an unnecessary capability query.
+        // declaration unconditional instead of wrapping the modern form in an
+        // unnecessary capability query.
         (_, CompatColorKind::ModernOnlyKeyword, true) | (CompatColorMode::Modern, _, _) => {
             COMPAT_COLOR_MODERN_SPACE
         }
@@ -77,9 +101,14 @@ pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Op
     Some(mixed)
 }
 
-/// CSS-first extension for theme shadow opacity modifiers. `--value()` emits
-/// the normal `var(--shadow-*)` reference; this intentionally reads the
-/// authored token to construct a CSS Color 5 relative colour function.
+/// CSS-first extension for theme shadow opacity modifiers. `--value()` emits the normal
+/// `var(--shadow-*)` reference; this intentionally reads the authored token to
+/// construct a CSS Color 5 relative color function.
+///
+/// The first argument names the theme namespace whose token value is read, the second
+/// names the color property that will hold the result, and the optional third is an
+/// alpha override. The property name must be a custom property, because the generated
+/// function replaces that property inside the shadow.
 pub(crate) fn resolve_shadow_color(
     arguments: &str,
     capture: Option<&str>,

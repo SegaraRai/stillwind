@@ -1,3 +1,15 @@
+//! Brace and parenthesis matching used by the whole-crate evaluator.
+//!
+//! The scanners are deliberately character-based rather than CSS-aware: they run over
+//! registry-authored fragments whose syntax is already known to be balanced, and they
+//! must be cheap enough to call per evaluated declaration. A group that never closes
+//! returns [`None`], which callers treat as "this branch does not match" instead of
+//! guessing an end.
+
+/// Returns the byte index of the brace closing the `{` at `open`.
+///
+/// `None` means the group is unclosed or contains a closer without an opener. `open` is
+/// assumed to be at an opening brace.
 pub(super) fn closing_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     for (offset, character) in value[open..].char_indices() {
@@ -15,6 +27,10 @@ pub(super) fn closing_brace(value: &str, open: usize) -> Option<usize> {
     None
 }
 
+/// Returns the byte index of the parenthesis closing the `(` at `open`.
+///
+/// `None` means the group is unclosed or contains a closer without an opener. `open` is
+/// assumed to be at an opening parenthesis.
 pub(super) fn closing_parenthesis(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     for (offset, character) in value[open..].char_indices() {

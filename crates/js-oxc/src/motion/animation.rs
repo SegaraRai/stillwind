@@ -1,3 +1,10 @@
+//! `style.animation()` declarations and their uses.
+//!
+//! A declaration is one object of static keyframe utility strings keyed by `from`,
+//! `to`, or percentage steps. A use is a call on the declared binding with exactly one
+//! literal options string. Both are validated here so the declaration-site identity and
+//! its frames are known before the compiler runs.
+
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
@@ -7,19 +14,32 @@ use stillwind_source::{CompileError, Span, Spanned};
 
 use crate::state::MacroExtractor;
 
+/// A resolved animation use, split by whether the animation is already known.
+///
+/// The static case keeps the single asset; the dynamic case keeps every candidate the
+/// frontend proved plus the span of the whole expression, so the runtime can select
+/// among prebuilt declarations.
 pub(crate) enum ParsedAnimationUse {
+    /// Exactly one animation identity.
     Static {
+        /// The declared animation.
         animation: AssetReference,
+        /// The options string, with the span of its contents.
         options: Spanned<String>,
     },
+    /// Several possible animations; the runtime picks one.
     Dynamic {
+        /// Span of the whole use expression, for the runtime descriptor.
         value: Span,
+        /// Candidate animations, each a declared animation.
         animations: Vec<AssetReference>,
+        /// The options string, shared by every candidate.
         options: Spanned<String>,
     },
 }
 
 impl ParsedAnimationUse {
+    /// Converts the use into the IR class expression that mirrors its shape.
     pub(crate) fn into_class_expression(self) -> ClassExpression {
         match self {
             Self::Static { animation, options } => {
@@ -39,6 +59,11 @@ impl ParsedAnimationUse {
 }
 
 impl<'a> MacroExtractor<'a> {
+    /// Resolves an expression to the animations it may denote.
+    ///
+    /// Checker facts win; otherwise the expression must be a local binding of a
+    /// declared animation. `None` means it is not an animation value, so callers should
+    /// fall through to the other expression forms.
     pub(crate) fn animation_references(
         &self,
         expression: &Expression<'a>,
@@ -65,6 +90,11 @@ impl<'a> MacroExtractor<'a> {
         }])
     }
 
+    /// Recognizes `<animation>(options)` and validates the options argument.
+    ///
+    /// A use with zero candidates resolves to `None` rather than to an empty dynamic
+    /// use; a wrong arity or a non-literal options value is reported and treated as
+    /// unusable.
     pub(crate) fn animation_use(
         &mut self,
         expression: &Expression<'a>,
@@ -104,6 +134,11 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Validates and records one `style.animation({...})` declaration.
+    ///
+    /// Every frame must be a plain property with a static key and a literal utility
+    /// string; invalid frames are reported and skipped, and a declaration with no valid
+    /// frame is rejected so no identity is created for it.
     pub(crate) fn collect_animation_definition(
         &mut self,
         name: Spanned<String>,
@@ -188,6 +223,11 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+/// True for the keyframe selectors Stillwind accepts.
+///
+/// `from`, `to`, or a comma-separated list of unsigned integer percentages; a signed or
+/// fractional step is rejected because the generated keyframe rule would not match what
+/// was written.
 fn is_animation_frame(value: &str) -> bool {
     value == "from"
         || value == "to"

@@ -1,3 +1,12 @@
+//! Rule rendering for one resolved utility.
+//!
+//! A utility renders to one rule per variant path: the selector starts as the utility's own
+//! selector or as the class name, and each step rewrites it. The at-rules a step contributes wrap
+//! the finished rule in a fixed order - `@supports`, `@media`, `@container`, then
+//! `@starting-style` - so output is deterministic and conditions combine by containment instead of
+//! being merged into one query. Before serialization the declaration body is folded and normalized,
+//! so the same declarations are spelled identically wherever they appear.
+
 use stillwind_css::{fold_calc_expressions, normalize_serialized_declaration};
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
@@ -7,6 +16,12 @@ use super::declaration_order::prepend_missing_declarations;
 use super::resolve::CompiledUtility;
 use crate::compiler::variants::{VariantStep, variant_paths};
 
+/// Renders one utility as one or more complete rules.
+///
+/// A utility that carries pre-resolved applications is rendered from those, without re-resolving
+/// its variants; otherwise each variant is resolved and every alternative it expands to produces a
+/// separate rule. A variant that no longer resolves is skipped rather than failing the rule, which
+/// keeps one stale variant from hiding a whole unit.
 pub(in crate::compiler) fn render_utility_rule(
     class_name: &str,
     utility: &CompiledUtility,
@@ -59,6 +74,7 @@ pub(in crate::compiler) fn render_utility_rule(
         .collect()
 }
 
+/// Renders the rules of one already-resolved variant path.
 pub(in crate::compiler) fn render_utility_rule_path(
     class_name: &str,
     utility: &CompiledUtility,
@@ -72,6 +88,11 @@ pub(in crate::compiler) fn render_utility_rule_path(
         .collect()
 }
 
+/// Applies the steps of one path to the selector and declaration body.
+//
+// Selector steps rewrite the selector in place, so the reference element's variants stay attached to
+// the reference and the surrounding variants to the target. Declarations a variant contributes are
+// only prepended when the body does not already set that property.
 fn render_utility_steps(
     class_name: &str,
     utility: &CompiledUtility,

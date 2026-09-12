@@ -1,4 +1,10 @@
 //! Content identity for compiler builds, including unpublished development builds.
+//!
+//! The fingerprint hashes this crate's own sources together with the crates it lowers into, so a
+//! change to any of them yields a new identity and invalidates every artifact keyed by it.
+//! Directories are walked in sorted order, and each file's length is hashed alongside its contents,
+//! so a file that only changes length is still a change. `Cargo.lock` participates because a
+//! dependency update can change emitted CSS without touching a source file in this workspace.
 
 #![cfg_attr(
     not(test),

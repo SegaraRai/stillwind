@@ -1,32 +1,63 @@
+//! Sound symbolic values for handle flow between modules.
+//!
+//! A [`SymbolicValue`] states what a handle expression may denote: exactly one asset
+//! kind, and either a finite, duplicate-free set of declaration-site identities or the
+//! whole universe of that kind. [`ExportedValue`] is the same idea per asset kind,
+//! except that refs are exported as a table of [`RefAlternative`] entries, because a
+//! ref and its permitted scopes must stay paired.
+//!
+//! The algebra is sound, not complete. [`Candidates::Universe`] means "any asset of
+//! this kind", so consumers must fall back to the runtime path instead of choosing
+//! candidates, and a finite set must never be widened or flattened into a
+//! cross-product.
+
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
 use super::identity::{AssetKind, IdentityId};
 
+/// Failure to build a symbolic value or alternative.
 #[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
 pub enum SymbolicError {
+    /// An identity or scope value of the wrong asset kind was supplied.
     #[error("symbolic handle kind mismatch: expected {expected:?}, got {actual:?}")]
     KindMismatch {
+        /// Kind the value was declared with.
         expected: AssetKind,
+        /// Kind the supplied candidate carries instead.
         actual: AssetKind,
     },
 }
 
+/// What a symbolic value may denote.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Candidates {
+    /// A proven candidate set, deduplicated at construction.
+    ///
+    /// Iteration order is the derived `Ord` order of [`IdentityId`], not source order.
+    /// Two sets built from the same identities in any order compare equal.
     Finite(BTreeSet<IdentityId>),
+    /// Any asset of the value's kind. Sound only as an upper bound: consumers must not
+    /// pick candidates from it, because nothing proved they can occur.
     Universe,
 }
 
 /// A sound abstract value containing identities of exactly one asset kind.
+///
+/// [`Self::finite`] checks candidate kinds and [`Self::exact`] derives the kind from
+/// its identity. Public fields and derived deserialization can bypass those checks;
+/// consumers of externally constructed values must validate them.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SymbolicValue {
+    /// Asset kind of every identity the value may contain.
     pub kind: AssetKind,
+    /// Finite candidate set or universe.
     pub candidates: Candidates,
 }
 
 impl SymbolicValue {
+    /// The value denoting exactly `identity`, with the kind taken from it.
     pub fn exact(identity: IdentityId) -> Self {
         Self {
             kind: identity.kind,
@@ -34,6 +65,10 @@ impl SymbolicValue {
         }
     }
 
+    /// The value denoting any asset of `kind`.
+    ///
+    /// Use this only as a bound for values the frontend could not resolve; it is not a
+    /// licence to guess candidates later.
     pub const fn universe(kind: AssetKind) -> Self {
         Self {
             kind,
@@ -42,6 +77,9 @@ impl SymbolicValue {
     }
 
     /// Builds a normalized, duplicate-free finite value.
+    ///
+    /// Duplicates collapse and input order does not matter, so two callers that observe
+    /// the same candidates in different orders build equal values.
     ///
     /// # Errors
     ///
@@ -63,6 +101,10 @@ impl SymbolicValue {
         })
     }
 
+    /// Returns the finite candidates, or `None` for [`Candidates::Universe`].
+    ///
+    /// `None` means "not provable", never "empty": a caller that cannot handle a
+    /// universe must abandon that analysis path rather than substitute an empty set.
     pub fn finite_candidates(&self) -> Option<&BTreeSet<IdentityId>> {
         match &self.candidates {
             Candidates::Finite(candidates) => Some(candidates),
@@ -71,16 +113,29 @@ impl SymbolicValue {
     }
 }
 
-/// One correlated ref alternative. Keeping the scope value beside its ref
-/// prevents an invalid scope/ref Cartesian product during selector factoring.
+/// One correlated ref alternative. Keeping the scope value beside its ref prevents an
+/// invalid scope/ref Cartesian product during selector factoring.
+///
+/// Each alternative is an independent case. Combining the refs of one alternative with
+/// the scopes of another would describe DOM relationships the source never denoted, so
+/// alternatives are never merged.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefAlternative {
+    /// The ref identity; always [`AssetKind::Ref`].
     pub reference: IdentityId,
     /// `None` is the descendant-only, unscoped ref relation.
+    ///
+    /// A finite scope value is a candidate set of this ref's permitted scopes; a
+    /// universe value means the frontend could not narrow them.
     pub permitted_scopes: Option<SymbolicValue>,
 }
 
 impl RefAlternative {
+    /// Builds one correlated alternative, rejecting mismatched kinds.
+    ///
+    /// Checks the reference kind and the scope value's outer kind. It does not
+    /// revalidate the identities inside a publicly constructed scope value.
+    ///
     /// # Errors
     ///
     /// Returns an error for a non-ref identity or non-scope relationship value.
@@ -109,17 +164,34 @@ impl RefAlternative {
     }
 }
 
+/// What one exported name denotes.
+///
+/// The serialized shape (`kind` plus `value`, kebab-case tags) is part of the host
+/// protocol and must stay stable.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
 pub enum ExportedValue {
+    /// Candidate set of `style()` call sites.
     Styles(SymbolicValue),
+    /// Candidate set of scope identities.
     Scopes(SymbolicValue),
+    /// Correlated ref alternatives, in the order they were derived.
+    ///
+    /// This is the one variant that is a table rather than a single value: flattening
+    /// it into a ref set plus a scope set would lose the correlation between a ref and
+    /// the scopes it may appear under.
     Refs(Vec<RefAlternative>),
+    /// Candidate set of animation identities.
     Animations(SymbolicValue),
+    /// Candidate set of view-transition identities.
     ViewTransitions(SymbolicValue),
 }
 
 impl ExportedValue {
+    /// The asset kind this value describes.
+    ///
+    /// Callers compare it against the kind expected at a use site before reading the
+    /// payload, so a value cannot be read as another kind.
     pub const fn kind(&self) -> AssetKind {
         match self {
             Self::Styles(_) => AssetKind::Style,

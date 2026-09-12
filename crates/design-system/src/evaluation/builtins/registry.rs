@@ -1,16 +1,33 @@
+//! Lookup helpers for the selected built-in registry.
+//!
+//! The registry is shared with the snapshot through an [`Arc`], so these helpers borrow
+//! rather than copy. Ordering is preserved everywhere: exact-name groups keep authored
+//! order, and this module compares positions in exactly one place,
+//! [`arbitrary_property_order`]. Utility emission and variant ordering compare
+//! positions in their own modules.
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{BuiltinDefinitions, CustomUtility, CustomVariant, ThemeIndex};
 
+/// The built-in definition set selected by this theme.
 pub fn builtin_definitions(theme: &ThemeIndex) -> Arc<BuiltinDefinitions> {
     Arc::clone(&theme.registry)
 }
 
+/// Borrows the same definition set without cloning the handle.
 pub(crate) fn builtin_utilities(theme: &ThemeIndex) -> &BuiltinDefinitions {
     &theme.registry
 }
 
+/// Cascade position of an arbitrary property, or [`usize::MAX`] when no pattern
+/// matches.
+///
+/// A pattern matches by exact name or by a trailing-`*` prefix; among matching patterns
+/// an exact name wins over wildcards, otherwise the longest prefix wins. Equal
+/// specificity selects the last matching entry. [`usize::MAX`] sorts an unregistered
+/// property last.
 pub(crate) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> usize {
     theme
         .registry
@@ -27,14 +44,18 @@ pub(crate) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> us
         .map_or(usize::MAX, |(_, order)| order)
 }
 
+/// Built-in variant definitions in authored order.
 pub(crate) fn builtin_variants(theme: &ThemeIndex) -> &[CustomVariant] {
     &theme.registry.variants
 }
 
+/// Built-in animation option definitions, kept apart from ordinary utilities.
 pub(crate) fn builtin_animation_options(theme: &ThemeIndex) -> &[CustomUtility] {
     &theme.registry.animation_options
 }
 
+/// CSS-authored declaration projections applied when a utility is used as an animation
+/// option.
 pub(crate) fn animation_option_property_mappings(theme: &ThemeIndex) -> &BTreeMap<String, String> {
     &theme.registry.animation_property_mappings
 }

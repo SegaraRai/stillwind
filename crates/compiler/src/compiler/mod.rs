@@ -1,3 +1,12 @@
+//! The compilation pipeline, split by concern.
+//!
+//! [`api`] holds the stateless entry points, [`pipeline`] orders the passes, and
+//! [`emission`], [`props`], [`style_variants`], and [`variants`] lower and render style calls.
+//! [`symbols`], [`handles`], [`motion`], and [`lexer`] allocate names and emit asset definitions,
+//! while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders framework type
+//! declarations. Only [`api`] re-exports a public surface; everything else is crate-internal
+//! and free to change.
+
 mod api;
 mod emission;
 mod handles;
@@ -14,6 +23,10 @@ mod symbols;
 mod utilities;
 mod variants;
 
+/// Marker type for the crate's associated compilation functions.
+///
+/// [`Compiler`] has no instances and no state; every entry point takes the inputs it needs and
+/// returns a result.
 pub struct Compiler;
 
 pub use api::CompilerThemeError;

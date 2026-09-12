@@ -1,16 +1,36 @@
-//! Stillwind's small, source-spanned utility-string lexer.
+//! Splitting one decoded utility string into source-spanned tokens.
+//!
+//! Input is a [`Spanned<String>`] the host already decoded from JavaScript: the span
+//! normally covers the literal contents and the value is decoded text. Tokens are
+//! split on Unicode whitespace in value order. Spans add decoded byte offsets to the
+//! supplied start; escapes are not mapped back to their original source spelling.
+//!
+//! The lexer performs no trimming, unescaping or normalization: [`UtilityToken::raw`]
+//! is the exact substring, and runs of whitespace disappear instead of producing empty
+//! tokens. [`Span`] arithmetic is checked, so a reversed input span or an offset that
+//! overflows 32 bits fails rather than wrapping.
 
 use stillwind_source::{SourceError, Span, Spanned};
 
+/// One whitespace-delimited token of a utility string.
+///
+/// The token is not re-validated: it may be any spelling a candidate could take,
+/// including one that `parse_candidate` will later reject.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityToken {
+    /// Exact substring of the supplied value; this lexer performs no unescaping.
     pub raw: String,
 }
 
-/// Splits one decoded utility string on Unicode whitespace while retaining a
-/// source span for every token.
+/// Splits one decoded utility string on Unicode whitespace while retaining a source
+/// span for every token.
+///
+/// Spans use value-relative offsets from `input.span.start`. The supplied end is not
+/// used to bound tokens, so callers must provide a sufficiently long span. Exact
+/// original-source correspondence additionally requires unchanged literal spelling.
 ///
 /// # Errors
+///
 /// Returns an error for reversed spans or token offsets outside the 32-bit range.
 pub fn lex_utilities(input: &Spanned<String>) -> Result<Vec<Spanned<UtilityToken>>, SourceError> {
     let len =
@@ -38,6 +58,12 @@ pub fn lex_utilities(input: &Spanned<String>) -> Result<Vec<Spanned<UtilityToken
     Ok(tokens)
 }
 
+/// Pushes one token for `start..end` (value-relative byte offsets) after shifting it
+/// into the input literal's coordinate space.
+///
+/// Offsets outside the value cannot occur, because callers derive them from
+/// `char_indices`; the checked conversions only guard against a value that does not fit
+/// the 32-bit coordinate space.
 fn push_token(
     input: &Spanned<String>,
     start: usize,

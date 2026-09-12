@@ -1,25 +1,44 @@
+//! Structural splitting of a utility body.
+//!
+//! A definition body can be a plain declaration list, a selector block, or a mix:
+//! declarations before the selector apply to the utility itself and declarations inside
+//! the block apply to the selected element. Conditional declarations (`@media`,
+//! `@supports`) may appear at either level.
+//!
+//! Placement is taken from the authored CSS rather than inferred from property names,
+//! which is why a conditional keeps the level it was written at. A body that cannot be
+//! split cleanly is rejected, so a malformed definition cannot silently emit
+//! declarations at the wrong nesting level.
+
 use super::super::syntax::closing_brace;
 
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NestedUtilityRule {
+    /// Which conditional wrapper the emitter must use.
     pub at_rule: NestedUtilityAtRule,
+    /// Condition text without the at-rule keyword or braces.
     pub condition: String,
+    /// Declarations to place inside the conditional.
     pub declaration: String,
-    /// Whether the conditional was authored inside the utility's selector
-    /// block (or as a CSS `@supports` declaration, which is nested by CSS).
-    /// This preserves placement from the CSS source instead of classifying
-    /// declarations by Tailwind property names.
+    /// Whether the conditional was authored inside the utility's selector block (or as
+    /// a CSS `@supports` declaration, which is nested by CSS). This preserves placement
+    /// from the CSS source instead of classifying declarations by Tailwind property
+    /// names.
     pub inside: bool,
 }
 
 /// The CSS conditional wrapper associated with a nested utility declaration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NestedUtilityAtRule {
+    /// A media query, whose condition is emitted as authored.
     Media,
+    /// A support query, whose author-supplied outer parentheses are removed and
+    /// restored by the emitter.
     Supports,
 }
 
+/// A conditional declaration group split out of a utility body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ParsedNestedUtilityRule {
     pub(crate) at_rule: NestedUtilityAtRule,
@@ -27,6 +46,11 @@ pub(crate) struct ParsedNestedUtilityRule {
     pub(crate) body: String,
 }
 
+/// Splits a body into its direct declarations and its conditional rules.
+///
+/// Conditions are returned in authored order and their inner bodies are trimmed. A
+/// conditional whose block is unterminated fails the split instead of leaving its text
+/// in the direct declarations.
 pub(crate) fn split_nested_conditions(
     body: &str,
 ) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
@@ -57,6 +81,11 @@ pub(crate) fn split_nested_conditions(
     Some((direct.trim().to_owned(), nested))
 }
 
+/// Finds the earliest nested conditional at or after `cursor`.
+///
+/// Returns the offset, the at-rule kind, and the keyword, so the caller can slice the
+/// condition without re-scanning. `@supports` wins a tie because a body cannot open
+/// both at the same byte.
 pub(crate) fn next_nested_condition(
     body: &str,
     cursor: usize,
@@ -78,6 +107,13 @@ pub(crate) fn next_nested_condition(
     }
 }
 
+/// Splits a body into an optional selector, its inner declarations, and the
+/// declarations authored before the selector.
+///
+/// A body without `&` has no selector, and the whole body is returned as direct
+/// declarations. A body whose selector block is not a complete selector - anything
+/// after the closing brace, or a prelude without `&` - is rejected, because accepting
+/// it would change which element the declarations apply to.
 pub(crate) fn split_utility_selector(body: &str) -> Option<(Option<String>, &str, Option<&str>)> {
     if !body.contains('&') {
         return Some((None, body, None));

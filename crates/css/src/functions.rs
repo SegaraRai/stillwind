@@ -1,3 +1,15 @@
+//! Lexical helpers for finding and splitting CSS function calls.
+//!
+//! These scan characters rather than tokens, so they work on fragments that are not a
+//! complete stylesheet (a header, a value, an argument list). Quotes and block comments
+//! are respected: a function-looking name inside a string or comment is not a match,
+//! and an unclosed comment or delimiter returns `None` instead of guessing.
+
+/// Finds `name(` at or after byte offset `from`, skipping quotes and comments.
+///
+/// The name must begin with `-`, which is the form the callers search for (`--theme(`);
+/// other names never match. `None` means the function is absent or the scan ran into an
+/// unterminated comment.
 pub fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> {
     let bytes = value.as_bytes();
     let needle = format!("{name}(");
@@ -34,6 +46,11 @@ pub fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> 
     None
 }
 
+/// Returns the offset of the `closer` matching the `opener` at `open`.
+///
+/// `opener` and `closer` are supplied by the caller so one scanner serves parentheses
+/// and brackets. Quotes and comments are skipped; `None` means the delimiter is never
+/// closed or the nesting underflows.
 pub fn matching_css_delimiter(
     value: &str,
     open: usize,
@@ -79,6 +96,11 @@ pub fn matching_css_delimiter(
     None
 }
 
+/// Splits an argument list at its first top-level comma.
+///
+/// Commas inside nested parentheses, brackets, braces, quotes or escapes do not split.
+/// The returned remainder keeps its leading whitespace and is `None` when there is no
+/// top-level comma.
 pub fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
     let mut stack = Vec::new();
     let mut quote = None;

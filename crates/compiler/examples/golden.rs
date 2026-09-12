@@ -1,3 +1,10 @@
+//! The golden demo: one TSX component compiled end to end.
+//!
+//! Run with `cargo run -p stillwind-compiler --example golden` to print the props
+//! replacement, the generated stylesheet, and any diagnostics for the component
+//! described in `docs/golden-case.md`. It is a manual inspection aid for reviewing
+//! output, not a test.
+
 use stillwind_compiler::Compiler;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceError, SourceFile};

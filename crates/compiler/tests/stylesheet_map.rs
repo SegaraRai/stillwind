@@ -1,3 +1,9 @@
+//! Source provenance of rendered stylesheets.
+//!
+//! Pins that authored CSS reached through an import keeps its physical file and byte range in the
+//! mapping, that the same CSS renders identically with and without mappings, and that import
+//! conditions survive into the output.
+
 use stillwind_compiler::{CompilerOptions, StylesheetRenderer};
 use stillwind_design_system::{
     CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,

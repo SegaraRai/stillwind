@@ -1,3 +1,9 @@
+//! Shared helpers for the static-compile suite.
+//!
+//! Fixture readers pull candidates and fenced code blocks out of the checked-in Tailwind v4 markdown
+//! cases, and the CSS helpers extract, normalize, compare, and minify rules so an assertion can be
+//! about declarations rather than about whitespace.
+
 use stillwind_compiler::CompileResult;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 

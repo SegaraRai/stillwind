@@ -1,3 +1,16 @@
+//! Candidate evaluation: turning authored spellings into declarations and selectors
+//! using only the definitions a snapshot holds.
+//!
+//! Evaluation is pure. Every entry point takes a [`crate::ThemeIndex`] and returns
+//! values; nothing is cached between calls, so two snapshots built from different CSS
+//! cannot influence one another, and the same input always produces the same output for
+//! one snapshot.
+//!
+//! The modules below split the work by subject: [`builtins`] reads the selected
+//! registry, [`utilities`] matches and expands a utility body, [`values`] resolves
+//! typed value domains and placeholders, and [`variants`] produces selector
+//! applications and their ordering.
+
 mod builtins;
 mod syntax;
 mod utilities;

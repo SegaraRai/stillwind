@@ -1,3 +1,14 @@
+//! The extractor's working state and the summary it publishes.
+//!
+//! [`MacroExtractor`] is one pass over one module: the semantic scoping table, the
+//! symbols it recognized as macro bindings, the definitions and uses it found, and the
+//! diagnostics it produced. [`MacroExtractor::module_summary`] turns that state into
+//! the per-module facts other modules see.
+//!
+//! Symbol maps are the reason a shadowed local binding cannot be mistaken for the
+//! macro. Identity is created in [`MacroExtractor::identity`], which always anchors to
+//! the declaration's own span in this module.
+
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
@@ -17,6 +28,10 @@ use stillwind_source::{CompileError, SourceFile, Spanned};
 use crate::refs::{HandleUse, ScopeUse};
 
 impl<'a> MacroExtractor<'a> {
+    /// Builds an extractor for one parsed module.
+    ///
+    /// `type_facts` and `imported_assets` come from the host checker and are looked up
+    /// by span; passing empty maps is the normal no-checker path.
     pub(crate) fn new(
         source: &'a SourceFile,
         scoping: &'a Scoping,
@@ -56,6 +71,10 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Creates the declaration-site identity of an asset declared in this module.
+    ///
+    /// The span is the declaration's name, so uses elsewhere resolve back to this
+    /// declaration rather than to their own position.
     pub(crate) fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
         IdentityId::new(
             kind,
@@ -66,6 +85,13 @@ impl<'a> MacroExtractor<'a> {
         )
     }
 
+    /// Builds the module summary from the collected state.
+    ///
+    /// Assets are appended in kind order (styles, scopes, refs, animations, view
+    /// transitions), not source order. Exports are keyed by exported name and only
+    /// contain bindings whose value resolved to a symbolic form; a binding that was
+    /// reassigned or chosen conditionally is deliberately absent so the host checker
+    /// can answer instead of this pass guessing.
     pub(crate) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.source.path());
         summary.imports.clone_from(&self.imports);
@@ -133,6 +159,10 @@ impl<'a> MacroExtractor<'a> {
         summary
     }
 
+    /// Returns the exported name of a module export name node.
+    ///
+    /// String-literal export names are supported, so `export { x as "y-z" }` keeps the
+    /// spelling users import.
     pub(crate) fn module_export_name(name: &ModuleExportName<'a>) -> String {
         match name {
             ModuleExportName::IdentifierName(name) => name.name.to_string(),
@@ -142,31 +172,61 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+/// Per-module extraction state.
+///
+/// The fields are filled by the visitors in the sibling modules and consumed by
+/// [`MacroExtractor::module_summary`]; nothing here is serialized directly.
 pub(crate) struct MacroExtractor<'a> {
+    /// Adapter selected from a macro import, once one was seen.
     pub(crate) adapter: Option<AdapterKind>,
+    /// Source being analysed; every produced span is tagged with its id.
     pub(crate) source: &'a SourceFile,
+    /// Oxc scoping table used to resolve references to symbols.
     pub(crate) scoping: &'a Scoping,
+    /// Symbols bound to the imported `style` macro.
     pub(crate) style_symbols: HashSet<SymbolId>,
+    /// Symbols bound to a `style.ref()` handle, with their definitions.
     pub(crate) handle_symbols: HashMap<SymbolId, HandleDefinition>,
+    /// Symbols bound to a `style.scope()` scope, with their definitions.
     pub(crate) scope_symbols: HashMap<SymbolId, ScopeDefinition>,
+    /// Every handle use, in source order, used for ancestry validation.
     pub(crate) handle_uses: Vec<HandleUse>,
+    /// Every scope use, in source order, used for provider validation.
     pub(crate) scope_uses: Vec<ScopeUse>,
+    /// Handle definitions in declaration order.
     pub(crate) handle_definitions: Vec<HandleDefinition>,
+    /// Scope definitions in declaration order.
     pub(crate) scope_definitions: Vec<ScopeDefinition>,
+    /// Symbols bound to an animation declaration, with their names.
     pub(crate) animation_symbols: HashMap<SymbolId, Spanned<String>>,
+    /// Animation declarations in declaration order.
     pub(crate) animation_declarations: Vec<AnimationDefinition>,
+    /// Symbols bound to a view-transition declaration, with their names.
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
+    /// View-transition declarations in declaration order.
     pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    /// Symbolic value of each local binding the pass could resolve.
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
+    /// Style call sites in source order.
     pub(crate) style_calls: Vec<StyleCall>,
+    /// Diagnostics raised during extraction, in visit order.
     pub(crate) diagnostics: Vec<CompileError>,
+    /// Element indices of the JSX ancestors of the node being visited.
     pub(crate) jsx_path: Vec<usize>,
+    /// Counter that gives each visited JSX element a stable path index.
     pub(crate) next_jsx_element: usize,
+    /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
+    /// Module specifier literals of this module, in source order.
     pub(crate) module_specifiers: Vec<ModuleSpecifier>,
+    /// Re-export edges of this module, in source order.
     pub(crate) re_exports: Vec<ReExport>,
+    /// Exported bindings as symbol plus exported name, in visit order.
     pub(crate) export_symbols: Vec<(SymbolId, String)>,
+    /// Checker facts keyed by expression span.
     pub(crate) type_facts: HashMap<(u32, u32), ExportedValue>,
+    /// Spans the checker should resolve, accumulated during the visit.
     pub(crate) type_probes: RefCell<BTreeSet<(u32, u32)>>,
+    /// Metadata for identities declared in other modules.
     pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }

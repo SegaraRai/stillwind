@@ -1,3 +1,9 @@
+//! Theme emission and token gating.
+//!
+//! Pins Tailwind's reset semantics for effective custom properties, shadow-utility behavior across
+//! multiple `@theme` overrides and namespace removal, and that framework imports gate the baseline
+//! layers.
+
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;

@@ -1,22 +1,45 @@
+//! Recursive-descent parser for the `calc()` expression grammar.
+//!
+//! The grammar is deliberately small: sums, products, unary signs, numeric literals
+//! with an optional unit or `%`, parenthesized sub-expressions, nested `calc()` (parsed
+//! through), and opaque atoms for everything else. An atom is never partially consumed:
+//! a construct the parser cannot read makes the whole parse fail, which keeps folding
+//! from silently rewriting invalid input.
+
 use super::expression::{MathExpression, MathValue};
 use super::folding::matching_parenthesis;
 
+/// One cursor over an expression string.
+///
+/// The parser borrows its input and allocates owned units, atom text, and boxed
+/// operator nodes as needed; the input may be a slice of a larger CSS string.
 pub(crate) struct MathParser<'a> {
+    /// The expression text, without the surrounding `calc(` and `)`.
     input: &'a str,
+    /// Byte offset of the next unread character.
     cursor: usize,
 }
 
 impl<'a> MathParser<'a> {
+    /// Creates a parser positioned at the start of `input`.
     pub(crate) fn new(input: &'a str) -> Self {
         Self { input, cursor: 0 }
     }
 
+    /// Parses the whole input, returning `None` when anything is left over.
+    ///
+    /// Trailing whitespace is allowed; trailing operators, extra tokens and empty input
+    /// are not.
     pub(crate) fn parse(mut self) -> Option<MathExpression> {
         let expression = self.parse_sum()?;
         self.skip_whitespace();
         (self.cursor == self.input.len()).then_some(expression)
     }
 
+    /// Parses a sum, folding each `+`/`-` step as it goes.
+    ///
+    /// The loop is left-associative and stops at the first character that is not a
+    /// sign, leaving it for the caller.
     pub(crate) fn parse_sum(&mut self) -> Option<MathExpression> {
         let mut expression = self.parse_product()?;
         loop {
@@ -38,6 +61,10 @@ impl<'a> MathParser<'a> {
         Some(expression)
     }
 
+    /// Parses a product, folding each `*`/`/` step as it goes.
+    ///
+    /// Division by the literal number one collapses to the left operand; every other
+    /// division stays a `Quotient` node so printing can parenthesize it.
     pub(crate) fn parse_product(&mut self) -> Option<MathExpression> {
         let mut expression = self.parse_unary()?;
         loop {
@@ -62,6 +89,10 @@ impl<'a> MathParser<'a> {
         Some(expression)
     }
 
+    /// Parses a leading `+`/`-` and the operand that follows.
+    ///
+    /// A `-` that starts `--` is not a sign: it begins a custom property name, which
+    /// must stay an atom.
     pub(crate) fn parse_unary(&mut self) -> Option<MathExpression> {
         self.skip_whitespace();
         if self.peek() == Some('-') && !self.input[self.cursor..].starts_with("--") {
@@ -75,6 +106,11 @@ impl<'a> MathParser<'a> {
         self.parse_atom()
     }
 
+    /// Parses one atom: a parenthesized sum, a numeric literal, or an opaque token.
+    ///
+    /// An identifier followed by `(` is read to its matching parenthesis. A nested
+    /// `calc()` is parsed recursively, while every other function is kept verbatim as
+    /// an atom; an unclosed parenthesis fails the parse.
     pub(crate) fn parse_atom(&mut self) -> Option<MathExpression> {
         self.skip_whitespace();
         if self.peek() == Some('(') {
@@ -115,6 +151,10 @@ impl<'a> MathParser<'a> {
         ))
     }
 
+    /// Parses a numeric literal with an optional `%` or alphabetic unit.
+    ///
+    /// Stops before any following operator, so `12.5px + 1` leaves the `+` for the
+    /// product level. At most one decimal point is consumed.
     pub(crate) fn parse_numeric(&mut self) -> Option<MathExpression> {
         let start = self.cursor;
         let mut decimal = false;
@@ -150,12 +190,14 @@ impl<'a> MathParser<'a> {
         }
     }
 
+    /// Advances past Unicode whitespace.
     pub(crate) fn skip_whitespace(&mut self) {
         while self.peek().is_some_and(char::is_whitespace) {
             self.cursor += self.peek().map_or(0, char::len_utf8);
         }
     }
 
+    /// Returns the next character without consuming it.
     pub(crate) fn peek(&self) -> Option<char> {
         self.input[self.cursor..].chars().next()
     }

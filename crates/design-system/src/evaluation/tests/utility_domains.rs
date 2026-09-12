@@ -1,3 +1,9 @@
+//! Resolution coverage of the upstream utility catalog.
+//!
+//! Pins that every upstream static and functional root resolves from the CSS registry,
+//! that namespace resets are respected, and that typed branches prune only the
+//! declarations that do not match a candidate.
+
 use super::*;
 
 #[test]

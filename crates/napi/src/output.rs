@@ -1,3 +1,11 @@
+//! Serializable compiler output.
+//!
+//! These shapes are the contract between the Rust services and the JavaScript adapters,
+//! so every offset is published in the units a JavaScript consumer needs: byte offsets
+//! for compiler bookkeeping and UTF-16 offsets plus line/column for editor and bundler
+//! diagnostics. Generated code is absent whenever diagnostics are present, because a
+//! failed compile must not replace the last successful output.
+
 use std::collections::BTreeMap;
 
 use napi_derive::napi;
@@ -11,19 +19,30 @@ use stillwind_source::Span;
 
 use crate::semantic::NativeIdentity;
 
+/// Result of compiling one module.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
 pub struct BindingOutput {
+    /// Composition edges this module declared or consumed.
     pub composition: Vec<NativeStyleDependency>,
+    /// Assets and resources the module references.
     pub resources: Vec<NativeModuleResource>,
+    /// Rendered CSS for this compilation; standalone entry points include document CSS.
     pub css: String,
+    /// Completely transformed source, or `None` when compilation failed.
     pub code: Option<String>,
+    /// Mappings from the transformed source back to the original.
     pub mappings: Vec<NativeTransformMapping>,
+    /// Class names generated for this module's calls.
     pub classes: Vec<NativeGeneratedClass>,
+    /// Generated identifiers and their identities.
     pub symbols: Vec<NativeGeneratedSymbol>,
+    /// Errors. Non-empty means nothing was published for this module.
     pub diagnostics: Vec<BindingDiagnostic>,
+    /// Non-fatal findings.
     #[napi(js_name = "lint_findings")]
     pub lint_findings: Vec<BindingLintFinding>,
+    /// Effective severity per lint rule.
     #[napi(
         js_name = "lint_policy",
         ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
@@ -31,10 +50,13 @@ pub struct BindingOutput {
     pub lint_policy: BTreeMap<String, String>,
 }
 
+/// One composition edge: [`Self::derived`] includes the payload of [`Self::base`].
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeStyleDependency {
+    /// The style call that consumes another payload.
     pub derived: NativeIdentity,
+    /// The style call whose payload is consumed.
     pub base: NativeIdentity,
 }
 
@@ -47,45 +69,69 @@ impl From<StyleDependency> for NativeStyleDependency {
     }
 }
 
+/// One compiler error, in both byte and editor coordinates.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct BindingDiagnostic {
+    /// Stable diagnostic code, such as `SH001`.
     pub code: String,
+    /// Rendered message.
     pub message: String,
+    /// Path of the file the primary label points at.
     pub file: String,
+    /// Byte start of the primary label.
     pub start: u32,
+    /// Byte end of the primary label.
     pub end: u32,
+    /// UTF-16 offset of the primary label start.
     #[napi(js_name = "start_utf16")]
     pub start_utf16: u32,
+    /// UTF-16 offset of the primary label end.
     #[napi(js_name = "end_utf16")]
     pub end_utf16: u32,
+    /// Zero-based line of the primary label start.
     #[napi(js_name = "start_line")]
     pub start_line: u32,
+    /// Zero-based UTF-16 column of the primary label start.
     #[napi(js_name = "start_column")]
     pub start_column: u32,
+    /// Zero-based line of the primary label end.
     #[napi(js_name = "end_line")]
     pub end_line: u32,
+    /// Zero-based UTF-16 column of the primary label end.
     #[napi(js_name = "end_column")]
     pub end_column: u32,
+    /// Additional explanation lines.
     pub notes: Vec<String>,
 }
 
+/// One lint finding.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct BindingLintFinding {
+    /// Rule name, as used by `swlint-disable` directives.
     pub rule: String,
+    /// Rendered message.
     pub message: String,
+    /// Path of the file the finding points at.
     pub file: String,
+    /// Byte start of the finding.
     pub start: u32,
+    /// Byte end of the finding.
     pub end: u32,
+    /// Additional explanation lines.
     pub notes: Vec<String>,
 }
 
+/// A url() reference the host must resolve.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeModuleResource {
+    /// Placeholder left in the generated CSS.
     pub placeholder: String,
+    /// Module that owns the reference.
     pub owner: String,
+    /// Authored specifier.
     pub specifier: String,
 }
 
@@ -99,15 +145,20 @@ impl From<ModuleResourceReference> for NativeModuleResource {
     }
 }
 
+/// One mapping from generated source to original source, in UTF-16 code-unit offsets.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeTransformMapping {
+    /// UTF-16 start in the original source.
     #[napi(js_name = "original_start")]
     pub original_start: u32,
+    /// UTF-16 end in the original source.
     #[napi(js_name = "original_end")]
     pub original_end: u32,
+    /// UTF-16 start in the generated source.
     #[napi(js_name = "generated_start")]
     pub generated_start: u32,
+    /// UTF-16 end in the generated source.
     #[napi(js_name = "generated_end")]
     pub generated_end: u32,
 }
@@ -123,11 +174,15 @@ impl From<TransformMapping> for NativeTransformMapping {
     }
 }
 
+/// A byte span with an explicit file id.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeSpan {
+    /// File the span belongs to.
     pub file: u32,
+    /// Byte start.
     pub start: u32,
+    /// Byte end.
     pub end: u32,
 }
 
@@ -141,10 +196,13 @@ impl From<Span> for NativeSpan {
     }
 }
 
+/// One conditional test on the path that selects a generated class.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
 pub struct NativeGuardStep {
+    /// The guard expression, which the runtime evaluates as written.
     pub test: NativeSpan,
+    /// Whether the class applies when the guard holds.
     #[napi(js_name = "when_true")]
     pub when_true: bool,
 }
@@ -158,11 +216,14 @@ impl From<GuardStep> for NativeGuardStep {
     }
 }
 
+/// A class name generated for one utility literal.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
 pub struct NativeGeneratedClass {
+    /// The generated class.
     #[napi(js_name = "class_name")]
     pub class_name: String,
+    /// Span of the call the class belongs to.
     #[napi(js_name = "call_span")]
     pub call_span: NativeSpan,
     /// Outermost to innermost conditional tests that select this class.
@@ -180,15 +241,22 @@ impl From<GeneratedClass> for NativeGeneratedClass {
     }
 }
 
+/// A generated identifier that host tooling must treat as reserved.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeGeneratedSymbol {
+    /// The generated name.
     pub name: String,
+    /// Kind of declaration that produced it.
     pub kind: String,
+    /// Stable identity of the declaration site.
     pub identity: String,
+    /// Module the declaration lives in.
     #[napi(js_name = "source_path")]
     pub source_path: String,
+    /// Byte start of the declaration.
     pub start: u32,
+    /// Byte end of the declaration.
     pub end: u32,
 }
 
@@ -205,26 +273,40 @@ impl From<GeneratedSymbol> for NativeGeneratedSymbol {
     }
 }
 
+/// Output of a whole-graph compile, one entry per requested module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct ProjectBindingOutput {
+    /// Per-module results. Rules shared between modules appear once.
     pub modules: Vec<ProjectModuleOutput>,
 }
 
+/// One module's result inside a whole-graph compile.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
 pub struct ProjectModuleOutput {
+    /// Composition edges of this module.
     pub composition: Vec<NativeStyleDependency>,
+    /// Module path.
     pub path: String,
+    /// Assets and resources this module references.
     pub resources: Vec<NativeModuleResource>,
+    /// Generated CSS. Rules shared with an earlier module are already removed.
     pub css: String,
+    /// Completely transformed source, or `None` when compilation failed.
     pub code: Option<String>,
+    /// Mappings from the transformed source back to the original.
     pub mappings: Vec<NativeTransformMapping>,
+    /// Class names generated for this module's calls.
     pub classes: Vec<NativeGeneratedClass>,
+    /// Generated identifiers and their identities.
     pub symbols: Vec<NativeGeneratedSymbol>,
+    /// Errors. Non-empty means nothing was published for this module.
     pub diagnostics: Vec<BindingDiagnostic>,
+    /// Non-fatal findings.
     #[napi(js_name = "lint_findings")]
     pub lint_findings: Vec<BindingLintFinding>,
+    /// Effective severity per lint rule.
     #[napi(
         js_name = "lint_policy",
         ts_type = "Record<string, 'warn' | 'deny' | 'off'>"

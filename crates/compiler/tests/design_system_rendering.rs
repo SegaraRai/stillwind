@@ -1,3 +1,9 @@
+//! Document-level stylesheet assembly through the design-system loader.
+//!
+//! These tests pin that rendered CSS follows the authored import order, keeps each import's
+//! layer, supports, and media conditions, stays independent of the order in which the host
+//! answers file requests, and renders identically from a cloned snapshot.
+
 use stillwind_compiler::{CompilerOptions, StylesheetRenderer};
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
