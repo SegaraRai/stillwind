@@ -2,13 +2,17 @@
 
 ## Tidy First
 
-- Before changing behavior, tidy related code where useful; preserve behavior and keep structural edits distinct from functional edits.
-- Implement an identified improvement when it needs at most 20 added or modified implementation lines; deleted lines are unlimited.
-  Count the complete improvement across files, without splitting it to evade the limit; count contract tests separately below.
-- First confirm unit tests cover the affected operation's required contracts. If coverage is missing, add it only if the necessary tests fit within
+- Autonomous tidy means cleanup of surrounding code outside the user's requested work. Perform it where useful without an explicit cleanup request,
+  while following any explicit user constraints.
+  Preserve behavior and keep structural edits distinct from functional edits, tidying before behavior changes where useful.
+- For autonomous tidy, implement an identified improvement when it needs at most 20 added or modified implementation lines; deletions are unlimited.
+  Count the complete implementation improvement across files, without splitting it to evade the limit; exclude contract tests from this count.
+- Before autonomous tidy, confirm unit tests cover the affected operation's required contracts. If coverage is missing, add it only if the tests fit within
   30 lines; otherwise skip the improvement. Run the relevant contract tests and ensure they pass.
-- When either limit prevents an improvement, add a TODO at the affected operation in at most 3 lines, specifying the concrete fix, its rationale,
+- When either autonomous-tidy limit prevents an improvement, add a TODO at the affected operation in at most 3 lines, specifying the fix, its rationale,
   and a realistic, reproducible case that causes an actual problem. Do not invent hypothetical problems to justify cleanup.
+- _These implementation and test limits apply only to autonomous tidy._ User-requested implementation, refactoring, TODO processing, and their
+  required tests are exempt: never skip, defer to a TODO, or narrow requested work because of these limits.
 
 ## Responsibility and Colocation
 
@@ -21,6 +25,8 @@
 
 ## TODO Review
 
+- Autonomously review a TODO only when, during implementation, you notice a contradiction in a TODO in surrounding code.
+  Do not seek out or scan TODOs for review unless the user explicitly requests it; follow the requested scope when they do.
 - When a TODO appears incorrect, gather objective evidence for both its claim and the rebuttal. Have an independent Sol or Luna subagent judge
   both claims with no conversation history (`fork_turns="none"`); provide the relevant code and evidence without steering its conclusion.
 - Only if that review validates the rebuttal, replace the TODO with an explanatory comment of at most 3 lines: "It may appear that X, but Y,
