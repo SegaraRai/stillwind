@@ -18,7 +18,9 @@ use std::sync::Arc;
 
 use cssparser::{Parser, Token};
 
-use stillwind_css::{CssOutputNode, CssOutputTemplate, take_property_requirements};
+use stillwind_css::{
+    CssOutputNode, CssOutputTemplate, custom_property_usage, take_property_requirements,
+};
 use stillwind_design_system::{
     CssSourceGraph, ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_omit_token_prefixes,
     builtin_property_definitions,
@@ -136,13 +138,10 @@ pub(crate) fn render_mapped(
     collect_theme_nodes(&template.nodes, &mut definitions);
     // Include selected theme values and frames in registration demand even when
     // their slots are conditional: placement does not remove their dependencies.
-    // The root rule below is only an input to the usage parser, not output CSS.
-    // TODO: Accept declaration inputs in the usage collector to avoid this wrapper.
-    let mut property_usage = used.clone();
-    property_usage.push_str(":root{");
+    let mut declarations = String::new();
     for token in &required {
         let _ = write!(
-            property_usage,
+            declarations,
             "{}:{};",
             token.name.value,
             theme
@@ -150,13 +149,14 @@ pub(crate) fn render_mapped(
                 .unwrap_or_else(|| token.value.value.clone())
         );
     }
-    property_usage.push('}');
     for definition in &definitions {
         if let CssOutputNode::Theme { keyframes, .. } = definition {
-            property_usage.push_str(&extract_authored_keyframes(keyframes, &animations));
+            used.push_str(&extract_authored_keyframes(keyframes, &animations));
         }
     }
-    let properties = render_used_properties(theme, &property_usage, options, &explicit)?;
+    let mut property_usage = custom_property_usage(&used)?;
+    property_usage.add_declarations(&declarations)?;
+    let properties = render_used_properties(theme, &property_usage, options, &explicit);
     if !properties.registrations.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::Properties)
     {
@@ -663,6 +663,35 @@ mod tests {
         assert_eq!(css.matches("@keyframes spin").count(), 1);
         assert!(css.find("@layer utilities{").unwrap() < css.find("@keyframes spin").unwrap());
         assert!(css.find("@property --length").unwrap() > css.find("@keyframes spin").unwrap());
+    }
+
+    #[test]
+    fn theme_declarations_activate_registrations_in_document_and_carrier_outputs() {
+        let source = SourceFile::new(FileId(1), "entry.css", r#"
+            @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+            @theme { --spacing-brand: var(--length); --spacing-unused: var(--unused); }
+            @media print { :root { @stillwind-slot theme; } }
+            @stillwind-slot utilities;
+            @stillwind-slot properties;
+            * { @stillwind-slot property-initials; }
+        "#).unwrap();
+        let theme = parse_theme(&source).unwrap();
+        for document in [true, false] {
+            let css = render(
+                &theme.output_template,
+                &theme,
+                ".x{width:var(--spacing-brand)}",
+                &CompilerOptions::default(),
+                document,
+            )
+            .unwrap();
+            assert!(css.contains("@property --length"), "{css}");
+            assert!(
+                css.contains("@media print{:root{--spacing-brand:var(--length);}}"),
+                "{css}"
+            );
+            assert!(!css.contains("--unused"), "{css}");
+        }
     }
 
     #[test]

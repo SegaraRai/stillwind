@@ -12,7 +12,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
-use stillwind_css::{PropertyUsageError, custom_property_usage};
+use stillwind_css::CustomPropertyUsage;
 use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
 
 use crate::CompilerOptions;
@@ -26,29 +26,25 @@ pub(super) struct PropertyOutput {
     pub initials: String,
 }
 
-/// Selects registration rules and builtin fallback declarations required by `css`.
+/// Selects registration rules and builtin fallback declarations required by `usage`.
 ///
 /// `theme` supplies definitions and activation metadata; `options` rewrites generated
 /// names. `explicit` supplies additional required names, whose existence the caller
 /// validates. Unknown dependency names have no definition to emit. Empty demand returns
-/// two empty strings. Input definitions and CSS are not modified.
+/// two empty strings. Input definitions and usage are not modified.
 ///
 /// Duplicates are resolved while walking the registry backwards, so a theme definition
 /// wins over a built-in of the same name, and the list is reversed once more before
 /// emission, so the output keeps the registry's own order.
 ///
-/// # Errors
-///
-/// Returns [`PropertyUsageError`] when CSS usage cannot be parsed. Values are not
-/// checked against the registered `@property` syntax descriptor.
+/// Values are not checked against the registered `@property` syntax descriptor.
 #[allow(clippy::too_many_lines)]
 pub(super) fn render_used_properties(
     theme: &ThemeIndex,
-    css: &str,
+    usage: &CustomPropertyUsage,
     options: &CompilerOptions,
     explicit: &[String],
-) -> Result<PropertyOutput, PropertyUsageError> {
-    let usage = custom_property_usage(css)?;
+) -> PropertyOutput {
     let builtin_properties = builtin_property_definitions(theme);
     let definitions = builtin_properties.iter().chain(&theme.properties);
     let mut required = definitions
@@ -134,8 +130,8 @@ pub(super) fn render_used_properties(
         }
         output.push_str("}\n");
     }
-    Ok(PropertyOutput {
+    PropertyOutput {
         registrations: output,
         initials,
-    })
+    }
 }

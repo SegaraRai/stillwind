@@ -12,6 +12,7 @@
 
 use std::collections::BTreeSet;
 
+use lightningcss::declaration::DeclarationBlock;
 use lightningcss::error::{Error, ParserError};
 use lightningcss::properties::Property;
 use lightningcss::properties::custom::Variable;
@@ -21,6 +22,11 @@ use lightningcss::visitor::{Visit, VisitTypes, Visitor};
 
 use super::references::custom_property_references;
 use crate::blocks::{strip_blocks, strip_css_comments};
+
+/// Failure to parse an emitted stylesheet, even with error recovery enabled.
+#[derive(Debug, thiserror::Error)]
+#[error("CSS parse error: {0}")]
+pub struct PropertyUsageError(#[source] pub Error<ParserError<'static>>);
 
 /// Custom properties an emitted stylesheet declares, consumes, and declares values for.
 ///
@@ -37,10 +43,55 @@ pub struct CustomPropertyUsage {
     pub declaration_properties: BTreeSet<String>,
 }
 
-/// Failure to parse an emitted stylesheet, even with error recovery enabled.
-#[derive(Debug, thiserror::Error)]
-#[error("CSS parse error: {0}")]
-pub struct PropertyUsageError(#[source] pub Error<ParserError<'static>>);
+impl CustomPropertyUsage {
+    /// Adds usage from a declaration list without a selector or surrounding braces.
+    /// Existing usage is retained, including when the input is empty.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if Lightning CSS cannot parse the declarations with error
+    /// recovery enabled. On error, the existing usage is unchanged.
+    pub fn add_declarations(&mut self, css: &str) -> Result<(), PropertyUsageError> {
+        let mut declarations = DeclarationBlock::parse_string(
+            css,
+            ParserOptions {
+                error_recovery: true,
+                ..ParserOptions::default()
+            },
+        )
+        .map_err(|error| PropertyUsageError(Error::from(error, String::new()).into_owned()))?;
+        match declarations.visit(self) {
+            Ok(()) => Ok(()),
+            Err(error) => match error {},
+        }
+    }
+}
+
+impl<'i> Visitor<'i> for CustomPropertyUsage {
+    type Error = std::convert::Infallible;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(RULES | PROPERTIES | TOKENS | FUNCTIONS | VARIABLES)
+    }
+
+    fn visit_property(&mut self, property: &mut Property<'i>) -> Result<(), Self::Error> {
+        self.declaration_properties
+            .insert(property.property_id().name().to_owned());
+        if let Property::Custom(property) = property {
+            let name = property.name.as_ref();
+            if name.starts_with("--") {
+                self.declared.insert(name.to_owned());
+            }
+        }
+        property.visit_children(self)
+    }
+
+    fn visit_variable(&mut self, variable: &mut Variable<'i>) -> Result<(), Self::Error> {
+        self.referenced
+            .insert(variable.name.ident.0.as_ref().to_owned());
+        variable.visit_children(self)
+    }
+}
 
 /// Returns custom properties used by declarations and values, excluding names
 /// that occur only inside ordinary authored `@property` registration blocks.
@@ -103,38 +154,6 @@ pub fn referenced_custom_properties(css: &str) -> BTreeSet<String> {
 /// Returns an error when the emitted stylesheet cannot be parsed, including
 /// with Lightning CSS error recovery enabled.
 pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyUsageError> {
-    struct UsageVisitor {
-        usage: CustomPropertyUsage,
-    }
-
-    impl<'i> Visitor<'i> for UsageVisitor {
-        type Error = std::convert::Infallible;
-
-        fn visit_types(&self) -> VisitTypes {
-            visit_types!(RULES | PROPERTIES | TOKENS | FUNCTIONS | VARIABLES)
-        }
-
-        fn visit_property(&mut self, property: &mut Property<'i>) -> Result<(), Self::Error> {
-            self.usage
-                .declaration_properties
-                .insert(property.property_id().name().to_owned());
-            if let Property::Custom(property) = property {
-                let name = property.name.as_ref();
-                if name.starts_with("--") {
-                    self.usage.declared.insert(name.to_owned());
-                }
-            }
-            property.visit_children(self)
-        }
-
-        fn visit_variable(&mut self, variable: &mut Variable<'i>) -> Result<(), Self::Error> {
-            self.usage
-                .referenced
-                .insert(variable.name.ident.0.as_ref().to_owned());
-            variable.visit_children(self)
-        }
-    }
-
     let mut stylesheet = StyleSheet::parse(
         css,
         ParserOptions {
@@ -143,19 +162,49 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyU
         },
     )
     .map_err(|error| PropertyUsageError(error.into_owned()))?;
-    let mut visitor = UsageVisitor {
-        usage: CustomPropertyUsage::default(),
-    };
+    let mut visitor = CustomPropertyUsage::default();
     match stylesheet.visit(&mut visitor) {
         Ok(()) => {}
         Err(error) => match error {},
     }
-    Ok(visitor.usage)
+    Ok(visitor)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declaration_usage_preserves_css_classification_and_existing_demand() {
+        let css = ".existing{width:var(--existing)}";
+        let declarations = r#"--theme:var(--source,var(--fallback)); color:var(--color)!important; content:"var(--ignored)"; --block:{nested:var(--nested)}; /* var(--comment) */"#;
+        let mut usage = custom_property_usage(css).unwrap();
+        usage.add_declarations(declarations).unwrap();
+        assert_eq!(
+            usage,
+            custom_property_usage(&format!("{css}:root{{{declarations}}}")).unwrap()
+        );
+        assert_eq!(
+            usage.referenced,
+            BTreeSet::from(
+                [
+                    "--existing",
+                    "--source",
+                    "--fallback",
+                    "--color",
+                    "--nested",
+                ]
+                .map(str::to_owned)
+            )
+        );
+        assert_eq!(
+            usage.declared,
+            BTreeSet::from(["--theme", "--block"].map(str::to_owned))
+        );
+        let before = usage.clone();
+        usage.add_declarations("").unwrap();
+        assert_eq!(usage, before);
+    }
 
     #[test]
     fn classifies_custom_property_usage_from_the_css_ast() {
