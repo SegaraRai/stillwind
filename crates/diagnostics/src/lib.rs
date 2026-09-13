@@ -6,9 +6,9 @@
 //! label is the primary location and controls lint suppression for lint findings.
 //! Detection belongs to the frontend, IR validation, and compiler passes, not here.
 //!
-//! [`compilation`] defines fatal causes; [`lint`] defines advisory causes; [`label`]
-//! defines shared highlights. [`suppression`] parses and applies `swlint-*` directives
-//! only to lint findings. Source coordinates remain owned by [`stillwind_source`].
+//! `compilation` defines fatal causes; `lint` defines advisory causes; `label`
+//! defines shared highlights. `suppression` parses and applies `swlint-*` directives
+//! only to lint findings. Source coordinates remain owned by `stillwind_source`.
 
 #![cfg_attr(
     not(test),

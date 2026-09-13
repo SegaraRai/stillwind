@@ -5,15 +5,14 @@
 //! source position. Class contributions are emitted either as a plain class
 //! value (Tier 1) or as a fragment (Tier 2); the renderer picks the shape.
 //!
-//! The stylesheet order is decided here and not by the JavaScript shape: the base
-//! unit's rules are written to the stylesheet before every conditional unit's rules,
-//! so the cascade result never depends on the class attribute order.
+//! The traversal delegates class allocation and stylesheet publication to [`ClassUnits`],
+//! which writes base rules before conditional rules. [`LiteralContribution`] resolves
+//! utility text; [`super::expression_render`] serializes lowered class trees
+//! independently of CSS order, so the cascade never depends on class attribute order.
 
 use std::collections::BTreeSet;
 
-use stillwind_design_system::{
-    ThemeIndex, compatibility_marker_class, is_tailwind_relationship_candidate,
-};
+use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleCall, StyleInput,
@@ -23,20 +22,19 @@ use stillwind_semantic::IdentityId;
 use stillwind_source::{SourceFile, Span};
 
 use super::CssContribution;
+use super::class_units::ClassUnits;
+use super::expression_render::render_plain;
 use super::handles::{
     handle_marker_class, ref_identity, render_handle_projection, scope_identity, scope_marker_class,
 };
 use super::lexer::lex_utilities;
+use super::literal::LiteralContribution;
 use super::motion::resolve_animation_use;
-use super::props::{
-    Emitted, EmittedEntry, GeneratedClass, GuardStep, StyleEmission, StyleEmissionPart,
-};
+use super::props::{Emitted, EmittedEntry, GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::StyleVariantPlan;
 use super::symbols::{
-    class_name, generated_class_symbol, handle_projection_name, motion_symbol_name,
-    ref_symbol_name, runtime_projection_class,
+    handle_projection_name, motion_symbol_name, ref_symbol_name, runtime_projection_class,
 };
-use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_kind, view_transition_utility,
 };
@@ -63,15 +61,6 @@ pub(super) struct CallEmitter<'a, 'b> {
     diagnostics: &'a mut Vec<CompileError>,
     /// Nonfatal findings appended in encounter order.
     lint_findings: &'a mut Vec<LintFinding>,
-    /// Module CSS contributions; the base unit is published before deferred leaf rules.
-    utility_css: &'a mut Vec<CssContribution>,
-    /// Leaf rules wait here so the base unit stays first in the stylesheet.
-    runtime_css: Vec<CssContribution>,
-    /// Generated symbol records appended by this emitter.
-    symbols: &'a mut Vec<GeneratedSymbol>,
-    /// Class units already generated in this compilation, keyed by name and canonical input, so
-    /// two identical units are emitted once while a collision would still be visible.
-    emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     /// Identities the module references at runtime; the pipeline uses this set to decide which
     /// declarations are replaced by a runtime call and which are erased.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
@@ -79,52 +68,14 @@ pub(super) struct CallEmitter<'a, 'b> {
     motion_assets: &'a mut BTreeSet<IdentityId>,
     /// Per-module allocator of helper bindings and import realms.
     runtime: &'a mut RuntimeBindings<'b>,
-    /// Canonical candidate and asset spelling for the base unit, in source order.
-    static_canonical: String,
-    /// Utilities that will form the base unit's rule.
-    static_utilities: Vec<CompiledUtility>,
-    /// Class names that are always applied: markers, external names, and the base unit.
-    static_names: Vec<String>,
     /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
-    /// Generated class metadata accumulated for this call.
-    classes: Vec<GeneratedClass>,
-    /// Emission-local index of the next leaf, making each branch its own class identity.
-    class_index: u32,
+    /// Owns class allocation and base-before-conditional CSS publication.
+    units: ClassUnits<'a>,
     /// Set when a props object sits inside a conditional expression, which forces Tier 2.
     conditional_props: bool,
     /// Set once the call contributed a view transition, so a second one is reported.
     view_transition_seen: bool,
-}
-
-/// The borrows one call needs, grouped so the emitter can be constructed in one place.
-pub(super) struct CallEmitterInputs<'a, 'b> {
-    /// Original buffer used to slice user expressions.
-    pub source: &'a SourceFile,
-    /// Compiler configuration for this call.
-    pub options: &'a CompilerOptions,
-    /// Resolved theme and utility registry.
-    pub theme: &'a ThemeIndex,
-    /// Analyzed style call to lower.
-    pub call: &'a StyleCall,
-    /// Framework class attribute spelling.
-    pub class_property: &'static str,
-    /// Shared destination for compilation errors.
-    pub diagnostics: &'a mut Vec<CompileError>,
-    /// Shared destination for lint findings, appended in encounter order.
-    pub lint_findings: &'a mut Vec<LintFinding>,
-    /// Shared destination for module CSS contributions.
-    pub utility_css: &'a mut Vec<CssContribution>,
-    /// Shared destination for generated symbol records.
-    pub symbols: &'a mut Vec<GeneratedSymbol>,
-    /// Previously emitted (class name, canonical input) pairs used to suppress identical units.
-    pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
-    /// Referenced runtime identities used to retain declarations that need runtime values.
-    pub runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Motion definitions reached by static or dynamic uses.
-    pub motion_assets: &'a mut BTreeSet<IdentityId>,
-    /// Shared helper binding allocator for the module.
-    pub runtime: &'a mut RuntimeBindings<'b>,
 }
 
 impl<'a, 'b> CallEmitter<'a, 'b> {
@@ -139,19 +90,19 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             class_property: inputs.class_property,
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,
-            utility_css: inputs.utility_css,
-            runtime_css: Vec::new(),
-            symbols: inputs.symbols,
-            emitted_utility_classes: inputs.emitted_utility_classes,
             runtime_assets: inputs.runtime_assets,
             motion_assets: inputs.motion_assets,
             runtime: inputs.runtime,
-            static_canonical: String::new(),
-            static_utilities: Vec::new(),
-            static_names: Vec::new(),
             parts: Vec::new(),
-            classes: Vec::new(),
-            class_index: 0,
+            units: ClassUnits::new(
+                inputs.source,
+                inputs.options,
+                inputs.theme,
+                inputs.call.span,
+                inputs.utility_css,
+                inputs.symbols,
+                inputs.emitted_utility_classes,
+            ),
             conditional_props: false,
             view_transition_seen: false,
         };
@@ -203,21 +154,21 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             }
             StyleInput::ScopeAttachment(scope) => {
                 let marker = scope_marker_class(scope).trim_start_matches('.').to_owned();
-                if !self.static_names.contains(&marker) {
-                    self.static_names.push(marker);
+                if !self.units.base.names.contains(&marker) {
+                    self.units.base.names.push(marker);
                 }
-                self.static_canonical.push_str("scope:");
-                self.static_canonical.push_str(&scope.name.value);
-                self.static_canonical.push('\u{0}');
+                self.units.base.canonical.push_str("scope:");
+                self.units.base.canonical.push_str(&scope.name.value);
+                self.units.base.canonical.push('\u{0}');
             }
             StyleInput::HandleAttachment(handle) => {
                 let marker = handle_marker_class(handle);
-                if !self.static_names.contains(&marker) {
-                    self.static_names.push(marker);
+                if !self.units.base.names.contains(&marker) {
+                    self.units.base.names.push(marker);
                 }
-                self.static_canonical.push_str("ref:");
-                self.static_canonical.push_str(&handle.name.value);
-                self.static_canonical.push('\u{0}');
+                self.units.base.canonical.push_str("ref:");
+                self.units.base.canonical.push_str(&handle.name.value);
+                self.units.base.canonical.push('\u{0}');
             }
             StyleInput::DynamicScopeAttachment { value, scopes } => {
                 self.runtime_assets
@@ -237,14 +188,14 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 query,
                 value,
             } => {
-                self.static_canonical.push_str("container:");
-                self.static_canonical.push_str(&ref_symbol_name(handle));
-                self.static_canonical.push(':');
-                self.static_canonical.push_str(&query.value);
-                self.static_canonical.push('\u{0}');
+                self.units.base.canonical.push_str("container:");
+                self.units.base.canonical.push_str(&ref_symbol_name(handle));
+                self.units.base.canonical.push(':');
+                self.units.base.canonical.push_str(&query.value);
+                self.units.base.canonical.push('\u{0}');
                 for utility in lex_utilities(value, self.diagnostics) {
-                    self.static_canonical.push_str(&utility.value.raw);
-                    self.static_canonical.push('\u{0}');
+                    self.units.base.canonical.push_str(&utility.value.raw);
+                    self.units.base.canonical.push('\u{0}');
                     if let Some(mut utilities) =
                         resolve_utility_targets(&utility.value.raw, self.theme)
                     {
@@ -252,7 +203,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                             resolved.container =
                                 Some(format!("{} ({})", ref_symbol_name(handle), query.value));
                         }
-                        self.static_utilities.append(&mut utilities);
+                        self.units.base.utilities.append(&mut utilities);
                     } else {
                         self.lint_findings.push(LintFinding::new(
                             LintKind::UnresolvedUtility {
@@ -261,7 +212,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                             },
                             utility.span,
                         ));
-                        self.static_names.push(utility.value.raw.clone());
+                        self.units.base.names.push(utility.value.raw.clone());
                     }
                 }
             }
@@ -383,12 +334,19 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         match expression {
             ClassExpression::Utilities(value) => {
                 let plan = StyleVariantPlan::resolve(wrappers, self.theme, self.diagnostics)?;
-                let contribution = self.resolve_literal(value, &plan);
+                let contribution = LiteralContribution::resolve(
+                    value,
+                    &plan,
+                    self.options,
+                    self.theme,
+                    self.diagnostics,
+                    self.lint_findings,
+                );
                 if fold && guard.is_empty() {
-                    self.fold(contribution);
+                    self.units.fold(contribution);
                     return None;
                 }
-                Some(self.leaf(contribution, guard))
+                Some(self.units.leaf(contribution, guard))
             }
             ClassExpression::Array(elements) => {
                 let mut items = Vec::new();
@@ -497,14 +455,14 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 };
                 let marker = handle_marker_class(handle);
                 if fold && guard.is_empty() {
-                    self.static_canonical.push_str("handle:");
-                    self.static_canonical.push_str(&ref_symbol_name(handle));
-                    self.static_canonical.push(':');
-                    self.static_canonical.push_str(name);
-                    self.static_canonical.push('\u{0}');
-                    self.static_utilities.push(utility);
-                    if !self.static_names.contains(&marker) {
-                        self.static_names.push(marker);
+                    self.units.base.canonical.push_str("handle:");
+                    self.units.base.canonical.push_str(&ref_symbol_name(handle));
+                    self.units.base.canonical.push(':');
+                    self.units.base.canonical.push_str(name);
+                    self.units.base.canonical.push('\u{0}');
+                    self.units.base.utilities.push(utility);
+                    if !self.units.base.names.contains(&marker) {
+                        self.units.base.names.push(marker);
                     }
                     return None;
                 }
@@ -515,7 +473,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                     external: Vec::new(),
                     plain: vec![marker],
                 };
-                Some(self.leaf(contribution, guard))
+                Some(self.units.leaf(contribution, guard))
             }
             ClassExpression::DynamicHandleProjection {
                 value,
@@ -548,7 +506,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                         external: Vec::new(),
                         plain: Vec::new(),
                     };
-                    let class = self.leaf(contribution, guard);
+                    let class = self.units.leaf(contribution, guard);
                     let class = render_plain(&class)?;
                     table.push(format!("\"{marker}\":{class}"));
                 }
@@ -575,10 +533,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                     plain: Vec::new(),
                 };
                 if fold && guard.is_empty() {
-                    self.fold(contribution);
+                    self.units.fold(contribution);
                     return None;
                 }
-                Some(self.leaf(contribution, guard))
+                Some(self.units.leaf(contribution, guard))
             }
             ClassExpression::DynamicAnimationUse {
                 value,
@@ -608,7 +566,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                         external: Vec::new(),
                         plain: Vec::new(),
                     };
-                    let class = self.leaf(contribution, guard);
+                    let class = self.units.leaf(contribution, guard);
                     let class = render_plain(&class)?;
                     table.push(format!("\"{identity}\":{class}"));
                 }
@@ -641,114 +599,6 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         }
     }
 
-    /// Lowers one utility literal into its canonical input, resolved utilities, and classes.
-    ///
-    /// A compatibility marker is emitted instead of utilities when the candidate only marks a
-    /// Tailwind relationship, and an unresolved candidate becomes an external class name plus a
-    /// lint finding, which keeps the user's class in the output rather than dropping it.
-    fn resolve_literal(
-        &mut self,
-        value: &stillwind_source::Spanned<String>,
-        plan: &StyleVariantPlan,
-    ) -> LiteralContribution {
-        let mut contribution = LiteralContribution::default();
-        for utility in lex_utilities(value, self.diagnostics) {
-            let canonical_candidate = format!("{}{}", plan.canonical, utility.value.raw);
-            let mut raw = utility.value.raw.clone();
-            raw.insert_str(0, &plan.prefix);
-            if (self.options.forbid_tailwind_relationships
-                || self.theme.config.lint_enabled("prefer-typed-relationships"))
-                && is_tailwind_relationship_candidate(&raw, self.theme)
-            {
-                self.lint_findings.push(LintFinding::new(
-                    LintKind::PreferTypedRelationships {
-                        utility: raw.clone(),
-                    },
-                    utility.span,
-                ));
-            }
-            if !plan.has_refs
-                && let Some(marker) = compatibility_marker_class(&raw, self.theme)
-            {
-                contribution.markers.push(marker);
-                continue;
-            }
-            contribution.canonical.push_str(&canonical_candidate);
-            contribution.canonical.push('\u{0}');
-            let resolved_input = raw.strip_prefix("tw:").unwrap_or(&raw);
-            if let Some(mut resolved) = resolve_utility_targets(resolved_input, self.theme) {
-                for resolved_utility in &mut resolved {
-                    plan.apply(resolved_utility, self.theme);
-                }
-                contribution.utilities.append(&mut resolved);
-            } else {
-                self.lint_findings.push(LintFinding::new(
-                    LintKind::UnresolvedUtility {
-                        utility: utility.value.raw.clone(),
-                        classification: unresolved_utility_kind(&utility.value.raw),
-                    },
-                    utility.span,
-                ));
-                contribution.external.push(utility.value.raw.clone());
-            }
-        }
-        contribution
-    }
-
-    /// Merges a contribution into the unconditional base unit.
-    fn fold(&mut self, contribution: LiteralContribution) {
-        self.static_canonical.push_str(&contribution.canonical);
-        self.static_utilities.extend(contribution.utilities);
-        self.static_names.extend(contribution.markers);
-        self.static_names.extend(contribution.external);
-        self.static_names.extend(contribution.plain);
-    }
-
-    /// Turns one contribution into a leaf expression, generating its class unit.
-    ///
-    /// The branch index is part of the class identity, so identical utilities in two branches
-    /// still produce distinct units and the later unit can override the earlier one.
-    fn leaf(&mut self, contribution: LiteralContribution, guard: &[GuardStep]) -> Emitted {
-        let mut names = Vec::new();
-        if !contribution.utilities.is_empty() {
-            self.class_index += 1;
-            let canonical = format!("{}:{}", self.class_index, contribution.canonical);
-            let canonical = self.options.style_class_input(
-                self.source.path(),
-                self.call.span.start.0,
-                &canonical,
-            );
-            let name = class_name(&canonical);
-            if self
-                .emitted_utility_classes
-                .insert((name.clone(), canonical.clone()))
-            {
-                emit_utility_rules(
-                    &mut self.runtime_css,
-                    &name,
-                    &contribution.utilities,
-                    self.theme,
-                );
-                self.symbols.push(generated_class_symbol(
-                    self.source,
-                    &name,
-                    &canonical,
-                    self.call.span,
-                ));
-            }
-            names.push(name.clone());
-            self.classes.push(GeneratedClass {
-                class_name: name,
-                call_span: self.call.span,
-                guard_path: guard.to_vec(),
-            });
-        }
-        names.extend(contribution.markers);
-        names.extend(contribution.external);
-        names.extend(contribution.plain);
-        Emitted::Leaf { names }
-    }
-
     /// Renders one attribute entry of an object literal, with its value verbatim.
     fn render_attribute(&mut self, attribute: &AttributeEntry) -> Option<String> {
         let value = self.slice(attribute.value)?;
@@ -757,9 +607,9 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
 
     /// Contributes the class that carries a view transition's name and class properties.
     fn emit_view_transition_class(&mut self) {
-        self.static_canonical.push_str("view-transition");
-        self.static_canonical.push('\u{0}');
-        self.static_utilities.push(view_transition_utility());
+        self.units.base.canonical.push_str("view-transition");
+        self.units.base.canonical.push('\u{0}');
+        self.units.base.utilities.push(view_transition_utility());
     }
 
     /// Slices an original span, or reports that it cannot be read.
@@ -767,206 +617,48 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         self.source.slice(span).ok().map(str::to_owned)
     }
 
-    /// Emits the base unit and returns the parts, in source order.
-    //
-    // The base unit's rules are pushed to the shared stylesheet now, after every leaf rule was
-    // collected in `runtime_css`. That ordering is what keeps a conditional unit's rule after the
-    // base rule it overrides.
-    fn finish(mut self) -> StyleEmission {
-        let mut names = Vec::new();
-        if !self.static_utilities.is_empty() {
-            let canonical = format!("0:{}", self.static_canonical);
-            let canonical = self.options.style_class_input(
-                self.source.path(),
-                self.call.span.start.0,
-                &canonical,
-            );
-            let name = class_name(&canonical);
-            if self
-                .emitted_utility_classes
-                .insert((name.clone(), canonical.clone()))
-            {
-                emit_utility_rules(self.utility_css, &name, &self.static_utilities, self.theme);
-                self.symbols.push(generated_class_symbol(
-                    self.source,
-                    &name,
-                    &canonical,
-                    self.call.span,
-                ));
-            }
-            self.classes.insert(
-                0,
-                GeneratedClass {
-                    class_name: name.clone(),
-                    call_span: self.call.span,
-                    guard_path: Vec::new(),
-                },
-            );
-            names.push(name);
-        }
-        names.extend(std::mem::take(&mut self.static_names));
-        // The base unit must precede every conditional unit in the stylesheet.
-        self.utility_css.append(&mut self.runtime_css);
+    /// Publishes the class units and returns the expression parts in source order.
+    fn finish(self) -> StyleEmission {
+        let (static_names, classes) = self.units.finish();
         StyleEmission {
             class_property: self.class_property,
-            static_names: names,
+            static_names,
             parts: self.parts,
-            classes: self.classes,
+            classes,
             conditional_props: self.conditional_props,
             call_span: self.call.span,
         }
     }
 }
 
-/// The pieces one utility literal contributes before it becomes a leaf or a base-unit entry.
-///
-/// `canonical` is the text appended to the class-hash input. Keeping markers, external names, and
-/// resolved utilities in separate lists is what lets an unresolved candidate still reach the
-/// output as a class name while contributing no rule.
-#[derive(Default)]
-struct LiteralContribution {
-    /// Canonical candidate and wrapper spelling of the literal, in source order.
-    canonical: String,
-    /// Utilities to emit as this leaf's rule.
-    utilities: Vec<CompiledUtility>,
-    /// Compatibility markers, emitted instead of a rule.
-    markers: Vec<String>,
-    /// Class names Stillwind does not own, passed through unchanged.
-    external: Vec<String>,
-    /// Names with no rule of their own, such as handle markers.
-    plain: Vec<String>,
-}
-
-/// Renders a plain class value: strings that clsx can join directly.
-///
-/// Returns `None` when the value cannot be expressed without the fragment runtime, which is what
-/// makes Tier 1 a proof obligation rather than a preference. An attribute can never appear inside
-/// one class property, so any attribute entry makes the whole value unrenderable this way.
-pub(super) fn render_plain(value: &Emitted) -> Option<String> {
-    match value {
-        Emitted::Expression(text) => Some(text.clone()),
-        Emitted::Leaf { names } => Some(format!("\"{}\"", names.join(" "))),
-        Emitted::Array(items) => {
-            let mut parts = Vec::new();
-            for item in items {
-                parts.push(match item {
-                    Some(item) => render_plain(item)?,
-                    None => "null".to_owned(),
-                });
-            }
-            Some(format!("[{}]", parts.join(",")))
-        }
-        Emitted::Conditional {
-            test,
-            kind,
-            consequent,
-            alternate,
-        } => {
-            let consequent = match consequent {
-                Some(value) => render_plain(value)?,
-                None => "null".to_owned(),
-            };
-            match kind {
-                ConditionalKind::LogicalAnd => Some(format!("({test}) && ({consequent})")),
-                ConditionalKind::Ternary => {
-                    let alternate = match alternate {
-                        Some(value) => render_plain(value)?,
-                        None => "null".to_owned(),
-                    };
-                    Some(format!("({test}) ? ({consequent}) : ({alternate})"))
-                }
-            }
-        }
-        Emitted::Group(entries) => {
-            let mut parts = Vec::new();
-            for entry in entries {
-                match entry {
-                    // Attributes cannot live inside one class property.
-                    Some(EmittedEntry::Attribute(_)) => return None,
-                    Some(EmittedEntry::Class(value)) => {
-                        parts.push(render_plain(value)?);
-                    }
-                    None => {}
-                }
-            }
-            match parts.len() {
-                0 => None,
-                1 => parts.pop(),
-                _ => Some(format!("[{}]", parts.join(","))),
-            }
-        }
-    }
-}
-
-/// Renders a fragment expression that `stillwindMerge` can consume.
-///
-/// The output is a fresh expression, not a reference to anything already emitted, so the same
-/// tree can be rendered once per tier decision without sharing state.
-pub(super) fn render_fragment(
-    value: &Emitted,
-    runtime: &mut RuntimeBindings<'_>,
-    span: Span,
-) -> String {
-    match value {
-        Emitted::Expression(text) => {
-            let key = runtime.require(RuntimeHelper::ClassKey, span);
-            format!("{{[{key}]:({text})}}")
-        }
-        Emitted::Leaf { names } => fragment(runtime, span, &[names.join(" ")]),
-        Emitted::Array(items) => {
-            let mut parts = Vec::new();
-            for item in items {
-                parts.push(match item {
-                    Some(item) => render_fragment(item, runtime, span),
-                    None => "null".to_owned(),
-                });
-            }
-            format!("[{}]", parts.join(","))
-        }
-        Emitted::Conditional {
-            test,
-            kind,
-            consequent,
-            alternate,
-        } => {
-            let consequent = match consequent {
-                Some(value) => render_fragment(value, runtime, span),
-                None => "null".to_owned(),
-            };
-            match kind {
-                ConditionalKind::LogicalAnd => format!("({test}) && ({consequent})"),
-                ConditionalKind::Ternary => {
-                    let alternate = match alternate {
-                        Some(value) => render_fragment(value, runtime, span),
-                        None => "null".to_owned(),
-                    };
-                    format!("({test}) ? ({consequent}) : ({alternate})")
-                }
-            }
-        }
-        Emitted::Group(entries) => {
-            let mut parts = Vec::new();
-            for entry in entries {
-                match entry {
-                    Some(EmittedEntry::Attribute(text)) => parts.push(format!("{{{text}}}")),
-                    Some(EmittedEntry::Class(value)) => {
-                        parts.push(render_fragment(value, runtime, span));
-                    }
-                    None => parts.push("null".to_owned()),
-                }
-            }
-            if parts.len() == 1 {
-                return parts.remove(0);
-            }
-            format!("[{}]", parts.join(","))
-        }
-    }
-}
-
-/// Builds a fragment object for one already-joined class string.
-fn fragment(runtime: &mut RuntimeBindings<'_>, span: Span, values: &[String]) -> String {
-    let key = runtime.require(RuntimeHelper::ClassKey, span);
-    format!("{{[{key}]:\"{}\"}}", values.join(" "))
+/// The borrows one call needs, grouped so the emitter can be constructed in one place.
+pub(super) struct CallEmitterInputs<'a, 'b> {
+    /// Original buffer used to slice user expressions.
+    pub source: &'a SourceFile,
+    /// Compiler configuration for this call.
+    pub options: &'a CompilerOptions,
+    /// Resolved theme and utility registry.
+    pub theme: &'a ThemeIndex,
+    /// Analyzed style call to lower.
+    pub call: &'a StyleCall,
+    /// Framework class attribute spelling.
+    pub class_property: &'static str,
+    /// Shared destination for compilation errors.
+    pub diagnostics: &'a mut Vec<CompileError>,
+    /// Shared destination for lint findings, appended in encounter order.
+    pub lint_findings: &'a mut Vec<LintFinding>,
+    /// Shared destination for module CSS contributions.
+    pub utility_css: &'a mut Vec<CssContribution>,
+    /// Shared destination for generated symbol records.
+    pub symbols: &'a mut Vec<GeneratedSymbol>,
+    /// Previously emitted (class name, canonical input) pairs used to suppress identical units.
+    pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    /// Referenced runtime identities used to retain declarations that need runtime values.
+    pub runtime_assets: &'a mut BTreeSet<IdentityId>,
+    /// Motion definitions reached by static or dynamic uses.
+    pub motion_assets: &'a mut BTreeSet<IdentityId>,
+    /// Shared helper binding allocator for the module.
+    pub runtime: &'a mut RuntimeBindings<'b>,
 }
 
 /// Whether the emitted text evaluates user expressions.

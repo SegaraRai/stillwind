@@ -15,6 +15,9 @@
 //! And coverage is only as good as the host says: observing a transform never proves
 //! that the module graph is complete, so a selection must carry an explicit
 //! [`StylesheetCoverage`].
+//!
+//! `session` publishes revisions; `project_stylesheet` tracks shared rule ownership;
+//! `dependencies` indexes consumers; `stylesheet_plan` validates producer coverage.
 
 #![cfg_attr(
     not(test),
@@ -29,10 +32,12 @@
 )]
 
 mod dependencies;
+mod project_stylesheet;
 mod session;
 mod stylesheet_plan;
 
 pub use dependencies::DependencyIndex;
+pub use project_stylesheet::ProjectStylesheet;
 pub use session::*;
 pub use stylesheet_plan::*;
 

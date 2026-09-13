@@ -13,6 +13,9 @@
 //! same inputs produces the same names. When a compilation fails, diagnostics are
 //! still reported against the real source and the transforms, classes, and symbols
 //! stay empty instead of describing a partially applied edit plan.
+//!
+//! The module compiler executes compilation; compiled module results own edit
+//! application; module CSS artifacts own rule identity and serialization.
 
 #![cfg_attr(
     not(test),
@@ -27,9 +30,11 @@
 )]
 
 mod candidate;
+mod compiled_module;
 mod compiler;
 mod imports;
 mod module_compiler;
+mod module_css;
 mod options;
 mod query;
 mod renderer;
@@ -37,14 +42,16 @@ mod runtime;
 mod stylesheet_map;
 mod transforms;
 
+pub use compiled_module::{
+    CompilationDependencies, CompiledModule, ModuleArtifactKey, ModuleResourceReference,
+    ModuleTransformError,
+};
 pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
 pub use imports::plan_macro_import_removals;
-pub use module_compiler::{
-    CompilationDependencies, CompiledModule, GeneratedRule, ModuleArtifactKey, ModuleCompiler,
-    ModuleCssArtifact, ModuleResourceReference, ModuleTransformError, RuleKey,
-};
+pub use module_compiler::ModuleCompiler;
+pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
 pub use options::CompilerOptions;
 pub use query::{
     CandidateHover, CandidateResolution, CompletionInput, CompletionItem, DesignSystemQuery,

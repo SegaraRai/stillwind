@@ -9,8 +9,8 @@
 //! meaningless outside the file that produced it. [`Fingerprint`] provides
 //! process-independent content identity. The crate performs no I/O.
 //!
-//! [`text`] owns source buffers and spans; [`coordinates`] converts host coordinates;
-//! [`projection`] validates generated-to-original correspondence; [`fingerprint`] provides
+//! `text` owns source buffers and spans; `coordinates` converts host coordinates;
+//! `projection` validates generated-to-original correspondence; `fingerprint` provides
 //! content and normalized module identities. Diagnostic reporting belongs to consumers.
 
 #![cfg_attr(

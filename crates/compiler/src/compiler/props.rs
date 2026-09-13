@@ -12,7 +12,7 @@ use serde::Serialize;
 use stillwind_ir::ConditionalKind;
 use stillwind_source::Span;
 
-use super::emission::{render_fragment, render_plain};
+use super::expression_render::{render_fragment, render_plain};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
 /// One conditional step of a class contribution's guard path.
