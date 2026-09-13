@@ -15,6 +15,7 @@ use stillwind_syntax::Value;
 
 use super::super::values::colors::CompatColorMode;
 use super::super::values::placeholders::resolve_css_placeholders;
+use super::formatting::resolve_declaration_value;
 use crate::ThemeIndex;
 
 /// The declarations one candidate produced from one definition body.
@@ -40,6 +41,7 @@ pub(crate) fn resolve_css_declarations(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
+    builtin: bool,
 ) -> Option<ResolvedCssDeclarations> {
     let declarations = split_css_declarations(body);
     let uses_placeholder = declarations.iter().any(|declaration| {
@@ -92,6 +94,7 @@ pub(crate) fn resolve_css_declarations(
             CompatColorMode::Legacy,
         ) && !declaration.trim().is_empty()
         {
+            let declaration = resolve_declaration_value(&declaration, theme, builtin);
             resolved_placeholder |= contains_placeholder;
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
@@ -110,6 +113,7 @@ pub(crate) fn resolve_css_declarations(
                     theme,
                     CompatColorMode::Modern,
                 )
+                .map(|modern| resolve_declaration_value(&modern, theme, builtin))
                 && modern != declaration
             {
                 output.compat_modern.push(modern.trim_start().to_owned());
@@ -193,7 +197,8 @@ mod tests {
                 "w-*",
                 "w-[red]",
                 None,
-                &theme
+                &theme,
+                false
             )
             .is_none()
         );
@@ -203,6 +208,7 @@ mod tests {
             "x-[red]",
             None,
             &theme,
+            false,
         )
         .unwrap();
         assert_eq!(resolved.base, "color:red;");

@@ -398,12 +398,12 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
     assert!(
         first.utilities().get("flex").unwrap()[0]
             .body
-            .contains("display:flex;")
+            .contains("display: flex;")
     );
     assert!(
         changed.utilities().get("flex").unwrap()[0]
             .body
-            .contains("display:grid;")
+            .contains("display: grid;")
     );
     assert_ne!(first.fingerprints().content, changed.fingerprints().content);
     let bare = DesignSystemSnapshot::from_source(

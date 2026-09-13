@@ -430,7 +430,7 @@
     }
   }
   ._s_d7909e1f {
-    opacity: 60%;
+    opacity: calc(60 * 1%);
   }
   ._s_a87e225d {
     background-color: var(--color-accent);

@@ -1,10 +1,7 @@
 //! Capture substitution and composition of nested variants.
 //!
-//! Substitution is a fixed sequence of textual replacements rather than a template
-//! language: `--value()`, an escaped capture marker, the modifier forms, and the two
-//! placeholders used by `nth`-style selectors are replaced in that order. Inserted
-//! capture text can therefore be changed by later replacements. This path replaces
-//! underscores and modifier slashes; it is not a general CSS selector escaper.
+//! Explicit capture and modifier placeholders are expanded once. Inserted values
+//! are never interpreted as more template syntax; ordinary selectors remain literal.
 //!
 //! Composition goes the other way: an inner variant's selector is folded into the outer
 //! definition's body, and conditions or declarations can only attach to applications
@@ -203,8 +200,6 @@ pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> 
         && !value.contains(r"\*")
         && !value.contains("{modifier}")
         && !value.contains(r"\{modifier\}")
-        && !value.contains(":root")
-        && !value.contains("0n")
     {
         return Some(value.to_owned());
     }
@@ -232,17 +227,28 @@ pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> 
     } else {
         format!(r"\/{modifier}")
     };
-    let mut expanded = value
-        .replace("--value()", &capture)
-        .replace(r"\*", &capture)
-        .replace(r"\/\{modifier\}", &modifier_suffix)
-        .replace(r"\{modifier\}", &modifier)
-        .replace("/{modifier}", &modifier_suffix)
-        .replace("{modifier}", &modifier)
-        .replace(":root", &format!(":{capture}"))
-        .replace("0n", &capture);
-    if capture.starts_with('[') {
-        expanded = expanded.replace("):[", ")[");
+    let substitutions = [
+        ("--value()", capture.as_str()),
+        (r"\*", capture.as_str()),
+        (r"\/\{modifier\}", modifier_suffix.as_str()),
+        (r"\{modifier\}", modifier.as_str()),
+        ("/{modifier}", modifier_suffix.as_str()),
+        ("{modifier}", modifier.as_str()),
+    ];
+    let mut expanded = String::new();
+    let mut remaining = value;
+    while !remaining.is_empty() {
+        if let Some((marker, replacement)) = substitutions
+            .iter()
+            .find(|(marker, _)| remaining.starts_with(marker))
+        {
+            expanded.push_str(replacement);
+            remaining = &remaining[marker.len()..];
+        } else {
+            let length = remaining.chars().next()?.len_utf8();
+            expanded.push_str(&remaining[..length]);
+            remaining = &remaining[length..];
+        }
     }
     Some(expanded)
 }
@@ -352,6 +358,17 @@ mod tests {
                 &VariantApplication::Media("print".into())
             )
             .is_none()
+        );
+    }
+    #[test]
+    fn ordinary_selectors_and_inserted_capture_text_are_literal() {
+        assert_eq!(
+            substitute_variant_capture(":root:nth-child(0n)", None),
+            Some(":root:nth-child(0n)".into())
+        );
+        assert_eq!(
+            substitute_variant_capture("&--value()", Some("{modifier}")),
+            Some("&{modifier}".into())
         );
     }
 }

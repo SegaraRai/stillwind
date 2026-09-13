@@ -47,7 +47,7 @@ fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
 }
 
 #[test]
-fn css_strings_survive_calc_folding_and_importance() {
+fn css_values_survive_emission_and_importance() {
     let (_, result) = compile(
         "const x = style('x!');",
         r#"@utility x { content: "calc(1 + 1);a"; width:calc(1px + 2px); background:url('data:text/plain;calc(1 + 1)'); }"#,
@@ -60,7 +60,11 @@ fn css_strings_survive_calc_folding_and_importance() {
         "{}",
         result.css
     );
-    assert!(result.css.contains("width:3px!important"), "{}", result.css);
+    assert!(
+        result.css.contains("width:calc(1px + 2px)!important"),
+        "{}",
+        result.css
+    );
     assert!(
         result.css.contains("data:text/plain;calc(1 + 1)"),
         "{}",
@@ -273,4 +277,34 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     let code = result.apply_to_source(&source).unwrap();
     assert!(!code.contains("const a=undefined"), "{code}");
     assert!(!code.contains("const b=undefined"), "{code}");
+}
+
+#[test]
+fn literal_values_and_explicit_fallbacks_survive_utility_emission() {
+    let (_, result) = compile(
+        "const x = style('literal');",
+        r#"
+        @stillwind-property --registered { syntax: "<length>"; inherits: false; initial-value: 0px; }
+        @utility literal {
+            content: ",var(--x) oklab(0% none none/0) deg*-1";
+            transform: var(--component);
+            width: var(--registered, 0px);
+        }
+    "#,
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains(r#"",var(--x) oklab(0% none none/0) deg*-1""#),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("var(--component)"), "{}", result.css);
+    assert!(!result.css.contains("var(--component,)"));
+    assert!(
+        result.css.contains("var(--registered, 0px)"),
+        "{}",
+        result.css
+    );
 }

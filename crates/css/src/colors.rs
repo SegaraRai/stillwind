@@ -72,10 +72,21 @@ pub(super) fn rewrite_shadow_color(
     // final component. Built-in theme shadows take the source preserving path above, so
     // their authored precision is retained.
     let color = shadow.color.to_css_string(PrinterOptions::default()).ok()?;
-    let serialized = shadow.to_css_string(PrinterOptions::default()).ok()?;
-    let without_color = serialized
-        .strip_suffix(&format!(" {color}"))
-        .unwrap_or(&serialized);
+    let lengths = [
+        &shadow.x_offset,
+        &shadow.y_offset,
+        &shadow.blur,
+        &shadow.spread,
+    ]
+    .into_iter()
+    .map(|length| length.to_css_string(PrinterOptions::default()).ok())
+    .collect::<Option<Vec<_>>>()?
+    .join(" ");
+    let without_color = if shadow.inset {
+        format!("inset {lengths}")
+    } else {
+        lengths
+    };
     let fallback = alpha.map_or_else(
         || color.clone(),
         |alpha| format!("oklab(from {color} l a b / {alpha})"),
@@ -184,20 +195,6 @@ pub(super) fn is_css_string(value: &str) -> bool {
         && !value[..value.len() - quote.len_utf8()].ends_with('\\')
 }
 
-/// Canonicalizes serializer-only transparent color spellings emitted by CSS color
-/// conversion. This is independent of any utility or framework name.
-///
-/// The replacements are textual because these spellings come out of the CSS printer
-/// rather than from authored input; only those exact emitted forms change.
-pub fn normalize_serialized_declaration(value: &str) -> String {
-    value
-        .replace(
-            "oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0) oklab(0% none none/0)",
-            "#0000",
-        )
-        .replace(":oklab(0% none none/0);", ":#0000;")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,10 +247,7 @@ mod boundary_tests {
             trailing_top_level_css_component("0 1px rgb(1, 2, 3)"),
             Some(("0 1px", "rgb(1, 2, 3)"))
         );
-        assert_eq!(
-            normalize_serialized_declaration("x:oklab(0% none none/0);"),
-            "x:#0000;"
-        );
+
         assert_eq!(color_with_alpha_fallback("invalid!", "50%"), None);
     }
 }

@@ -4,10 +4,9 @@
 //! selector or as the class name, and each step rewrites it. The at-rules a step contributes wrap
 //! the finished rule in a fixed order - `@supports`, `@media`, `@container`, then
 //! `@starting-style` - so output is deterministic and conditions combine by containment instead of
-//! being merged into one query. Before serialization the declaration body is folded and normalized,
-//! so the same declarations are spelled identically wherever they appear.
+//! being merged into one query. Resolved values are emitted without minification.
 
-use stillwind_css::{fold_calc_expressions, normalize_serialized_declaration};
+use stillwind_css::instantiate_selector;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
 };
@@ -29,8 +28,6 @@ pub(in crate::compiler) fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
 ) -> String {
-    let declaration = fold_calc_expressions(declaration);
-    let declaration = normalize_serialized_declaration(&declaration);
     if !utility.variant_applications.is_empty() {
         return utility
             .variant_applications
@@ -39,7 +36,7 @@ pub(in crate::compiler) fn render_utility_rule(
                 render_utility_rule_path(
                     class_name,
                     utility,
-                    &declaration,
+                    declaration,
                     nested_rule,
                     applications,
                 )
@@ -69,7 +66,7 @@ pub(in crate::compiler) fn render_utility_rule(
     paths
         .iter()
         .map(|applications| {
-            render_utility_rule_path(class_name, utility, &declaration, nested_rule, applications)
+            render_utility_rule_path(class_name, utility, declaration, nested_rule, applications)
         })
         .collect()
 }
@@ -104,7 +101,7 @@ fn render_utility_steps(
     let class_selector = format!(".{class_name}");
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
-        |selector| selector.replace('&', &class_selector),
+        |selector| instantiate_selector(selector, &class_selector),
     );
     let mut media = Vec::new();
     let mut containers = Vec::new();
@@ -116,20 +113,20 @@ fn render_utility_steps(
                 selector.push_str(suffix);
             }
             VariantStep::SelectorTemplate(template) => {
-                selector = template.replace('&', &selector);
+                selector = instantiate_selector(template, &selector);
             }
             VariantStep::SelectorRule {
                 selector: template,
                 declarations,
             } => {
-                selector = template.replace('&', &selector);
+                selector = instantiate_selector(template, &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
             }
             VariantStep::SelectorMedia {
                 selector: template,
                 condition,
             } => {
-                selector = template.replace('&', &selector);
+                selector = instantiate_selector(template, &selector);
                 media.push(condition.to_owned());
             }
             VariantStep::SelectorMediaRule {
@@ -137,7 +134,7 @@ fn render_utility_steps(
                 declarations,
                 condition,
             } => {
-                selector = template.replace('&', &selector);
+                selector = instantiate_selector(template, &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
                 media.push(condition.to_owned());
             }

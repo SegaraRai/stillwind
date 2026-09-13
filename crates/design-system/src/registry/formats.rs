@@ -1,29 +1,10 @@
-//! Declaration metadata directives that shape serialization without emitting CSS of
-//! their own.
+//! Registry metadata for declaration composition, value typing and dependencies.
 //!
-//! These directives let the vendored registry describe how its declarations must be
-//! spelled after evaluation: which properties need a separator before a `var()`
-//! fallback, which need a zero length normalized, which functions keep their argument
-//! spacing, and which tokens may be pruned when a marker is present. Keeping the
-//! knowledge in CSS means the Rust evaluator never encodes a Tailwind property family.
-//!
-//! Parsing is textual and permissive: an entry that cannot be read contributes nothing.
-//! This metadata only tunes how an already resolved declaration is spelled, so an
-//! unreadable entry cannot make a stylesheet fail to load.
+//! `compose-space` specifies declaration composition and `zero-length` supplies
+//! the length type required by arithmetic consumers. Neither requests formatting.
+//! Whitespace, color spelling and arithmetic optimization belong to the host.
 
 use std::collections::{BTreeMap, BTreeSet};
-
-/// Names of functions whose argument lists keep authored spacing and comma separators
-/// during canonicalization.
-pub fn parse_function_formats(css: &str) -> BTreeSet<String> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-format-functions"))
-        .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
-        .flat_map(str::split_whitespace)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-        .collect()
-}
 
 /// Parses generic token-pruning rules authored by the registry CSS.
 ///
@@ -152,18 +133,14 @@ mod tests {
     }
 
     #[test]
-    fn merges_declaration_and_function_format_metadata() {
+    fn merges_declaration_metadata() {
         let formats = parse_declaration_formats(
-            "@stillwind-format transform var-fallback; @stillwind-format transform compose-space;",
+            "@stillwind-format transform zero-length; @stillwind-format transform compose-space;",
         );
         assert_eq!(
             formats.get("transform").map(String::as_str),
-            Some("var-fallback compose-space")
+            Some("zero-length compose-space")
         );
-        let functions =
-            parse_function_formats("@stillwind-format-functions color-mix linear-gradient;");
-        assert!(functions.contains("color-mix"));
-        assert!(functions.contains("linear-gradient"));
         assert_eq!(
             parse_omit_token_prefixes("@stillwind-omit-token-prefix --shadow- --tw-shadow:;"),
             vec![("--shadow-".to_owned(), "--tw-shadow:".to_owned())]
@@ -172,10 +149,6 @@ mod tests {
 
     #[test]
     fn metadata_preserves_order_deduplicates_sets_and_rejects_incomplete_entries() {
-        assert_eq!(
-            parse_function_formats("@stillwind-format-functions rgb calc rgb;"),
-            BTreeSet::from(["rgb".into(), "calc".into()])
-        );
         assert_eq!(
             parse_theme_order("@stillwind-theme-order color spacing;"),
             vec!["color", "spacing"]

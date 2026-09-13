@@ -34,8 +34,8 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("--spacing:0.5rem;"));
-    assert!(result.css.contains("--color-brand:oklch(62% 0.2 280);"));
+    assert!(result.css.contains_css("--spacing:0.5rem;"));
+    assert!(result.css.contains_css("--color-brand:oklch(62% 0.2 280);"));
     assert!(!result.css.contains("--color-red-500:"));
 }
 

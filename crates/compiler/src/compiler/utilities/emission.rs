@@ -7,6 +7,7 @@
 //! declarations that live inside the same rule are inserted after the property they override, so a
 //! nested at-rule cannot win by appearing before the value it is meant to replace.
 
+use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
@@ -63,10 +64,14 @@ pub(crate) fn emit_utility_rules(
             .then_with(|| left.candidate.cmp(&right.candidate))
     });
     for utility in variant_utilities {
-        let mut declaration = combine_declarations_for_theme(&[utility], theme);
-        for nested in utility.nested.iter().filter(|nested| nested.inside) {
-            insert_nested_declaration(&mut declaration, nested);
-        }
+        let declaration = assemble_nested_declarations(
+            &combine_declarations_for_theme(&[utility], theme),
+            &utility
+                .nested
+                .iter()
+                .filter(|nested| nested.inside)
+                .collect::<Vec<_>>(),
+        );
         output.push_str(&render_utility_rule(
             class_name,
             utility,
@@ -104,100 +109,71 @@ pub(in crate::compiler) fn emit_base_utility_group(
     theme: &ThemeIndex,
 ) {
     let base = combine_declarations_for_theme(utilities, theme);
-    if !base.is_empty() {
-        let mut nested_in_rule_css = String::new();
-        let mut anchored_nested = Vec::<(String, String)>::new();
+    let nested = utilities
+        .iter()
+        .flat_map(|utility| &utility.nested)
+        .filter(|nested| nested.inside)
+        .collect::<Vec<_>>();
+    if !base.is_empty() || !nested.is_empty() {
         output.push('.');
         output.push_str(class_name);
         output.push('{');
-        for utility in utilities {
-            for nested in &utility.nested {
-                let nested_in_rule = nested.inside;
-                if !nested_in_rule {
-                    continue;
-                }
-                let mut nested_css = String::new();
-                let nested_declaration = nested
-                    .declaration
-                    .replace(" deg", "deg")
-                    .replace("deg*-1", "deg * -1");
-                match nested.at_rule {
-                    NestedUtilityAtRule::Media => {
-                        nested_css.push_str("@media ");
-                        nested_css.push_str(&nested.condition);
-                        nested_css.push('{');
-                        nested_css.push_str(&nested_declaration);
-                        nested_css.push('}');
-                    }
-                    NestedUtilityAtRule::Supports => {
-                        nested_css.push_str("@supports (");
-                        nested_css.push_str(&nested.condition);
-                        nested_css.push_str("){\n");
-                        nested_css.push_str(&nested_declaration);
-                        nested_css.push('}');
-                    }
-                }
-                if let Some((property, _)) = nested.declaration.split_once(':')
-                    && base.contains(&format!("{property}:"))
-                {
-                    anchored_nested.push((property.to_owned(), nested_css.clone()));
-                }
-                nested_in_rule_css.push_str(&nested_css);
-            }
-        }
-        if anchored_nested.is_empty() {
-            output.push_str(&base);
-            output.push_str(&nested_in_rule_css);
-        } else {
-            let mut inlined = base.clone();
-            for (property, nested_css) in anchored_nested {
-                let marker = format!("{property}:");
-                if let Some(start) = inlined.find(&marker)
-                    && let Some(end) = inlined[start..].find(';')
-                {
-                    inlined.insert_str(start + end + 1, &nested_css);
-                }
-            }
-            output.push_str(&inlined);
-        }
+        output.push_str(&assemble_nested_declarations(&base, &nested));
         output.push('}');
     }
 }
 
-/// Inserts a nested at-rule after the property it overrides, or at the end when it has no match.
-pub(in crate::compiler) fn insert_nested_declaration(
-    declaration: &mut String,
-    nested: &NestedUtilityRule,
-) {
-    let mut nested_css = String::new();
-    match nested.at_rule {
-        NestedUtilityAtRule::Media => {
-            nested_css.push_str("@media ");
-            nested_css.push_str(&nested.condition);
-            nested_css.push('{');
-        }
-        NestedUtilityAtRule::Supports => {
-            nested_css.push_str("@supports (");
-            nested_css.push_str(&nested.condition);
-            nested_css.push_str("){");
+/// Arranges conditional rules at declaration boundaries before emitting the body.
+/// Each conditional is emitted once, in source order, including unmatched properties.
+fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> String {
+    let declarations = declaration_ranges(base)
+        .into_iter()
+        .map(|range| &base[range])
+        .collect::<Vec<_>>();
+    let anchors = nested
+        .iter()
+        .map(|rule| {
+            let property = rule.declaration.split_once(':')?.0.trim();
+            declarations.iter().position(|declaration| {
+                declaration
+                    .split_once(':')
+                    .is_some_and(|(name, _)| name.trim() == property)
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut output = String::new();
+    for (index, declaration) in declarations.iter().enumerate() {
+        output.push_str(declaration);
+        output.push(';');
+        for (rule, anchor) in nested.iter().zip(&anchors) {
+            if *anchor == Some(index) {
+                emit_nested_rule(&mut output, rule);
+            }
         }
     }
-    nested_css.push_str(&nested.declaration);
-    nested_css.push('}');
-    let Some((property, _)) = nested.declaration.split_once(':') else {
-        declaration.push_str(&nested_css);
-        return;
-    };
-    let marker = format!("{}:", property.trim());
-    let Some(start) = declaration.find(&marker) else {
-        declaration.push_str(&nested_css);
-        return;
-    };
-    let Some(end) = declaration[start..].find(';') else {
-        declaration.push_str(&nested_css);
-        return;
-    };
-    declaration.insert_str(start + end + 1, &nested_css);
+    for (rule, anchor) in nested.iter().zip(&anchors) {
+        if anchor.is_none() {
+            emit_nested_rule(&mut output, rule);
+        }
+    }
+    output
+}
+
+fn emit_nested_rule(output: &mut String, nested: &NestedUtilityRule) {
+    match nested.at_rule {
+        NestedUtilityAtRule::Media => {
+            output.push_str("@media ");
+            output.push_str(&nested.condition);
+            output.push('{');
+        }
+        NestedUtilityAtRule::Supports => {
+            output.push_str("@supports (");
+            output.push_str(&nested.condition);
+            output.push_str("){");
+        }
+    }
+    output.push_str(&nested.declaration);
+    output.push('}');
 }
 
 #[cfg(test)]
@@ -206,14 +182,43 @@ mod tests {
 
     #[test]
     fn nested_declarations_follow_the_property_they_override() {
-        let mut declaration = "color:red;width:1px;".to_owned();
+        let declaration = "color:red;width:1px;";
         let rule = NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
             declaration: "color:blue;".into(),
             inside: false,
         };
-        insert_nested_declaration(&mut declaration, &rule);
+        let declaration = assemble_nested_declarations(declaration, &[&rule]);
         assert_eq!(declaration, "color:red;@media print{color:blue;}width:1px;");
+    }
+
+    #[test]
+    fn nested_rules_keep_boundaries_unmatched_rules_and_source_order() {
+        let first = NestedUtilityRule {
+            at_rule: NestedUtilityAtRule::Media,
+            condition: "print".into(),
+            declaration: "color:blue;".into(),
+            inside: true,
+        };
+        let second = NestedUtilityRule {
+            declaration: "color:green;".into(),
+            ..first.clone()
+        };
+        let unmatched = NestedUtilityRule {
+            declaration: "opacity:0.5;".into(),
+            ..first.clone()
+        };
+        assert_eq!(
+            assemble_nested_declarations(
+                "border-color:red;content:'color:;';color:red;color:black;",
+                &[&first, &second, &unmatched]
+            ),
+            "border-color:red;content:'color:;';color:red;@media print{color:blue;}@media print{color:green;}color:black;@media print{opacity:0.5;}"
+        );
+        assert_eq!(
+            assemble_nested_declarations("", &[&unmatched]),
+            "@media print{opacity:0.5;}"
+        );
     }
 }

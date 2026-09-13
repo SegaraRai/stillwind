@@ -5,6 +5,7 @@
 //! second view transition in one call.
 
 use stillwind_compiler::CompilerOptions;
+use stillwind_css::fold_calc_expressions;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -31,8 +32,7 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@keyframes --sw-a-"));
     assert!(
-        result
-            .css
+        fold_calc_expressions(&result.css)
             .contains("from{opacity:0%;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}"),
         "{}",
         result.css
@@ -78,12 +78,12 @@ const detail = style(title);"#,
     assert!(
         result
             .css
-            .contains("view-transition-name:var(--sw-vt-name);")
+            .contains_css("view-transition-name:var(--sw-vt-name);")
     );
     assert!(
         result
             .css
-            .contains("view-transition-class:var(--sw-vt-class);")
+            .contains_css("view-transition-class:var(--sw-vt-class);")
     );
     let repeated_class = result.classes[result.classes.len() - 1].class_name.as_str();
     assert_eq!(

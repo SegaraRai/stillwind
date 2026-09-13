@@ -53,19 +53,23 @@ const props = style("grid place-items-center size-10 flex-col grow border outlin
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("place-items:center;"));
+    assert!(result.css.contains_css("place-items:center;"));
     assert!(
         result
             .css
-            .contains("width:var(--spacing-10);height:var(--spacing-10);")
+            .contains_css("width:var(--spacing-10);height:var(--spacing-10);")
     );
     assert!(
         result
             .css
-            .contains("grid-template-columns:repeat(3,minmax(0,1fr));")
+            .contains_css("grid-template-columns:repeat(3,minmax(0,1fr));")
     );
-    assert!(result.css.contains("outline-color:var(--color-accent);"));
-    assert!(result.css.contains("z-index:var(--z-index-popover);"));
+    assert!(
+        result
+            .css
+            .contains_css("outline-color:var(--color-accent);")
+    );
+    assert!(result.css.contains_css("z-index:var(--z-index-popover);"));
 }
 
 #[test]
@@ -83,23 +87,27 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("background-color:color-mix(in srgb"));
     assert!(result.css.contains("background-color:color-mix(in oklab"));
-    assert!(result.css.contains("--tw-gradient-position:to right;"));
+    assert!(result.css.contains_css("--tw-gradient-position:to right;"));
     assert!(
         result
             .css
-            .contains("--tw-gradient-from:var(--color-red-500);")
+            .contains_css("--tw-gradient-from:var(--color-red-500);")
     );
-    assert!(result.css.contains("--tw-gradient-via:var(--color-white);"));
     assert!(
         result
             .css
-            .contains("--tw-gradient-to:var(--color-blue-500);")
+            .contains_css("--tw-gradient-via:var(--color-white);")
+    );
+    assert!(
+        result
+            .css
+            .contains_css("--tw-gradient-to:var(--color-blue-500);")
     );
     assert!(result.css.contains("--tw-mask-linear-from-position:"));
     assert!(
         result
             .css
-            .contains("--tw-mask-linear-to-position:calc(var(--spacing) * 100);")
+            .contains_css("--tw-mask-linear-to-position:calc(var(--spacing) * 100);")
     );
     assert!(result.css.contains("@property --tw-gradient-position {"));
     assert!(result.css.contains("@property --tw-mask-linear {"));

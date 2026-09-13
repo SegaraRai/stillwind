@@ -107,7 +107,7 @@ export function SaveButton() {
             .starts_with("@layer theme, base, components, utilities;")
     );
     assert!(!result.css.contains("@layer properties;"));
-    assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
+    assert!(result.css.contains_css("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("@layer base"));
     assert!(result.css.contains(&format!(".{}{{display:inline-flex;padding-inline:var(--spacing-4);align-items:center;text-align:center;background-color:var(--color-accent);border-radius:var(--radius-md);}}", result.classes[0].class_name)), "{}", result.css);
 }
@@ -210,8 +210,12 @@ const props = style("bg-accent", loading && "opacity-60");"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
-    assert!(result.css.contains("background-color:var(--color-accent);"));
-    assert!(result.css.contains("opacity:60%;"), "{}", result.css);
+    assert!(
+        result
+            .css
+            .contains_css("background-color:var(--color-accent);")
+    );
+    assert!(result.css.contains_css("opacity:60%;"), "{}", result.css);
 }
 
 #[test]
@@ -235,8 +239,16 @@ const props = style(active ? "bg-accent" : "bg-muted");"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
-    assert!(result.css.contains("background-color:var(--color-accent);"));
-    assert!(result.css.contains("background-color:var(--color-muted);"));
+    assert!(
+        result
+            .css
+            .contains_css("background-color:var(--color-accent);")
+    );
+    assert!(
+        result
+            .css
+            .contains_css("background-color:var(--color-muted);")
+    );
     let replacement = &result.transforms[0].replacement;
     assert!(replacement.contains("(active) ? ("), "{replacement}");
     assert!(replacement.contains(") : ("), "{replacement}");

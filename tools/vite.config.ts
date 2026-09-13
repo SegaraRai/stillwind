@@ -35,6 +35,11 @@ export default defineConfig({
       "tailwind:parity": {
         command: "cargo test -p stillwind-compiler --test static_compile matches_tailwind_",
       },
+      "tailwind:inventory": {
+        command: "node tailwind-inventory.mts",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
       "tailwind:parity:all": {
         command: "node tailwind-parity.mts",
         dependsOn: ["@stillwind/native#build"],

@@ -235,7 +235,7 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
         result.css
     );
     assert!(
-        result.css.contains("animation-duration:120ms;"),
+        result.css.contains_css("animation-duration:120ms;"),
         "{}",
         result.css
     );

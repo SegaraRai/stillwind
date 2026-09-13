@@ -16,6 +16,7 @@
 
 use std::fmt::Write as _;
 
+use stillwind_css::instantiate_selector;
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_ir::StyleVariant;
 use stillwind_source::{CompileError, Spanned};
@@ -221,20 +222,20 @@ fn reference_path(
                 reference.push_str(suffix);
             }
             VariantStep::SelectorTemplate(template) => {
-                reference = template.replace('&', &reference);
+                reference = instantiate_selector(template, &reference);
             }
             VariantStep::SelectorRule {
                 selector,
                 declarations: additions,
             } => {
-                reference = selector.replace('&', &reference);
+                reference = instantiate_selector(selector, &reference);
                 declarations.extend_from_slice(additions);
             }
             VariantStep::SelectorMedia {
                 selector,
                 condition,
             } => {
-                reference = selector.replace('&', &reference);
+                reference = instantiate_selector(selector, &reference);
                 conditions.push(VariantApplication::Media((*condition).to_owned()));
             }
             VariantStep::SelectorMediaRule {
@@ -242,7 +243,7 @@ fn reference_path(
                 declarations: additions,
                 condition,
             } => {
-                reference = selector.replace('&', &reference);
+                reference = instantiate_selector(selector, &reference);
                 declarations.extend_from_slice(additions);
                 conditions.push(VariantApplication::Media((*condition).to_owned()));
             }
@@ -268,7 +269,10 @@ fn reference_path(
         {
             format!(".{marker}:where({suffix})")
         }
-        _ => format!(":where({})", reference.replace('&', &format!(".{marker}"))),
+        _ => format!(
+            ":where({})",
+            instantiate_selector(&reference, &format!(".{marker}"))
+        ),
     };
     let selector = match scope {
         Some(scope) => format!("{scope}:has({reference}) &"),

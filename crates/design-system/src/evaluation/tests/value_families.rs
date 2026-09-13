@@ -55,11 +55,11 @@ fn resolves_tailwind_static_keyword_utilities_from_the_css_registry() {
         let resolved = resolve_utility(candidate, &theme)
             .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
         assert!(
-            resolved.declaration.contains(declaration)
+            resolved.declaration.contains_css(declaration)
                 || resolved
                     .additional
                     .iter()
-                    .any(|target| target.declaration.contains(declaration)),
+                    .any(|target| target.declaration.contains_css(declaration)),
             "{candidate}: {resolved:#?}"
         );
     }
@@ -72,12 +72,12 @@ fn resolves_discrete_tailwind_keywords_without_fixture_mappings() {
         (
             "divide-y",
             "border-bottom-style:var(--tw-border-style);border-top-style:var(--tw-border-style);border-top-width:calc(1px * var(--tw-divide-y-reverse));border-bottom-width:calc(1px * (1 - var(--tw-divide-y-reverse)));",
-            Some(":where(&>:not(:last-child))"),
+            Some(":where(& > :not(:last-child))"),
         ),
         (
             "divide-dashed",
             "border-style:dashed;",
-            Some(":where(&>:not(:last-child))"),
+            Some(":where(& > :not(:last-child))"),
         ),
         ("m-auto", "margin:auto;", None),
         ("mix-blend-color-dodge", "mix-blend-mode:color-dodge;", None),
@@ -101,11 +101,11 @@ fn resolves_discrete_tailwind_keywords_without_fixture_mappings() {
         let resolved = resolve_utility(candidate, &theme)
             .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
         assert!(
-            resolved.declaration.contains(declaration)
+            resolved.declaration.contains_css(declaration)
                 || resolved
                     .additional
                     .iter()
-                    .any(|target| target.declaration.contains(declaration)),
+                    .any(|target| target.declaration.contains_css(declaration)),
             "{candidate}: {resolved:#?}"
         );
         assert_eq!(
@@ -132,7 +132,7 @@ fn resolves_fraction_and_theme_value_families_from_typed_css_domains() {
         let resolved = resolve_utility(candidate, &theme)
             .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
         assert!(
-            resolved.declaration.contains(declaration),
+            resolved.declaration.contains_css(declaration),
             "{candidate}: {resolved:#?}"
         );
     }
@@ -150,7 +150,7 @@ fn resolves_text_lengths_and_additional_discrete_layout_keywords() {
         let resolved = resolve_utility(candidate, &theme)
             .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
         assert!(
-            resolved.declaration.contains(declaration),
+            resolved.declaration.contains_css(declaration),
             "{candidate}: {resolved:#?}"
         );
     }
@@ -169,7 +169,7 @@ fn resolves_text_lengths_and_additional_discrete_layout_keywords() {
             .token_in(ThemeNamespace::FontStretch, "superbold")
             .is_some()
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("font-stretch-superbold", &custom_theme)
             .unwrap()
             .declaration,
@@ -196,7 +196,7 @@ fn validates_unhinted_and_hint_checked_arbitrary_css_values() {
             "expected `{candidate}` to resolve"
         );
     }
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("p-[50%]", &theme).unwrap().declaration,
         "padding:50%;"
     );

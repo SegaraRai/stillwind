@@ -4,13 +4,14 @@
 //! shorthand and longhand precedence reproducible; a user definition records no position and stays
 //! where the author wrote it. Two equal positions fall back to the candidate spelling, so output is
 //! stable for a given input. Combining, rather than concatenating, the declarations is also where
-//! declaration formats apply and where `calc()` expressions are folded, so a caller must always go
+//! semantic declaration composition applies, so a caller must always go
 //! through `combine_declarations_for_theme` instead of joining declaration strings itself.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use stillwind_css::functions::find_css_functions;
-use stillwind_css::{declaration_ranges, fold_calc_expressions};
+use cssparser::{ParseError, Parser, Token};
+
+use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
     ThemeIndex, VariantDeclaration, builtin_declaration_formats, declaration_format,
 };
@@ -44,17 +45,6 @@ pub(in crate::compiler) fn prepend_missing_declarations(
     declaration.insert_str(0, &supporting);
 }
 
-/// Test-only combination against the built-in fixture registry.
-#[cfg(test)]
-fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
-    use stillwind_design_system::parse_declaration_formats;
-
-    combine_declarations_with_formats(
-        utilities,
-        &parse_declaration_formats(crate::test_defaults::BUILTIN_REGISTRY_CSS),
-    )
-}
-
 /// Combines the declarations of several utilities into one block body.
 //
 // A theme that carries its own declaration formats overrides the built-in set entirely, which is
@@ -73,83 +63,109 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
 
 /// The combination itself, with declaration formats supplied by the caller.
 ///
-/// Formats decide three behaviors: `compose-space` appends a later value to the property's first
-/// occurrence instead of repeating the property, `empty-space` keeps an intentionally empty value
-/// visible, and `comma-space` normalizes fallback `var()` spacing. Declarations that no format
-/// mentions are emitted verbatim in their ordered position.
+/// `compose-space` appends a later value at the first occurrence of its property.
+/// Other declarations retain their resolved values without output optimization.
 pub(in crate::compiler) fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
     formats: &BTreeMap<String, String>,
 ) -> String {
-    let mut declarations = String::new();
-    let mut composed = HashMap::<String, usize>::new();
-    let mut ordered = Vec::<String>::new();
+    enum Declaration<'a> {
+        Raw(&'a str),
+        Composed {
+            property: &'a str,
+            values: Vec<&'a str>,
+            important: bool,
+        },
+    }
+    let mut composed = HashMap::<&str, usize>::new();
+    let mut ordered = Vec::<Declaration<'_>>::new();
     for utility in order_builtin_utilities(utilities.to_vec()) {
         for range in declaration_ranges(&utility.declaration) {
             let declaration = &utility.declaration[range];
-            let compose_space = declaration
-                .split_once(':')
-                .and_then(|(property, _)| declaration_format(formats, property))
-                .is_some_and(|format| {
+            if let Some((property, value)) = declaration.split_once(':')
+                && declaration_format(formats, property.trim()).is_some_and(|format| {
                     format
                         .split_whitespace()
                         .any(|item| item == "compose-space")
-                });
-            if compose_space {
-                if let Some((property, value)) = declaration.split_once(':') {
-                    if let Some(index) = composed.get(property).copied() {
-                        let existing = &mut ordered[index];
-                        existing.push(' ');
-                        existing.push_str(value);
-                    } else {
-                        composed.insert(property.to_owned(), ordered.len());
-                        ordered.push(declaration.to_owned());
+                })
+            {
+                let (value, important) = composition_value(value);
+                if let Some(index) = composed.get(property.trim()).copied() {
+                    if let Declaration::Composed {
+                        values,
+                        important: priority,
+                        ..
+                    } = &mut ordered[index]
+                    {
+                        values.push(value);
+                        *priority |= important;
                     }
-                }
-            } else if !declaration.is_empty() {
-                let declaration = if let Some((property, value)) = declaration.split_once(':')
-                    && value.is_empty()
-                    && declaration_format(formats, property)
-                        .is_some_and(|format| format == "empty-space")
-                {
-                    format!("{property}: ")
-                } else if let Some((property, value)) = declaration.split_once(':')
-                    && declaration_format(formats, property).is_some_and(|format| {
-                        format.split_whitespace().any(|item| item == "comma-space")
-                    })
-                {
-                    format!("{property}:{}", space_var_fallbacks(value))
                 } else {
-                    declaration.to_owned()
-                };
-                // Keep fallback `var()` comma spacing generic across all
-                // declaration values.
-                let declaration = space_var_fallbacks(&declaration);
-                let declaration = fold_calc_expressions(&declaration);
-                ordered.push(declaration);
+                    composed.insert(property.trim(), ordered.len());
+                    ordered.push(Declaration::Composed {
+                        property,
+                        values: vec![value],
+                        important,
+                    });
+                }
+            } else if !declaration.trim().is_empty() {
+                ordered.push(Declaration::Raw(declaration));
             }
         }
     }
+    let mut output = String::new();
     for declaration in ordered {
-        declarations.push_str(&declaration);
-        declarations.push(';');
-    }
-    declarations
-}
-
-fn space_var_fallbacks(value: &str) -> String {
-    let mut output = value.to_owned();
-    let mut positions = Vec::new();
-    for found in find_css_functions(value, &["var"], 0) {
-        let start = found.start;
-        if start > 0 && value.as_bytes()[start - 1] == b',' {
-            positions.push(start);
+        match declaration {
+            Declaration::Raw(declaration) => output.push_str(declaration),
+            Declaration::Composed {
+                property,
+                values,
+                important,
+            } => {
+                output.push_str(property);
+                output.push(':');
+                output.push_str(&values.join(" "));
+                if important {
+                    output.push_str("!important");
+                }
+            }
         }
-    }
-    for start in positions.into_iter().rev() {
-        output.insert(start, ' ');
+        output.push(';');
     }
     output
+}
+
+/// Separates priority before composing values, keeping it on the final declaration.
+fn composition_value(value: &str) -> (&str, bool) {
+    let mut parser = Parser::new(value);
+    let mut bang = None;
+    let mut priority = None;
+    loop {
+        let position = parser.position().byte_index();
+        let Ok(token) = parser.next() else {
+            break;
+        };
+        priority = if matches!(token, Token::Ident(name) if name.eq_ignore_ascii_case("important"))
+        {
+            bang
+        } else {
+            None
+        };
+        bang = matches!(token, Token::Delim('!')).then_some(position);
+        if matches!(
+            token,
+            Token::Function(_)
+                | Token::ParenthesisBlock
+                | Token::SquareBracketBlock
+                | Token::CurlyBracketBlock
+        ) {
+            let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                while inner.next_including_whitespace_and_comments().is_ok() {}
+                Ok(())
+            });
+        }
+    }
+    priority.map_or((value.trim(), false), |start| (value[..start].trim(), true))
 }
 
 /// Reorders the utilities that carry a built-in position, leaving every other element in place.
@@ -178,6 +194,17 @@ pub(in crate::compiler) fn order_builtin_utilities(
         utilities[position] = utility;
     }
     utilities
+}
+
+/// Test-only combination against the built-in fixture registry.
+#[cfg(test)]
+fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
+    use stillwind_design_system::parse_declaration_formats;
+
+    combine_declarations_with_formats(
+        utilities,
+        &parse_declaration_formats(crate::test_defaults::BUILTIN_REGISTRY_CSS),
+    )
 }
 
 #[cfg(test)]
@@ -304,5 +331,29 @@ mod tests {
         assert_eq!(declaration, "display:grid;color:red;width:1px;");
         prepend_missing_declarations(&mut declaration, &supporting);
         assert_eq!(declaration, "display:grid;color:red;width:1px;");
+    }
+
+    #[test]
+    fn composed_values_emit_priority_once_after_all_components() {
+        let make = |declaration: &str| CompiledUtility {
+            variants: Vec::new(),
+            variant_applications: Vec::new(),
+            declaration: declaration.into(),
+            selector: None,
+            container: None,
+            nested: Vec::new(),
+            builtin_order: None,
+            candidate: String::new(),
+        };
+        let first = make("transform:rotate(1deg)!important;");
+        let second = make("transform:scale(2) ! IMPORTANT;");
+        assert_eq!(
+            combine_declarations(&[&first, &second]),
+            "transform:rotate(1deg) scale(2)!important;"
+        );
+        assert_eq!(
+            composition_value("var(--x, '!important')"),
+            ("var(--x, '!important')", false)
+        );
     }
 }

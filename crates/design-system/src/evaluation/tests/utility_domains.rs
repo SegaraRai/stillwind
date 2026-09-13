@@ -75,18 +75,18 @@ fn preserves_a_nested_selector_from_a_css_utility() {
     );
     assert_eq!(
         resolved.selector.as_deref(),
-        Some(":where(&>:not(:last-child))")
+        Some(":where(& > :not(:last-child))")
     );
 }
 
 #[test]
 fn resolves_fixture_style_static_theme_and_arbitrary_candidates() {
     let theme = theme();
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("!flex", &theme).unwrap().declaration,
         "display:flex!important;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("-mt-4", &theme).unwrap().declaration,
         "margin-top:calc(var(--spacing) * -4);"
     );
@@ -102,13 +102,13 @@ fn resolves_fixture_style_static_theme_and_arbitrary_candidates() {
                 .contains("background-color:color-mix(in oklab")
             && rule.declaration.contains("color-mix(in oklab")
     }));
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("w-(--sidebar)", &theme)
             .unwrap()
             .declaration,
         "width:var(--sidebar);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("[color:rebeccapurple]", &theme)
             .unwrap()
             .declaration,
@@ -119,7 +119,7 @@ fn resolves_fixture_style_static_theme_and_arbitrary_candidates() {
 #[test]
 fn respects_tailwind_theme_namespace_resets_when_resolving_utilities() {
     let default_theme = theme();
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-red-500", &default_theme)
             .expect("the vendored Tailwind theme provides red-500")
             .declaration,
@@ -136,19 +136,19 @@ fn respects_tailwind_theme_namespace_resets_when_resolving_utilities() {
     )
     .unwrap();
     assert!(resolve_utility("bg-red-500", &reset_theme).is_none());
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-brand", &reset_theme)
             .unwrap()
             .declaration,
         "background-color:var(--color-brand);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-current", &reset_theme)
             .unwrap()
             .declaration,
         "background-color:currentcolor;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-transparent", &reset_theme)
             .unwrap()
             .declaration,
@@ -162,14 +162,14 @@ fn resolves_native_mask_conic_angles() {
     assert!(
         resolved
             .declaration
-            .contains("--tw-mask-conic-position:45deg;"),
+            .contains_css("--tw-mask-conic-position:45deg;"),
         "{resolved:?}"
     );
     let negative = resolve_utility("-mask-conic-45", &theme()).expect("negative mask conic angle");
     assert!(
         negative
             .declaration
-            .contains("--tw-mask-conic-position:-45deg;"),
+            .contains_css("--tw-mask-conic-position:-45deg;"),
         "{negative:?}"
     );
 }
@@ -180,7 +180,7 @@ fn resolves_gradient_interpolation_modifiers_in_the_css_registry() {
     assert!(
         default
             .declaration
-            .contains("--tw-gradient-position:from 45deg in oklab;"),
+            .contains_css("--tw-gradient-position:from 45deg in oklab;"),
         "{default:?}"
     );
     let interpolated =
@@ -188,24 +188,24 @@ fn resolves_gradient_interpolation_modifiers_in_the_css_registry() {
     assert!(
         interpolated
             .declaration
-            .contains("from 45deg in oklch increasing hue")
+            .contains_css("from 45deg in oklch increasing hue")
     );
 }
 
 #[test]
 fn resolves_css_defined_color_and_gradient_utilities() {
     let theme = theme();
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("fill-brand/50", &theme)
             .unwrap()
             .declaration,
         "fill:color-mix(in srgb, red 50%, transparent);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("from-brand", &theme).unwrap().declaration,
         "--tw-gradient-from:var(--color-brand);--tw-gradient-stops:var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-linear-to-r", &theme)
             .unwrap()
             .declaration,
@@ -216,45 +216,45 @@ fn resolves_css_defined_color_and_gradient_utilities() {
 #[test]
 fn resolves_ambiguous_backgrounds_through_typed_utility_branches() {
     let theme = theme();
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[10px]", &theme).unwrap().declaration,
         "background-position:10px;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[20%_30%]", &theme).unwrap().declaration,
         "background-position:20% 30%;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[10px_auto]", &theme)
             .unwrap()
             .declaration,
         "background-size:10px auto;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[var(--surface)]", &theme)
             .unwrap()
             .declaration,
         "background-color:var(--surface);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[color:rebeccapurple]", &theme)
             .unwrap()
             .declaration,
         "background-color:rebeccapurple;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[image:linear-gradient(red,blue)]", &theme)
             .unwrap()
             .declaration,
         "background-image:linear-gradient(red,blue);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[position:center_20%]", &theme)
             .unwrap()
             .declaration,
         "background-position:center 20%;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("bg-[bg-size:24rem_auto]", &theme)
             .unwrap()
             .declaration,
@@ -275,13 +275,13 @@ fn prunes_only_incompatible_declarations_from_a_typed_utility_body() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
 
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("token-[color:rebeccapurple]", &theme)
             .unwrap()
             .declaration,
         "color: rebeccapurple;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("token-[length:12px]", &theme)
             .unwrap()
             .declaration,
@@ -322,7 +322,7 @@ fn resolves_typed_modifier_domains_without_accepting_other_types() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
 
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("prose-sm/6", &theme).unwrap().declaration,
         "font-size: var(--text-sm);\n  line-height: calc(var(--spacing) * 6);"
     );

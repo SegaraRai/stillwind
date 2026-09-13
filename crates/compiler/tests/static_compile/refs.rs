@@ -29,7 +29,7 @@ const panel = style(popover.position, "absolute");"#,
     assert!(result.css.contains("position-anchor:--sw-r-"));
     assert!(result.css.contains("anchor-scope:--sw-r-"));
     assert!(result.css.contains("container-name:--sw-r-"));
-    assert!(result.css.contains("container-type:inline-size;"));
+    assert!(result.css.contains_css("container-type:inline-size;"));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.ref()"));
     assert!(transformed.contains("const popover = undefined;"));
@@ -79,7 +79,7 @@ const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
     assert!(
         result
             .css
-            .contains("grid-template-columns:repeat(2,minmax(0,1fr));")
+            .contains_css("grid-template-columns:repeat(2,minmax(0,1fr));")
     );
 }
 

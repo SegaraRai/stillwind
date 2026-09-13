@@ -1,0 +1,5 @@
+@import "tailwindcss/theme" layer(theme) prefix(tw);
+@import "tailwindcss/utilities" layer(utilities) prefix(tw);
+@theme {
+  --color-brand: rebeccapurple;
+}

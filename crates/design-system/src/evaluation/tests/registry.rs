@@ -69,8 +69,8 @@ fn resolves_animation_options_from_css_registry_metadata() {
         Some("animation-duration:var(--duration-normal);")
     );
     assert_eq!(
-        resolve_animation_option("duration-120", &theme).as_deref(),
-        Some("animation-duration:120ms;")
+        resolve_animation_option("duration-120", &theme).map(|value| css_tokens(&value)),
+        Some(css_tokens("animation-duration:120ms;"))
     );
     assert_eq!(
         resolve_animation_option("ease-standard", &theme).as_deref(),
@@ -94,12 +94,10 @@ fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
     )
     .unwrap();
     assert_eq!(
-        resolve_utility("text-copy", &theme)
-            .map(|utility| utility.declaration)
-            .as_deref(),
-        Some(
+        resolve_utility("text-copy", &theme).map(|utility| css_tokens(&utility.declaration)),
+        Some(css_tokens(
             "font-size:var(--text-copy);line-height:var(--tw-leading,var(--text-copy--line-height));"
-        )
+        ))
     );
 }
 

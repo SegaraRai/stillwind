@@ -33,6 +33,7 @@ pub mod functions;
 mod math;
 mod output;
 mod resources;
+mod selectors;
 mod values;
 
 pub use colors::*;
@@ -41,4 +42,5 @@ pub use declarations::*;
 pub use math::*;
 pub use output::*;
 pub use resources::*;
+pub use selectors::*;
 pub use values::*;

@@ -5,6 +5,7 @@
 //! about declarations rather than about whitespace.
 
 use stillwind_compiler::CompileResult;
+use stillwind_css::fold_calc_expressions;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -228,7 +229,9 @@ pub(super) fn tailwind_class_selector(candidate: &str) -> String {
 }
 
 pub(super) fn minify_css(css: &str) -> String {
-    let sheet = StyleSheet::parse(css, ParserOptions::default()).expect("CSS must parse");
+    // Value normalization belongs to the test oracle, never the production emitter.
+    let css = fold_calc_expressions(css);
+    let sheet = StyleSheet::parse(&css, ParserOptions::default()).expect("CSS must parse");
     sheet
         .to_css(PrinterOptions {
             minify: true,
@@ -237,3 +240,7 @@ pub(super) fn minify_css(css: &str) -> String {
         .expect("CSS must serialize")
         .code
 }
+
+#[path = "../../../css/test-support/assertions.rs"]
+mod css_assertions;
+pub(super) use css_assertions::CssAssertions;

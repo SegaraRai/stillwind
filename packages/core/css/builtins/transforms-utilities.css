@@ -255,42 +255,42 @@
 
 @stillwind-utility rotate-x-* {
   --tw-rotate-x: rotateX(calc(--value(integer) * 1deg));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility -rotate-x-* {
   --tw-rotate-x: rotateX(calc(--value(integer) * 1deg * -1));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-arbitrary-property --tw-rotate-y;
 
 @stillwind-utility rotate-y-* {
   --tw-rotate-y: rotateY(calc(--value(integer) * 1deg));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility -rotate-y-* {
   --tw-rotate-y: rotateY(calc(--value(integer) * 1deg * -1));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-arbitrary-property --tw-rotate-z;
 
 @stillwind-utility rotate-z-* {
   --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility -rotate-z-* {
   --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg * -1));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 /* MARK: Skew */
@@ -307,8 +307,8 @@
 @stillwind-utility skew-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg));
   --tw-skew-y: skewY(calc(--value(integer) * 1deg));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility skew-* {
@@ -318,8 +318,8 @@
 @stillwind-utility -skew-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg * -1));
   --tw-skew-y: skewY(calc(--value(integer) * 1deg * -1));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-arbitrary-property --tw-skew-x;
@@ -332,8 +332,8 @@
 
 @stillwind-utility skew-x-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility skew-x-* {
@@ -342,8 +342,8 @@
 
 @stillwind-utility -skew-x-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg * -1));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-arbitrary-property --tw-skew-y;
@@ -356,8 +356,8 @@
 
 @stillwind-utility skew-y-* {
   --tw-skew-y: skewY(calc(--value(integer) * 1deg));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility skew-y-* {
@@ -366,8 +366,8 @@
 
 @stillwind-utility -skew-y-* {
   --tw-skew-y: skewY(calc(--value(integer) * 1deg * -1));
-  transform: var(--tw-rotate-x) var(--tw-rotate-y) var(--tw-rotate-z) var(--tw-skew-x)
-    var(--tw-skew-y);
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 /* MARK: `transform` */

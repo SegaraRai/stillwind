@@ -1,0 +1,157 @@
+[
+  {
+    "case": "control",
+    "elapsed": 2.553,
+    "exit_code": 0,
+    "output": {
+      "css": "._s_f87e29bc{color: red;}",
+      "code": " export const value = {className:\"_s_f87e29bc\"};",
+      "classes": [
+        {
+          "class_name": "_s_f87e29bc",
+          "call_span": {
+            "file": 1,
+            "start": 62,
+            "end": 76
+          },
+          "guard_path": []
+        }
+      ],
+      "diagnostics": [],
+      "lint_findings": [],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  },
+  {
+    "case": "recursive-placeholder",
+    "elapsed": 0.034,
+    "exit_code": 0,
+    "output": {
+      "css": "",
+      "code": " export const value = {className:\"x-loop\"};",
+      "classes": [],
+      "diagnostics": [],
+      "lint_findings": [
+        {
+          "rule": "unknown-utility",
+          "message": "unknown or unavailable utility `x-loop`",
+          "start": 69,
+          "end": 75
+        }
+      ],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  },
+  {
+    "case": "quoted-calc",
+    "elapsed": 0.035,
+    "exit_code": 0,
+    "output": {
+      "css": "._s_e59458cc{content: \"calc(1 + 1)\";}",
+      "code": " export const value = {className:\"_s_e59458cc\"};",
+      "classes": [
+        {
+          "class_name": "_s_e59458cc",
+          "call_span": {
+            "file": 1,
+            "start": 62,
+            "end": 72
+          },
+          "guard_path": []
+        }
+      ],
+      "diagnostics": [],
+      "lint_findings": [],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  },
+  {
+    "case": "important-string-semicolon",
+    "elapsed": 0.036,
+    "exit_code": 0,
+    "output": {
+      "css": "._s_efb9579c{content: \"a;b\"!important;}",
+      "code": " export const value = {className:\"_s_efb9579c\"};",
+      "classes": [
+        {
+          "class_name": "_s_efb9579c",
+          "call_span": {
+            "file": 1,
+            "start": 62,
+            "end": 73
+          },
+          "guard_path": []
+        }
+      ],
+      "diagnostics": [],
+      "lint_findings": [],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  },
+  {
+    "case": "unknown-placeholder",
+    "elapsed": 0.034,
+    "exit_code": 0,
+    "output": {
+      "css": "._s_e59458cc{color: --unknown-placeholder();}",
+      "code": " export const value = {className:\"_s_e59458cc\"};",
+      "classes": [
+        {
+          "class_name": "_s_e59458cc",
+          "call_span": {
+            "file": 1,
+            "start": 62,
+            "end": 72
+          },
+          "guard_path": []
+        }
+      ],
+      "diagnostics": [],
+      "lint_findings": [],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  },
+  {
+    "case": "mixed-variant-order",
+    "elapsed": 0.03,
+    "exit_code": 0,
+    "output": {
+      "css": "._s_e82dd9ca:focus{color:red;}",
+      "code": " export const value = {className:\"_s_e82dd9ca\"};",
+      "classes": [
+        {
+          "class_name": "_s_e82dd9ca",
+          "call_span": {
+            "file": 1,
+            "start": 62,
+            "end": 78
+          },
+          "guard_path": []
+        }
+      ],
+      "diagnostics": [],
+      "lint_findings": [],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  },
+  {
+    "case": "unused-motion-css",
+    "elapsed": 0.033,
+    "exit_code": 0,
+    "output": {
+      "css": "",
+      "code": " const unused = undefined; export const value = 1;",
+      "classes": [],
+      "diagnostics": [],
+      "lint_findings": [],
+      "lint_policy": {}
+    },
+    "stderr": ""
+  }
+]

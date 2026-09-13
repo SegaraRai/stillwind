@@ -1,0 +1,7 @@
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@theme {
+  --shadow-lg: 0 0 1px rgb(255 0 0 / 0.4), 0 0 3px rgb(0 0 255 / 0.2);
+  --inset-shadow-sm: inset 0 0 2px rgb(0 128 0 / 0.3);
+  --drop-shadow-sm: 0 0 4px rgb(128 0 128 / 0.5);
+}

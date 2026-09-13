@@ -6,6 +6,7 @@
 //! variant wrapper is equivalent to the same prefix written on the utility.
 
 use stillwind_compiler::CompilerOptions;
+use stillwind_css::fold_calc_expressions;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -33,7 +34,7 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
     assert!(
         result
             .css
-            .contains("container-name:sidebar;container-type:inline-size;")
+            .contains_css("container-name:sidebar;container-type:inline-size;")
     );
     assert!(result.css.contains(":is(:where(.group\\/menu):hover *)"));
     assert!(
@@ -90,11 +91,11 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("--spacing:0.25rem;"));
+    assert!(result.css.contains_css("--spacing:0.25rem;"));
     assert!(
         result
             .css
-            .contains("--animate-spin:spin 1s linear infinite;")
+            .contains_css("--animate-spin:spin 1s linear infinite;")
     );
     assert!(result.css.contains("@keyframes spin {"));
     assert!(!result.css.contains("--color-red-500:"));
@@ -180,21 +181,21 @@ const props = style("bg-linear-to-r");"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("--tw-gradient-position:to right;"));
+    assert!(result.css.contains_css("--tw-gradient-position:to right;"));
     assert!(
         result
             .css
-            .contains("@supports (background-image:linear-gradient")
+            .contains("@supports (background-image: linear-gradient")
     );
     assert!(
         result
             .css
-            .contains("--tw-gradient-position:to right in oklab;")
+            .contains_css("--tw-gradient-position:to right in oklab;")
     );
     assert!(
         result
             .css
-            .contains("--tw-gradient-position:to right in oklab;")
+            .contains_css("--tw-gradient-position:to right in oklab;")
     );
 }
 
@@ -214,12 +215,12 @@ const props = style("outline-hidden");"#,
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
         result.css.contains(
-            "@media (forced-colors:active){outline-offset:2px;outline:2px solid transparent;}"
+            "@media (forced-colors: active){outline-offset:2px;outline:2px solid transparent;}"
         ),
         "{}",
         result.css
     );
-    assert!(result.css.contains("outline:2px solid transparent;"));
+    assert!(result.css.contains_css("outline:2px solid transparent;"));
 }
 
 #[test]
@@ -261,7 +262,11 @@ const props = style("starting:opacity-0");"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@starting-style{._s_"));
-    assert!(result.css.contains("{opacity:0%;}"), "{}", result.css);
+    assert!(
+        fold_calc_expressions(&result.css).contains("{opacity:0%;}"),
+        "{}",
+        result.css
+    );
 }
 
 #[test]

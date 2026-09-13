@@ -1,6 +1,7 @@
 //! Bounded expansion of compiler-owned CSS functions.
 
 use std::collections::BTreeSet;
+
 use stillwind_css::functions::{CssFunctionMatch, find_css_functions};
 
 /// Single-family wrapper of [`expand_placeholders`].

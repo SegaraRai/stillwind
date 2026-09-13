@@ -1,14 +1,14 @@
 ::view-transition-old(.--sw-v-7e58d129) {
-  opacity: 0%;
+  opacity: calc(0 * 1%);
 }
 ::view-transition-new(.--sw-v-7e58d129) {
-  opacity: 100%;
+  opacity: calc(100 * 1%);
 }
 ::view-transition-old(.--sw-v-5ce18560) {
-  opacity: 100%;
+  opacity: calc(100 * 1%);
 }
 ::view-transition-new(.--sw-v-5ce18560) {
-  opacity: 0%;
+  opacity: calc(0 * 1%);
 }
 ._s_dd456996 {
   --sw-vt-name: none;

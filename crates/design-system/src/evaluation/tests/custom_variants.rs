@@ -80,7 +80,7 @@ fn resolves_compat_color_value_function() {
         "@theme { --color-brand: red; --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility tone-* { color: --compat-color(--value(--color-*), --alpha(--modifier())); }",
     ).unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("tone-brand/50", &theme)
             .unwrap()
             .declaration,
@@ -92,7 +92,7 @@ fn resolves_compat_color_value_function() {
     assert!(
         utility.nested[0]
             .declaration
-            .contains("color-mix(in oklab, var(--color-brand) 50%, transparent)")
+            .contains_css("color-mix(in oklab, var(--color-brand) 50%, transparent)")
     );
 
     let plain_source = SourceFile::new(
@@ -102,7 +102,7 @@ fn resolves_compat_color_value_function() {
     )
     .unwrap();
     let plain_theme = parse_fixture_theme(&plain_source).unwrap();
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("plain-tone", &plain_theme)
             .unwrap()
             .declaration,

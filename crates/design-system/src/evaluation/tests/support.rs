@@ -10,17 +10,6 @@ use stillwind_css::csswg_formal_syntax;
 use super::*;
 use crate::evaluation::variants::resolve::resolve_registered_variant_candidate;
 
-/// Canonicalizes a vendored body using the formats of the standard package.
-pub(super) fn canonical_builtin_body(value: &str) -> String {
-    static FORMATS: std::sync::OnceLock<BTreeSet<String>> = std::sync::OnceLock::new();
-    crate::canonical_builtin_body(
-        value,
-        FORMATS.get_or_init(|| {
-            crate::parse_function_formats(crate::test_defaults::BUILTIN_REGISTRY_CSS)
-        }),
-    )
-}
-
 /// The formal-syntax terms the catalog treats as primitives.
 pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "angle",
@@ -250,7 +239,7 @@ pub(super) fn registry_utilities() -> Vec<(String, CustomUtility)> {
     for (file, css) in REGISTRY_FILES {
         let mut occurrences = HashMap::<String, usize>::new();
         for mut utility in crate::parse_builtin_utility_definitions(css) {
-            utility.body = canonical_builtin_body(&utility.body);
+            utility.body = utility.body.trim().to_owned();
             let occurrence = occurrences.entry(utility.name.clone()).or_default();
             *occurrence += 1;
             definitions.push((format!("{file}:{}#{occurrence}", utility.name), utility));
@@ -442,3 +431,7 @@ fn stillwind_fixture_css(css: &str) -> String {
         format!("{selected}\n@import \"stillwind/builtins.css\";")
     }
 }
+
+#[path = "../../../../css/test-support/assertions.rs"]
+mod css_assertions;
+pub(super) use css_assertions::{CssAssertions, css_tokens};

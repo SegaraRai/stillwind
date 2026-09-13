@@ -27,6 +27,12 @@ use crate::{CustomUtility, CustomVariant, ThemeIndex, ThemeNamespace};
 mod support;
 use support::*;
 
+macro_rules! assert_css_eq {
+    ($actual:expr, $expected:expr $(,)?) => {
+        assert_eq!(css_tokens(&$actual), css_tokens(&$expected));
+    };
+}
+
 mod animations;
 mod audit;
 mod custom_variants;

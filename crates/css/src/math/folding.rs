@@ -103,14 +103,13 @@ pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>
 /// syntax. Non-zero and non-numeric values are returned unchanged.
 #[must_use]
 pub fn format_numeric_zero(value: &str, unit: &str) -> String {
-    let folded = fold_calc_expressions_with_zero_unit(value, Some(unit));
     if matches!(
-        MathParser::new(folded.trim()).parse(),
+        MathParser::new(value.trim()).parse(),
         Some(MathExpression::Value(MathValue::Number(0.0)))
     ) {
         format!("0{unit}")
     } else {
-        folded
+        value.to_owned()
     }
 }
 

@@ -1,0 +1,336 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { createWriteStream, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { finished } from "node:stream/promises";
+import { setImmediate } from "node:timers/promises";
+import { createGzip } from "node:zlib";
+
+import {
+  compileReact,
+  foldCalcExpressions,
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+  type ProjectModuleOutput,
+} from "@stillwind/native";
+import { generate, parse, walk, type CssNode } from "css-tree";
+import { transform } from "lightningcss";
+
+import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
+import { hasEquivalentDeclarationOrder } from "./lib/property-order-parity.ts";
+import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
+import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
+
+const root = resolve(import.meta.dirname, "..");
+const fixtureRoot = join(root, "fixtures/tailwind-v4");
+const outputRoot = join(root, "docs/reviews/data/2026-09-13-tailwind-inventory");
+mkdirSync(outputRoot, { recursive: true });
+const evidence = createGzip();
+const evidenceFile = createWriteStream(join(outputRoot, "mismatches.jsonl.gz"));
+evidence.pipe(evidenceFile);
+const started = performance.now();
+const counts: Record<string, number> = {};
+const rows: Record<string, unknown>[] = [];
+const exclusions: Record<string, unknown>[] = [];
+const sessions = new Map<string, { session: NativeProjectSession; css: string; uses: number }>();
+let directChecks = 0;
+let checked = 0;
+
+// Preserve the existing gate's normalization exactly. Diagnostic transformations
+// below classify differences; they never convert a failure into an accepted result.
+function minify(css: string): string {
+  return transform({
+    filename: "parity.css",
+    code: Buffer.from(foldCalcExpressions(css.replaceAll(/\/\*[\s\S]*?\*\//g, ""))),
+    minify: true,
+    errorRecovery: true,
+  }).code.toString();
+}
+function selector(candidate: string): string {
+  const escaped = candidate.replaceAll(/[^a-zA-Z0-9_-]/g, (value) =>
+    value.codePointAt(0)! >= 0x80 ? value : `\\${value}`,
+  );
+  return /^\d/.test(candidate) ? `\\3${candidate[0]} ${escaped.slice(1)}` : escaped;
+}
+function equivalent(a: string, b: string): boolean {
+  return a === b || hasEquivalentDeclarationOrder(a, b);
+}
+function withoutEmptyTheme(css: string): string {
+  const ast = parse(css);
+  if (ast.type !== "StyleSheet") throw new Error("expected stylesheet");
+  ast.children.forEach((node, item, list) => {
+    if (
+      node.type === "Atrule" &&
+      node.name === "layer" &&
+      !node.block &&
+      node.prelude &&
+      generate(node.prelude) === "theme"
+    )
+      list.remove(item);
+  });
+  return generate(ast);
+}
+function tokens(css: string): string {
+  return generate(parse(css, { parseCustomProperty: true }));
+}
+function withoutMetadata(css: string): string {
+  const ast = parse(css);
+  if (ast.type !== "StyleSheet") throw new Error("expected stylesheet");
+  ast.children.forEach((node, item, list) => {
+    if (
+      node.type === "Atrule" &&
+      (node.name === "property" ||
+        (node.name === "layer" && node.prelude && generate(node.prelude) === "properties"))
+    )
+      list.remove(item);
+  });
+  return generate(ast);
+}
+function registrations(css: string): Set<string> {
+  return new Set([...css.matchAll(/@property\s+(--[a-zA-Z][\w-]*)/g)].map((match) => match[1]));
+}
+function extension(a: string, b: string): boolean {
+  if (withoutMetadata(a) !== withoutMetadata(b)) return false;
+  const before = registrations(a),
+    after = registrations(b);
+  if ([...before].some((name) => !after.has(name))) return false;
+  const added = [...after].filter((name) => !before.has(name));
+  return (
+    added.length > 0 && added.every((name) => a.includes(`var(${name}`) || a.includes(`${name}:`))
+  );
+}
+function withoutRegisteredFallbacks(css: string): string {
+  const ast = parse(css, { parseCustomProperty: true });
+  const initials = new Map<string, string>();
+  walk(ast, {
+    visit: "Atrule",
+    enter(node) {
+      if (node.name !== "property" || !node.prelude || !node.block) return;
+      const property = generate(node.prelude);
+      node.block.children.forEach((child) => {
+        if (child.type === "Declaration" && child.property === "initial-value")
+          initials.set(property, generate(child.value));
+      });
+    },
+  });
+  walk(ast, {
+    visit: "Function",
+    enter(node) {
+      if (node.name !== "var") return;
+      const args = node.children.toArray();
+      if (args[0]?.type !== "Identifier" || args[1]?.type !== "Operator" || args[1].value !== ",")
+        return;
+      const initial = initials.get(args[0].name);
+      const fallback = args
+        .slice(2)
+        .map((child) => generate(child))
+        .join("");
+      if (initial !== undefined && initial === fallback) node.children.fromArray([args[0]]);
+    },
+  });
+  return generate(ast);
+}
+function shape(css: string): { properties: string[]; rules: string[] } {
+  const properties: string[] = [],
+    rules: string[] = [];
+  walk(parse(css, { parseCustomProperty: true }), {
+    enter(node: CssNode) {
+      if (node.type === "Declaration") properties.push(node.property);
+      if (node.type === "Rule") rules.push(generate(node.prelude));
+      if (node.type === "Atrule")
+        rules.push(`@${node.name} ${node.prelude ? generate(node.prelude) : ""}`);
+    },
+  });
+  return { properties: properties.sort(), rules };
+}
+function classify(expected: string, received: string): string {
+  const a = withoutEmptyTheme(expected),
+    b = withoutEmptyTheme(received);
+  if (equivalent(a, b)) return "empty-theme-layer-only";
+  const ta = tokens(a),
+    tb = tokens(b);
+  if (equivalent(ta, tb)) return "value-token-format";
+  const fa = withoutRegisteredFallbacks(a),
+    fb = withoutRegisteredFallbacks(b);
+  if (equivalent(fa, fb)) return "registered-initial-fallback";
+  if (equivalent(withoutMetadata(ta), withoutMetadata(tb)))
+    return "property-registration-or-support";
+  const sa = shape(ta),
+    sb = shape(tb);
+  if (JSON.stringify(sa.rules) !== JSON.stringify(sb.rules)) return "selector-or-rule-structure";
+  if (JSON.stringify(sa.properties) !== JSON.stringify(sb.properties))
+    return "declaration-inventory";
+  return "declaration-value-or-order";
+}
+
+for (const file of readdirSync(join(fixtureRoot, "cases"))
+  .filter((file) => file.endsWith(".fixture.md"))
+  .sort()) {
+  const markdown = readFileSync(join(fixtureRoot, "cases", file), "utf8");
+  for (const fixture of parseMarkdownFixtureCases(markdown)) {
+    const candidates = fixture.candidates.split(/\s+/).filter(Boolean);
+    if (/@(?:source|config|plugin|reference)\b/.test(fixture.input)) {
+      exclusions.push({
+        file,
+        case: fixture.name,
+        candidates: candidates.length,
+        reason: "existing-gate-scope",
+      });
+      continue;
+    }
+    const inputHash = createHash("sha256").update(fixture.input).digest("hex");
+    let loaded = sessions.get(inputHash);
+    if (!loaded) {
+      try {
+        const css = stillwindFixtureCss(fixture.input);
+        const loader = new NativeDesignSystemLoader();
+        assert.equal(loader.provide(0, "stillwind.css", css).kind, "complete");
+        loaded = { session: new NativeProjectSession(loader, false), css, uses: 0 };
+        sessions.set(inputHash, loaded);
+        writeFileSync(join(outputRoot, `${inputHash.slice(0, 12)}.input.css`), fixture.input);
+      } catch (error) {
+        writeFileSync(join(outputRoot, `${inputHash.slice(0, 12)}.input.css`), fixture.input);
+        for (const candidate of candidates.length ? candidates : [""]) {
+          checked++;
+          const category = "input-adapter-exception";
+          counts[category] = (counts[category] ?? 0) + 1;
+          const row = {
+            id: checked,
+            file,
+            case: fixture.name,
+            candidate,
+            input: inputHash.slice(0, 12),
+            category,
+          };
+          rows.push(row);
+          evidence.write(JSON.stringify({ ...row, diagnostics: [String(error)] }) + "\n");
+        }
+        continue;
+      }
+    }
+    for (const candidate of candidates.length ? candidates : [""]) {
+      checked++;
+      const source = `import { style } from "stillwind/react"; const props = style(${JSON.stringify(candidate)});`;
+      const tailwind = await compileTailwindCss({
+        css: fixture.input,
+        candidates: [candidate],
+        base: fixtureRoot,
+        from: join(fixtureRoot, "parity-theme.css"),
+      });
+      const expected = minify(tailwind);
+      let category: string;
+      let actual = "",
+        received = "";
+      let diagnostics: unknown[] = [];
+      let resources: unknown[] = [];
+      try {
+        const native: ProjectModuleOutput = loaded.session.compile([
+          { path: "src/Parity.tsx", source },
+        ]).modules[0];
+        actual = loaded.session.css();
+        if (loaded.uses++ % 250 === 0) {
+          const direct = compileReact(source, "src/Parity.tsx", loaded.css);
+          assert.equal(actual, direct.css, `session differs: ${file} ${candidate}`);
+          assert.deepEqual(native.classes, direct.classes);
+          assert.deepEqual(native.diagnostics, direct.diagnostics);
+          directChecks++;
+        }
+        diagnostics = native.diagnostics;
+        resources = native.resources;
+        received = minify(
+          native.classes.length
+            ? actual.replaceAll(native.classes[0].class_name, selector(candidate))
+            : actual,
+        );
+        if (native.diagnostics.length || !native.classes.length) {
+          category =
+            expected === "" ||
+            expected === "@layer utilities;" ||
+            (candidate === "" && !native.diagnostics.length && equivalent(expected, received))
+              ? "accepted-empty"
+              : "unresolved";
+        } else if (
+          equivalent(expected, received) ||
+          (expected === "@layer utilities;" && received === "")
+        )
+          category = "accepted";
+        else if (extension(expected, received)) category = "accepted-property-extension";
+        else category = classify(expected, received);
+      } catch (error) {
+        // A validation disagreement invalidates the run instead of becoming a compiler mismatch.
+        if (error instanceof assert.AssertionError) throw error;
+        category = "exception";
+        diagnostics = [String(error)];
+      }
+      counts[category] = (counts[category] ?? 0) + 1;
+      if (checked % 250 === 0) {
+        console.log(
+          JSON.stringify({
+            checked,
+            file,
+            candidate,
+            elapsedSeconds: Math.round((performance.now() - started) / 1000),
+          }),
+        );
+        await setImmediate();
+      }
+      const row = {
+        id: checked,
+        file,
+        case: fixture.name,
+        candidate,
+        input: inputHash.slice(0, 12),
+        category,
+      };
+      rows.push(row);
+      if (!category.startsWith("accepted"))
+        evidence.write(
+          JSON.stringify({
+            ...row,
+            expected,
+            received,
+            rawTailwind: tailwind,
+            rawStillwind: actual,
+            diagnostics,
+            resources,
+          }) + "\n",
+        );
+    }
+  }
+  console.log(
+    JSON.stringify({
+      file,
+      checked,
+      elapsedSeconds: Math.round((performance.now() - started) / 1000),
+      counts,
+    }),
+  );
+}
+evidence.end();
+await finished(evidenceFile);
+writeFileSync(
+  join(outputRoot, "index.json"),
+  JSON.stringify(
+    {
+      generatedAt: new Date().toISOString(),
+      checked,
+      directChecks,
+      inputs: sessions.size,
+      exclusions,
+      counts,
+      rows,
+    },
+    null,
+    2,
+  ) + "\n",
+);
+console.log(
+  JSON.stringify({
+    checked,
+    directChecks,
+    inputs: sessions.size,
+    exclusions,
+    counts,
+    elapsedSeconds: Math.round((performance.now() - started) / 1000),
+  }),
+);

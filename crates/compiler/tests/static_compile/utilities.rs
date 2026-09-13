@@ -38,10 +38,14 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
             .starts_with("@layer theme, base, components, utilities;")
     );
     assert!(!result.css.contains("@layer properties;"));
-    assert!(result.css.contains("--color-accent:oklch(.6 .2 250);"));
+    assert!(result.css.contains_css("--color-accent:oklch(.6 .2 250);"));
     assert!(result.css.contains("--spacing-4:1rem;"));
-    assert!(!result.css.contains("--breakpoint-md:48rem;"));
-    assert!(result.css.contains("background-color:var(--color-accent);"));
+    assert!(!result.css.contains_css("--breakpoint-md:48rem;"));
+    assert!(
+        result
+            .css
+            .contains_css("background-color:var(--color-accent);")
+    );
     assert!(result.css.contains("background-color:color-mix(in oklab"));
     assert!(result.css.contains(":hover{"));
     assert!(result.css.contains("[aria-busy=\"true\"]{"));
@@ -69,7 +73,7 @@ const props = style("bg-accent");"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(!result.css.contains("--color-accent:var(--app-accent);"));
+    assert!(!result.css.contains_css("--color-accent:var(--app-accent);"));
     assert!(
         result
             .css
@@ -100,16 +104,20 @@ const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)
     assert!(
         result
             .css
-            .contains("padding-inline:calc(var(--spacing) * 4);")
+            .contains_css("padding-inline:calc(var(--spacing) * 4);")
     );
-    assert!(result.css.contains("margin-top:calc(var(--spacing) * -2);"));
     assert!(
         result
             .css
-            .contains("background-color:var(--color-red-500);")
+            .contains_css("margin-top:calc(var(--spacing) * -2);")
     );
-    assert!(result.css.contains("--gutter:1rem;"));
-    assert!(result.css.contains("width:calc(var(--gutter) * 2);"));
+    assert!(
+        result
+            .css
+            .contains_css("background-color:var(--color-red-500);")
+    );
+    assert!(result.css.contains_css("--gutter:1rem;"));
+    assert!(result.css.contains_css("width:calc(var(--gutter) * 2);"));
 }
 
 #[test]
@@ -127,7 +135,7 @@ const props = style("animate-spin");"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("animation:var(--animate-spin);"));
+    assert!(result.css.contains_css("animation:var(--animate-spin);"));
     assert!(result.css.contains("@keyframes spin"));
 }
 
@@ -152,9 +160,9 @@ const props = style("content-auto data-checked:content-auto tab-8");"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("content-visibility: auto;"));
+    assert!(result.css.contains_css("content-visibility: auto;"));
     assert!(result.css.contains("[data-ui~=\"checked\"]{"));
-    assert!(result.css.contains("tab-size: 8;"));
+    assert!(result.css.contains_css("tab-size: 8;"));
 }
 
 #[test]
@@ -205,10 +213,14 @@ const props = style(
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
-    assert!(result.css.contains("background-color:var(--color-accent);"));
-    assert!(result.css.contains("padding-inline:var(--spacing-4);"));
+    assert!(
+        result
+            .css
+            .contains_css("background-color:var(--color-accent);")
+    );
+    assert!(result.css.contains_css("padding-inline:var(--spacing-4);"));
     assert!(result.css.contains(":hover{background-color:color-mix("));
-    assert!(result.css.contains("opacity:60%;"), "{}", result.css);
+    assert!(result.css.contains_css("opacity:60%;"), "{}", result.css);
     assert!(
         result.transforms[0]
             .replacement
@@ -238,12 +250,12 @@ const props = style("-mt-4 duration-120 ease-standard");"#,
     assert!(
         result
             .css
-            .contains("margin-top:calc(var(--spacing-4) * -1);")
+            .contains_css("margin-top:calc(var(--spacing-4) * -1);")
     );
     assert!(
-        result.css.contains("--tw-duration:120ms;"),
+        result.css.contains_css("--tw-duration:120ms;"),
         "{}",
         result.css
     );
-    assert!(result.css.contains("--tw-ease:var(--ease-standard);"));
+    assert!(result.css.contains_css("--tw-ease:var(--ease-standard);"));
 }

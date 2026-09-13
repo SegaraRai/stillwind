@@ -13,8 +13,7 @@
 
 use stillwind_syntax::Value;
 
-use super::super::builtins::metadata::{COMPAT_COLOR_SUPPORT, builtin_property_definitions};
-use super::super::syntax::closing_parenthesis;
+use super::super::builtins::metadata::COMPAT_COLOR_SUPPORT;
 use super::declarations::resolve_css_declarations;
 use super::nested::{
     NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,
@@ -67,6 +66,16 @@ pub(crate) fn resolve_css_utility_body(
     }
     let (selector, body, parent_body) = split_utility_selector(&utility.body)?;
     let (body, nested) = split_nested_conditions(body)?;
+    let resolve = |body: &str| {
+        resolve_css_declarations(
+            body,
+            utility.name.as_str(),
+            name,
+            modifier,
+            theme,
+            utility.builtin_order.is_some(),
+        )
+    };
     // A slash modifier is meaningful only when a branch explicitly consumes it. This
     // prevents a broad base branch (for example `bg-*`'s color declaration) from
     // accepting `bg-red-500/not-an-opacity` merely because another overload happened to
@@ -80,9 +89,8 @@ pub(crate) fn resolve_css_utility_body(
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
-    let declarations =
-        resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)?;
-    let declaration = normalize_registered_var_fallbacks(declarations.base, theme);
+    let declarations = resolve(&body)?;
+    let declaration = declarations.base;
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
         || body.contains("--fraction()");
@@ -91,7 +99,7 @@ pub(crate) fn resolve_css_utility_body(
         resolved_nested.push(NestedUtilityRule {
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_owned(),
-            declaration: normalize_registered_var_fallbacks(modern, theme),
+            declaration: modern,
             inside: true,
         });
     }
@@ -105,12 +113,10 @@ pub(crate) fn resolve_css_utility_body(
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
                 || body.contains("--fraction()");
-            let Some(declarations) =
-                resolve_css_declarations(&body, utility.name.as_str(), name, modifier, theme)
-            else {
+            let Some(declarations) = resolve(&body) else {
                 continue;
             };
-            let declaration = normalize_registered_var_fallbacks(declarations.base, theme);
+            let declaration = declarations.base;
             if !declaration.is_empty() {
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
@@ -123,7 +129,7 @@ pub(crate) fn resolve_css_utility_body(
                     resolved_nested.push(NestedUtilityRule {
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: COMPAT_COLOR_SUPPORT.to_owned(),
-                        declaration: normalize_registered_var_fallbacks(modern, theme),
+                        declaration: modern,
                         inside: true,
                     });
                 }
@@ -134,9 +140,7 @@ pub(crate) fn resolve_css_utility_body(
         return None;
     }
     if let Some(parent_body) = parent_body {
-        let parent_declaration =
-            resolve_css_declarations(parent_body, utility.name.as_str(), name, modifier, theme)?
-                .base;
+        let parent_declaration = resolve(parent_body)?.base;
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
                 declaration,
@@ -160,55 +164,6 @@ pub(crate) fn resolve_css_utility_body(
             builtin_order: utility.builtin_order,
         })
     }
-}
-
-/// Removes a `var()` fallback when it is exactly the registered initial value
-/// of that custom property. The registry metadata is the source of truth;
-/// no Tailwind property family is encoded here.
-pub(crate) fn normalize_registered_var_fallbacks(
-    mut declaration: String,
-    theme: &ThemeIndex,
-) -> String {
-    let mut cursor = 0;
-    while let Some(relative) = declaration[cursor..].find("var(--") {
-        let start = cursor + relative;
-        let Some(open) = declaration[start..].find('(').map(|offset| start + offset) else {
-            break;
-        };
-        let Some(close) = closing_parenthesis(&declaration, open) else {
-            break;
-        };
-        let expression = &declaration[open + 1..close];
-        let Some((name, fallback)) = expression.split_once(',') else {
-            cursor = close + 1;
-            continue;
-        };
-        let name = name.trim().to_owned();
-        let fallback = fallback.trim();
-        let property = theme
-            .properties
-            .iter()
-            .find(|property| property.name == name)
-            .or_else(|| {
-                builtin_property_definitions(theme)
-                    .iter()
-                    .find(|property| property.name == name)
-            });
-        let matches_initial = property.is_some_and(|property| {
-            property.body.split(';').map(str::trim).any(|entry| {
-                entry
-                    .strip_prefix("initial-value:")
-                    .is_some_and(|value| value.trim() == fallback)
-            })
-        });
-        if matches_initial {
-            declaration.replace_range(open + 1..close, &name);
-            cursor = open + 1 + name.len();
-        } else {
-            cursor = close + 1;
-        }
-    }
-    declaration
 }
 
 /// Expands a conditional whose prelude names a theme namespace pattern into one rule

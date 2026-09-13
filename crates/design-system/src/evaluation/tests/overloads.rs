@@ -23,34 +23,34 @@ fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
 
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("tone-brand", &theme).unwrap().declaration,
         "color: var(--color-brand);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("rail-4", &theme).unwrap().declaration,
         "inline-size: calc(var(--spacing) * 4);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("-rail-4", &theme).unwrap().declaration,
         "inline-size: calc(var(--spacing) * -4);"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("offset-auto", &theme).unwrap().declaration,
         "inset: auto;"
     );
     assert!(resolve_utility("-offset-auto", &theme).is_none());
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("-offset-full", &theme).unwrap().declaration,
         "inset: -100%;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("mask-[length:12px]", &theme)
             .unwrap()
             .declaration,
         "mask-size: 12px;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("alpha-brand/50", &theme)
             .unwrap()
             .declaration,
@@ -69,13 +69,13 @@ fn tries_overloaded_css_utility_definitions_in_reverse_source_order() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
 
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("token-[color:rebeccapurple]", &theme)
             .unwrap()
             .declaration,
         "color: rebeccapurple;"
     );
-    assert_eq!(
+    assert_css_eq!(
         resolve_utility("token-[length:12px]", &theme)
             .unwrap()
             .declaration,
@@ -98,10 +98,10 @@ fn preserves_css_fallbacks_and_multiple_selector_targets() {
     assert!(
         resolved
             .declaration
-            .contains("color: red; color: color(display-p3 1 0 0);")
+            .contains_css("color: red; color: color(display-p3 1 0 0);")
             || resolved.additional.iter().any(|target| target
                 .declaration
-                .contains("color: red; color: color(display-p3 1 0 0);")),
+                .contains_css("color: red; color: color(display-p3 1 0 0);")),
         "{resolved:#?}"
     );
     assert_eq!(resolved.additional.len(), 1);
@@ -136,19 +136,19 @@ fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
         "--tw-shadow-color:oklch(63.7% 0.237 25.331);"
     );
     assert!(unmodified.nested.iter().any(|rule| {
-            rule.declaration.contains(
+            rule.declaration.contains_css(
                 "--tw-shadow-color:color-mix(in oklab, var(--color-red-500) var(--tw-shadow-alpha), transparent);",
             )
         }));
 
     let resolved = resolve_utility("shadow-red-500/50", &theme()).unwrap();
-    assert!(resolved.declaration.contains(
+    assert!(resolved.declaration.contains_css(
         "--tw-shadow-color:color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);"
     ));
     assert!(resolved.nested.iter().any(|rule| {
             rule.at_rule == NestedUtilityAtRule::Supports
                 && rule.condition == "color:color-mix(in lab, red, red)"
-                && rule.declaration.contains(
+                && rule.declaration.contains_css(
                     "--tw-shadow-color:color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha), transparent);",
                 )
         }));
