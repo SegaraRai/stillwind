@@ -4,8 +4,11 @@
 //! [`emission`], [`props`], [`style_variants`], and [`variants`] lower and render style calls.
 //! [`symbols`], [`handles`], [`motion`], and [`lexer`] allocate names and emit asset definitions,
 //! while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders framework type
-//! declarations. Only [`api`] re-exports a public surface; everything else is crate-internal
-//! and free to change.
+//! declarations. [`output`] defines compilation results and structured CSS contributions.
+//!
+//! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
+//! Callers with reusable snapshots and module artifacts use the crate's `ModuleCompiler`
+//! and `StylesheetRenderer` interfaces; this module supplies their lowering passes.
 
 mod api;
 mod emission;
@@ -31,6 +34,7 @@ pub struct Compiler;
 
 pub use api::CompilerThemeError;
 pub use output::CompileResult;
+pub use output::CssContribution;
 pub use props::{GeneratedClass, GuardStep};
 pub use stylesheet::render::StylesheetError;
 pub use symbols::GeneratedSymbol;

@@ -82,7 +82,9 @@ pub struct CandidateHover {
 /// module state and deterministic for as long as the revision does not change.
 #[derive(Clone, Debug)]
 pub struct DesignSystemQuery {
+    /// Immutable revision against which every answer from this query object is computed.
     design_system: DesignSystemSnapshot,
+    /// Compiler configuration used for preview generation and name allocation.
     options: CompilerOptions,
 }
 
@@ -117,10 +119,10 @@ impl DesignSystemQuery {
                     .all(|variant| resolve_variant(variant, theme).is_some())
             })
         });
-        let mut css = String::new();
+        let mut contributions = Vec::new();
         let mut diagnostics = if let Some(targets) = targets {
             emit_utility_rules(
-                &mut css,
+                &mut contributions,
                 &class_name(&format!("{candidate}\0")),
                 &targets,
                 theme,
@@ -131,6 +133,7 @@ impl DesignSystemQuery {
                 message: format!("unresolved candidate: {candidate}"),
             }]
         };
+        let css: String = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = theme
             .tokens_required_by(&css, false)
             .iter()
@@ -141,11 +144,21 @@ impl DesignSystemQuery {
             .iter()
             .chain(builtin_property_definitions(theme));
         let required_properties = properties
-            .filter(|property| css.contains(&property.name))
+            .filter(|property| {
+                css.contains(&property.name)
+                    || contributions
+                        .iter()
+                        .any(|part| part.required_properties.contains(&property.name))
+            })
             .map(|property| property.name.clone())
             .collect();
-        let css = self.options.rewrite_generated(&css);
-        let generated_rules = match ModuleCssArtifact::from_css(&css) {
+        for contribution in &mut contributions {
+            contribution.css = self.options.rewrite_generated(&contribution.css);
+            for name in &mut contribution.required_properties {
+                *name = self.options.rewrite_generated(name);
+            }
+        }
+        let generated_rules = match ModuleCssArtifact::from_contributions(&contributions) {
             Ok(artifact) => artifact.rules,
             Err(error) => {
                 diagnostics.push(CandidateDiagnostic {

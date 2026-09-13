@@ -64,18 +64,24 @@ struct SourceInput {
     id: String,
     /// Text emitted before the source, such as a generated import block.
     prefix: String,
-    /// Replacements as `(start, end, text)`, in byte offsets, in order.
+    /// Replacements as `(start, end, text)` over half-open UTF-8 byte ranges in `source`.
+    /// Ranges must be ascending, non-overlapping, in bounds, and on scalar boundaries.
+    /// Empty ranges insert text; entries at the same empty range retain input order.
     edits: Vec<(usize, usize, String)>,
 }
 
-/// Emits edited code plus a map that points every emitted unit at its original.
+/// Returns edited code and a v3 source-map JSON string for the supplied replacements.
 ///
-/// A token is emitted per UTF-16 unit rather than per line, because the consumer
-/// needs a mapping at every position it may cut. The final empty edit terminator
-/// makes the trailing unchanged text part of the same loop instead of a special
-/// case.
-// A replacement-only emitter. UTF-16 units intentionally match the current JS
-// consumer contract, including the second surrogate and the newline position.
+/// `input.edits` must satisfy the range contract on [`SourceInput::edits`]. The prefix
+/// is unmapped. Unchanged UTF-16 units map to their corresponding original positions;
+/// each replacement unit maps to the start of the replaced range. The input is unchanged.
+///
+/// A token per UTF-16 unit preserves lookups at surrogate halves and newline positions.
+/// The empty terminator includes the unchanged suffix in the same emission loop.
+///
+/// # Panics
+///
+/// Panics if edit ranges overlap, go backwards, exceed the source, or split UTF-8 scalars.
 fn emit(input: &SourceInput) -> (String, String) {
     let mut builder = SourceMapBuilder::default();
     builder.set_file(&input.id);

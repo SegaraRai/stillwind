@@ -8,32 +8,68 @@
 //! Serialization uses operator precedence. It may flatten equal-precedence sums and
 //! products, so the printed syntax tree need not be identical to the stored tree.
 
+/// A numeric CSS value whose unit category is retained during constant folding.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MathValue {
     /// A unitless number.
-    Number(f64),
+    Number(
+        /// Numeric part of a CSS number.
+        f64,
+    ),
     /// A number with its authored unit, for example `2px` or `3rem`.
-    Dimension(f64, String),
+    Dimension(
+        /// Numeric coefficient preceding the unit.
+        f64,
+        /// Authored unit token, without whitespace or a numeric prefix; compared by exact spelling.
+        String,
+    ),
     /// A percentage, stored as the numeric part only.
-    Percentage(f64),
+    Percentage(
+        /// Numeric part before `%`, so `50` represents `50%`, not `0.5`.
+        f64,
+    ),
 }
 
 /// One node of a parsed `calc()` expression.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MathExpression {
     /// A fully known numeric value.
-    Value(MathValue),
+    Value(
+        /// Numeric operand to serialize.
+        MathValue,
+    ),
     /// Text that is not numeric, such as `var(--x)` or an unknown function call, kept
     /// exactly as it was written.
-    Atom(String),
+    Atom(
+        /// Opaque CSS operand text, preserving its internal whitespace and syntax.
+        String,
+    ),
     /// Addition of two operands.
-    Sum(Box<Self>, Box<Self>),
+    Sum(
+        /// Left operand of `+`.
+        Box<Self>,
+        /// Right operand of `+`.
+        Box<Self>,
+    ),
     /// Multiplication of two operands.
-    Product(Box<Self>, Box<Self>),
+    Product(
+        /// Left operand of `*`.
+        Box<Self>,
+        /// Right operand of `*`.
+        Box<Self>,
+    ),
     /// Division of two operands, kept only when it cannot be folded.
-    Quotient(Box<Self>, Box<Self>),
+    Quotient(
+        /// Numerator.
+        Box<Self>,
+        /// Denominator; zero remains representable when division cannot be folded.
+        Box<Self>,
+    ),
     /// Unary minus, kept when the operand is not a value.
-    Negate(Box<Self>),
+    Negate(
+        /// Operand of unary minus.
+        Box<Self>,
+    ),
 }
 
 impl MathExpression {

@@ -16,10 +16,9 @@ use std::sync::Arc;
 use lightningcss::error::{Error, ParserError};
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
-use stillwind_css::blocks::unterminated_block;
 use stillwind_css::{
     CssOutputError, CssOutputTemplate, extract_authored_property_names,
-    extract_property_definitions,
+    extract_property_definitions, unterminated_block,
 };
 use stillwind_source::{FileId, SourceFile, Span, normalized_module_path};
 
@@ -176,7 +175,7 @@ pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex
 
 #[cfg(test)]
 mod tests {
-    use stillwind_css::blocks::strip_css_comments;
+    use stillwind_css::strip_css_comments;
 
     use super::*;
 

@@ -15,6 +15,7 @@ use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition
 use stillwind_semantic::AssetKind;
 use stillwind_source::{CompileError, SourceFile, Spanned};
 
+use super::CssContribution;
 use super::lexer::lex_utilities;
 use super::symbols::{motion_symbol_name, symbol_name};
 use super::utilities::declaration_order::combine_declarations_for_theme;
@@ -25,12 +26,14 @@ use super::utilities::resolve::{CompiledUtility, resolve_utility};
 /// Frames keep their authored order and selectors; each frame's utilities are combined with
 /// the same declaration ordering the utilities layer uses.
 pub(super) fn emit_animation_definition(
-    output: &mut String,
+    contribution: &mut CssContribution,
     source: &SourceFile,
     animation: &AnimationDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
+    contribution.keyframes = true;
+    let output = &mut contribution.css;
     output.push_str("@keyframes ");
     output.push_str(&symbol_name(source, AssetKind::Animation, &animation.name));
     output.push('{');
@@ -51,6 +54,11 @@ pub(super) fn emit_animation_definition(
                 )),
             }
         }
+        contribution.required_properties.extend(
+            utilities
+                .iter()
+                .flat_map(|utility| utility.required_properties.clone()),
+        );
         output.push_str(&frame.selector.value);
         output.push('{');
         output.push_str(&combine_declarations_for_theme(
@@ -121,12 +129,13 @@ pub(super) fn resolve_motion_options(
 /// carry their utility lists. Both pseudo-elements are keyed by the same generated name, which
 /// is what pairs them at runtime.
 pub(super) fn emit_view_transition_definition(
-    output: &mut String,
+    contribution: &mut CssContribution,
     source: &SourceFile,
     transition: &ViewTransitionDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
+    let output = &mut contribution.css;
     let name = symbol_name(source, AssetKind::ViewTransition, &transition.name);
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
@@ -149,7 +158,12 @@ pub(super) fn emit_view_transition_definition(
         output.push('.');
         output.push_str(&name);
         output.push_str("){ ");
-        output.push_str(&resolve_static_utility_list(utilities, theme, diagnostics));
+        output.push_str(&resolve_static_utility_list(
+            utilities,
+            theme,
+            diagnostics,
+            &mut contribution.required_properties,
+        ));
         output.push('}');
     }
 }
@@ -159,6 +173,7 @@ pub(super) fn resolve_static_utility_list(
     input: &Spanned<String>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    required_properties: &mut Vec<String>,
 ) -> String {
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
@@ -176,6 +191,11 @@ pub(super) fn resolve_static_utility_list(
             )),
         }
     }
+    required_properties.extend(
+        utilities
+            .iter()
+            .flat_map(|utility| utility.required_properties.clone()),
+    );
     combine_declarations_for_theme(&utilities.iter().collect::<Vec<_>>(), theme)
 }
 

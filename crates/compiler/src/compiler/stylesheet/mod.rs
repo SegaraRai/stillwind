@@ -1,11 +1,15 @@
 //! Stylesheet assembly.
 //!
-//! [`render`] exposes the two entry points (document and carrier), [`template`] walks the design
-//! system's output template to place layers, theme tokens, and utility slots, and
-//! [`authored_directives`] expands `@apply` and `@variant` in user CSS. [`properties`] decides which
-//! `@property` registrations are needed, [`keyframes`] extracts authored frames, and [`blocks`]
-//! provides the byte-level at-rule scanning those passes rely on. All of them operate on CSS text
-//! and return CSS text; nothing here mutates the design system.
+//! [`template::render_mapped`] assembles a document or carrier from structured producer
+//! contributions and an immutable design system. [`render`] exposes text-only wrappers
+//! and the assembly error type. The template owns output order, selectors, layers, and
+//! conditions; these modules do not resolve host URLs or minify the assembled CSS.
+//!
+//! [`authored_directives`] expands `@apply` and `@variant`, returning CSS and accumulating
+//! registration dependencies. [`properties`] selects registration rules and fallback
+//! declarations. [`keyframes`] selects definitions from authored theme text; generated
+//! animations already carry their destination. [`blocks`] supplies the authored at-rule
+//! scanner. [`template`] combines those contributions while retaining source mappings.
 
 pub(super) mod authored_directives;
 pub(super) mod blocks;

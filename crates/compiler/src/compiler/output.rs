@@ -1,10 +1,14 @@
 //! The compilation result shape handed to a host.
 //!
-//! [`CompileResult`] is the transport boundary. [`CompileResult::module_css`] carries unwrapped
-//! utility rules and is skipped by serde, because a host transports the assembled
-//! [`CompileResult::css`]; the field stays addressable for a caller that assembles CSS itself.
-//! [`CompileResult::apply_to_source`] refuses to render when diagnostics are present, so a host
-//! cannot apply a partial edit plan.
+//! [`CompileResult`] contains diagnostics, source edits, generated identifiers, and CSS.
+//! Its [`CssContribution`] entries carry the placement and registration dependencies
+//! needed by artifact construction. `module_css` is a text-only inspection view;
+//! `css` holds the output selected by the caller's rendering stage. Serde excludes
+//! contributions and module text because host responses transport the rendered CSS.
+//!
+//! [`CompileResult::apply_to_source`] applies the stored edits to their original source
+//! and rejects failed compilations. This module defines transport values; compilation,
+//! slot assembly, and host resource resolution belong to their respective callers.
 
 use std::collections::BTreeMap;
 
@@ -27,13 +31,19 @@ use crate::{
 /// clears generated output; public construction does not enforce that relationship.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CompileResult {
+    /// Generated contributions in emission order, including placement and registration
+    /// dependencies required for artifact construction.
+    #[serde(skip)]
+    pub contributions: Vec<CssContribution>,
     /// Style dependencies a consumer must order this module after.
     pub composition: Vec<StyleDependency>,
     /// Host-resolvable URLs that were replaced by placeholders in the CSS.
     pub resources: Vec<ModuleResourceReference>,
-    /// The assembled stylesheet for this compilation.
+    /// CSS output: module text in a producer-only result, or the assembled stylesheet
+    /// after rendering. Check diagnostics before consuming it.
     pub css: String,
-    /// Unwrapped utility rules used to assemble one stylesheet for a module graph.
+    /// Concatenated unwrapped CSS for inspection. Placement and explicit registration
+    /// dependencies are available only in `contributions`, not in this string.
     #[serde(skip)]
     pub module_css: String,
     /// Classes generated at this module's callsites, with their guard paths.
@@ -51,7 +61,11 @@ pub struct CompileResult {
 }
 
 impl CompileResult {
-    /// Validates source-spanned macro replacements and renders them in source order.
+    /// Validates and applies all stored source replacements in source order.
+    ///
+    /// The replacements include macro calls and import/runtime edits. `source` must
+    /// be the original buffer addressed by their spans; the returned text contains
+    /// the complete edit result, while the input buffer and stored edits are unchanged.
     ///
     /// This deliberately keeps the compiler's source mapping contract separate
     /// from any particular bundler. A Vite adapter can use the same plan and
@@ -67,4 +81,21 @@ impl CompileResult {
         }
         apply_transforms(source, &self.transforms)
     }
+}
+
+/// CSS emitted by one class unit or motion definition, with its assembly metadata.
+///
+/// Artifact construction splits `css` into owned rules; each rule inherits the
+/// contribution's destination and registration requirements. Serializing only `css`
+/// loses that metadata and is insufficient for reconstructing the generated artifact.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CssContribution {
+    /// Complete generated rule blocks in emission order.
+    pub css: String,
+    /// True when all blocks are generated animation definitions for the keyframes
+    /// slot; false when they belong to the utilities contribution.
+    pub keyframes: bool,
+    /// Custom-property names requiring registration. Encounter order and duplicates
+    /// are allowed here; artifact construction sorts and deduplicates them.
+    pub required_properties: Vec<String>,
 }

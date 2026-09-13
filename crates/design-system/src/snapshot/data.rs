@@ -31,7 +31,11 @@ use crate::{
 pub enum DesignSystemError {
     /// Loading failed; see [`DesignSystemLoadError`].
     #[error("{0}")]
-    Load(#[from] DesignSystemLoadError),
+    Load(
+        /// Loader failure for the supplied CSS graph.
+        #[from]
+        DesignSystemLoadError,
+    ),
     /// The buffer is valid but imports sources the host must resolve first.
     #[error("host must resolve CSS imports using DesignSystemLoader: {requests:?}")]
     UnresolvedImports {
@@ -45,7 +49,10 @@ pub enum DesignSystemError {
 /// Values increase monotonically within a process and are only meaningful for comparing
 /// two live revisions; persist [`DefinitionFingerprints`] instead.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct DesignSystemRevision(pub u64);
+pub struct DesignSystemRevision(
+    /// Monotonic process-local revision number; use content fingerprints for persistence.
+    pub u64,
+);
 
 /// Content fingerprints of independently invalidatable semantic groups.
 ///
@@ -55,8 +62,7 @@ pub struct DesignSystemRevision(pub u64);
 /// CSS agree even when their revisions differ.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionFingerprints {
-    /// Whole-snapshot content, including the compiler version and the selected built-in
-    /// CSS.
+    /// Whole-snapshot content, including the compiler version and the selected built-in CSS.
     pub content: Fingerprint,
     /// Resolved prefix configuration only.
     pub config: Fingerprint,
@@ -79,17 +85,29 @@ pub struct DefinitionFingerprints {
 /// handed out by value: callers reach it through accessors on the snapshot.
 #[derive(Debug)]
 struct DesignSystemData {
+    /// Process-local identity allocated for this successful snapshot.
     revision: DesignSystemRevision,
+    /// Resolved theme and authored output template used by evaluators.
     theme: ThemeIndex,
+    /// Validated generated-name prefix configuration.
     config: DesignSystemOptions,
+    /// Content identities for cache reuse and selective invalidation.
     fingerprints: DefinitionFingerprints,
+    /// Retained CSS source graph for diagnostics, mappings, and resources.
     sources: CssSourceGraph,
+    /// Effective utility definitions grouped by name.
     utilities: UtilityRegistry,
+    /// Effective variant definitions grouped by name.
     variants: VariantRegistry,
+    /// Custom-property registrations grouped by name.
     properties: PropertyRegistry,
+    /// Effective theme tokens grouped by custom-property name.
     tokens: ThemeRegistry,
+    /// Selected built-in definitions, or None when no built-in registry is loaded.
     builtins: Option<Arc<BuiltinDefinitions>>,
+    /// Property-name lookup of authored declaration serialization templates.
     declaration_formats: BTreeMap<String, String>,
+    /// Registered relationship names used to validate relationship-aware candidates.
     relationships: BTreeSet<String>,
 }
 
@@ -99,6 +117,7 @@ struct DesignSystemData {
 /// to change semantics, and it never alters a snapshot already in use.
 #[derive(Clone, Debug)]
 pub struct DesignSystemSnapshot {
+    /// Shared immutable data.
     inner: Arc<DesignSystemData>,
 }
 

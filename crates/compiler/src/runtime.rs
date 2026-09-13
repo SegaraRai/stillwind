@@ -18,23 +18,32 @@ use crate::{ImportPlanError, SourceTransform, plan_macro_import_removals};
 
 /// One exported helper of a per-framework runtime module.
 ///
-/// The set mirrors what [`stillwind_ir::FrameworkSpec::runtime_import`] exports; a
-/// variant is only added together with the runtime function it names. The symbols and
-/// helpers it covers are the fragment merge and conversion functions, the class-joining
-/// helper, the style and class keys, and one helper per asset kind.
+/// The set mirrors the exports of [`stillwind_ir::FrameworkSpec::runtime_import`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum RuntimeHelper {
+    /// The `stillwindAnimation` runtime export.
     Animation,
+    /// The `stillwindAssetClass` runtime export.
     AssetClass,
+    /// The `stillwindClassKey` runtime export.
     ClassKey,
+    /// The `stillwindClsx` runtime export.
     Clsx,
+    /// The `stillwindHandleClass` runtime export.
     HandleClass,
+    /// The `stillwindMerge` runtime export.
     Merge,
+    /// The `stillwindRef` runtime export.
     Ref,
+    /// The `stillwindScope` runtime export.
     Scope,
+    /// The `stillwindStyleKey` runtime export.
     StyleKey,
+    /// The `stillwindToFragment` runtime export.
     ToFragment,
+    /// The `stillwindViewTransition` runtime export.
     ViewTransition,
+    /// The `stillwindViewTransitionStyle` runtime export.
     ViewTransitionStyle,
 }
 

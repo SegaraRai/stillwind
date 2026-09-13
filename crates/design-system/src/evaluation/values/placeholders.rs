@@ -10,8 +10,7 @@
 //! prefix, with a slash modifier kept separately; a fraction domain is the one case
 //! where the two are reassembled, and only when both sides are unsigned integers.
 
-use stillwind_css::declaration_ranges;
-use stillwind_css::functions::find_css_functions;
+use stillwind_css::{declaration_ranges, find_css_functions};
 use stillwind_syntax::Value;
 
 use super::arbitrary::alpha;

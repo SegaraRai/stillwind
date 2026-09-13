@@ -83,9 +83,10 @@ impl DesignSystemOptions {
     /// Rewrites literal `--sw-` and `--tw-` markers in generated CSS to the configured
     /// prefixes.
     ///
-    /// Both namespaces are replaced in one pass through private sentinels, so swapped
-    /// or overlapping-looking prefixes cannot rewrite each other's output. Markers that
-    /// match neither namespace are left untouched.
+    /// Canonical markers are first replaced by private sentinels, then by the configured
+    /// prefixes. This keeps swapped or overlapping prefixes from rewriting one another's
+    /// output. The caller supplies generated text without these reserved sentinel strings;
+    /// the operation is literal substitution rather than CSS-aware identifier rewriting.
     pub fn rewrite_generated(&self, value: &str) -> String {
         value
             .replace("--sw-", "\u{e000}stillwind-prefix\u{e001}")

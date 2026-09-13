@@ -1,5 +1,6 @@
 @layer properties, theme, base, components, utilities;
 @layer theme {
+  /* Definitions are collected globally; these slots own their output placement. */
   :root,
   :host {
     --font-sans:
@@ -462,7 +463,10 @@
     view-transition-name: var(--sw-vt-name);
     view-transition-class: var(--sw-vt-class);
   }
-} /* Runtime placement is authored CSS. Registrations remain outside the fallback query. */
+} /*
+Runtime placement is authored CSS. Registrations remain outside the fallback query.
+*/
+
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {

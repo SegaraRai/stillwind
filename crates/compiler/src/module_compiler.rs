@@ -13,6 +13,7 @@
 //! applying anything from it.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use cssparser::{ParseError, Parser, Token};
 use serde::Serialize;
@@ -23,31 +24,37 @@ use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, StyleDependency, StyleInput, StyleVariant,
 };
 use stillwind_semantic::{IdentityId, ModuleId};
-use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile};
+use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile, Span};
 
+use crate::compiler::CssContribution;
 use crate::transforms::apply_transforms;
 use crate::{
-    CompileResult, Compiler, CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform,
-    TransformError,
+    CompileResult, Compiler, CompilerOptions, GeneratedClass, GeneratedSymbol, MappedStylesheet,
+    SourceTransform, TransformError,
 };
 
 /// A source-transform failure as reported by [`CompiledModule::apply_to_source`].
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
-pub struct ModuleTransformError(#[from] pub TransformError);
+pub struct ModuleTransformError(
+    /// Underlying validation or application failure for the stored source edits.
+    #[from]
+    pub TransformError,
+);
 
 /// The emitter produced CSS that cannot be split into rules.
 #[derive(Debug, thiserror::Error)]
 #[error("invalid generated CSS block at byte {offset}")]
 pub(crate) struct CssArtifactError {
+    /// UTF-8 byte offset of the invalid block in the generated CSS buffer.
     offset: usize,
 }
 
 /// Content identity of one generated CSS rule.
 ///
-/// Compiler-produced keys hash the rule serialization. Public tuple construction can
-/// supply an unrelated fingerprint, so project publication re-keys the current content.
-/// The doctest rules out an implicit conversion.
+/// Compiler-produced keys hash serialization, placement, and support dependencies.
+/// Public tuple construction can supply an unrelated fingerprint, so project publication
+/// recomputes identity from the rule fields rather than trusting the stored key.
 ///
 /// ```compile_fail
 /// use stillwind_source::Fingerprint;
@@ -55,7 +62,11 @@ pub(crate) struct CssArtifactError {
 /// let rule: RuleKey = Fingerprint::of(".x{}");
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct RuleKey(pub Fingerprint);
+pub struct RuleKey(
+    /// Fingerprint of rule serialization, placement, and support dependencies; direct
+    /// construction does not verify it.
+    pub Fingerprint,
+);
 
 /// One independently owned CSS rule.
 ///
@@ -65,19 +76,67 @@ pub struct RuleKey(pub Fingerprint);
 /// a rule produced by `ModuleCssArtifact::from_css`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
-    /// Content identity of the rule's serialization.
+    /// True for an emitter-classified animation definition destined for the keyframes
+    /// slot; false for a rule that stays in the utilities contribution.
+    pub keyframes: bool,
+    /// Custom-property names requiring registration, independent of CSS references.
+    /// Compiler-produced lists are sorted and unique; their order participates in the key.
+    pub required_properties: Vec<String>,
+    /// Content identity of serialization, placement, and support dependencies.
     pub key: RuleKey,
     /// Selector or at-rule header, including authored serialization whitespace.
     pub prelude: String,
-    /// Declaration/nested-rule block; `None` represents an at-rule statement.
+    /// Declaration or nested-rule text without the outer braces. With `None`, `prelude`
+    /// contains the entire serialization, including any statement terminator.
     pub body: Option<String>,
 }
 
 impl GeneratedRule {
-    /// The rule's serialization, ending in `;` for an at-rule statement.
+    /// Computes identity from CSS serialization, placement, and dependency names.
     ///
-    /// Re-serializing is not a parse: the stored strings are emitted as they are, so a
-    /// round trip through [`ModuleCssArtifact`] is byte-for-byte lossless.
+    /// Ignores the stored `key` and does not mutate the rule. Dependency order is
+    /// significant to this hash, so constructors must normalize equivalent lists if
+    /// they need those lists to share an identity.
+    pub fn content_key(&self) -> RuleKey {
+        if !self.keyframes && self.required_properties.is_empty() {
+            return RuleKey(Fingerprint::of(self.to_css()));
+        }
+        RuleKey(Fingerprint::of(format!(
+            "{:?}:{}:{}",
+            self.required_properties,
+            self.keyframes,
+            self.to_css()
+        )))
+    }
+
+    /// Appends this rule and its dependencies to a producer's mapped contributions.
+    ///
+    /// Ordinary rules extend `output.css`; animation definitions append a separate
+    /// entry to `output.keyframes`. Existing contribution order is preserved within
+    /// each destination. `origin` is passed to [`MappedStylesheet::text`]; an unusable
+    /// span leaves the emitted rule unmapped. Dependency names are not deduplicated.
+    pub fn append_to(
+        &self,
+        output: &mut MappedStylesheet,
+        origin: Option<(Arc<SourceFile>, Span)>,
+    ) {
+        output
+            .required_properties
+            .extend(self.required_properties.iter().cloned());
+        if self.keyframes {
+            let mut frames = MappedStylesheet::default();
+            frames.text(&self.to_css(), origin);
+            output.keyframes.push(frames);
+        } else {
+            output.text(&self.to_css(), origin);
+        }
+    }
+
+    /// Serializes the stored prelude and optional brace-delimited body.
+    ///
+    /// With no body, returns the prelude unchanged; it does not add a semicolon.
+    /// Placement and registration metadata are not included. Use [`Self::append_to`]
+    /// when the result will be assembled through output slots.
     pub fn to_css(&self) -> String {
         self.body.as_ref().map_or_else(
             || self.prelude.clone(),
@@ -111,7 +170,49 @@ pub struct ModuleResourceReference {
 }
 
 impl ModuleCssArtifact {
-    /// Concatenates the rules in stored order.
+    /// Splits contributions into independently owned rules in contribution order.
+    ///
+    /// Every rule inherits its contribution's placement and dependencies. Dependency
+    /// names are sorted and deduplicated before computing the rule's content key.
+    /// The input contributions are not modified.
+    ///
+    /// # Errors
+    ///
+    /// Returns a CSS block error with an offset relative to the offending contribution.
+    pub(crate) fn from_contributions(parts: &[CssContribution]) -> Result<Self, CssArtifactError> {
+        let mut output = Self::default();
+        for part in parts {
+            let mut artifact = Self::from_css(&part.css)?;
+            for rule in &mut artifact.rules {
+                rule.keyframes = part.keyframes;
+                rule.required_properties
+                    .clone_from(&part.required_properties);
+                rule.required_properties.sort();
+                rule.required_properties.dedup();
+                rule.key = rule.content_key();
+            }
+            output.rules.extend(artifact.rules);
+        }
+        Ok(output)
+    }
+
+    /// Builds producer contributions for a stylesheet renderer's mapped entry point.
+    ///
+    /// Preserves order within the rule and keyframe destinations and retains explicit
+    /// dependencies. Source mappings are empty because this artifact has no source
+    /// buffers; callers with origins can use [`GeneratedRule::append_to`] instead.
+    pub fn mapped(&self) -> MappedStylesheet {
+        let mut output = MappedStylesheet::default();
+        for rule in &self.rules {
+            rule.append_to(&mut output, None);
+        }
+        output
+    }
+
+    /// Concatenates rule serializations in stored order for inspecting unassembled CSS.
+    ///
+    /// The string omits placement and dependency metadata. Use [`Self::mapped`] for
+    /// template assembly rather than passing this text back to a raw-CSS renderer.
     pub fn to_css(&self) -> String {
         self.rules.iter().map(GeneratedRule::to_css).collect()
     }
@@ -141,6 +242,8 @@ impl ModuleCssArtifact {
                     .map_err(|_| CssArtifactError { offset: body_start })?;
                 let end = parser.position().byte_index();
                 rules.push(GeneratedRule {
+                    keyframes: false,
+                    required_properties: Vec::new(),
                     key: RuleKey(Fingerprint::of(&css[start..end])),
                     prelude: css[start..body_start - 1].into(),
                     body: Some(css[body_start..body_end].into()),
@@ -149,6 +252,8 @@ impl ModuleCssArtifact {
             } else if matches!(token, Token::Semicolon) {
                 let end = parser.position().byte_index();
                 rules.push(GeneratedRule {
+                    keyframes: false,
+                    required_properties: Vec::new(),
                     key: RuleKey(Fingerprint::of(&css[start..end])),
                     prelude: css[start..end].into(),
                     body: None,
@@ -158,6 +263,8 @@ impl ModuleCssArtifact {
         }
         if start < css.len() {
             rules.push(GeneratedRule {
+                keyframes: false,
+                required_properties: Vec::new(),
                 key: RuleKey(Fingerprint::of(&css[start..])),
                 prelude: css[start..].into(),
                 body: None,
@@ -282,6 +389,16 @@ impl CompiledModule {
     pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {
+            contributions: self
+                .css
+                .rules
+                .iter()
+                .map(|rule| CssContribution {
+                    css: rule.to_css(),
+                    keyframes: rule.keyframes,
+                    required_properties: rule.required_properties.clone(),
+                })
+                .collect(),
             composition: self.composition.clone(),
             resources: self.resources.clone(),
             css: module_css.clone(),
@@ -299,7 +416,9 @@ impl CompiledModule {
 /// Compiles module analyses against one immutable design system.
 #[derive(Clone, Debug)]
 pub struct ModuleCompiler {
+    /// Pinned immutable design-system revision used to compile module analyses.
     design_system: DesignSystemSnapshot,
+    /// Compiler configuration included in artifact identity.
     options: CompilerOptions,
 }
 
@@ -389,6 +508,7 @@ impl ModuleCompiler {
             );
             self.capture_resources(&mut compiled, support.source.path());
             result.module_css.push_str(&compiled.module_css);
+            result.contributions.extend(compiled.contributions);
             result.resources.extend(compiled.resources);
             result.symbols.extend(compiled.symbols);
             result.diagnostics.extend(compiled.diagnostics);
@@ -403,40 +523,47 @@ impl ModuleCompiler {
     /// owner path and the specifier, and references are rewritten from the end of the
     /// CSS towards the start so earlier byte ranges stay valid.
     fn capture_resources(&self, result: &mut CompileResult, owner: &str) {
-        let mut references = relative_css_urls(&result.module_css);
-        references.retain(|reference| {
-            !self
-                .design_system
-                .sources()
-                .resources
-                .iter()
-                .any(|resource| resource.placeholder == reference.specifier)
-        });
-        for reference in references.into_iter().rev() {
-            let placeholder = format!(
-                "__stillwind_js_resource_{}__",
-                Fingerprint::of(format!(
-                    "{}:{owner}{}:{}",
-                    owner.len(),
-                    reference.specifier.len(),
-                    reference.specifier
-                ))
-                .0
-            );
-            let replacement = if reference.string {
-                format!("\"{placeholder}\"")
-            } else {
-                format!("url(\"{placeholder}\")")
-            };
-            result
-                .module_css
-                .replace_range(reference.range, &replacement);
-            result.resources.push(ModuleResourceReference {
-                placeholder,
-                owner: owner.into(),
-                specifier: reference.specifier,
+        for contribution in &mut result.contributions {
+            let mut references = relative_css_urls(&contribution.css);
+            references.retain(|reference| {
+                !self
+                    .design_system
+                    .sources()
+                    .resources
+                    .iter()
+                    .any(|resource| resource.placeholder == reference.specifier)
             });
+            for reference in references.into_iter().rev() {
+                let placeholder = format!(
+                    "__stillwind_js_resource_{}__",
+                    Fingerprint::of(format!(
+                        "{}:{owner}{}:{}",
+                        owner.len(),
+                        reference.specifier.len(),
+                        reference.specifier
+                    ))
+                    .0
+                );
+                let replacement = if reference.string {
+                    format!("\"{placeholder}\"")
+                } else {
+                    format!("url(\"{placeholder}\")")
+                };
+                contribution
+                    .css
+                    .replace_range(reference.range, &replacement);
+                result.resources.push(ModuleResourceReference {
+                    placeholder,
+                    owner: owner.into(),
+                    specifier: reference.specifier,
+                });
+            }
         }
+        result.module_css = result
+            .contributions
+            .iter()
+            .map(|part| part.css.as_str())
+            .collect();
     }
 
     /// Compiles one module into its artifact.
@@ -456,7 +583,7 @@ impl ModuleCompiler {
             )
         }));
         let css = if diagnostics.is_empty() {
-            match ModuleCssArtifact::from_css(&result.module_css) {
+            match ModuleCssArtifact::from_contributions(&result.contributions) {
                 Ok(css) => css,
                 Err(error) => {
                     diagnostics.push(CompileError::new(

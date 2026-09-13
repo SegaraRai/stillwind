@@ -28,7 +28,9 @@ pub enum StylesheetPlacement {
 
 /// Renders stylesheets against a snapshot held for the renderer's lifetime.
 pub struct StylesheetRenderer<'a> {
+    /// Pinned design-system revision supplying the output template and registries.
     snapshot: &'a DesignSystemSnapshot,
+    /// Compiler configuration controlling generated names in rendered output.
     options: CompilerOptions,
 }
 
@@ -63,8 +65,9 @@ impl<'a> StylesheetRenderer<'a> {
         let mut result = module.to_module_output(self.snapshot);
         result.css.clear();
         if module.is_success() {
-            match self.render_stylesheet(&result.module_css) {
-                Ok(css) => result.css = css,
+            match self.render_mapped_stylesheet(&module.css.mapped(), StylesheetPlacement::Document)
+            {
+                Ok(css) => result.css = css.css,
                 Err(error) => {
                     result.diagnostics.push(CompileError::new(
                         "SHCSS001",
@@ -72,6 +75,7 @@ impl<'a> StylesheetRenderer<'a> {
                         diagnostic_span,
                     ));
                     result.module_css.clear();
+                    result.contributions.clear();
                     result.transforms.clear();
                     result.classes.clear();
                     result.symbols.clear();
@@ -81,7 +85,9 @@ impl<'a> StylesheetRenderer<'a> {
         result
     }
 
-    /// Assembles document CSS for the given utility rules.
+    /// Assembles document CSS for raw utility rules.
+    /// Generated artifacts must use [`Self::render_mapped_stylesheet`] to retain
+    /// keyframe placement and explicit registration dependencies.
     ///
     /// # Errors
     ///

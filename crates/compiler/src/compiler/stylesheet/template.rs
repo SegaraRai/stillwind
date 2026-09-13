@@ -1,11 +1,16 @@
 //! Assembly of the final stylesheet from the design system's output template.
 //!
-//! The template is a tree of layer-order, authored, theme, group, and slot nodes. This
-//! renderer selects required support before placing contributions into explicit
-//! slots. CSS owns the surrounding layers and conditions; nothing is hoisted out of
-//! them. Theme definitions remain in-place anchors only when no explicit destination
-//! exists for that contribution. Anonymous layers have stable identities across
-//! carriers. [`render_mapped`] retains definition provenance even across slot placement.
+//! [`render_mapped`] combines a design-system template with one producer's rules,
+//! generated keyframes, and registration dependencies. It selects the required theme
+//! declarations and registrations, then inserts them at the template's slots. The
+//! template supplies selectors, layers, and conditions; this module does not choose
+//! browser targets or minify values.
+//!
+//! Document output includes authored rules. Carrier output includes generated support
+//! and layer reservations, but omits independent authored rules. Both use the same
+//! anonymous-layer identities. [`render`] is the raw-CSS entry point without input
+//! metadata; generated artifacts use [`render_mapped`] to preserve their placement,
+//! dependencies, and source mappings.
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -13,9 +18,10 @@ use std::sync::Arc;
 
 use cssparser::{Parser, Token};
 
-use stillwind_css::{CssOutputNode, CssOutputTemplate};
+use stillwind_css::{CssOutputNode, CssOutputTemplate, take_property_requirements};
 use stillwind_design_system::{
     CssSourceGraph, ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_omit_token_prefixes,
+    builtin_property_definitions,
 };
 use stillwind_source::{SourceFile, Span};
 
@@ -25,7 +31,16 @@ use super::properties::{PropertyOutput, render_used_properties};
 use super::render::StylesheetError;
 use crate::{CompilerOptions, MappedStylesheet};
 
-/// Renders a stylesheet and discards the source mappings.
+/// Assembles raw CSS against `template` and returns the document or carrier text.
+///
+/// `theme` supplies the definitions indexed by the template. `utility_css` has no
+/// generated-keyframe classification or explicit registration metadata; callers with
+/// generated artifacts must use [`render_mapped`]. `document` includes authored rules
+/// when true. Neither the template nor the input CSS is modified.
+///
+/// # Errors
+///
+/// Returns the authored-CSS, registration, and missing-slot errors from [`render_mapped`].
 pub(super) fn render(
     template: &CssOutputTemplate,
     theme: &ThemeIndex,
@@ -38,7 +53,7 @@ pub(super) fn render(
         theme,
         &MappedStylesheet {
             css: utility_css.into(),
-            mappings: Vec::new(),
+            ..MappedStylesheet::default()
         },
         options,
         document,
@@ -49,14 +64,19 @@ pub(super) fn render(
 
 /// Renders a stylesheet with source provenance, for a document or a single carrier.
 ///
-/// `sources` is what lets an origin be recorded: without it, nodes render but no
-/// mapping is kept, which is the standalone case where nothing downstream consumes a
-/// map.
+/// `template` must index the supplied `theme`; `utility_css` carries rule text,
+/// separately classified keyframes, and explicit registration dependencies. The
+/// returned CSS follows template order, including repeated slot occurrences.
+/// `document` controls whether independent authored rules participate.
+///
+/// `sources` resolves template origins to source buffers. Without it, template text
+/// is unmapped; mappings already attached to input rules and keyframes are retained.
 ///
 /// # Errors
 ///
-/// Returns [`StylesheetError`] for unusable authored CSS, a missing utilities slot, or
-/// invalid CSS usage parsing.
+/// Returns [`StylesheetError`] for malformed or unknown registration requirements,
+/// unresolved authored theme references, invalid property-usage syntax, or a missing
+/// destination for a nonempty generated contribution.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn render_mapped(
     template: &CssOutputTemplate,
@@ -66,18 +86,17 @@ pub(crate) fn render_mapped(
     document: bool,
     sources: Option<&CssSourceGraph>,
 ) -> Result<MappedStylesheet, StylesheetError> {
+    let mut explicit = utility_css.required_properties.clone();
     let authored = if document {
-        render_authored(theme.custom_css(), theme)?
+        render_authored(theme.custom_css(), theme, &mut explicit)?
     } else {
         String::new()
     };
-    let used = format!("{}{authored}", utility_css.css);
-    let explicit = stillwind_css::blocks::property_requirement_ranges(&used)
-        .ok_or(StylesheetError::InvalidPropertyRequirement)?
-        .into_iter()
-        .flat_map(|(_, names)| names)
-        .collect::<Vec<_>>();
-    let builtin = stillwind_design_system::builtin_property_definitions(theme);
+    let mut used = format!("{}{authored}", utility_css.css);
+    for frames in &utility_css.keyframes {
+        used.push_str(&frames.css);
+    }
+    let builtin = builtin_property_definitions(theme);
     if explicit.iter().any(|name| {
         !builtin.iter().chain(&theme.properties).any(|property| {
             property.name == *name || options.rewrite_generated(&property.name) == *name
@@ -85,42 +104,6 @@ pub(crate) fn render_mapped(
     }) {
         return Err(StylesheetError::InvalidPropertyRequirement);
     }
-    let ranges = stillwind_css::blocks::property_requirement_ranges(&utility_css.css)
-        .ok_or(StylesheetError::InvalidPropertyRequirement)?
-        .into_iter()
-        .map(|(range, _)| range)
-        .collect::<Vec<_>>();
-    let lowered_utilities = (!ranges.is_empty()).then(|| utility_css.omit_ranges(&ranges));
-    let utility_css = lowered_utilities.as_ref().unwrap_or(utility_css);
-    // Generated local animations share the explicit keyframes destination. Only
-    // top-level definitions move; a caller-authored conditional retains its scope.
-    let mut frame_ranges = Vec::new();
-    if has_slot(&template.nodes, &CssOutputNode::Keyframes)
-        && utility_css.css.contains("@keyframes")
-    {
-        let fragments = stillwind_design_system::parse_output_template(&utility_css.css, &[])?;
-        for node in fragments.nodes {
-            if let CssOutputNode::Authored {
-                css,
-                origin: Some(origin),
-            } = node
-                && css.trim_start().starts_with("@keyframes ")
-            {
-                frame_ranges.push(origin.start.0 as usize..origin.end.0 as usize);
-            }
-        }
-    }
-    let mut gaps = Vec::new();
-    let mut end = 0;
-    for range in &frame_ranges {
-        gaps.push(end..range.start);
-        end = range.end;
-    }
-    gaps.push(end..utility_css.css.len());
-    let local_keyframes = utility_css.omit_ranges(&gaps);
-    let placed_utilities =
-        (!frame_ranges.is_empty()).then(|| utility_css.omit_ranges(&frame_ranges));
-    let utility_css = placed_utilities.as_ref().unwrap_or(utility_css);
     let required =
         theme.tokens_required_by_with_omit_rules(&used, false, builtin_omit_token_prefixes(theme));
     let tokens = theme
@@ -151,8 +134,10 @@ pub(crate) fn render_mapped(
         .collect();
     let mut definitions = Vec::new();
     collect_theme_nodes(&template.nodes, &mut definitions);
-    // Registration demand is derived before serialization and placement. Slots do
-    // not change which rules require support, including conditionally placed rules.
+    // Include selected theme values and frames in registration demand even when
+    // their slots are conditional: placement does not remove their dependencies.
+    // The root rule below is only an input to the usage parser, not output CSS.
+    // TODO: Accept declaration inputs in the usage collector to avoid this wrapper.
     let mut property_usage = used.clone();
     property_usage.push_str(":root{");
     for token in &required {
@@ -190,8 +175,6 @@ pub(crate) fn render_mapped(
         tokens,
         animations,
         slots: 0,
-        explicit_theme: has_slot(&template.nodes, &CssOutputNode::ThemeVariables),
-        explicit_keyframes: has_slot(&template.nodes, &CssOutputNode::Keyframes),
         theme_variables: MappedStylesheet::default(),
         keyframes: MappedStylesheet::default(),
         properties,
@@ -212,7 +195,25 @@ pub(crate) fn render_mapped(
             context.keyframes.append(&frames);
         }
     }
-    context.keyframes.append(&local_keyframes);
+    for frames in &utility_css.keyframes {
+        context.keyframes.append(frames);
+    }
+    for (needed, slot, name) in [
+        (
+            !context.theme_variables.css.is_empty(),
+            CssOutputNode::ThemeVariables,
+            "theme",
+        ),
+        (
+            !context.keyframes.css.is_empty(),
+            CssOutputNode::Keyframes,
+            "keyframes",
+        ),
+    ] {
+        if needed && !has_slot(&template.nodes, &slot) {
+            return Err(StylesheetError::MissingPropertySlot(name));
+        }
+    }
     let css = context.nodes(&template.nodes)?;
     if !utility_css.css.is_empty() && context.slots == 0 {
         return Err(StylesheetError::MissingUtilitiesSlot);
@@ -222,20 +223,31 @@ pub(crate) fn render_mapped(
 
 /// State carried through one template walk.
 struct Context<'a> {
+    /// Resolved theme containing token definitions and the output template.
     theme: &'a ThemeIndex,
+    /// Mapped utility contribution inserted at utilities slots.
     utility_css: &'a MappedStylesheet,
+    /// Generated-name configuration used during template expansion.
     options: &'a CompilerOptions,
+    /// Whether authored document rules are included rather than only carrier support.
     document: bool,
+    /// Selected indices into theme.tokens, traversed in ascending definition order.
     tokens: BTreeSet<usize>,
+    /// Requested animation names used to select keyframe definitions.
     animations: Vec<String>,
+    /// Number of utilities slots visited; zero rejects a nonempty utility contribution.
     slots: usize,
-    explicit_theme: bool,
-    explicit_keyframes: bool,
+    /// Mapped declarations inserted into theme slots, without selector braces.
     theme_variables: MappedStylesheet,
+    /// Mapped complete animation rules inserted into keyframes slots.
     keyframes: MappedStylesheet,
+    /// Registration and fallback fragments selected for the current contribution.
     properties: PropertyOutput,
+    /// Generated prefix used to identify anonymous layers consistently during this walk.
     layer_prefix: String,
+    /// Counter used to allocate distinct anonymous-layer identities.
     anonymous_layers: usize,
+    /// Optional retained CSS source graph for resolving authored origin spans.
     sources: Option<&'a CssSourceGraph>,
 }
 
@@ -254,6 +266,12 @@ impl Context<'_> {
         Some((source.source.clone(), span))
     }
 
+    /// Selects one theme block's live declarations and requested animation definitions.
+    ///
+    /// `tokens` contains indices into `self.theme`, in definition order. The two flags
+    /// select declaration and keyframe output independently. Declarations retain their
+    /// token origins; selected frames use the block's `origin`. The result has no
+    /// selector or layer wrapper.
     fn theme_fragment(
         &self,
         tokens: &[usize],
@@ -275,9 +293,7 @@ impl Context<'_> {
             }
         }
         if emit_tokens && !declarations.css.is_empty() {
-            output.text(":root,:host{", None);
             output.append(&declarations);
-            output.text("}", None);
         }
         if emit_keyframes {
             output.text(
@@ -296,24 +312,57 @@ impl Context<'_> {
     /// including groups a carrier omits, so the same layer gets the same name in every
     /// output that contains it. A carrier that omits an empty layer still emits the
     /// layer statement, because dropping it would change the layer order the document
-    /// establishes.
+    /// establishes. The walk advances the anonymous-layer counter and counts utility
+    /// slot occurrences, including occurrences whose contribution is empty.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an included authored node has an invalid registration
+    /// directive or an unresolved theme reference.
     fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, StylesheetError> {
+        self.nodes_in_context(nodes, false)
+    }
+
+    /// Renders nodes in rule or declaration context, advancing the template counters.
+    ///
+    /// `declarations` retains authored declarations surrounding a slot even in a
+    /// carrier: omitting them could change the meaning of that generated style rule.
+    /// Children of an at-rule group are rendered in rule context.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors from authored directive expansion and theme-reference resolution.
+    fn nodes_in_context(
+        &mut self,
+        nodes: &[CssOutputNode],
+        declarations: bool,
+    ) -> Result<MappedStylesheet, StylesheetError> {
         let mut output = MappedStylesheet::default();
         for node in nodes {
             match node {
                 CssOutputNode::LayerOrder { css, origin } => output.text(css, self.origin(*origin)),
-                CssOutputNode::Authored { css, origin } if self.document => {
-                    let authored = render_authored(css, self.theme)?;
-                    let (authored, _) =
-                        stillwind_css::blocks::take_property_requirements(&authored)
-                            .ok_or(StylesheetError::InvalidPropertyRequirement)?;
+                CssOutputNode::Authored { css, origin } if self.document || declarations => {
+                    let authored = render_authored(css, self.theme, &mut Vec::new())?;
                     output.text(&authored, self.origin(*origin));
                 }
-                CssOutputNode::Authored { .. } => {}
+                CssOutputNode::Authored { .. } | CssOutputNode::Theme { .. } => {}
                 CssOutputNode::ThemeVariables => output.append(&self.theme_variables),
                 CssOutputNode::Keyframes => output.append(&self.keyframes),
                 CssOutputNode::Properties => output.text(&self.properties.registrations, None),
                 CssOutputNode::PropertyInitials => output.text(&self.properties.initials, None),
+                CssOutputNode::Style {
+                    header,
+                    children,
+                    origin,
+                } => {
+                    let body = self.nodes_in_context(children, true)?;
+                    if !body.css.is_empty() {
+                        output.text(header, self.origin(*origin));
+                        output.text("{", None);
+                        output.append(&body);
+                        output.text("}", None);
+                    }
+                }
                 CssOutputNode::Utilities => {
                     self.slots += 1;
                     output.append(self.utility_css);
@@ -323,7 +372,8 @@ impl Context<'_> {
                     children,
                     origin,
                 } => {
-                    // Count the complete template, including groups omitted from this carrier.
+                    // Number before filtering the body so separate carriers assign the
+                    // same name to the same anonymous layer, even when one omits its rules.
                     let header = if is_anonymous_layer(header) {
                         let index = self.anonymous_layers;
                         self.anonymous_layers += 1;
@@ -342,39 +392,28 @@ impl Context<'_> {
                         output.text("}", None);
                     }
                 }
-                CssOutputNode::Theme {
-                    tokens,
-                    keyframes,
-                    origin,
-                } => {
-                    output.append(&self.theme_fragment(
-                        tokens,
-                        keyframes,
-                        *origin,
-                        !self.explicit_theme,
-                        !self.explicit_keyframes,
-                    ));
-                }
             }
         }
         Ok(output)
     }
 }
 
-/// Explicit slots relocate definitions; without them, @theme remains an in-place
-/// output anchor for standalone authored design systems. No implicit tail output.
+/// Tests for `slot` anywhere in the node list, including style and group children.
 fn has_slot(nodes: &[CssOutputNode], slot: &CssOutputNode) -> bool {
     nodes.iter().any(|node| {
         node == slot
-            || matches!(node, CssOutputNode::Group { children, .. } if has_slot(children, slot))
+            || matches!(node, CssOutputNode::Group { children, .. } | CssOutputNode::Style { children, .. } if has_slot(children, slot))
     })
 }
 
+/// Appends theme definitions in depth-first source order without changing the tree.
 fn collect_theme_nodes<'a>(nodes: &'a [CssOutputNode], output: &mut Vec<&'a CssOutputNode>) {
     for node in nodes {
         match node {
             CssOutputNode::Theme { .. } => output.push(node),
-            CssOutputNode::Group { children, .. } => collect_theme_nodes(children, output),
+            CssOutputNode::Group { children, .. } | CssOutputNode::Style { children, .. } => {
+                collect_theme_nodes(children, output);
+            }
             _ => {}
         }
     }
@@ -382,9 +421,10 @@ fn collect_theme_nodes<'a>(nodes: &'a [CssOutputNode], output: &mut Vec<&'a CssO
 
 /// Generated prefix for anonymous layers, stable for one template and class namespace.
 ///
-/// The namespace participates so two applications that share a design system still get
-/// distinct layer names, and the hash keeps the generated name from colliding with an
-/// authored layer.
+/// The prefix hashes the template source identity and class namespace. Equal inputs
+/// produce equal prefixes across carriers; different namespaces separate applications
+/// sharing a template. The 16 hexadecimal hash digits reduce accidental collisions
+/// with authored names but do not reserve a collision-free CSS namespace.
 fn anonymous_layer_prefix(template: &CssOutputTemplate, options: &CompilerOptions) -> String {
     let identity = format!(
         "stillwind/layer/v1:{}:{}{}",
@@ -412,11 +452,29 @@ fn is_layer(header: &str) -> bool {
     matches!(parser.next(), Ok(Token::AtKeyword(name)) if name.eq_ignore_ascii_case("layer"))
 }
 
-/// Expands authored directives and resolves `--theme()` references, or reports the
-/// failure.
-fn render_authored(css: &str, theme: &ThemeIndex) -> Result<String, StylesheetError> {
+/// Returns expanded authored CSS and appends its explicit registration dependencies.
+///
+/// `required_properties` retains its existing entries and may gain duplicate names.
+/// Requirements written in the input precede those collected from `@apply` expansion.
+///
+/// # Errors
+///
+/// Returns an error for a malformed requirement directive or an unresolved theme
+/// reference. Dependencies already appended remain in the accumulator on error.
+fn render_authored(
+    css: &str,
+    theme: &ThemeIndex,
+    required_properties: &mut Vec<String>,
+) -> Result<String, StylesheetError> {
+    let (css, requirements) =
+        take_property_requirements(css).ok_or(StylesheetError::InvalidPropertyRequirement)?;
+    required_properties.extend(requirements);
     theme
-        .resolve_theme_references(&expand_authored_directives(css, theme))
+        .resolve_theme_references(&expand_authored_directives(
+            &css,
+            theme,
+            required_properties,
+        ))
         .ok_or(StylesheetError::UnresolvedThemeReference)
 }
 
@@ -426,6 +484,90 @@ mod tests {
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
+
+    #[test]
+    fn declaration_slots_keep_css_owned_selectors_conditions_and_order() {
+        let source = SourceFile::new(
+            FileId(1),
+            "entry.css",
+            r#"
+            @theme { --brand: red; }
+            @stillwind-property --n { syntax: "<number>"; inherits: false; initial-value: 0; }
+            @media print { @layer defaults {
+                .theme-scope { color:blue; @stillwind-slot theme; color:green; }
+                .reset::before { @stillwind-slot property-initials; }
+            } }
+            @stillwind-slot properties;
+            @stillwind-slot utilities;
+        "#,
+        )
+        .unwrap();
+        let theme = parse_theme(&source).unwrap();
+        let css = render(
+            &theme.output_template,
+            &theme,
+            ".x{color:var(--brand);opacity:var(--n)}",
+            &CompilerOptions::default(),
+            false,
+        )
+        .unwrap();
+        assert!(
+            css.contains("@media print{@layer defaults{.theme-scope{"),
+            "{css}"
+        );
+        assert!(css.contains("--brand:red;"), "{css}");
+        assert!(css.find("color:blue").unwrap() < css.find("--brand:red").unwrap());
+        assert!(css.find("--brand:red").unwrap() < css.find("color:green").unwrap());
+        assert!(css.contains(".reset::before{"), "{css}");
+        assert!(!css.contains(":root") && !css.contains(":host") && !css.contains("::backdrop"));
+        assert!(!css.contains("@stillwind-slot"));
+    }
+
+    #[test]
+    fn generated_keyframes_keep_mapping_while_raw_css_keeps_its_placement() {
+        let source = SourceFile::new(FileId(1), "entry.css", "@layer animations { @stillwind-slot keyframes; } @layer utilities { @stillwind-slot utilities; }").unwrap();
+        let theme = parse_theme(&source).unwrap();
+        let original =
+            Arc::new(SourceFile::new(FileId(9), "日本.tsx", "日本 animation source").unwrap());
+        let mut frames = MappedStylesheet::default();
+        frames.text(
+            "@keyframes generated{to{opacity:0}}",
+            Some((original.clone(), original.full_span())),
+        );
+        let utilities = MappedStylesheet {
+            css: "@media print{@keyframes authored{to{opacity:1}}}.x{content:'@keyframes fake{}'}"
+                .into(),
+            keyframes: vec![frames],
+            ..MappedStylesheet::default()
+        };
+        let output = render_mapped(
+            &theme.output_template,
+            &theme,
+            &utilities,
+            &CompilerOptions::default(),
+            true,
+            None,
+        )
+        .unwrap();
+        assert!(
+            output
+                .css
+                .contains("@layer animations{@keyframes generated{")
+        );
+        assert!(
+            output
+                .css
+                .contains("@layer utilities{@media print{@keyframes authored{")
+        );
+        assert!(output.css.contains("content:'@keyframes fake{}'"));
+        let mapping = &output.mappings[0];
+        assert_eq!(
+            &output.css[mapping.generated.clone()],
+            "@keyframes generated{to{opacity:0}}"
+        );
+        assert_eq!(mapping.original, 0..original.text().len());
+        assert!(Arc::ptr_eq(&mapping.source, &original));
+    }
 
     #[test]
     fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
@@ -463,7 +605,7 @@ mod tests {
 
     #[test]
     fn slots_and_support_preserve_authored_conditions_in_document_and_module_outputs() {
-        let source = SourceFile::new(FileId(1), "entry.css", "@layer theme, utilities; @layer theme { @theme { --color-brand: red; --unused:blue; } } .before{display:block;} @layer utilities { @supports (display:grid) { @media print { @stillwind-slot utilities; } } } .after{color:blue;}").unwrap();
+        let source = SourceFile::new(FileId(1), "entry.css", "@layer theme, utilities; @layer theme { :root,:host { @stillwind-slot theme; } @theme { --color-brand: red; --unused:blue; } } .before{display:block;} @layer utilities { @supports (display:grid) { @media print { @stillwind-slot utilities; } } } .after{color:blue;}").unwrap();
         let theme = parse_theme(&source).unwrap();
         let template = &theme.output_template;
         let utility = ".x{color:var(--color-brand);}";
@@ -491,11 +633,11 @@ mod tests {
     fn slots_relocate_definitions_without_hoisting_conditions_or_layers() {
         let source = SourceFile::new(FileId(1), "entry.css", r#"
             @layer theme, utilities;
-            @layer theme { @stillwind-slot theme; }
+            @layer theme { :root,:host { @stillwind-slot theme; } }
             @layer utilities { @stillwind-slot utilities; }
             @media print { @layer motion { @stillwind-slot keyframes; } }
             @stillwind-slot properties;
-        @stillwind-slot property-initials;
+        *,:before,:after,::backdrop { @stillwind-slot property-initials; }
             @theme { --color-brand: red; --animate-spin: spin 1s;
                 @keyframes spin { to { opacity: 0; } }
             }

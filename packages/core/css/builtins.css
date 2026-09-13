@@ -37,11 +37,14 @@ is itself the sort key.
 @import "./builtins/svg-utilities.css";
 
 /*
-Load the built-in variants.
+Load the built-in variant definitions.
 
-Each `@stillwind-variant` defines a compiler-owned selector or conditional
-transformation and participates in source order with the other built-in
-variants.
+Each `@stillwind-variant` defines a selector or conditional transformation.
+Like utilities, variants are ordered by definition order, including the import
+order below and the order within each imported file. This order determines the
+relative output order of variant rules and is part of Tailwind CSS compatibility:
+when variants apply together, reordering them can change which declarations win.
+Preserve that precedence when adding or moving definitions.
 */
 
 @import "./builtins/relationship-variants.css";
@@ -67,11 +70,30 @@ after all built-in utilities, matching Tailwind's unknown-property bucket.
 @stillwind-arbitrary-property --tw-*;
 @stillwind-arbitrary-property *;
 
-/* Runtime placement is authored CSS. Registrations remain outside the fallback query. */
+/*
+The property-initials slot inserts declarations for selected builtin registrations.
+Each element and the listed pseudo-elements receive their own fallback values in the
+queried compatibility environments; a root-only reset would allow inherited state to
+reach descendants. Keep this declaration slot inside the selector rule.
+*/
+
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
-    @stillwind-slot property-initials;
+    *,
+    ::before,
+    ::after,
+    ::backdrop {
+      @stillwind-slot property-initials;
+    }
   }
 }
+
+/*
+The properties slot emits complete @property rules outside the query so registration
+is available independently of fallback activation. The entry stylesheet reserves the
+properties layer's position; moving the fallback to another layer changes its cascade
+priority relative to utility declarations.
+*/
+
 @stillwind-slot properties;

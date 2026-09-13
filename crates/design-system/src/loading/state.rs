@@ -44,7 +44,11 @@ pub enum DesignSystemLoadError {
     InvalidGraph,
     /// A supplied buffer could not be stored as a source file.
     #[error("{0}")]
-    Source(#[from] SourceError),
+    Source(
+        /// Failure storing a supplied source in the byte-coordinate space.
+        #[from]
+        SourceError,
+    ),
     /// The monotonic request counter reached `u32::MAX`.
     #[error("CSS request IDs exhausted")]
     RequestIdExhausted,
@@ -92,9 +96,12 @@ pub enum DesignSystemLoadError {
     },
     /// The resolved prefix configuration is invalid.
     #[error("{0}")]
-    InvalidOptions(#[from] DesignSystemOptionsError),
-    /// The import graph contains a cycle; `chain` lists the requests that
-    /// close it, in traversal order.
+    InvalidOptions(
+        /// Validation failure for the resolved prefix configuration.
+        #[from]
+        DesignSystemOptionsError,
+    ),
+    /// The import graph contains a cycle.
     #[error("CSS import cycle: {chain:?}")]
     Cycle {
         /// Requests that close the cycle, in traversal order.
@@ -105,7 +112,9 @@ pub enum DesignSystemLoadError {
 /// One accepted source: its imports, the requests issued for them, and the
 /// resolved target index per import slot.
 struct Node {
+    /// Parsed imports in authored order, indexed in parallel with requests and targets.
     imports: Vec<Import>,
+    /// Host requests in import order; each entry corresponds to the same index in imports.
     requests: Vec<CssFileRequest>,
     /// Index into the graph's source list per import, filled as responses
     /// arrive. `None` means the import is still outstanding.
@@ -118,12 +127,20 @@ struct Node {
 /// The loader performs no I/O and holds no host resources, so a host that
 /// abandons a load may simply drop it from any incomplete state.
 pub struct DesignSystemLoader {
+    /// Requested prefix configuration validated when loading completes.
     options: DesignSystemOptions,
+    /// Sources and import edges retained for the current load.
     graph: CssSourceGraph,
+    /// Supplied source name to index in the graph's source list.
     known: BTreeMap<CssSourceName, usize>,
+    /// Per-source import state in the same order as the graph's sources.
     nodes: Vec<Node>,
+    /// Outstanding request id to (source index, import index); indices address nodes
+    /// and its import arrays.
     pending: BTreeMap<u32, (usize, usize)>,
+    /// Next monotonically allocated request id; allocation fails rather than wrapping.
     next_id: u32,
+    /// Whether completion or failure has ended the protocol; further responses are rejected.
     terminal: bool,
 }
 

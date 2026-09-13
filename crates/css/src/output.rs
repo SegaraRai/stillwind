@@ -34,6 +34,12 @@ pub enum CssOutputError {
         /// Slot name as written.
         name: String,
     },
+    /// A declaration slot appeared outside a style rule, or a rule slot inside one.
+    #[error("Stillwind output slot {name} has an invalid CSS context")]
+    SlotContext {
+        /// Slot whose rule/declaration context is invalid.
+        name: String,
+    },
     /// A block could not be parsed or was never closed.
     #[error("invalid CSS output block at byte {offset}")]
     Block {
@@ -72,13 +78,23 @@ pub enum CssOutputNode {
         /// Where the wrapper was authored, when known.
         origin: Option<Span>,
     },
-    /// One `@theme` block's contribution to the emitted document.
+    /// A CSS style rule containing declaration slots and authored declarations.
+    Style {
+        /// Authored selector list.
+        header: String,
+        /// Declaration contributions in source order.
+        children: Vec<Self>,
+        /// Source location of the rule.
+        origin: Option<Span>,
+    },
+    /// One `@theme` block's definitions, selected for emission through output slots.
     Theme {
         /// Indices into the compiled theme's token list for the tokens authored inside
         /// this block. The consumer resolves them, so an index is only valid for the
         /// theme the template was built from.
         tokens: Vec<usize>,
-        /// `@keyframes` text authored inside this block, emitted with the tokens.
+        /// Keyframe definitions authored inside this block. Referenced definitions
+        /// contribute to the keyframes slot independently of the token declarations.
         keyframes: String,
         /// Where the block was authored, when known.
         origin: Option<Span>,
@@ -88,13 +104,14 @@ pub enum CssOutputNode {
     /// Carries no CSS of its own: the compiler knows which utilities the importing
     /// carrier selected, and renders the same template per carrier.
     Utilities,
-    /// Emits all live theme variables, independent of their definition locations.
+    /// Emits live theme declarations inside the authored style rule containing the slot.
     ThemeVariables,
-    /// Emits live theme keyframes in source order at this exact layer/condition.
+    /// Emits selected theme and generated animation definitions at this layer and
+    /// condition, preserving the assembler's contribution order.
     Keyframes,
     /// Emits required custom-property registrations.
     Properties,
-    /// Emits the fallback initialization rule for required builtin properties.
+    /// Emits fallback initialization declarations inside an authored style rule.
     PropertyInitials,
 }
 
@@ -131,7 +148,10 @@ impl CssOutputTemplate {
                     | CssOutputNode::Theme { origin, .. } => {
                         *origin = origin.and_then(&mut *map);
                     }
-                    CssOutputNode::Group {
+                    CssOutputNode::Style {
+                        origin, children, ..
+                    }
+                    | CssOutputNode::Group {
                         origin, children, ..
                     } => {
                         *origin = origin.and_then(&mut *map);
@@ -157,7 +177,10 @@ fn authored_css(nodes: &[CssOutputNode]) -> String {
             CssOutputNode::Authored { css, .. } | CssOutputNode::LayerOrder { css, .. } => {
                 css.clone()
             }
-            CssOutputNode::Group {
+            CssOutputNode::Style {
+                header, children, ..
+            }
+            | CssOutputNode::Group {
                 header, children, ..
             } => {
                 format!("{header}{{{}}}", authored_css(children))

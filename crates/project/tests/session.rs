@@ -23,6 +23,8 @@ fn publication_rekeys_publicly_edited_rules_before_sharing_them() {
     let key = RuleKey(Fingerprint::of("stale"));
     let mut artifact = ModuleCssArtifact {
         rules: vec![GeneratedRule {
+            keyframes: false,
+            required_properties: Vec::new(),
             key,
             prelude: ".x".into(),
             body: Some("color:red;".into()),
@@ -122,7 +124,11 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     session.update_module(module("a.tsx", "bg-brand animate-spin ring-2"));
     let artifact = session.artifacts()["a.tsx"].clone();
     let css = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-        .render_module_stylesheet(&artifact.css.to_css())
+        .render_mapped_stylesheet(
+            &artifact.css.mapped(),
+            stillwind_compiler::StylesheetPlacement::Carrier,
+        )
+        .map(|output| output.css)
         .unwrap();
     assert!(css.contains("--color-brand:red"));
     assert!(css.contains("@keyframes spin"));
@@ -140,7 +146,11 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     );
     assert_eq!(
         StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_module_stylesheet(&artifact.css.to_css())
+            .render_mapped_stylesheet(
+                &artifact.css.mapped(),
+                stillwind_compiler::StylesheetPlacement::Carrier
+            )
+            .map(|output| output.css)
             .unwrap(),
         css
     );

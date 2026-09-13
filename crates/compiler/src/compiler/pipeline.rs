@@ -19,7 +19,6 @@ use stillwind_ir::{
 use stillwind_semantic::AssetKind;
 use stillwind_source::{CompileError, SourceFile, filter_lint_findings};
 
-use super::Compiler;
 use super::emission::{CallEmitter, CallEmitterInputs};
 use super::handles::{
     handle_marker_class, named_identity, ref_identity, scope_identity, scope_marker_class,
@@ -32,6 +31,7 @@ use super::symbols::{
     generated_ref_marker_symbol, generated_ref_symbol, generated_scope_marker_symbol,
     generated_scope_symbol, generated_symbol, symbol_name,
 };
+use super::{Compiler, CssContribution};
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
 use crate::{CompilerOptions, ImportPlanError};
@@ -92,7 +92,7 @@ impl Compiler {
             return result;
         }
 
-        let mut utility_css = String::new();
+        let mut utility_css = Vec::new();
         let mut emitted_utility_classes = BTreeSet::new();
         let mut module = parsed.ir.clone();
         module.style_calls = ordered_style_calls(parsed);
@@ -155,9 +155,9 @@ impl Compiler {
             });
         }
         motion_assets.extend(runtime_assets.iter().cloned());
-        let mut motion_css = String::new();
+        let mut motion_css = Vec::new();
         for animation in &module.animation_declarations {
-            let mut definition_css = String::new();
+            let mut definition_css = CssContribution::default();
             emit_animation_definition(
                 &mut definition_css,
                 source,
@@ -170,11 +170,11 @@ impl Compiler {
                 AssetKind::Animation,
                 &animation.name,
             )) {
-                motion_css.push_str(&definition_css);
+                motion_css.push(definition_css);
             }
         }
         for transition in &module.view_transition_declarations {
-            let mut definition_css = String::new();
+            let mut definition_css = CssContribution::default();
             emit_view_transition_definition(
                 &mut definition_css,
                 source,
@@ -187,10 +187,10 @@ impl Compiler {
                 AssetKind::ViewTransition,
                 &transition.name,
             )) {
-                motion_css.push_str(&definition_css);
+                motion_css.push(definition_css);
             }
         }
-        motion_css.push_str(&utility_css);
+        motion_css.append(&mut utility_css);
         utility_css = motion_css;
         for handle_definition in module.handle_definitions {
             result.transforms.push(SourceTransform {
@@ -286,7 +286,14 @@ impl Compiler {
         }
 
         if result.diagnostics.is_empty() {
-            result.module_css = options.rewrite_generated(&utility_css);
+            for contribution in &mut utility_css {
+                contribution.css = options.rewrite_generated(&contribution.css);
+                for name in &mut contribution.required_properties {
+                    *name = options.rewrite_generated(name);
+                }
+            }
+            result.module_css = utility_css.iter().map(|part| part.css.as_str()).collect();
+            result.contributions = utility_css;
         } else {
             result.css.clear();
             result.classes.clear();

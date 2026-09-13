@@ -18,7 +18,7 @@ const location = (text: string, offset: number) => {
 void test("CSS maps retain imported authored text, theme tokens and macro origins", () => {
   const loader = new NativeDesignSystemLoader();
   const root =
-    "@import 'child.css';\n@theme static { --color-brand: red; }\n@utility red {color:red;}\n@stillwind-slot utilities;";
+    "@import 'child.css';\n@theme static { --color-brand: red; } :root,:host { @stillwind-slot theme; }\n@utility red {color:red;}\n@stillwind-slot utilities;";
   const child = "/* 日本語 🧭 */\n.authored { color: blue; }";
   const step = loader.provide(0, "design.css", root);
   loader.provide(step.requests[0].id, "child.css", child);

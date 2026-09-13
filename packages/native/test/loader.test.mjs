@@ -270,7 +270,7 @@ void test("native sessions retain independent producer rules and replace CSS rev
     loader.provide(
       0,
       "opaque root",
-      "@import 'tokens'; @utility bg-brand {background-color:var(--color-brand)} @stillwind-slot utilities;",
+      "@import 'tokens'; :root,:host { @stillwind-slot theme; } @utility bg-brand {background-color:var(--color-brand)} @stillwind-slot utilities;",
     ),
     {
       kind: "needFile",
@@ -298,7 +298,7 @@ void test("native sessions retain independent producer rules and replace CSS rev
   next.provide(
     0,
     "root",
-    "@theme { --color-brand: blue; } @utility bg-brand {background-color:var(--color-brand)} @stillwind-slot utilities;",
+    "@theme { --color-brand: blue; } :root,:host { @stillwind-slot theme; } @utility bg-brand {background-color:var(--color-brand)} @stillwind-slot utilities;",
   );
   assert.equal(session.reload(next).cssChanged, true);
   assert.notEqual(session.css(), before);
@@ -335,7 +335,11 @@ void test("native loader accepts partial and reversed batches", async () => {
 void test("native watch reload reports compilation errors without publishing a partial revision", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
   const initial = new NativeDesignSystemLoader();
-  initial.provide(0, "theme", "@utility brand { color:red; } @stillwind-slot utilities;");
+  initial.provide(
+    0,
+    "theme",
+    "@utility brand { color:red; } @stillwind-slot utilities; @stillwind-slot keyframes;",
+  );
   const session = new NativeProjectSession(initial, true);
   const source =
     "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion(''));";
@@ -348,7 +352,11 @@ void test("native watch reload reports compilation errors without publishing a p
   assert.throws(() => session.reload(invalid), /CSS reload compilation failed.*SH001/s);
   assert.equal(session.css(), before);
   const recovered = new NativeDesignSystemLoader();
-  recovered.provide(0, "theme", "@utility brand { color:blue; } @stillwind-slot utilities;");
+  recovered.provide(
+    0,
+    "theme",
+    "@utility brand { color:blue; } @stillwind-slot utilities; @stillwind-slot keyframes;",
+  );
   assert.equal(session.reload(recovered).cssChanged, true);
   assert.notEqual(session.css(), before);
 });

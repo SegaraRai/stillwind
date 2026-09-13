@@ -31,11 +31,11 @@ use stillwind_source::{
 use crate::entry::source_type;
 
 /// One retained run of text, in both coordinate systems.
-///
-/// [`Self::normalized`] is the span in the analysis source and [`Self::projected`] the
-/// span of the same characters in the generated source; both always have equal length.
 struct Segment {
+    /// Half-open UTF-8 span of the retained run in the analysis source.
     normalized: Span,
+    /// Half-open UTF-8 span of the same text in the projected source; equal in byte
+    /// length to normalized.
     projected: Span,
 }
 

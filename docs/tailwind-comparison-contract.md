@@ -29,7 +29,10 @@ StillwindはCSSの解釈を比較する。文字列の整形・minifyはコア�
 ```css
 @layer properties, theme, base, components, utilities;
 @layer theme {
-  @stillwind-slot theme;
+  :root,
+  :host {
+    @stillwind-slot theme;
+  }
   @stillwind-slot keyframes;
 }
 @layer utilities {
@@ -37,17 +40,22 @@ StillwindはCSSの解釈を比較する。文字列の整形・minifyはコア�
 }
 @layer properties {
   @supports (/* 対応環境の条件 */) {
-    @stillwind-slot property-initials;
+    *,
+    ::before,
+    ::after,
+    ::backdrop {
+      @stillwind-slot property-initials;
+    }
   }
 }
 @stillwind-slot properties;
 ```
 
-`theme`はlive tokenの`:root,:host`宣言、`keyframes`は参照されたtheme animationおよび生成fragmentのトップレベルlocal animation、`properties`は必要な登録、`property-initials`はそのfallback初期化ruleを挿入する。`@supports`条件はbuiltin CSSにあり、Rustに固定しない。登録そのものをfallback query内に閉じ込めない。
+`theme`はlive tokenの宣言、`property-initials`はfallback初期化の宣言を挿入する。この2種類はスタイルルール内に置き、セレクターもCSS側で指定する。`keyframes`は参照されたtheme animationおよび生成時に分類したlocal animation、`properties`は必要な登録、`utilities`は生成ルールを挿入する。ルール用slotを宣言位置へ置くこと、宣言用slotをルール位置へ置くことはエラーになる。`@supports`条件もbuiltin CSSにあり、登録そのものをfallback query内に閉じ込めない。
 
-明示slotが存在する種類について、`@theme`の定義位置には出力しない。明示theme/keyframes slotを持たない独立したCSSでは`@theme`自体をその場の出力位置として使う。暗黙に末尾へ移動しない。必要な登録・初期化のslotが欠けていればエラーにする。
+`@theme`は定義だけを提供し、その位置へ暗黙のrootルールを出力しない。独立したCSSも、必要なtheme・keyframes・登録・初期化のslotを明示する。出力する寄与があるのに対応slotが欠けていればエラーになる。以前のルール位置のtheme/property-initials slotは、上記のようにセレクターで包む必要がある。
 
-fragment内で明示的な条件に包まれたkeyframesは、その条件から取り出さない。
+local animationは生成時からkeyframes寄与として分離し、CSS文字列から再抽出しない。任意の生CSSに含まれるkeyframesは、そのCSSの位置・条件を保持する。
 
 同じslotを複数置くと各位置に同じ選択済み寄与を出す。条件・レイヤーを跨いだ一括重複除去はしない。利用側が複数配置のカスケードを所有する。theme keyframesの定義順と定義元のsource mapを保持する。
 
@@ -57,7 +65,9 @@ fragment内で明示的な条件に包まれたkeyframesは、その条件から
 
 宣言本文が同じでも必要なsupportが違うutilityは、定義内の`@stillwind-require-properties --name;`で依存を明示する。例えば`transform`は登録を要求するが、`transform-cpu/gpu`は単なる参照である。
 
-解決段階では要求は宣言本文と分離したmetadataになる。CSS fragment APIの輸送では同名のsemantic directiveとして保持し、最終stylesheetのslot展開前に消費する。これは途中のコンパイラー表現のloweringであり、生成済みCSSの最適化passではない。要求は名前を登録表と照合し、不明な名前はエラーにする。`@apply`も同じ依存を運ぶ。最終CSSにdirectiveは残さず、除去区間のsource mapを補正する。
+解決段階から`CssContribution`・`GeneratedRule`・`MappedStylesheet`まで、要求はCSS本文と分離したmetadataとして運ぶ。`@apply`展開も依存情報を別に返す。輸送のためのdirective生成・再解析・削除は行わない。登録表にない要求はエラーになる。生成ルールの識別には本文だけでなく依存・keyframes配置も含めるため、同一本文の別契約を誤って集約せず、producer削除時に不要な依存も除去できる。
+
+`StylesheetRenderer::render_mapped_stylesheet`と`ModuleCssArtifact::mapped`はこのmetadataを保持する。文字列だけを受け取るrendererは生CSS用であり、失われた依存や生成animationの分類を文字列から推測しない。`module_css`/`to_css()`は未組み立てCSSの確認用であり、生成物の再組み立てには構造化APIを使う。keyframesのsource mapは生成寄与に付属し、slotへのappendで座標を移す。
 
 ## 比較範囲
 

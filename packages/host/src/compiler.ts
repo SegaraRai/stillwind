@@ -6,6 +6,10 @@ import { projectFrameworkSource } from "@stillwind/projection";
 
 import type { ModuleSummary, ProjectSource } from "./protocol.ts";
 import type { TypeScriptFactsService, TypeFact } from "./type-facts.ts";
+/**
+ * Host services for resolving and reading semantic dependencies, registering watches,
+ * and reporting lint warnings. Resolution may exclude external modules or return null.
+ */
 export interface CompilerHost {
   resolve(
     specifier: string,
@@ -19,10 +23,17 @@ export interface CompilerHost {
 function fail(message: string): never {
   throw new Error(message);
 }
+/**
+ * Returns the root-relative module identity with forward slashes. Paths outside
+ * root retain `..` segments; this does not validate filesystem containment.
+ */
 export function compilerModulePath(root: string, id: string): string {
   return relative(root, id).replaceAll("\\", "/");
 }
 
+/**
+ * Removes the query or fragment suffix from a host module identifier.
+ */
 export function cleanModuleId(id: string): string {
   return id.replace(/[?#].*$/, "");
 }
@@ -46,6 +57,17 @@ function semanticDependencies(summary: ModuleSummary, requested: string | null) 
   return [...summary.imports, ...summary.re_exports];
 }
 
+/**
+ * Compiles an entry buffer and its demanded semantic dependencies into a project session.
+ * The entry id is cleaned before projection; native module paths are relative to projectRoot.
+ * Type facts are requested lazily for ordinary JS/TS inputs that contain probes.
+ *
+ * Returns the entry output with composition metadata, or undefined when normal mode
+ * has no generated entry code. Collect mode retains compiler diagnostics across outputs;
+ * normal mode throws on compiler diagnostics and deny-level lint findings.
+ * Host I/O, projection, checker, and native failures propagate in either mode.
+ * Session updates, watches, and warnings are not rolled back on failure.
+ */
 export async function compileModule(
   session: NativeProjectSession,
   factsService: () => TypeScriptFactsService,
@@ -74,8 +96,8 @@ export async function compileModule(
   const hasModuleCssImport = entrySummary.module_css_imports > 0;
   if (entrySummary.macro_imports > 0) entrySource.stylesheet_imports = options.stylesheetImports;
   if (hasModuleCssImport) entrySource.module_css_import = options.moduleCssImport;
-  // Checker spans currently describe ordinary modules. Projected probes need
-  // a separate original/generated coordinate contract before they can be queried.
+  // The checker queries ordinary source coordinates. Framework projections have
+  // separate original and generated buffers, so their probes are excluded.
   const needsTypeFacts = entrySource.fw_code === undefined && entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesById = new Map<string, ProjectSource>();

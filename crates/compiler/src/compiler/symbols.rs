@@ -18,11 +18,10 @@ use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 use super::handles::{handle_marker_class, scope_marker_class};
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
-/// One generated CSS identifier with the canonical identity it was allocated from.
 ///
-/// Names are unique within a compilation by construction; `identity` is what makes that
-/// checkable across producers, because two producers that independently generate a name
-/// can compare identities to decide whether they generated the same thing.
+/// Names are deterministic but use truncated hashes and can collide. Consumers that
+/// need to distinguish declarations across producers compare `identity`, not only
+/// `name`. This record reports both values; constructing it does not check collisions.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.

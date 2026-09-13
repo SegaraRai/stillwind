@@ -4,12 +4,18 @@ import { extname } from "node:path";
 
 import type { ProjectSource, ProjectionMap } from "../protocol.ts";
 
+/**
+ * An original-buffer script realm with half-open UTF-16 bounds. parent is a realm id.
+ */
 export interface ScriptRegion {
   id: number;
   start: number;
   end: number;
   parent?: number;
 }
+/**
+ * Projected parser input and metadata for mapping edits into the original SFC buffer.
+ */
 export interface ConvertedFramework {
   source: string;
   language: "ts" | "tsx";
@@ -21,6 +27,12 @@ export interface ConvertedFramework {
 }
 
 const require = createRequire(import.meta.url);
+/**
+ * Reads the converter package version and hashes JSON.stringify(options) with SHA-256.
+ * The fingerprint depends on serialized property order, not semantic object equality.
+ * Throws if package metadata cannot be loaded, version is missing, or options cannot
+ * be serialized to a JSON string.
+ */
 export function converterIdentity(name: string, options: unknown) {
   const metadata: unknown = require(`${name}/package.json`);
   if (
@@ -38,7 +50,12 @@ export function converterIdentity(name: string, options: unknown) {
   };
 }
 
-/** Partition original UTF-16 positions without overlapping script/template regions. */
+/**
+ * Partitions original UTF-16 positions into sorted, nonoverlapping regions without
+ * mutating scripts. Nonempty scripts use their own realm; gaps use templateRealm
+ * when supplied and are otherwise omitted. Throws for noninteger, out-of-bounds,
+ * reversed, or overlapping script ranges.
+ */
 export function sourceRegions(
   source: string,
   scripts: ScriptRegion[],
@@ -67,6 +84,11 @@ export function sourceRegions(
   return regions;
 }
 
+/**
+ * Wraps a serialized map or map object as a v3 projection map. Requires exactly one
+ * string source name; this check does not validate every source-map field.
+ * Throws for serialization/JSON errors or an unsupported sources array.
+ */
 export function sourceMapV3(value: string | object): ProjectionMap {
   const json = typeof value === "string" ? value : JSON.stringify(value);
   const parsed: unknown = JSON.parse(json);
@@ -83,7 +105,12 @@ export function sourceMapV3(value: string | object): ProjectionMap {
   return { kind: "v3", json, source: parsed.sources[0] };
 }
 
-/** Project raw SFC input while retaining the original buffer as the native edit target. */
+/**
+ * Projects Vue, Svelte, or Astro input selected by path extension, retaining its
+ * original buffer in fw_code and moving its upstream map into fw_map.
+ * Already projected and other inputs are returned unchanged without validation.
+ * Rejects on converter loading/conversion errors or a conflicting framework hint.
+ */
 export async function projectFrameworkSource(input: ProjectSource): Promise<ProjectSource> {
   if (input.fw_code !== undefined) return input;
   let converted: ConvertedFramework;

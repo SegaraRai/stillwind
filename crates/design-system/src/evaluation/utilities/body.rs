@@ -11,6 +11,7 @@
 //! emitted as authored, including support queries that the compatibility color path
 //! adds as a second branch of one declaration.
 
+use stillwind_css::take_property_requirements;
 use stillwind_syntax::Value;
 
 use super::super::builtins::metadata::COMPAT_COLOR_SUPPORT;
@@ -27,6 +28,8 @@ use crate::{CustomUtility, ThemeIndex, ThemeNamespace};
 pub(crate) struct UtilityResolution {
     /// Declarations for the matched selector, or for the utility itself.
     pub(crate) declaration: String,
+    /// Explicit custom-property registration dependencies collected from requirement
+    /// directives, independent of textual var references.
     pub(crate) required_properties: Vec<String>,
     /// Selector template from the body, when the body wrapped its declarations.
     pub(crate) selector: Option<String>,
@@ -67,8 +70,7 @@ pub(crate) fn resolve_css_utility_body(
     if utility.body.contains("@slot") {
         return None;
     }
-    let (body, required_properties) =
-        stillwind_css::blocks::take_property_requirements(&utility.body)?;
+    let (body, required_properties) = take_property_requirements(&utility.body)?;
     let (selector, body, parent_body) = split_utility_selector(&body)?;
     let (body, nested) = split_nested_conditions(body)?;
     let resolve = |body: &str| {

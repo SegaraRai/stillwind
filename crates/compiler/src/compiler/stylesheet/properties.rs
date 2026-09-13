@@ -1,12 +1,13 @@
 //! Selection and serialization of `@property` registrations.
 //!
-//! Registration is driven by usage: a definition is emitted when the CSS declares or
-//! references its name, or when one of its activating properties appears. Activation
-//! pulls in each definition's dependencies and group members up to a fixed point. Only
-//! registered definitions can be emitted; a missing dependency name has no definition
-//! to emit. An authored `@property` rule wins over a built-in of the same name, and
-//! built-in definitions are emitted through the compatibility wrapper the built-in
-//! stylesheet uses, so a browser that lacks the at-rule still gets fallback values.
+//! [`render_used_properties`] combines CSS usage with explicit registration requests,
+//! evaluates definition-specific activation rules, and follows dependency and group
+//! relationships to a fixed point. It returns registration rules and fallback
+//! declarations as separate [`PropertyOutput`] contributions.
+//!
+//! Authored registrations suppress generated definitions of the same name. This
+//! module does not place selectors or compatibility conditions: the stylesheet
+//! template determines where each contribution is emitted.
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -16,14 +17,21 @@ use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
 
 use crate::CompilerOptions;
 
-/// Selected registrations and their fallback rule, before placement in the template.
+/// Selected registration rules and fallback declarations, before CSS-owned placement.
 #[derive(Default)]
 pub(super) struct PropertyOutput {
+    /// Complete `@property` rules in registry order after duplicate-name selection.
     pub registrations: String,
+    /// Builtin fallback declarations in the same selected order, without a selector.
     pub initials: String,
 }
 
-/// Renders the `@property` rules `css` needs, or an empty string when none are needed.
+/// Selects registration rules and builtin fallback declarations required by `css`.
+///
+/// `theme` supplies definitions and activation metadata; `options` rewrites generated
+/// names. `explicit` supplies additional required names, whose existence the caller
+/// validates. Unknown dependency names have no definition to emit. Empty demand returns
+/// two empty strings. Input definitions and CSS are not modified.
 ///
 /// Duplicates are resolved while walking the registry backwards, so a theme definition
 /// wins over a built-in of the same name, and the list is reversed once more before
@@ -115,14 +123,7 @@ pub(super) fn render_used_properties(
             builtin_initials.push(format!("{name}:{initial};"));
         }
     }
-    let initials = if builtin_initials.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "*,:before,:after,::backdrop{{{}}}",
-            builtin_initials.concat()
-        )
-    };
+    let initials = builtin_initials.concat();
     for (name, body, _) in properties {
         if !output.is_empty() {
             output.push('\n');

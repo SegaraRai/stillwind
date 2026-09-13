@@ -22,13 +22,16 @@ use serde::{Deserialize, Serialize};
 pub enum SourceError {
     /// A length or offset does not fit the 32-bit coordinate space.
     #[error("source size or offset {0} exceeds the 32-bit source limit")]
-    TooLarge(usize),
+    TooLarge(
+        /// Requested length or offset exceeding [`u32::MAX`].
+        usize,
+    ),
     /// A byte range is reversed or extends past its text.
     #[error("invalid source byte range {start}..{end}")]
     InvalidRange {
-        /// Requested start offset.
+        /// Requested inclusive UTF-8 byte offset.
         start: usize,
-        /// Requested end offset.
+        /// Requested exclusive UTF-8 byte offset.
         end: usize,
     },
     /// The span was created for a different source buffer.
@@ -41,10 +44,16 @@ pub enum SourceError {
     },
     /// The span is reversed, out of range, or not on character boundaries.
     #[error("invalid source span {0:?}")]
-    InvalidSpan(Span),
+    InvalidSpan(
+        /// Rejected half-open UTF-8 span, including its buffer identity.
+        Span,
+    ),
     /// The byte offset is out of range or splits a character.
     #[error("invalid byte offset {0:?}")]
-    InvalidOffset(BytePos),
+    InvalidOffset(
+        /// Rejected UTF-8 byte offset.
+        BytePos,
+    ),
 }
 
 /// Canonical project-relative module path used by generated identities and caches.
@@ -84,14 +93,20 @@ pub fn range_of(span: Span) -> Range<usize> {
 /// distinguish source buffers; persisted records need a durable source name. Anything
 /// that needs a durable name should use [`normalized_module_path`].
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct FileId(pub u32);
+pub struct FileId(
+    /// Process-local numeric buffer identity; not a persistent file identifier.
+    pub u32,
+);
 
 /// A UTF-8 byte offset from the start of one [`SourceFile`].
 ///
 /// The value carries no file identity; it is only meaningful together with the
 /// `FileId` of the span it came from.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct BytePos(pub u32);
+pub struct BytePos(
+    /// Zero-based UTF-8 byte count; construction does not validate bounds or scalar alignment.
+    pub u32,
+);
 
 /// A half-open byte range `[start, end)` in one source file.
 ///
@@ -163,15 +178,20 @@ pub struct Position {
 
 /// Immutable source text with byte-accurate spans and UTF-16 editor positions.
 ///
-/// Cloning is cheap because the path, text and line table are shared. The text is fixed
-/// at construction and its length must fit the crate's 32-bit coordinate space; that
-/// limit is part of the contract, not an implementation detail.
+/// Cloning shares the source storage and its coordinate index.
 #[derive(Clone, Debug)]
 pub struct SourceFile {
+    /// Process-local buffer identity carried by spans.
     id: FileId,
+    /// Host-supplied path stored verbatim for display and module identity derivation;
+    /// never opened here.
     path: Arc<str>,
+    /// Immutable UTF-8 source buffer whose byte length fits u32.
     text: Arc<str>,
+    /// Ascending UTF-8 byte offsets starting with zero, followed by the position after
+    /// each LF.
     line_starts: Arc<[u32]>,
+    /// Cached UTF-8 byte length of text, also the valid EOF offset.
     len: u32,
 }
 

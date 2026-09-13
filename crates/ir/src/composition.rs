@@ -57,79 +57,6 @@ fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
     )
 }
 
-fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> bool {
-    let mut props = false;
-    for input in values {
-        match input {
-            StyleInput::Composition { candidates, .. } => {
-                dependencies.extend(candidates.iter().cloned());
-            }
-            StyleInput::ViewTransitionUse { .. } | StyleInput::DynamicViewTransitionUse { .. } => {
-                props = true;
-            }
-            StyleInput::Class(expression) => props |= class_expression(expression),
-            _ => {}
-        }
-    }
-    props
-}
-
-/// Returns whether the expression carries non-class props (attributes).
-fn class_expression(expression: &ClassExpression) -> bool {
-    match expression {
-        ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
-            GroupEntry::Attribute(_) => true,
-            GroupEntry::Class(expression) => class_expression(expression),
-        }),
-        ClassExpression::Array(elements) => elements.iter().any(class_expression),
-        ClassExpression::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => consequent
-            .iter()
-            .chain(alternate.iter())
-            .any(class_expression),
-        ClassExpression::Variant { inputs, .. } => inputs.iter().any(class_expression),
-        _ => false,
-    }
-}
-
-fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
-    fn visit<K: Clone + Ord>(
-        key: &K,
-        edges: &BTreeMap<K, BTreeSet<K>>,
-        pending: &mut BTreeSet<K>,
-        done: &mut BTreeSet<K>,
-        output: &mut Vec<K>,
-    ) -> bool {
-        if done.contains(key) {
-            return true;
-        }
-        if !pending.insert(key.clone()) {
-            return false;
-        }
-        for dependency in edges.get(key).into_iter().flatten() {
-            if edges.contains_key(dependency) && !visit(dependency, edges, pending, done, output) {
-                return false;
-            }
-        }
-        pending.remove(key);
-        done.insert(key.clone());
-        output.push(key.clone());
-        true
-    }
-    let mut output = Vec::new();
-    let mut pending = BTreeSet::new();
-    let mut done = BTreeSet::new();
-    for key in edges.keys() {
-        if !visit(key, edges, &mut pending, &mut done, &mut output) {
-            return None;
-        }
-    }
-    Some(output)
-}
-
 /// Checks every possible base and both style and producer-module cycles.
 ///
 /// `require_complete` is set when the caller compiles a closed producer set, such as a
@@ -244,4 +171,77 @@ pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {
         .into_iter()
         .filter_map(|key| calls.get(&key).map(|call| (*call).clone()))
         .collect()
+}
+
+fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> bool {
+    let mut props = false;
+    for input in values {
+        match input {
+            StyleInput::Composition { candidates, .. } => {
+                dependencies.extend(candidates.iter().cloned());
+            }
+            StyleInput::ViewTransitionUse { .. } | StyleInput::DynamicViewTransitionUse { .. } => {
+                props = true;
+            }
+            StyleInput::Class(expression) => props |= class_expression(expression),
+            _ => {}
+        }
+    }
+    props
+}
+
+/// Returns whether the expression carries non-class props (attributes).
+fn class_expression(expression: &ClassExpression) -> bool {
+    match expression {
+        ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
+            GroupEntry::Attribute(_) => true,
+            GroupEntry::Class(expression) => class_expression(expression),
+        }),
+        ClassExpression::Array(elements) => elements.iter().any(class_expression),
+        ClassExpression::Conditional {
+            consequent,
+            alternate,
+            ..
+        } => consequent
+            .iter()
+            .chain(alternate.iter())
+            .any(class_expression),
+        ClassExpression::Variant { inputs, .. } => inputs.iter().any(class_expression),
+        _ => false,
+    }
+}
+
+fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
+    fn visit<K: Clone + Ord>(
+        key: &K,
+        edges: &BTreeMap<K, BTreeSet<K>>,
+        pending: &mut BTreeSet<K>,
+        done: &mut BTreeSet<K>,
+        output: &mut Vec<K>,
+    ) -> bool {
+        if done.contains(key) {
+            return true;
+        }
+        if !pending.insert(key.clone()) {
+            return false;
+        }
+        for dependency in edges.get(key).into_iter().flatten() {
+            if edges.contains_key(dependency) && !visit(dependency, edges, pending, done, output) {
+                return false;
+            }
+        }
+        pending.remove(key);
+        done.insert(key.clone());
+        output.push(key.clone());
+        true
+    }
+    let mut output = Vec::new();
+    let mut pending = BTreeSet::new();
+    let mut done = BTreeSet::new();
+    for key in edges.keys() {
+        if !visit(key, edges, &mut pending, &mut done, &mut output) {
+            return None;
+        }
+    }
+    Some(output)
 }

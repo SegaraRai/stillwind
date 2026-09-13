@@ -1,11 +1,12 @@
 //! Source locations retained while assembling CSS, before a host rewrites URLs.
 //!
-//! A [`MappedStylesheet`] pairs generated CSS with mappings back into the immutable source
-//! files it came from. Generated ranges are byte offsets into the assembled CSS, original
-//! ranges are byte offsets into one specific [`SourceFile`], and `exact` records whether the
-//! generated text is byte-for-byte the authored slice or a rendering of it. Mappings are
-//! appended in output order and survive [`MappedStylesheet::append`] and
-//! semantic directive lowering, which adjusts only the generated side.
+//! A [`MappedStylesheet`] pairs generated CSS with mappings back into the immutable
+//! source files it came from. Generated ranges are byte offsets into the assembled CSS,
+//! original ranges are byte offsets into one specific [`SourceFile`], and `exact`
+//! records whether the generated text is byte-for-byte the authored slice or a
+//! rendering of it. Mappings are appended in output order and survive
+//! [`MappedStylesheet::append`] and slot placement. Keyframes retain their own
+//! coordinates until appended at their slot.
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -15,11 +16,11 @@ use stillwind_source::{SourceFile, Span};
 /// One generated range and the authored range it came from.
 #[derive(Clone, Debug)]
 pub struct StylesheetMapping {
-    /// Byte range in the assembled CSS.
+    /// Half-open UTF-8 byte range in the containing stylesheet's `css`.
     pub generated: Range<usize>,
     /// Immutable buffer the original range addresses.
     pub source: Arc<SourceFile>,
-    /// Byte range in `source`.
+    /// Half-open UTF-8 byte range in `source`.
     pub original: Range<usize>,
     /// Byte-for-byte authored text; other mappings identify a generated rule's origin.
     pub exact: bool,
@@ -28,47 +29,30 @@ pub struct StylesheetMapping {
 /// Generated CSS plus the mappings that explain where each part came from.
 #[derive(Clone, Debug, Default)]
 pub struct MappedStylesheet {
-    /// The assembled CSS.
+    /// Generated keyframe contributions in emission order. Each entry's mappings
+    /// address that entry's own `css`, not the parent's rule text. Producers use leaf
+    /// entries; the template assembler consumes this level of contributions.
+    pub keyframes: Vec<Self>,
+    /// Explicit custom-property registration names. Accumulation preserves encounter
+    /// order and permits duplicates; registration selection treats them as a set.
+    pub required_properties: Vec<String>,
+    /// Rule text before slot assembly, or complete CSS after rendering. Pending
+    /// keyframes in `keyframes` are not part of this string.
     pub css: String,
     /// Mappings in output order; ranges never overlap.
     pub mappings: Vec<StylesheetMapping>,
 }
 
 impl MappedStylesheet {
-    /// Omits semantic fragment directives while retaining source coordinates.
-    /// A rendered mapping split by an omission retains its full original origin;
-    /// exact mappings instead retain the corresponding original byte slice.
-    pub(crate) fn omit_ranges(&self, ranges: &[Range<usize>]) -> Self {
-        let mut output = Self::default();
-        let mut cursor = 0;
-        for range in ranges
-            .iter()
-            .cloned()
-            .chain(std::iter::once(self.css.len()..self.css.len()))
-        {
-            let end = range.start;
-            let offset = output.css.len();
-            output.css.push_str(&self.css[cursor..end]);
-            for mapping in &self.mappings {
-                let start = mapping.generated.start.max(cursor);
-                let stop = mapping.generated.end.min(end);
-                if start >= stop {
-                    continue;
-                }
-                let mut kept = mapping.clone();
-                kept.generated = offset + start - cursor..offset + stop - cursor;
-                if kept.exact {
-                    kept.original = mapping.original.start + start - mapping.generated.start
-                        ..mapping.original.start + stop - mapping.generated.start;
-                }
-                output.mappings.push(kept);
-            }
-            cursor = range.end;
-        }
-        output
-    }
-    /// Appends another stylesheet, shifting its generated ranges by the current length.
+    /// Appends another stylesheet's text, mappings, and pending contributions.
+    ///
+    /// Rule mappings shift by the previous UTF-8 byte length of `self.css`. Keyframe
+    /// entries keep their own local coordinates. Dependency and keyframe lists are
+    /// extended in order without deduplication; `other` is not modified.
     pub(crate) fn append(&mut self, other: &Self) {
+        self.keyframes.extend(other.keyframes.iter().cloned());
+        self.required_properties
+            .extend(other.required_properties.iter().cloned());
         let offset = self.css.len();
         self.css.push_str(&other.css);
         self.mappings
@@ -81,10 +65,11 @@ impl MappedStylesheet {
 
     /// Appends `text`, recording a mapping when `origin` names a sliceable source range.
     ///
-    /// An empty text or an unusable span drops only the mapping; the text is always
-    /// appended, so a caller that passes no origin still gets the CSS. A mapping that is not
-    /// `exact` starts after the original's leading whitespace, because generated text has no
-    /// leading indentation for those bytes to point at.
+    /// Always extends `self.css`; empty text or an unusable origin adds no mapping.
+    /// When `text` equals the source slice, the mapping is exact. Otherwise it attributes
+    /// the generated text to the source span after its leading whitespace, preserving
+    /// the declaration or rule's origin rather than claiming byte-for-byte alignment.
+    /// Pending keyframes and dependency names are unaffected.
     pub fn text(&mut self, text: &str, origin: Option<(Arc<SourceFile>, Span)>) {
         let start = self.css.len();
         self.css.push_str(text);
@@ -223,39 +208,5 @@ mod tests {
             );
         }
         assert_eq!(second.mappings[0].generated.start, "/* 間 */".len());
-    }
-
-    #[test]
-    fn directive_omission_preserves_utf8_and_exact_and_rendered_origins() {
-        let source = Arc::new(
-            SourceFile::new(
-                FileId(7),
-                "日本.css",
-                "前@stillwind-require-properties --x;後",
-            )
-            .unwrap(),
-        );
-        let mut output = MappedStylesheet::default();
-        output.text(source.text(), Some((source.clone(), source.full_span())));
-        let start = "前".len();
-        let end = source.text().find('後').unwrap();
-        let lowered = output.omit_ranges(std::slice::from_ref(&(start..end)));
-        assert_eq!(lowered.css, "前後");
-        assert_eq!(lowered.mappings.len(), 2);
-        for mapping in &lowered.mappings {
-            assert!(mapping.exact);
-            assert_eq!(
-                &lowered.css[mapping.generated.clone()],
-                &source.text()[mapping.original.clone()]
-            );
-        }
-        output.mappings[0].exact = false;
-        let lowered = output.omit_ranges(std::slice::from_ref(&(start..end)));
-        assert!(
-            lowered
-                .mappings
-                .iter()
-                .all(|mapping| mapping.original == (0..source.text().len()) && !mapping.exact)
-        );
     }
 }

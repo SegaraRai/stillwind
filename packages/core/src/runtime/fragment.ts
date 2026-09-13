@@ -1,7 +1,7 @@
 /**
- * Per-framework fragment runtime. Compiled `style()` calls build a fragment
- * (class contributions under a symbol key, the style payload under another)
- * and materialize it exactly once, at the call site.
+ * Fragment construction and props materialization for compiled style calls.
+ * Each runtime instance owns its class and style symbols; fragments must be
+ * consumed by the instance that created their keys.
  */
 
 export type StillwindStylePayload = Readonly<Record<string, string>>;
@@ -13,10 +13,27 @@ export interface FragmentRuntimeOptions {
   readonly styleFormat: "object" | "string";
 }
 
+/**
+ * Instance-local fragment keys and conversion operations. Compiler-generated
+ * fragments carry class contributions and an optional complete style payload.
+ */
 export interface FragmentRuntime {
   readonly stillwindClassKey: symbol;
   readonly stillwindStyleKey: symbol;
+  /**
+   * Flattens arrays left-to-right, ignoring falsy and nonobject values. Class
+   * contributions are joined without deduplication; later enumerable props win.
+   * The last non-null symbol style payload replaces the entire earlier payload
+   * and, when serializable, takes precedence over the ordinary style prop.
+   * Development checks reject foreign symbols and materialized class props on
+   * objects without this instance's keys; production omits those checks.
+   */
   readonly stillwindMerge: (...values: readonly unknown[]) => Record<string, unknown>;
+  /**
+   * Returns an existing instance fragment unchanged, otherwise copies enumerable
+   * string props and moves class/style to the instance symbols. Other symbol keys
+   * are not copied. Throws TypeError for nonobjects in every build mode.
+   */
   readonly stillwindToFragment: (value: unknown) => Record<PropertyKey, unknown>;
 }
 
@@ -32,6 +49,12 @@ function isObject(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/**
+ * Creates fresh fragment symbols and operations for the supplied props convention.
+ * String style serialization joins key:value entries with semicolons without CSS
+ * escaping; callers must supply valid CSS names and values. Development checks are
+ * enabled unless process.env.NODE_ENV is explicitly "production".
+ */
 export function createFragmentRuntime(options: FragmentRuntimeOptions): FragmentRuntime {
   const stillwindClassKey = Symbol("stillwind.class");
   const stillwindStyleKey = Symbol("stillwind.style");

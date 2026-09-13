@@ -10,9 +10,10 @@
 //! Two prefixed custom-property namespaces exist and must stay distinct:
 //! Stillwind-owned identifiers use the configurable `--sw-` prefix, and the
 //! Tailwind-compatibility namespace uses the separately configurable `--tw-` prefix.
-//! [`DesignSystemOptions`] validates that they differ. Both are substituted into
-//! generated text in one pass wherever that text is rewritten, which is the compiler's
-//! own entry point rather than anything in this crate.
+//! [`DesignSystemOptions`] validates that they differ and provides
+//! [`DesignSystemOptions::rewrite_generated`] for substituting the canonical markers.
+//! The compiler chooses which generated strings to pass through that operation; loading
+//! a design system does not rewrite every authored value to the configured prefixes.
 //!
 //! A snapshot is immutable after construction and clones an `Arc`, so a compile or
 //! editor request pins one clone for its whole duration instead of observing two
@@ -34,7 +35,6 @@ mod evaluation;
 mod loading;
 mod options;
 mod output;
-pub use output::parse_output_template;
 mod registry;
 mod snapshot;
 mod theme;
@@ -42,6 +42,7 @@ mod theme;
 pub use evaluation::*;
 pub use loading::*;
 pub use options::*;
+pub use output::parse_output_template;
 pub use registry::*;
 pub use snapshot::*;
 pub use theme::*;

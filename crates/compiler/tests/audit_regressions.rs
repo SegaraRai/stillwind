@@ -19,7 +19,14 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let theme = SourceFile::new(
         FileId(2),
         "theme.css",
-        format!("{css} @stillwind-slot utilities;"),
+        format!(
+            "{css} @stillwind-slot utilities; {}",
+            if css.contains("@stillwind-slot keyframes;") {
+                ""
+            } else {
+                "@stillwind-slot keyframes;"
+            }
+        ),
     )
     .unwrap();
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
@@ -262,7 +269,7 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     let theme = SourceFile::new(
         FileId(2),
         "theme.css",
-        "@utility x { opacity:0; } @stillwind-slot utilities;",
+        "@utility x { opacity:0; } @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
     let result = Compiler::compile_source_with_type_facts(
@@ -286,7 +293,7 @@ fn literal_values_and_explicit_fallbacks_survive_utility_emission() {
         r#"
         @stillwind-property --registered { syntax: "<length>"; inherits: false; initial-value: 0px; }
         @stillwind-slot properties;
-        @stillwind-slot property-initials;
+        *,:before,:after,::backdrop { @stillwind-slot property-initials; }
         @utility literal {
             content: ",var(--x) oklab(0% none none/0) deg*-1";
             transform: var(--component);
@@ -318,7 +325,7 @@ fn explicit_registration_dependencies_survive_apply_and_do_not_leak_into_css() {
         r#"
         @stillwind-property --dependency { activation: dependency; syntax: "*"; inherits: false; }
         @stillwind-slot properties;
-        @stillwind-slot property-initials;
+        *,:before,:after,::backdrop { @stillwind-slot property-initials; }
         @utility consumer { @stillwind-require-properties --dependency; transform:var(--dependency,); }
         .authored { @apply consumer; }
     "#,
@@ -350,4 +357,35 @@ fn local_animation_definitions_follow_the_explicit_keyframes_slot() {
         result.css
     );
     assert_eq!(result.css.matches("@keyframes").count(), 1);
+}
+
+#[test]
+fn motion_definitions_transport_explicit_property_dependencies_without_directives() {
+    let css = r#"
+        @stillwind-property --dependency { activation: dependency; syntax: "*"; inherits: false; }
+        @stillwind-slot properties;
+        .reset { @stillwind-slot property-initials; }
+        @utility consumer { @stillwind-require-properties --dependency; opacity:0; }
+    "#;
+    for kind in ["animation", "viewTransition"] {
+        let frame = if kind == "animation" { "from" } else { "old" };
+        let (_, result) = compile(
+            &format!("export const a = style.{kind}({{{frame}:'consumer'}});"),
+            css,
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.css.matches("@property --dependency").count(),
+            1,
+            "{}",
+            result.css
+        );
+        assert!(!result.module_css.contains("@stillwind-require-properties"));
+        assert!(
+            result
+                .contributions
+                .iter()
+                .any(|part| part.required_properties == ["--dependency"])
+        );
+    }
 }

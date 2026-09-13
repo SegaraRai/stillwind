@@ -32,9 +32,14 @@ pub(super) struct StyleVariantPlan {
     pub prefix: String,
     /// Identity-aware spelling for class hashing; independent of source syntax.
     pub canonical: String,
+    /// Whether any wrapper uses ref identity and requires lowered selector applications.
     pub has_refs: bool,
+    /// Parsed wrapper variants in traversal order, retained for utility ordering.
     variants: Vec<Variant>,
+    /// Alternative application paths in expansion order; each inner vector preserves
+    /// wrapper application order.
     paths: Vec<Vec<VariantApplication>>,
+    /// Number of parsed ordinary-prefix variants already passed to the candidate resolver.
     ordinary_count: usize,
 }
 

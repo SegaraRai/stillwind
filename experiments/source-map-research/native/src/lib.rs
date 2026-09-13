@@ -12,6 +12,19 @@
 #![allow(dead_code)]
 include!("main.rs");
 
+/// Emits replacement code and a source map from a JSON `SourceInput` request.
+///
+/// The response is a JSON object with `code` and `map` fields. Edits use ascending,
+/// non-overlapping UTF-8 byte ranges on scalar boundaries; the prefix remains unmapped.
+///
+/// # Errors
+///
+/// Returns a N-API error when the JSON does not deserialize as a source-edit request.
+///
+/// # Panics
+///
+/// Panics on invalid edit ranges; range validity is not part of JSON deserialization.
+/// Also panics if the source-map encoder returns invalid JSON.
 #[napi_derive::napi]
 pub fn emit_source(input: String) -> napi::Result<String> {
     let input: SourceInput =

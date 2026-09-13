@@ -7,7 +7,7 @@
 //! `initial` (or that has no fallback) drops the containing declaration entirely,
 //! which [`None`] reports to the caller.
 
-use stillwind_css::functions::{find_css_functions, split_css_function_arguments};
+use stillwind_css::{find_css_functions, split_css_function_arguments};
 
 /// Rewrites every `--theme()` reference in `value`, asking `is_defined` about the
 /// referenced custom property.

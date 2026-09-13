@@ -14,11 +14,12 @@ use crate::{BytePos, Position, SourceFile};
 
 /// A UTF-16 code-unit offset from the start of a source.
 ///
-/// The value counts code units, not characters: an offset inside a surrogate pair is
-/// representable but is not a valid coordinate. Only [`CoordinateIndex`] decides which
-/// values address a real scalar.
+/// Use [`CoordinateIndex`] to validate and translate this host coordinate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Utf16Offset(pub u32);
+pub struct Utf16Offset(
+    /// Zero-based UTF-16 code-unit count; scalar-boundary validity requires a source index.
+    pub u32,
+);
 
 /// Failure to translate between a host coordinate and a source byte offset.
 ///
@@ -28,13 +29,22 @@ pub struct Utf16Offset(pub u32);
 pub enum CoordinateError {
     /// The offset is out of range or inside a surrogate pair.
     #[error("invalid UTF-16 offset {0:?}")]
-    Offset(Utf16Offset),
+    Offset(
+        /// Rejected document-wide UTF-16 offset.
+        Utf16Offset,
+    ),
     /// The line does not exist, or the column crosses the end of the line.
     #[error("invalid UTF-16 position {0:?}")]
-    Position(Position),
+    Position(
+        /// Rejected zero-based line and UTF-16 column.
+        Position,
+    ),
     /// The byte offset is out of range or splits a multi-byte character.
     #[error("invalid UTF-8 byte offset {0:?}")]
-    Byte(BytePos),
+    Byte(
+        /// Rejected UTF-8 byte offset.
+        BytePos,
+    ),
 }
 
 /// Bidirectional scalar-boundary index between UTF-16 code units and UTF-8 bytes.
@@ -47,7 +57,11 @@ pub enum CoordinateError {
 /// Built once per source so mapping many spans never rescans the source prefix.
 #[derive(Clone, Debug)]
 pub struct CoordinateIndex {
+    /// Pairs of UTF-8 byte and UTF-16 code-unit offsets, strictly increasing in both
+    /// coordinates; includes zero and EOF.
     boundaries: Vec<(u32, u32)>,
+    /// UTF-16 offsets of line starts in ascending order; begins at zero and includes
+    /// the position after each LF.
     lines: Vec<u32>,
 }
 

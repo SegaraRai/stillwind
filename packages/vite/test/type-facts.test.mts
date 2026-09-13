@@ -24,7 +24,10 @@ void test("Vite aliases select the same asset in the host and checker", async ()
   const root = mkdtempSync(path.join(path.dirname(fixtureRoot), "../.session-test-"));
   const put = (name: string, text: string) => writeFileSync(path.join(root, name), text);
   put("index.html", '<script type="module" src="/entry.ts"></script>');
-  put("root.css", "@utility chosen {color:rgb(11,22,33)} @stillwind-slot utilities;");
+  put(
+    "root.css",
+    "@utility chosen {color:rgb(11,22,33)} @stillwind-slot utilities; @stillwind-slot keyframes;",
+  );
   put(
     "asset.ts",
     "import {style} from 'stillwind/react'; export const token=style.animation({from:'chosen',to:'chosen'});",

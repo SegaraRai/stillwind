@@ -218,6 +218,7 @@ impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
 /// Mutable project state for one Vite or CLI session.
 #[napi]
 pub struct NativeProjectSession {
+    /// Project session.
     session: ProjectSession,
 }
 
@@ -358,7 +359,8 @@ impl NativeProjectSession {
             .get(module.as_str())
             .ok_or_else(|| Error::from_reason(format!("Unknown Stillwind module: {module}")))?;
         StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
-            .render_module_stylesheet(&artifact.css.to_css())
+            .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
+            .map(|output| output.css)
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 

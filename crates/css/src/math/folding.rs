@@ -8,7 +8,7 @@
 
 use super::expression::{MathExpression, MathValue};
 use super::parser::MathParser;
-use crate::functions::find_css_functions;
+use crate::find_css_functions;
 
 /// Returns the byte offset of the `)` matching the `(` at `open`.
 ///

@@ -19,7 +19,7 @@ use stillwind_compiler::{
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
-use stillwind_source::{CompileError, Fingerprint, SourceFile, Span};
+use stillwind_source::{CompileError, SourceFile, Span};
 
 use crate::DependencyIndex;
 
@@ -28,10 +28,18 @@ use crate::DependencyIndex;
 pub enum SessionReloadError {
     /// The new stylesheet configuration failed to load.
     #[error("{0}")]
-    Load(#[from] DesignSystemLoadError),
+    Load(
+        /// Failure reported by the replacement design-system loader.
+        #[from]
+        DesignSystemLoadError,
+    ),
     /// The retained or rebuilt stylesheet could not be serialized.
     #[error("{0}")]
-    Stylesheet(#[from] StylesheetError),
+    Stylesheet(
+        /// Failure rendering the project stylesheet for the reload.
+        #[from]
+        StylesheetError,
+    ),
 }
 
 /// One generated rule plus the set of producers that depend on it.
@@ -40,18 +48,22 @@ pub enum SessionReloadError {
 /// therefore never removes a rule another producer still needs.
 #[derive(Clone, Debug)]
 struct RuleEntry {
+    /// Shared generated rule retained while at least one module uses it.
     rule: GeneratedRule,
+    /// Module identities currently contributing this rule; set order is module-id order.
     users: BTreeSet<ModuleId>,
 }
 
 /// The project-wide stylesheet assembled from published module artifacts.
 ///
-/// Rules are keyed by content identity, and a per-module contribution list records which
-/// keys each module owns, so a module update can retract exactly its previous
-/// contributions.
+/// Module updates retract their previous ownership without removing rules still used
+/// by other modules.
 #[derive(Clone, Debug, Default)]
 pub struct ProjectStylesheet {
+    /// Content-identity lookup of rules and their current producers.
     rules: BTreeMap<RuleKey, RuleEntry>,
+    /// Rule keys per module, in that artifact's emission order, used to retract its
+    /// previous contribution.
     contributions: BTreeMap<ModuleId, Vec<RuleKey>>,
 }
 
@@ -65,7 +77,7 @@ impl ProjectStylesheet {
         self.remove(module.as_str());
         let mut keys = Vec::with_capacity(artifact.rules.len());
         for rule in &artifact.rules {
-            let key = RuleKey(Fingerprint::of(rule.to_css()));
+            let key = rule.content_key();
             keys.push(key.clone());
             self.rules
                 .entry(key.clone())
@@ -112,7 +124,13 @@ impl ProjectStylesheet {
     ///
     /// Returns an error if a contribution refers to a missing rule.
     pub fn module_css(&self) -> Result<String, StylesheetError> {
-        Ok(self.module_css_with_origins(|_, _| None)?.css)
+        let mapped = self.module_css_with_origins(|_, _| None)?;
+        Ok(mapped
+            .keyframes
+            .iter()
+            .map(|frames| frames.css.as_str())
+            .chain(std::iter::once(mapped.css.as_str()))
+            .collect())
     }
 
     /// Like [`ProjectStylesheet::module_css`] but reports a source location for each
@@ -131,7 +149,7 @@ impl ProjectStylesheet {
             for key in keys {
                 if emitted.insert(key) {
                     let entry = self.rules.get(key).ok_or(StylesheetError::MissingRule)?;
-                    css.text(&entry.rule.to_css(), origin(module, &entry.rule));
+                    entry.rule.append_to(&mut css, origin(module, &entry.rule));
                 }
             }
         }
@@ -149,7 +167,12 @@ impl ProjectStylesheet {
         snapshot: &DesignSystemSnapshot,
         options: &CompilerOptions,
     ) -> Result<String, StylesheetError> {
-        StylesheetRenderer::new(snapshot, options).render_stylesheet(&self.module_css()?)
+        StylesheetRenderer::new(snapshot, options)
+            .render_mapped_stylesheet(
+                &self.module_css_with_origins(|_, _| None)?,
+                stillwind_compiler::StylesheetPlacement::Document,
+            )
+            .map(|css| css.css)
     }
 }
 
@@ -187,13 +210,21 @@ pub struct SessionReload {
 /// Exclusive mutation is the actor boundary. A host can put this in a mutex; request
 /// handlers pin a clone obtained from `snapshot` before doing work.
 pub struct ProjectSession {
+    /// Active immutable design-system revision used for compilation.
     current: DesignSystemSnapshot,
+    /// Compiler configuration shared by all artifacts in this session.
     options: CompilerOptions,
+    /// Whether a failed reload invalidates output or retains the last successful revision.
     mode: SessionMode,
+    /// Retained frontend analyses keyed by module identity, used for recompilation.
     analyses: BTreeMap<ModuleId, ModuleAnalysis>,
+    /// Published compiled modules keyed by module identity.
     artifacts: BTreeMap<ModuleId, CompiledModule>,
+    /// Shared stylesheet assembled from published artifacts.
     stylesheet: ProjectStylesheet,
+    /// Reverse dependency lookup used to select invalidated modules.
     dependencies: DependencyIndex,
+    /// Most recent rejected load, or None when the active configuration loaded successfully.
     load_error: Option<DesignSystemLoadError>,
 }
 
@@ -416,6 +447,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn support_metadata_participates_in_ownership_and_survives_removal() {
+        let plain = GeneratedRule {
+            key: RuleKey(Fingerprint::of("stale")),
+            prelude: ".x".into(),
+            body: Some("transform:var(--x)".into()),
+            keyframes: false,
+            required_properties: Vec::new(),
+        };
+        let mut supported = plain.clone();
+        supported.required_properties.push("--x".into());
+        let mut stylesheet = ProjectStylesheet::default();
+        stylesheet.replace("plain".into(), &ModuleCssArtifact { rules: vec![plain] });
+        stylesheet.replace(
+            "supported".into(),
+            &ModuleCssArtifact {
+                rules: vec![supported],
+            },
+        );
+        assert_eq!(stylesheet.rules.len(), 2);
+        assert_eq!(
+            stylesheet
+                .module_css_with_origins(|_, _| None)
+                .unwrap()
+                .required_properties,
+            ["--x"]
+        );
+        stylesheet.remove("supported");
+        assert_eq!(stylesheet.rules.len(), 1);
+        assert!(
+            stylesheet
+                .module_css_with_origins(|_, _| None)
+                .unwrap()
+                .required_properties
+                .is_empty()
+        );
+    }
+
+    #[test]
     fn missing_rule_is_a_serialization_error() {
         let mut stylesheet = ProjectStylesheet::default();
         stylesheet
@@ -431,6 +500,8 @@ mod tests {
     fn removing_one_module_does_not_drop_rules_shared_by_another() {
         let artifact = ModuleCssArtifact {
             rules: vec![GeneratedRule {
+                keyframes: false,
+                required_properties: Vec::new(),
                 key: RuleKey(Fingerprint::of(".x{color:red;}")),
                 prelude: ".x".into(),
                 body: Some("color:red;".into()),

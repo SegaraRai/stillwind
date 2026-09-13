@@ -41,8 +41,12 @@ pub enum NestedUtilityAtRule {
 /// A conditional declaration group split out of a utility body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ParsedNestedUtilityRule {
+    /// Conditional at-rule represented by this parsed block.
     pub(crate) at_rule: NestedUtilityAtRule,
+    /// Trimmed query text without the at-rule keyword or braces; supports removes its
+    /// outer parentheses.
     pub(crate) condition: String,
+    /// Trimmed content inside the conditional braces, before placeholder evaluation.
     pub(crate) body: String,
 }
 

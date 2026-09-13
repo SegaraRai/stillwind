@@ -1,10 +1,13 @@
 //! Serializable compiler output.
 //!
-//! These shapes are the contract between the Rust services and the JavaScript adapters,
-//! so every offset is published in the units a JavaScript consumer needs: byte offsets
-//! for compiler bookkeeping and UTF-16 offsets plus line/column for editor and bundler
-//! diagnostics. Generated code is absent whenever diagnostics are present, because a
-//! failed compile must not replace the last successful output.
+//! [`BindingOutput`] carries module results from Rust services to JavaScript adapters.
+//! [`BindingDiagnostic`] publishes byte ranges and UTF-16 offsets with zero-based
+//! line/column coordinates. [`BindingLintFinding`] publishes byte ranges only; consumers
+//! needing editor coordinates must convert those ranges against the referenced source.
+//! Other records document their own coordinate units at the field level.
+//!
+//! Generated code is absent when compiler diagnostics are present. These types describe
+//! one result; retaining an earlier successful result is the host session's responsibility.
 
 use std::collections::BTreeMap;
 

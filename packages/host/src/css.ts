@@ -1,10 +1,23 @@
 import { NativeDesignSystemLoader } from "@stillwind/native";
 import type { NativeCompilerOptions, NativeCssLoadStep } from "@stillwind/native";
+/**
+ * Host-owned CSS resolution, text loading, and dependency watch registration.
+ * Resolved identifiers must be accepted by read and watch.
+ */
 export interface CssHost {
   resolve(specifier: string, importer: string): Promise<string>;
   read(id: string): Promise<string>;
   watch(id: string): void;
 }
+/**
+ * Loads a CSS dependency graph through the native loader and returns its completed
+ * loader and resources. rootContent, when supplied, replaces only the initial read;
+ * the root and resolved dependencies are still registered with the host watcher.
+ *
+ * Pending requests are loaded concurrently and each request id is scheduled once.
+ * Resolution, reading, or native loading failures reject the operation. In-flight
+ * reads are not cancelled, and watches already registered remain registered.
+ */
 export async function loadCssGraph(
   root: string,
   options: NativeCompilerOptions,

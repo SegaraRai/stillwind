@@ -1,7 +1,31 @@
-/* Definitions are collected globally; these slots own their output placement. */
-@stillwind-slot theme;
+/*
+Defines Stillwind's default design tokens and the output locations for selected theme
+custom properties and keyframes. The importing stylesheet chooses their cascade layer.
+*/
+
+/*
+Expose selected theme custom properties to both document roots and shadow hosts.
+The theme slot emits declarations, so it must remain inside this selector block.
+Keep both selectors so the same theme values are available in either scope.
+*/
+
+:root,
+:host {
+  @stillwind-slot theme;
+}
+
+/*
+Insert selected keyframes as complete animation rules outside the selector block.
+The slot inherits the importer's layer; moving it to another layer or outside all
+layers changes precedence when user CSS defines keyframes with the same name.
+*/
 @stillwind-slot keyframes;
 
+/*
+Register fallback design tokens for utility resolution. The default modifier lets
+non-default user theme definitions override these values. Registration is separate
+from output: selected declarations are emitted at the theme slot above.
+*/
 @theme default {
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial,
@@ -503,7 +527,12 @@
   --default-mono-font-variation-settings: --theme(--font-mono--font-variation-settings, initial);
 }
 
-/* Deprecated */
+/*
+Register deprecated token names for compatibility with existing theme consumers.
+Inline resolution substitutes their values into utilities; reference prevents these
+definitions from independently emitting custom properties. Keep these modifiers when
+maintaining aliases so compatibility tokens do not add separate runtime variables.
+*/
 @theme default inline reference {
   --blur: 8px;
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);

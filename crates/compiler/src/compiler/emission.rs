@@ -21,6 +21,7 @@ use stillwind_ir::{
 use stillwind_semantic::IdentityId;
 use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
 
+use super::CssContribution;
 use super::handles::{
     handle_marker_class, ref_identity, render_handle_projection, scope_identity, scope_marker_class,
 };
@@ -49,15 +50,23 @@ use crate::{CompilerOptions, GeneratedSymbol};
 pub(super) struct CallEmitter<'a, 'b> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
+    /// Compiler configuration for generated identities and output.
     options: &'a CompilerOptions,
+    /// Resolved theme and utility registry for this compilation.
     theme: &'a ThemeIndex,
+    /// Analyzed style call being lowered.
     call: &'a StyleCall,
+    /// Framework class attribute spelling, such as className or class.
     class_property: &'static str,
+    /// Compilation errors appended while lowering the call.
     diagnostics: &'a mut Vec<CompileError>,
+    /// Nonfatal findings appended in encounter order.
     lint_findings: &'a mut Vec<LintFinding>,
-    utility_css: &'a mut String,
+    /// Module CSS contributions; the base unit is published before deferred leaf rules.
+    utility_css: &'a mut Vec<CssContribution>,
     /// Leaf rules wait here so the base unit stays first in the stylesheet.
-    runtime_css: String,
+    runtime_css: Vec<CssContribution>,
+    /// Generated symbol records appended by this emitter.
     symbols: &'a mut Vec<GeneratedSymbol>,
     /// Class units already generated in this compilation, keyed by name and canonical input, so
     /// two identical units are emitted once while a collision would still be visible.
@@ -65,7 +74,9 @@ pub(super) struct CallEmitter<'a, 'b> {
     /// Identities the module references at runtime; the pipeline uses this set to decide which
     /// declarations are replaced by a runtime call and which are erased.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
+    /// Motion identities reached by static or dynamic uses.
     motion_assets: &'a mut BTreeSet<IdentityId>,
+    /// Per-module allocator of helper bindings and import realms.
     runtime: &'a mut RuntimeBindings<'b>,
     /// Canonical candidate and asset spelling for the base unit, in source order.
     static_canonical: String,
@@ -73,7 +84,9 @@ pub(super) struct CallEmitter<'a, 'b> {
     static_utilities: Vec<CompiledUtility>,
     /// Class names that are always applied: markers, external names, and the base unit.
     static_names: Vec<String>,
+    /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
+    /// Generated class metadata accumulated for this call.
     classes: Vec<GeneratedClass>,
     /// Emission-local index of the next leaf, making each branch its own class identity.
     class_index: u32,
@@ -85,19 +98,31 @@ pub(super) struct CallEmitter<'a, 'b> {
 
 /// The borrows one call needs, grouped so the emitter can be constructed in one place.
 pub(super) struct CallEmitterInputs<'a, 'b> {
+    /// Original buffer used to slice user expressions.
     pub source: &'a SourceFile,
+    /// Compiler configuration for this call.
     pub options: &'a CompilerOptions,
+    /// Resolved theme and utility registry.
     pub theme: &'a ThemeIndex,
+    /// Analyzed style call to lower.
     pub call: &'a StyleCall,
+    /// Framework class attribute spelling.
     pub class_property: &'static str,
+    /// Shared destination for compilation errors.
     pub diagnostics: &'a mut Vec<CompileError>,
+    /// Shared destination for lint findings, appended in encounter order.
     pub lint_findings: &'a mut Vec<LintFinding>,
-    pub utility_css: &'a mut String,
+    /// Shared destination for module CSS contributions.
+    pub utility_css: &'a mut Vec<CssContribution>,
+    /// Shared destination for generated symbol records.
     pub symbols: &'a mut Vec<GeneratedSymbol>,
+    /// Previously emitted (class name, canonical input) pairs used to suppress identical units.
     pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    /// Referenced runtime identities used to retain declarations that need runtime values.
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
     /// Motion definitions reached by static or dynamic uses.
     pub motion_assets: &'a mut BTreeSet<IdentityId>,
+    /// Shared helper binding allocator for the module.
     pub runtime: &'a mut RuntimeBindings<'b>,
 }
 
@@ -114,7 +139,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,
             utility_css: inputs.utility_css,
-            runtime_css: String::new(),
+            runtime_css: Vec::new(),
             symbols: inputs.symbols,
             emitted_utility_classes: inputs.emitted_utility_classes,
             runtime_assets: inputs.runtime_assets,
@@ -778,7 +803,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         }
         names.extend(std::mem::take(&mut self.static_names));
         // The base unit must precede every conditional unit in the stylesheet.
-        self.utility_css.push_str(&self.runtime_css);
+        self.utility_css.append(&mut self.runtime_css);
         StyleEmission {
             class_property: self.class_property,
             static_names: names,

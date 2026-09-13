@@ -31,20 +31,30 @@ pub(in crate::compiler) fn view_transition_utility() -> CompiledUtility {
 }
 
 /// One resolved utility rule, ready to be ordered and rendered.
-///
-/// `variants` and `variant_applications` are two spellings of the same information: the first is
-/// resolved by the renderer through the registry, the second is already lowered. A utility produced
-/// by a ref variant carries the second and leaves the first to the plan that built it.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledUtility {
+    /// Parsed variants in candidate order, resolved through the registry unless lowered
+    /// applications are present.
     pub(in crate::compiler) variants: Vec<Variant>,
+    /// Prelowered alternative paths, used instead of registry resolution when nonempty;
+    /// steps retain application order.
     pub(in crate::compiler) variant_applications: Vec<Vec<VariantApplication>>,
+    /// Serialized declaration-list content without the outer rule braces.
     pub(in crate::compiler) declaration: String,
+    /// Custom-property registration names required by this utility, independent of CSS
+    /// references.
     pub(in crate::compiler) required_properties: Vec<String>,
+    /// Optional selector template whose ampersands denote the generated class selector.
     pub(in crate::compiler) selector: Option<String>,
+    /// Optional container query prelude without @container or braces.
     pub(in crate::compiler) container: Option<String>,
+    /// Conditional utility rules in resolved emission order.
     pub(in crate::compiler) nested: Vec<NestedUtilityRule>,
+    /// Global built-in definition position used as an ordering key; None for
+    /// unpositioned rules.
     pub(in crate::compiler) builtin_order: Option<usize>,
+    /// Original candidate spelling for ordering and diagnostics; empty for synthetic
+    /// utility rules.
     pub(in crate::compiler) candidate: String,
 }
 

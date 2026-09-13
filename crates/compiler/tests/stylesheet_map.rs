@@ -15,7 +15,7 @@ fn imported_authored_css_and_theme_tokens_keep_their_physical_sources() {
     let DesignSystemLoadStep::NeedFile(requests) = loader.provide(
         0,
         CssSourceName::from("entry.css"),
-        "@import 'child.css' layer(parts) supports(display:grid) screen;\n@theme { --color-brand: red; }".into()
+        "@import 'child.css' layer(parts) supports(display:grid) screen;\n@theme { --color-brand: red; } :root,:host { @stillwind-slot theme; }".into()
     ) else {
         panic!("import")
     };

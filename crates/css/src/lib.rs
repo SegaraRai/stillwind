@@ -25,20 +25,22 @@
     )
 )]
 
-pub mod blocks;
+mod blocks;
 mod colors;
 mod custom_properties;
 mod declarations;
-pub mod functions;
+mod functions;
 mod math;
 mod output;
 mod resources;
 mod selectors;
 mod values;
 
+pub use blocks::*;
 pub use colors::*;
 pub use custom_properties::*;
 pub use declarations::*;
+pub use functions::*;
 pub use math::*;
 pub use output::*;
 pub use resources::*;

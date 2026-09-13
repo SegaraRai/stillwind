@@ -9,7 +9,7 @@
 //! Extraction is syntax-level. Namespace resets and duplicate resolution are decided
 //! later, because they depend on the whole token list rather than on one declaration.
 
-use stillwind_css::blocks::matching_brace;
+use stillwind_css::matching_brace;
 use stillwind_source::{FileId, Span, Spanned};
 
 use super::namespace::ThemeNamespace;

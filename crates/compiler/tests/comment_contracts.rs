@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, DesignSystemQuery, ModuleCompiler, StylesheetRenderer};
+use stillwind_css::relative_css_urls;
 use stillwind_design_system::{
     DesignSystemOptions, DesignSystemSnapshot, parse_theme, resolve_utility,
 };
@@ -219,6 +220,6 @@ fn resource_specifiers_are_decoded_and_repeated_urls_share_placeholders() {
     let resources = &design.sources().resources;
     assert_eq!(resources.len(), 2);
     assert_eq!(resources[0].placeholder, resources[1].placeholder);
-    let urls = stillwind_css::relative_css_urls(r"a{background:url('./a\20 b.svg')}");
+    let urls = relative_css_urls(r"a{background:url('./a\20 b.svg')}");
     assert_eq!(urls[0].specifier, "./a b.svg");
 }

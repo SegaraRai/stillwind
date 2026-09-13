@@ -21,8 +21,12 @@ use super::protocol::{CssResourceReference, CssSourceMapping};
 /// One source's inlined text plus the mapping and resources it produced.
 #[derive(Clone, Debug, Default)]
 pub(super) struct ExpandedSource {
+    /// Inlined CSS including synthetic import wrappers and URL placeholders; limited to
+    /// [`u32::MAX`] UTF-8 bytes.
     pub(super) text: String,
+    /// Mapping runs in emitted byte order; synthetic wrappers have no run.
     pub(super) mappings: Vec<CssSourceMapping>,
+    /// Resource references in traversal order, identifying placeholders in text.
     pub(super) resources: Vec<CssResourceReference>,
 }
 

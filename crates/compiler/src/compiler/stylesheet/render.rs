@@ -20,15 +20,12 @@ pub enum StylesheetError {
     /// Utility rules exist but the CSS entry graph has no `@stillwind-slot utilities;`.
     #[error("generated utilities require an @stillwind-slot utilities; in the CSS entry graph")]
     MissingUtilitiesSlot,
-    /// Required registrations have no explicit output destination.
-    #[error("generated properties require an @stillwind-slot {0}; in the CSS entry graph")]
+    /// Selected support has no explicit output destination.
+    #[error("generated support requires an @stillwind-slot {0}; in the CSS entry graph")]
     MissingPropertySlot(&'static str),
     /// A semantic registration request was malformed or names no registration.
     #[error("invalid Stillwind property requirement")]
     InvalidPropertyRequirement,
-    /// A generated fragment could not be lowered into output contributions.
-    #[error("{0}")]
-    OutputTemplate(#[from] stillwind_css::CssOutputError),
     /// CSS could not be parsed while collecting custom-property usage.
     #[error("{0}")]
     PropertyUsage(#[from] PropertyUsageError),
@@ -55,8 +52,8 @@ pub(crate) fn render_module_stylesheet(
     render(theme, utility_css, options, false)
 }
 
-#[allow(clippy::too_many_lines)]
 /// Shared body of both entry points; `document` selects authored CSS and document-only rules.
+#[allow(clippy::too_many_lines)]
 fn render(
     theme: &ThemeIndex,
     utility_css: &str,

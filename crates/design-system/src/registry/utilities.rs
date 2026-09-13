@@ -12,9 +12,7 @@
 
 use std::collections::BTreeSet;
 
-use stillwind_css::blocks::{
-    extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments,
-};
+use stillwind_css::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
 
 /// One utility definition: its name, its body, and where it was registered.
 #[derive(Clone, Debug, Eq, PartialEq)]

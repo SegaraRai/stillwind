@@ -1,10 +1,13 @@
 //! Parsing of the host's Stillwind CSS into a structured output template.
 //!
-//! An output template records where generated output may be placed: the `@theme`
-//! blocks, the `@stillwind-slot utilities` slot, and the authored CSS that must survive
-//! verbatim. Every node keeps its byte offsets, and theme tokens keep spans into the
-//! buffer under parse, so a caller can map those spans back to the originally supplied
-//! source.
+//! [`parse_output_template`] turns one CSS buffer into source-ordered authored nodes,
+//! definition references, wrappers, and output slots. The caller supplies tokens
+//! extracted from the same buffer; template theme nodes refer to that token list by
+//! index. Origins address the input buffer and can be remapped by the source loader.
+//!
+//! Theme and property-initial slots accept declarations inside style rules. Utilities,
+//! keyframes, and registration slots accept rules. Parsing checks those contexts but
+//! does not select live tokens or serialize a producer's generated CSS.
 //!
 //! Definitions are compile-time only: an `@theme`, `@utility`, or `@custom-variant`
 //! nested inside a conditional is rejected, because emitting it would make the registry
@@ -17,23 +20,26 @@ use stillwind_source::{FileId, Span};
 
 use crate::ThemeToken;
 
-/// Parses one CSS buffer into its output nodes and theme-block ranges.
+/// Parses one CSS buffer into a source-ordered output template.
 ///
 /// `tokens` are the already extracted theme tokens; each `@theme` node records the
-/// indices of the tokens whose name spans fall inside that block, so theme output can
-/// be emitted per block in authored order.
+/// indices of the tokens whose name spans fall inside that block. Their offsets must
+/// address `css`. Returned origins use `FileId(0)` and UTF-8 byte offsets into `css`;
+/// the caller assigns the template's initially empty source identity and remaps origins.
 ///
 /// # Errors
 ///
-/// Returns malformed blocks, definitions inside a conditional group, or unknown output
-/// slots.
+/// Returns an error for malformed blocks, offsets outside the 32-bit source range,
+/// conditional definitions, unknown slots, or slots in the wrong CSS context.
 pub fn parse_output_template(
     css: &str,
     tokens: &[ThemeToken],
 ) -> Result<CssOutputTemplate, CssOutputError> {
+    let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), false)?;
+    validate_slots(&nodes, false)?;
     Ok(CssOutputTemplate {
         source_identity: String::new(),
-        nodes: parse_nodes(css, 0, tokens, &mut Vec::new(), false)?,
+        nodes,
     })
 }
 
@@ -107,6 +113,7 @@ fn consume_block(
 ///
 /// Returns an error for conditional definitions, malformed blocks, unknown slots, and
 /// offsets that exceed the 32-bit source limit.
+#[allow(clippy::too_many_lines)] // One dispatch keeps source ranges aligned for authored rules, definitions, and slots.
 fn parse_nodes(
     css: &str,
     base: usize,
@@ -204,6 +211,49 @@ fn parse_nodes(
                     )?,
                 });
             }
+            (None, Some((open, close))) if css[open + 1..close].contains("@stillwind-slot") => {
+                let children = parse_nodes(
+                    &css[open + 1..close],
+                    base + open + 1,
+                    tokens,
+                    theme_blocks,
+                    conditional,
+                )?;
+                if children.iter().any(|node| {
+                    matches!(
+                        node,
+                        CssOutputNode::ThemeVariables
+                            | CssOutputNode::PropertyInitials
+                            | CssOutputNode::Utilities
+                            | CssOutputNode::Keyframes
+                            | CssOutputNode::Properties
+                            | CssOutputNode::Style { .. }
+                    )
+                }) {
+                    if children.iter().any(|node| {
+                        !matches!(
+                            node,
+                            CssOutputNode::Authored { .. }
+                                | CssOutputNode::ThemeVariables
+                                | CssOutputNode::PropertyInitials
+                        )
+                    }) {
+                        return Err(CssOutputError::Block {
+                            offset: base + start,
+                        });
+                    }
+                    nodes.push(CssOutputNode::Style {
+                        header: css[start..open].trim().into(),
+                        children,
+                        origin,
+                    });
+                } else {
+                    nodes.push(CssOutputNode::Authored {
+                        css: css[start..end].into(),
+                        origin,
+                    });
+                }
+            }
             (Some(name), _) if is_definition(name) => {}
             _ => nodes.push(CssOutputNode::Authored {
                 css: css[start..end].into(),
@@ -214,9 +264,56 @@ fn parse_nodes(
     Ok(nodes)
 }
 
+/// Slot kinds define whether the contribution consists of declarations or rules.
+fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), CssOutputError> {
+    for node in nodes {
+        let (name, needs_declarations) = match node {
+            CssOutputNode::ThemeVariables => ("theme", true),
+            CssOutputNode::PropertyInitials => ("property-initials", true),
+            CssOutputNode::Utilities => ("utilities", false),
+            CssOutputNode::Keyframes => ("keyframes", false),
+            CssOutputNode::Properties => ("properties", false),
+            CssOutputNode::Style { children, .. } => {
+                validate_slots(children, true)?;
+                continue;
+            }
+            CssOutputNode::Group { children, .. } => {
+                validate_slots(children, declarations)?;
+                continue;
+            }
+            _ => continue,
+        };
+        if declarations != needs_declarations {
+            return Err(CssOutputError::SlotContext { name: name.into() });
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declaration_slots_require_a_style_rule_and_ignore_quoted_markers() {
+        for css in [
+            "@stillwind-slot theme;",
+            "@layer a{@stillwind-slot property-initials;}",
+            ".x{@stillwind-slot utilities;}",
+        ] {
+            assert!(parse_output_template(css, &[]).is_err(), "{css}");
+        }
+        let css = ".x{content:'@stillwind-slot theme;'}";
+        assert_eq!(parse_output_template(css, &[]).unwrap().authored_css(), css);
+        let nodes = parse_output_template(
+            "@media print{.scope{before:1;@stillwind-slot theme;after:2;}}",
+            &[],
+        )
+        .unwrap();
+        assert!(
+            matches!(&nodes.nodes[0], CssOutputNode::Group { children, .. } if matches!(&children[0], CssOutputNode::Style { .. }))
+        );
+    }
 
     #[test]
     fn preserves_conditions_and_rules_after_metadata_statements() {

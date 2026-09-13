@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use stillwind_css::functions::{CssFunctionMatch, find_css_functions};
+use stillwind_css::{CssFunctionMatch, find_css_functions};
 
 /// Single-family wrapper of [`expand_placeholders`].
 pub(in super::super) fn expand_placeholder(
@@ -51,9 +51,14 @@ pub(in super::super) fn expand_placeholders(
     Some(())
 }
 
+/// Recursion guard and work budget for one CSS function family.
 struct Expansion<'a> {
+    /// CSS function name for this expansion phase, without parentheses.
     name: &'a str,
+    /// Remaining invocation-expansion budget, decremented once per executed replacement.
     remaining: usize,
+    /// Exact invocation text on the recursive expansion path, used to reject cycles;
+    /// not a completed-result cache.
     active: BTreeSet<String>,
 }
 

@@ -11,24 +11,55 @@ use stillwind_design_system::{VariantApplication, VariantDeclaration};
 /// One non-compound effect of a variant.
 #[derive(Clone, Copy)]
 pub(super) enum VariantStep<'a> {
-    SelectorSuffix(&'a str),
-    SelectorTemplate(&'a str),
+    /// Appends a selector suffix to the current selector.
+    SelectorSuffix(
+        /// CSS selector suffix, including its combinators or punctuation; no separator is inserted.
+        &'a str,
+    ),
+    /// Instantiates a selector template against the current selector.
+    SelectorTemplate(
+        /// CSS selector template with ampersands marking the current selector.
+        &'a str,
+    ),
+    /// Applies a selector and contributes declarations.
     SelectorRule {
+        /// CSS selector template with ampersand substitution sites, without braces.
         selector: &'a str,
+        /// Variant declarations in their emission order.
         declarations: &'a [VariantDeclaration],
     },
+    /// Applies a selector inside a media query.
     SelectorMedia {
+        /// CSS selector template with ampersand substitution sites, without braces.
         selector: &'a str,
+        /// Media query prelude without @media or braces; internal whitespace is retained.
         condition: &'a str,
     },
+    /// Applies a selector and declarations inside a media query.
     SelectorMediaRule {
+        /// CSS selector template with ampersand substitution sites, without braces.
         selector: &'a str,
+        /// Variant declarations in their emission order.
         declarations: &'a [VariantDeclaration],
+        /// Media query prelude without @media or braces; internal whitespace is retained.
         condition: &'a str,
     },
-    Media(&'a str),
-    Container(&'a str),
-    Supports(&'a str),
+    /// A CSS `@media` wrapper.
+    Media(
+        /// Query prelude without `@media` or braces; includes required condition parentheses.
+        &'a str,
+    ),
+    /// A CSS `@container` wrapper.
+    Container(
+        /// Container query prelude without `@container` or braces, including any container name.
+        &'a str,
+    ),
+    /// A CSS `@supports` wrapper.
+    Supports(
+        /// Support condition without `@supports` or braces; the renderer adds outer parentheses.
+        &'a str,
+    ),
+    /// A CSS `@starting-style` wrapper with no prelude.
     StartingStyle,
 }
 

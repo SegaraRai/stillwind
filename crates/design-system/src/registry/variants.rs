@@ -14,7 +14,7 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::ident::Ident;
 
-use stillwind_css::blocks::{
+use stillwind_css::{
     extract_named_blocks, extract_named_blocks_with_offsets, extract_named_statements,
     strip_css_comments,
 };
@@ -178,10 +178,15 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
 
 /// The parsed header of a `@stillwind-variant` definition.
 pub(crate) struct ParsedBuiltinVariantHeader {
+    /// Decoded definition name, retaining the capture suffix when wildcard is true.
     name: String,
+    /// Whether the final unescaped asterisk captures a candidate value.
     wildcard: bool,
+    /// Optional ordering metadata parsed from the definition header.
     sort: Option<BuiltinVariantSort>,
+    /// Optional grammar of the wildcard capture.
     value_type: Option<BuiltinVariantValueType>,
+    /// Optional grammar of the slash modifier.
     modifier_type: Option<BuiltinVariantModifierType>,
 }
 

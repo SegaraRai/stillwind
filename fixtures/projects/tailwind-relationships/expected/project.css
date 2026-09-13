@@ -1,5 +1,6 @@
 @layer properties, theme, base, components, utilities;
 @layer theme {
+  /* Definitions are collected globally; these slots own their output placement. */
   :root,
   :host {
     --font-sans:
@@ -12,9 +13,6 @@
     --radius-lg: 0.5rem;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
-  }
-  :root,
-  :host {
     --color-brand: oklch(62% 0.2 280);
   }
 }
@@ -462,7 +460,10 @@
       display: grid;
     }
   }
-} /* Runtime placement is authored CSS. Registrations remain outside the fallback query. */
+} /*
+Runtime placement is authored CSS. Registrations remain outside the fallback query.
+*/
+
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {

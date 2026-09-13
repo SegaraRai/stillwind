@@ -1,12 +1,13 @@
 //! Expansion of `@apply` and `@variant` in authored CSS.
 //!
-//! Authored directives resolve through the same registry, and the same declaration ordering, as
-//! generated utilities, so `@apply px-4` cannot produce different declarations than a `px-4`
-//! class does. Expansion is textual and proceeds directive by directive: `@apply` is replaced by
-//! the declarations of the candidates it names, and each `@variant` block is replaced by the
-//! rules its variants select. A candidate that does not resolve contributes nothing, and a
-//! directive that cannot be parsed at all ends the pass, leaving the remaining CSS untouched
-//! rather than deleting it.
+//! [`expand_authored_directives`] replaces utility applications with declarations and
+//! variant blocks with selector rules, using the design system's resolution and
+//! declaration-ordering rules. It appends registration requirements to a separate
+//! accumulator; it does not select registrations or place output slots.
+//!
+//! Expansion uses textual directive discovery. Unresolved application candidates
+//! contribute nothing. An unterminated application or an unresolvable variant ends
+//! its expansion loop, leaving that directive and later occurrences unchanged.
 
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_syntax::parse_candidate;
@@ -20,9 +21,16 @@ use super::blocks::find_at_rule_block;
 
 /// Rewrites every `@apply` and `@variant` in `css` that can be expanded.
 ///
-/// The pass is iterative rather than recursive: each replaced range is rescanned from the start,
-/// so an expansion that contains no directive of its own terminates after one step.
-pub(in crate::compiler) fn expand_authored_directives(css: &str, theme: &ThemeIndex) -> String {
+/// Returns a new string; `css` and `theme` are not modified. Resolved applications
+/// append registration names to `required_properties` in utility emission order,
+/// retaining existing entries and duplicates. Applications are expanded before variants.
+/// A directive that cannot be expanded remains in the returned text, so this function
+/// is not a CSS validator.
+pub(in crate::compiler) fn expand_authored_directives(
+    css: &str,
+    theme: &ThemeIndex,
+    required_properties: &mut Vec<String>,
+) -> String {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
         let Some(end_rel) = output[start..].find(';') else {
@@ -36,15 +44,8 @@ pub(in crate::compiler) fn expand_authored_directives(css: &str, theme: &ThemeIn
         let declarations = order_builtin_utilities(utilities.iter().collect())
             .into_iter()
             .map(|utility| {
-                if utility.required_properties.is_empty() {
-                    utility.declaration.clone()
-                } else {
-                    format!(
-                        "@stillwind-require-properties {};{}",
-                        utility.required_properties.join(" "),
-                        utility.declaration
-                    )
-                }
+                required_properties.extend(utility.required_properties.iter().cloned());
+                utility.declaration.clone()
             })
             .collect::<String>();
         output.replace_range(start..=end, &declarations);
@@ -220,7 +221,7 @@ mod tests {
         )
         .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
-        let expanded = expand_authored_directives(theme.custom_css(), &theme);
+        let expanded = expand_authored_directives(theme.custom_css(), &theme, &mut Vec::new());
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())
@@ -247,7 +248,7 @@ mod tests {
         )
         .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
-        let expanded = expand_authored_directives(theme.custom_css(), &theme);
+        let expanded = expand_authored_directives(theme.custom_css(), &theme, &mut Vec::new());
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())

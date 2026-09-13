@@ -1,1 +1,9 @@
+/*
+Provides the output location for compiled utility rules. The utilities slot inserts
+complete rules, so keep it outside selector blocks and within the intended cascade
+layer. Enclosing conditional rules also constrain the generated utilities.
+Its position relative to authored rules controls source-order precedence; moving the
+slot or changing its enclosing layer can change which declarations win.
+*/
+
 @stillwind-slot utilities;

@@ -41,30 +41,52 @@ pub struct GeneratedClass {
 /// A class expression that keeps the source structure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Emitted {
-    /// Generated class names plus user expressions in one leaf.
-    Leaf { names: Vec<String> },
+    /// Class-name contributions in one leaf.
+    Leaf {
+        /// Class strings in contribution order, joined with spaces and quoted by the renderer.
+        names: Vec<String>,
+    },
     /// A helper call whose result is a class value (handles, assets).
-    Expression(String),
-    /// `[a, b]`; `None` marks a contribution that folded into the base unit.
-    Array(Vec<Option<Emitted>>),
-    /// `test ? a : b` or `test && a`.
+    Expression(
+        /// Complete JavaScript expression text, without an enclosing attribute or statement.
+        String,
+    ),
+    /// A JavaScript array expression.
+    Array(
+        /// Elements in source order; None marks a contribution folded into the base unit.
+        Vec<Option<Emitted>>,
+    ),
+    /// A JavaScript conditional expression.
     Conditional {
+        /// Original JavaScript test expression, preserving its internal whitespace.
         test: String,
+        /// Whether serialization uses a ternary or logical conjunction.
         kind: ConditionalKind,
+        /// Truthy branch, or None when its class contribution folded into the base unit.
         consequent: Option<Box<Emitted>>,
+        /// Falsy branch for a ternary; absent for conjunction or a folded contribution.
         alternate: Option<Box<Emitted>>,
     },
     /// An object literal inside a conditional expression.
-    Group(Vec<Option<EmittedEntry>>),
+    Group(
+        /// Entries in source order; None denotes a contribution folded into the base unit.
+        Vec<Option<EmittedEntry>>,
+    ),
 }
 
 /// One entry of an object literal inside a class expression.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum EmittedEntry {
     /// A rendered `"name": value` attribute entry.
-    Attribute(String),
+    Attribute(
+        /// Serialized JavaScript property entry without outer object braces or a trailing comma.
+        String,
+    ),
     /// A nested class expression.
-    Class(Emitted),
+    Class(
+        /// Class-expression subtree to materialize within the object.
+        Emitted,
+    ),
 }
 
 /// One source-ordered contribution to a compiled call site.
@@ -72,7 +94,9 @@ pub(super) enum EmittedEntry {
 pub(super) enum StyleEmissionPart {
     /// A runtime class expression.
     Class {
+        /// Class-expression subtree preserving branch structure.
         emitted: Emitted,
+        /// Original-source UTF-8 byte position used to order contributions.
         position: u32,
         /// Contains user expressions, so it is a runtime class expression.
         user_code: bool,
@@ -81,11 +105,26 @@ pub(super) enum StyleEmissionPart {
         user_value: bool,
     },
     /// A single attribute entry, rendered as `"name": value`.
-    Attributes { text: String, position: u32 },
+    Attributes {
+        /// Serialized property entry without outer object braces or a trailing comma.
+        text: String,
+        /// Original-source UTF-8 byte position used to order contributions.
+        position: u32,
+    },
     /// A composition base expression (a materialized props object).
-    Base { text: String, position: u32 },
+    Base {
+        /// Complete JavaScript expression producing materialized props.
+        text: String,
+        /// Original-source UTF-8 byte position used to order contributions.
+        position: u32,
+    },
     /// The style payload expression.
-    Style { text: String, position: u32 },
+    Style {
+        /// Complete JavaScript expression producing the style payload.
+        text: String,
+        /// Original-source UTF-8 byte position used to order contributions.
+        position: u32,
+    },
 }
 
 impl StyleEmissionPart {

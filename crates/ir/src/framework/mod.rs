@@ -5,9 +5,12 @@
 //! materializes the style payload, and whether the framework's converter needs
 //! original-source projection.
 //!
-//! The files here contain only constants and one pure rewrite policy per framework.
-//! Parsing, projection bookkeeping, and host integration live in the frontend crate, so
-//! adding a framework means adding data, not a new code path here.
+//! The `astro`, `preact`, `react`, `solid`, `svelte`, and `vue` modules supply static
+//! specifications and expression-rewrite policies. [`AdapterKind::spec`] selects a
+//! specification; [`FRAMEWORKS`] lists them in the order offered to hosts. Supporting
+//! another adapter requires its specification and enum/list entries, not a parser here.
+//! Source parsing, projection bookkeeping, and host conversion belong to the frontend
+//! and host layers.
 
 use serde::{Deserialize, Serialize};
 

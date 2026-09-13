@@ -2,7 +2,7 @@
 
 ## Implementation
 
-- `stillwind_css::functions::find_css_functions` indexes multiple exact, unescaped function names in one CSS token walk. Results include source ranges and nested matches. `find_css_function` delegates to it.
+- `stillwind_css::find_css_functions` indexes multiple exact, unescaped function names in one CSS token walk. Results include source ranges and nested matches. `find_css_function` delegates to it.
 - `expand_placeholders` shares that index across absent families, expands present families in the supplied order, and refreshes positions after replacements. `expand_placeholder` delegates to it. Work remains proportional to the number of present families rather than repeated whole-input searches for each occurrence.
 - Resolution keeps the existing family order and the declaration-removal boundary at `--modifier-none()`. Recursive expansion still rejects cycles and enforces per-family depth/work/output limits. Batch failure leaves the input intact.
 - Final unresolved-marker validation uses one batch lookup. Calc folding, theme-reference substitution and nested `var()` fallback formatting also consume batch matches instead of restarting scans.

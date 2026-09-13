@@ -21,12 +21,20 @@ import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/nativ
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
 
+/**
+ * Project configuration for the Stillwind Vite plugin. `css` or `theme` must identify
+ * an entry stylesheet; `css` takes precedence when both are supplied. Relative paths
+ * are resolved against Vite's project root.
+ */
 export interface StillwindOptions {
-  /** Absolute path to the CSS file containing the project's `@theme` tokens. */
+  /** Entry stylesheet alias used when `css` is absent; absolute or project-root relative. */
   theme?: string;
-  /** CSS-first entrypoint. `theme` is retained as a compatibility alias. */
+  /** Entry stylesheet defining the design system; takes precedence over `theme`. */
   css?: string;
-  /** Emits a module augmentation with the CSS theme's utility vocabulary. */
+  /**
+   * Destination for the theme vocabulary's module augmentation, absolute or project-root
+   * relative. Defaults to `src/stillwind.generated.d.ts`; `false` disables generation.
+   */
   types?: false | string;
   /** Namespace for Stillwind-owned CSS identifiers. */
   prefix?: string;
@@ -34,8 +42,10 @@ export interface StillwindOptions {
   tailwindPrefix?: string;
   /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
   forbidTailwindRelationships?: boolean;
-  /** Module identity isolates generated classes. Content identity permits sharing. */
-  /** Stable namespace shared by the project's client and server builds. */
+  /**
+   * Stable namespace included in generated class identities. Use the same value for
+   * client and server builds; changing it changes those identities. Defaults to empty.
+   */
   classNamespace?: string;
 }
 

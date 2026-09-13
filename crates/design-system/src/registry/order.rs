@@ -6,7 +6,7 @@
 //! byte offset in the registry CSS, which is what lets a property sort before or after
 //! a utility that was authored between two statements.
 
-use stillwind_css::blocks::extract_order_statements;
+use stillwind_css::extract_order_statements;
 
 /// One authored cascade position: an exact property name or a prefix pattern ending in
 /// `*`, plus the byte offset the directive was authored at.

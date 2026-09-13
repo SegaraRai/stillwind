@@ -4,7 +4,11 @@ import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgew
 import remapping from "@jridgewell/remapping";
 import { TraceMap } from "@jridgewell/trace-mapping";
 
-/** Repair framework loaders that publish maps to the transformed SFC input. */
+/**
+ * Composes original into depth-one sources whose embedded content exactly equals
+ * transformedSource. Other sources remain outside this composition step.
+ * Invalid maps may throw from the source-map libraries.
+ */
 export function composeFrameworkSourceMap(
   generated: Exclude<Parameters<typeof remapping>[0], unknown[]>,
   original: Parameters<typeof remapping>[0],
@@ -23,6 +27,11 @@ export function composeFrameworkSourceMap(
   );
 }
 
+/**
+ * Composes original into depth-one sources resolving to resource. The caller must
+ * supply an absolute, forward-slash resource path; source names are resolved against
+ * the process working directory. Invalid maps may throw from the mapping libraries.
+ */
 export function composeCarrierSourceMap(
   generated: Parameters<typeof remapping>[0],
   original: Parameters<typeof remapping>[0],
@@ -35,7 +44,11 @@ export function composeCarrierSourceMap(
   );
 }
 
-/** The upstream loader map describes the input that native compilation received. */
+/**
+ * Composes the native output map with the upstream loader map or ordered map chain
+ * describing its input. Without upstream, returns the generated object unchanged.
+ * Invalid maps or incompatible chains may throw from the mapping library.
+ */
 export function composeModuleSourceMap(
   generated: ReturnType<typeof moduleSourceMap>,
   upstream: Parameters<typeof remapping>[0] | undefined | null,
@@ -48,6 +61,10 @@ export function composeModuleSourceMap(
     : generated;
 }
 
+/**
+ * A native replacement span, using half-open UTF-16 offsets in the original and
+ * compiled buffers respectively.
+ */
 export interface CompilerMapping {
   original_start: number;
   original_end: number;

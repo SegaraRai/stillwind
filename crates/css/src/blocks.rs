@@ -135,11 +135,13 @@ pub fn take_property_requirements(css: &str) -> Option<(String, Vec<String>)> {
 }
 
 /// One directive occurrence found by [`scan_directives`].
-///
-/// `body` is `None` for the statement form; `start` is the offset of the `@`.
 struct DirectiveRule {
+    /// UTF-8 byte offset of the directive's `@` in the scanned input.
     start: usize,
+    /// Trimmed prelude without the directive name, braces, or statement semicolon;
+    /// internal whitespace is retained.
     header: String,
+    /// Trimmed text inside the outer braces; None represents a bodyless statement.
     body: Option<String>,
 }
 

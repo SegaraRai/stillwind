@@ -12,6 +12,7 @@ use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
 
+use super::super::CssContribution;
 use super::declaration_order::{combine_declarations_for_theme, order_builtin_utilities};
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
@@ -21,20 +22,29 @@ use super::resolve::CompiledUtility;
 /// The class name is generated from the unit's canonical content, so this function never has to
 /// deduplicate: two equal units were already merged by the caller.
 pub(crate) fn emit_utility_rules(
+    contributions: &mut Vec<CssContribution>,
+    class_name: &str,
+    utilities: &[CompiledUtility],
+    theme: &ThemeIndex,
+) {
+    let mut css = String::new();
+    emit_utility_css(&mut css, class_name, utilities, theme);
+    contributions.push(CssContribution {
+        css,
+        required_properties: utilities
+            .iter()
+            .flat_map(|utility| utility.required_properties.clone())
+            .collect(),
+        keyframes: false,
+    });
+}
+
+fn emit_utility_css(
     output: &mut String,
     class_name: &str,
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
 ) {
-    // Fragment transport preserves semantic support requests until the stylesheet
-    // assembler places them in registration slots. They never reach final CSS.
-    for utility in utilities {
-        if !utility.required_properties.is_empty() {
-            output.push_str("@stillwind-require-properties ");
-            output.push_str(&utility.required_properties.join(" "));
-            output.push(';');
-        }
-    }
     let utilities = order_builtin_utilities(utilities.iter().collect());
     let base = utilities
         .iter()

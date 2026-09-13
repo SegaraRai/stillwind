@@ -26,17 +26,29 @@ use super::webref::webref_property;
 /// function below and has accept/reject boundary tests.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CssPropertyGrammar {
+    /// The property grammar provided by Lightning CSS.
     LightningCss,
+    /// The CSS `columns` property grammar.
     Columns,
+    /// The CSS `contain` property grammar.
     Contain,
+    /// The CSS `font-feature-settings` property grammar.
     FontFeatureSettings,
+    /// The CSS `object-position` property grammar.
     ObjectPosition,
+    /// The CSS `will-change` property grammar.
     WillChange,
+    /// The CSS `zoom` property grammar.
     Zoom,
+    /// The CSS `anchor-name` property grammar.
     AnchorName,
+    /// The CSS `position-anchor` property grammar.
     PositionAnchor,
+    /// The CSS `anchor-scope` property grammar.
     AnchorScope,
+    /// The CSS `position-area` property grammar.
     PositionArea,
+    /// The CSS `position-try-fallbacks` property grammar.
     PositionTryFallbacks,
 }
 
@@ -78,7 +90,9 @@ pub(crate) const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
 /// domains; property names are never part of the public `--value([type])` grammar.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssProperty {
+    /// Recognized CSS property name used for value parsing and declaration serialization.
     name: String,
+    /// Parser selected for this property, including local grammars unavailable from Lightning CSS.
     grammar: CssPropertyGrammar,
 }
 

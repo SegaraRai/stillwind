@@ -31,7 +31,12 @@ const themeSyntaxConfig = {
 };
 const themeSyntax = fork(themeSyntaxConfig);
 
-/** Stillwind uses hashed symbols rather than Tailwind's candidate prefix grammar. */
+/**
+ * Removes supported lowercase prefix(...) and source(none) import modifiers for
+ * the shared fixture and returns its candidate-prefix mapper. Mixed prefixes or
+ * candidates missing the selected prefix fail assertions. This is a fixture
+ * grammar adapter, not a general CSS import parser.
+ */
 export function parityFixture(input: string): {
   css: string;
   candidate: (value: string) => string;
@@ -56,7 +61,7 @@ export function parityFixture(input: string): {
   };
 }
 
-/** Only @theme-owned definitions have the documented theme-slot placement contract. */
+/** Returns serialized keyframe names defined inside @theme; malformed CSS may throw. */
 export function themeKeyframes(input: string): Set<string> {
   const names = new Set<string>();
   walk(themeSyntax.parse(input), {
@@ -78,7 +83,11 @@ export const defaultThemeKeyframes = themeKeyframes(
   readFileSync(new URL("../../packages/core/css/theme.css", import.meta.url), "utf8"),
 );
 
-/** Limits the placement adapter to definitions actually owned by this theme. */
+/**
+ * Returns theme-owned keyframe names, including imported defaults, excluding names
+ * also defined outside @theme. The result bounds the Tailwind placement adapter;
+ * malformed CSS may throw during parsing.
+ */
 export function fixtureThemeKeyframes(input: string): Set<string> {
   const names = new Set([
     ...(/@import\s+["']tailwindcss(?:\/theme)?["']/.test(input) ? defaultThemeKeyframes : []),
@@ -100,7 +109,14 @@ export function fixtureThemeKeyframes(input: string): Set<string> {
   return names;
 }
 
-/** Compare in a shared, explicitly reserved layer environment. */
+/**
+ * Normalizes CSS under the documented fixture layer and serialization contracts.
+ * Pass tailwindThemeFrames only for expected Tailwind output: matching top-level
+ * keyframes are placed in the theme layer. Stillwind output must omit that argument
+ * so an incorrect placement remains visible.
+ * Returns comparison text, not a proof of arbitrary CSS equivalence. Parsing and
+ * strict Lightning CSS minification errors propagate.
+ */
 export function comparisonCss(
   css: string,
   tailwindThemeFrames: ReadonlySet<string> = new Set(),
@@ -176,7 +192,12 @@ export function comparisonCss(
 }
 
 const sessions = new Map<string, { session: NativeProjectSession; uses: number }>();
-/** Replacing one module preserves single-candidate scope, with periodic direct checks. */
+/**
+ * Compiles one fixture module against fully loaded CSS and returns its output and
+ * stylesheet. Sessions are cached by CSS text and replace only src/Parity.tsx.
+ * First use and periodic direct compilation assert cache parity. Unresolved loader
+ * requests or parity failures throw; compiler diagnostics remain in the output.
+ */
 export function compileParity(source: string, css: string) {
   let entry = sessions.get(css);
   if (!entry) {

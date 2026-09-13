@@ -19,6 +19,28 @@ use stillwind_source::{CompileError, Span};
 
 use crate::state::MacroExtractor;
 
+/// One recorded ref use.
+#[derive(Clone, Debug)]
+pub(crate) struct HandleUse {
+    /// Marker name of the ref that was used, as written at its declaration.
+    pub(crate) name: String,
+    /// Use kind: `ref`, `selector`, `anchor`, `position`, `scope`, `container` or `container-query`.
+    pub(crate) projection: &'static str,
+    /// Whole expression the use came from.
+    pub(crate) span: Span,
+    /// JSX ancestor path of the use, when it appeared inside JSX.
+    pub(crate) jsx_path: Option<Vec<usize>>,
+}
+
+/// One recorded scope use.
+#[derive(Clone, Debug)]
+pub(crate) struct ScopeUse {
+    /// Marker name of the scope that was used.
+    pub(crate) name: String,
+    /// JSX ancestor path of the use, when it appeared inside JSX.
+    pub(crate) jsx_path: Option<Vec<usize>>,
+}
+
 impl<'a> MacroExtractor<'a> {
     /// Lowers one ref projection expression, if it is one.
     ///
@@ -179,27 +201,4 @@ impl<'a> MacroExtractor<'a> {
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
     }
-}
-
-/// One recorded ref use.
-#[derive(Clone, Debug)]
-pub(crate) struct HandleUse {
-    /// Marker name of the ref that was used, as written at its declaration.
-    pub(crate) name: String,
-    /// Use kind: `ref`, `selector`, `anchor`, `position`, `scope`, `container` or
-    /// `container-query`.
-    pub(crate) projection: &'static str,
-    /// Whole expression the use came from.
-    pub(crate) span: Span,
-    /// JSX ancestor path of the use, when it appeared inside JSX.
-    pub(crate) jsx_path: Option<Vec<usize>>,
-}
-
-/// One recorded scope use.
-#[derive(Clone, Debug)]
-pub(crate) struct ScopeUse {
-    /// Marker name of the scope that was used.
-    pub(crate) name: String,
-    /// JSX ancestor path of the use, when it appeared inside JSX.
-    pub(crate) jsx_path: Option<Vec<usize>>,
 }

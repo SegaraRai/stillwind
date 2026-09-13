@@ -153,7 +153,9 @@ fn framework_imports_gate_baseline_layers() {
     assert!(utilities_only.diagnostics.is_empty());
     assert!(!utilities_only.css.contains("box-sizing:border-box"));
     assert!(!utilities_only.css.contains("@property --tw-"));
-    assert!(utilities_only.css.contains("@layer theme{:root,:host{"));
+    let theme_start = utilities_only.css.find("@layer theme{").unwrap() + "@layer theme{".len();
+    let selector_start = skip_css_trivia(&utilities_only.css, theme_start);
+    assert!(normalize_css(&utilities_only.css[selector_start..]).starts_with(":root,:host{"));
     assert!(utilities_only.css.contains("@layer utilities{"));
 
     let full = compiler("@import \"stillwind\";");

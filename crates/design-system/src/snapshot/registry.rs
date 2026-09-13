@@ -22,6 +22,8 @@ use crate::{CustomUtility, CustomVariant, ThemeToken};
 /// registry so callers do not have to repeat it.
 #[derive(Clone, Debug)]
 pub struct DefinitionRegistry<T> {
+    /// Definitions grouped by name in lexical key order; each vector preserves
+    /// insertion order, including overloads.
     entries: BTreeMap<String, Vec<Arc<T>>>,
 }
 
