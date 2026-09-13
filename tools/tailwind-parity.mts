@@ -1,8 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-
-import { compileReact, foldCalcExpressions } from "@stillwind/native";
-import { transform } from "lightningcss";
+import { setImmediate } from "node:timers/promises";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
 import {
@@ -11,6 +9,12 @@ import {
 } from "./lib/property-order-parity.ts";
 import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
+import {
+  comparisonCss,
+  compileParity,
+  parityFixture,
+  fixtureThemeKeyframes,
+} from "./lib/tailwind-parity-contract.ts";
 
 const root = resolve(import.meta.dirname, "..");
 const fixtureRoot = join(root, "fixtures", "tailwind-v4");
@@ -91,24 +95,6 @@ function declarationProperties(css: string): Set<string> {
 
 function registeredProperties(css: string): Set<string> {
   return new Set([...css.matchAll(/@property\s+(--[a-zA-Z][\w-]*)/g)].map((match) => match[1]));
-}
-
-function isJustifiedPropertyExtension(expected: string, received: string): boolean {
-  if (withoutMetadata(expected, false) !== withoutMetadata(received, false)) return false;
-  const expectedRegistrations = registeredProperties(expected);
-  const receivedRegistrations = registeredProperties(received);
-  if ([...expectedRegistrations].some((property) => !receivedRegistrations.has(property))) {
-    return false;
-  }
-  const additions = [...receivedRegistrations].filter(
-    (property) => !expectedRegistrations.has(property),
-  );
-  return (
-    additions.length > 0 &&
-    additions.every(
-      (property) => expected.includes(`var(${property}`) || expected.includes(`${property}:`),
-    )
-  );
 }
 
 function hasVariant(candidate: string): boolean {
@@ -226,16 +212,7 @@ function printCounter(label: string, counter: Map<string, number>, limit = 20): 
   }
 }
 
-function minify(css: string): string {
-  return Buffer.from(
-    transform({
-      filename: "parity.css",
-      code: Buffer.from(foldCalcExpressions(css.replaceAll(/\/\*[\s\S]*?\*\//g, ""))),
-      minify: true,
-      errorRecovery: true,
-    }).code,
-  ).toString("utf8");
-}
+const minify = comparisonCss;
 
 function selector(candidate: string): string {
   const escaped = candidate.replaceAll(/[^a-zA-Z0-9_-]/g, (value) =>
@@ -258,6 +235,9 @@ for (const file of readdirSync(caseRoot)
       skipped += fixtureCase.candidates.split(/\s+/).filter(Boolean).length;
       continue;
     }
+    const adapted = parityFixture(fixtureCase.input);
+    const input = adapted.css;
+    const frames = fixtureThemeKeyframes(input);
     const candidates = fixtureCase.candidates.split(/\s+/).filter(Boolean);
     if (candidates.length === 0) candidates.push("");
     for (const candidate of candidates.filter(
@@ -269,46 +249,38 @@ for (const file of readdirSync(caseRoot)
       }
       if (limit > 0 && checked >= limit) break;
       checked += 1;
+      if (checked % 250 === 0) await setImmediate();
+      const utility = adapted.candidate(candidate);
       const themePath = join(fixtureRoot, "parity-theme.css");
-      const source = `import { style } from "stillwind/react"; const props = style(${JSON.stringify(candidate)});`;
+      const source = `import { style } from "stillwind/react"; const props = style(${JSON.stringify(utility)});`;
       const tailwind = await compileTailwindCss({
-        css: fixtureCase.input,
-        candidates: [candidate],
+        css: input,
+        candidates: [utility],
         base: fixtureRoot,
         from: themePath,
       });
-      const expected = minify(tailwind);
-      const tailwindIsEmpty = expected === "" || expected === "@layer utilities;";
+      const expected = comparisonCss(tailwind, frames);
       let native: {
         css: string;
         classes: Array<{ class_name: string }>;
         diagnostics: unknown[];
       };
       try {
-        native = compileReact(
-          source,
-          "src/Parity.tsx",
-          stillwindFixtureCss(fixtureCase.input),
-        ) as typeof native;
+        native = compileParity(source, stillwindFixtureCss(input)) as typeof native;
       } catch (error) {
         failures.push(`${file} ${candidate}: native exception ${String(error)}`);
         recordDifference(file, candidate, expected, "", "native-exception");
         continue;
       }
       if (native.diagnostics.length !== 0 || native.classes.length === 0) {
-        if (candidate === "" && native.diagnostics.length === 0) {
-          const received = minify(native.css);
-          if (
-            expected === received ||
-            hasEquivalentDeclarationOrder(expected, received) ||
-            (expected === "@layer utilities;" && received === "")
-          ) {
-            continue;
-          }
-        }
-        if (tailwindIsEmpty) {
+        const received = minify(native.css);
+        // A rejected/empty candidate must not hide extra generated CSS. A fixture
+        // with no style call still compares its authored @apply output directly.
+        if (
+          (expected === received || hasEquivalentDeclarationOrder(expected, received)) &&
+          (expected === "" || native.diagnostics.length === 0)
+        )
           continue;
-        }
         failures.push(`${file} ${candidate}: unresolved by Stillwind`);
         recordDifference(file, candidate, expected, "", "unresolved");
         if (!quiet && unresolvedShown < 20) {
@@ -321,16 +293,12 @@ for (const file of readdirSync(caseRoot)
         }
         continue;
       }
-      const actual = native.css.replaceAll(native.classes[0].class_name, selector(candidate));
+      const actual = native.css.replaceAll(native.classes[0].class_name, selector(utility));
       const received = minify(actual);
       if (expected === "@layer utilities;" && received === "") {
         continue;
       }
-      if (
-        expected !== received &&
-        !hasEquivalentDeclarationOrder(expected, received) &&
-        !isJustifiedPropertyExtension(expected, received)
-      ) {
+      if (expected !== received && !hasEquivalentDeclarationOrder(expected, received)) {
         failures.push(`${file} ${candidate}`);
         recordDifference(file, candidate, expected, received);
         if (!quiet && failures.length <= 20) {

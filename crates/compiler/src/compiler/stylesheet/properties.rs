@@ -16,6 +16,13 @@ use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
 
 use crate::CompilerOptions;
 
+/// Selected registrations and their fallback rule, before placement in the template.
+#[derive(Default)]
+pub(super) struct PropertyOutput {
+    pub registrations: String,
+    pub initials: String,
+}
+
 /// Renders the `@property` rules `css` needs, or an empty string when none are needed.
 ///
 /// Duplicates are resolved while walking the registry backwards, so a theme definition
@@ -27,11 +34,12 @@ use crate::CompilerOptions;
 /// Returns [`PropertyUsageError`] when CSS usage cannot be parsed. Values are not
 /// checked against the registered `@property` syntax descriptor.
 #[allow(clippy::too_many_lines)]
-pub(in crate::compiler) fn render_used_properties(
+pub(super) fn render_used_properties(
     theme: &ThemeIndex,
     css: &str,
     options: &CompilerOptions,
-) -> Result<String, PropertyUsageError> {
+    explicit: &[String],
+) -> Result<PropertyOutput, PropertyUsageError> {
     let usage = custom_property_usage(css)?;
     let builtin_properties = builtin_property_definitions(theme);
     let definitions = builtin_properties.iter().chain(&theme.properties);
@@ -49,6 +57,11 @@ pub(in crate::compiler) fn render_used_properties(
             .then_some(name)
         })
         .collect::<BTreeSet<_>>();
+    // Explicit utility dependencies can require registration even when the same
+    // declaration text in another utility deliberately does not (e.g. transform).
+    for name in explicit {
+        required.insert(options.rewrite_generated(name));
+    }
     let mut changed = true;
     while changed {
         changed = false;
@@ -102,11 +115,14 @@ pub(in crate::compiler) fn render_used_properties(
             builtin_initials.push(format!("{name}:{initial};"));
         }
     }
-    if !builtin_initials.is_empty() {
-        output.push_str("@layer properties{@supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))){*,:before,:after,::backdrop{");
-        output.push_str(&builtin_initials.concat());
-        output.push_str("}}}\n");
-    }
+    let initials = if builtin_initials.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "*,:before,:after,::backdrop{{{}}}",
+            builtin_initials.concat()
+        )
+    };
     for (name, body, _) in properties {
         if !output.is_empty() {
             output.push('\n');
@@ -117,5 +133,8 @@ pub(in crate::compiler) fn render_used_properties(
         }
         output.push_str("}\n");
     }
-    Ok(output)
+    Ok(PropertyOutput {
+        registrations: output,
+        initials,
+    })
 }

@@ -393,8 +393,13 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility drop-shadow-* {
-  --tw-drop-shadow: --value([shadow]);
-  filter: drop-shadow(var(--tw-drop-shadow));
+  --tw-drop-shadow-size: drop-shadow(
+    --stillwind-builtin-shadow-color([shadow], --tw-drop-shadow-color)
+  );
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
 }
 
 @stillwind-utility drop-shadow-* {

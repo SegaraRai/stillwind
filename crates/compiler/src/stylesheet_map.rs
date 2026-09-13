@@ -5,7 +5,7 @@
 //! ranges are byte offsets into one specific [`SourceFile`], and `exact` records whether the
 //! generated text is byte-for-byte the authored slice or a rendering of it. Mappings are
 //! appended in output order and survive [`MappedStylesheet::append`] and
-//! [`MappedStylesheet::prepend_unmapped`], which shift only the generated side.
+//! semantic directive lowering, which adjusts only the generated side.
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -35,6 +35,38 @@ pub struct MappedStylesheet {
 }
 
 impl MappedStylesheet {
+    /// Omits semantic fragment directives while retaining source coordinates.
+    /// A rendered mapping split by an omission retains its full original origin;
+    /// exact mappings instead retain the corresponding original byte slice.
+    pub(crate) fn omit_ranges(&self, ranges: &[Range<usize>]) -> Self {
+        let mut output = Self::default();
+        let mut cursor = 0;
+        for range in ranges
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.css.len()..self.css.len()))
+        {
+            let end = range.start;
+            let offset = output.css.len();
+            output.css.push_str(&self.css[cursor..end]);
+            for mapping in &self.mappings {
+                let start = mapping.generated.start.max(cursor);
+                let stop = mapping.generated.end.min(end);
+                if start >= stop {
+                    continue;
+                }
+                let mut kept = mapping.clone();
+                kept.generated = offset + start - cursor..offset + stop - cursor;
+                if kept.exact {
+                    kept.original = mapping.original.start + start - mapping.generated.start
+                        ..mapping.original.start + stop - mapping.generated.start;
+                }
+                output.mappings.push(kept);
+            }
+            cursor = range.end;
+        }
+        output
+    }
     /// Appends another stylesheet, shifting its generated ranges by the current length.
     pub(crate) fn append(&mut self, other: &Self) {
         let offset = self.css.len();
@@ -74,15 +106,6 @@ impl MappedStylesheet {
                     exact,
                 });
             }
-        }
-    }
-
-    /// Inserts `text` at the start and shifts every generated range past it.
-    pub(crate) fn prepend_unmapped(&mut self, text: &str) {
-        self.css.insert_str(0, text);
-        for mapping in &mut self.mappings {
-            mapping.generated.start += text.len();
-            mapping.generated.end += text.len();
         }
     }
 }
@@ -203,29 +226,36 @@ mod tests {
     }
 
     #[test]
-    fn prepend_unmapped_shifts_only_generated_byte_ranges() {
-        let source = source();
-        let span = source.full_span();
+    fn directive_omission_preserves_utf8_and_exact_and_rendered_origins() {
+        let source = Arc::new(
+            SourceFile::new(
+                FileId(7),
+                "日本.css",
+                "前@stillwind-require-properties --x;後",
+            )
+            .unwrap(),
+        );
         let mut output = MappedStylesheet::default();
-        output.text(source.text(), Some((source.clone(), span)));
-        output.text(".日本{color:red}", Some((source.clone(), span)));
-        let before = output.clone();
-        let prefix = "/* 日本語 🧭 */";
-        output.prepend_unmapped(prefix);
-        assert_eq!(output.css, format!("{prefix}{}", before.css));
-        assert_eq!(output.mappings.len(), before.mappings.len());
-        for (mapping, original) in output.mappings.iter().zip(&before.mappings) {
+        output.text(source.text(), Some((source.clone(), source.full_span())));
+        let start = "前".len();
+        let end = source.text().find('後').unwrap();
+        let lowered = output.omit_ranges(std::slice::from_ref(&(start..end)));
+        assert_eq!(lowered.css, "前後");
+        assert_eq!(lowered.mappings.len(), 2);
+        for mapping in &lowered.mappings {
+            assert!(mapping.exact);
             assert_eq!(
-                mapping.generated,
-                original.generated.start + prefix.len()..original.generated.end + prefix.len()
+                &lowered.css[mapping.generated.clone()],
+                &source.text()[mapping.original.clone()]
             );
-            assert_eq!(mapping.original, original.original);
-            assert_eq!(mapping.exact, original.exact);
-            assert!(Arc::ptr_eq(&mapping.source, &original.source));
         }
-        let mut empty = MappedStylesheet::default();
-        empty.prepend_unmapped(prefix);
-        assert_eq!(empty.css, prefix);
-        assert!(empty.mappings.is_empty());
+        output.mappings[0].exact = false;
+        let lowered = output.omit_ranges(std::slice::from_ref(&(start..end)));
+        assert!(
+            lowered
+                .mappings
+                .iter()
+                .all(|mapping| mapping.original == (0..source.text().len()) && !mapping.exact)
+        );
     }
 }

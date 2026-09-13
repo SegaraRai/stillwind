@@ -265,22 +265,24 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-ring-offset-width {
+  activation: dependency;
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
 }
 
 @stillwind-property --tw-ring-offset-color {
+  activation: dependency;
   syntax: "*";
   inherits: false;
   initial-value: #fff;
 }
 
 @stillwind-property --tw-ring-offset-shadow {
+  activation: dependency;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
-  activation: declared;
 }
 
 @stillwind-property --tw-outline-style {
@@ -511,35 +513,35 @@ The compiler lowers only used `@stillwind-property` definitions to standard
   group: transform-functions;
   syntax: "*";
   inherits: false;
-  activation: either;
+  activation: declared;
 }
 
 @stillwind-property --tw-rotate-y {
   group: transform-functions;
   syntax: "*";
   inherits: false;
-  activation: either;
+  activation: declared;
 }
 
 @stillwind-property --tw-rotate-z {
   group: transform-functions;
   syntax: "*";
   inherits: false;
-  activation: either;
+  activation: declared;
 }
 
 @stillwind-property --tw-skew-x {
   group: transform-functions;
   syntax: "*";
   inherits: false;
-  activation: either;
+  activation: declared;
 }
 
 @stillwind-property --tw-skew-y {
   group: transform-functions;
   syntax: "*";
   inherits: false;
-  activation: either;
+  activation: declared;
 }
 
 @stillwind-property --tw-mask-radial-from-position {

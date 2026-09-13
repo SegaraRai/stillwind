@@ -18,6 +18,7 @@ use crate::candidate::CandidateResolver;
 // leave them alone while a runtime use overwrites them through the style payload.
 pub(in crate::compiler) fn view_transition_utility() -> CompiledUtility {
     CompiledUtility {
+        required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),
         declaration: "--sw-vt-name:none;--sw-vt-class:none;view-transition-name:var(--sw-vt-name);view-transition-class:var(--sw-vt-class);".to_owned(),
@@ -39,6 +40,7 @@ pub(crate) struct CompiledUtility {
     pub(in crate::compiler) variants: Vec<Variant>,
     pub(in crate::compiler) variant_applications: Vec<Vec<VariantApplication>>,
     pub(in crate::compiler) declaration: String,
+    pub(in crate::compiler) required_properties: Vec<String>,
     pub(in crate::compiler) selector: Option<String>,
     pub(in crate::compiler) container: Option<String>,
     pub(in crate::compiler) nested: Vec<NestedUtilityRule>,
@@ -88,6 +90,7 @@ pub(crate) fn resolve_utility_targets(
                 variants: resolved.candidate.variants.clone(),
                 variant_applications: Vec::new(),
                 declaration: target.declaration,
+                required_properties: resolved.required_properties.clone(),
                 selector: target.selector,
                 container: None,
                 nested: target.nested,

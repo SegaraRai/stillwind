@@ -215,6 +215,7 @@ mod tests {
     fn orders_conflicting_shorthands_like_tailwind() {
         let declarations = [
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "margin-left:0.5rem;".to_owned(),
@@ -225,6 +226,7 @@ mod tests {
                 candidate: "ml-2".to_owned(),
             },
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "margin-inline:0.75rem;".to_owned(),
@@ -235,6 +237,7 @@ mod tests {
                 candidate: "mx-3".to_owned(),
             },
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "margin:1rem;".to_owned(),
@@ -257,6 +260,7 @@ mod tests {
     fn keeps_composed_properties_at_their_cascade_position() {
         let declarations = [
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "all:unset;".to_owned(),
@@ -267,6 +271,7 @@ mod tests {
                 candidate: "[all:unset]".to_owned(),
             },
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_owned(),
@@ -289,6 +294,7 @@ mod tests {
     fn keeps_unrelated_declarations_stable() {
         let declarations = [
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "color:red;display:block;".to_owned(),
@@ -299,6 +305,7 @@ mod tests {
                 candidate: String::new(),
             },
             CompiledUtility {
+                required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
                 declaration: "opacity:0.5;".to_owned(),
@@ -336,6 +343,7 @@ mod tests {
     #[test]
     fn composed_values_emit_priority_once_after_all_components() {
         let make = |declaration: &str| CompiledUtility {
+            required_properties: Vec::new(),
             variants: Vec::new(),
             variant_applications: Vec::new(),
             declaration: declaration.into(),

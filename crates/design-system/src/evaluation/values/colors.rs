@@ -12,7 +12,7 @@
 use stillwind_css::{shadow_with_color_fallback, shadow_with_color_override};
 
 use super::super::builtins::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
-use super::domains::split_domains;
+use super::domains::{resolve_value_domains, split_domains};
 use super::theme::theme_value_literal;
 use crate::{ThemeIndex, ThemeNamespace};
 
@@ -120,12 +120,16 @@ pub(crate) fn resolve_shadow_color(
         [domain, color_property, alpha] => (*domain, *color_property, Some(alpha.trim())),
         _ => return None,
     };
-    let namespace = domain
-        .trim()
-        .strip_prefix("--")
-        .and_then(|domain| domain.strip_suffix("-*"))
-        .and_then(ThemeNamespace::parse)?;
-    let value = theme_value_literal(namespace, capture?, theme)?;
+    let value = if domain.trim() == "[shadow]" {
+        resolve_value_domains(domain, capture, theme)?
+    } else {
+        let namespace = domain
+            .trim()
+            .strip_prefix("--")
+            .and_then(|domain| domain.strip_suffix("-*"))
+            .and_then(ThemeNamespace::parse)?;
+        theme_value_literal(namespace, capture?, theme)?
+    };
     let color_property = color_property.trim();
     color_property.strip_prefix("--").filter(|name| {
         !name.is_empty()

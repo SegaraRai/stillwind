@@ -37,9 +37,12 @@ export function resolveFixtureCss(css: string, directory = packageRoot): string 
               : null;
       if (!path) return rule;
       const content = resolveFixtureCss(readFileSync(path, "utf8"), dirname(path));
-      const layer = /^layer\(([^)]+)\)$/.exec(tail.trim());
+      // Fixtures supply candidates explicitly; source(none) only disables discovery.
+      // This adapter does not imply production support for Tailwind import modifiers.
+      const modifiers = tail.replace(/\bsource\(none\)/g, "").trim();
+      const layer = /^layer\(([^)]+)\)$/.exec(modifiers);
       if (layer) return `@layer ${layer[1]}{${content}}`;
-      if (tail.trim()) throw new Error(`Unsupported fixture import modifier: ${tail}`);
+      if (modifiers) throw new Error(`Unsupported fixture import modifier: ${tail}`);
       return content;
     },
   );

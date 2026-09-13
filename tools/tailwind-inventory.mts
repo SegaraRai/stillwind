@@ -8,22 +8,30 @@ import { createGzip } from "node:zlib";
 
 import {
   compileReact,
-  foldCalcExpressions,
   NativeDesignSystemLoader,
   NativeProjectSession,
   type ProjectModuleOutput,
 } from "@stillwind/native";
 import { generate, parse, walk, type CssNode } from "css-tree";
-import { transform } from "lightningcss";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
 import { hasEquivalentDeclarationOrder } from "./lib/property-order-parity.ts";
 import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
+import {
+  comparisonCss,
+  parityFixture,
+  fixtureThemeKeyframes,
+} from "./lib/tailwind-parity-contract.ts";
 
 const root = resolve(import.meta.dirname, "..");
 const fixtureRoot = join(root, "fixtures/tailwind-v4");
-const outputRoot = join(root, "docs/reviews/data/2026-09-13-tailwind-inventory");
+const outputRoot = resolve(
+  root,
+  process.argv[process.argv.indexOf("--output") + 1] && process.argv.includes("--output")
+    ? process.argv[process.argv.indexOf("--output") + 1]
+    : "target/tailwind-inventory",
+);
 mkdirSync(outputRoot, { recursive: true });
 const evidence = createGzip();
 const evidenceFile = createWriteStream(join(outputRoot, "mismatches.jsonl.gz"));
@@ -36,16 +44,8 @@ const sessions = new Map<string, { session: NativeProjectSession; css: string; u
 let directChecks = 0;
 let checked = 0;
 
-// Preserve the existing gate's normalization exactly. Diagnostic transformations
-// below classify differences; they never convert a failure into an accepted result.
-function minify(css: string): string {
-  return transform({
-    filename: "parity.css",
-    code: Buffer.from(foldCalcExpressions(css.replaceAll(/\/\*[\s\S]*?\*\//g, ""))),
-    minify: true,
-    errorRecovery: true,
-  }).code.toString();
-}
+// The inventory and CI gate share the documented semantic comparison contract.
+const minify = comparisonCss;
 function selector(candidate: string): string {
   const escaped = candidate.replaceAll(/[^a-zA-Z0-9_-]/g, (value) =>
     value.codePointAt(0)! >= 0x80 ? value : `\\${value}`,
@@ -85,19 +85,6 @@ function withoutMetadata(css: string): string {
       list.remove(item);
   });
   return generate(ast);
-}
-function registrations(css: string): Set<string> {
-  return new Set([...css.matchAll(/@property\s+(--[a-zA-Z][\w-]*)/g)].map((match) => match[1]));
-}
-function extension(a: string, b: string): boolean {
-  if (withoutMetadata(a) !== withoutMetadata(b)) return false;
-  const before = registrations(a),
-    after = registrations(b);
-  if ([...before].some((name) => !after.has(name))) return false;
-  const added = [...after].filter((name) => !before.has(name));
-  return (
-    added.length > 0 && added.every((name) => a.includes(`var(${name}`) || a.includes(`${name}:`))
-  );
 }
 function withoutRegisteredFallbacks(css: string): string {
   const ast = parse(css, { parseCustomProperty: true });
@@ -178,11 +165,13 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
       });
       continue;
     }
+    const adapted = parityFixture(fixture.input);
+    const frames = fixtureThemeKeyframes(adapted.css);
     const inputHash = createHash("sha256").update(fixture.input).digest("hex");
     let loaded = sessions.get(inputHash);
     if (!loaded) {
       try {
-        const css = stillwindFixtureCss(fixture.input);
+        const css = stillwindFixtureCss(adapted.css);
         const loader = new NativeDesignSystemLoader();
         assert.equal(loader.provide(0, "stillwind.css", css).kind, "complete");
         loaded = { session: new NativeProjectSession(loader, false), css, uses: 0 };
@@ -210,14 +199,14 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
     }
     for (const candidate of candidates.length ? candidates : [""]) {
       checked++;
-      const source = `import { style } from "stillwind/react"; const props = style(${JSON.stringify(candidate)});`;
+      const source = `import { style } from "stillwind/react"; const props = style(${JSON.stringify(adapted.candidate(candidate))});`;
       const tailwind = await compileTailwindCss({
-        css: fixture.input,
-        candidates: [candidate],
+        css: adapted.css,
+        candidates: [adapted.candidate(candidate)],
         base: fixtureRoot,
         from: join(fixtureRoot, "parity-theme.css"),
       });
-      const expected = minify(tailwind);
+      const expected = comparisonCss(tailwind, frames);
       let category: string;
       let actual = "",
         received = "";
@@ -237,16 +226,20 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         }
         diagnostics = native.diagnostics;
         resources = native.resources;
+        let resolvedCss = actual;
+        for (const resource of native.resources)
+          resolvedCss = resolvedCss.replaceAll(resource.placeholder, resource.specifier);
         received = minify(
           native.classes.length
-            ? actual.replaceAll(native.classes[0].class_name, selector(candidate))
-            : actual,
+            ? resolvedCss.replaceAll(
+                native.classes[0].class_name,
+                selector(adapted.candidate(candidate)),
+              )
+            : resolvedCss,
         );
         if (native.diagnostics.length || !native.classes.length) {
           category =
-            expected === "" ||
-            expected === "@layer utilities;" ||
-            (candidate === "" && !native.diagnostics.length && equivalent(expected, received))
+            equivalent(expected, received) && (expected === "" || !native.diagnostics.length)
               ? "accepted-empty"
               : "unresolved";
         } else if (
@@ -254,7 +247,6 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
           (expected === "@layer utilities;" && received === "")
         )
           category = "accepted";
-        else if (extension(expected, received)) category = "accepted-property-extension";
         else category = classify(expected, received);
       } catch (error) {
         // A validation disagreement invalidates the run instead of becoming a compiler mismatch.
@@ -334,3 +326,5 @@ console.log(
     elapsedSeconds: Math.round((performance.now() - started) / 1000),
   }),
 );
+
+if (Object.keys(counts).some((category) => !category.startsWith("accepted"))) process.exitCode = 1;

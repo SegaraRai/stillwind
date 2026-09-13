@@ -24,6 +24,8 @@ use crate::ThemeIndex;
 pub struct ResolvedUtility {
     /// The parsed candidate, including its variants, flags, and modifier.
     pub candidate: Candidate,
+    /// Registrations explicitly required by the selected utility branches.
+    pub required_properties: Vec<String>,
     /// Source order of the matched `@stillwind-utility`.
     pub builtin_order: Option<usize>,
     /// Finalized declarations for the utility itself.
@@ -98,6 +100,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .collect();
     let selector = resolution.selector;
     Some(ResolvedUtility {
+        required_properties: resolution.required_properties,
         candidate,
         builtin_order: resolution.builtin_order,
         declaration,

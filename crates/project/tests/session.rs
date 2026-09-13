@@ -113,7 +113,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     let base = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
         .render_base_stylesheet()
         .unwrap();
-    assert!(base.starts_with("@layer properties;\n@layer theme, base, components, utilities;"));
+    assert!(base.starts_with("@layer properties, theme, base, components, utilities;"));
     let mut session = ProjectSession::new(
         snapshot.clone(),
         SessionMode::Build,

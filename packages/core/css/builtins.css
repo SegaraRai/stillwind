@@ -66,3 +66,12 @@ after all built-in utilities, matching Tailwind's unknown-property bucket.
 
 @stillwind-arbitrary-property --tw-*;
 @stillwind-arbitrary-property *;
+
+/* Runtime placement is authored CSS. Registrations remain outside the fallback query. */
+@layer properties {
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
+    @stillwind-slot property-initials;
+  }
+}
+@stillwind-slot properties;

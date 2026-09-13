@@ -34,6 +34,7 @@ mod evaluation;
 mod loading;
 mod options;
 mod output;
+pub use output::parse_output_template;
 mod registry;
 mod snapshot;
 mod theme;

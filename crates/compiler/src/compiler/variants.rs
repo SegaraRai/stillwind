@@ -117,6 +117,7 @@ mod tests {
             "@media print{&:hover{color:red;}}@media print{&:focus{color:red;}}"
         );
         let utility = CompiledUtility {
+            required_properties: Vec::new(),
             variants: Vec::new(),
             variant_applications: Vec::new(),
             declaration: "color:red;".into(),

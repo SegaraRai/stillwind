@@ -1,4 +1,4 @@
-@layer theme, base, components, utilities;
+@layer properties, theme, base, components, utilities;
 @layer theme {
   :root,
   :host {
@@ -10,6 +10,10 @@
       monospace;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
+  }
+  :root,
+  :host {
+    --color-accent: oklch(0.62 0.18 252);
   }
 }
 @layer base {
@@ -438,8 +442,9 @@
       color: var(--color-accent);
     }
   }
-}
-:root,
-:host {
-  --color-accent: oklch(0.62 0.18 252);
+} /* Runtime placement is authored CSS. Registrations remain outside the fallback query. */
+@layer properties {
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
+  }
 }

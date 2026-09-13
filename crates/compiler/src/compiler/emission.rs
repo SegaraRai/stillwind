@@ -458,6 +458,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             ClassExpression::HandleProjection { handle, projection } => {
                 let name = handle_projection_name(projection);
                 let utility = CompiledUtility {
+                    required_properties: Vec::new(),
                     variants: Vec::new(),
                     variant_applications: Vec::new(),
                     declaration: render_handle_projection(handle, projection),
@@ -506,6 +507,7 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                     let contribution = LiteralContribution {
                         canonical,
                         utilities: vec![CompiledUtility {
+                            required_properties: Vec::new(),
                             variants: Vec::new(),
                             variant_applications: Vec::new(),
                             declaration: render_handle_projection(handle, projection),

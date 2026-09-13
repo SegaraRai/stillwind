@@ -82,6 +82,58 @@ pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, Strin
         .collect()
 }
 
+/// Reads semantic registration requirements from a utility definition or fragment.
+/// Quoted/comment text is ignored. Unknown property names are validated by the
+/// consumer against its registry; malformed directive arguments reject the input.
+pub fn property_requirement_ranges(
+    css: &str,
+) -> Option<Vec<(std::ops::Range<usize>, Vec<String>)>> {
+    if !css.contains("@stillwind-require-properties") {
+        return Some(Vec::new());
+    }
+    directive_rules(css, "stillwind-require-properties")
+        .into_iter()
+        .map(|rule| {
+            if rule.body.is_some() {
+                return None;
+            }
+            let names = rule
+                .header
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            if names.is_empty()
+                || names.iter().any(|name| {
+                    !name.starts_with("--")
+                        || name.len() == 2
+                        || !name
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+                })
+            {
+                return None;
+            }
+            let end = rule.start + css[rule.start..].find(';')? + 1;
+            Some((rule.start..end, names))
+        })
+        .collect()
+}
+
+/// Lowers registration requirements before declarations are serialized as CSS.
+pub fn take_property_requirements(css: &str) -> Option<(String, Vec<String>)> {
+    let requests = property_requirement_ranges(css)?;
+    let mut output = String::new();
+    let mut properties = Vec::new();
+    let mut cursor = 0;
+    for (range, names) in requests {
+        output.push_str(&css[cursor..range.start]);
+        cursor = range.end;
+        properties.extend(names);
+    }
+    output.push_str(&css[cursor..]);
+    Some((output, properties))
+}
+
 /// One directive occurrence found by [`scan_directives`].
 ///
 /// `body` is `None` for the statement form; `start` is the offset of the `@`.
@@ -373,5 +425,19 @@ mod tests {
         assert_eq!(find_block_open("x-{modifier} { y }"), Some(13));
         assert_eq!(matching_brace("{ '}' {x} }", 0), Some(10));
         assert_eq!(matching_brace("{x", 0), None);
+    }
+}
+
+#[cfg(test)]
+mod requirement_tests {
+    use super::take_property_requirements;
+    #[test]
+    fn requirements_are_lexical_and_reject_non_names() {
+        let css = r".x{content:'@stillwind-require-properties --fake;';@stillwind-require-properties --real;}";
+        let (lowered, names) = take_property_requirements(css).unwrap();
+        assert_eq!(names, ["--real"]);
+        assert!(lowered.contains("'@stillwind-require-properties --fake;'"));
+        assert!(take_property_requirements("@stillwind-require-properties red;").is_none());
+        assert!(take_property_requirements("@stillwind-require-properties --x{}").is_none());
     }
 }

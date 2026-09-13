@@ -51,6 +51,14 @@ export default defineConfig({
       "tailwind:property-order:test": {
         command: "node --test property-order-parity.test.mts",
       },
+      "tailwind:contract:test": {
+        command: "node --test tailwind-parity-contract.test.mts",
+      },
+      "tailwind:browser": {
+        command: "node tailwind-browser-contract.mts",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
       "tailwind:parity:analyze": {
         command: "node tailwind-parity.mts --analyze --quiet --summary-only",
         dependsOn: ["@stillwind/native#build"],

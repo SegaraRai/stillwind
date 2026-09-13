@@ -90,20 +90,16 @@ impl<'a> StylesheetRenderer<'a> {
         render_stylesheet(self.snapshot.theme(), module_css, &self.options)
     }
 
-    /// Document CSS with the support layer reserved before any late producer.
+    /// Document CSS with the layer reservations authored by the entry stylesheet.
     ///
-    /// The `properties` layer statement is prepended when the template does not already
-    /// open with it, so a later producer can add `@property` rules in the right layer.
+    /// The default package reserves support order before any late producer; a custom
+    /// entry owns its own layer order. Rendering never adds an implicit reservation.
     ///
     /// # Errors
     ///
     /// Returns an error when the authored CSS cannot be analyzed.
     pub fn render_base_stylesheet(&self) -> Result<String, StylesheetError> {
-        let mut css = self.render_stylesheet("")?;
-        if !css.starts_with("@layer properties;") {
-            css.insert_str(0, "@layer properties;\n");
-        }
-        Ok(css)
+        self.render_stylesheet("")
     }
 
     /// Renders one producer's CSS and required tokens, keyframes and properties.
@@ -138,22 +134,15 @@ impl<'a> StylesheetRenderer<'a> {
         )
     }
 
-    /// Document CSS with source provenance and a stable support-layer reservation.
+    /// Document CSS with source provenance and CSS-authored layer reservations.
     ///
     /// This is the mapped counterpart of [`Self::render_base_stylesheet`] and keeps the
-    /// same guarantee that the layer statement comes first.
+    /// same source order as the entry template.
     ///
     /// # Errors
     ///
     /// Returns invalid authored CSS.
     pub fn render_base_stylesheet_with_map(&self) -> Result<MappedStylesheet, StylesheetError> {
-        let mut output = self.render_mapped_stylesheet(
-            &MappedStylesheet::default(),
-            StylesheetPlacement::Document,
-        )?;
-        if !output.css.starts_with("@layer properties;") {
-            output.prepend_unmapped("@layer properties;\n");
-        }
-        Ok(output)
+        self.render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
     }
 }

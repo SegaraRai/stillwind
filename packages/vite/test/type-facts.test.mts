@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { TypeScriptFactsService, type ModuleSummary } from "@stillwind/host";
 import {
   compileReactProject,
+  foldCalcExpressions,
   summarizeReact,
   NativeDesignSystemLoader,
   NativeProjectSession,
@@ -196,7 +197,8 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   );
   const changedPlan = session.planStylesheet(selection) as typeof plan;
   assert.notEqual(changedPlan.producers[0].semanticRevision, plan.producers[0].semanticRevision);
-  assert.match(changedPlan.css, /opacity:5%/);
+  // CSS values may retain calc() until the bundler's optimization stage.
+  assert.match(foldCalcExpressions(changedPlan.css), /opacity:5%/);
 
   const runnable = finalizeReactModule(consumer.code, false);
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);

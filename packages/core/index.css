@@ -1,4 +1,4 @@
-@layer theme, base, components, utilities;
+@layer properties, theme, base, components, utilities;
 
 @import "./css/theme.css" layer(theme);
 @import "./css/preflight.css" layer(base);

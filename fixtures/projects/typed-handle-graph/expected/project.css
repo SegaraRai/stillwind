@@ -1,4 +1,4 @@
-@layer theme, base, components, utilities;
+@layer properties, theme, base, components, utilities;
 @layer theme {
   :root,
   :host {
@@ -419,5 +419,10 @@
   }
   ._s_0a26174f {
     anchor-name: --sw-r-994d70ad;
+  }
+} /* Runtime placement is authored CSS. Registrations remain outside the fallback query. */
+@layer properties {
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }

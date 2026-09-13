@@ -264,7 +264,7 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
     let stylesheet = render_react_stylesheet(fragments.join("\n"), theme.to_owned(), None).unwrap();
     assert_eq!(
         stylesheet
-            .matches("@layer theme, base, components, utilities;")
+            .matches("@layer properties, theme, base, components, utilities;")
             .count(),
         1
     );

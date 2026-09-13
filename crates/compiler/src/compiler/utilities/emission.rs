@@ -26,6 +26,15 @@ pub(crate) fn emit_utility_rules(
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
 ) {
+    // Fragment transport preserves semantic support requests until the stylesheet
+    // assembler places them in registration slots. They never reach final CSS.
+    for utility in utilities {
+        if !utility.required_properties.is_empty() {
+            output.push_str("@stillwind-require-properties ");
+            output.push_str(&utility.required_properties.join(" "));
+            output.push(';');
+        }
+    }
     let utilities = order_builtin_utilities(utilities.iter().collect());
     let base = utilities
         .iter()

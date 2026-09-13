@@ -285,6 +285,8 @@ fn literal_values_and_explicit_fallbacks_survive_utility_emission() {
         "const x = style('literal');",
         r#"
         @stillwind-property --registered { syntax: "<length>"; inherits: false; initial-value: 0px; }
+        @stillwind-slot properties;
+        @stillwind-slot property-initials;
         @utility literal {
             content: ",var(--x) oklab(0% none none/0) deg*-1";
             transform: var(--component);
@@ -307,4 +309,45 @@ fn literal_values_and_explicit_fallbacks_survive_utility_emission() {
         "{}",
         result.css
     );
+}
+
+#[test]
+fn explicit_registration_dependencies_survive_apply_and_do_not_leak_into_css() {
+    let (_, result) = compile(
+        "const x = style('consumer');",
+        r#"
+        @stillwind-property --dependency { activation: dependency; syntax: "*"; inherits: false; }
+        @stillwind-slot properties;
+        @stillwind-slot property-initials;
+        @utility consumer { @stillwind-require-properties --dependency; transform:var(--dependency,); }
+        .authored { @apply consumer; }
+    "#,
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.css.matches("@property --dependency").count(), 1);
+    assert!(!result.css.contains("@stillwind-require-properties"));
+    let (_, missing) = compile(
+        "const x = style('consumer');",
+        "@utility consumer { @stillwind-require-properties --missing; color:red; }",
+    );
+    assert!(!missing.diagnostics.is_empty());
+}
+
+#[test]
+fn local_animation_definitions_follow_the_explicit_keyframes_slot() {
+    let (_, result) = compile(
+        "const animation=style.animation({from:'fade',to:'visible'});const x=style(animation(''));",
+        r"
+        @utility fade { opacity:0; }
+        @utility visible { opacity:1; }
+        @layer animations { @stillwind-slot keyframes; }
+    ",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.css.contains("@layer animations{@keyframes"),
+        "{}",
+        result.css
+    );
+    assert_eq!(result.css.matches("@keyframes").count(), 1);
 }

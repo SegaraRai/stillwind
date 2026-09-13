@@ -1,3 +1,7 @@
+/* Definitions are collected globally; these slots own their output placement. */
+@stillwind-slot theme;
+@stillwind-slot keyframes;
+
 @theme default {
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial,

@@ -104,7 +104,7 @@ export function SaveButton() {
     assert!(
         result
             .css
-            .starts_with("@layer theme, base, components, utilities;")
+            .starts_with("@layer properties, theme, base, components, utilities;")
     );
     assert!(!result.css.contains("@layer properties;"));
     assert!(result.css.contains_css("--color-accent:oklch(.6 .2 250);"));

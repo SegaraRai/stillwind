@@ -27,6 +27,7 @@ use crate::{CustomUtility, ThemeIndex, ThemeNamespace};
 pub(crate) struct UtilityResolution {
     /// Declarations for the matched selector, or for the utility itself.
     pub(crate) declaration: String,
+    pub(crate) required_properties: Vec<String>,
     /// Selector template from the body, when the body wrapped its declarations.
     pub(crate) selector: Option<String>,
     /// Conditional declarations to emit next to the base declaration.
@@ -42,6 +43,7 @@ impl UtilityResolution {
     pub(crate) fn plain(declaration: String) -> Self {
         Self {
             declaration,
+            required_properties: Vec::new(),
             selector: None,
             nested: Vec::new(),
             additional: Vec::new(),
@@ -55,6 +57,7 @@ impl UtilityResolution {
 /// Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
 /// the candidate carries a modifier no branch consumes, or when no declaration group
 /// matches.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn resolve_css_utility_body(
     utility: &CustomUtility,
     name: &str,
@@ -64,7 +67,9 @@ pub(crate) fn resolve_css_utility_body(
     if utility.body.contains("@slot") {
         return None;
     }
-    let (selector, body, parent_body) = split_utility_selector(&utility.body)?;
+    let (body, required_properties) =
+        stillwind_css::blocks::take_property_requirements(&utility.body)?;
+    let (selector, body, parent_body) = split_utility_selector(&body)?;
     let (body, nested) = split_nested_conditions(body)?;
     let resolve = |body: &str| {
         resolve_css_declarations(
@@ -149,6 +154,7 @@ pub(crate) fn resolve_css_utility_body(
             }]
         })?;
         (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
+            required_properties,
             declaration: parent_declaration,
             selector: None,
             nested: Vec::new(),
@@ -157,6 +163,7 @@ pub(crate) fn resolve_css_utility_body(
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
+            required_properties,
             declaration,
             selector,
             nested: resolved_nested,

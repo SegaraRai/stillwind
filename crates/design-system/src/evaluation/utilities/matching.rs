@@ -165,6 +165,9 @@ pub(crate) fn resolve_css_utility_branches<'a>(
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
         // competing overloads cannot overwrite a more-specific property branch.
+        resolution
+            .required_properties
+            .extend(branch.required_properties);
         if branch.selector == resolution.selector {
             resolution.declaration =
                 merge_branch_declarations(&resolution.declaration, &branch.declaration);

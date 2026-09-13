@@ -42,6 +42,8 @@ pub struct CustomPropertyDefinition {
 /// reads the property, which keeps unused descriptors out of the output.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CustomPropertyActivation {
+    /// Emit only when required by another registration's dependency or group.
+    Dependency,
     /// Emit when the property itself is declared with a value.
     Declared,
     /// Emit when the property is read through `var()`.
@@ -56,6 +58,7 @@ impl CustomPropertyActivation {
     /// the caller, which keeps the default in place.
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value.trim() {
+            "dependency" => Some(Self::Dependency),
             "declared" => Some(Self::Declared),
             "referenced" => Some(Self::Referenced),
             "either" => Some(Self::Either),
@@ -70,6 +73,7 @@ impl CustomPropertyActivation {
     #[must_use]
     pub fn is_active(self, declared: bool, referenced: bool) -> bool {
         match self {
+            Self::Dependency => false,
             Self::Declared => declared,
             Self::Referenced => referenced,
             Self::Either => declared || referenced,

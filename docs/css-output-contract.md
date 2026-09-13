@@ -27,3 +27,5 @@ Stillwindの互換性はCSSの意味で判定する。出力文字列の一致�
 ## 検証
 
 宣言テストはテスト側で数式を評価し、トークンを比較する。引用文字列、トークン境界、空fallbackの有無、宣言順序は区別する。Tailwind fixtureとの比較ではテスト側のCSSパーサー・serializerも使用する。これらは保守的な比較であり、任意のCSSについて意味同値を証明する一般的な判定器ではない。比較器が扱えない差異を本体の文字列修復で埋めない。
+
+配置は `@stillwind-slot` でCSS側に指定する。slotの種類、欠落時のエラー、Tailwind比較で明示的に許容する契約差は[比較契約](tailwind-comparison-contract.md)を参照。

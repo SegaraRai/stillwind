@@ -88,6 +88,14 @@ pub enum CssOutputNode {
     /// Carries no CSS of its own: the compiler knows which utilities the importing
     /// carrier selected, and renders the same template per carrier.
     Utilities,
+    /// Emits all live theme variables, independent of their definition locations.
+    ThemeVariables,
+    /// Emits live theme keyframes in source order at this exact layer/condition.
+    Keyframes,
+    /// Emits required custom-property registrations.
+    Properties,
+    /// Emits the fallback initialization rule for required builtin properties.
+    PropertyInitials,
 }
 
 /// The ordered output plan for one entry.
@@ -129,7 +137,11 @@ impl CssOutputTemplate {
                         *origin = origin.and_then(&mut *map);
                         visit_nodes(children, map);
                     }
-                    CssOutputNode::Utilities => {}
+                    CssOutputNode::Utilities
+                    | CssOutputNode::ThemeVariables
+                    | CssOutputNode::Keyframes
+                    | CssOutputNode::Properties
+                    | CssOutputNode::PropertyInitials => {}
                 }
             }
         }
@@ -150,7 +162,12 @@ fn authored_css(nodes: &[CssOutputNode]) -> String {
             } => {
                 format!("{header}{{{}}}", authored_css(children))
             }
-            CssOutputNode::Theme { .. } | CssOutputNode::Utilities => String::new(),
+            CssOutputNode::Theme { .. }
+            | CssOutputNode::Utilities
+            | CssOutputNode::ThemeVariables
+            | CssOutputNode::Keyframes
+            | CssOutputNode::Properties
+            | CssOutputNode::PropertyInitials => String::new(),
         })
         .collect()
 }

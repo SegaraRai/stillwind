@@ -35,7 +35,17 @@ pub(in crate::compiler) fn expand_authored_directives(css: &str, theme: &ThemeIn
             .collect::<Vec<_>>();
         let declarations = order_builtin_utilities(utilities.iter().collect())
             .into_iter()
-            .map(|utility| utility.declaration.as_str())
+            .map(|utility| {
+                if utility.required_properties.is_empty() {
+                    utility.declaration.clone()
+                } else {
+                    format!(
+                        "@stillwind-require-properties {};{}",
+                        utility.required_properties.join(" "),
+                        utility.declaration
+                    )
+                }
+            })
             .collect::<String>();
         output.replace_range(start..=end, &declarations);
     }

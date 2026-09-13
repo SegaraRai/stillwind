@@ -155,13 +155,20 @@ fn parse_nodes(
             }
             (Some("stillwind-slot"), None) => {
                 let value = css[header_end..end].trim().trim_end_matches(';').trim();
-                if value != "utilities" {
-                    return Err(CssOutputError::Slot {
-                        offset: base + start,
-                        name: value.into(),
-                    });
-                }
-                nodes.push(CssOutputNode::Utilities);
+                let node = match value {
+                    "utilities" => CssOutputNode::Utilities,
+                    "theme" => CssOutputNode::ThemeVariables,
+                    "keyframes" => CssOutputNode::Keyframes,
+                    "properties" => CssOutputNode::Properties,
+                    "property-initials" => CssOutputNode::PropertyInitials,
+                    _ => {
+                        return Err(CssOutputError::Slot {
+                            offset: base + start,
+                            name: value.into(),
+                        });
+                    }
+                };
+                nodes.push(node);
             }
             (Some("theme"), Some((open, close))) => {
                 theme_blocks.push((

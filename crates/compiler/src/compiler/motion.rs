@@ -78,6 +78,7 @@ pub(super) fn resolve_animation_use(
     );
     declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
     CompiledUtility {
+        required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),
         declaration,
