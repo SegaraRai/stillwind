@@ -90,3 +90,54 @@ void test("class concatenation keeps falsy and non-string fragments empty", () =
   );
   assert.deepEqual(react.stillwindMerge({ title: "only" }), { title: "only" });
 });
+
+void test("custom properties merge independently and coexist with generated styles", () => {
+  for (const runtime of [react, svelte, astro]) {
+    const key = runtime.stillwindCustomPropertiesKey;
+    const result = runtime.stillwindMerge(
+      { [key]: { "--progress": "0", "--image": "url(image.png)" } },
+      false,
+      [{ [key]: { "--progress": "0.5" } }],
+      { [runtime.stillwindStyleKey]: { "view-transition-name": "card" } },
+    );
+    assert.deepEqual(
+      result.style,
+      runtime === react
+        ? { "view-transition-name": "card", "--progress": "0.5", "--image": "url(image.png)" }
+        : "view-transition-name:card;--progress:0.5;--image:url(image.png)",
+    );
+    assert.deepEqual(Object.getOwnPropertySymbols(result), []);
+    const fragment = { [key]: { "--x": "1" } };
+    assert.equal(runtime.stillwindToFragment(fragment), fragment);
+  }
+});
+
+void test("CSS values preserve strings and zero, encode boolean switches and quote URL objects", () => {
+  assert.equal(react.stillwindCssValue(0), "0");
+  assert.equal(react.stillwindCssValue(false), "initial");
+  assert.equal(react.stillwindCssValue(true), " ");
+  assert.equal(react.stillwindCssValue("calc(1px + 2px)"), "calc(1px + 2px)");
+  assert.equal(
+    react.stillwindCssValue(new URL("https://example.com/image.png")),
+    'url("https://example.com/image.png")',
+  );
+});
+
+void test("boolean switches retain whitespace and initial in framework style props", () => {
+  for (const runtime of [react, svelte, astro]) {
+    for (const enabled of [true, false]) {
+      const value = runtime.stillwindCssValue(enabled);
+      const props = runtime.stillwindMerge({
+        [runtime.stillwindCustomPropertiesKey]: { "--enabled": value },
+      });
+      assert.deepEqual(
+        props.style,
+        runtime === react
+          ? { "--enabled": enabled ? " " : "initial" }
+          : enabled
+            ? "--enabled: "
+            : "--enabled:initial",
+      );
+    }
+  }
+});

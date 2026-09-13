@@ -190,3 +190,21 @@ fn unsupported_forms_still_report_their_existing_diagnostics() {
         );
     }
 }
+
+#[test]
+fn custom_properties_preserve_order_and_conditional_evaluation() {
+    let result = compile(
+        r#"const props = style({"--x": first()}, a && {"--x": second(), "data-x": third()}, {"--y": fourth()});"#,
+    );
+    let code = emitted(&result);
+    for value in ["first()", "second()", "third()", "fourth()"] {
+        assert_eq!(code.matches(value).count(), 1, "{code}");
+    }
+    assert!(code.find("first()").unwrap() < code.find("second()").unwrap());
+    assert!(code.find("second()").unwrap() < code.find("third()").unwrap());
+    assert!(code.find("third()").unwrap() < code.find("fourth()").unwrap());
+    assert!(code.contains("(a) &&"), "{code}");
+    assert!(code.contains("stillwindCustomPropertiesKey"), "{code}");
+    assert!(!result.css.contains("--x:"));
+    assert!(!result.css.contains("--y:"));
+}

@@ -38,6 +38,15 @@ runtime, and emits CSS like:
 }
 ```
 
+Inline custom properties accept JavaScript values without generating per-value CSS:
+
+```tsx
+style("w-[calc(var(--progress)*100%)]", { "--progress": progress });
+```
+
+See [custom properties](docs/custom-properties.md) for URL values, bundler-owned
+image imports, conditional values, and framework output formats.
+
 ## Workspace
 
 This repository contains a pnpm workspace backed by Vite+.

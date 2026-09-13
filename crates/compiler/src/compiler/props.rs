@@ -77,6 +77,8 @@ pub(super) enum Emitted {
 /// One entry of an object literal inside a class expression.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum EmittedEntry {
+    /// A rendered custom-property entry inside an inline style payload.
+    CustomProperty(String),
     /// A rendered `"name": value` attribute entry.
     Attribute(
         /// Serialized JavaScript property entry without outer object braces or a trailing comma.
@@ -92,6 +94,13 @@ pub(super) enum EmittedEntry {
 /// One source-ordered contribution to a compiled call site.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum StyleEmissionPart {
+    /// One inline custom property, merged independently at runtime.
+    CustomProperties {
+        /// Serialized JavaScript property entry, including its CSS value conversion.
+        text: String,
+        /// Original-source UTF-8 byte position preserving evaluation order.
+        position: u32,
+    },
     /// A runtime class expression.
     Class {
         /// Class-expression subtree preserving branch structure.
@@ -133,6 +142,7 @@ impl StyleEmissionPart {
             Self::Class { position, .. }
             | Self::Attributes { position, .. }
             | Self::Base { position, .. }
+            | Self::CustomProperties { position, .. }
             | Self::Style { position, .. } => *position,
         }
     }
@@ -195,9 +205,12 @@ impl StyleEmission {
         let has_base = parts
             .iter()
             .any(|part| matches!(part, StyleEmissionPart::Base { .. }));
-        let has_style = parts
-            .iter()
-            .any(|part| matches!(part, StyleEmissionPart::Style { .. }));
+        let has_style = parts.iter().any(|part| {
+            matches!(
+                part,
+                StyleEmissionPart::Style { .. } | StyleEmissionPart::CustomProperties { .. }
+            )
+        });
         if !has_class && !has_base && !has_style {
             return self.render_static(&parts);
         }
@@ -215,7 +228,9 @@ impl StyleEmission {
                 && part.position() < last
                 && (matches!(
                     part,
-                    StyleEmissionPart::Attributes { .. } | StyleEmissionPart::Style { .. }
+                    StyleEmissionPart::Attributes { .. }
+                        | StyleEmissionPart::Style { .. }
+                        | StyleEmissionPart::CustomProperties { .. }
                 ) || part.user_value())
         });
         if !has_base && !has_style && !hazard && !self.conditional_props {
@@ -307,6 +322,10 @@ impl StyleEmission {
                 StyleEmissionPart::Base { text, .. } => {
                     let helper = runtime.require(RuntimeHelper::ToFragment, self.call_span);
                     arguments.push(format!("{helper}(({text}))"));
+                }
+                StyleEmissionPart::CustomProperties { text, .. } => {
+                    let key = runtime.require(RuntimeHelper::CustomPropertiesKey, self.call_span);
+                    arguments.push(format!("{{[{key}]:{{{text}}}}}"));
                 }
                 StyleEmissionPart::Style { text, .. } => {
                     let key = runtime.require(RuntimeHelper::StyleKey, self.call_span);

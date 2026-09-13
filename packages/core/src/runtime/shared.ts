@@ -1,3 +1,20 @@
+/**
+ * Converts inline custom-property values to CSS text. Strings remain authored CSS,
+ * numbers have no unit, and URL objects become url(). Boolean true becomes a single
+ * space (an empty CSS value that CSSOM does not remove); false becomes initial.
+ */
+export function stillwindCssValue(value: URL | string | number | boolean): string {
+  if (typeof value === "boolean") return value ? " " : "initial";
+  if (value instanceof URL) {
+    const escaped = value.href.replace(
+      /["\\\n\r\f]/g,
+      (character) => `\\${character.codePointAt(0)!.toString(16)} `,
+    );
+    return `url("${escaped}")`;
+  }
+  return String(value);
+}
+
 /** A deliberately small clsx-compatible helper used only for static branches. */
 export function stillwindClsx(...values: readonly unknown[]): string {
   return values.flatMap(flatten).filter(Boolean).join(" ");

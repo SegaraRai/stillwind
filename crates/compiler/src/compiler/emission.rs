@@ -15,8 +15,8 @@ use std::collections::BTreeSet;
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_ir::{
-    AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleCall, StyleInput,
-    StyleVariant,
+    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
+    StyleInput, StyleVariant,
 };
 use stillwind_semantic::IdentityId;
 use stillwind_source::{SourceFile, Span};
@@ -127,6 +127,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             StyleInput::Class(ClassExpression::Group { entries, .. }) => {
                 for entry in entries {
                     match entry {
+                        GroupEntry::Class(expression) => {
+                            let position = expression_position(expression);
+                            self.emit_item(expression, position);
+                        }
                         GroupEntry::Attribute(attribute) => {
                             let text = self.render_attribute(attribute)?;
                             self.parts.push(StyleEmissionPart::Attributes {
@@ -134,9 +138,12 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                                 position: attribute.value.start.0,
                             });
                         }
-                        GroupEntry::Class(expression) => {
-                            let position = expression_position(expression);
-                            self.emit_item(expression, position);
+                        GroupEntry::CustomProperty(property) => {
+                            let text = self.render_custom_property(property)?;
+                            self.parts.push(StyleEmissionPart::CustomProperties {
+                                text,
+                                position: property.value.start.0,
+                            });
                         }
                     }
                 }
@@ -422,14 +429,19 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 let mut any = false;
                 for entry in entries {
                     let item = match entry {
+                        GroupEntry::Class(expression) => self
+                            .emit_expression(expression, guard, wrappers, fold)
+                            .map(EmittedEntry::Class),
                         GroupEntry::Attribute(attribute) => {
                             let text = self.render_attribute(attribute)?;
                             self.conditional_props = true;
                             Some(EmittedEntry::Attribute(text))
                         }
-                        GroupEntry::Class(expression) => self
-                            .emit_expression(expression, guard, wrappers, fold)
-                            .map(EmittedEntry::Class),
+                        GroupEntry::CustomProperty(property) => {
+                            let text = self.render_custom_property(property)?;
+                            self.conditional_props = true;
+                            Some(EmittedEntry::CustomProperty(text))
+                        }
                     };
                     any |= item.is_some();
                     items.push(item);
@@ -599,6 +611,16 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         }
     }
 
+    /// Emits one custom property through the framework's fragment channel.
+    fn render_custom_property(&mut self, property: &CustomPropertyEntry) -> Option<String> {
+        let value = self.slice(property.value)?;
+        let helper = self
+            .runtime
+            .require(RuntimeHelper::CssValue, property.value);
+        let name = serde_json::to_string(&property.name.value).ok()?;
+        Some(format!("[{name}]:{helper}(({value}))"))
+    }
+
     /// Renders one attribute entry of an object literal, with its value verbatim.
     fn render_attribute(&mut self, attribute: &AttributeEntry) -> Option<String> {
         let value = self.slice(attribute.value)?;
@@ -674,8 +696,8 @@ fn uses_user_code(expression: &ClassExpression) -> bool {
         ClassExpression::Array(elements) => elements.iter().any(uses_user_code),
         ClassExpression::Variant { inputs, .. } => inputs.iter().any(uses_user_code),
         ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
-            GroupEntry::Attribute(_) => true,
             GroupEntry::Class(expression) => uses_user_code(expression),
+            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => true,
         }),
         _ => false,
     }
@@ -698,8 +720,8 @@ fn is_user_value(expression: &ClassExpression) -> bool {
             ..
         } => consequent.iter().chain(alternate.iter()).any(is_user_value),
         ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
-            GroupEntry::Attribute(_) => false,
             GroupEntry::Class(expression) => is_user_value(expression),
+            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => false,
         }),
         _ => false,
     }

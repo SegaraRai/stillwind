@@ -53,7 +53,7 @@ pub enum CompileErrorKind {
     InvalidComputedAttribute,
     /// An object key is neither an attribute, a class entry, nor a variant prefix.
     #[error(
-        "style() object keys must be `class`, quoted aria-*/data-* attributes, or variant prefixes ending in `:`"
+        "style() object keys must be `class`, quoted aria-*/data-* attributes, --* custom properties, or variant prefixes ending in `:`"
     )]
     InvalidAttributeKey,
     /// A variant wrapper contains an unsupported input expression.

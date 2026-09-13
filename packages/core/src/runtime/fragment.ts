@@ -20,11 +20,14 @@ export interface FragmentRuntimeOptions {
 export interface FragmentRuntime {
   readonly stillwindClassKey: symbol;
   readonly stillwindStyleKey: symbol;
+  /** Custom properties merge individually, with later entries winning. */
+  readonly stillwindCustomPropertiesKey: symbol;
   /**
    * Flattens arrays left-to-right, ignoring falsy and nonobject values. Class
    * contributions are joined without deduplication; later enumerable props win.
    * The last non-null symbol style payload replaces the entire earlier payload
    * and, when serializable, takes precedence over the ordinary style prop.
+   * Custom-property fragments merge per name and overlay the materialized style.
    * Development checks reject foreign symbols and materialized class props on
    * objects without this instance's keys; production omits those checks.
    */
@@ -58,6 +61,7 @@ function isObject(value: unknown): value is Record<PropertyKey, unknown> {
 export function createFragmentRuntime(options: FragmentRuntimeOptions): FragmentRuntime {
   const stillwindClassKey = Symbol("stillwind.class");
   const stillwindStyleKey = Symbol("stillwind.style");
+  const stillwindCustomPropertiesKey = Symbol("stillwind.custom-properties");
   const { classProperty, styleFormat } = options;
 
   const serialize = (payload: unknown): unknown => {
@@ -76,6 +80,7 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
   const merge = (...values: readonly unknown[]): Record<string, unknown> => {
     const classes: string[] = [];
     const props: Record<string, unknown> = {};
+    const customProperties: Record<string, string> = {};
     let style: unknown;
     let hasStyle = false;
 
@@ -87,7 +92,10 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
       }
       if (!isObject(value)) return;
       const symbols = Object.getOwnPropertySymbols(value);
-      const fragment = symbols.includes(stillwindClassKey) || symbols.includes(stillwindStyleKey);
+      const fragment =
+        symbols.includes(stillwindClassKey) ||
+        symbols.includes(stillwindStyleKey) ||
+        symbols.includes(stillwindCustomPropertiesKey);
       if (isDevelopment() && !fragment) {
         if (symbols.length > 0) {
           throw new TypeError("Stillwind received a fragment from a different runtime instance.");
@@ -99,6 +107,8 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
         }
       }
       if (fragment) {
+        const custom = value[stillwindCustomPropertiesKey];
+        if (isObject(custom)) Object.assign(customProperties, custom);
         const contribution = value[stillwindClassKey];
         if (typeof contribution === "string" && contribution.length > 0) classes.push(contribution);
         if (Object.hasOwn(value, stillwindStyleKey)) {
@@ -121,6 +131,12 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
       const materialized = serialize(style);
       if (materialized !== undefined) result.style = materialized;
     }
+    if (Object.keys(customProperties).length > 0) {
+      result.style =
+        styleFormat === "string"
+          ? [serialize(result.style), serialize(customProperties)].filter(Boolean).join(";")
+          : { ...(isObject(result.style) ? result.style : {}), ...customProperties };
+    }
     if (isDevelopment() && Object.getOwnPropertySymbols(result).length > 0) {
       throw new TypeError("Stillwind produced a fragment that was not materialized.");
     }
@@ -131,7 +147,11 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
     if (!isObject(value)) {
       throw new TypeError("Stillwind expected a materialized props object.");
     }
-    if (Object.hasOwn(value, stillwindClassKey) || Object.hasOwn(value, stillwindStyleKey)) {
+    if (
+      Object.hasOwn(value, stillwindClassKey) ||
+      Object.hasOwn(value, stillwindStyleKey) ||
+      Object.hasOwn(value, stillwindCustomPropertiesKey)
+    ) {
       return value;
     }
     const fragment: Record<PropertyKey, unknown> = {};
@@ -152,6 +172,7 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
   return {
     stillwindClassKey,
     stillwindStyleKey,
+    stillwindCustomPropertiesKey,
     stillwindMerge: merge,
     stillwindToFragment: toFragment,
   };

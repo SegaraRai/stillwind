@@ -53,8 +53,10 @@ pub(super) fn render_plain(value: &Emitted) -> Option<String> {
             let mut parts = Vec::new();
             for entry in entries {
                 match entry {
-                    // Attributes cannot live inside one class property.
-                    Some(EmittedEntry::Attribute(_)) => return None,
+                    // Props and inline styles cannot live inside one class property.
+                    Some(EmittedEntry::Attribute(_) | EmittedEntry::CustomProperty(_)) => {
+                        return None;
+                    }
                     Some(EmittedEntry::Class(value)) => {
                         parts.push(render_plain(value)?);
                     }
@@ -120,6 +122,10 @@ pub(super) fn render_fragment(
             let mut parts = Vec::new();
             for entry in entries {
                 match entry {
+                    Some(EmittedEntry::CustomProperty(text)) => {
+                        let key = runtime.require(RuntimeHelper::CustomPropertiesKey, span);
+                        parts.push(format!("{{[{key}]:{{{text}}}}}"));
+                    }
                     Some(EmittedEntry::Attribute(text)) => parts.push(format!("{{{text}}}")),
                     Some(EmittedEntry::Class(value)) => {
                         parts.push(render_fragment(value, runtime, span));

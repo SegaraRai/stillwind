@@ -27,6 +27,7 @@ type UtilityString = string;
 
 export type StyleProps = {
   className?: string;
+  style?: Record<string, string>;
 } & Partial<Record<StyleAttributeName, unknown>>;
 
 export type StyleVariant = `${string}:`;
@@ -128,8 +129,13 @@ export interface StyleVariantObject {
   readonly [variant: StyleRefVariant]: StyleVariantValue;
 }
 
+/** Inline CSS values; strings are CSS text and URL objects become url("..."). */
+export type StyleCustomPropertyValue = URL | string | number | boolean;
+export type StyleCustomProperties = Readonly<Record<`--${string}`, StyleCustomPropertyValue>>;
+
+// Keep computed ref-variant objects valid when TypeScript widens their keys to string.
 type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
-  StyleVariantObject & {
+  (StyleVariantObject | (StyleVariantObject & Partial<StyleCustomProperties>)) & {
     readonly class?: StillwindClassValue;
   };
 

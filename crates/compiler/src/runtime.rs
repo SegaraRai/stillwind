@@ -30,6 +30,10 @@ pub(crate) enum RuntimeHelper {
     ClassKey,
     /// The `stillwindClsx` runtime export.
     Clsx,
+    /// The `stillwindCssValue` runtime export.
+    CssValue,
+    /// The `stillwindCustomPropertiesKey` runtime export.
+    CustomPropertiesKey,
     /// The `stillwindHandleClass` runtime export.
     HandleClass,
     /// The `stillwindMerge` runtime export.
@@ -56,6 +60,8 @@ impl RuntimeHelper {
             Self::AssetClass => "stillwindAssetClass",
             Self::ClassKey => "stillwindClassKey",
             Self::Clsx => "stillwindClsx",
+            Self::CssValue => "stillwindCssValue",
+            Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
             Self::HandleClass => "stillwindHandleClass",
             Self::Merge => "stillwindMerge",
             Self::Ref => "stillwindRef",

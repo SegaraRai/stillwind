@@ -472,7 +472,7 @@ const props = style({ "aria-busy": loading, "data-state": state });"#,
         .iter()
         .map(|entry| match entry {
             GroupEntry::Attribute(attribute) => attribute,
-            GroupEntry::Class(_) => panic!("expected attributes"),
+            GroupEntry::Class(_) | GroupEntry::CustomProperty(_) => panic!("expected attributes"),
         })
         .collect::<Vec<_>>();
     assert_eq!(entries.len(), 2);

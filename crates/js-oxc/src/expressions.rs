@@ -19,7 +19,8 @@ use oxc::syntax::operator::LogicalOperator;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleInput, StyleVariant,
+    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleInput,
+    StyleVariant,
 };
 use stillwind_semantic::{ExportedValue, IdentityId};
 
@@ -268,7 +269,8 @@ impl<'a> MacroExtractor<'a> {
     /// Lowers a `style({...})` object into attribute entries and wrappers.
     ///
     /// Keys are interpreted by shape: `class` passes a user value through, quoted
-    /// `aria-*`/`data-*` keys become attributes, a key ending in `:` becomes a variant
+    /// `aria-*`/`data-*` keys become attributes, `--*` keys become inline custom
+    /// properties, and a key ending in `:` becomes a variant
     /// wrapper, and a computed key must be a ref variant. Spread properties and any
     /// other key shapes are errors, because guessing at them would change what the
     /// object means.
@@ -326,6 +328,13 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             let name = self.string_literal(name);
+            if name.value.starts_with("--") {
+                entries.push(GroupEntry::CustomProperty(CustomPropertyEntry {
+                    name,
+                    value: self.source_span(property.value.span()),
+                }));
+                continue;
+            }
             if !name.value.ends_with(':')
                 && (name.value.starts_with("aria-") || name.value.starts_with("data-"))
             {
@@ -402,8 +411,8 @@ fn variant_compatible(expression: &ClassExpression) -> bool {
             .all(variant_compatible),
         ClassExpression::Variant { inputs, .. } => inputs.iter().all(variant_compatible),
         ClassExpression::Group { entries, .. } => entries.iter().all(|entry| match entry {
-            GroupEntry::Attribute(_) => false,
             GroupEntry::Class(expression) => variant_compatible(expression),
+            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => false,
         }),
         ClassExpression::External(_)
         | ClassExpression::HandleProjection { .. }

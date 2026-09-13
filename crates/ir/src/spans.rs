@@ -222,11 +222,17 @@ fn map_group_entry<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match entry {
+        GroupEntry::Class(expression) => {
+            map_class_expression(expression, map)?;
+        }
         GroupEntry::Attribute(attribute) => {
             map_value(&mut attribute.name, map)?;
             attribute.value = map(attribute.value)?;
         }
-        GroupEntry::Class(expression) => map_class_expression(expression, map)?,
+        GroupEntry::CustomProperty(property) => {
+            map_value(&mut property.name, map)?;
+            property.value = map(property.value)?;
+        }
     }
     Ok(())
 }

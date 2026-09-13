@@ -372,8 +372,19 @@ pub enum ClassExpression {
 /// One source-ordered entry of an object literal class expression.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum GroupEntry {
-    /// An entry emitted as a prop rather than a class.
-    Attribute(AttributeEntry),
     /// An entry contributing classes. Boxed to keep the enum small.
     Class(Box<ClassExpression>),
+    /// An entry emitted as a prop rather than a class.
+    Attribute(AttributeEntry),
+    /// A custom CSS property evaluated at runtime and emitted into inline style.
+    CustomProperty(CustomPropertyEntry),
+}
+
+/// An inline CSS custom property with an expression evaluated at the call site.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct CustomPropertyEntry {
+    /// Decoded CSS property name, beginning with `--`.
+    pub name: Spanned<String>,
+    /// Original expression evaluated once and converted to CSS text at runtime.
+    pub value: Span,
 }

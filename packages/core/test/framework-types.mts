@@ -44,3 +44,17 @@ function refVariantTypes(active: boolean) {
   trigger`hover:${"active"}`;
 }
 void refVariantTypes;
+
+function customPropertyTypes(image: URL, progress: number) {
+  react("w-[calc(var(--progress)*100%)]", {
+    "--progress": progress,
+    "--image": image,
+    "--enabled": false,
+  });
+  svelte({ "--text": "value" });
+  // @ts-expect-error Custom property values cannot be arbitrary objects.
+  react({ "--invalid": {} });
+  // @ts-expect-error Inline properties cannot be nested in CSS variants.
+  react({ "hover:": { "--progress": 1 } });
+}
+void customPropertyTypes;

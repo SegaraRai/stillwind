@@ -184,8 +184,8 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
 fn class_expression(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
-            GroupEntry::Attribute(_) => true,
             GroupEntry::Class(expression) => class_expression(expression),
+            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => true,
         }),
         ClassExpression::Array(elements) => elements.iter().any(class_expression),
         ClassExpression::Conditional {
