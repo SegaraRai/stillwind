@@ -8,6 +8,7 @@
 use stillwind_design_system::{
     NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, VariantApplication,
 };
+use stillwind_diagnostics::UtilityFailure;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use crate::candidate::CandidateResolver;
@@ -66,15 +67,15 @@ pub(in crate::compiler) fn resolve_utility(
     resolve_utility_targets(utility, theme)?.into_iter().next()
 }
 
-/// The lint rule name for an unresolved candidate.
+/// Classifies an unresolved candidate so its typed finding selects the right lint rule.
 ///
 /// A candidate that parses but does not resolve is an unknown name, which is a different user
 /// mistake from text that is not candidate syntax at all.
-pub(crate) fn unresolved_utility_rule(raw: &str) -> &'static str {
+pub(crate) fn unresolved_utility_kind(raw: &str) -> UtilityFailure {
     if parse_candidate(raw).is_some() {
-        "unknown-utility"
+        UtilityFailure::Unknown
     } else {
-        "invalid-utility"
+        UtilityFailure::Invalid
     }
 }
 
@@ -117,11 +118,11 @@ mod tests {
 
     #[test]
     fn unresolved_diagnostics_distinguish_syntax_from_unknown_names() {
-        assert_eq!(unresolved_utility_rule(""), "invalid-utility");
-        assert_eq!(unresolved_utility_rule("hover:["), "invalid-utility");
+        assert_eq!(unresolved_utility_kind(""), UtilityFailure::Invalid);
+        assert_eq!(unresolved_utility_kind("hover:["), UtilityFailure::Invalid);
         assert_eq!(
-            unresolved_utility_rule("unknown-but-valid"),
-            "unknown-utility"
+            unresolved_utility_kind("unknown-but-valid"),
+            UtilityFailure::Unknown
         );
     }
 }

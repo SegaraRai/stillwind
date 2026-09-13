@@ -9,6 +9,7 @@ use stillwind_design_system::{
     CssFileInput, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
     DesignSystemOptions, DesignSystemSnapshot,
 };
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
@@ -57,7 +58,7 @@ fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
     let mut invalid = DesignSystemLoader::new(DesignSystemOptions::default());
     assert!(matches!(
         invalid.provide(0, "broken".into(), "@theme {".into()),
-        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::InvalidCss { .. }))
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(_)))
     ));
 }
 
@@ -422,4 +423,45 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
         panic!("package must be resolved by the host")
     };
     assert_eq!(requests[0].specifier, "stillwind");
+}
+
+#[test]
+fn single_buffer_errors_keep_the_callers_source_identity() {
+    let source = SourceFile::new(FileId(77), "theme.css", "@theme {").unwrap();
+    let error = DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default())
+        .unwrap_err()
+        .into_compile_error(source.full_span());
+    assert_eq!(error.labels[0].span, source.full_span());
+    assert_eq!(error.source_name.as_deref(), Some("theme.css"));
+    assert!(matches!(
+        error.kind,
+        CompileErrorKind::UnterminatedCssBlock { .. }
+    ));
+    assert!(error.to_string().starts_with("theme.css: "));
+    assert!(!error.kind.to_string().starts_with("theme.css:"));
+}
+
+#[test]
+fn expanded_css_errors_do_not_expose_synthetic_file_ids() {
+    let root = "@import 'child.css' screen;";
+    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    assert!(matches!(
+        loader.provide(0, "root.css".into(), root.into()),
+        DesignSystemLoadStep::NeedFile(_)
+    ));
+    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(error))) =
+        loader.provide(1, "child.css".into(), "@theme { --color-red: red; }".into())
+    else {
+        panic!("expected conditional definition failure")
+    };
+    assert!(matches!(
+        error.kind,
+        CompileErrorKind::ConditionalDefinition { .. }
+    ));
+    assert_eq!(
+        error.labels[0].span,
+        SourceFile::new(FileId(1), "root.css", root)
+            .unwrap()
+            .full_span()
+    );
 }

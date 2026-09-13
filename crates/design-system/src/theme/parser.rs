@@ -8,18 +8,18 @@
 //!
 //! Because directives are found textually, the buffer is first checked for an
 //! unterminated block, and the retained authored CSS is re-parsed by Lightning CSS so
-//! that a syntax error surfaces as a typed [`ThemeError`].
+//! that a syntax error surfaces as a typed [`CompileError`].
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use lightningcss::error::{Error, ParserError};
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
-    CssOutputError, CssOutputTemplate, extract_authored_property_names,
-    extract_property_definitions, unterminated_block,
+    CssOutputTemplate, extract_authored_property_names, extract_property_definitions,
+    unterminated_block,
 };
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_source::{FileId, SourceFile, Span, normalized_module_path};
 
 use super::config::{StillwindConfig, extract_stillwind_config};
@@ -31,29 +31,6 @@ use crate::registry::formats::{extract_declaration_formats, extract_relationship
 use crate::registry::utilities::{extract_custom_utilities, extract_marker_utilities};
 use crate::registry::variants::extract_custom_variants;
 
-/// Why one supplied CSS buffer could not be parsed as Stillwind CSS.
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum ThemeError {
-    /// The output template is invalid.
-    #[error("{0}")]
-    Output(#[from] CssOutputError),
-    /// A CSS offset does not fit the 32-bit coordinate space.
-    #[error("CSS source offset {0} exceeds the 32-bit source limit")]
-    InvalidOffset(usize),
-    /// The buffer is not valid CSS.
-    #[error("CSS parse error: {0}")]
-    Parse(#[source] Error<ParserError<'static>>),
-    /// A `@theme` block reached the end of the buffer.
-    #[error("unterminated @theme block")]
-    UnterminatedTheme,
-    /// A block reached the end of the buffer.
-    #[error("unterminated CSS block at byte {offset}")]
-    UnterminatedBlock {
-        /// Byte offset where the block starts.
-        offset: usize,
-    },
-}
-
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
 ///
@@ -64,18 +41,34 @@ pub enum ThemeError {
 ///
 /// # Errors
 ///
-/// Returns invalid CSS, unterminated blocks, or unsupported output slots.
-pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
+/// Returns malformed CSS, unterminated blocks, invalid output slots or contexts,
+/// conditional compile-time definitions, or positions outside the source-coordinate limit.
+/// The error retains the cause, uses `source.full_span()` as its primary label, and
+/// prefixes its display message with `source.path()`; cause offsets refer to this buffer.
+pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
+    parse_theme_contents(source)
+        .map_err(|kind| CompileError::new(kind, source.full_span()).with_source_name(source.path()))
+}
+
+/// Parses definitions and output positions from `source` without a reporting wrapper.
+///
+/// # Errors
+///
+/// Returns the parser and output-template failures documented by [`parse_theme`].
+fn parse_theme_contents(source: &SourceFile) -> Result<ThemeIndex, CompileErrorKind> {
     if let Some(offset) = unterminated_block(source.text()) {
-        return Err(ThemeError::UnterminatedBlock { offset });
+        return Err(CompileErrorKind::UnterminatedCssBlock { offset });
     }
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     let mut template = parse_output_template(source.text(), &theme.tokens)?;
     template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
     template.source_identity = normalized_module_path(source.path());
     theme.custom_css = template.authored_css();
-    StyleSheet::parse(&theme.custom_css, ParserOptions::default())
-        .map_err(|error| ThemeError::Parse(error.into_owned()))?;
+    StyleSheet::parse(&theme.custom_css, ParserOptions::default()).map_err(|error| {
+        CompileErrorKind::CssParse {
+            detail: error.to_string(),
+        }
+    })?;
     theme.output_template = template;
     theme.registry = Arc::new(BuiltinDefinitions::from_css(source.text()));
     theme.utilities = extract_custom_utilities(source.text());
@@ -132,8 +125,8 @@ pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
 ///
 /// Returns an invalid-offset error when the value does not fit, so no caller can
 /// truncate a span silently.
-pub(crate) fn offset(value: usize) -> Result<u32, ThemeError> {
-    u32::try_from(value).map_err(|_| ThemeError::InvalidOffset(value))
+pub(crate) fn offset(value: usize) -> Result<u32, CompileErrorKind> {
+    u32::try_from(value).map_err(|_| CompileErrorKind::CssOffsetTooLarge { offset: value })
 }
 
 /// Collects the tokens of every `@theme` block, applying each block's mode to the
@@ -145,7 +138,10 @@ pub(crate) fn offset(value: usize) -> Result<u32, ThemeError> {
 /// # Errors
 ///
 /// Returns a block or offset error, or an unterminated `@theme` block error.
-pub(crate) fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeIndex, ThemeError> {
+pub(crate) fn extract_theme_tokens(
+    file: FileId,
+    css: &str,
+) -> Result<ThemeIndex, CompileErrorKind> {
     let mut tokens = Vec::new();
     for (range, modifier) in theme_blocks(css)? {
         let mode = ThemeTokenMode::parse(&modifier);
@@ -216,7 +212,7 @@ mod panic_regressions {
                 let source = SourceFile::new(FileId(1), "unclosed.css", css.as_str()).unwrap();
                 for result in [parse_theme(&source), parse_theme(&source)] {
                     assert!(
-                        matches!(result, Err(ThemeError::UnterminatedBlock { offset })
+                        matches!(result, Err(CompileError { kind: CompileErrorKind::UnterminatedCssBlock { offset }, .. })
                         if offset == directive.len() + 1),
                         "{css}: {result:?}"
                     );

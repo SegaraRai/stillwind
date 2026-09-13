@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{
     AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, SourceAnalyzer,
     SourceInput,
@@ -202,14 +203,17 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
             .scan_input(changed)
             .diagnostics
             .iter()
-            .any(|error| error.code == "SHJS008")
+            .any(|error| error.kind == CompileErrorKind::FrameworkConflict)
     );
     let mut changed = input;
     changed.projection.as_mut().unwrap().map = ProjectionMap::Volar {
         mappings: Vec::new(),
     };
     let scan = OxcSourceAnalyzer.scan_input(changed);
-    assert_eq!(scan.diagnostics[0].code, "SHPRJ001");
+    assert!(matches!(
+        scan.diagnostics[0].kind,
+        CompileErrorKind::ProjectionUnmapped { .. }
+    ));
     assert!(scan.local_ir.style_calls.is_empty());
     assert!(scan.local_ir.handle_definitions.is_empty());
 }

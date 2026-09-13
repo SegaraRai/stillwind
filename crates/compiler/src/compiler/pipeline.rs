@@ -13,11 +13,12 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_diagnostics::filter_lint_findings;
 use stillwind_ir::{
     ModuleAnalysis, composition_dependencies, ordered_style_calls, validate_composition,
 };
 use stillwind_semantic::AssetKind;
-use stillwind_source::{CompileError, SourceFile, filter_lint_findings};
+use stillwind_source::SourceFile;
 
 use super::emission::{CallEmitter, CallEmitterInputs};
 use super::handles::{
@@ -32,9 +33,9 @@ use super::symbols::{
     generated_scope_symbol, generated_symbol, symbol_name,
 };
 use super::{Compiler, CssContribution};
+use crate::CompilerOptions;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
-use crate::{CompilerOptions, ImportPlanError};
 
 impl Compiler {
     /// Compiles a module that owns source edits, including its runtime imports.
@@ -263,21 +264,7 @@ impl Compiler {
                 Ok(edits)
             }) {
                 Ok(edits) => result.transforms.extend(edits),
-                Err(error) => {
-                    let span = match &error {
-                        ImportPlanError::UntransformedReference { span, .. }
-                        | ImportPlanError::UnmappedReference { span, .. }
-                        | ImportPlanError::InvalidMetadata { span }
-                        | ImportPlanError::MissingModuleCssTarget { span }
-                        | ImportPlanError::MissingRuntimeAnchor { span } => *span,
-                        ImportPlanError::Source(_) => source.full_span(),
-                    };
-                    result.diagnostics.push(CompileError::new(
-                        "SHIMPORT001",
-                        error.to_string(),
-                        span,
-                    ));
-                }
+                Err(error) => result.diagnostics.push(error),
             }
         }
 

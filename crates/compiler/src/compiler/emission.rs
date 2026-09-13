@@ -14,12 +14,13 @@ use std::collections::BTreeSet;
 use stillwind_design_system::{
     ThemeIndex, compatibility_marker_class, is_tailwind_relationship_candidate,
 };
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleCall, StyleInput,
     StyleVariant,
 };
 use stillwind_semantic::IdentityId;
-use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
+use stillwind_source::{SourceFile, Span};
 
 use super::CssContribution;
 use super::handles::{
@@ -37,7 +38,7 @@ use super::symbols::{
 };
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::{
-    CompiledUtility, resolve_utility_targets, unresolved_utility_rule, view_transition_utility,
+    CompiledUtility, resolve_utility_targets, unresolved_utility_kind, view_transition_utility,
 };
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 use crate::{CompilerOptions, GeneratedSymbol};
@@ -254,8 +255,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                         self.static_utilities.append(&mut utilities);
                     } else {
                         self.lint_findings.push(LintFinding::new(
-                            unresolved_utility_rule(&utility.value.raw),
-                            format!("unknown or unavailable utility `{}`", utility.value.raw),
+                            LintKind::UnresolvedUtility {
+                                utility: utility.value.raw.clone(),
+                                classification: unresolved_utility_kind(&utility.value.raw),
+                            },
                             utility.span,
                         ));
                         self.static_names.push(utility.value.raw.clone());
@@ -323,16 +326,15 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         Some(())
     }
 
-    /// Reports the second view transition of one call, matching the
-    /// pre-existing diagnostic.
+    /// Reserves the call's view-transition attachment, returning whether it is available.
+    /// A repeated attachment appends a fatal error and returns `false`.
     ///
     /// A call can contribute only one view-transition pair, because the pair shares one generated
     /// name and a second use would overwrite the first.
     fn begin_view_transition(&mut self) -> bool {
         if self.view_transition_seen {
             self.diagnostics.push(CompileError::new(
-                "SHVIEW004",
-                "style() accepts at most one view transition",
+                CompileErrorKind::MultipleViewTransitions,
                 self.call.span,
             ));
             return false;
@@ -659,10 +661,9 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 && is_tailwind_relationship_candidate(&raw, self.theme)
             {
                 self.lint_findings.push(LintFinding::new(
-                    "prefer-typed-relationships",
-                    format!(
-                        "Tailwind relationship utility `{raw}` is forbidden; use style.ref() or style.scope()"
-                    ),
+                    LintKind::PreferTypedRelationships {
+                        utility: raw.clone(),
+                    },
                     utility.span,
                 ));
             }
@@ -682,8 +683,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 contribution.utilities.append(&mut resolved);
             } else {
                 self.lint_findings.push(LintFinding::new(
-                    unresolved_utility_rule(&utility.value.raw),
-                    format!("unknown or unavailable utility `{}`", utility.value.raw),
+                    LintKind::UnresolvedUtility {
+                        utility: utility.value.raw.clone(),
+                        classification: unresolved_utility_kind(&utility.value.raw),
+                    },
                     utility.span,
                 ));
                 contribution.external.push(utility.value.raw.clone());

@@ -534,7 +534,7 @@ pub struct CandidateResolution {
     pub generated_rules: Vec<GeneratedRule>,
     pub required_properties: Vec<PropertyDefinitionId>,
     pub referenced_tokens: Vec<ThemeTokenId>,
-    pub diagnostics: Vec<CandidateDiagnostic>,
+    pub diagnostics: Vec<LintFinding>,
 }
 ```
 

@@ -4,6 +4,7 @@
 //! `css_fixture::source`, so the suite exercises resolution against real built-ins
 //! rather than a hand-written stub registry.
 
+use stillwind_diagnostics::CompileError;
 use stillwind_source::{FileId, SourceFile};
 
 use crate::*;
@@ -11,6 +12,6 @@ use crate::*;
 mod theme;
 
 /// Parses a fixture buffer after substituting its real source identity.
-fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, ThemeError> {
+fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
     parse_theme(&crate::css_fixture::source(source.id(), source.path(), source.text()).unwrap())
 }

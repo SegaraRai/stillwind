@@ -25,16 +25,27 @@ const metadata = JSON.parse(
 // compose a frontend and backend without making that a production dependency.
 const allowed: Record<string, string[]> = {
   source: [],
+  diagnostics: ["source"],
   syntax: ["source"],
   css: ["source"],
-  semantic: ["source"],
-  ir: ["source", "semantic"],
-  "js-oxc": ["source", "semantic", "ir"],
-  "design-system": ["source", "css", "syntax"],
-  compiler: ["source", "syntax", "css", "semantic", "ir", "design-system"],
-  project: ["source", "semantic", "ir", "compiler", "design-system"],
-  napi: ["source", "css", "semantic", "ir", "js-oxc", "design-system", "compiler", "project"],
-  cli: ["source", "ir", "js-oxc", "design-system", "compiler"],
+  semantic: ["diagnostics", "source"],
+  ir: ["diagnostics", "source", "semantic"],
+  "js-oxc": ["diagnostics", "source", "semantic", "ir"],
+  "design-system": ["diagnostics", "source", "css", "syntax"],
+  compiler: ["diagnostics", "source", "syntax", "css", "semantic", "ir", "design-system"],
+  project: ["diagnostics", "source", "semantic", "ir", "compiler", "design-system"],
+  napi: [
+    "diagnostics",
+    "source",
+    "css",
+    "semantic",
+    "ir",
+    "js-oxc",
+    "design-system",
+    "compiler",
+    "project",
+  ],
+  cli: ["diagnostics", "source", "ir", "js-oxc", "design-system", "compiler"],
 };
 
 const workspace = metadata.packages.filter((pkg) => metadata.workspace_members.includes(pkg.id));

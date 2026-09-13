@@ -10,10 +10,11 @@
 //! later, because they depend on the whole token list rather than on one declaration.
 
 use stillwind_css::matching_brace;
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{FileId, Span, Spanned};
 
 use super::namespace::ThemeNamespace;
-use super::parser::{ThemeError, offset};
+use super::parser::offset;
 
 /// How a `@theme` block's declarations are emitted.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -83,10 +84,10 @@ pub(crate) fn extract_theme_declarations(
     body: &str,
     body_start: usize,
     mode: ThemeTokenMode,
-) -> Result<Vec<ThemeToken>, ThemeError> {
+) -> Result<Vec<ThemeToken>, CompileErrorKind> {
     let end = body_start
         .checked_add(body.len())
-        .ok_or(ThemeError::InvalidOffset(body_start))?;
+        .ok_or(CompileErrorKind::CssOffsetTooLarge { offset: body_start })?;
     offset(end)?;
     let mut tokens = Vec::new();
     let mut cursor = 0;
@@ -214,7 +215,7 @@ mod tests {
     fn rejects_overflowing_base_offsets_before_token_arithmetic() {
         assert!(matches!(
             extract_theme_declarations(FileId(1), "--x:red;", usize::MAX, ThemeTokenMode::Default),
-            Err(ThemeError::InvalidOffset(_))
+            Err(CompileErrorKind::CssOffsetTooLarge { .. })
         ));
         assert!(matches!(
             extract_theme_declarations(
@@ -223,7 +224,7 @@ mod tests {
                 u32::MAX as usize,
                 ThemeTokenMode::Default
             ),
-            Err(ThemeError::InvalidOffset(_))
+            Err(CompileErrorKind::CssOffsetTooLarge { .. })
         ));
     }
 

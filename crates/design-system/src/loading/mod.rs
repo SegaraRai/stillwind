@@ -17,7 +17,6 @@ mod imports;
 mod protocol;
 mod state;
 
-pub use imports::CssImportError;
 pub use protocol::*;
 pub use state::{DesignSystemLoadError, DesignSystemLoader};
 

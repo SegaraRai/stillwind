@@ -13,8 +13,9 @@
 
 use oxc::ast::ast::TemplateLiteral;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{ClassExpression, StyleVariant};
-use stillwind_source::{CompileError, Span, Spanned};
+use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
 
@@ -185,9 +186,5 @@ fn subspan(span: Span, start: usize, end: usize) -> Span {
 
 /// The single diagnostic for every rejection path in this module.
 fn template_error(span: Span) -> CompileError {
-    CompileError::new(
-        "SHJS005",
-        "utility templates require direct ref variants in complete `variant:utility` segments",
-        span,
-    )
+    CompileError::new(CompileErrorKind::InvalidUtilityTemplate, span)
 }

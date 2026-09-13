@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use oxc::ast::ast::ModuleExportName;
 use oxc::semantic::{Scoping, SymbolId};
 
+use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     AdapterKind, AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall,
     ViewTransitionDefinition,
@@ -23,7 +24,7 @@ use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
     ModuleSpecifier, ModuleSummary, ReExport, TypeFact,
 };
-use stillwind_source::{CompileError, SourceFile, Spanned};
+use stillwind_source::{SourceFile, Spanned};
 
 use crate::refs::{HandleUse, ScopeUse};
 
@@ -56,6 +57,7 @@ impl<'a> MacroExtractor<'a> {
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
+            lint_findings: Vec::new(),
             jsx_path: Vec::new(),
             next_jsx_element: 0,
             imports: Vec::new(),
@@ -211,6 +213,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_calls: Vec<StyleCall>,
     /// Diagnostics raised during extraction, in visit order.
     pub(crate) diagnostics: Vec<CompileError>,
+    /// Advisory findings raised during extraction, in visit order.
+    pub(crate) lint_findings: Vec<LintFinding>,
     /// Element indices of the JSX ancestors of the node being visited.
     pub(crate) jsx_path: Vec<usize>,
     /// Counter that gives each visited JSX element a stable path index.

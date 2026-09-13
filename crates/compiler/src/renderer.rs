@@ -5,17 +5,18 @@
 //! registrations the CSS actually needs, and walks the template's layers and slots.
 //! [`StylesheetPlacement`] decides whether authored document rules and Preflight
 //! participate, so a per-module carrier does not duplicate them. Assembly failures come
-//! back as [`StylesheetError`], or, when rendering a whole compilation, as a `SHCSS001`
+//! back as [`CompileErrorKind`], or, when rendering a whole compilation, as a `SHCSS001`
 //! diagnostic that invalidates the generated output instead of shipping CSS known to be
 //! incomplete.
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_source::{CompileError, Span};
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_source::Span;
 
 use crate::compiler::{
     render_mapped, render_module_stylesheet, render_react_types, render_stylesheet,
 };
-use crate::{CompileResult, CompiledModule, CompilerOptions, MappedStylesheet, StylesheetError};
+use crate::{CompileResult, CompiledModule, CompilerOptions, MappedStylesheet};
 
 /// Where a rendered stylesheet is going to be used.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -56,7 +57,8 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// On success `css` holds the assembled document stylesheet and `module_css`
     /// retains the unwrapped module rules. Assembly failure clears both output rules
-    /// and source edits and records a diagnostic.
+    /// and source edits and records a diagnostic at `diagnostic_span`. That span must be
+    /// valid in the caller's reporting source; it is used without coordinate validation.
     pub fn render_compilation(
         &self,
         module: &CompiledModule,
@@ -69,11 +71,9 @@ impl<'a> StylesheetRenderer<'a> {
             {
                 Ok(css) => result.css = css.css,
                 Err(error) => {
-                    result.diagnostics.push(CompileError::new(
-                        "SHCSS001",
-                        error.to_string(),
-                        diagnostic_span,
-                    ));
+                    result
+                        .diagnostics
+                        .push(CompileError::new(error, diagnostic_span));
                     result.module_css.clear();
                     result.contributions.clear();
                     result.transforms.clear();
@@ -91,8 +91,9 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// # Errors
     ///
-    /// Returns an error when the assembled CSS cannot be analyzed.
-    pub fn render_stylesheet(&self, module_css: &str) -> Result<String, StylesheetError> {
+    /// Returns missing-slot, malformed property requirement or usage, and unresolved
+    /// authored theme-reference errors. No partial stylesheet is returned.
+    pub fn render_stylesheet(&self, module_css: &str) -> Result<String, CompileErrorKind> {
         render_stylesheet(self.snapshot.theme(), module_css, &self.options)
     }
 
@@ -104,19 +105,20 @@ impl<'a> StylesheetRenderer<'a> {
     /// # Errors
     ///
     /// Returns an error when the authored CSS cannot be analyzed.
-    pub fn render_base_stylesheet(&self) -> Result<String, StylesheetError> {
+    pub fn render_base_stylesheet(&self) -> Result<String, CompileErrorKind> {
         self.render_stylesheet("")
     }
 
     /// Renders one producer's CSS and required tokens, keyframes and properties.
     /// The output is a carrier fragment: authored document rules and Preflight are
-    /// included only when the placement is [`StylesheetPlacement::Document`], so this
-    /// form is for a host that transports one module's CSS on its own.
+    /// omitted. Use [`Self::render_mapped_stylesheet`] when the caller needs to select
+    /// document placement or preserve generated-rule provenance.
     ///
     /// # Errors
     ///
-    /// Returns an error when the support closure cannot be analyzed.
-    pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, StylesheetError> {
+    /// Returns missing-slot, malformed property requirement or usage, and unresolved
+    /// theme-reference errors in retained carrier CSS.
+    pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, CompileErrorKind> {
         render_module_stylesheet(self.snapshot.theme(), module_css, &self.options)
     }
 
@@ -124,12 +126,14 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// # Errors
     ///
-    /// Returns invalid CSS support closure or missing utility slots.
+    /// Returns malformed property requirements or usage CSS, unresolved authored theme
+    /// references, or missing utility/support slots. The returned cause has no primary
+    /// label; callers attach a location suitable for their document or carrier.
     pub fn render_mapped_stylesheet(
         &self,
         module_css: &MappedStylesheet,
         placement: StylesheetPlacement,
-    ) -> Result<MappedStylesheet, StylesheetError> {
+    ) -> Result<MappedStylesheet, CompileErrorKind> {
         render_mapped(
             &self.snapshot.theme().output_template,
             self.snapshot.theme(),
@@ -148,7 +152,7 @@ impl<'a> StylesheetRenderer<'a> {
     /// # Errors
     ///
     /// Returns invalid authored CSS.
-    pub fn render_base_stylesheet_with_map(&self) -> Result<MappedStylesheet, StylesheetError> {
+    pub fn render_base_stylesheet_with_map(&self) -> Result<MappedStylesheet, CompileErrorKind> {
         self.render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
     }
 }

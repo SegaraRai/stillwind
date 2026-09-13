@@ -349,7 +349,10 @@ void test("native watch reload reports compilation errors without publishing a p
   assert.ok(before.length > 0);
   const invalid = new NativeDesignSystemLoader();
   invalid.provide(0, "theme", "");
-  assert.throws(() => session.reload(invalid), /CSS reload compilation failed.*SH001/s);
+  assert.throws(
+    () => session.reload(invalid),
+    /CSS reload compilation failed.*motion\.tsx.*SH001.*unknown or unavailable utility `brand`/s,
+  );
   assert.equal(session.css(), before);
   const recovered = new NativeDesignSystemLoader();
   recovered.provide(

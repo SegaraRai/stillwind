@@ -12,9 +12,10 @@
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AssetReference, StyleInput, ViewTransitionDefinition};
 use stillwind_semantic::{AssetKind, ExportedValue};
-use stillwind_source::{CompileError, Spanned};
+use stillwind_source::Spanned;
 
 use crate::state::MacroExtractor;
 
@@ -75,8 +76,7 @@ impl<'a> MacroExtractor<'a> {
                 let transitions = self.view_transition_references(&member.object)?;
                 if call.arguments.len() != 1 {
                     self.diagnostics.push(CompileError::new(
-                        "SHVIEW002",
-                        "viewTransition.for() requires one stable key expression",
+                        CompileErrorKind::InvalidViewTransitionKeyExpression,
                         self.source_span(call.span),
                     ));
                     return None;
@@ -126,16 +126,14 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<ViewTransitionDefinition> {
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
-                "SHVIEW001",
-                "style.viewTransition() requires one object of static utility strings",
+                CompileErrorKind::InvalidViewTransitionDefinition,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
-                "SHVIEW001",
-                "style.viewTransition() requires one object of static utility strings",
+                CompileErrorKind::InvalidViewTransitionDefinition,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
@@ -146,32 +144,28 @@ impl<'a> MacroExtractor<'a> {
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
                 self.diagnostics.push(CompileError::new(
-                    "SHVIEW001",
-                    "view transition definitions cannot use object spreads",
+                    CompileErrorKind::ViewTransitionSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.computed || property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
-                    "SHVIEW001",
-                    "view transition definitions must be plain static properties",
+                    CompileErrorKind::InvalidViewTransitionProperty,
                     self.source_span(property.span),
                 ));
                 continue;
             }
             let Some(property_name) = self.property_name(&property.key) else {
                 self.diagnostics.push(CompileError::new(
-                    "SHVIEW001",
-                    "view transition keys must be `group`, `old`, or `new`",
+                    CompileErrorKind::InvalidViewTransitionKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
             };
             let Expression::StringLiteral(value) = &property.value else {
                 self.diagnostics.push(CompileError::new(
-                    "SHVIEW001",
-                    "view transition values must be literal utility strings",
+                    CompileErrorKind::InvalidViewTransitionValue,
                     self.source_span(property.value.span()),
                 ));
                 continue;
@@ -182,16 +176,14 @@ impl<'a> MacroExtractor<'a> {
                 "old" => old = Some(value),
                 "new" => new = Some(value),
                 _ => self.diagnostics.push(CompileError::new(
-                    "SHVIEW001",
-                    "view transition keys must be `group`, `old`, or `new`",
+                    CompileErrorKind::InvalidViewTransitionKey,
                     property_name.span,
                 )),
             }
         }
         if group.is_none() && old.is_none() && new.is_none() {
             self.diagnostics.push(CompileError::new(
-                "SHVIEW001",
-                "style.viewTransition() requires at least one of group, old, or new",
+                CompileErrorKind::EmptyViewTransition,
                 self.source_span(call.span),
             ));
             return None;

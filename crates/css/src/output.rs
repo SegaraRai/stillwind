@@ -12,42 +12,6 @@
 
 use stillwind_source::Span;
 
-/// Failure to build an output template from authored CSS.
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum CssOutputError {
-    /// A compile-time definition appeared inside a conditional group, where it cannot
-    /// be attributed to one output order.
-    #[error(
-        "compile-time @{name} definitions cannot be conditional (byte {offset}); import definitions unconditionally and put conditions around @stillwind-slot utilities;"
-    )]
-    ConditionalDefinition {
-        /// Byte offset of the offending definition.
-        offset: usize,
-        /// Directive name, such as `utility` or `variant`.
-        name: String,
-    },
-    /// The template used an output slot Stillwind does not know.
-    #[error("unsupported Stillwind output slot at byte {offset}: {name}")]
-    Slot {
-        /// Byte offset of the slot reference.
-        offset: usize,
-        /// Slot name as written.
-        name: String,
-    },
-    /// A declaration slot appeared outside a style rule, or a rule slot inside one.
-    #[error("Stillwind output slot {name} has an invalid CSS context")]
-    SlotContext {
-        /// Slot whose rule/declaration context is invalid.
-        name: String,
-    },
-    /// A block could not be parsed or was never closed.
-    #[error("invalid CSS output block at byte {offset}")]
-    Block {
-        /// Byte offset where parsing failed.
-        offset: usize,
-    },
-}
-
 /// One node of an output template.
 ///
 /// The compiler consumes the variants in tree order; a carrier that omits a node (for

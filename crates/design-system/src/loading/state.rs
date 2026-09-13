@@ -18,18 +18,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_source::{FileId, SourceError, SourceFile};
 
-use super::CssImportError;
 use super::expansion::ExpandedSource;
 use super::imports::{Import, imports};
 use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
     CssSourceName, DesignSystemLoadStep,
 };
-use crate::{
-    DesignSystemOptions, DesignSystemOptionsError, DesignSystemSnapshot, ThemeError, parse_theme,
-};
+use crate::{DesignSystemOptions, DesignSystemSnapshot, parse_theme};
 
 /// Why a load could not produce a snapshot.
 ///
@@ -76,30 +74,19 @@ pub enum DesignSystemLoadError {
         /// Name that was supplied twice.
         name: CssSourceName,
     },
-    /// A supplied buffer is not valid Stillwind CSS.
-    #[error("{}: {cause}", .name.0)]
-    InvalidCss {
-        /// Name the buffer was supplied under.
-        name: CssSourceName,
-        #[source]
-        /// Parser failure for that buffer.
-        cause: ThemeError,
-    },
-    /// A supplied `@import` could not be parsed.
-    #[error("{}: {cause}", .name.0)]
-    InvalidImport {
-        /// Name the buffer was supplied under.
-        name: CssSourceName,
-        #[source]
-        /// Import parser failure for that buffer.
-        cause: CssImportError,
-    },
+    /// A source could not be compiled.
+    #[error(transparent)]
+    Compilation(
+        /// Source-located cause; labels use accepted-source IDs, never the expanded buffer ID.
+        #[from]
+        CompileError,
+    ),
     /// The resolved prefix configuration is invalid.
     #[error("{0}")]
     InvalidOptions(
         /// Validation failure for the resolved prefix configuration.
         #[from]
-        DesignSystemOptionsError,
+        CompileErrorKind,
     ),
     /// The import graph contains a cycle.
     #[error("CSS import cycle: {chain:?}")]
@@ -257,22 +244,25 @@ impl DesignSystemLoader {
             ));
         }
         let output = self.expand(&order)?;
-        let name = self
+        let root = self
             .graph
             .sources
             .first()
-            .ok_or(DesignSystemLoadError::InvalidGraph)?
-            .name
-            .clone();
+            .ok_or(DesignSystemLoadError::InvalidGraph)?;
+        let name = root.name.clone();
         // `u32::MAX` marks the synthetic expanded buffer: it is not a source the
         // host supplied, so no host-visible identity may claim it. Token spans
         // that point at it are mapped below into their original buffers.
         let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str())?;
-        let mut theme =
-            parse_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
-                name: name.clone(),
-                cause: error,
-            })?;
+        let mut theme = parse_theme(&source).map_err(|mut error| {
+            // Whole-expansion failures use the root when no contiguous original span exists.
+            for label in &mut error.labels {
+                label.span = output
+                    .original_span(label.span)
+                    .unwrap_or_else(|| root.source.full_span());
+            }
+            error
+        })?;
         theme
             .output_template
             .map_origins(|span| output.original_span(span));
@@ -326,17 +316,13 @@ impl DesignSystemLoader {
             }
             return Ok(index);
         }
-        let imports = imports(&content).map_err(|cause| DesignSystemLoadError::InvalidImport {
-            name: name.clone(),
-            cause,
-        })?;
         let index = self.nodes.len();
         let id = u32::try_from(index + 1).map_err(|_| DesignSystemLoadError::SourceIdExhausted)?;
         let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content)?);
-        parse_theme(&source).map_err(|error| DesignSystemLoadError::InvalidCss {
-            name: name.clone(),
-            cause: error,
+        let imports = imports(source.text()).map_err(|kind| {
+            CompileError::new(kind, source.full_span()).with_source_name(source.path())
         })?;
+        parse_theme(&source)?;
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {
             let id = self.next_id;

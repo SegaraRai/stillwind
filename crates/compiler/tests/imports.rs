@@ -4,13 +4,12 @@
 //! reference fails the plan instead of leaving a free identifier, and that mixed imports keep
 //! their other specifiers, comments, and separators intact.
 
-use stillwind_compiler::{
-    ImportPlanError, SourceTransform, plan_macro_import_removals, render_transforms,
-};
+use stillwind_compiler::{SourceTransform, plan_macro_import_removals, render_transforms};
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile};
 
-fn rewrite(text: &str, lower: bool, unknown: bool) -> Result<String, ImportPlanError> {
+fn rewrite(text: &str, lower: bool, unknown: bool) -> Result<String, CompileError> {
     let source = SourceFile::new(FileId(1), "entry.ts", text).unwrap();
     let mut parsed = parse(&source);
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
@@ -56,16 +55,25 @@ fn deletion_requires_every_reference_to_be_lowered() {
     );
     assert!(matches!(
         rewrite(input, false, false),
-        Err(ImportPlanError::UntransformedReference { .. })
+        Err(CompileError {
+            kind: CompileErrorKind::UntransformedMacroReference { .. },
+            ..
+        })
     ));
     assert!(matches!(
         rewrite(input, true, true),
-        Err(ImportPlanError::UnmappedReference { .. })
+        Err(CompileError {
+            kind: CompileErrorKind::UnmappedMacroReference { .. },
+            ..
+        })
     ));
     let residual = format!("{input} const macro = s;");
     assert!(matches!(
         rewrite(&residual, true, false),
-        Err(ImportPlanError::UntransformedReference { .. })
+        Err(CompileError {
+            kind: CompileErrorKind::UntransformedMacroReference { .. },
+            ..
+        })
     ));
 }
 

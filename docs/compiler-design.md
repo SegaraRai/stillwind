@@ -84,7 +84,8 @@ watcher, or framework renderer.
 ```text
 crates/
   core/          # compilation orchestration and public Rust API
-  source/        # SourceDb, spans, line indexes, diagnostics, edits
+  source/        # Source buffers, spans, line indexes, projections
+  diagnostics/   # Typed compile errors, lint findings, labels, suppression
   js-oxc/        # JS/TS/JSX extraction using Oxc
   css/           # @theme extraction and CSS plan/source-map emission
   ir/            # language-neutral ModuleIR and StyleIR

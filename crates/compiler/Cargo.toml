@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 stillwind-css = { path = "../css" }
 stillwind-design-system = { path = "../design-system" }
+stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-ir = { path = "../ir" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }

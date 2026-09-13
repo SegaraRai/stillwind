@@ -6,10 +6,9 @@
 //! optional inputs that let expressions imported from other modules resolve without a
 //! type checker in this crate.
 //!
-//! Diagnostics are split by code: the codes listed in [`lint_rule_for_code`] become
-//! [`LintFinding`]s so `swlint-*` comments can suppress them, and every other
-//! diagnostic stays an error. The split happens here so both consumers see consistent
-//! sets.
+//! Extraction records fatal errors and advisory lint findings separately. Only
+//! [`LintFinding`]s participate in `swlint-*` suppression; reporting codes do not
+//! determine whether compilation may proceed.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -20,9 +19,10 @@ use oxc::parser::Parser;
 use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
 use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
-use stillwind_source::{CompileError, LintFinding, SourceFile, Span};
+use stillwind_source::{SourceFile, Span};
 
 use crate::imports::collect;
 use crate::state::MacroExtractor;
@@ -41,9 +41,9 @@ pub struct ParsedJavaScript {
     pub framework: Option<AdapterKind>,
     /// Expression spans the host checker should resolve, deduplicated.
     pub type_probes: Vec<Span>,
-    /// Errors; lint-coded diagnostics are moved to `lint_findings` instead.
+    /// Fatal errors produced by parsing and extraction.
     pub diagnostics: Vec<CompileError>,
-    /// Suppressible findings, one per lint-coded diagnostic.
+    /// Advisory findings produced by extraction.
     pub lint_findings: Vec<LintFinding>,
     /// Module IR lowered from the parsed program.
     pub module: ModuleIr,
@@ -92,15 +92,19 @@ pub fn parse_with_language(
     let mut diagnostics: Vec<_> = result
         .diagnostics
         .into_iter()
-        .map(|diagnostic| CompileError::new("SHJS001", diagnostic.to_string(), source.full_span()))
+        .map(|diagnostic| {
+            let mut error =
+                CompileError::new(CompileErrorKind::JavaScriptParse, source.full_span());
+            error.notes.push(diagnostic.to_string());
+            error
+        })
         .collect();
 
     let type_facts = if type_facts.iter().all(|fact| fact.value.validate().is_ok()) {
         type_facts
     } else {
         diagnostics.push(CompileError::new(
-            "SHFACT001",
-            "invalid symbolic kinds in TypeScript facts",
+            CompileErrorKind::InvalidSymbolicFacts,
             source.full_span(),
         ));
         &[]
@@ -118,24 +122,8 @@ pub fn parse_with_language(
         &extractor.export_symbols,
         &mut summary,
     );
-    let mut lint_findings = Vec::new();
-    for diagnostic in extractor.diagnostics {
-        if let Some(rule) = lint_rule_for_code(diagnostic.code) {
-            let mut finding = LintFinding::new(
-                rule,
-                diagnostic.message,
-                diagnostic
-                    .labels
-                    .first()
-                    .map_or(source.full_span(), |label| label.span),
-            );
-            finding.labels = diagnostic.labels;
-            finding.notes = diagnostic.notes;
-            lint_findings.push(finding);
-        } else {
-            diagnostics.push(diagnostic);
-        }
-    }
+    diagnostics.extend(extractor.diagnostics);
+    let lint_findings = extractor.lint_findings;
 
     ParsedJavaScript {
         framework: extractor.adapter,
@@ -174,22 +162,6 @@ pub(crate) fn source_type(path: &str, language: ScriptLanguage) -> SourceType {
         .with_typescript(typescript)
         .with_jsx(jsx)
         .with_standard(!jsx)
-}
-
-/// Maps a diagnostic code to the lint rule that may suppress it.
-///
-/// Rules are stable names used in `swlint-disable` comments. A code that is not listed
-/// here stays a hard error and can never be suppressed.
-fn lint_rule_for_code(code: &str) -> Option<&'static str> {
-    Some(match code {
-        "SHREF003" => "require-anchor-provider",
-        "SHREF006" => "require-container-provider",
-        "SHREF007" => "valid-ref-ancestry",
-        "SHSCOPE002" => "require-scope-provider",
-        "SHSCOPE003" => "valid-scope-ancestry",
-        "SHSCOPE004" => "scoped-selector-in-scope",
-        _ => return None,
-    })
 }
 
 #[cfg(test)]

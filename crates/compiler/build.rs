@@ -21,6 +21,13 @@
 use std::fs;
 use std::path::Path;
 
+/// Hashes file lengths and contents in sorted traversal order and emits Cargo watches.
+///
+/// Existing hasher state is retained; a read failure can leave a partial contribution.
+///
+/// # Errors
+///
+/// Propagates directory enumeration and file-read failures.
 fn hash_tree(path: &Path, hasher: &mut blake3::Hasher) -> std::io::Result<()> {
     println!("cargo:rerun-if-changed={}", path.display());
     if path.is_dir() {
@@ -39,27 +46,34 @@ fn hash_tree(path: &Path, hasher: &mut blake3::Hasher) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Publishes the compiler content fingerprint as a Cargo build-time environment value.
+///
+/// # Errors
+///
+/// Propagates reads of the listed source trees, manifests, or workspace lockfile.
 fn main() -> std::io::Result<()> {
     let mut hasher = blake3::Hasher::new();
-    for directory in [
-        "src",
-        "Cargo.toml",
-        "build.rs",
-        "../source/src",
-        "../source/Cargo.toml",
+    for path in [
+        "../css/assets",
+        "../css/src",
+        "../css/Cargo.toml",
+        "../design-system/src",
+        "../design-system/Cargo.toml",
+        "../diagnostics/src",
+        "../diagnostics/Cargo.toml",
         "../ir/src",
         "../ir/Cargo.toml",
         "../semantic/src",
         "../semantic/Cargo.toml",
+        "../source/src",
+        "../source/Cargo.toml",
         "../syntax/src",
         "../syntax/Cargo.toml",
-        "../css/src",
-        "../css/assets",
-        "../css/Cargo.toml",
-        "../design-system/src",
-        "../design-system/Cargo.toml",
+        "src",
+        "Cargo.toml",
+        "build.rs",
     ] {
-        hash_tree(Path::new(directory), &mut hasher)?;
+        hash_tree(Path::new(path), &mut hasher)?;
     }
     hash_tree(Path::new("../../Cargo.lock"), &mut hasher)?;
     println!(

@@ -11,62 +11,9 @@
 //! right (`theme`, `prefix`, `source`, `reference`, `important`) are rejected instead
 //! of being silently ignored.
 
-use cssparser::{BasicParseErrorKind, ParseError, ParseErrorKind, Parser, Token};
+use cssparser::{ParseError, Parser, Token};
 
-/// Why an `@import` statement could not be read.
-///
-/// These are CSS errors the loader can decide from a supplied buffer, so they surface
-/// as [`crate::DesignSystemLoadError::InvalidImport`] carrying the source name and this
-/// cause.
-#[derive(Clone, Debug, PartialEq, thiserror::Error)]
-pub enum CssImportError {
-    /// A modifier this grammar does not support.
-    #[error("unsupported import modifier at byte {offset}: {modifier}")]
-    UnsupportedModifier {
-        /// Byte offset of the modifier in the buffer.
-        offset: usize,
-        /// Unsupported modifier name reported by the token parser.
-        modifier: String,
-    },
-    /// Modifiers are not in the order the grammar requires.
-    #[error("invalid import modifier order at byte {offset}")]
-    ModifierOrder {
-        /// Byte offset of the offending modifier.
-        offset: usize,
-    },
-    /// A block inside the import could not be parsed.
-    #[error("invalid CSS block at byte {offset}: {kind:?}")]
-    Block {
-        /// Byte offset where the block starts.
-        offset: usize,
-        /// Underlying token error.
-        kind: ParseErrorKind<()>,
-    },
-    /// The import's specifier is missing, unquoted, or malformed.
-    #[error("invalid @import at byte {offset}: {kind}")]
-    Specifier {
-        /// Byte offset of the failure.
-        offset: usize,
-        /// Underlying token error.
-        kind: BasicParseErrorKind,
-    },
-    /// The modifier list could not be parsed.
-    #[error("invalid import modifiers at byte {offset}: {kind}")]
-    Modifiers {
-        /// Byte offset of the failure.
-        offset: usize,
-        /// Underlying token error.
-        kind: BasicParseErrorKind,
-    },
-    /// A single modifier block could not be parsed.
-    #[error("invalid import modifier at byte {offset}: {kind:?}")]
-    ModifierBlock {
-        /// Byte offset of the failure.
-        offset: usize,
-        /// Underlying token error.
-        kind: ParseErrorKind<()>,
-    },
-}
+use stillwind_diagnostics::CompileErrorKind;
 
 /// One authored import: its byte range in the buffer, its decoded specifier, and the
 /// wrappers derived from its modifiers.
@@ -92,9 +39,11 @@ pub(super) struct Import {
 ///
 /// # Errors
 ///
-/// Returns [`CssImportError::Block`] for an unbalanced block, and the
-/// specifier and modifier errors propagated from [`import_wrappers`].
-pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
+/// Returns [`CompileErrorKind::InvalidImportBlock`] for an unbalanced block, and the
+/// [`CompileErrorKind::InvalidImportSpecifier`] for an invalid import target, and
+/// modifier errors from [`import_wrappers`]. Offsets refer to `css`; this layer does
+/// not attach source labels or names.
+pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileErrorKind> {
     let mut parser = Parser::new(css);
     let mut imports = Vec::new();
     loop {
@@ -114,9 +63,9 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
                     while nested.next_including_whitespace_and_comments().is_ok() {}
                     Ok::<_, ParseError<()>>(())
                 })
-                .map_err(|error| CssImportError::Block {
+                .map_err(|error| CompileErrorKind::InvalidImportBlock {
                     offset: start,
-                    kind: error.kind,
+                    detail: format!("{:?}", error.kind),
                 })?;
             continue;
         }
@@ -125,9 +74,9 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
         }
         let specifier = parser
             .expect_url_or_string()
-            .map_err(|error| CssImportError::Specifier {
+            .map_err(|error| CompileErrorKind::InvalidImportSpecifier {
                 offset: start,
-                kind: error.kind,
+                detail: error.kind.to_string(),
             })?
             .to_string();
         let tail_start = parser.position();
@@ -164,24 +113,26 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CssImportError> {
 ///
 /// # Errors
 ///
-/// Returns [`CssImportError::ModifierOrder`] for a misplaced or repeated
-/// modifier, [`CssImportError::UnsupportedModifier`] for a modifier that would
+/// Returns [`CompileErrorKind::InvalidImportModifierOrder`] for a misplaced or repeated
+/// modifier, [`CompileErrorKind::UnsupportedImportModifier`] for a modifier that would
 /// change how the imported file is interpreted in its own right, and
-/// [`CssImportError::Modifiers`] or [`CssImportError::ModifierBlock`] when a
-/// modifier cannot be tokenized or its block is malformed.
-fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImportError> {
+/// [`CompileErrorKind::InvalidImportModifiers`] or [`CompileErrorKind::InvalidImportModifierBlock`]
+/// when a modifier cannot be tokenized or its block is malformed.
+fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CompileErrorKind> {
     let mut parser = Parser::new(tail);
     let mut wrappers = Vec::new();
     let mut supports_seen = false;
     while !parser.is_exhausted() {
         let state = parser.state();
-        match parser.next().map_err(|error| CssImportError::Modifiers {
-            offset: base_offset + state.position().byte_index(),
-            kind: error.kind,
-        })? {
+        match parser
+            .next()
+            .map_err(|error| CompileErrorKind::InvalidImportModifiers {
+                offset: base_offset + state.position().byte_index(),
+                detail: error.kind.to_string(),
+            })? {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
                 if !wrappers.is_empty() {
-                    return Err(CssImportError::ModifierOrder {
+                    return Err(CompileErrorKind::InvalidImportModifierOrder {
                         offset: base_offset + state.position().byte_index(),
                     });
                 }
@@ -192,7 +143,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
             {
                 let layer = name.eq_ignore_ascii_case("layer");
                 if (layer && !wrappers.is_empty()) || (!layer && supports_seen) {
-                    return Err(CssImportError::ModifierOrder {
+                    return Err(CompileErrorKind::InvalidImportModifierOrder {
                         offset: base_offset + state.position().byte_index(),
                     });
                 }
@@ -212,9 +163,9 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
                         }
                         Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_owned())
                     })
-                    .map_err(|error| CssImportError::ModifierBlock {
+                    .map_err(|error| CompileErrorKind::InvalidImportModifierBlock {
                         offset: base_offset + state.position().byte_index(),
-                        kind: error.kind,
+                        detail: format!("{:?}", error.kind),
                     })?;
                 wrappers.push(if layer {
                     format!("@layer {condition}")
@@ -238,7 +189,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CssImp
                     .iter()
                     .any(|modifier| name.eq_ignore_ascii_case(modifier)) =>
             {
-                return Err(CssImportError::UnsupportedModifier {
+                return Err(CompileErrorKind::UnsupportedImportModifier {
                     offset: base_offset + state.position().byte_index(),
                     modifier: name.to_string(),
                 });
@@ -269,7 +220,7 @@ mod tests {
         assert_eq!(&css[found[1].start..found[1].end], "@import 'a.css';");
         assert!(matches!(
             imports("@import 42;"),
-            Err(CssImportError::Specifier { .. })
+            Err(CompileErrorKind::InvalidImportSpecifier { .. })
         ));
     }
 
@@ -323,7 +274,7 @@ mod tests {
         for unsupported in ["prefix(tw)", "reference", "source(none)"] {
             assert!(matches!(
                 import_wrappers(unsupported, 0),
-                Err(CssImportError::UnsupportedModifier { .. })
+                Err(CompileErrorKind::UnsupportedImportModifier { .. })
             ));
         }
         let framework = imports("@import 'stillwind' supports(display:grid);").unwrap();

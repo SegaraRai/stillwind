@@ -12,8 +12,9 @@
 
 use std::collections::BTreeSet;
 
-use crate::diagnostics::LintFinding;
-use crate::text::SourceFile;
+use stillwind_source::SourceFile;
+
+use crate::LintFinding;
 
 /// What a directive switches off, as determined by its keyword.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -51,7 +52,11 @@ pub struct LintDirective {
 /// `disable-next-line` the following line, and `disable` / `enable` every finding at or
 /// after the directive offset, applied in source order. A `disable` never reaches
 /// backwards, findings not named by a rule list are kept, and this function can only
-/// remove findings, never add them.
+/// remove findings, never add them. Retained findings keep their original order.
+///
+/// Primary spans must refer to `source`; file identities and bounds are not validated.
+/// Only the first label's start offset participates. A missing label uses offset zero;
+/// secondary labels and messages do not affect suppression.
 pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>) {
     let directives = collect_lint_directives(source.text());
     if directives.is_empty() {
@@ -75,7 +80,10 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
         let mut suppressed = false;
         for directive in &directives {
             let matches_rule = |rules: &[String]| {
-                rules.is_empty() || rules.iter().any(|rule| rule == "*" || rule == finding.rule)
+                rules.is_empty()
+                    || rules
+                        .iter()
+                        .any(|rule| rule == "*" || rule == finding.code())
             };
             match directive.kind {
                 LintDirectiveKind::DisableLine if directive.line == finding_line => {
@@ -109,7 +117,7 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
                 _ => {}
             }
         }
-        !(suppressed || disabled_all || disabled.contains(finding.rule))
+        !(suppressed || disabled_all || disabled.contains(finding.code()))
     });
 }
 
@@ -200,8 +208,9 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::{FileId, Span};
+
     use super::*;
-    use crate::text::{FileId, Span};
 
     #[test]
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
@@ -217,18 +226,31 @@ mod tests {
 
     #[test]
     fn disable_next_line_does_not_suppress_other_rules_or_later_lines() {
-        let source =
-            SourceFile::new(FileId(1), "x", "// swlint-disable-next-line a\nx\ny").unwrap();
+        let source = SourceFile::new(
+            FileId(1),
+            "x",
+            "// swlint-disable-next-line require-anchor-provider\nx\ny",
+        )
+        .unwrap();
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let mut findings = vec![
-            LintFinding::new("a", "", Span::new(FileId(1), x, x + 1)),
-            LintFinding::new("b", "", Span::new(FileId(1), x, x + 1)),
-            LintFinding::new("a", "", Span::new(FileId(1), x + 2, x + 3)),
+            LintFinding::new(
+                crate::LintKind::MissingAnchor { name: "x".into() },
+                Span::new(FileId(1), x, x + 1),
+            ),
+            LintFinding::new(
+                crate::LintKind::MissingContainer { name: "x".into() },
+                Span::new(FileId(1), x, x + 1),
+            ),
+            LintFinding::new(
+                crate::LintKind::MissingAnchor { name: "x".into() },
+                Span::new(FileId(1), x + 2, x + 3),
+            ),
         ];
         filter_lint_findings(&source, &mut findings);
         assert_eq!(
-            findings.iter().map(|f| f.rule).collect::<Vec<_>>(),
-            vec!["b", "a"]
+            findings.iter().map(LintFinding::code).collect::<Vec<_>>(),
+            vec!["require-container-provider", "require-anchor-provider"]
         );
     }
 
@@ -236,31 +258,46 @@ mod tests {
     fn disable_enable_and_same_line_directives_have_bounded_effects() {
         for (text, expected) in [
             (
-                "// swlint-disable a\nx\n// swlint-enable a\ny",
-                vec!["b", "a", "b"],
+                "// swlint-disable require-anchor-provider\nx\n// swlint-enable require-anchor-provider\ny",
+                vec![
+                    "require-container-provider",
+                    "require-anchor-provider",
+                    "require-container-provider",
+                ],
             ),
             (
                 "// swlint-disable *\nx\n// swlint-enable\ny",
-                vec!["a", "b"],
+                vec!["require-anchor-provider", "require-container-provider"],
             ),
-            ("x // swlint-disable-line a\ny", vec!["b", "a", "b"]),
+            (
+                "x // swlint-disable-line require-anchor-provider\ny",
+                vec![
+                    "require-container-provider",
+                    "require-anchor-provider",
+                    "require-container-provider",
+                ],
+            ),
         ] {
             let source = SourceFile::new(FileId(1), "x", text).unwrap();
             let mut findings = ['x', 'y']
                 .into_iter()
                 .flat_map(|c| {
                     let start = u32::try_from(text.find(c).unwrap()).unwrap();
-                    ["a", "b"].map(|rule| {
-                        LintFinding::new(rule, "", Span::new(FileId(1), start, start + 1))
+                    ["require-anchor-provider", "require-container-provider"].map(|rule| {
+                        LintFinding::new(
+                            if rule == "require-anchor-provider" {
+                                crate::LintKind::MissingAnchor { name: "x".into() }
+                            } else {
+                                crate::LintKind::MissingContainer { name: "x".into() }
+                            },
+                            Span::new(FileId(1), start, start + 1),
+                        )
                     })
                 })
                 .collect();
             filter_lint_findings(&source, &mut findings);
             assert_eq!(
-                findings
-                    .iter()
-                    .map(|finding| finding.rule)
-                    .collect::<Vec<_>>(),
+                findings.iter().map(LintFinding::code).collect::<Vec<_>>(),
                 expected,
                 "{text}"
             );

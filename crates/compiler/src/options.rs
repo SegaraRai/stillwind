@@ -11,9 +11,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_design_system::{
-    DesignSystemOptions, DesignSystemOptionsError, DesignSystemSnapshot,
-};
+use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::normalized_module_path;
 
 /// Knobs a host may set per compilation.
@@ -78,8 +77,10 @@ impl CompilerOptions {
     /// Checks that the two prefixes are valid and do not conflict.
     ///
     /// # Errors
-    /// Returns invalid or conflicting property prefixes.
-    pub fn validate(&self) -> Result<(), DesignSystemOptionsError> {
+    ///
+    /// Returns the typed prefix-shape or namespace-conflict failures from
+    /// [`DesignSystemOptions::validate`], retaining the rejected configuration values.
+    pub fn validate(&self) -> Result<(), CompileErrorKind> {
         self.design_system().validate()
     }
 

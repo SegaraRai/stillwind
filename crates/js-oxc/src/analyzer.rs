@@ -15,9 +15,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind, collect_lint_directives};
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
 use stillwind_semantic::{ExportedValue, IntegrationDiagnostic, ModuleSummary, TypeFacts};
-use stillwind_source::{CompileError, Fingerprint, collect_lint_directives};
+use stillwind_source::Fingerprint;
 
 use crate::projected_scan::parse_projected;
 use crate::{ParsedJavaScript, parse_with_language};
@@ -49,11 +50,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                         summary: ModuleSummary::new(source.path()),
                         type_probes: Vec::new(),
                         lint_directives: collect_lint_directives(source.text()),
-                        diagnostics: vec![CompileError::new(
-                            "SHPRJ001",
-                            error.to_string(),
-                            source.full_span(),
-                        )],
+                        diagnostics: vec![CompileError::new(error.into(), source.full_span())],
                         lint_findings: Vec::new(),
                         input,
                         provenance: Vec::new(),
@@ -102,7 +99,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                 if !facts.facts.is_empty() {
                     integration_diagnostics.push(IntegrationDiagnostic {
                         module_id: Some(scan.module_id.clone()),
-                        message: "checker facts for projected sources are not supported".into(),
+                        kind: CompileErrorKind::ProjectedFactsUnsupported,
                     });
                 }
                 return false;
@@ -122,7 +119,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             if !valid {
                 integration_diagnostics.push(IntegrationDiagnostic {
                     module_id: Some(scan.module_id.clone()),
-                    message: "incompatible, stale or invalid TypeScript facts".into(),
+                    kind: CompileErrorKind::InvalidTypeScriptFacts,
                 });
             }
             valid
@@ -209,8 +206,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
             .is_some_and(|selected| selected != framework)
         {
             parsed.diagnostics.push(CompileError::new(
-                "SHJS008",
-                "explicit framework conflicts with the imported style macro",
+                CompileErrorKind::FrameworkConflict,
                 input.edit_source().full_span(),
             ));
         } else {

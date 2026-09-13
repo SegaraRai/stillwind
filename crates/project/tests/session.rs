@@ -13,10 +13,11 @@ use stillwind_compiler::{
     StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, ProjectStylesheet, SessionMode};
-use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
+use stillwind_source::{FileId, Fingerprint, SourceFile};
 
 #[test]
 fn publication_rekeys_publicly_edited_rules_before_sharing_them() {
@@ -245,8 +246,7 @@ fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
         let dependencies = session.dependencies().clone();
         let mut invalid = module("a.tsx", "block");
         invalid.diagnostics.push(CompileError::new(
-            "TEST",
-            "invalid",
+            CompileErrorKind::InvalidSymbolicFacts,
             invalid.source.full_span(),
         ));
         let update = session.update_module(invalid);

@@ -19,11 +19,12 @@ use stillwind_compiler::{CompilerOptions, StylesheetPlacement, StylesheetRendere
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
+use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
 use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
-use stillwind_source::{CompileError, FileId, Fingerprint, SourceFile};
+use stillwind_source::{FileId, Fingerprint, SourceFile};
 
 use crate::api::binding_output;
 use crate::options::{NativeCompilerOptions, compiler_options};
@@ -39,7 +40,7 @@ pub enum NativeSessionError {
     IncompleteCssLoad,
     /// Recompiling retained modules against the new stylesheet failed. Watch sessions
     /// keep the previous revision active while reporting this error.
-    #[error("CSS reload compilation failed: {diagnostics:?}")]
+    #[error("CSS reload compilation failed: {}", format_reload_diagnostics(.diagnostics))]
     ReloadCompilation {
         /// Failures per module, keyed by module path.
         diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
@@ -50,6 +51,27 @@ impl From<NativeSessionError> for Error {
     fn from(error: NativeSessionError) -> Self {
         Self::from_reason(error.to_string())
     }
+}
+
+/// Joins failures in module-key order, preserving each module's diagnostic order.
+///
+/// Each entry contains the module ID, reporting code, and display message. Notes follow
+/// on indented lines; labels are not serialized here. An empty map produces an empty string.
+fn format_reload_diagnostics(diagnostics: &BTreeMap<ModuleId, Vec<CompileError>>) -> String {
+    diagnostics
+        .iter()
+        .flat_map(|(module, errors)| {
+            errors.iter().map(|error| {
+                let mut message = format!("{}: {}: {error}", module.as_str(), error.code());
+                for note in &error.notes {
+                    message.push_str("\n  ");
+                    message.push_str(note);
+                }
+                message
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`] call.

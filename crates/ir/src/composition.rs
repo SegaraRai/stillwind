@@ -16,8 +16,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_semantic::{AssetKind, IdentityId};
-use stillwind_source::{CompileError, Span};
+use stillwind_source::Span;
 
 use crate::{ClassExpression, GroupEntry};
 use crate::{ModuleAnalysis, StyleCall, StyleInput};
@@ -98,16 +99,11 @@ pub fn validate_composition(
         }
     }
     let Some(order) = ordered(&edges) else {
-        return vec![CompileError::new(
-            "SHCOMP003",
-            "style composition dependency cycle",
-            at,
-        )];
+        return vec![CompileError::new(CompileErrorKind::CompositionCycle, at)];
     };
     if ordered(&module_edges).is_none() {
         return vec![CompileError::new(
-            "SHCOMP004",
-            "style composition requires cyclic CSS module ordering",
+            CompileErrorKind::CompositionModuleCycle,
             at,
         )];
     }
@@ -115,25 +111,19 @@ pub fn validate_composition(
         for dependency in &edges[&key] {
             if require_complete && !edges.contains_key(dependency) {
                 return vec![CompileError::new(
-                    "SHCOMP005",
-                    "style base producer is unavailable",
+                    CompileErrorKind::UnavailableStyleBase,
                     at,
                 )];
             }
             if props.contains(dependency) {
-                return vec![CompileError::new(
-                    "SHCOMP006",
-                    "style bases with additional props are not supported",
-                    at,
-                )];
+                return vec![CompileError::new(CompileErrorKind::StyleBaseWithProps, at)];
             }
             if class_properties
                 .get(dependency)
                 .is_some_and(|property| *property != class_properties[&key])
             {
                 return vec![CompileError::new(
-                    "SHCOMP007",
-                    "style bases must use the same framework class property",
+                    CompileErrorKind::StyleBaseFrameworkMismatch,
                     at,
                 )];
             }

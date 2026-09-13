@@ -6,6 +6,7 @@
 //! production behavior.
 
 use stillwind_css::csswg_formal_syntax;
+use stillwind_diagnostics::CompileError;
 
 use super::*;
 use crate::evaluation::variants::resolve::resolve_registered_variant_candidate;
@@ -363,7 +364,7 @@ pub(super) fn resolve_registry_variant_branches(
 }
 
 /// Parses a fixture buffer wrapped in the standard package CSS.
-pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, crate::ThemeError> {
+pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
     crate::parse_theme(
         &crate::css_fixture::source(
             source.id(),

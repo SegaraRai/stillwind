@@ -12,6 +12,7 @@ use stillwind_compiler::{
     CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
     ClassExpression, ConditionalKind, HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant,
 };
@@ -52,12 +53,15 @@ fn composition_rejects_props_and_nested_calls() {
     for (code, expected) in [
         (
             "const a=style({'data-x':1});const b=style(a,'flex');",
-            "SHCOMP006",
+            CompileErrorKind::StyleBaseWithProps,
         ),
-        ("const a=style(style('flex'),'block');", "SHCOMP001"),
+        (
+            "const a=style(style('flex'),'block');",
+            CompileErrorKind::NestedStyleCall,
+        ),
         (
             "const a=style(b,'flex');const b=style(a,'block');",
-            "SHCOMP003",
+            CompileErrorKind::CompositionCycle,
         ),
     ] {
         let source = SourceFile::new(
@@ -71,7 +75,7 @@ fn composition_rejects_props_and_nested_calls() {
             output
                 .diagnostics
                 .iter()
-                .any(|error| error.code == expected),
+                .any(|error| error.kind == expected),
             "{:?}",
             output.diagnostics
         );
@@ -136,10 +140,13 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
     let options = CompilerOptions::default();
     for (css, expected) in [
-        ("@utility flex {display:flex;}", "@stillwind-slot"),
+        (
+            "@utility flex {display:flex;}",
+            CompileErrorKind::MissingUtilitiesSlot,
+        ),
         (
             "@utility flex {display:flex;} @stillwind-slot utilities; .broken{color:--theme(--missing);}",
-            "unresolved --theme()",
+            CompileErrorKind::UnresolvedThemeReference,
         ),
     ] {
         let theme = SourceFile::new(FileId(2), "root.css", css).unwrap();
@@ -151,17 +158,13 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
         assert!(fragment.css.contains("display:flex"));
         assert!(fragment.apply_to_source(&source).is_ok());
         let renderer = StylesheetRenderer::new(&snapshot, &options);
-        assert!(
-            renderer
-                .render_stylesheet(&fragment.css)
-                .unwrap_err()
-                .to_string()
-                .contains(expected)
+        assert_eq!(
+            renderer.render_stylesheet(&fragment.css).unwrap_err(),
+            expected
         );
         let document = renderer.render_compilation(&compiled, source.full_span());
-        assert_eq!(document.diagnostics[0].code, "SHCSS001");
+        assert_eq!(document.diagnostics[0].kind, expected);
         assert_eq!(document.diagnostics[0].labels[0].span, source.full_span());
-        assert!(document.diagnostics[0].message.contains(expected));
         assert!(document.css.is_empty());
         assert!(document.module_css.is_empty());
         assert!(document.classes.is_empty());
@@ -245,7 +248,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         scope: None,
         call_span: span,
     };
-    for input in [
+    for (input, expected) in [
         StyleInput::Class(ClassExpression::Variant {
             variant: StyleVariant::Ref {
                 handles: vec![handle.clone()],
@@ -275,7 +278,16 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
             "x".into(),
             Span::new(FileId(1), u32::MAX, u32::MAX),
         ))),
-    ] {
+    ]
+    .into_iter()
+    .zip([
+        CompileErrorKind::InvalidVariantPrefix,
+        CompileErrorKind::InvalidVariantPrefix,
+        CompileErrorKind::SourceInvalidSpan {
+            span: Span::new(FileId(1), u32::MAX, u32::MAX),
+            context: SourceFailureContext::Utility,
+        },
+    ]) {
         let mut malformed = analysis.clone();
         malformed.ir.style_calls[0].inputs = vec![input];
         let compiled =
@@ -285,7 +297,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
             compiled
                 .diagnostics
                 .iter()
-                .any(|error| matches!(error.code, "SHREF003" | "SHSPAN001"))
+                .any(|error| error.kind == expected)
         );
         assert!(compiled.css.rules.is_empty());
         assert!(compiled.code_transforms.is_empty());

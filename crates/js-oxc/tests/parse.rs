@@ -5,12 +5,29 @@
 //! the outside: which framework was selected, which spans are recorded, which
 //! exports denote assets, and which shapes are rejected.
 
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{
     AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile, Span};
+
+#[test]
+fn parser_diagnostics_keep_external_detail_as_notes() {
+    let source = SourceFile::new(FileId(1), "entry.ts", "const = ;").unwrap();
+    let parsed = parse(&source);
+    let error = parsed
+        .diagnostics
+        .iter()
+        .find(|error| error.kind == CompileErrorKind::JavaScriptParse)
+        .unwrap();
+    assert_eq!(error.kind, CompileErrorKind::JavaScriptParse);
+    assert_eq!(error.to_string(), "JavaScript parse error");
+    assert_eq!(error.labels[0].span, source.full_span());
+    assert!(!error.notes[0].is_empty());
+    assert!(parsed.lint_findings.is_empty());
+}
 
 /// IR span mapping visits every span and fails atomically.
 ///
@@ -174,7 +191,7 @@ fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
         parse(&mixed)
             .diagnostics
             .iter()
-            .any(|error| error.code == "SHJS008")
+            .any(|error| error.kind == CompileErrorKind::MixedFrameworks)
     );
 }
 
@@ -368,31 +385,46 @@ export const selected = enabled ? alias : second;"#,
 /// Spread arguments in every asset macro are reported at the spread itself.
 #[test]
 fn spread_arguments_in_asset_macros_report_diagnostics() {
-    for (body, code) in [
-        ("const x=style.scope(...args);", "SHSCOPE001"),
-        ("const x=style.ref(...args);", "SHREF001"),
-        ("const x=style.ref(...args,'x');", "SHREF001"),
+    for (body, kind) in [
+        (
+            "const x=style.scope(...args);",
+            CompileErrorKind::InvalidScopeNameArgument,
+        ),
+        (
+            "const x=style.ref(...args);",
+            CompileErrorKind::InvalidRefArgument,
+        ),
+        (
+            "const x=style.ref(...args,'x');",
+            CompileErrorKind::InvalidRefScope,
+        ),
         (
             "const s=style.scope(); const x=style.ref(s,...args);",
-            "SHREF001",
+            CompileErrorKind::InvalidRefNameArgument,
         ),
-        ("const x=style.animation(...args);", "SHANIMATION001"),
+        (
+            "const x=style.animation(...args);",
+            CompileErrorKind::InvalidAnimationDefinition,
+        ),
         (
             "const a=style.animation({from:'flex'}); const x=style(a(...args));",
-            "SHANIMATION002",
+            CompileErrorKind::InvalidAnimationOptions,
         ),
-        ("const x=style.viewTransition(...args);", "SHVIEW001"),
+        (
+            "const x=style.viewTransition(...args);",
+            CompileErrorKind::InvalidViewTransitionDefinition,
+        ),
         (
             "const r=style.ref(); const x=style(r.container(...args));",
-            "SHREF002",
+            CompileErrorKind::InvalidContainerType,
         ),
         (
             "const r=style.ref(); const x=style(r.at(...args,'flex'));",
-            "SHREF004",
+            CompileErrorKind::InvalidContainerQuery,
         ),
         (
             "const r=style.ref(); const x=style(r.at('width > 1px',...args));",
-            "SHREF004",
+            CompileErrorKind::InvalidContainerQuery,
         ),
     ] {
         let source = SourceFile::new(
@@ -405,8 +437,8 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
         let diagnostic = parsed
             .diagnostics
             .iter()
-            .find(|diagnostic| diagnostic.code == code)
-            .unwrap_or_else(|| panic!("missing {code} for {body}: {:?}", parsed.diagnostics));
+            .find(|diagnostic| diagnostic.kind == kind)
+            .unwrap_or_else(|| panic!("missing {kind:?} for {body}: {:?}", parsed.diagnostics));
         assert!(
             source
                 .slice(diagnostic.labels[0].span)

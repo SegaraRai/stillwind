@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 stillwind-css = { path = "../css" }
+stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-source = { path = "../source" }
 stillwind-syntax = { path = "../syntax" }
 cssparser.workspace = true

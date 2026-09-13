@@ -6,6 +6,7 @@
 //! stylesheet, and that unsupported forms keep reporting their existing diagnostics.
 
 use stillwind_compiler::CompileResult;
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -154,16 +155,22 @@ fn nested_conditionals_keep_source_order_after_the_base_unit() {
 
 #[test]
 fn unsupported_forms_still_report_their_existing_diagnostics() {
-    for (body, code) in [
-        ("const props = style(a || \"p-2\");", "SHJS002"),
-        ("const props = style(a ?? \"p-2\");", "SHJS002"),
+    for (body, kind) in [
+        (
+            "const props = style(a || \"p-2\");",
+            CompileErrorKind::InvalidStyleInput,
+        ),
+        (
+            "const props = style(a ?? \"p-2\");",
+            CompileErrorKind::InvalidStyleInput,
+        ),
         (
             "const props = style(`${a ? \"hover\" : \"focus\"}:p-2`);",
-            "SHJS005",
+            CompileErrorKind::InvalidUtilityTemplate,
         ),
         (
             "const props = style(\"p-4\", { \"hover:\": { \"aria-busy\": true } });",
-            "SHJS004",
+            CompileErrorKind::InvalidVariantInput,
         ),
     ] {
         let component = SourceFile::new(
@@ -177,7 +184,7 @@ fn unsupported_forms_still_report_their_existing_diagnostics() {
         let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
         let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
         assert!(
-            result.diagnostics.iter().any(|error| error.code == code),
+            result.diagnostics.iter().any(|error| error.kind == kind),
             "{body}: {:#?}",
             result.diagnostics
         );

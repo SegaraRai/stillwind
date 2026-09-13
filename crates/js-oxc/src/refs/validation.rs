@@ -6,15 +6,14 @@
 //! another module, is skipped rather than reported, since nothing here can prove a
 //! violation.
 //!
-//! Codes are stable and suppressible through `swlint-*` where the registry allows it:
-//! `SHREF003` (position without anchor), `SHREF006` (container query without
-//! container), `SHREF007` (selector without a known ancestor ref), `SHSCOPE002` (bound
-//! scope never attached), `SHSCOPE003` (scope not an ancestor) and `SHSCOPE004` (scoped
-//! selector outside its scope).
+//! Findings use the stable `require-anchor-provider`, `require-container-provider`,
+//! `valid-ref-ancestry`, `require-scope-provider`, `valid-scope-ancestry`, and
+//! `scoped-selector-in-scope` rule names. These checks produce lint findings directly;
+//! `swlint-*` suppression never applies to the compiler's fatal ref errors.
 
 use std::collections::HashSet;
 
-use stillwind_source::CompileError;
+use stillwind_diagnostics::{LintFinding, LintKind};
 
 use crate::state::MacroExtractor;
 
@@ -49,9 +48,8 @@ impl MacroExtractor<'_> {
                     .iter()
                     .filter(|handle_use| handle_use.projection == "position")
                 {
-                    self.diagnostics.push(CompileError::new(
-                        "SHREF003",
-                        format!("ref `{name}` uses position without an anchor projection"),
+                    self.lint_findings.push(LintFinding::new(
+                        LintKind::MissingAnchor { name: name.clone() },
                         handle_use.span,
                     ));
                 }
@@ -63,9 +61,8 @@ impl MacroExtractor<'_> {
                 .iter()
                 .filter(|handle_use| handle_use.projection == "container-query" && !has_container)
             {
-                self.diagnostics.push(CompileError::new(
-                    "SHREF006",
-                    format!("ref `{name}` uses a container query without a container projection"),
+                self.lint_findings.push(LintFinding::new(
+                    LintKind::MissingContainer { name: name.clone() },
                     handle_use.span,
                 ));
             }
@@ -90,9 +87,8 @@ impl MacroExtractor<'_> {
                         .iter()
                         .any(|anchor_path| is_strict_ancestor(anchor_path, path))
                 {
-                    self.diagnostics.push(CompileError::new(
-                        "SHREF007",
-                        format!("ref `{name}` selector has no known ancestor ref in this JSX tree"),
+                    self.lint_findings.push(LintFinding::new(
+                        LintKind::MissingRefAncestor { name: name.clone() },
                         handle_use.span,
                     ));
                 }
@@ -119,12 +115,11 @@ impl MacroExtractor<'_> {
                 .filter(|use_| use_.name == scope.name.value)
                 .collect::<Vec<_>>();
             if providers.is_empty() {
-                self.diagnostics.push(CompileError::new(
-                    "SHSCOPE002",
-                    format!(
-                        "ref `{}` is bound to scope `{}`, but that scope is not attached to a JSX element",
-                        definition.name.value, scope.name.value
-                    ),
+                self.lint_findings.push(LintFinding::new(
+                    LintKind::UnattachedScope {
+                        name: definition.name.value.clone(),
+                        scope: scope.name.value.clone(),
+                    },
                     definition.call_span,
                 ));
                 continue;
@@ -142,12 +137,11 @@ impl MacroExtractor<'_> {
                         .as_ref()
                         .is_some_and(|path| is_strict_ancestor(path, reference_path))
                 }) {
-                    self.diagnostics.push(CompileError::new(
-                        "SHSCOPE003",
-                        format!(
-                            "scope `{}` must be attached to an ancestor of ref `{}`",
-                            scope.name.value, definition.name.value
-                        ),
+                    self.lint_findings.push(LintFinding::new(
+                        LintKind::MissingScopeAncestor {
+                            scope: scope.name.value.clone(),
+                            name: definition.name.value.clone(),
+                        },
                         reference_use.span,
                     ));
                 }
@@ -166,12 +160,11 @@ impl MacroExtractor<'_> {
                         .as_ref()
                         .is_some_and(|path| is_strict_ancestor(path, target_path))
                 }) {
-                    self.diagnostics.push(CompileError::new(
-                        "SHSCOPE004",
-                        format!(
-                            "a selector using scoped ref `{}` must target an element inside scope `{}`",
-                            definition.name.value, scope.name.value
-                        ),
+                    self.lint_findings.push(LintFinding::new(
+                        LintKind::SelectorOutsideScope {
+                            name: definition.name.value.clone(),
+                            scope: scope.name.value.clone(),
+                        },
                         selector_use.span,
                     ));
                 }

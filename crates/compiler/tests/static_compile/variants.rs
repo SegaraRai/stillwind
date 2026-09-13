@@ -7,6 +7,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
+use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -66,7 +67,7 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
         result
             .lint_findings
             .iter()
-            .filter(|finding| finding.rule == "prefer-typed-relationships")
+            .filter(|finding| matches!(finding.kind, LintKind::PreferTypedRelationships { .. }))
             .count(),
         2
     );

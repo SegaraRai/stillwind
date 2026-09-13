@@ -13,7 +13,8 @@ use napi_derive::napi;
 use stillwind_compiler::{
     CompileResult, Compiler, CompilerOptions, ModuleCompiler, render_transforms,
 };
-use stillwind_design_system::{DesignSystemError, DesignSystemOptionsError, DesignSystemSnapshot};
+use stillwind_design_system::{DesignSystemError, DesignSystemSnapshot};
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
@@ -43,7 +44,7 @@ pub enum BindingApiError {
     DesignSystem(#[from] DesignSystemError),
     /// Compiler options were rejected.
     #[error("{0}")]
-    Options(#[from] DesignSystemOptionsError),
+    Options(#[from] CompileErrorKind),
 }
 
 impl From<BindingApiError> for Error {
@@ -84,6 +85,11 @@ pub fn compile_react_input_with_options(
     Ok(binding_output(result, &source, &theme))
 }
 
+/// Formats typed errors and lint findings into the Node transport schema.
+///
+/// `source` and `theme` must be the buffers used to produce `result`. Primary labels
+/// select the reporting buffer; codes, messages, and notes are serialized separately.
+/// Fatal diagnostics or failed source edits omit transformed code and its mappings.
 pub(super) fn binding_output(
     result: CompileResult,
     source: &SourceFile,
@@ -113,8 +119,8 @@ pub(super) fn binding_output(
             let start_position = diagnostic_source.position(span.start).ok();
             let end_position = diagnostic_source.position(span.end).ok();
             BindingDiagnostic {
-                code: diagnostic.code.to_owned(),
-                message: diagnostic.message.clone(),
+                code: diagnostic.code().to_owned(),
+                message: diagnostic.to_string(),
                 file: diagnostic_source.path().to_owned(),
                 start: span.start.0,
                 end: span.end.0,
@@ -144,8 +150,8 @@ pub(super) fn binding_output(
                 source
             };
             BindingLintFinding {
-                rule: finding.rule.to_owned(),
-                message: finding.message.clone(),
+                rule: finding.code().to_owned(),
+                message: finding.to_string(),
                 file: finding_source.path().to_owned(),
                 start: span.start.0,
                 end: span.end.0,

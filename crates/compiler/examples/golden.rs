@@ -49,7 +49,7 @@ export function SaveButton() {
     } else {
         println!("Diagnostics:");
         for diagnostic in &result.diagnostics {
-            println!("  {}: {}", diagnostic.code, diagnostic.message);
+            println!("  {}: {diagnostic}", diagnostic.code());
         }
     }
     Ok(())

@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse_with_type_facts};
 use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
@@ -32,7 +33,12 @@ fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
     assert!(analysis.semantic_revision.is_none());
     assert_eq!(analysis.integration_diagnostics.len(), 1);
     let parsed = parse_with_type_facts(&source, &facts.facts, &facts.assets);
-    assert!(parsed.diagnostics.iter().any(|d| d.code == "SHFACT001"));
+    assert!(
+        parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.kind == CompileErrorKind::InvalidSymbolicFacts)
+    );
 }
 
 /// Stale or malformed checker facts must be rejected without changing the IR.

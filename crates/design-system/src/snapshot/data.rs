@@ -14,13 +14,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use stillwind_source::{Fingerprint, SourceFile};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
+use stillwind_source::{Fingerprint, SourceFile, Span};
 
 use super::{PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry};
 use crate::{
     BuiltinDefinitions, CssFileRequest, CssSourceGraph, CssSourceName, DesignSystemLoadError,
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, DesignSystemOptionsError,
-    ThemeIndex, builtin_definitions, builtin_theme_order,
+    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_definitions,
+    builtin_theme_order,
 };
 
 /// Why a snapshot could not be produced from an already supplied buffer.
@@ -42,6 +43,53 @@ pub enum DesignSystemError {
         /// Imports that must be resolved before the buffer can be loaded.
         requests: Vec<CssFileRequest>,
     },
+}
+
+impl DesignSystemError {
+    /// Converts a snapshot failure into a source-located compilation error.
+    ///
+    /// Existing compilation errors retain their cause, labels, source name, and notes.
+    /// Other failures receive `span` as their primary label; it must be a valid location
+    /// in the caller's source. The fallback does not rebind existing labels.
+    pub fn into_compile_error(self, span: Span) -> CompileError {
+        let kind = match self {
+            DesignSystemError::UnresolvedImports { requests } => {
+                CompileErrorKind::UnresolvedCssImports {
+                    requests: format!("{requests:?}"),
+                }
+            }
+            DesignSystemError::Load(error) => match error {
+                DesignSystemLoadError::Compilation(error) => {
+                    return error;
+                }
+                DesignSystemLoadError::InvalidGraph => CompileErrorKind::InvalidCssGraph,
+                DesignSystemLoadError::Source(error) => {
+                    CompileErrorKind::source_failure(&error, SourceFailureContext::Stylesheet)
+                }
+                DesignSystemLoadError::RequestIdExhausted => {
+                    CompileErrorKind::CssRequestIdExhausted
+                }
+                DesignSystemLoadError::SourceIdExhausted => CompileErrorKind::CssSourceIdExhausted,
+                DesignSystemLoadError::AlreadyComplete => CompileErrorKind::CssLoadAlreadyComplete,
+                DesignSystemLoadError::InvalidInitialBatch { count } => {
+                    CompileErrorKind::InvalidCssInitialBatch { count }
+                }
+                DesignSystemLoadError::UnknownOrDuplicateRequest { id } => {
+                    CompileErrorKind::UnknownCssRequest { id }
+                }
+                DesignSystemLoadError::ConflictingContent { name } => {
+                    CompileErrorKind::ConflictingCssContent {
+                        name: name.0.to_string(),
+                    }
+                }
+                DesignSystemLoadError::InvalidOptions(error) => error,
+                DesignSystemLoadError::Cycle { chain } => CompileErrorKind::CssImportCycle {
+                    requests: format!("{chain:?}"),
+                },
+            },
+        };
+        CompileError::new(kind, span)
+    }
 }
 
 /// Process-local identity of one successful load.
@@ -131,7 +179,10 @@ impl DesignSystemSnapshot {
     ///
     /// # Errors
     ///
-    /// Returns invalid CSS or invalid resolved configuration.
+    /// Returns invalid CSS, unresolved imports, or invalid resolved configuration.
+    /// Compilation-error labels use the supplied source identity rather than loader-local
+    /// file IDs, and the display source name is retained. Snapshot source-graph IDs remain
+    /// loader-local; this rebinding applies only to errors returned from this entry point.
     pub fn from_source(
         source: &SourceFile,
         options: DesignSystemOptions,
@@ -141,7 +192,15 @@ impl DesignSystemSnapshot {
             CssSourceName::from(source.path()),
             source.text().into(),
         ) {
-            DesignSystemLoadStep::Complete(result) => result.map_err(DesignSystemError::Load),
+            DesignSystemLoadStep::Complete(result) => result.map_err(|mut error| {
+                // A single-buffer caller owns the source identity; loader IDs are local.
+                if let DesignSystemLoadError::Compilation(error) = &mut error {
+                    for label in &mut error.labels {
+                        label.span.file = source.id();
+                    }
+                }
+                DesignSystemError::Load(error)
+            }),
             DesignSystemLoadStep::NeedFile(request) => {
                 Err(DesignSystemError::UnresolvedImports { requests: request })
             }
@@ -166,7 +225,7 @@ impl DesignSystemSnapshot {
         theme: ThemeIndex,
         mut config: DesignSystemOptions,
         sources: CssSourceGraph,
-    ) -> Result<Self, DesignSystemOptionsError> {
+    ) -> Result<Self, CompileErrorKind> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
         if let Some(prefix) = &theme.config.prefix {
             config.prefix.clone_from(prefix);

@@ -7,25 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Rejects a prefix pair that cannot produce distinct custom properties.
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum DesignSystemOptionsError {
-    /// A prefix does not have the `--name-` shape custom properties need.
-    #[error("{option} must start with `--` and end with `-`")]
-    InvalidPrefix {
-        /// Name of the option, for example `prefix`.
-        option: &'static str,
-        /// The rejected value.
-        value: String,
-    },
-    /// Both namespaces resolve to the same prefix, so the two families of generated
-    /// properties would collide.
-    #[error("prefix and tailwindPrefix must be different")]
-    ConflictingPrefixes {
-        /// The shared prefix.
-        prefix: String,
-    },
-}
+use stillwind_diagnostics::CompileErrorKind;
 
 /// The `--sw-` and `--tw-` namespaces used by generated custom properties.
 ///
@@ -54,26 +36,28 @@ impl DesignSystemOptions {
     /// Validates that generated and Tailwind-compatible namespaces are distinct CSS prefixes.
     ///
     /// A prefix must start with `--`, end with `-`, and span at least four bytes. The
-    /// error names the offending option so a host can report which configured field was
-    /// rejected.
+    /// error preserves the offending field name and supplied value, or the common prefix
+    /// when the two namespaces collide. Validation does not modify either value.
     ///
     /// # Errors
     ///
-    /// Returns an error when a prefix is malformed or both namespaces are identical.
-    pub fn validate(&self) -> Result<(), DesignSystemOptionsError> {
+    /// Returns [`CompileErrorKind::InvalidPropertyPrefix`] for malformed prefixes, or
+    /// [`CompileErrorKind::ConflictingPropertyPrefixes`] for identical namespaces.
+    /// Shape checks do not constitute full CSS identifier validation.
+    pub fn validate(&self) -> Result<(), CompileErrorKind> {
         for (name, value) in [
             ("prefix", self.prefix.as_str()),
             ("tailwindPrefix", self.tailwind_prefix.as_str()),
         ] {
             if !value.starts_with("--") || !value.ends_with('-') || value.len() < 4 {
-                return Err(DesignSystemOptionsError::InvalidPrefix {
-                    option: name,
+                return Err(CompileErrorKind::InvalidPropertyPrefix {
+                    option: name.into(),
                     value: value.into(),
                 });
             }
         }
         if self.prefix == self.tailwind_prefix {
-            return Err(DesignSystemOptionsError::ConflictingPrefixes {
+            return Err(CompileErrorKind::ConflictingPropertyPrefixes {
                 prefix: self.prefix.clone(),
             });
         }
@@ -98,7 +82,7 @@ impl DesignSystemOptions {
 
 #[cfg(test)]
 mod tests {
-    use super::{DesignSystemOptions, DesignSystemOptionsError};
+    use super::{CompileErrorKind, DesignSystemOptions};
 
     #[test]
     fn invalid_options_identify_the_option_and_value() {
@@ -107,21 +91,29 @@ mod tests {
             ..DesignSystemOptions::default()
         };
         assert!(
-            matches!(options.validate(), Err(DesignSystemOptionsError::InvalidPrefix { option: "prefix", value }) if value == "bad")
+            matches!(options.validate(), Err(CompileErrorKind::InvalidPropertyPrefix {
+                option,
+                value,
+            }) if option == "prefix" && value == "bad")
         );
         let options = DesignSystemOptions {
             tailwind_prefix: "bad".into(),
             ..DesignSystemOptions::default()
         };
         assert!(
-            matches!(options.validate(), Err(DesignSystemOptionsError::InvalidPrefix { option: "tailwindPrefix", value }) if value == "bad")
+            matches!(options.validate(), Err(CompileErrorKind::InvalidPropertyPrefix {
+                option,
+                value,
+            }) if option == "tailwindPrefix" && value == "bad")
         );
         let options = DesignSystemOptions {
             tailwind_prefix: "--sw-".into(),
             ..DesignSystemOptions::default()
         };
         assert!(
-            matches!(options.validate(), Err(DesignSystemOptionsError::ConflictingPrefixes { prefix }) if prefix == "--sw-")
+            matches!(options.validate(), Err(CompileErrorKind::ConflictingPropertyPrefixes {
+                prefix,
+            }) if prefix == "--sw-")
         );
     }
 }

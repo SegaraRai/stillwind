@@ -5,6 +5,7 @@
 //! alternatives and media conditions survive lowering, and that an unusable ref variant reports a
 //! diagnostic instead of emitting an unscoped selector.
 
+use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -255,7 +256,7 @@ export const View = () => <><section {...style(menu)}><button {...style(trigger)
         result
             .lint_findings
             .iter()
-            .any(|finding| finding.rule == "scoped-selector-in-scope"),
+            .any(|finding| matches!(finding.kind, LintKind::SelectorOutsideScope { .. })),
         "{:?}",
         result.lint_findings
     );

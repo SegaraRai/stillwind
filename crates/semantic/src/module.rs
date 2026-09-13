@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::Fingerprint;
 
 use crate::{AssetMetadata, IdentityId, TypeFact};
@@ -97,14 +98,14 @@ impl TypeFacts {
 /// A problem the host hit while producing type facts for a module.
 ///
 /// The frontend can fall back to local analysis and record why facts were ignored.
-/// Module compilation promotes these records to `SHFACT001` errors, so they prevent
-/// publication rather than acting as non-fatal warnings.
+/// Module compilation attaches each cause to the module's source and reports it as
+/// a fatal error, so these records prevent publication rather than acting as warnings.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IntegrationDiagnostic {
-    /// Module the message is about, or `None` for a run-wide problem.
+    /// Module the failure concerns, or `None` for a run-wide problem.
     pub module_id: Option<ModuleId>,
-    /// Human-readable explanation, already formatted for display.
-    pub message: String,
+    /// Typed compilation failure reported by the fact provider.
+    pub kind: CompileErrorKind,
 }
 
 /// One round of type facts from the host: facts per module plus diagnostics.

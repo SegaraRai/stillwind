@@ -20,4 +20,4 @@ pub use config::StillwindConfig;
 pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode};
 pub use index::ThemeIndex;
 pub use namespace::{ThemeNamespace, parse_theme_namespace_types};
-pub use parser::{ThemeError, parse_theme};
+pub use parser::parse_theme;

@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 stillwind-compiler = { path = "../compiler" }
 stillwind-design-system = { path = "../design-system" }
+stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-ir = { path = "../ir" }
 stillwind-js-oxc = { path = "../js-oxc" }
 stillwind-source = { path = "../source" }

@@ -11,10 +11,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AttributeQuote, ModuleAnalysis, ProjectionRegion};
 use stillwind_source::Span;
 
-use crate::{ImportPlanError, SourceTransform, plan_macro_import_removals};
+use crate::{SourceTransform, plan_macro_import_removals};
 
 /// One exported helper of a per-framework runtime module.
 ///
@@ -138,13 +139,13 @@ impl<'a> RuntimeBindings<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`ImportPlanError`] for a missing or ambiguous realm anchor, a missing
+    /// Returns [`CompileError`] for a missing or ambiguous realm anchor, a missing
     /// module-CSS target, or metadata that cannot be sliced from the source.
     pub(crate) fn plan(
         &self,
         module: &ModuleAnalysis,
         lowered: &[SourceTransform],
-    ) -> Result<Vec<SourceTransform>, ImportPlanError> {
+    ) -> Result<Vec<SourceTransform>, CompileError> {
         let mut edits = plan_macro_import_removals(&module.source, &module.ir.imports, lowered)?;
         let mut anchors: BTreeMap<usize, BTreeSet<(RuntimeHelper, Option<u32>)>> = BTreeMap::new();
         for &(helper, at, realm_id) in &self.uses {
@@ -180,18 +181,25 @@ impl<'a> RuntimeBindings<'a> {
                 edit.replacement.push_str(&import);
             } else {
                 // A selected anchor must have contained a successfully lowered macro.
-                return Err(ImportPlanError::MissingRuntimeAnchor { span });
+                return Err(CompileError::new(
+                    CompileErrorKind::MissingRuntimeAnchor { span },
+                    span,
+                ));
             }
         }
         for &span in &module.ir.imports.module_css {
-            module.source.slice(span)?;
-            let target = module
-                .input
-                .module_css_import
-                .as_ref()
-                .ok_or(ImportPlanError::MissingModuleCssTarget { span })?;
-            let quoted = serde_json::to_string(target)
-                .map_err(|_| ImportPlanError::InvalidMetadata { span })?;
+            module.source.slice(span).map_err(|error| {
+                CompileError::new(
+                    CompileErrorKind::import_source_failure(&error),
+                    module.source.full_span(),
+                )
+            })?;
+            let target = module.input.module_css_import.as_ref().ok_or_else(|| {
+                CompileError::new(CompileErrorKind::MissingModuleCssTarget { span }, span)
+            })?;
+            let quoted = serde_json::to_string(target).map_err(|_| {
+                CompileError::new(CompileErrorKind::InvalidImportMetadata { span }, span)
+            })?;
             edits.push(SourceTransform {
                 call_span: span,
                 replacement: quoted.replace('<', "\\u003c"),
@@ -203,18 +211,32 @@ impl<'a> RuntimeBindings<'a> {
                 .imports
                 .macros
                 .first()
-                .ok_or(ImportPlanError::MissingRuntimeAnchor {
-                    span: module.source.full_span(),
+                .ok_or_else(|| {
+                    CompileError::new(
+                        CompileErrorKind::MissingRuntimeAnchor {
+                            span: module.source.full_span(),
+                        },
+                        module.source.full_span(),
+                    )
                 })?
                 .span;
             let edit = edits
                 .iter_mut()
                 .find(|edit| edit.call_span == anchor)
-                .ok_or(ImportPlanError::MissingRuntimeAnchor { span: anchor })?;
+                .ok_or_else(|| {
+                    CompileError::new(
+                        CompileErrorKind::MissingRuntimeAnchor { span: anchor },
+                        anchor,
+                    )
+                })?;
             for specifier in &module.input.stylesheet_imports {
                 edit.replacement.push_str("\nimport ");
-                let quoted = serde_json::to_string(specifier)
-                    .map_err(|_| ImportPlanError::InvalidMetadata { span: anchor })?;
+                let quoted = serde_json::to_string(specifier).map_err(|_| {
+                    CompileError::new(
+                        CompileErrorKind::InvalidImportMetadata { span: anchor },
+                        anchor,
+                    )
+                })?;
                 edit.replacement.push_str(&quoted.replace('<', "\\u003c"));
                 edit.replacement.push(';');
             }
@@ -232,31 +254,51 @@ fn contains(outer: Span, inner: Span) -> bool {
 /// The realm chain is followed outward only when a realm holds no macro import of its
 /// own. A cycle, a duplicated realm id, or a missing parent is invalid metadata: the
 /// caller gets an error instead of an arbitrary anchor.
-fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, ImportPlanError> {
+fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileError> {
     let Some(projection) = &module.input.projection else {
         return if module.ir.imports.macros.is_empty() {
-            Err(ImportPlanError::MissingRuntimeAnchor { span: at })
+            Err(CompileError::new(
+                CompileErrorKind::MissingRuntimeAnchor { span: at },
+                at,
+            ))
         } else {
             Ok(0)
         };
     };
-    let region =
-        projection_region(module, at)?.ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
-    module.source.slice(region.source)?;
+    let region = projection_region(module, at)?.ok_or_else(|| {
+        CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+    })?;
+    module.source.slice(region.source).map_err(|error| {
+        CompileError::new(
+            CompileErrorKind::import_source_failure(&error),
+            module.source.full_span(),
+        )
+    })?;
     let mut visited = BTreeSet::new();
     let mut id = region.import_realm;
     loop {
         if !visited.insert(id) {
-            return Err(ImportPlanError::InvalidMetadata { span: at });
+            return Err(CompileError::new(
+                CompileErrorKind::InvalidImportMetadata { span: at },
+                at,
+            ));
         }
         let mut realms = projection.realms.iter().filter(|realm| realm.id == id);
-        let realm = realms
-            .next()
-            .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
+        let realm = realms.next().ok_or_else(|| {
+            CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+        })?;
         if realms.next().is_some() {
-            return Err(ImportPlanError::InvalidMetadata { span: at });
+            return Err(CompileError::new(
+                CompileErrorKind::InvalidImportMetadata { span: at },
+                at,
+            ));
         }
-        module.source.slice(realm.source)?;
+        module.source.slice(realm.source).map_err(|error| {
+            CompileError::new(
+                CompileErrorKind::import_source_failure(&error),
+                module.source.full_span(),
+            )
+        })?;
         if let Some(anchor) = module
             .ir
             .imports
@@ -266,9 +308,9 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, ImportPlan
         {
             return Ok(anchor);
         }
-        id = realm
-            .parent
-            .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
+        id = realm.parent.ok_or_else(|| {
+            CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+        })?;
     }
 }
 
@@ -281,7 +323,7 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, ImportPlan
 fn projection_region(
     module: &ModuleAnalysis,
     at: Span,
-) -> Result<Option<&ProjectionRegion>, ImportPlanError> {
+) -> Result<Option<&ProjectionRegion>, CompileError> {
     let Some(projection) = &module.input.projection else {
         return Ok(None);
     };
@@ -289,11 +331,14 @@ fn projection_region(
         .regions
         .iter()
         .filter(|region| contains(region.source, at));
-    let region = regions
-        .next()
-        .ok_or(ImportPlanError::MissingRuntimeAnchor { span: at })?;
+    let region = regions.next().ok_or_else(|| {
+        CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+    })?;
     if regions.next().is_some() {
-        return Err(ImportPlanError::InvalidMetadata { span: at });
+        return Err(CompileError::new(
+            CompileErrorKind::InvalidImportMetadata { span: at },
+            at,
+        ));
     }
     Ok(Some(region))
 }
@@ -311,7 +356,7 @@ fn projection_region(
 pub(crate) fn encode_projected_edits(
     module: &ModuleAnalysis,
     edits: &mut [SourceTransform],
-) -> Result<(), ImportPlanError> {
+) -> Result<(), CompileError> {
     for edit in edits {
         let Some(region) = projection_region(module, edit.call_span)? else {
             continue;
@@ -330,9 +375,12 @@ pub(crate) fn encode_projected_edits(
             || text.get(start - 1) != Some(&(character as u8))
             || text.get(end) != Some(&(character as u8))
         {
-            return Err(ImportPlanError::InvalidMetadata {
-                span: region.source,
-            });
+            return Err(CompileError::new(
+                CompileErrorKind::InvalidImportMetadata {
+                    span: region.source,
+                },
+                region.source,
+            ));
         }
         edit.replacement = edit.replacement.replace(character, entity);
     }

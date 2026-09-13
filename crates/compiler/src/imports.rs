@@ -8,57 +8,11 @@
 //! non-macro specifiers stay verbatim, so user formatting inside the declaration
 //! survives.
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ModuleImports;
-use stillwind_source::{SourceError, SourceFile, Span};
+use stillwind_source::{SourceFile, Span};
 
 use crate::SourceTransform;
-
-/// Reasons a macro import cannot be removed.
-///
-/// Every variant carries the span a diagnostic should point at. Returning any variant
-/// means no edit is produced for that compilation at all.
-#[derive(Debug, thiserror::Error)]
-pub enum ImportPlanError {
-    /// No macro import statement exists in the import realm that needs a helper import.
-    #[error("no verified macro import anchor for runtime use at {span:?}")]
-    MissingRuntimeAnchor {
-        /// Span a diagnostic should point at.
-        span: Span,
-    },
-    /// The frontend's import metadata cannot be sliced out of the source buffer.
-    #[error("invalid macro import source span: {0}")]
-    Source(#[from] SourceError),
-    /// Specifier spans are out of order, nested wrongly, or otherwise inconsistent.
-    #[error("invalid macro import metadata at {span:?}")]
-    InvalidMetadata {
-        /// Span a diagnostic should point at.
-        span: Span,
-    },
-    /// The source names a virtual module-CSS import that the host did not allocate.
-    #[error("explicit module CSS import requires a host-allocated virtual module at {span:?}")]
-    MissingModuleCssTarget {
-        /// Span a diagnostic should point at.
-        span: Span,
-    },
-    /// A macro binding has a read that no lowering replaced.
-    #[error("macro binding `{local}` has a reference that was not transformed at {span:?}")]
-    UntransformedReference {
-        /// Name the module bound the macro to.
-        local: String,
-        /// Span of the untransformed read.
-        span: Span,
-    },
-    /// A macro binding has a read whose source correspondence could not be verified.
-    #[error(
-        "macro binding `{local}` has references without verified source correspondence at {span:?}"
-    )]
-    UnmappedReference {
-        /// Name the module bound the macro to.
-        local: String,
-        /// Span of the read whose correspondence could not be verified.
-        span: Span,
-    },
-}
 
 /// Remove macro bindings only when every resolved read was successfully replaced.
 ///
@@ -66,37 +20,57 @@ pub enum ImportPlanError {
 /// overlapping edits, and the returned spans always cover the original import statement.
 ///
 /// # Errors
+///
 /// Rejects invalid metadata, untransformed macro reads, and unverified projection
-/// references. No partial edit plan is returned on failure.
+/// references. No partial edit plan is returned on failure. Metadata and residual-read
+/// failures label the offending import or use; source-coordinate failures label the
+/// whole supplied source and retain rejected coordinates in the cause.
+#[allow(clippy::too_many_lines)] // Validate every reference before returning an atomic import edit plan.
 pub fn plan_macro_import_removals(
     source: &SourceFile,
     imports: &ModuleImports,
     lowered: &[SourceTransform],
-) -> Result<Vec<SourceTransform>, ImportPlanError> {
+) -> Result<Vec<SourceTransform>, CompileError> {
     let mut edits = Vec::new();
     for import in &imports.macros {
-        let declaration = source.slice(import.span)?;
+        let declaration = source.slice(import.span).map_err(|error| {
+            CompileError::new(
+                CompileErrorKind::import_source_failure(&error),
+                source.full_span(),
+            )
+        })?;
         let mut previous_end = import.span.start;
         let mut valid = true;
         for specifier in &import.specifiers {
-            source.slice(specifier.span)?;
+            source.slice(specifier.span).map_err(|error| {
+                CompileError::new(
+                    CompileErrorKind::import_source_failure(&error),
+                    source.full_span(),
+                )
+            })?;
             valid &= specifier.span.file == import.span.file
                 && specifier.span.start >= previous_end
                 && specifier.span.end <= import.span.end;
             previous_end = specifier.span.end;
         }
         if !valid {
-            return Err(ImportPlanError::InvalidMetadata { span: import.span });
+            return Err(CompileError::new(
+                CompileErrorKind::InvalidImportMetadata { span: import.span },
+                import.span,
+            ));
         }
         for specifier in &import.specifiers {
             if !specifier.is_macro {
                 continue;
             }
             if specifier.has_unmapped_references {
-                return Err(ImportPlanError::UnmappedReference {
-                    local: specifier.local.clone(),
-                    span: specifier.span,
-                });
+                return Err(CompileError::new(
+                    CompileErrorKind::UnmappedMacroReference {
+                        local: specifier.local.clone(),
+                        span: specifier.span,
+                    },
+                    specifier.span,
+                ));
             }
             for reference in &specifier.references {
                 if !lowered.iter().any(|edit| {
@@ -111,10 +85,13 @@ pub fn plan_macro_import_removals(
                             ))
                             .is_ok_and(callee_prefix)
                 }) {
-                    return Err(ImportPlanError::UntransformedReference {
-                        local: specifier.local.clone(),
-                        span: *reference,
-                    });
+                    return Err(CompileError::new(
+                        CompileErrorKind::UntransformedMacroReference {
+                            local: specifier.local.clone(),
+                            span: *reference,
+                        },
+                        *reference,
+                    ));
                 }
             }
         }

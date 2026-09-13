@@ -4,6 +4,7 @@
 //! identity, that named container queries emit rules for the ref's target, that scopes get readable
 //! marker names, and that a selector which cannot hold the required ancestry is rejected.
 
+use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -53,7 +54,7 @@ const panel = style(popover.position);"#,
         result
             .lint_findings
             .iter()
-            .any(|item| item.rule == "require-anchor-provider")
+            .any(|item| matches!(item.kind, LintKind::MissingAnchor { .. }))
     );
     assert!(!result.css.is_empty());
 }
@@ -173,7 +174,7 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
         result
             .lint_findings
             .iter()
-            .any(|item| item.rule == "scoped-selector-in-scope"),
+            .any(|item| matches!(item.kind, LintKind::SelectorOutsideScope { .. })),
         "{:#?}",
         result.lint_findings
     );
@@ -198,7 +199,7 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
         result
             .lint_findings
             .iter()
-            .any(|item| item.rule == "valid-scope-ancestry"),
+            .any(|item| matches!(item.kind, LintKind::MissingScopeAncestor { .. })),
         "{:#?}",
         result.lint_findings
     );

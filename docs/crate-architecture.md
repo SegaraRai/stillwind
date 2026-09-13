@@ -1,14 +1,15 @@
 # Rust crate responsibility boundaries
 
 This is the accepted crate structure for Stillwind. The Rust workspace has
-eleven crates; there are no `core`, `tailwind`, or `grammar` compatibility crates.
+twelve crates; there are no `core`, `tailwind`, or `grammar` compatibility crates.
 
 The proposed framework descriptor placement and projection/editing boundaries
 are documented in [framework projection design](framework-projection-design.md).
 
 | Crate           | Owns                                                                                                                                |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `source`        | Source buffers, spans, diagnostics, lint suppression, and content fingerprints                                                      |
+| `source`        | Source buffers, spans, coordinate conversion, projections, and content fingerprints                                                 |
+| `diagnostics`   | Typed compilation errors and lint findings, message templates, reporting codes, labels, and lint suppression                        |
 | `syntax`        | Utility expression tokenization and candidate syntax                                                                                |
 | `css`           | CSS parsing primitives, value validation, math and color handling, custom properties, resource references, and output-template data |
 | `semantic`      | Asset identities, finite values and reference constraints, module summaries, module identity, and versioned type facts              |
@@ -33,6 +34,8 @@ project -> compiler -> design-system -> css
                                      -> syntax
 
 All layers may use source.
+diagnostics -> source
+design-system, semantic, ir, js-oxc, compiler, project, napi, cli -> diagnostics
 napi and cli compose the services they need.
 ```
 
@@ -43,6 +46,33 @@ Compiler tests may use the Oxc frontend as a dev dependency.
 `vp run crates:check` validates the workspace members and allowed
 production/build dependencies using Cargo metadata. It also runs as part of
 `vp run -r check`.
+
+## Diagnostic contracts
+
+`stillwind-diagnostics` owns two independent pairs: `CompileErrorKind` wrapped by
+`CompileError`, and `LintKind` wrapped by `LintFinding`. Each kind uses `thiserror`
+for display and an exhaustive `code() -> &'static str` implementation for reporting
+identity. Different message templates have different variants. Multiple variants
+may share a code, and a typed context may select different codes for one variant.
+Lint codes are the rule names accepted by `swlint-*` directives.
+
+Wrappers retain ordered labels and notes, plus an optional source name for compilation
+error display. The first label is the primary location and controls suppression. Only lint findings can be suppressed. Detection creates
+the appropriate kind directly: reporting codes do not decide whether an issue is
+fatal. Candidate queries attach synthetic spans over the supplied candidate text.
+
+The diagnostics crate depends only on `source` within the workspace. Producers return
+shared compilation kinds directly and attach a `CompileError` once a source location
+is available. Loader protocol errors remain beside the loader;
+only protocol and external source/parser failures require boundary conversion.
+Fact-provider failures carry a typed kind through `semantic` to module compilation. Oxc's open-ended parser reports use the fixed `JavaScriptParse` summary
+and retain the external explanation in notes. CSS parser and projection validator
+details are parameters of their respective, explicitly named message templates.
+
+CLI and Node transports format kinds at the boundary and keep their existing
+`code`/`rule`, `message`, location, and `notes` fields. Rust serialization preserves
+the typed kind and wrapper metadata rather than a separately mutable message/code.
+There are no diagnostic re-exports from `source`.
 
 ## Inputs and generated artifacts
 

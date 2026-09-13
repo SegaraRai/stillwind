@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, CompletionInput, DesignSystemQuery, ModuleCompiler};
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_diagnostics::{LintKind, UtilityFailure};
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
@@ -53,6 +54,27 @@ fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     );
     assert!(query.hover_candidate("missing:brand").is_none());
     assert!(!query.diagnose_candidate("this-does-not-exist").is_empty());
+    for (candidate, classification) in [
+        ("hover:[", UtilityFailure::Invalid),
+        ("不存在", UtilityFailure::Unknown),
+    ] {
+        let findings = query.diagnose_candidate(candidate);
+        assert_eq!(findings, query.resolve_candidate(candidate).diagnostics);
+        assert_eq!(
+            findings[0].kind,
+            LintKind::UnresolvedCandidate {
+                candidate: candidate.into(),
+                classification
+            }
+        );
+        assert_eq!(
+            findings[0].to_string(),
+            format!("unresolved candidate: {candidate}")
+        );
+        assert_eq!(findings[0].labels[0].span.file, FileId(0));
+        assert_eq!(findings[0].labels[0].span.start.0, 0);
+        assert_eq!(findings[0].labels[0].span.end.0 as usize, candidate.len());
+    }
     assert!(
         query
             .complete_candidate(CompletionInput {

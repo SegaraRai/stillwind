@@ -3,7 +3,7 @@
 //! [`Compiler`] has no instances: each function takes the analyzer, sources, and options, and
 //! returns a [`CompileResult`]. A theme that cannot be read becomes a `SHCSS001` diagnostic
 //! against the theme file instead of an error, so a caller always receives a result shape it
-//! knows how to report; only the theme-reading helpers return a [`CompilerThemeError`].
+//! knows how to report; only the theme-reading helpers return a [`CompileError`].
 //!
 //! The type-fact variants exist for hosts that already ran a TypeScript checker: the facts
 //! and asset metadata are folded into a versioned [`TypeFacts`] value whose revision the
@@ -13,36 +13,27 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_design_system::{
-    DesignSystemError, DesignSystemOptions, DesignSystemSnapshot, ThemeIndex,
-};
+use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, ThemeIndex};
+use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
-use stillwind_source::{CompileError, Fingerprint, SourceFile};
+use stillwind_source::{Fingerprint, SourceFile};
 
 use super::react::declarations::render_react_types;
 use super::{CompileResult, Compiler};
-use crate::{CompilerOptions, ModuleCompiler, StylesheetError, StylesheetRenderer};
-
-/// A failure to read or render the theme file.
-#[derive(Debug, thiserror::Error)]
-pub enum CompilerThemeError {
-    /// The theme CSS could not be turned into a design system.
-    #[error("{0}")]
-    DesignSystem(#[from] DesignSystemError),
-    /// The theme CSS parsed, but a stylesheet could not be assembled around it.
-    #[error("{0}")]
-    Stylesheet(#[from] StylesheetError),
-}
+use crate::{CompilerOptions, ModuleCompiler, StylesheetRenderer};
 
 impl Compiler {
     /// Parses a theme buffer into its index, without keeping the snapshot.
     ///
     /// # Errors
-    /// Returns invalid CSS or unresolved imports.
-    pub fn read_theme(source: &SourceFile) -> Result<ThemeIndex, CompilerThemeError> {
+    ///
+    /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
+    /// Failures retain the supplied theme source identity and typed cause.
+    pub fn read_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
         Ok(
-            DesignSystemSnapshot::from_source(source, DesignSystemOptions::default())?
+            DesignSystemSnapshot::from_source(source, DesignSystemOptions::default())
+                .map_err(|error| error.into_compile_error(source.full_span()))?
                 .theme()
                 .clone(),
         )
@@ -51,22 +42,33 @@ impl Compiler {
     /// Renders the ambient type declarations for a theme buffer.
     ///
     /// # Errors
-    /// Returns invalid CSS or unresolved imports.
-    pub fn generate_react_types(source: &SourceFile) -> Result<String, CompilerThemeError> {
+    ///
+    /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
+    /// Failures retain the supplied theme source identity and typed cause.
+    pub fn generate_react_types(source: &SourceFile) -> Result<String, CompileError> {
         Ok(render_react_types(&Self::read_theme(source)?))
     }
 
     /// Renders a standalone stylesheet for a theme buffer and utility rules.
     ///
+    /// Assembly failures are located at the whole theme buffer. The input buffers are
+    /// unchanged; no partial stylesheet is returned on failure.
+    ///
     /// # Errors
-    /// Returns invalid CSS or unresolved imports.
+    ///
+    /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
+    /// Also rejects missing output slots, malformed property requirements or usage CSS,
+    /// and unresolved authored theme references.
     pub fn render_react_stylesheet(
         source: &SourceFile,
         module_css: &str,
         options: &CompilerOptions,
-    ) -> Result<String, CompilerThemeError> {
-        let snapshot = DesignSystemSnapshot::from_source(source, options.design_system())?;
-        Ok(StylesheetRenderer::new(&snapshot, options).render_stylesheet(module_css)?)
+    ) -> Result<String, CompileError> {
+        let snapshot = DesignSystemSnapshot::from_source(source, options.design_system())
+            .map_err(|error| error.into_compile_error(source.full_span()))?;
+        StylesheetRenderer::new(&snapshot, options)
+            .render_stylesheet(module_css)
+            .map_err(|kind| CompileError::new(kind, source.full_span()))
     }
 
     /// Scans, finalizes, and compiles one source with default options and no type facts.
@@ -145,11 +147,7 @@ impl Compiler {
             Ok(snapshot) => snapshot,
             Err(error) => {
                 return CompileResult {
-                    diagnostics: vec![CompileError::new(
-                        "SHCSS001",
-                        error.to_string(),
-                        theme.full_span(),
-                    )],
+                    diagnostics: vec![error.into_compile_error(theme.full_span())],
                     ..CompileResult::default()
                 };
             }

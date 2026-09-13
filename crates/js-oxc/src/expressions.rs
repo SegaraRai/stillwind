@@ -17,11 +17,11 @@ use oxc::ast::ast::{
 use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, GroupEntry, StyleInput, StyleVariant,
 };
 use stillwind_semantic::{ExportedValue, IdentityId};
-use stillwind_source::CompileError;
 
 use crate::state::MacroExtractor;
 
@@ -109,8 +109,7 @@ impl<'a> MacroExtractor<'a> {
             && self.is_style_call(call)
         {
             self.diagnostics.push(CompileError::new(
-                "SHCOMP001",
-                "nested style() calls are not supported; bind the base to a variable",
+                CompileErrorKind::NestedStyleCall,
                 self.source_span(call.span),
             ));
             return;
@@ -206,15 +205,13 @@ impl<'a> MacroExtractor<'a> {
                     match element {
                         ArrayExpressionElement::SpreadElement(spread) => {
                             self.diagnostics.push(CompileError::new(
-                                "SHJS002",
-                                "style() arrays do not support spread elements",
+                                CompileErrorKind::StyleArraySpread,
                                 self.source_span(spread.span),
                             ));
                         }
                         ArrayExpressionElement::Elision(elision) => {
                             self.diagnostics.push(CompileError::new(
-                                "SHJS002",
-                                "style() arrays cannot contain empty slots",
+                                CompileErrorKind::StyleArrayHole,
                                 self.source_span(elision.span),
                             ));
                         }
@@ -239,8 +236,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::Identifier(value) if value.name == "undefined" => None,
             Expression::Identifier(_) => {
                 self.diagnostics.push(CompileError::new(
-                    "SHTS001",
-                    "non-local or conditional handles require TypeScript checker facts",
+                    CompileErrorKind::HandleFactsRequired,
                     self.source_span(expression.span()),
                 ));
                 None
@@ -253,8 +249,7 @@ impl<'a> MacroExtractor<'a> {
                     return Some(animation.into_class_expression());
                 }
                 self.diagnostics.push(CompileError::new(
-                    "SHJS002",
-                    "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers",
+                    CompileErrorKind::InvalidStyleInput,
                     self.source_span(expression.span()),
                 ));
                 None
@@ -285,16 +280,14 @@ impl<'a> MacroExtractor<'a> {
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
                 self.diagnostics.push(CompileError::new(
-                    "SHJS003",
-                    "style() attribute objects do not support spread properties",
+                    CompileErrorKind::AttributeSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
-                    "SHJS003",
-                    "style() attributes must be plain key-value properties",
+                    CompileErrorKind::InvalidAttributeProperty,
                     self.source_span(property.span),
                 ));
                 continue;
@@ -306,8 +299,7 @@ impl<'a> MacroExtractor<'a> {
                     .and_then(|key| self.ref_variant(key))
                 else {
                     self.diagnostics.push(CompileError::new(
-                        "SHJS003",
-                        "computed style() keys must be ref variants",
+                        CompileErrorKind::InvalidComputedAttribute,
                         self.source_span(property.key.span()),
                     ));
                     continue;
@@ -328,8 +320,7 @@ impl<'a> MacroExtractor<'a> {
             }
             let PropertyKey::StringLiteral(name) = &property.key else {
                 self.diagnostics.push(CompileError::new(
-                    "SHJS003",
-                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or variant prefixes ending in `:`",
+                    CompileErrorKind::InvalidAttributeKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -346,8 +337,7 @@ impl<'a> MacroExtractor<'a> {
             }
             if !name.value.ends_with(':') || name.value == ":" {
                 self.diagnostics.push(CompileError::new(
-                    "SHJS003",
-                    "style() object keys must be `class`, quoted aria-*/data-* attributes, or variant prefixes ending in `:`",
+                    CompileErrorKind::InvalidAttributeKey,
                     name.span,
                 ));
                 continue;
@@ -378,8 +368,7 @@ impl<'a> MacroExtractor<'a> {
         }
         if !inputs.iter().all(variant_compatible) {
             self.diagnostics.push(CompileError::new(
-                "SHJS004",
-                "variant wrappers accept utility strings, animations, arrays, and nested variant wrappers",
+                CompileErrorKind::InvalidVariantInput,
                 self.source_span(value.span()),
             ));
             return None;

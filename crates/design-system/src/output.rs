@@ -15,7 +15,8 @@
 
 use cssparser::{ParseError, Parser, Token};
 
-use stillwind_css::{CssOutputError, CssOutputNode, CssOutputTemplate};
+use stillwind_css::{CssOutputNode, CssOutputTemplate};
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{FileId, Span};
 
 use crate::ThemeToken;
@@ -34,7 +35,7 @@ use crate::ThemeToken;
 pub fn parse_output_template(
     css: &str,
     tokens: &[ThemeToken],
-) -> Result<CssOutputTemplate, CssOutputError> {
+) -> Result<CssOutputTemplate, CompileErrorKind> {
     let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), false)?;
     validate_slots(&nodes, false)?;
     Ok(CssOutputTemplate {
@@ -54,7 +55,7 @@ pub fn parse_output_template(
 /// Returns a block error for unparsable or unterminated `@theme` syntax.
 pub(crate) fn theme_blocks(
     css: &str,
-) -> Result<Vec<(std::ops::Range<usize>, String)>, CssOutputError> {
+) -> Result<Vec<(std::ops::Range<usize>, String)>, CompileErrorKind> {
     let mut blocks = Vec::new();
     parse_nodes(css, 0, &[], &mut blocks, false)?;
     Ok(blocks)
@@ -81,7 +82,7 @@ fn is_definition(name: &str) -> bool {
 fn consume_block(
     parser: &mut Parser<'_>,
     base: usize,
-) -> Result<Option<(usize, usize)>, CssOutputError> {
+) -> Result<Option<(usize, usize)>, CompileErrorKind> {
     loop {
         match parser.next_including_whitespace_and_comments() {
             Ok(Token::CurlyBracketBlock) => {
@@ -91,7 +92,7 @@ fn consume_block(
                         while nested.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(())
                     })
-                    .map_err(|_| CssOutputError::Block {
+                    .map_err(|_| CompileErrorKind::InvalidCssOutputBlock {
                         offset: base + position,
                     })?;
                 return Ok(Some((position, parser.position().byte_index() - 1)));
@@ -120,7 +121,7 @@ fn parse_nodes(
     tokens: &[ThemeToken],
     theme_blocks: &mut Vec<(std::ops::Range<usize>, String)>,
     conditional: bool,
-) -> Result<Vec<CssOutputNode>, CssOutputError> {
+) -> Result<Vec<CssOutputNode>, CompileErrorKind> {
     let mut parser = Parser::new(css);
     let mut nodes = Vec::new();
     while !parser.is_exhausted() {
@@ -136,19 +137,20 @@ fn parse_nodes(
             && is_definition(name)
             && name != "stillwind-slot"
         {
-            return Err(CssOutputError::ConditionalDefinition {
+            return Err(CompileErrorKind::ConditionalDefinition {
                 offset: base + start,
-                name: name.into(),
+                directive: name.into(),
             });
         }
         let block = consume_block(&mut parser, base)?;
         let end = parser.position().byte_index();
         let origin = Some(Span::new(
             FileId(0),
-            u32::try_from(base + start).map_err(|_| CssOutputError::Block {
+            u32::try_from(base + start).map_err(|_| CompileErrorKind::InvalidCssOutputBlock {
                 offset: base + start,
             })?,
-            u32::try_from(base + end).map_err(|_| CssOutputError::Block { offset: base + end })?,
+            u32::try_from(base + end)
+                .map_err(|_| CompileErrorKind::InvalidCssOutputBlock { offset: base + end })?,
         ));
         match (name.as_deref(), block) {
             (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder {
@@ -156,7 +158,7 @@ fn parse_nodes(
                 origin,
             }),
             (Some("stillwind-slot"), Some(_)) | (Some("theme"), None) => {
-                return Err(CssOutputError::Block {
+                return Err(CompileErrorKind::InvalidCssOutputBlock {
                     offset: base + start,
                 });
             }
@@ -169,9 +171,9 @@ fn parse_nodes(
                     "properties" => CssOutputNode::Properties,
                     "property-initials" => CssOutputNode::PropertyInitials,
                     _ => {
-                        return Err(CssOutputError::Slot {
+                        return Err(CompileErrorKind::UnsupportedOutputSlot {
                             offset: base + start,
-                            name: value.into(),
+                            slot: value.into(),
                         });
                     }
                 };
@@ -238,7 +240,7 @@ fn parse_nodes(
                                 | CssOutputNode::PropertyInitials
                         )
                     }) {
-                        return Err(CssOutputError::Block {
+                        return Err(CompileErrorKind::InvalidCssOutputBlock {
                             offset: base + start,
                         });
                     }
@@ -264,8 +266,15 @@ fn parse_nodes(
     Ok(nodes)
 }
 
-/// Slot kinds define whether the contribution consists of declarations or rules.
-fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), CssOutputError> {
+/// Recursively checks that each slot emits the kind of CSS accepted by its context.
+///
+/// `declarations` means the current node list accepts declarations. Style-rule children
+/// enter declaration context; group children inherit their parent context. Nodes are not modified.
+///
+/// # Errors
+///
+/// Returns [`CompileErrorKind::InvalidOutputSlotContext`] at the first mismatched slot.
+fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), CompileErrorKind> {
     for node in nodes {
         let (name, needs_declarations) = match node {
             CssOutputNode::ThemeVariables => ("theme", true),
@@ -284,7 +293,7 @@ fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), Css
             _ => continue,
         };
         if declarations != needs_declarations {
-            return Err(CssOutputError::SlotContext { name: name.into() });
+            return Err(CompileErrorKind::InvalidOutputSlotContext { slot: name.into() });
         }
     }
     Ok(())
@@ -347,7 +356,7 @@ mod tests {
         );
         assert!(matches!(
             parse_output_template("@stillwind-slot other;", &[]),
-            Err(CssOutputError::Slot { .. })
+            Err(CompileErrorKind::UnsupportedOutputSlot { .. })
         ));
     }
 
@@ -366,7 +375,7 @@ mod tests {
         ] {
             assert!(matches!(
                 parse_output_template(css, &[]),
-                Err(CssOutputError::ConditionalDefinition { .. })
+                Err(CompileErrorKind::ConditionalDefinition { .. })
             ));
         }
     }

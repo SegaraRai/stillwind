@@ -18,12 +18,13 @@ use oxc::ast::ast::{
 };
 use oxc::ast_visit::{Visit, walk};
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{StyleCall, from_macro_import};
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, RefAlternative,
     SymbolicValue,
 };
-use stillwind_source::{CompileError, Spanned};
+use stillwind_source::Spanned;
 
 use crate::state::MacroExtractor;
 
@@ -74,8 +75,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     let adapter = spec.id;
                     if self.adapter.is_some_and(|previous| previous != adapter) {
                         self.diagnostics.push(CompileError::new(
-                            "SHJS008",
-                            "a module cannot mix framework style macros",
+                            CompileErrorKind::MixedFrameworks,
                             self.source_span(declaration.span),
                         ));
                     }
@@ -218,11 +218,8 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             .iter()
             .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
         {
-            self.diagnostics.push(CompileError::new(
-                "SHCOMP001",
-                "nested style() calls are not supported; bind the base to a variable",
-                span,
-            ));
+            self.diagnostics
+                .push(CompileError::new(CompileErrorKind::NestedStyleCall, span));
             return;
         }
 
@@ -230,8 +227,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         for argument in &call.arguments {
             if let Argument::SpreadElement(spread) = argument {
                 self.diagnostics.push(CompileError::new(
-                    "SHJS002",
-                    "style() does not support spread arguments",
+                    CompileErrorKind::StyleArgumentSpread,
                     self.source_span(spread.span),
                 ));
             } else if let Some(expression) = argument.as_expression() {

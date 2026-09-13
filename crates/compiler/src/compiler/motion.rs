@@ -11,9 +11,10 @@
 //! is usable as an animation option even though it is not a utility.
 
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition};
 use stillwind_semantic::AssetKind;
-use stillwind_source::{CompileError, SourceFile, Spanned};
+use stillwind_source::{SourceFile, Spanned};
 
 use super::CssContribution;
 use super::lexer::lex_utilities;
@@ -43,13 +44,13 @@ pub(super) fn emit_animation_definition(
             match resolve_utility(&utility.value.raw, theme) {
                 Some(utility) if utility.variants.is_empty() => utilities.push(utility),
                 Some(_) => diagnostics.push(CompileError::new(
-                    "SHANIMATION003",
-                    "animation keyframes cannot contain variants",
+                    CompileErrorKind::AnimationFrameVariants,
                     utility.span,
                 )),
                 None => diagnostics.push(CompileError::new(
-                    "SH001",
-                    format!("unknown or unavailable utility `{}`", utility.value.raw),
+                    CompileErrorKind::UnavailableUtility {
+                        utility: utility.value.raw.clone(),
+                    },
                     utility.span,
                 )),
             }
@@ -114,8 +115,9 @@ pub(super) fn resolve_motion_options(
             declaration.push_str(&resolved);
         } else {
             diagnostics.push(CompileError::new(
-                "SHANIMATION002",
-                format!("unknown animation option `{}`", option.value.raw),
+                CompileErrorKind::UnknownAnimationOption {
+                    option: option.value.raw.clone(),
+                },
                 option.span,
             ));
         }
@@ -168,7 +170,11 @@ pub(super) fn emit_view_transition_definition(
     }
 }
 
-/// Resolves a definition's utility list, rejecting variant-qualified utilities.
+/// Resolves a definition's utility list and combines the successful declarations.
+///
+/// Invalid coordinates, unresolved utilities, and variant-qualified utilities append
+/// fatal errors. Rejected tokens contribute nothing; successful tokens still append
+/// their property requirements, so callers must check diagnostics before publishing.
 pub(super) fn resolve_static_utility_list(
     input: &Spanned<String>,
     theme: &ThemeIndex,
@@ -180,13 +186,13 @@ pub(super) fn resolve_static_utility_list(
         match resolve_utility(&utility.value.raw, theme) {
             Some(utility) if utility.variants.is_empty() => utilities.push(utility),
             Some(_) => diagnostics.push(CompileError::new(
-                "SHMOTION001",
-                "motion definition utilities cannot contain variants",
+                CompileErrorKind::MotionVariants,
                 utility.span,
             )),
             None => diagnostics.push(CompileError::new(
-                "SH001",
-                format!("unknown or unavailable utility `{}`", utility.value.raw),
+                CompileErrorKind::UnavailableUtility {
+                    utility: utility.value.raw.clone(),
+                },
                 utility.span,
             )),
         }
@@ -231,14 +237,14 @@ mod tests {
 
     #[test]
     fn motion_variants_report_the_exact_source_span_through_compilation() {
-        for (definition, code) in [
+        for (definition, kind) in [
             (
                 "style.animation({ from: 'hover:opacity-0' })",
-                "SHANIMATION003",
+                CompileErrorKind::AnimationFrameVariants,
             ),
             (
                 "style.viewTransition({ old: 'hover:opacity-0' })",
-                "SHMOTION001",
+                CompileErrorKind::MotionVariants,
             ),
         ] {
             let source = SourceFile::new(
@@ -252,7 +258,7 @@ mod tests {
             let errors = result
                 .diagnostics
                 .iter()
-                .filter(|error| error.code == code)
+                .filter(|error| error.kind == kind)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
             assert_eq!(

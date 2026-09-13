@@ -30,7 +30,8 @@ use serde::Serialize;
 use stillwind_compiler::{
     CompilerOptions, GeneratedClass, ModuleCompiler, ModuleResourceReference, StylesheetRenderer,
 };
-use stillwind_design_system::{DesignSystemOptionsError, DesignSystemSnapshot};
+use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceError, SourceFile};
@@ -71,7 +72,7 @@ enum CommandError {
     },
     /// Design-system options or the loaded design system are invalid.
     #[error("{0}")]
-    Options(#[from] DesignSystemOptionsError),
+    Options(#[from] CompileErrorKind),
     /// The result could not be serialized.
     #[error("{0}")]
     Output(#[from] serde_json::Error),
@@ -171,9 +172,7 @@ fn rebase_resources(
 /// are deliberately absent, so this path exercises the frontend without a TypeScript
 /// checker.
 fn run() -> Result<(), CommandError> {
-    let command = env::args()
-        .nth(1)
-        .ok_or_else(|| CommandError::MissingCommand)?;
+    let command = env::args().nth(1).ok_or(CommandError::MissingCommand)?;
     if command != "compile" {
         return Err(CommandError::UnknownCommand { command });
     }
@@ -216,8 +215,8 @@ fn run() -> Result<(), CommandError> {
                 .first()
                 .map_or(source.full_span(), |label| label.span);
             DiagnosticOutput {
-                code: diagnostic.code.to_owned(),
-                message: diagnostic.message.clone(),
+                code: diagnostic.code().to_owned(),
+                message: diagnostic.to_string(),
                 start: span.start.0,
                 end: span.end.0,
             }
@@ -233,8 +232,8 @@ fn run() -> Result<(), CommandError> {
                 .first()
                 .map_or(source.full_span(), |label| label.span);
             LintFindingOutput {
-                rule: finding.rule.to_owned(),
-                message: finding.message.clone(),
+                rule: finding.code().to_owned(),
+                message: finding.to_string(),
                 start: span.start.0,
                 end: span.end.0,
             }

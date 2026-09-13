@@ -6,6 +6,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -159,6 +160,6 @@ export const item = style(card, image);"#,
         result
             .diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.code == "SHVIEW004")
+            .any(|diagnostic| diagnostic.kind == CompileErrorKind::MultipleViewTransitions)
     );
 }

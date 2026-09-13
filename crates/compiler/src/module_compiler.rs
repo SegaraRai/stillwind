@@ -20,11 +20,12 @@ use serde::Serialize;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, StyleDependency, StyleInput, StyleVariant,
 };
 use stillwind_semantic::{IdentityId, ModuleId};
-use stillwind_source::{CompileError, Fingerprint, LintFinding, SourceFile, Span};
+use stillwind_source::{Fingerprint, SourceFile, Span};
 
 use crate::compiler::CssContribution;
 use crate::transforms::apply_transforms;
@@ -41,14 +42,6 @@ pub struct ModuleTransformError(
     #[from]
     pub TransformError,
 );
-
-/// The emitter produced CSS that cannot be split into rules.
-#[derive(Debug, thiserror::Error)]
-#[error("invalid generated CSS block at byte {offset}")]
-pub(crate) struct CssArtifactError {
-    /// UTF-8 byte offset of the invalid block in the generated CSS buffer.
-    offset: usize,
-}
 
 /// Content identity of one generated CSS rule.
 ///
@@ -178,8 +171,10 @@ impl ModuleCssArtifact {
     ///
     /// # Errors
     ///
-    /// Returns a CSS block error with an offset relative to the offending contribution.
-    pub(crate) fn from_contributions(parts: &[CssContribution]) -> Result<Self, CssArtifactError> {
+    /// Returns the UTF-8 byte offset of an invalid block within the offending contribution.
+    /// This parser result has no reporting classification: module compilation treats it
+    /// as fatal, while candidate queries attach a lint finding.
+    pub(crate) fn from_contributions(parts: &[CssContribution]) -> Result<Self, usize> {
         let mut output = Self::default();
         for part in parts {
             let mut artifact = Self::from_css(&part.css)?;
@@ -226,7 +221,7 @@ impl ModuleCssArtifact {
     /// # Errors
     ///
     /// Returns the byte offset where an unterminated block starts.
-    pub(crate) fn from_css(css: &str) -> Result<Self, CssArtifactError> {
+    pub(crate) fn from_css(css: &str) -> Result<Self, usize> {
         let mut parser = Parser::new(css);
         let mut start = 0;
         let mut rules = Vec::new();
@@ -239,7 +234,7 @@ impl ModuleCssArtifact {
                         while nested.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(nested.position().byte_index())
                     })
-                    .map_err(|_| CssArtifactError { offset: body_start })?;
+                    .map_err(|_| body_start)?;
                 let end = parser.position().byte_index();
                 rules.push(GeneratedRule {
                     keyframes: false,
@@ -575,20 +570,18 @@ impl ModuleCompiler {
     pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
         let result = self.compile_support_closure(module);
         let mut diagnostics = result.diagnostics;
-        diagnostics.extend(module.integration_diagnostics.iter().map(|error| {
-            CompileError::new(
-                "SHFACT001",
-                error.message.clone(),
-                module.source.full_span(),
-            )
-        }));
+        diagnostics.extend(
+            module
+                .integration_diagnostics
+                .iter()
+                .map(|error| CompileError::new(error.kind.clone(), module.source.full_span())),
+        );
         let css = if diagnostics.is_empty() {
             match ModuleCssArtifact::from_contributions(&result.contributions) {
                 Ok(css) => css,
                 Err(error) => {
                     diagnostics.push(CompileError::new(
-                        "SHCSS001",
-                        error.to_string(),
+                        CompileErrorKind::InvalidGeneratedCss { offset: error },
                         module.source.full_span(),
                     ));
                     ModuleCssArtifact::default()

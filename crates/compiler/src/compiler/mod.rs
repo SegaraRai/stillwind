@@ -32,11 +32,9 @@ mod variants;
 /// returns a result.
 pub struct Compiler;
 
-pub use api::CompilerThemeError;
 pub use output::CompileResult;
 pub use output::CssContribution;
 pub use props::{GeneratedClass, GuardStep};
-pub use stylesheet::render::StylesheetError;
 pub use symbols::GeneratedSymbol;
 
 pub(crate) use react::declarations::render_react_types;
@@ -44,7 +42,7 @@ pub(crate) use stylesheet::render::{render_module_stylesheet, render_stylesheet}
 pub(crate) use stylesheet::template::render_mapped;
 pub(crate) use symbols::class_name;
 pub(crate) use utilities::emission::emit_utility_rules;
-pub(crate) use utilities::resolve::{resolve_utility_targets, unresolved_utility_rule};
+pub(crate) use utilities::resolve::{resolve_utility_targets, unresolved_utility_kind};
 
 #[cfg(test)]
 mod tests;

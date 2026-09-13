@@ -13,9 +13,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_compiler::{
-    ModuleArtifactKey, ModuleCompiler, ModuleResourceReference, StylesheetError, StylesheetMapping,
+    ModuleArtifactKey, ModuleCompiler, ModuleResourceReference, StylesheetMapping,
     StylesheetPlacement, StylesheetRenderer,
 };
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_semantic::ModuleId;
 use stillwind_source::{Fingerprint, Span};
 
@@ -39,7 +40,7 @@ pub enum StylesheetPlanError {
     FailedDesignSystemLoad,
     /// Rendering the selected CSS failed.
     #[error("{0}")]
-    Stylesheet(#[from] StylesheetError),
+    Stylesheet(#[from] CompileErrorKind),
 }
 
 /// How much the host knows about the selected producer set.

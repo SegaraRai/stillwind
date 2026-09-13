@@ -14,8 +14,9 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::StyleDependency;
-use stillwind_source::{CompileError, LintFinding, SourceFile};
+use stillwind_source::SourceFile;
 
 use super::props::GeneratedClass;
 use super::symbols::GeneratedSymbol;

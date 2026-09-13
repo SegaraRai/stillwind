@@ -25,12 +25,12 @@ use stillwind_design_system::{
     CssSourceGraph, ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_omit_token_prefixes,
     builtin_property_definitions,
 };
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::authored_directives::expand_authored_directives;
 use super::keyframes::extract_authored_keyframes;
 use super::properties::{PropertyOutput, render_used_properties};
-use super::render::StylesheetError;
 use crate::{CompilerOptions, MappedStylesheet};
 
 /// Assembles raw CSS against `template` and returns the document or carrier text.
@@ -49,7 +49,7 @@ pub(super) fn render(
     utility_css: &str,
     options: &CompilerOptions,
     document: bool,
-) -> Result<String, StylesheetError> {
+) -> Result<String, CompileErrorKind> {
     render_mapped(
         template,
         theme,
@@ -76,7 +76,7 @@ pub(super) fn render(
 ///
 /// # Errors
 ///
-/// Returns [`StylesheetError`] for malformed or unknown registration requirements,
+/// Returns [`CompileErrorKind`] for malformed or unknown registration requirements,
 /// unresolved authored theme references, invalid property-usage syntax, or a missing
 /// destination for a nonempty generated contribution.
 #[allow(clippy::too_many_lines)]
@@ -87,7 +87,7 @@ pub(crate) fn render_mapped(
     options: &CompilerOptions,
     document: bool,
     sources: Option<&CssSourceGraph>,
-) -> Result<MappedStylesheet, StylesheetError> {
+) -> Result<MappedStylesheet, CompileErrorKind> {
     let mut explicit = utility_css.required_properties.clone();
     let authored = if document {
         render_authored(theme.custom_css(), theme, &mut explicit)?
@@ -104,7 +104,7 @@ pub(crate) fn render_mapped(
             property.name == *name || options.rewrite_generated(&property.name) == *name
         })
     }) {
-        return Err(StylesheetError::InvalidPropertyRequirement);
+        return Err(CompileErrorKind::InvalidPropertyRequirement);
     }
     let required =
         theme.tokens_required_by_with_omit_rules(&used, false, builtin_omit_token_prefixes(theme));
@@ -154,18 +154,29 @@ pub(crate) fn render_mapped(
             used.push_str(&extract_authored_keyframes(keyframes, &animations));
         }
     }
-    let mut property_usage = custom_property_usage(&used)?;
-    property_usage.add_declarations(&declarations)?;
+    let mut property_usage =
+        custom_property_usage(&used).map_err(|error| CompileErrorKind::PropertyUsage {
+            detail: error.0.to_string(),
+        })?;
+    property_usage
+        .add_declarations(&declarations)
+        .map_err(|error| CompileErrorKind::PropertyUsage {
+            detail: error.0.to_string(),
+        })?;
     let properties = render_used_properties(theme, &property_usage, options, &explicit);
     if !properties.registrations.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::Properties)
     {
-        return Err(StylesheetError::MissingPropertySlot("properties"));
+        return Err(CompileErrorKind::MissingPropertySlot {
+            slot: "properties".into(),
+        });
     }
     if !properties.initials.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::PropertyInitials)
     {
-        return Err(StylesheetError::MissingPropertySlot("property-initials"));
+        return Err(CompileErrorKind::MissingPropertySlot {
+            slot: "property-initials".into(),
+        });
     }
     let mut context = Context {
         theme,
@@ -211,12 +222,12 @@ pub(crate) fn render_mapped(
         ),
     ] {
         if needed && !has_slot(&template.nodes, &slot) {
-            return Err(StylesheetError::MissingPropertySlot(name));
+            return Err(CompileErrorKind::MissingPropertySlot { slot: name.into() });
         }
     }
     let css = context.nodes(&template.nodes)?;
     if !utility_css.css.is_empty() && context.slots == 0 {
-        return Err(StylesheetError::MissingUtilitiesSlot);
+        return Err(CompileErrorKind::MissingUtilitiesSlot);
     }
     Ok(css)
 }
@@ -319,7 +330,7 @@ impl Context<'_> {
     ///
     /// Returns an error if an included authored node has an invalid registration
     /// directive or an unresolved theme reference.
-    fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, StylesheetError> {
+    fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, CompileErrorKind> {
         self.nodes_in_context(nodes, false)
     }
 
@@ -336,7 +347,7 @@ impl Context<'_> {
         &mut self,
         nodes: &[CssOutputNode],
         declarations: bool,
-    ) -> Result<MappedStylesheet, StylesheetError> {
+    ) -> Result<MappedStylesheet, CompileErrorKind> {
         let mut output = MappedStylesheet::default();
         for node in nodes {
             match node {
@@ -465,9 +476,9 @@ fn render_authored(
     css: &str,
     theme: &ThemeIndex,
     required_properties: &mut Vec<String>,
-) -> Result<String, StylesheetError> {
+) -> Result<String, CompileErrorKind> {
     let (css, requirements) =
-        take_property_requirements(css).ok_or(StylesheetError::InvalidPropertyRequirement)?;
+        take_property_requirements(css).ok_or(CompileErrorKind::InvalidPropertyRequirement)?;
     required_properties.extend(requirements);
     theme
         .resolve_theme_references(&expand_authored_directives(
@@ -475,7 +486,7 @@ fn render_authored(
             theme,
             required_properties,
         ))
-        .ok_or(StylesheetError::UnresolvedThemeReference)
+        .ok_or(CompileErrorKind::UnresolvedThemeReference)
 }
 
 #[cfg(test)]
@@ -709,7 +720,7 @@ mod tests {
                 &CompilerOptions::default(),
                 true
             ),
-            Err(StylesheetError::MissingPropertySlot("properties"))
+            Err(CompileErrorKind::MissingPropertySlot { slot }) if slot == "properties"
         ));
     }
 
@@ -730,7 +741,7 @@ mod tests {
                 &CompilerOptions::default(),
                 true
             ),
-            Err(StylesheetError::MissingUtilitiesSlot)
+            Err(CompileErrorKind::MissingUtilitiesSlot)
         ));
         assert!(theme.registry.utilities.is_empty());
         assert!(theme.tokens.is_empty());

@@ -11,13 +11,12 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use stillwind_diagnostics::{CompileError, LintDirective, LintFinding};
 use stillwind_semantic::{
     AssetKind, IdentityId, IntegrationDiagnostic, ModuleId, ModuleSummary, TypeFacts,
     TypeFactsUpdate,
 };
-use stillwind_source::{
-    CompileError, Fingerprint, LintDirective, LintFinding, SourceFile, SourceProvenance, Span,
-};
+use stillwind_source::{Fingerprint, SourceFile, SourceProvenance, Span};
 
 use crate::{ModuleIr, SourceInput, validate_composition};
 

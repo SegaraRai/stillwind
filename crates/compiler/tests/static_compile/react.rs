@@ -5,6 +5,7 @@
 //! residual macro reference fails the whole compilation, and diagnostics, lint directives,
 //! conditional branches, and explicit `class` entries behave as documented.
 
+use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 
 use super::*;
@@ -51,10 +52,10 @@ fn residual_macro_references_fail_the_entire_compilation() {
         .unwrap();
         let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
         assert!(
-            result
-                .diagnostics
-                .iter()
-                .any(|error| error.code == "SHIMPORT001"),
+            result.diagnostics.iter().any(|error| matches!(
+                error.kind,
+                CompileErrorKind::UntransformedMacroReference { .. }
+            )),
             "{:?}",
             result.diagnostics
         );
@@ -68,10 +69,10 @@ fn residual_macro_references_fail_the_entire_compilation() {
     ).unwrap();
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert!(
-        result
-            .diagnostics
-            .iter()
-            .any(|error| error.code == "SHIMPORT001"),
+        result.diagnostics.iter().any(|error| matches!(
+            error.kind,
+            CompileErrorKind::UntransformedMacroReference { .. }
+        )),
         "{:?}",
         result.diagnostics
     );
@@ -134,7 +135,13 @@ const props = style("bg-accnet");"#,
         .first()
         .expect("an unknown utility finding");
 
-    assert_eq!(finding.rule, "unknown-utility");
+    assert!(matches!(
+        finding.kind,
+        LintKind::UnresolvedUtility {
+            classification: UtilityFailure::Unknown,
+            ..
+        }
+    ));
     assert_eq!(
         component.slice(finding.labels[0].span).unwrap(),
         "bg-accnet"
@@ -157,7 +164,13 @@ const props = style("bg-[color:red");"#,
         crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
 
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
-    assert_eq!(result.lint_findings[0].rule, "invalid-utility");
+    assert!(matches!(
+        result.lint_findings[0].kind,
+        LintKind::UnresolvedUtility {
+            classification: UtilityFailure::Invalid,
+            ..
+        }
+    ));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("bg-[color:red"));
 }
@@ -181,7 +194,13 @@ const fourth = style("m-accnet");"#,
 
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert_eq!(result.lint_findings.len(), 1);
-    assert_eq!(result.lint_findings[0].rule, "unknown-utility");
+    assert!(matches!(
+        result.lint_findings[0].kind,
+        LintKind::UnresolvedUtility {
+            classification: UtilityFailure::Unknown,
+            ..
+        }
+    ));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("bg-accnet"));
     assert!(transformed.contains("text-accnet"));
@@ -376,7 +395,10 @@ const props = style({ "legacy-loading": loading });"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(
-        result.diagnostics.iter().any(|item| item.code == "SHJS003"),
+        result
+            .diagnostics
+            .iter()
+            .any(|item| item.kind == CompileErrorKind::InvalidAttributeKey),
         "{:#?}",
         result.diagnostics
     );

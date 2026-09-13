@@ -14,12 +14,13 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     CompiledModule, CompilerOptions, GeneratedRule, MappedStylesheet, ModuleCompiler,
-    ModuleCssArtifact, RuleKey, StylesheetError, StylesheetRenderer,
+    ModuleCssArtifact, RuleKey, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
-use stillwind_source::{CompileError, SourceFile, Span};
+use stillwind_source::{SourceFile, Span};
 
 use crate::DependencyIndex;
 
@@ -38,7 +39,7 @@ pub enum SessionReloadError {
     Stylesheet(
         /// Failure rendering the project stylesheet for the reload.
         #[from]
-        StylesheetError,
+        CompileErrorKind,
     ),
 }
 
@@ -123,7 +124,7 @@ impl ProjectStylesheet {
     /// # Errors
     ///
     /// Returns an error if a contribution refers to a missing rule.
-    pub fn module_css(&self) -> Result<String, StylesheetError> {
+    pub fn module_css(&self) -> Result<String, CompileErrorKind> {
         let mapped = self.module_css_with_origins(|_, _| None)?;
         Ok(mapped
             .keyframes
@@ -139,16 +140,20 @@ impl ProjectStylesheet {
     /// The callback receives the producing module and the rule and returns the original
     /// file and span to attribute it to. Returning `None` leaves the rule unmapped; a
     /// rule is never attributed to a location that belongs to a different file.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CompileErrorKind::MissingRule`] when a retained contribution has no rule.
     pub(crate) fn module_css_with_origins(
         &self,
         mut origin: impl FnMut(&ModuleId, &GeneratedRule) -> Option<(Arc<SourceFile>, Span)>,
-    ) -> Result<MappedStylesheet, StylesheetError> {
+    ) -> Result<MappedStylesheet, CompileErrorKind> {
         let mut emitted = BTreeSet::new();
         let mut css = MappedStylesheet::default();
         for (module, keys) in &self.contributions {
             for key in keys {
                 if emitted.insert(key) {
-                    let entry = self.rules.get(key).ok_or(StylesheetError::MissingRule)?;
+                    let entry = self.rules.get(key).ok_or(CompileErrorKind::MissingRule)?;
                     entry.rule.append_to(&mut css, origin(module, &entry.rule));
                 }
             }
@@ -166,7 +171,7 @@ impl ProjectStylesheet {
         &self,
         snapshot: &DesignSystemSnapshot,
         options: &CompilerOptions,
-    ) -> Result<String, StylesheetError> {
+    ) -> Result<String, CompileErrorKind> {
         StylesheetRenderer::new(snapshot, options)
             .render_mapped_stylesheet(
                 &self.module_css_with_origins(|_, _| None)?,
@@ -289,7 +294,7 @@ impl ProjectSession {
     /// # Errors
     ///
     /// Returns an error if stylesheet serialization fails.
-    pub fn css(&self) -> Result<String, StylesheetError> {
+    pub fn css(&self) -> Result<String, CompileErrorKind> {
         self.stylesheet.serialize(&self.current, &self.options)
     }
 
@@ -334,8 +339,9 @@ impl ProjectSession {
                 .is_some_and(|identity| identity != symbol.identity)
             {
                 compiled.diagnostics.push(CompileError::new(
-                    "SHSYMBOL001",
-                    format!("generated identifier collision: {}", symbol.name),
+                    CompileErrorKind::GeneratedIdentifierCollision {
+                        name: symbol.name.clone(),
+                    },
                     analysis.source.full_span(),
                 ));
             }
@@ -492,7 +498,7 @@ mod tests {
             .insert("x".into(), vec![RuleKey(Fingerprint::of("missing"))]);
         assert!(matches!(
             stylesheet.module_css(),
-            Err(StylesheetError::MissingRule)
+            Err(CompileErrorKind::MissingRule)
         ));
     }
 
@@ -568,7 +574,7 @@ mod tests {
         assert!(
             update.diagnostics["motion.tsx"]
                 .iter()
-                .any(|error| error.code == "SH001")
+                .any(|error| matches!(error.kind, CompileErrorKind::UnavailableUtility { .. }))
         );
         assert!(!update.css_changed);
         assert!(update.transformed_modules.is_empty());

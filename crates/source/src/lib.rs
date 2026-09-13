@@ -1,4 +1,4 @@
-//! Source buffers, spans, line indexes, diagnostics, and lint suppression.
+//! Source buffers, spans, line indexes, projections, and content fingerprints.
 //!
 //! Two coordinate systems are kept apart. Rust passes address text in UTF-8 bytes
 //! ([`BytePos`], [`Span`]); hosts and source maps address it in UTF-16 code units
@@ -7,8 +7,11 @@
 //!
 //! [`SourceFile`] owns immutable text and validates every slice, so a [`Span`] is
 //! meaningless outside the file that produced it. [`Fingerprint`] provides
-//! process-independent content identity, and the lint module owns the `swlint-*`
-//! suppression rules shared by all passes. The crate performs no I/O.
+//! process-independent content identity. The crate performs no I/O.
+//!
+//! [`text`] owns source buffers and spans; [`coordinates`] converts host coordinates;
+//! [`projection`] validates generated-to-original correspondence; [`fingerprint`] provides
+//! content and normalized module identities. Diagnostic reporting belongs to consumers.
 
 #![cfg_attr(
     not(test),
@@ -23,16 +26,12 @@
 )]
 
 mod coordinates;
-mod diagnostics;
 mod fingerprint;
-mod lint;
 mod projection;
 mod text;
 
 pub use coordinates::{CoordinateError, CoordinateIndex, Utf16Offset};
-pub use diagnostics::{CompileError, Label, LintFinding};
 pub use fingerprint::Fingerprint;
-pub use lint::{LintDirective, LintDirectiveKind, collect_lint_directives, filter_lint_findings};
 pub use projection::{
     ProjectionError, ProjectionIndex, ProjectionMap, SourceProvenance, VolarMapping,
 };

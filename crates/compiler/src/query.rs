@@ -13,20 +13,14 @@ use stillwind_design_system::{
     DesignSystemRevision, DesignSystemSnapshot, ThemeNamespace, ThemeTokenKind,
     builtin_property_definitions, builtin_utility_token_prefixes, resolve_variant,
 };
-use stillwind_source::{FileId, LintFinding, Span};
+use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_source::{FileId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
 use crate::compiler::{
-    class_name, emit_utility_rules, resolve_utility_targets, unresolved_utility_rule,
+    class_name, emit_utility_rules, resolve_utility_targets, unresolved_utility_kind,
 };
 use crate::{CompilerOptions, GeneratedRule, ModuleCssArtifact};
-
-/// One reason a candidate did not resolve; the message is already user-facing.
-#[derive(Clone, Debug)]
-pub struct CandidateDiagnostic {
-    /// Text to show the user; already formatted for display.
-    pub message: String,
-}
 
 /// Everything one candidate produces for an editor.
 ///
@@ -45,8 +39,9 @@ pub struct CandidateResolution {
     pub required_properties: Vec<String>,
     /// Theme tokens the rendered CSS references.
     pub referenced_tokens: Vec<String>,
-    /// Reasons the candidate did not resolve.
-    pub diagnostics: Vec<CandidateDiagnostic>,
+    /// Resolution or generated-CSS failures in synthetic file 0. The primary range is
+    /// `0..min(candidate.len(), u32::MAX)` in UTF-8 bytes, not a host document location.
+    pub diagnostics: Vec<LintFinding>,
 }
 
 /// A partially typed candidate, as spelled in the editor.
@@ -107,8 +102,14 @@ impl DesignSystemQuery {
     /// candidate text alone, so the declarations a caller sees are the declarations the
     /// candidate would contribute, independent of any module. A candidate whose
     /// variants do not all resolve is reported as unresolved rather than previewed
-    /// partially.
+    /// partially. Failures are typed lint findings over synthetic file 0; hosts must map
+    /// their labels to the editor buffer before reporting or applying source suppression.
     pub fn resolve_candidate(&self, candidate: &str) -> CandidateResolution {
+        let span = Span::new(
+            FileId(0),
+            0,
+            u32::try_from(candidate.len()).unwrap_or(u32::MAX),
+        );
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
         let targets = resolve_utility_targets(candidate, theme).filter(|_| {
@@ -129,9 +130,13 @@ impl DesignSystemQuery {
             );
             Vec::new()
         } else {
-            vec![CandidateDiagnostic {
-                message: format!("unresolved candidate: {candidate}"),
-            }]
+            vec![LintFinding::new(
+                LintKind::UnresolvedCandidate {
+                    candidate: candidate.to_owned(),
+                    classification: unresolved_utility_kind(candidate),
+                },
+                span,
+            )]
         };
         let css: String = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = theme
@@ -160,10 +165,14 @@ impl DesignSystemQuery {
         }
         let generated_rules = match ModuleCssArtifact::from_contributions(&contributions) {
             Ok(artifact) => artifact.rules,
-            Err(error) => {
-                diagnostics.push(CandidateDiagnostic {
-                    message: error.to_string(),
-                });
+            Err(offset) => {
+                diagnostics.push(LintFinding::new(
+                    LintKind::InvalidCandidateCss {
+                        offset,
+                        classification: unresolved_utility_kind(candidate),
+                    },
+                    span,
+                ));
                 Vec::new()
             }
         };
@@ -264,26 +273,12 @@ impl DesignSystemQuery {
         })
     }
 
-    /// Lint findings for a candidate that does not resolve.
+    /// Returns the resolution and generated-CSS findings from [`Self::resolve_candidate`].
     ///
     /// The finding carries a synthetic span over the candidate text, because a query
-    /// has no source buffer to point into.
+    /// has no source buffer to point into. A successful preview returns an empty list.
     pub fn diagnose_candidate(&self, candidate: &str) -> Vec<LintFinding> {
-        self.resolve_candidate(candidate)
-            .diagnostics
-            .into_iter()
-            .map(|diagnostic| {
-                LintFinding::new(
-                    unresolved_utility_rule(candidate),
-                    diagnostic.message,
-                    Span::new(
-                        FileId(0),
-                        0,
-                        u32::try_from(candidate.len()).unwrap_or(u32::MAX),
-                    ),
-                )
-            })
-            .collect()
+        self.resolve_candidate(candidate).diagnostics
     }
 }
 

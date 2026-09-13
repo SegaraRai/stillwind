@@ -12,10 +12,11 @@
 use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression};
 use oxc::span::GetSpan;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
     ClassExpression, HandleDefinition, HandleProjection, ScopeDefinition, StyleInput,
 };
-use stillwind_source::{CompileError, Span};
+use stillwind_source::Span;
 
 use crate::state::MacroExtractor;
 
@@ -77,16 +78,14 @@ impl<'a> MacroExtractor<'a> {
                 }
                 let Some(argument) = call.arguments.first() else {
                     self.diagnostics.push(CompileError::new(
-                        "SHREF002",
-                        "ref.container() requires a literal container type",
+                        CompileErrorKind::InvalidContainerType,
                         self.source_span(call.span),
                     ));
                     return None;
                 };
                 let Some(Expression::StringLiteral(value)) = argument.as_expression() else {
                     self.diagnostics.push(CompileError::new(
-                        "SHREF002",
-                        "ref.container() requires a literal container type",
+                        CompileErrorKind::InvalidContainerType,
                         self.source_span(argument.span()),
                     ));
                     return None;
@@ -100,8 +99,7 @@ impl<'a> MacroExtractor<'a> {
         };
         let Some(handles) = self.handle_references(handle_expression) else {
             self.diagnostics.push(CompileError::new(
-                "SHTS001",
-                "non-local or conditional ref projections require TypeScript checker facts",
+                CompileErrorKind::RefProjectionFactsRequired,
                 self.source_span(expression.span()),
             ));
             return None;
@@ -142,16 +140,14 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<StyleInput> {
         if call.arguments.len() != 2 {
             self.diagnostics.push(CompileError::new(
-                "SHREF004",
-                "ref.at() requires a literal query and a literal utility string",
+                CompileErrorKind::InvalidContainerQuery,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(handle) = self.handle_reference(&member.object) else {
             self.diagnostics.push(CompileError::new(
-                "SHREF001",
-                "ref projections must use an identity returned by style.ref()",
+                CompileErrorKind::InvalidRefProjection,
                 self.source_span(call.span),
             ));
             return None;
@@ -161,8 +157,7 @@ impl<'a> MacroExtractor<'a> {
             call.arguments[1].as_expression(),
         ) else {
             self.diagnostics.push(CompileError::new(
-                "SHREF004",
-                "ref.at() requires a literal query and a literal utility string",
+                CompileErrorKind::InvalidContainerQuery,
                 self.source_span(call.span),
             ));
             return None;

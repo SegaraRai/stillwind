@@ -38,18 +38,16 @@ mod stylesheet_map;
 mod transforms;
 
 pub use compiler::{
-    CompileResult, Compiler, CompilerThemeError, CssContribution, GeneratedClass, GeneratedSymbol,
-    GuardStep, StylesheetError,
+    CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
-pub use imports::{ImportPlanError, plan_macro_import_removals};
+pub use imports::plan_macro_import_removals;
 pub use module_compiler::{
     CompilationDependencies, CompiledModule, GeneratedRule, ModuleArtifactKey, ModuleCompiler,
     ModuleCssArtifact, ModuleResourceReference, ModuleTransformError, RuleKey,
 };
 pub use options::CompilerOptions;
 pub use query::{
-    CandidateDiagnostic, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
-    DesignSystemQuery,
+    CandidateHover, CandidateResolution, CompletionInput, CompletionItem, DesignSystemQuery,
 };
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
 pub use stylesheet_map::{MappedStylesheet, StylesheetMapping};

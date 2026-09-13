@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use stillwind_compiler::{CompileResult, Compiler};
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_diagnostics::{LintKind, UtilityFailure};
 use stillwind_ir::{ClassExpression, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
@@ -43,10 +44,13 @@ fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
             ),
         );
         assert!(
-            result
-                .lint_findings
-                .iter()
-                .any(|finding| finding.rule == "unknown-utility"),
+            result.lint_findings.iter().any(|finding| matches!(
+                finding.kind,
+                LintKind::UnresolvedUtility {
+                    classification: UtilityFailure::Unknown,
+                    ..
+                }
+            )),
             "{result:#?}"
         );
         assert!(result.css.is_empty());

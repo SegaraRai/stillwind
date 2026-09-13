@@ -8,6 +8,7 @@ use stillwind_css::relative_css_urls;
 use stillwind_design_system::{
     DesignSystemOptions, DesignSystemSnapshot, parse_theme, resolve_utility,
 };
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::{ModuleId, TypeFacts};
@@ -177,7 +178,12 @@ fn unusable_checker_facts_become_a_compilation_error() {
         CompilerOptions::default(),
     )
     .compile(&analysis);
-    assert!(compiled.diagnostics.iter().any(|d| d.code == "SHFACT001"));
+    assert!(
+        compiled
+            .diagnostics
+            .iter()
+            .any(|d| d.kind == CompileErrorKind::InvalidTypeScriptFacts)
+    );
     assert!(compiled.css.rules.is_empty());
     assert!(compiled.code_transforms.is_empty());
 }

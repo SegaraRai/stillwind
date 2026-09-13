@@ -18,8 +18,9 @@ use std::fmt::Write as _;
 
 use stillwind_css::instantiate_selector;
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::StyleVariant;
-use stillwind_source::{CompileError, Spanned};
+use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::handles::{handle_marker_class, scope_marker_class};
@@ -70,8 +71,7 @@ impl StyleVariantPlan {
             };
             let Some(variants) = parse_prefix(prefix) else {
                 diagnostics.push(CompileError::new(
-                    "SHREF003",
-                    "invalid variant prefix",
+                    CompileErrorKind::InvalidVariantPrefix,
                     prefix.span,
                 ));
                 return None;
@@ -82,8 +82,7 @@ impl StyleVariantPlan {
                 .collect::<Option<Vec<_>>>()
             else {
                 diagnostics.push(CompileError::new(
-                    "SHREF003",
-                    "unknown or unavailable variant prefix",
+                    CompileErrorKind::UnavailableVariantPrefix,
                     prefix.span,
                 ));
                 return None;
@@ -100,8 +99,7 @@ impl StyleVariantPlan {
                 StyleVariant::Ref { handles, .. } => {
                     if handles.is_empty() {
                         diagnostics.push(CompileError::new(
-                            "SHREF003",
-                            "ref variant has no known ref identity",
+                            CompileErrorKind::UnidentifiedRef,
                             prefix.span,
                         ));
                         return None;

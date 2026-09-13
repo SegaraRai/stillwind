@@ -4,6 +4,7 @@
 //! multiple `@theme` overrides and namespace removal, and that framework imports gate the baseline
 //! layers.
 
+use stillwind_diagnostics::{LintKind, UtilityFailure};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -115,7 +116,13 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
         result
             .lint_findings
             .iter()
-            .filter(|finding| finding.rule == "unknown-utility")
+            .filter(|finding| matches!(
+                finding.kind,
+                LintKind::UnresolvedUtility {
+                    classification: UtilityFailure::Unknown,
+                    ..
+                }
+            ))
             .count(),
         6
     );
@@ -144,7 +151,13 @@ fn framework_imports_gate_baseline_layers() {
         individual_without_builtins
             .lint_findings
             .iter()
-            .any(|finding| finding.rule == "unknown-utility")
+            .any(|finding| matches!(
+                finding.kind,
+                LintKind::UnresolvedUtility {
+                    classification: UtilityFailure::Unknown,
+                    ..
+                }
+            ))
     );
 
     let utilities_only = compiler(

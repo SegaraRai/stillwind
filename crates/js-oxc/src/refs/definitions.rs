@@ -12,8 +12,9 @@
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
+use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{HandleDefinition, ScopeDefinition, StyleInput, StyleVariant};
-use stillwind_source::{CompileError, Span, Spanned, normalized_module_path};
+use stillwind_source::{Span, Spanned, normalized_module_path};
 
 use crate::state::MacroExtractor;
 
@@ -34,8 +35,7 @@ impl<'a> MacroExtractor<'a> {
                     Some(self.string_literal(label))
                 } else {
                     self.diagnostics.push(CompileError::new(
-                        "SHSCOPE001",
-                        "style.scope() accepts an optional literal name",
+                        CompileErrorKind::InvalidScopeNameArgument,
                         self.source_span(argument.span()),
                     ));
                     return None;
@@ -43,8 +43,7 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    "SHSCOPE001",
-                    "style.scope() accepts at most one literal name",
+                    CompileErrorKind::TooManyScopeArguments,
                     self.source_span(call.span),
                 ));
                 return None;
@@ -54,8 +53,7 @@ impl<'a> MacroExtractor<'a> {
             && !is_marker_label(label)
         {
             self.diagnostics.push(CompileError::new(
-                "SHSCOPE001",
-                "style.scope() names may contain only ASCII letters, digits, `_`, and `-`",
+                CompileErrorKind::InvalidScopeName,
                 label.span,
             ));
             return None;
@@ -89,8 +87,7 @@ impl<'a> MacroExtractor<'a> {
                         (Some(scope), None)
                     } else {
                         self.diagnostics.push(CompileError::new(
-                            "SHREF001",
-                            "style.ref() accepts an optional literal name or a scope identity",
+                            CompileErrorKind::InvalidRefArgument,
                             self.source_span(argument.span()),
                         ));
                         return None;
@@ -103,16 +100,14 @@ impl<'a> MacroExtractor<'a> {
                     .and_then(|scope| self.scope_reference(scope))
                 else {
                     self.diagnostics.push(CompileError::new(
-                        "SHREF001",
-                        "the first style.ref() argument must be an identity returned by style.scope()",
+                        CompileErrorKind::InvalidRefScope,
                         self.source_span(scope.span()),
                     ));
                     return None;
                 };
                 let Some(Expression::StringLiteral(label)) = label.as_expression() else {
                     self.diagnostics.push(CompileError::new(
-                        "SHREF001",
-                        "the second style.ref() argument must be a literal name",
+                        CompileErrorKind::InvalidRefNameArgument,
                         self.source_span(label.span()),
                     ));
                     return None;
@@ -121,8 +116,7 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    "SHREF001",
-                    "style.ref() accepts (), (name), (scope), or (scope, name)",
+                    CompileErrorKind::InvalidRefArguments,
                     self.source_span(call.span),
                 ));
                 return None;
@@ -132,8 +126,7 @@ impl<'a> MacroExtractor<'a> {
             && !is_marker_label(label)
         {
             self.diagnostics.push(CompileError::new(
-                "SHREF001",
-                "style.ref() names may contain only ASCII letters, digits, `_`, and `-`",
+                CompileErrorKind::InvalidRefName,
                 label.span,
             ));
             return None;
@@ -157,8 +150,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::TaggedTemplateExpression(tagged) => {
                 if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
                     self.diagnostics.push(CompileError::new(
-                        "SHREF005",
-                        "ref variants require a static variant string",
+                        CompileErrorKind::NonStaticRefVariant,
                         self.source_span(tagged.quasi.span),
                     ));
                     return None;
@@ -180,8 +172,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::CallExpression(call) if call.arguments.len() == 1 && !call.optional => {
                 let Expression::StringLiteral(value) = call.arguments[0].as_expression()? else {
                     self.diagnostics.push(CompileError::new(
-                        "SHREF005",
-                        "ref variants require a static variant string",
+                        CompileErrorKind::NonStaticRefVariant,
                         self.source_span(call.span),
                     ));
                     return None;
@@ -192,8 +183,7 @@ impl<'a> MacroExtractor<'a> {
         };
         let Some(handles) = self.handle_references(reference) else {
             self.diagnostics.push(CompileError::new(
-                "SHTS001",
-                "ref variants require a statically identified style.ref()",
+                CompileErrorKind::UnidentifiedRefVariant,
                 self.source_span(reference.span()),
             ));
             return None;

@@ -5,6 +5,7 @@
 //! rather than process-local file ids, and that relationship selectors and conditional ref
 //! attachments are only accepted when the available facts prove them.
 
+use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -32,7 +33,7 @@ export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [
         result
             .lint_findings
             .iter()
-            .any(|item| item.rule == "valid-ref-ancestry")
+            .any(|item| matches!(item.kind, LintKind::MissingRefAncestor { .. }))
     );
 }
 
@@ -147,7 +148,10 @@ export const props = style(selected);"#,
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
-    assert_eq!(result.diagnostics[0].code, "SHTS001");
+    assert_eq!(
+        result.diagnostics[0].kind,
+        CompileErrorKind::HandleFactsRequired
+    );
 }
 
 #[test]
@@ -166,5 +170,8 @@ export const container = style(selected.container("inline-size"));"#,
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
 
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
-    assert_eq!(result.diagnostics[0].code, "SHTS001");
+    assert_eq!(
+        result.diagnostics[0].kind,
+        CompileErrorKind::RefProjectionFactsRequired
+    );
 }

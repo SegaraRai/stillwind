@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 serde.workspace = true
