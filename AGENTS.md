@@ -1,5 +1,14 @@
 # Guideline For Agents
 
+## Responsibility and Colocation
+
+- Actively colocate new code by related responsibility, not by item kind. Define errors and types alongside the code that constructs them;
+  do not create kind-based files such as `errors.rs` or `types.rs`. Keep each struct immediately followed by its impl blocks.
+- If existing or newly added code falls outside its responsibility, add a TODO of at most 3 lines in the aggregating file (`mod.rs`, `lib.rs`,
+  `index.ts`, etc.), naming the specific functions, structs, or other items and explaining which responsibility they violate and where they belong.
+- Within each source file, put error definitions first, then items of greatest interest to users, each followed by its supporting items;
+  repeat this main-item/supporting-items grouping instead of collecting all helpers or types separately.
+
 ## Tidy First
 
 - Autonomous tidy means cleanup of surrounding code outside the user's requested work. Perform it where useful without an explicit cleanup request,
@@ -13,15 +22,6 @@
   and a realistic, reproducible case that causes an actual problem. Do not invent hypothetical problems to justify cleanup.
 - _These implementation and test limits apply only to autonomous tidy._ User-requested implementation, refactoring, TODO processing, and their
   required tests are exempt: never skip, defer to a TODO, or narrow requested work because of these limits.
-
-## Responsibility and Colocation
-
-- Actively colocate new code by related responsibility, not by item kind. Define errors and types alongside the code that constructs them;
-  do not create kind-based files such as `errors.rs` or `types.rs`. Keep each struct immediately followed by its impl blocks.
-- If existing or newly added code falls outside its responsibility, add a TODO of at most 3 lines in the aggregating file (`mod.rs`, `lib.rs`,
-  `index.ts`, etc.), naming the specific functions, structs, or other items and explaining which responsibility they violate and where they belong.
-- Within each source file, put error definitions first, then items of greatest interest to users, each followed by its supporting items;
-  repeat this main-item/supporting-items grouping instead of collecting all helpers or types separately.
 
 ## TODO Review
 
