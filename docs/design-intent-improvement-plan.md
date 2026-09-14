@@ -155,13 +155,15 @@ CLI/native、build、editor が同じ結果を扱うようにする。
       JavaScript として評価される意味を保つ。単に全 property を連結して同じとみなさない。
 - [x] 動的 spread の未解決、配列 iterator と clsx の意味の差、評価対象外の構造を区別する。
       既知の構造まで一律に拒否せず、解析・変換が成立しない入力は診断する。
-- [ ] raw/decoded 文字列の位置、Unicode、コメント、projection を含む source map を検証する。
+- [x] raw/decoded 文字列の位置、Unicode、コメント、projection を含む source map を検証する。
 
 対象: `crates/js-oxc/src/expressions.rs` と macro 引数抽出、関連 IR。
 変数に保存した補間 utility 文字列の追跡は、この変更の要件に追加しない。
 
 実装: literal spread を再帰展開し、固定キーの重複は最初のキー位置と最後の値を保持する。
 検証: js-oxc 全テストと compiler の静的構文回帰テストを通過。Unicode キーと値の元ソース位置を確認。
+projection テストで、絵文字・コメント・escaped utility と静的 spread を含む入力の
+decoded 値、raw 文字列の span、属性値の span が元ファイルへ対応することを確認。
 
 ### 3. F5: label と CSS 識別子の扱い
 

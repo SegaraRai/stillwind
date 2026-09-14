@@ -64,6 +64,48 @@ fn projected_script(script: &str) -> SourceInput {
 }
 
 #[test]
+fn static_spreads_preserve_projected_raw_and_decoded_spans() {
+    let input = projected_script(
+        r"import {style} from 'stillwind/svelte'; const 前置 = '😀'; const props = style(
+          [...[/*😀*/ 'fl\u0065x']],
+          {...{[`data-項目`]: /* retained value */ 前置}});",
+    );
+    let original = input.projection.as_ref().unwrap().original.clone();
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let inputs = &analysis.ir.style_calls[0].inputs;
+    let stillwind_ir::StyleInput::Class(stillwind_ir::ClassExpression::Array(values)) = &inputs[0]
+    else {
+        panic!("array");
+    };
+    let mut leaf = &values[0];
+    while let stillwind_ir::ClassExpression::Array(nested) = leaf {
+        assert_eq!(nested.len(), 1);
+        leaf = &nested[0];
+    }
+    let stillwind_ir::ClassExpression::Utilities(value) = leaf else {
+        panic!("utility");
+    };
+    assert_eq!(value.value, "flex");
+    assert_eq!(value.span.file, original.id());
+    assert_eq!(original.slice(value.span).unwrap(), r"fl\u0065x");
+    let stillwind_ir::StyleInput::Class(stillwind_ir::ClassExpression::Group { entries, .. }) =
+        &inputs[1]
+    else {
+        panic!("group");
+    };
+    let stillwind_ir::GroupEntry::Attribute(attribute) = &entries[0] else {
+        panic!("attribute");
+    };
+    assert_eq!(attribute.name.value, "data-項目");
+    assert_eq!(original.slice(attribute.value).unwrap(), "前置");
+}
+
+#[test]
 fn animation_branch_spans_map_back_to_the_original_script() {
     let input = projected_script(
         "import {style} from 'stillwind/svelte'; const fade = style.animation({'motion-reduce:': {from:'opacity-0'}});",
