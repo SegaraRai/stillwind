@@ -8,7 +8,7 @@ packages/native/npm/wasm32-wasi/*.cjs
 packages/native/npm/wasm32-wasi/*.js
 packages/native/npm/wasm32-wasi/*.mjs
 packages/native/npm/wasm32-wasi/*.d.cts
-*.retired.tmp.*
+*.tmp
 **/.napi-rs-filesystem-transaction.swp/
 **/stillwind.generated.d.ts
 packages/vite/.review-fixtures/
