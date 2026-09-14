@@ -153,7 +153,7 @@ impl Compiler {
             }
         };
         let module = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(analysis);
-        crate::StylesheetRenderer::new(&snapshot, options)
+        StylesheetRenderer::new(&snapshot, options)
             .render_compilation(&module, analysis.source.full_span())
     }
 }

@@ -303,17 +303,20 @@ pub(crate) fn resolve_variant_value_domains(
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::{FileId, SourceFile};
+
     use super::*;
+    use crate::parse_theme;
 
     #[test]
     fn recursive_variant_theme_values_are_rejected() {
-        let source = stillwind_source::SourceFile::new(
-            stillwind_source::FileId(1),
+        let source = SourceFile::new(
+            FileId(1),
             "theme.css",
             "@theme { --breakpoint-loop: --value(--breakpoint-*); }",
         )
         .unwrap();
-        let theme = crate::parse_theme(&source).unwrap();
+        let theme = parse_theme(&source).unwrap();
         assert!(
             resolve_variant_css_placeholders(
                 "@media (width >= --value(--breakpoint-*)) { @slot; }",

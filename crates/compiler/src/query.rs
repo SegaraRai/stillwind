@@ -19,6 +19,7 @@ use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_source::{FileId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
+use crate::candidate::CandidateResolver;
 use crate::compiler::{
     class_name, emit_utility_rules, resolve_utility_targets, unresolved_utility_kind,
 };
@@ -94,7 +95,7 @@ impl DesignSystemQuery {
     pub fn compare_candidates(&self, left: &str, right: &str) -> Option<Ordering> {
         let theme = self.design_system.theme();
         let resolve = |raw| {
-            crate::candidate::CandidateResolver::resolve(raw, theme).filter(|resolved| {
+            CandidateResolver::resolve(raw, theme).filter(|resolved| {
                 resolved
                     .candidate
                     .variants

@@ -1,6 +1,6 @@
 //! Svelte adapter policy.
 
-use super::{AdapterKind, FrameworkSpec, StyleFormat};
+use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Svelte receives custom properties as a serialized style string.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
@@ -10,5 +10,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     class_property: "class",
     style_format: StyleFormat::String,
     projected_input: true,
-    normalize: super::preserve,
+    normalize: preserve,
 };

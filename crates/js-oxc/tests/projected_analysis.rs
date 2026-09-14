@@ -7,10 +7,10 @@
 
 use std::sync::Arc;
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_ir::{
-    AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, SourceAnalyzer,
-    SourceInput,
+    AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
+    ScriptLanguage, SourceAnalyzer, SourceInput, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_semantic::AssetKind;
@@ -78,27 +78,24 @@ fn static_spreads_preserve_projected_raw_and_decoded_spans() {
         analysis.diagnostics
     );
     let inputs = &analysis.ir.style_calls[0].inputs;
-    let stillwind_ir::StyleInput::Class(stillwind_ir::ClassExpression::Array(values)) = &inputs[0]
-    else {
+    let StyleInput::Class(ClassExpression::Array(values)) = &inputs[0] else {
         panic!("array");
     };
     let mut leaf = &values[0];
-    while let stillwind_ir::ClassExpression::Array(nested) = leaf {
+    while let ClassExpression::Array(nested) = leaf {
         assert_eq!(nested.len(), 1);
         leaf = &nested[0];
     }
-    let stillwind_ir::ClassExpression::Utilities(value) = leaf else {
+    let ClassExpression::Utilities(value) = leaf else {
         panic!("utility");
     };
     assert_eq!(value.value, "flex");
     assert_eq!(value.span.file, original.id());
     assert_eq!(original.slice(value.span).unwrap(), r"fl\u0065x");
-    let stillwind_ir::StyleInput::Class(stillwind_ir::ClassExpression::Group { entries, .. }) =
-        &inputs[1]
-    else {
+    let StyleInput::Class(ClassExpression::Group { entries, .. }) = &inputs[1] else {
         panic!("group");
     };
-    let stillwind_ir::GroupEntry::Attribute(attribute) = &entries[0] else {
+    let GroupEntry::Attribute(attribute) = &entries[0] else {
         panic!("attribute");
     };
     assert_eq!(attribute.name.value, "data-項目");
@@ -118,7 +115,7 @@ fn animation_branch_spans_map_back_to_the_original_script() {
         analysis.diagnostics
     );
     let branch = &analysis.ir.animation_declarations[0].body.branches[0];
-    let stillwind_ir::StyleVariant::Prefix(prefix) = &branch.variant else {
+    let StyleVariant::Prefix(prefix) = &branch.variant else {
         panic!("prefix");
     };
     assert_eq!(original.slice(prefix.span).unwrap(), "motion-reduce:");
@@ -140,7 +137,7 @@ fn contract_findings_map_to_original_framework_expression_spans() {
     let error = analysis
         .lint_findings
         .iter()
-        .find(|error| error.kind == stillwind_diagnostics::LintKind::MacroArgumentMutation)
+        .find(|error| error.kind == LintKind::MacroArgumentMutation)
         .unwrap();
     assert_eq!(error.labels[0].span.file, original.id());
     assert_eq!(original.slice(error.labels[0].span).unwrap(), "状態++");

@@ -7,10 +7,11 @@
 
 use stillwind_design_system::{
     CssFileInput, CssFileRequest, DesignSystemLoadError, DesignSystemLoadStep, DesignSystemLoader,
-    DesignSystemOptions, DesignSystemSnapshot,
+    DesignSystemOptions, DesignSystemSnapshot, resolve_variant,
 };
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{FileId, SourceFile};
+use stillwind_syntax::parse_candidate;
 
 #[test]
 fn imported_variant_blocks_obey_later_shorthand_overrides() {
@@ -28,9 +29,8 @@ fn imported_variant_blocks_obey_later_shorthand_overrides() {
     ) else {
         panic!("expected loaded snapshot");
     };
-    let candidate = stillwind_syntax::parse_candidate("state:x").unwrap();
-    let variant =
-        stillwind_design_system::resolve_variant(&candidate.variants[0], snapshot.theme()).unwrap();
+    let candidate = parse_candidate("state:x").unwrap();
+    let variant = resolve_variant(&candidate.variants[0], snapshot.theme()).unwrap();
     assert!(format!("{variant:?}").contains(":focus"));
     assert!(!format!("{variant:?}").contains(":hover"));
 }

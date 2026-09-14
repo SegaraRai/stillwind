@@ -4,7 +4,7 @@
 //! may be a normalized projection; the projection pipeline subsequently maps its
 //! local spans to the editable original. Re-tagging alone does not map coordinates.
 
-use oxc::ast::ast::{PropertyKey, StringLiteral};
+use oxc::ast::ast::{Expression, PropertyKey, StringLiteral};
 
 use stillwind_ir::AssetReference;
 use stillwind_semantic::IdentityId;
@@ -68,10 +68,8 @@ impl<'a> MacroExtractor<'a> {
         }
         let expression = key.as_expression()?.get_inner_expression();
         match expression {
-            oxc::ast::ast::Expression::StringLiteral(literal) => Some(self.string_literal(literal)),
-            oxc::ast::ast::Expression::TemplateLiteral(template)
-                if template.expressions.is_empty() =>
-            {
+            Expression::StringLiteral(literal) => Some(self.string_literal(literal)),
+            Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
                 let value = template.quasis.first()?.value.cooked.as_ref()?.to_string();
                 let span = self.source_span(template.span);
                 Some(Spanned::new(

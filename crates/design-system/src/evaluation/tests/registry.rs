@@ -5,7 +5,7 @@
 //! every theme namespace has a typed value domain.
 
 use super::*;
-use crate::test_defaults::BUILTIN_REGISTRY_CSS;
+use crate::{parse_builtin_utility_definitions, test_defaults::BUILTIN_REGISTRY_CSS};
 
 #[test]
 fn derives_arbitrary_property_order_from_builtin_css() {
@@ -117,7 +117,7 @@ fn builtins_declare_no_untyped_arbitrary_value_domains() {
 fn simple_utility_domains_follow_csswg_formal_syntax() {
     let mut checked = BTreeSet::new();
     let mut failures = Vec::new();
-    for utility in crate::parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS) {
+    for utility in parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS) {
         for declaration in utility.body.split(';') {
             let Some((property, value)) = declaration.split_once(':') else {
                 continue;

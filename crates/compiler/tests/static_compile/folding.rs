@@ -4,6 +4,7 @@
 //! bindings, typed findings, and independently converted source coordinates.
 
 use stillwind_compiler::{CompileResult, render_transforms};
+use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
@@ -442,7 +443,7 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
         result
             .lint_findings
             .iter()
-            .any(|error| error.kind == stillwind_diagnostics::LintKind::MacroArgumentMutation)
+            .any(|error| error.kind == LintKind::MacroArgumentMutation)
     );
     assert!(!result.transforms.is_empty());
     assert_eq!(result.lint_policy["macro-argument-mutation"], "deny");

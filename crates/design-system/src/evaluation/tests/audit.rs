@@ -4,6 +4,8 @@
 //! The ignored, opt-in audit checks built-in reachability from parity fixtures; normal
 //! test runs do not enforce that exhaustive coverage requirement.
 
+use stillwind_css::extract_named_statements;
+
 use super::*;
 use crate::test_defaults::BUILTIN_REGISTRY_CSS;
 
@@ -70,7 +72,7 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
     let mut candidate_parse_failures = 0_usize;
     for path in fixture_paths {
         let input = fs::read_to_string(&path).expect("registry fixture");
-        let applications = stillwind_css::extract_named_statements(&input, "@apply");
+        let applications = extract_named_statements(&input, "@apply");
         // Project @apply inputs also produce checked-in compiler output through
         // fixtures:check, so reachability witnesses exercise real transformations.
         let cases = if path.extension().is_some_and(|extension| extension == "css") {

@@ -1,6 +1,6 @@
 //! Solid adapter policy.
 
-use super::{AdapterKind, FrameworkSpec, StyleFormat};
+use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Solid passes `class` and materializes custom properties as an object.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
@@ -10,5 +10,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     class_property: "class",
     style_format: StyleFormat::Object,
     projected_input: false,
-    normalize: super::preserve,
+    normalize: preserve,
 };

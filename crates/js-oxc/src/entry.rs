@@ -24,8 +24,7 @@ use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{SourceFile, Span};
 
-use super::contract::validate;
-use crate::imports::collect;
+use crate::contract::validate;
 use crate::state::MacroExtractor;
 
 #[cfg(doc)]
@@ -119,7 +118,7 @@ pub fn parse_with_language(
     extractor.visit_program(&result.program);
     extractor.validate_handles();
     let mut summary = extractor.module_summary();
-    super::demand::collect(
+    crate::demand::collect(
         &result.program,
         semantic.scoping(),
         &extractor.type_probes.borrow(),
@@ -131,7 +130,7 @@ pub fn parse_with_language(
 
     let module = ModuleIr {
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
-        imports: collect(&result.program, semantic.scoping(), source.id()),
+        imports: crate::imports::collect(&result.program, semantic.scoping(), source.id()),
         style_calls: extractor.style_calls,
         handle_definitions: extractor.handle_definitions,
         scope_definitions: extractor.scope_definitions,

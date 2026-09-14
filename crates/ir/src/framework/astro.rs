@@ -3,7 +3,7 @@
 //! Astro templates are converted before analysis, but the converter preserves user
 //! expressions, so the policy is the identity mapping.
 
-use super::{AdapterKind, FrameworkSpec, StyleFormat};
+use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Astro receives custom properties as a serialized style string.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
@@ -13,5 +13,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     class_property: "class",
     style_format: StyleFormat::String,
     projected_input: true,
-    normalize: super::preserve,
+    normalize: preserve,
 };

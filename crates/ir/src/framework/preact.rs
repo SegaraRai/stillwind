@@ -1,6 +1,6 @@
 //! Preact adapter policy. It matches React except for the class property name.
 
-use super::{AdapterKind, FrameworkSpec, StyleFormat};
+use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Preact uses `class`, not `className`.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
@@ -10,5 +10,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     class_property: "class",
     style_format: StyleFormat::Object,
     projected_input: false,
-    normalize: super::preserve,
+    normalize: preserve,
 };

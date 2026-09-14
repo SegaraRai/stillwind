@@ -173,18 +173,21 @@ pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) ->
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
+    use crate::BuiltinDefinitions;
 
     #[test]
     fn css_registries_are_isolated_without_process_defaults() {
         let first = ThemeIndex {
-            registry: std::sync::Arc::new(crate::BuiltinDefinitions::from_css(
+            registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-utility sample { color: red; }",
             )),
             ..ThemeIndex::default()
         };
         let second = ThemeIndex {
-            registry: std::sync::Arc::new(crate::BuiltinDefinitions::from_css(
+            registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-utility sample { color: blue; }",
             )),
             ..ThemeIndex::default()
@@ -208,7 +211,7 @@ mod tests {
     #[test]
     fn animation_projection_keeps_only_mapped_properties_and_rejects_variants() {
         let theme = ThemeIndex {
-            registry: std::sync::Arc::new(crate::BuiltinDefinitions::from_css(
+            registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-animation-option-property transition-duration: animation-duration;\n@stillwind-animation-option-property transition-timing-function: animation-timing-function;",
             )),
             ..ThemeIndex::default()

@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{Span, Spanned};
 
-pub use crate::AdapterKind;
+use crate::AdapterKind;
 
 /// Everything a frontend extracted from one module.
 ///
@@ -206,7 +206,7 @@ pub struct ViewTransitionDefinition {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetReference {
     /// Durable declaration identity; external offsets are never interpreted in this file.
-    pub identity: stillwind_semantic::IdentityId,
+    pub identity: IdentityId,
     /// Expression referring to the asset in the current module.
     pub span: Span,
     /// A local declaration's range, which must follow source projection alongside its

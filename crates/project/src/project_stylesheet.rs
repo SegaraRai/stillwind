@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     CompilerOptions, GeneratedRule, MappedStylesheet, ModuleCssArtifact, RuleKey,
-    StylesheetRenderer,
+    StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::CompileErrorKind;
@@ -137,7 +137,7 @@ impl ProjectStylesheet {
         StylesheetRenderer::new(snapshot, options)
             .render_mapped_stylesheet(
                 &self.module_css_with_origins(|_, _| None)?,
-                stillwind_compiler::StylesheetPlacement::Document,
+                StylesheetPlacement::Document,
             )
             .map(|css| css.css)
     }

@@ -23,6 +23,7 @@ use stillwind_ir::{
     StyleVariant,
 };
 use stillwind_semantic::{ExportedValue, IdentityId};
+use stillwind_source::Span;
 
 use crate::state::MacroExtractor;
 
@@ -415,11 +416,7 @@ impl<'a> MacroExtractor<'a> {
     /// Expands external class arrays into original-source argument spans.
     /// Spread arrays stay intact because iteration and clsx consumption accept
     /// different values. Guarded arrays remain inside their original expression.
-    fn collect_class_arguments(
-        &self,
-        expression: &Expression<'a>,
-        arguments: &mut Vec<stillwind_source::Span>,
-    ) {
+    fn collect_class_arguments(&self, expression: &Expression<'a>, arguments: &mut Vec<Span>) {
         if let Expression::ArrayExpression(array) = expression.get_inner_expression()
             && !array
                 .elements

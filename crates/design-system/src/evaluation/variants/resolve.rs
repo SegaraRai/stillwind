@@ -14,6 +14,7 @@
 
 use cssparser::{Parser, Token};
 
+use stillwind_css::selector_uses_subject;
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
 
 use super::super::builtins::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
@@ -91,9 +92,7 @@ impl VariantApplication {
             Self::SelectorTemplate(selector)
             | Self::SelectorRule { selector, .. }
             | Self::SelectorMedia { selector, .. }
-            | Self::SelectorMediaRule { selector, .. } => {
-                stillwind_css::selector_uses_subject(selector)
-            }
+            | Self::SelectorMediaRule { selector, .. } => selector_uses_subject(selector),
             Self::Media(_) | Self::Container(_) | Self::Supports(_) | Self::StartingStyle => false,
         }
     }

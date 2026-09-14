@@ -17,7 +17,9 @@
 use std::fmt::Write as _;
 
 use stillwind_css::instantiate_selector;
-use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
+use stillwind_design_system::{
+    ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
+};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{HandleDefinition, StyleVariant};
 use stillwind_source::Spanned;
@@ -48,7 +50,7 @@ pub(super) struct StyleVariantPlan {
 impl StyleVariantPlan {
     /// Compares resolved wrappers with the shared registry ordering and identity tie-break.
     pub fn compare_order(&self, other: &Self, theme: &ThemeIndex) -> std::cmp::Ordering {
-        stillwind_design_system::compare_variant_sequences(&self.variants, &other.variants, theme)
+        compare_variant_sequences(&self.variants, &other.variants, theme)
             .then_with(|| self.canonical.cmp(&other.canonical))
     }
 
@@ -56,6 +58,7 @@ impl StyleVariantPlan {
     pub fn applications(&self) -> &[Vec<VariantApplication>] {
         &self.paths
     }
+
     /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
     ///
     /// A ref wrapper with no known ref identity is an error rather than a fallthrough

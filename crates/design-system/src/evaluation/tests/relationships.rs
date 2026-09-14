@@ -5,6 +5,7 @@
 //! that mix negative and fractional values.
 
 use super::*;
+use crate::parse_utility_definitions;
 
 #[test]
 fn preserves_supports_and_media_conditions_from_css_utilities() {
@@ -108,9 +109,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
 fn resolves_numeric_css_domains_and_default_filter_tokens() {
     let theme = theme();
     let custom_theme = ThemeIndex {
-        utilities: crate::parse_utility_definitions(
-            "@utility tab-* { tab-size: --value(integer); }",
-        ),
+        utilities: parse_utility_definitions("@utility tab-* { tab-size: --value(integer); }"),
         ..ThemeIndex::default()
     };
 

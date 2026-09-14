@@ -211,6 +211,7 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
+    use crate::LintKind;
 
     #[test]
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
@@ -235,15 +236,15 @@ mod tests {
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let mut findings = vec![
             LintFinding::new(
-                crate::LintKind::MissingAnchor { name: "x".into() },
+                LintKind::MissingAnchor { name: "x".into() },
                 Span::new(FileId(1), x, x + 1),
             ),
             LintFinding::new(
-                crate::LintKind::MissingContainer { name: "x".into() },
+                LintKind::MissingContainer { name: "x".into() },
                 Span::new(FileId(1), x, x + 1),
             ),
             LintFinding::new(
-                crate::LintKind::MissingAnchor { name: "x".into() },
+                LintKind::MissingAnchor { name: "x".into() },
                 Span::new(FileId(1), x + 2, x + 3),
             ),
         ];
@@ -286,9 +287,9 @@ mod tests {
                     ["require-anchor-provider", "require-container-provider"].map(|rule| {
                         LintFinding::new(
                             if rule == "require-anchor-provider" {
-                                crate::LintKind::MissingAnchor { name: "x".into() }
+                                LintKind::MissingAnchor { name: "x".into() }
                             } else {
-                                crate::LintKind::MissingContainer { name: "x".into() }
+                                LintKind::MissingContainer { name: "x".into() }
                             },
                             Span::new(FileId(1), start, start + 1),
                         )

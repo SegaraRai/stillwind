@@ -116,6 +116,7 @@ pub fn format_numeric_zero(value: &str, unit: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::important_declarations;
 
     #[test]
     fn folding_preserves_strings_comments_urls_and_identifier_suffixes() {
@@ -124,7 +125,7 @@ mod tests {
             fold_calc_expressions(css),
             css.replace("width:calc(1px + 2px)", "width:3px")
         );
-        let important = crate::important_declarations(css);
+        let important = important_declarations(css);
         assert!(
             fold_calc_expressions(&important).contains("data:text/plain;calc(1 + 1)"),
             "{important}"

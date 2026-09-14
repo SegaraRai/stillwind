@@ -6,9 +6,9 @@ use stillwind_compiler::{CompileResult, Compiler};
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{LintKind, UtilityFailure};
 use stillwind_ir::{ClassExpression, SourceAnalyzer, StyleInput};
-use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse, parse_with_type_facts};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceError, SourceFile, Span};
 
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
@@ -250,13 +250,13 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
         end: start + 6,
         value: ExportedValue::Animations(SymbolicValue::exact(identity.clone())),
     }];
-    let parsed = stillwind_js_oxc::parse_with_type_facts(&source, &facts, &BTreeMap::new());
+    let parsed = parse_with_type_facts(&source, &facts, &BTreeMap::new());
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
     let mapped = parsed
         .module
         .try_map_spans(|span| {
             source.slice(span)?;
-            Ok::<_, stillwind_source::SourceError>(span)
+            Ok::<_, SourceError>(span)
         })
         .unwrap();
     let StyleInput::Class(ClassExpression::AnimationUse { animation, .. }) =
@@ -272,16 +272,10 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
 #[test]
 fn local_motion_declaration_identity_follows_projection() {
     let source = SourceFile::new(FileId(1), "local.tsx", "import { style } from 'stillwind/react'; const a=style.animation({from:'x'}); const x=style(a(''));").unwrap();
-    let parsed = stillwind_js_oxc::parse(&source);
+    let parsed = parse(&source);
     let mapped = parsed
         .module
-        .try_map_spans(|span| {
-            Ok::<_, ()>(stillwind_source::Span::new(
-                span.file,
-                span.start.0 + 20,
-                span.end.0 + 20,
-            ))
-        })
+        .try_map_spans(|span| Ok::<_, ()>(Span::new(span.file, span.start.0 + 20, span.end.0 + 20)))
         .unwrap();
     let StyleInput::Class(ClassExpression::AnimationUse { animation, .. }) =
         &mapped.style_calls[0].inputs[0]

@@ -1,6 +1,6 @@
 //! React adapter policy.
 
-use super::{AdapterKind, FrameworkSpec, StyleFormat};
+use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// React macros produce a props object with a `className` entry.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
@@ -10,5 +10,5 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     class_property: "className",
     style_format: StyleFormat::Object,
     projected_input: false,
-    normalize: super::preserve,
+    normalize: preserve,
 };

@@ -10,6 +10,7 @@ use stillwind_diagnostics::CompileError;
 
 use super::*;
 use crate::evaluation::variants::resolve::resolve_registered_variant_candidate;
+use crate::{parse_builtin_utility_definitions, parse_builtin_variant_definitions, parse_theme};
 
 /// The formal-syntax terms the catalog treats as primitives.
 pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
@@ -245,7 +246,7 @@ pub(super) fn registry_utilities() -> Vec<(String, CustomUtility)> {
     let mut definitions = Vec::new();
     for (file, css) in REGISTRY_FILES {
         let mut occurrences = HashMap::<String, usize>::new();
-        for mut utility in crate::parse_builtin_utility_definitions(css) {
+        for mut utility in parse_builtin_utility_definitions(css) {
             utility.body = utility.body.trim().to_owned();
             let occurrence = occurrences.entry(utility.name.clone()).or_default();
             *occurrence += 1;
@@ -260,7 +261,7 @@ pub(super) fn registry_variants() -> Vec<(String, CustomVariant)> {
     let mut definitions = Vec::new();
     for (file, css) in REGISTRY_FILES {
         let mut occurrences = HashMap::<String, usize>::new();
-        for variant in crate::parse_builtin_variant_definitions(css) {
+        for variant in parse_builtin_variant_definitions(css) {
             let occurrence = occurrences.entry(variant.name.clone()).or_default();
             *occurrence += 1;
             definitions.push((format!("{file}:{}#{occurrence}", variant.name), variant));
@@ -373,7 +374,7 @@ pub(super) fn resolve_registry_variant_branches(
 
 /// Parses a fixture buffer wrapped in the standard package CSS.
 pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
-    crate::parse_theme(
+    parse_theme(
         &crate::css_fixture::source(
             source.id(),
             source.path(),

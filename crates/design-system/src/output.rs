@@ -20,6 +20,7 @@ use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{FileId, Span};
 
 use crate::ThemeToken;
+use crate::parser::extract_keyframe_blocks;
 
 /// Parses one CSS buffer into a source-ordered output template.
 ///
@@ -194,7 +195,7 @@ fn parse_nodes(
                             (base + open < position && position < base + close).then_some(index)
                         })
                         .collect(),
-                    keyframes: crate::theme::parser::extract_keyframe_blocks(&css[open + 1..close]),
+                    keyframes: extract_keyframe_blocks(&css[open + 1..close]),
                 });
             }
             (
