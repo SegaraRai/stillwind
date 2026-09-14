@@ -1,6 +1,6 @@
 //! The `@stillwind` configuration block.
 //!
-//! Only the settings the loader can resolve from CSS itself live here: the two
+//! Only settings the loader can resolve from CSS itself live here: utility ordering,
 //! custom-property prefixes and lint severities. A key is stored as a lint rule only
 //! when its value is `warn`, `deny`, or `off`, so an unrelated declaration in the same
 //! block cannot silently become a policy.
@@ -31,6 +31,12 @@ pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
                 config.prefix = Some(value.to_owned());
             } else if key == "tailwind-prefix" {
                 config.tailwind_prefix = Some(value.to_owned());
+            } else if key == "utility-order" {
+                match value {
+                    "authored" => config.authored_utility_order = true,
+                    "tailwind" => config.authored_utility_order = false,
+                    _ => {}
+                }
             } else if matches!(value, "warn" | "deny" | "off") {
                 config.lint_rules.insert(key.to_owned(), value.to_owned());
             }
@@ -42,6 +48,8 @@ pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
 /// CSS configuration with effective lint severities, including rule defaults.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StillwindConfig {
+    /// Uses first registration positions for utilities when true; defaults to Tailwind ordering.
+    pub authored_utility_order: bool,
     /// Stillwind-owned prefix, when the CSS configures one.
     pub prefix: Option<String>,
     /// Tailwind-compatibility prefix, when the CSS configures one.
@@ -53,6 +61,7 @@ pub struct StillwindConfig {
 impl Default for StillwindConfig {
     fn default() -> Self {
         Self {
+            authored_utility_order: false,
             prefix: None,
             tailwind_prefix: None,
             lint_rules: [

@@ -29,6 +29,10 @@ use crate::{BuiltinDefinitions, ThemeTokenMode};
 /// rather than reading the vector directly.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThemeIndex {
+    /// First declaration offsets after imports are expanded, shared by user and built-in variants.
+    pub variant_positions: BTreeMap<String, usize>,
+    /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
+    pub utility_positions: BTreeMap<String, usize>,
     /// Structured output positions from the authored entry CSS.
     pub output_template: CssOutputTemplate,
     /// Built-in definitions selected by this CSS; empty when it imports none.

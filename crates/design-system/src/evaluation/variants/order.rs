@@ -97,14 +97,28 @@ pub(crate) fn variant_group(variant: &CustomVariant) -> &str {
 /// [`usize::MAX`] means the variant is not registered and therefore sorts after
 /// everything registered.
 pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
-    let Some(variant) = builtin_variant_for_order(variant, theme) else {
+    let custom = if let VariantKind::Named(value) = &variant.kind {
+        registered_variant_candidates(&theme.variants, value)
+            .first()
+            .map(|(definition, _)| *definition)
+    } else {
+        None
+    };
+    let Some(variant) = builtin_variant_for_order(variant, theme).or(custom) else {
         return usize::MAX;
     };
     let group = variant_group(variant);
     builtin_variants(theme)
         .iter()
+        .chain(&theme.variants)
         .filter(|candidate| variant_group(candidate) == group)
-        .filter_map(|candidate| candidate.builtin_order)
+        .filter_map(|candidate| {
+            theme
+                .variant_positions
+                .get(&candidate.name)
+                .copied()
+                .or(candidate.builtin_order)
+        })
         .min()
         .unwrap_or(usize::MAX)
 }
@@ -237,8 +251,8 @@ pub(crate) fn compound_variant_capture(variants: &[CustomVariant], value: &str) 
         })
 }
 
-/// Compares variant stacks using the canonical ordering declared by the built-in CSS
-/// registry. This mirrors Tailwind's order-bit comparison while leaving
+/// Compares variant stacks using first registration positions in the expanded CSS.
+/// This uses an order-bit comparison while leaving
 /// utility/property ordering independent.
 ///
 /// Each stack contributes the distinct positions of its variants, and the positions are

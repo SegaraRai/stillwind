@@ -14,6 +14,45 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn registration_order_mixes_user_and_builtin_definitions_without_moving_overrides() {
+    let css = "@variant before { &:first-child { @slot; } }
+        @stillwind-variant middle { &:hover { @slot; } }
+        @variant after { &:last-child { @slot; } }
+        @variant middle { &:focus { @slot; } }
+        @utility early { color:red; }
+        @stillwind-utility builtin { color:blue; }
+        @utility late { color:green; }
+        @utility early { color:purple; }";
+    for (mode, expected) in [
+        ("authored", ["early", "builtin", "late"]),
+        ("tailwind", ["early", "late", "builtin"]),
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            "theme.css",
+            format!("{css} @stillwind {{utility-order:{mode};}} @stillwind-slot utilities;"),
+        )
+        .unwrap();
+        let snapshot =
+            DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap();
+        let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+        let mut utilities = ["late", "builtin", "early"];
+        utilities.sort_by(|a, b| query.compare_candidates(a, b).unwrap());
+        assert_eq!(utilities, expected);
+        let mut variants = ["after:early", "middle:early", "before:early"];
+        variants.sort_by(|a, b| query.compare_candidates(a, b).unwrap());
+        assert_eq!(variants, ["before:early", "middle:early", "after:early"]);
+        assert!(
+            query
+                .hover_candidate("middle:early")
+                .unwrap()
+                .css
+                .contains(":focus")
+        );
+    }
+}
+
+#[test]
 fn editor_order_uses_custom_utility_and_variant_precedence() {
     let theme = crate::css_fixture::source(
         FileId(1),

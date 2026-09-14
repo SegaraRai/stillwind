@@ -138,8 +138,12 @@ CLI/native、build、editor が同じ結果を扱うようにする。
 対象: `crates/compiler/src/compiler/utilities/declaration_order.rs`、
 `emission.rs`、design-system の順序 metadata、compiler query。
 
-適用順は既存の variant 順を第一キーとし、同じ variant 内では registry 順のない utility を
-先に置く。registry 順を持つ utility はその順に置き、同順位は candidate 名の辞書順で決める。
+variant 順は import 展開後の CSS で built-in と user 定義を混ぜた最初の登録位置とする。
+同名 variant の上書きでは位置を移動しない。関連 variant の group 内の値比較は保持する。
+utility 順は `@stillwind { utility-order: authored; }` または `utility-order: tailwind;` で選ぶ。
+既定は `tailwind`。`authored` は variant 同様、built-in/user を混ぜた最初の登録位置を使う。
+`tailwind` は既存の utility/property registry 順を使用する。registry 順のない utility を
+先に置き、同順位は candidate 名の辞書順で決める。任意 property は明示された property 順を使う。
 同一 candidate の複数ルールは resolver が返す順を保つ。`@apply` も同じ比較関数を使用する。
 `DesignSystemQuery::compare_candidates` が同じ resolver と比較関数を参照する。
 未解決 utility / variant は `None` を返し、source の並べ替えや canonical 化は行わない。

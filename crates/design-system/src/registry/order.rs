@@ -8,6 +8,33 @@
 
 use stillwind_css::extract_order_statements;
 
+/// First registration offsets in the import-expanded stylesheet; redefinitions retain their slot.
+pub(crate) fn registration_positions(
+    css: &str,
+    directives: &[&str],
+) -> std::collections::BTreeMap<String, usize> {
+    let mut positions = std::collections::BTreeMap::<String, usize>::new();
+    for directive in directives {
+        let blocks = stillwind_css::extract_named_blocks_with_offsets(css, directive)
+            .into_iter()
+            .map(|(offset, header, _)| (offset, header));
+        let statements = stillwind_css::extract_named_statements(css, directive);
+        for (offset, header) in blocks.chain(statements) {
+            let Some(raw) = header.split_whitespace().next() else {
+                continue;
+            };
+            let Some((name, _)) = super::variants::parse_variant_name(raw) else {
+                continue;
+            };
+            positions
+                .entry(name)
+                .and_modify(|position| *position = (*position).min(offset))
+                .or_insert(offset);
+        }
+    }
+    positions
+}
+
 /// Compares utility precedence within one variant context.
 /// Unpositioned utilities precede registry-positioned utilities; equal positions use
 /// candidate spelling. Callers retain the branch order of one candidate on equal keys.

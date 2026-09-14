@@ -79,6 +79,14 @@ fn parse_theme_contents(source: &SourceFile) -> Result<ThemeIndex, CompileErrorK
     theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
     theme.config = extract_stillwind_config(source.text());
+    theme.variant_positions = crate::registry::order::registration_positions(
+        source.text(),
+        &["@stillwind-variant", "@custom-variant", "@variant"],
+    );
+    theme.utility_positions = crate::registry::order::registration_positions(
+        source.text(),
+        &["@stillwind-utility", "@utility"],
+    );
 
     Ok(theme)
 }
@@ -153,6 +161,8 @@ pub(crate) fn extract_theme_tokens(
         )?);
     }
     Ok(ThemeIndex {
+        variant_positions: BTreeMap::new(),
+        utility_positions: BTreeMap::new(),
         output_template: CssOutputTemplate::default(),
         registry: Arc::default(),
         tokens,
