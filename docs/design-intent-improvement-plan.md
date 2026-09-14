@@ -151,7 +151,9 @@ UTF-16 candidate 名比較の順に比較する。未知 property は順位列�
 `authored` の任意 property は従来の明示 property 順を使う。
 同一 candidate の複数ルールは resolver が返す順を保つ。`@apply` も同じ比較関数を使用する。
 `vp run @stillwind/tools#tailwind:utility-order` で Tailwind 本体による fixture 再照合と Rust 差分テストを実行する。
-fixture は `tools/generate-utility-order-fixture.mts` が生成する。既存の解決未対応14候補を固定して検出し、
+`vp run @stillwind/tools#tailwind:utility-order:generate` は tools の tailwindcss 依存から
+`tailwind_property_order.rs` の静的配列と fixture を生成する。上流 checkout や実行時のテキスト解析は不要。
+既存の解決未対応14候補を固定して検出し、
 解決可能な候補の順位列・宣言数・全体の比較順を検証する。
 `DesignSystemQuery::compare_candidates` が同じ resolver と比較関数を参照する。
 未解決 utility / variant は `None` を返し、source の並べ替えや canonical 化は行わない。

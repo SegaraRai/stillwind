@@ -8,7 +8,7 @@ from Tailwind CSS v4.3.3. They are used as the compatibility specification and
 the bundled default CSS surface for Stillwind; Stillwind does not depend on the
 Tailwind CSS package at build time or runtime.
 
-`crates/design-system/src/evaluation/utilities/tailwind-property-order.txt` contains
+`crates/design-system/src/evaluation/utilities/tailwind_property_order.rs` contains
 the property names from Tailwind CSS v4.3.3 `src/property-order.ts`, in source order.
 The adjacent `order.rs` implements the comparisons from `src/compile.ts` and
 `src/utils/compare.ts`. `fixtures/tailwind-v4/utility-order.json` records results

@@ -35,6 +35,10 @@ export default defineConfig({
       "tailwind:parity": {
         command: "cargo test -p stillwind-compiler --test static_compile matches_tailwind_",
       },
+      "tailwind:utility-order:generate": {
+        command: "node generate-utility-order-fixture.mts",
+        cache: false,
+      },
       "tailwind:utility-order-fixture": {
         command: "node generate-utility-order-fixture.mts --check",
       },

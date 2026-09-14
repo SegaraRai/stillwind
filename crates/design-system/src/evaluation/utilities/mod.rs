@@ -7,7 +7,8 @@
 //! conditional rules, [`declarations`] resolves placeholders per declaration,
 //! [`formatting`] applies the registry's serialization metadata, and [`resolve`] is the
 //! public entry point that ties them together. [`order`] retains pre-emission Tailwind
-//! property/count keys and authored precedence.
+//! property/count keys and authored precedence. [`tailwind_property_order`] supplies
+//! its generated property indices.
 //!
 //! Every failure is a non-match: an overload that cannot express this candidate
 //! is skipped so a later branch or an arbitrary property can still apply.
@@ -19,6 +20,7 @@ pub(super) mod matching;
 pub(super) mod nested;
 pub(super) mod order;
 pub(super) mod resolve;
+mod tailwind_property_order;
 
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};

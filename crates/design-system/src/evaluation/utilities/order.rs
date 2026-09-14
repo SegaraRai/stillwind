@@ -5,11 +5,12 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
-use std::sync::LazyLock;
 
 use cssparser::Parser;
 
 use stillwind_css::declaration_ranges;
+
+use super::tailwind_property_order::PROPERTIES;
 
 /// Utility precedence within a variant context, pinned to the snapshot's ordering mode.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,11 +51,6 @@ impl UtilityPropertySort {
         groups: impl IntoIterator<Item = &'a str>,
         tw_sort: Option<&str>,
     ) -> Self {
-        static PROPERTIES: LazyLock<Vec<&str>> = LazyLock::new(|| {
-            include_str!("tailwind-property-order.txt")
-                .lines()
-                .collect()
-        });
         let mut properties = BTreeSet::new();
         let mut count = usize::from(tw_sort.is_some());
         let override_index =
