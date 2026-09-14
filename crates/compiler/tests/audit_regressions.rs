@@ -66,6 +66,26 @@ fn utility_precedence_is_independent_of_literal_and_array_order() {
 }
 
 #[test]
+fn unicode_and_punctuation_labels_share_dom_and_selector_names() {
+    let (_, result) = compile(
+        "const scope = style.scope('領域 :'); const ref = style.ref(scope, '項目 🧭'); \
+         export const root = style(scope); export const item = style(ref); \
+         export const child = style({[ref()]: 'a'});",
+        "@utility a { color:red; }",
+    );
+    assert!(result.diagnostics.is_empty(), "{result:#?}");
+    let code = result
+        .transforms
+        .iter()
+        .map(|edit| edit.replacement.as_str())
+        .collect::<String>();
+    for prefix in ["s_領域_20__3a__", "s_項目_20_🧭_"] {
+        assert!(code.contains(prefix), "{code}");
+        assert!(result.css.contains(prefix), "{}", result.css);
+    }
+}
+
+#[test]
 fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
     for value in ["--value(--color-*)", "calc(--value(--color-*) + 1)"] {
         let (_, result) = compile(

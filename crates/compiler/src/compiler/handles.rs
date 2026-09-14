@@ -12,6 +12,7 @@
 //! static motion uses retain CSS without requiring a runtime producer value.
 
 use std::collections::BTreeSet;
+use std::fmt::Write;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
@@ -43,7 +44,7 @@ pub(super) fn handle_marker_class(handle: &HandleDefinition) -> String {
     let hash = &blake3::hash(asset_identity(&handle.module_path, "ref", &handle.name).as_bytes())
         .to_hex()[..8];
     match &handle.label {
-        Some(label) => format!("s_{}_{}", label.value, hash),
+        Some(label) => format!("s_{}_{}", marker_label(&label.value), hash),
         None => format!("s_{hash}"),
     }
 }
@@ -53,9 +54,31 @@ pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
     let hash = &blake3::hash(asset_identity(&scope.module_path, "scope", &scope.name).as_bytes())
         .to_hex()[..8];
     match &scope.label {
-        Some(label) => format!(".s_{}_{}", label.value, hash),
+        Some(label) => format!(".s_{}_{}", marker_label(&label.value), hash),
         None => format!(".s_{hash}"),
     }
+}
+
+/// Encodes labels as identifier fragments shared by DOM tokens and CSS selectors.
+/// Underscores are doubled so hexadecimal escapes cannot collide with literal labels.
+fn marker_label(label: &str) -> String {
+    let mut encoded = String::new();
+    for character in label.chars() {
+        match character {
+            '_' => encoded.push_str("__"),
+            character
+                if character.is_ascii_alphanumeric()
+                    || character == '-'
+                    || character >= '\u{80}' =>
+            {
+                encoded.push(character);
+            }
+            character => {
+                let _ = write!(encoded, "_{:x}_", u32::from(character));
+            }
+        }
+    }
+    encoded
 }
 
 /// Identity of a ref declaration, spanning its name token.
@@ -141,6 +164,21 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
+
+    #[test]
+    fn label_encoding_keeps_tokens_distinct_and_identifiers_readable() {
+        assert_eq!(marker_label("項目-🧭"), "項目-🧭");
+        assert_eq!(marker_label("a b:c\\d\0"), "a_20_b_3a_c_5c_d_0_");
+        let labels = ["", "_", " ", "_20_", "__20__", "a:b", "a_3a_b"];
+        assert_eq!(
+            labels
+                .iter()
+                .map(|label| marker_label(label))
+                .collect::<BTreeSet<_>>()
+                .len(),
+            labels.len()
+        );
+    }
 
     #[test]
     fn exported_universe_retains_owned_assets_of_its_kind() {

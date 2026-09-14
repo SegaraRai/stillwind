@@ -131,9 +131,6 @@ pub enum CompileErrorKind {
     /// A scope declaration supplies more than its optional name.
     #[error("style.scope() accepts at most one literal name")]
     TooManyScopeArguments,
-    /// A literal scope name contains characters disallowed in generated identifiers.
-    #[error("style.scope() names may contain only ASCII letters, digits, `_`, and `-`")]
-    InvalidScopeName,
     /// A single ref argument is neither a literal name nor a known scope.
     #[error("style.ref() accepts an optional literal name or a scope identity")]
     InvalidRefArgument,
@@ -146,9 +143,6 @@ pub enum CompileErrorKind {
     /// A ref declaration uses an unsupported argument count.
     #[error("style.ref() accepts (), (name), (scope), or (scope, name)")]
     InvalidRefArguments,
-    /// A literal ref name contains characters disallowed in generated identifiers.
-    #[error("style.ref() names may contain only ASCII letters, digits, `_`, and `-`")]
-    InvalidRefName,
     /// A ref variant's selector cannot be determined from literal text.
     #[error("ref variants require a static variant string")]
     NonStaticRefVariant,
@@ -615,14 +609,11 @@ impl CompileErrorKind {
             | Self::InvalidViewTransitionKey
             | Self::InvalidViewTransitionValue
             | Self::EmptyViewTransition => "SHVIEW001",
-            Self::InvalidScopeNameArgument
-            | Self::TooManyScopeArguments
-            | Self::InvalidScopeName => "SHSCOPE001",
+            Self::InvalidScopeNameArgument | Self::TooManyScopeArguments => "SHSCOPE001",
             Self::InvalidRefArgument
             | Self::InvalidRefScope
             | Self::InvalidRefNameArgument
             | Self::InvalidRefArguments
-            | Self::InvalidRefName
             | Self::InvalidRefProjection => "SHREF001",
             Self::NonStaticRefVariant => "SHREF005",
             Self::InvalidContainerType => "SHREF002",

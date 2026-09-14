@@ -155,13 +155,18 @@ CLI/native、build、editor が同じ結果を扱うようにする。
 
 ### 3. F5: label と CSS 識別子の扱い
 
-- [ ] `style.ref('項目')` / `style.scope('領域')` のような有効な非 ASCII label を検討対象とする。
-- [ ] label、DOM class token、CSS selector、生成 identifier の表現を確認し、必要な escape を
+- [x] `style.ref('項目')` / `style.scope('領域')` のような有効な非 ASCII label を検討対象とする。
+- [x] label、DOM class token、CSS selector、生成 identifier の表現を確認し、必要な escape を
       直列化境界で行う。validation の単純削除による不正な class/selector の生成を避ける。
-- [ ] Unicode・escape 対象文字・不正入力の区分を明文化し、命名の安定性と衝突検出を検証する。
+- [x] Unicode・escape 対象文字・不正入力の区分を明文化し、命名の安定性と衝突検出を検証する。
 
 対象: `crates/js-oxc/src/refs/definitions.rs`、compiler の `handles.rs` / `symbols.rs`。
 許容範囲の詳細は CSS/DOM の契約から決める。ASCII 限定を CSS 上の必須条件とは説明しない。
+
+実装: label は空文字を含む任意の literal string を受け付ける。生成名では `_` を二重化し、
+ASCII の英数字・ハイフン以外は `_hex_` に符号化する。非 ASCII は保持する。
+これにより DOM token と CSS selector は同じ名前を使用できる。identity のハッシュ計算は不変。
+検証: 符号化の衝突回避、Unicode・空白・記号付き ref/scope の生成 CSS と DOM 名の一致を確認。
 
 ### 4. F6: 契約診断の移行
 

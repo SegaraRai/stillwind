@@ -1,9 +1,8 @@
 //! Validation and extraction of `style.ref()`, `style.scope()` and ref variants.
 //!
 //! Both producers accept an optional literal marker name, and a ref may instead bind to
-//! a scope identity. Marker names are restricted to a small ASCII alphabet because they
-//! become part of generated class names; anything else is reported and the declaration
-//! is dropped rather than sanitized.
+//! a scope identity. Labels retain their decoded text; the compiler encodes that text
+//! when generating marker names.
 //!
 //! Ref variants accept the tagged-template, no-argument call and single-literal call
 //! forms; every other shape is reported. The prefix is normalized to end with `:` so
@@ -49,15 +48,6 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
-        if let Some(label) = &label
-            && !is_marker_label(label)
-        {
-            self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidScopeName,
-                label.span,
-            ));
-            return None;
-        }
         Some(ScopeDefinition {
             module_path: normalized_module_path(self.source.path()),
             name,
@@ -122,15 +112,6 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
-        if let Some(label) = &label
-            && !is_marker_label(label)
-        {
-            self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidRefName,
-                label.span,
-            ));
-            return None;
-        }
         Some(HandleDefinition {
             module_path: normalized_module_path(self.source.path()),
             name,
@@ -236,41 +217,5 @@ impl<'a> MacroExtractor<'a> {
             return true;
         }
         false
-    }
-}
-
-/// True for a marker name usable in a generated class name.
-///
-/// Empty names are rejected so an unset label and an empty one cannot be confused, and
-/// only ASCII letters, digits, `_` and `-` are allowed because the name is embedded in
-/// a CSS identifier.
-fn is_marker_label(label: &Spanned<String>) -> bool {
-    !label.value.is_empty()
-        && label
-            .value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-}
-
-#[cfg(test)]
-mod tests {
-    use stillwind_source::FileId;
-
-    use super::*;
-
-    #[test]
-    fn labels_allow_only_nonempty_ascii_marker_characters() {
-        for (label, expected) in [
-            ("a-b_2", true),
-            ("", false),
-            ("a b", false),
-            ("日本語", false),
-            ("a:b", false),
-        ] {
-            assert_eq!(
-                is_marker_label(&Spanned::new(label.to_owned(), Span::new(FileId(1), 0, 0))),
-                expected
-            );
-        }
     }
 }
