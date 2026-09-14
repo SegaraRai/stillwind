@@ -1,0 +1,29 @@
+{
+  "name": "@stillwind/native-wasm32-wasi",
+  "version": "0.0.0",
+  "description": "Native Node-API binding for the Stillwind compiler",
+  "license": "MIT",
+  "files": [
+    "stillwind_native.wasm32-wasi.wasm",
+    "stillwind_native.wasi.cjs",
+    "stillwind_native.wasi.d.cts",
+    "stillwind_native.wasi-browser.js",
+    "wasi-worker.mjs",
+    "wasi-worker-browser.mjs"
+  ],
+  "type": "module",
+  "main": "stillwind_native.wasi.cjs",
+  "browser": "stillwind_native.wasi-browser.js",
+  "types": "stillwind_native.wasi.d.cts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@emnapi/core": "2.0.0-alpha.4",
+    "@emnapi/runtime": "2.0.0-alpha.4",
+    "@napi-rs/wasm-runtime": "~1.2.4"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=23.5.0"
+  }
+}

@@ -125,12 +125,21 @@ importers:
 
   .:
     devDependencies:
+      '@emnapi/core':
+        specifier: 2.0.0-alpha.4
+        version: 2.0.0-alpha.4
+      '@emnapi/runtime':
+        specifier: 2.0.0-alpha.4
+        version: 2.0.0-alpha.4
       '@napi-rs/cli':
         specifier: ^3.8.6
-        version: 3.8.6(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.4.1)(supports-color@8.1.1)
+        version: 3.8.6(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)(@types/node@26.4.1)(emnapi@2.0.0-alpha.4)(supports-color@8.1.1)
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.1
+      emnapi:
+        specifier: 2.0.0-alpha.4
+        version: 2.0.0-alpha.4
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -286,7 +295,7 @@ importers:
         version: 4.0.0
       '@astrojs/compiler-rs':
         specifier: 0.4.0
-        version: 0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+        version: 0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
       '@jridgewell/gen-mapping':
         specifier: 0.3.13
         version: 0.3.13
@@ -485,6 +494,18 @@ importers:
 
   packages/native/npm/linux-x64-gnu: {}
 
+  packages/native/npm/wasm32-wasi:
+    dependencies:
+      '@emnapi/core':
+        specifier: 2.0.0-alpha.4
+        version: 2.0.0-alpha.4
+      '@emnapi/runtime':
+        specifier: 2.0.0-alpha.4
+        version: 2.0.0-alpha.4
+      '@napi-rs/wasm-runtime':
+        specifier: ~1.2.4
+        version: 1.2.4(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
+
   packages/native/npm/win32-arm64-msvc: {}
 
   packages/native/npm/win32-x64-msvc: {}
@@ -555,7 +576,7 @@ importers:
         version: 6.0.8(@voidzero-dev/vite-plus-core@0.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vue@3.5.42(typescript@6.0.3))
       astro:
         specifier: ^7.3.2
-        version: 7.3.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@types/node@26.4.1)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 7.3.2(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)(@types/node@26.4.1)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)
       svelte:
         specifier: ^5.57.0
         version: 5.57.0
@@ -820,6 +841,9 @@ packages:
   '@emnapi/core@1.9.2':
     resolution: {integrity: sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA==}
 
+  '@emnapi/core@2.0.0-alpha.4':
+    resolution: {integrity: sha512-KjoUR6mNvjT+z5bKMy+a5QDI+kTNTiMZi6uPKzWuWjwZGNa0UPwIVduTfeBRdf6v8Ws5fmHDh7Usf15w/ANfkg==}
+
   '@emnapi/runtime@1.11.1':
     resolution: {integrity: sha512-vgj7R3y3Wgx24IQaGPA/R6YFXLHVMOZ0uVEyIQPaWs+rd1AzfEMXlAC22FYwO1XkKR6NPsq7mUandH8oIRdZFw==}
 
@@ -832,6 +856,9 @@ packages:
   '@emnapi/runtime@1.9.2':
     resolution: {integrity: sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw==}
 
+  '@emnapi/runtime@2.0.0-alpha.4':
+    resolution: {integrity: sha512-Wy1TQ99obRP3Ah7cf/OOtK1zD9t3pYTWz+G/SpAwTFMhG5hoMdlvfzBpYoHUigS/izu3q+VhYMKhJd7Ii/trpg==}
+
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
 
@@ -840,6 +867,9 @@ packages:
 
   '@emnapi/wasi-threads@1.2.3':
     resolution: {integrity: sha512-ELEBe8PsLvvJ6QMr0zLt8ffvOHW/dc1m3CEzNMg7aJUv3bMaoDtw2TXyDAwkYBuroxxuHEwhRTLJSe5sya547g==}
+
+  '@emnapi/wasi-threads@2.0.1':
+    resolution: {integrity: sha512-9DsSk+o5NBX0CCJT8s0EROGSGxjR/tKu6aBTaVyq+SjAEQH4XcdcRxPBRzsBLizTTJ49MJjF+jgu3qnO9GLQcQ==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -1606,6 +1636,13 @@ packages:
 
   '@napi-rs/wasm-runtime@1.2.3':
     resolution: {integrity: sha512-UMduMbqO5s5zF2NkNacMT/yK5Y5QiKvWr2+50bzIIxFDwVJ2h49b+oyjaCGPhJxd2/gC2x39EHv/gHVuu36x2Q==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
+    peerDependencies:
+      '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
+      '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
+
+  '@napi-rs/wasm-runtime@1.2.4':
+    resolution: {integrity: sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
     peerDependencies:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
@@ -3529,6 +3566,14 @@ packages:
   electron-to-chromium@1.5.425:
     resolution: {integrity: sha512-QvPtl41EUOnuT1HBvMKgxXRIaHNcagBPs50u7VULzhZXaGfqTbZyE16LQsctZ/RQHlGu+FOWeDTR4mY6YbeF1g==}
 
+  emnapi@2.0.0-alpha.4:
+    resolution: {integrity: sha512-nunHTwW00/hM8v0QGdToZGQ+OoI1yD09vDPbhPdO+bzQrih/m8NokPVj26J02dDimaF6cE87l5H4xZdSX7RiIw==}
+    peerDependencies:
+      node-addon-api: '>= 6.1.0'
+    peerDependenciesMeta:
+      node-addon-api:
+        optional: true
+
   emojis-list@3.0.0:
     resolution: {integrity: sha512-/kyM18EfinwXZbno9FyUGeFh87KC8HRQBQGildHZbEuRyWFOmv1U10o9BBp8XVZDVNNuQKyIGIu5ZYAAXJ0V2Q==}
     engines: {node: '>= 4'}
@@ -4620,9 +4665,9 @@ snapshots:
   '@astrojs/compiler-binding-linux-x64-musl@0.4.0':
     optional: true
 
-  '@astrojs/compiler-binding-wasm32-wasi@0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
+  '@astrojs/compiler-binding-wasm32-wasi@0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.2.3(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      '@napi-rs/wasm-runtime': 1.2.3(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -4634,7 +4679,7 @@ snapshots:
   '@astrojs/compiler-binding-win32-x64-msvc@0.4.0':
     optional: true
 
-  '@astrojs/compiler-binding@0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
+  '@astrojs/compiler-binding@0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)':
     optionalDependencies:
       '@astrojs/compiler-binding-darwin-arm64': 0.4.0
       '@astrojs/compiler-binding-darwin-x64': 0.4.0
@@ -4642,16 +4687,16 @@ snapshots:
       '@astrojs/compiler-binding-linux-arm64-musl': 0.4.0
       '@astrojs/compiler-binding-linux-x64-gnu': 0.4.0
       '@astrojs/compiler-binding-linux-x64-musl': 0.4.0
-      '@astrojs/compiler-binding-wasm32-wasi': 0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      '@astrojs/compiler-binding-wasm32-wasi': 0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
       '@astrojs/compiler-binding-win32-arm64-msvc': 0.4.0
       '@astrojs/compiler-binding-win32-x64-msvc': 0.4.0
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  '@astrojs/compiler-rs@0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
+  '@astrojs/compiler-rs@0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)':
     dependencies:
-      '@astrojs/compiler-binding': 0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      '@astrojs/compiler-binding': 0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -4847,6 +4892,11 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
+  '@emnapi/core@2.0.0-alpha.4':
+    dependencies:
+      '@emnapi/wasi-threads': 2.0.1
+      tslib: 2.8.1
+
   '@emnapi/runtime@1.11.1':
     dependencies:
       tslib: 2.8.1
@@ -4867,6 +4917,10 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
+  '@emnapi/runtime@2.0.0-alpha.4':
+    dependencies:
+      tslib: 2.8.1
+
   '@emnapi/wasi-threads@1.2.1':
     dependencies:
       tslib: 2.8.1
@@ -4881,6 +4935,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
+
+  '@emnapi/wasi-threads@2.0.1':
+    dependencies:
+      tslib: 2.8.1
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
@@ -5234,7 +5292,7 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.4': {}
 
-  '@napi-rs/cli@3.8.6(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.4.1)(supports-color@8.1.1)':
+  '@napi-rs/cli@3.8.6(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)(@types/node@26.4.1)(emnapi@2.0.0-alpha.4)(supports-color@8.1.1)':
     dependencies:
       '@inquirer/prompts': 8.6.0(@types/node@26.4.1)
       '@napi-rs/cross-toolchain': 1.0.3(supports-color@8.1.1)
@@ -5249,8 +5307,9 @@ snapshots:
       typanion: 3.14.0
       typescript: 6.0.3
     optionalDependencies:
-      '@emnapi/core': 1.9.2
-      '@emnapi/runtime': 1.9.2
+      '@emnapi/core': 2.0.0-alpha.4
+      '@emnapi/runtime': 2.0.0-alpha.4
+      emnapi: 2.0.0-alpha.4
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -5440,19 +5499,25 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@napi-rs/wasm-runtime@1.2.3(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
-    dependencies:
-      '@emnapi/core': 1.11.3
-      '@emnapi/runtime': 1.11.3
-      '@tybys/wasm-util': 0.10.3
-    optional: true
-
   '@napi-rs/wasm-runtime@1.2.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
     dependencies:
       '@emnapi/core': 1.9.2
       '@emnapi/runtime': 1.9.2
       '@tybys/wasm-util': 0.10.3
     optional: true
+
+  '@napi-rs/wasm-runtime@1.2.3(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)':
+    dependencies:
+      '@emnapi/core': 2.0.0-alpha.4
+      '@emnapi/runtime': 2.0.0-alpha.4
+      '@tybys/wasm-util': 0.10.3
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)':
+    dependencies:
+      '@emnapi/core': 2.0.0-alpha.4
+      '@emnapi/runtime': 2.0.0-alpha.4
+      '@tybys/wasm-util': 0.10.3
 
   '@napi-rs/wasm-tools-android-arm-eabi@1.1.0':
     optional: true
@@ -5989,7 +6054,6 @@ snapshots:
   '@tybys/wasm-util@0.10.3':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@types/aria-query@5.0.4': {}
 
@@ -6741,9 +6805,9 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  astro@7.3.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@types/node@26.4.1)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3):
+  astro@7.3.2(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)(@types/node@26.4.1)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3):
     dependencies:
-      '@astrojs/compiler-rs': 0.4.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
+      '@astrojs/compiler-rs': 0.4.0(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
       '@astrojs/internal-helpers': 0.11.0
       '@astrojs/markdown-satteri': 0.4.1
       '@astrojs/telemetry': 3.3.3
@@ -7013,6 +7077,8 @@ snapshots:
   dset@3.1.4: {}
 
   electron-to-chromium@1.5.425: {}
+
+  emnapi@2.0.0-alpha.4: {}
 
   emojis-list@3.0.0: {}
 
@@ -7932,8 +7998,7 @@ snapshots:
 
   trough@2.2.0: {}
 
-  tslib@2.8.1:
-    optional: true
+  tslib@2.8.1: {}
 
   typanion@3.14.0: {}
 

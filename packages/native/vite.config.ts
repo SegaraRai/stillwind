@@ -24,6 +24,14 @@ export default defineConfig({
       build: {
         command: `napi build --release --platform --no-js --no-const-enum --manifest-path ../../crates/napi/Cargo.toml --output-dir npm/${currentTarget} --dts ../../binding.d.ts --package-json-path package.json`,
       },
+      "build:wasm": {
+        command:
+          "napi build --release --platform --no-js --no-const-enum --target wasm32-wasip1-threads --manifest-path ../../crates/napi/Cargo.toml --output-dir npm/wasm32-wasi --dts stillwind_native.wasi.d.cts --package-json-path package.json",
+      },
+      "check:wasm": {
+        command: "node --test test/wasm.test.mjs",
+        dependsOn: ["build:wasm"],
+      },
       typecheck: {
         command: "tsc --noEmit",
         dependsOn: ["build"],

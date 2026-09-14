@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
+
+const bindingSpecifier =
+  process.env.STILLWIND_TEST_WASM === "1"
+    ? pathToFileURL(createRequire(import.meta.url).resolve("../npm/wasm32-wasi")).href
+    : "../index.js";
 
 void test("native object transport returns typed values and rejects the former JSON protocol", async () => {
   const {
@@ -8,7 +15,7 @@ void test("native object transport returns typed values and rejects the former J
     summarizeReact,
     NativeDesignSystemLoader,
     NativeProjectSession,
-  } = await import("../index.js");
+  } = await import(bindingSpecifier);
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   const css = "@utility flex {display:flex;} @stillwind-slot utilities;";
   const output = compileReact(source, "🧭.tsx", css, {});
@@ -70,7 +77,7 @@ void test("native object transport returns typed values and rejects the former J
 });
 
 void test("removal reports producer presence independently of shared CSS", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader({});
   loader.provide(0, "root.css", "@utility flex {display:flex;} @stillwind-slot utilities;");
   const session = new NativeProjectSession(loader, true);
@@ -88,7 +95,7 @@ void test("removal reports producer presence independently of shared CSS", async
 });
 
 void test("native semantic unions validate nested asset kinds and candidate payloads", async () => {
-  const { compileReactProject } = await import("../index.js");
+  const { compileReactProject } = await import(bindingSpecifier);
   const compile = (value) =>
     compileReactProject(
       [{ path: "facts.ts", source: "export {};", type_facts: [{ start: 0, end: 0, value }] }],
@@ -134,7 +141,7 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
     compileReact,
     compileReactProject,
     renderReactStylesheet,
-  } = await import("../index.js");
+  } = await import(bindingSpecifier);
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   const css = "@utility flex {display:flex;}";
   const loader = new NativeDesignSystemLoader();
@@ -176,7 +183,7 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
 });
 
 void test("projected session edits original SFC text and preserves watch recovery", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader();
   assert.equal(
     loader.provide(0, "root", "@utility flex { display:flex; } @stillwind-slot utilities;").kind,
@@ -227,14 +234,14 @@ void test("projected session edits original SFC text and preserves watch recover
   assert.throws(() => session.compile([{ ...input, fw2js_map: undefined }]), /fw2js_map/);
 });
 
-void test("loads the current platform package through the public loader", async () => {
-  const binding = await import("../index.js");
+void test("loads the selected package through its public entry", async () => {
+  const binding = await import(bindingSpecifier);
   assert.equal(typeof binding.compileReact, "function");
   assert.equal(typeof binding.compileReactProject, "function");
 });
 
 void test("session reload applies code generation options independently of CSS definitions", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const load = (classNamespace) => {
     const loader = new NativeDesignSystemLoader({ classNamespace });
     const result = loader.provide(
@@ -264,7 +271,7 @@ void test("session reload applies code generation options independently of CSS d
 });
 
 void test("native sessions retain independent producer rules and replace CSS revisions", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader();
   assert.deepEqual(
     loader.provide(
@@ -306,7 +313,7 @@ void test("native sessions retain independent producer rules and replace CSS rev
 });
 
 void test("native loader accepts partial and reversed batches", async () => {
-  const { NativeDesignSystemLoader } = await import("../index.js");
+  const { NativeDesignSystemLoader } = await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader();
   const first = loader.provideMany([{ id: 0, name: "root", content: "@import 'a'; @import 'b';" }]);
   assert.deepEqual(
@@ -333,7 +340,7 @@ void test("native loader accepts partial and reversed batches", async () => {
 });
 
 void test("native watch reload reports compilation errors without publishing a partial revision", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession } = await import("../index.js");
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const initial = new NativeDesignSystemLoader();
   initial.provide(
     0,
@@ -365,8 +372,9 @@ void test("native watch reload reports compilation errors without publishing a p
 });
 
 void test("native sessions join supplied type facts with another module's asset metadata", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } =
-    await import("../index.js");
+  const { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } = await import(
+    bindingSpecifier
+  );
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "theme", "");
   const producer = {

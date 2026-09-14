@@ -132,6 +132,23 @@ target-package layout, so development exercises the production resolution path.
 metadata after the target list changes; `prepare-publish` is the release-stage
 task that assembles every CI-built artifact and pins optional package versions.
 
+The same API can be built as a WASM package using the
+[NAPI-RS WASI target](https://napi.rs/docs/concepts/webassembly):
+
+```sh
+rustup target add wasm32-wasip1-threads
+vp run --filter @stillwind/native build:wasm
+vp run --filter @stillwind/native check:wasm
+```
+
+The output is written to `packages/native/npm/wasm32-wasi`. Import
+`@stillwind/native-wasm32-wasi` directly to use WASM in Node.js; the native
+loader continues to select the host binary. The WASM package also includes
+the generated browser loader and workers. Browser hosts must serve
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp` for shared WebAssembly memory.
+`check:wasm` runs the binding API contracts against the WASM package in Node.js.
+
 ## CSS-first theme compatibility
 
 Import the CSS definitions explicitly in the entry configured by `css`:
