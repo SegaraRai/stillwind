@@ -296,6 +296,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     /// Every scalar-boundary range pair must give both implementations one answer.
     #[test]
     fn valid_scalar_boundary_edits() {

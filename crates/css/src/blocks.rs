@@ -433,6 +433,7 @@ mod tests {
 #[cfg(test)]
 mod requirement_tests {
     use super::take_property_requirements;
+
     #[test]
     fn requirements_are_lexical_and_reject_non_names() {
         let css = r".x{content:'@stillwind-require-properties --fake;';@stillwind-require-properties --real;}";

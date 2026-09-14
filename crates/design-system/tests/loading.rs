@@ -353,8 +353,9 @@ fn complete(step: DesignSystemLoadStep) -> DesignSystemSnapshot {
 
 #[test]
 fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
-    use std::path::Path;
     fn load(display: &str) -> DesignSystemSnapshot {
+        use std::path::Path;
+
         let entry = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../packages/core/index.css")
             .canonicalize()
@@ -389,6 +390,7 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
             }
         }
     }
+
     let first = load("flex");
     let changed = load("grid");
     assert!(first.sources().sources.len() > 20);

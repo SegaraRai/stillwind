@@ -39,6 +39,7 @@ pub struct NativeSymbolicValue {
 
 impl TryFrom<NativeSymbolicValue> for SymbolicValue {
     type Error = Error;
+
     fn try_from(value: NativeSymbolicValue) -> napi::Result<Self> {
         let kind = value.kind.into();
         match value.candidates {
@@ -200,6 +201,7 @@ pub struct NativeTypeFact {
 
 impl TryFrom<NativeTypeFact> for TypeFact {
     type Error = Error;
+
     fn try_from(value: NativeTypeFact) -> napi::Result<Self> {
         Ok(Self {
             start: value.start,

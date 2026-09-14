@@ -4,23 +4,6 @@ use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
 
-fn is_block(token: &Token<'_>) -> bool {
-    matches!(
-        token,
-        Token::Function(_)
-            | Token::ParenthesisBlock
-            | Token::SquareBracketBlock
-            | Token::CurlyBracketBlock
-    )
-}
-
-fn consume_block(parser: &mut Parser<'_>) {
-    let _ = parser.parse_nested_block(|nested| {
-        while nested.next_including_whitespace_and_comments().is_ok() {}
-        Ok::<_, ParseError<()>>(())
-    });
-}
-
 /// Returns declaration ranges excluding their top-level terminating semicolons.
 /// Strings, comments, URLs and nested blocks do not introduce boundaries.
 pub fn declaration_ranges(css: &str) -> Vec<Range<usize>> {
@@ -79,6 +62,23 @@ pub fn important_declarations(css: &str) -> String {
         output.push(';');
     }
     output
+}
+
+fn is_block(token: &Token<'_>) -> bool {
+    matches!(
+        token,
+        Token::Function(_)
+            | Token::ParenthesisBlock
+            | Token::SquareBracketBlock
+            | Token::CurlyBracketBlock
+    )
+}
+
+fn consume_block(parser: &mut Parser<'_>) {
+    let _ = parser.parse_nested_block(|nested| {
+        while nested.next_including_whitespace_and_comments().is_ok() {}
+        Ok::<_, ParseError<()>>(())
+    });
 }
 
 #[cfg(test)]

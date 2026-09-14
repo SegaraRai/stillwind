@@ -57,8 +57,7 @@ impl From<&str> for ModuleId {
 }
 
 impl std::borrow::Borrow<str> for ModuleId {
-    /// Borrows the host path so maps keyed by `ModuleId` can be probed by
-    /// `&str`.
+    /// Borrows the host path so maps keyed by `ModuleId` can be probed by `&str`.
     fn borrow(&self) -> &str {
         self.as_str()
     }

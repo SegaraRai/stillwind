@@ -225,6 +225,7 @@ fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
         output.push(key.clone());
         true
     }
+
     let mut output = Vec::new();
     let mut pending = BTreeSet::new();
     let mut done = BTreeSet::new();

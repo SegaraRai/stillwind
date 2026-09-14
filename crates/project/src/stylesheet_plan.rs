@@ -225,6 +225,7 @@ fn rule_identifiers(css: &str) -> BTreeSet<String> {
             }
         }
     }
+
     let mut names = BTreeSet::new();
     visit(&mut Parser::new(css), &mut names);
     names

@@ -79,6 +79,7 @@ impl IdentityId {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn identities_are_path_stable_across_operating_systems() {
         assert_eq!(

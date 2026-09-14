@@ -348,6 +348,7 @@ mod tests {
             .is_none()
         );
     }
+
     #[test]
     fn ordinary_selectors_and_inserted_capture_text_are_literal() {
         assert_eq!(

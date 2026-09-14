@@ -104,31 +104,6 @@ impl CssOutputTemplate {
     /// from a parsed buffer to original sources; a span the map cannot resolve is
     /// dropped rather than kept stale.
     pub fn map_origins(&mut self, mut map: impl FnMut(Span) -> Option<Span>) {
-        fn visit_nodes(nodes: &mut [CssOutputNode], map: &mut impl FnMut(Span) -> Option<Span>) {
-            for node in nodes {
-                match node {
-                    CssOutputNode::Authored { origin, .. }
-                    | CssOutputNode::LayerOrder { origin, .. }
-                    | CssOutputNode::Theme { origin, .. } => {
-                        *origin = origin.and_then(&mut *map);
-                    }
-                    CssOutputNode::Style {
-                        origin, children, ..
-                    }
-                    | CssOutputNode::Group {
-                        origin, children, ..
-                    } => {
-                        *origin = origin.and_then(&mut *map);
-                        visit_nodes(children, map);
-                    }
-                    CssOutputNode::Utilities
-                    | CssOutputNode::ThemeVariables
-                    | CssOutputNode::Keyframes
-                    | CssOutputNode::Properties
-                    | CssOutputNode::PropertyInitials => {}
-                }
-            }
-        }
         visit_nodes(&mut self.nodes, &mut map);
     }
 }
@@ -157,4 +132,30 @@ fn authored_css(nodes: &[CssOutputNode]) -> String {
             | CssOutputNode::PropertyInitials => String::new(),
         })
         .collect()
+}
+
+fn visit_nodes(nodes: &mut [CssOutputNode], map: &mut impl FnMut(Span) -> Option<Span>) {
+    for node in nodes {
+        match node {
+            CssOutputNode::Authored { origin, .. }
+            | CssOutputNode::LayerOrder { origin, .. }
+            | CssOutputNode::Theme { origin, .. } => {
+                *origin = origin.and_then(&mut *map);
+            }
+            CssOutputNode::Style {
+                origin, children, ..
+            }
+            | CssOutputNode::Group {
+                origin, children, ..
+            } => {
+                *origin = origin.and_then(&mut *map);
+                visit_nodes(children, map);
+            }
+            CssOutputNode::Utilities
+            | CssOutputNode::ThemeVariables
+            | CssOutputNode::Keyframes
+            | CssOutputNode::Properties
+            | CssOutputNode::PropertyInitials => {}
+        }
+    }
 }

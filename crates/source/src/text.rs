@@ -321,6 +321,8 @@ impl SourceFile {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn reversed_spans_and_oversized_offsets_are_checked() {
         assert_eq!(Span::new(FileId(1), 2, 1).len(), None);
@@ -332,8 +334,6 @@ mod tests {
             );
         }
     }
-
-    use super::*;
 
     #[test]
     fn maps_byte_offsets_to_utf16_positions() {
@@ -418,9 +418,7 @@ mod boundary_tests {
             let normalized = normalized_module_path(&path);
             proptest::prop_assert_eq!(normalized_module_path(&normalized), normalized);
         }
-    }
 
-    proptest::proptest! {
         #[test]
         fn span_lengths_and_ranges_agree(start in 0_u32..1000, len in 0_u32..1000) {
             let span = Span::new(FileId(1), start, start + len);

@@ -77,8 +77,9 @@ fn imported_styles_retain_layer_supports_and_media_conditions() {
 
 #[test]
 fn package_rendering_resolves_theme_and_requires_explicit_imports() {
-    use std::path::Path;
     fn load() -> DesignSystemSnapshot {
+        use std::path::Path;
+
         let entry = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../packages/core/index.css")
             .canonicalize()
@@ -111,6 +112,7 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
             }
         }
     }
+
     let first = load();
     assert!(
         StylesheetRenderer::new(&first, &CompilerOptions::default())

@@ -258,6 +258,7 @@ impl ExportedValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     fn identity(kind: AssetKind, start: u32) -> IdentityId {
         IdentityId::new(kind, r"src\Menu.tsx", start, start + 1, "asset")
     }
