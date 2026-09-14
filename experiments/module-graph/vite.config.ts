@@ -11,6 +11,10 @@ export default defineConfig({
       "verify:composition": { command: "node scripts/verify-composition.mjs", cache: false },
       "verify:runtime-if": { command: "node scripts/verify-runtime-if.mjs", cache: false },
       "verify:conditional": { command: "node scripts/verify-conditional.mjs", cache: false },
+      "verify:animation": {
+        command: "node scripts/verify-animation.mjs",
+        cache: false,
+      },
       "verify:adapters": { command: "node scripts/verify-adapters.mjs", cache: false },
       "verify:webpack": { command: "node scripts/verify-adapters.mjs webpack", cache: false },
       "verify:rspack": { command: "node scripts/verify-rspack.mjs", cache: false },

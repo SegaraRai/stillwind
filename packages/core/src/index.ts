@@ -98,7 +98,9 @@ export type StyleAnimation<Id extends string = string> = {
   readonly [animationIdentity]: Id;
 };
 
-export type StyleAnimationDefinition = Readonly<Record<string, string>>;
+export interface StyleAnimationDefinition {
+  readonly [frameOrVariant: string]: string | StyleAnimationDefinition;
+}
 
 export type StyleViewTransitionUse<Id extends string = string> = {
   readonly [refProjection]: true;

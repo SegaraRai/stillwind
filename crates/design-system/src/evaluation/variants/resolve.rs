@@ -119,10 +119,11 @@ pub struct VariantDeclaration {
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let VariantKind::Arbitrary(value) = &variant.kind {
+        let value = decode_variant_template(value);
         if value.starts_with('@') {
             return resolve_variant_body(&format!("{value} {{ @slot; }}"));
         }
-        return Some(VariantApplication::SelectorTemplate(value.clone()));
+        return Some(VariantApplication::SelectorTemplate(value));
     }
     let VariantKind::Named(value) = &variant.kind else {
         return None;
@@ -131,6 +132,29 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         return Some(application);
     }
     resolve_bare_registered_variant(value, theme)
+}
+
+/// Decodes candidate whitespace while preserving CSS escapes used by selector parsing.
+fn decode_variant_template(value: &str) -> String {
+    let mut output = String::new();
+    let mut characters = value.chars();
+    while let Some(character) = characters.next() {
+        match character {
+            '_' => output.push(' '),
+            '\\' => {
+                if let Some(next) = characters.next() {
+                    if next != '_' {
+                        output.push('\\');
+                    }
+                    output.push(next);
+                } else {
+                    output.push('\\');
+                }
+            }
+            character => output.push(character),
+        }
+    }
+    output
 }
 
 /// Whether a Tailwind candidate uses a relationship primitive for which projects may

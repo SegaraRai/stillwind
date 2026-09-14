@@ -426,10 +426,13 @@ fn motion_definitions_transport_explicit_property_dependencies_without_directive
         .reset { @stillwind-slot property-initials; }
         @utility consumer { @stillwind-require-properties --dependency; opacity:0; }
     "#;
-    for kind in ["animation", "viewTransition"] {
-        let frame = if kind == "animation" { "from" } else { "old" };
+    for (kind, definition) in [
+        ("animation", "{from:'consumer'}"),
+        ("animation", "{'[@media_print]:': {from:'consumer'}}"),
+        ("viewTransition", "{old:'consumer'}"),
+    ] {
         let (_, result) = compile(
-            &format!("export const a = style.{kind}({{{frame}:'consumer'}});"),
+            &format!("export const a = style.{kind}({definition});"),
             css,
         );
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);

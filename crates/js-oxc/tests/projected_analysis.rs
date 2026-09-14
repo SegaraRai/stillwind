@@ -64,6 +64,31 @@ fn projected_script(script: &str) -> SourceInput {
 }
 
 #[test]
+fn animation_branch_spans_map_back_to_the_original_script() {
+    let input = projected_script(
+        "import {style} from 'stillwind/svelte'; const fade = style.animation({'motion-reduce:': {from:'opacity-0'}});",
+    );
+    let original = input.projection.as_ref().unwrap().original.clone();
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let branch = &analysis.ir.animation_declarations[0].body.branches[0];
+    let stillwind_ir::StyleVariant::Prefix(prefix) = &branch.variant else {
+        panic!("prefix");
+    };
+    assert_eq!(original.slice(prefix.span).unwrap(), "motion-reduce:");
+    assert_eq!(
+        original
+            .slice(branch.body.frames[0].utilities.span)
+            .unwrap(),
+        "opacity-0"
+    );
+}
+
+#[test]
 fn contract_findings_map_to_original_framework_expression_spans() {
     let input = projected_script(
         "import {style} from 'stillwind/svelte'; const 状態 = 1; const props = style({'--x': 状態++});",

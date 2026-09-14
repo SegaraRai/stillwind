@@ -48,7 +48,7 @@ const props = style({ "--progress": value });
 | ------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `style.scope(name?)`                        | 名前は省略または任意の文字列リテラル。生成名は安全な identifier に符号化           |
 | `style.ref(scope?, name?)`                  | scope は解決可能な scope identity。名前は scope と同じ制約                         |
-| `style.animation(definition)`               | 静的 object。`from` / `to` / 百分率のキーと utility 文字列リテラル                 |
+| `style.animation(definition)`               | 静的 object。frame は utility 文字列、variant key は完全置換の定義 object          |
 | `animation(options)`                        | options は文字列リテラル。receiver は有限の animation 候補                         |
 | `style.viewTransition(definition)`          | 静的 object。`group` / `old` / `new` の utility 文字列リテラル                     |
 | `transition.for(key)`                       | transition は有限候補、key は純粋な `string` / `number` の値式                     |
@@ -84,3 +84,19 @@ build host は有効 policy が `deny` の finding が残っていれば失敗�
 
 API は `packages/core/src/index.ts`、検証は `crates/js-oxc/src/contract.rs`、
 出力形式の選択は [fragment folding](style-fragment-folding.md) を参照。
+
+## Animation の条件分岐
+
+```ts
+style.animation({
+  from: "opacity-0",
+  to: "opacity-100",
+  "motion-reduce:": { to: "opacity-100" },
+});
+```
+
+分岐は完全置換で、通常定義の `from` は継承しない。入れ子は条件を積み重ね、同時成立時は
+共通 variant 順の後の定義が有効になる。frame 内 utility の variant は使用できない。
+定義の条件には、要素の selector を必要としない media / supports variant を使える。
+`@container` は内側の `@keyframes` の有効性を制限しないため、定義分岐では拒否する。
+詳しい根拠は [改善計画](design-intent-improvement-plan.md) を参照。

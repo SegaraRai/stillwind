@@ -1,0 +1,76 @@
+//! Complete animation branch replacement and detached CSS conditions.
+
+use stillwind_compiler::{CompileResult, Compiler};
+use stillwind_diagnostics::CompileErrorKind;
+use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{FileId, SourceFile};
+
+fn compile(body: &str) -> CompileResult {
+    let source = SourceFile::new(FileId(1), "entry.tsx", format!(
+        "import {{style}} from 'stillwind/react'; const fade = style.animation({{{body}}}); export const x = style(fade(''));"
+    )).unwrap();
+    let css = SourceFile::new(FileId(2), "theme.css", "@utility a {opacity:0;} @utility b {opacity:1;} @utility c {opacity:.5;} @variant motion-reduce {@media (prefers-reduced-motion:reduce) {@slot;}} @variant hover {&:hover {@slot;}} @stillwind-slot utilities; @stillwind-slot keyframes;").unwrap();
+    Compiler::compile_source(&OxcSourceAnalyzer, &source, &css)
+}
+
+#[test]
+fn branches_replace_all_frames_and_nested_conditions_conjoin() {
+    let result = compile(
+        "from:'a', to:'b', 'motion-reduce:': {to:'c', '[@supports(display:grid)]:': {from:'b'}}",
+    );
+    assert!(result.diagnostics.is_empty(), "{result:#?}");
+    assert!(
+        result.css.contains("{from{opacity:0;}to{opacity:1;}}"),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("{to{opacity:.5;}}"), "{}", result.css);
+    assert!(
+        result
+            .css
+            .contains("@media (prefers-reduced-motion:reduce){@supports (display:grid){@keyframes"),
+        "{}",
+        result.css
+    );
+    assert_eq!(result.css.matches("@keyframes ").count(), 3);
+    assert_eq!(result.css.matches("from{opacity:0;}").count(), 1);
+}
+
+#[test]
+fn sibling_branch_order_uses_the_shared_variant_order() {
+    let a = "'motion-reduce:': {to:'c'}";
+    let b = "'[@supports(display:grid)]:': {from:'b'}";
+    let first = compile(&format!("from:'a', {a}, {b}"));
+    let second = compile(&format!("from:'a', {b}, {a}"));
+    assert!(first.diagnostics.is_empty(), "{first:#?}");
+    assert!(second.diagnostics.is_empty(), "{second:#?}");
+    assert_eq!(first.css, second.css);
+}
+
+#[test]
+fn invalid_keyframe_contexts_fail_without_partial_output() {
+    for key in [
+        "hover:",
+        "[&:hover]:",
+        "[.global]:",
+        "[@container(width>1px)]:",
+        "[@starting-style]:",
+    ] {
+        let result = compile(&format!("from:'a', '{key}': {{to:'b'}}"));
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|error| error.kind == CompileErrorKind::InvalidAnimationVariant),
+            "{key}: {result:#?}"
+        );
+        assert!(result.css.is_empty());
+    }
+    let result = compile("from:'motion-reduce:a'");
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|error| error.kind == CompileErrorKind::AnimationFrameVariants)
+    );
+}

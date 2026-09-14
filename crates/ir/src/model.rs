@@ -155,8 +155,26 @@ pub struct AnimationDefinition {
     pub name: Spanned<String>,
     /// Span of the producing call, used for replacement; identity uses `name.span`.
     pub call_span: Span,
-    /// In source order. The declaration order is the keyframe order.
+    /// Default frames and complete conditional replacements.
+    pub body: AnimationBody,
+}
+
+/// A complete keyframe definition with optional conditional replacements.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AnimationBody {
+    /// Frame declarations in authored order; omitted frames are not inherited.
     pub frames: Vec<AnimationFrame>,
+    /// Nested conditions conjoin with their ancestors and replace the complete definition.
+    pub branches: Vec<AnimationBranch>,
+}
+
+/// A condition selecting a complete animation definition.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AnimationBranch {
+    /// Variant conditions resolved at the keyframes rule boundary.
+    pub variant: StyleVariant,
+    /// Complete replacement frames and further conditional replacements.
+    pub body: AnimationBody,
 }
 
 /// One `"from"` / `"to"` / percentage frame of a named animation.

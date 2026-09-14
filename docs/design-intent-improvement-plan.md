@@ -91,8 +91,15 @@ variant key は通常の registry で解決し、適用先の `&` を必要と�
 同名の `@keyframes` を条件ごとに生成する場合、後の定義は先の定義と部分マージされない。
 各条件で有効になる animation を完全な定義として生成する必要がある。
 分岐 object は完全な定義として通常定義を置き換える。省略された frame は継承しない。
-複数条件の同時成立時の優先順位と、variant key の入れ子も実装前に定義する。
+通常定義を先に生成し、条件付き定義は共通 variant 順と canonical identity の順に生成する。
+複数条件が同時成立すれば後の完全定義が有効となる。入れ子は祖先の条件を積み重ねる。
 この例から暗黙の frame/declaration マージ契約を追加しない。
+
+`@keyframes` を条件で囲めるのは、この出力方式では media / supports 条件。`@container` 内の
+name-defining rule は container 条件で制限されないため、animation 定義分岐では拒否する。
+`&` 依存とは別の CSS 適用文脈の制約であり、通常 utility の `ref.at` は利用できる。
+container による animation 切替には、別名 keyframes と利用側 animation-name の条件付き選択を
+設計する必要がある。[CSS Conditional Rules §5.4](https://drafts.csswg.org/css-conditional-5/#container-rule)。
 
 参照: [CSS Animations — Keyframes](https://www.w3.org/TR/css-animations-1/#keyframes)。
 
@@ -218,7 +225,7 @@ CSS を値として取得する経路は、import 先の相対解決・収集と
 ### 6. F4/D2: variant の構造と利用文脈の統一
 
 - [x] variant 解決結果に、適用先 `&` への依存を構造的に保持する。
-- [ ] 通常/任意/custom/compound variant、at-rule と selector の混在、quoted/escaped `&` を検証する。
+- [x] 通常/任意/custom/compound variant、at-rule と selector の混在、quoted/escaped `&` を検証する。
 - [x] `ref.at(query, utilities)` を、`ref.at(query)` が variant を返す規約へ変更する。
       `` ref.at`query` `` も同じ意味として扱う。utility は通常の wrapper/template の operand にする。
 - [x] ref variant と同じ使用箇所で動作させる。最低限、次の2つを同じ意味として検証する。
@@ -228,24 +235,47 @@ style({ [ref.at("width > 40rem")]: { "hover:": "grid-cols-2" } });
 style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
 ```
 
-- [ ] call/tag の同値性、通常 variant との入れ子、通常 ref と同様の utility template 内での利用を検証する。
-- [ ] ref の有限候補、import/re-export、条件付き receiver を扱う。全候補の container 条件を
+- [x] call/tag の同値性、通常 variant との入れ子、通常 ref と同様の utility template 内での利用を検証する。
+- [x] ref の有限候補、import/re-export、条件付き receiver を扱う。全候補の container 条件を
       無条件に適用せず、runtime の選択と対応させる。
-- [ ] API 型、抽出器、IR、compiler、runtime metadata、query と fixture を一貫して更新する。
+- [x] API 型、抽出器、IR、compiler、runtime metadata、query と fixture を一貫して更新する。
       旧2引数 API の互換維持をこの計画の要件には追加しない。
-- [ ] `style.ref(scope)` の有限 scope 制限は別 subtask として設計する。`ref.at` の変更だけで
+- [x] `style.ref(scope)` の有限 scope 制限は別 subtask として設計する。`ref.at` の変更だけで
       F4 全体を完了と扱わない。ref 生成自体を variant にせず、scope 候補と ref の相関を保持する。
-- [ ] animation 定義 object に variant key を追加し、その値を条件付き animation 定義として解析する。
+- [x] animation 定義 object に variant key を追加し、その値を条件付き animation 定義として解析する。
       `from` / `to` / 百分率の値は variant なしの utility 文字列のままとする。
-- [ ] animation の通常定義、条件付き定義、条件の同時成立、任意 variant、要素依存 variant の拒否を
+- [x] animation の通常定義、条件付き定義、条件の同時成立、任意 variant、要素依存 variant の拒否を
       検証する。frame 内の variant 拒否テストは保持する。
-- [ ] 条件付き keyframes の完全な定義を生成し、未決定の部分定義・優先順位・入れ子の契約を
-      実装前に確定する。view transition の utility bucket への緩和は後続の API 設計で決める。
-- [ ] 出力先の文脈を保持し、条件・selector・support dependency・property 使用情報を
+- [x] 条件付き keyframes の完全な定義を生成し、完全置換・共通 variant 順・入れ子条件の契約を適用する。view transition の utility bucket への緩和は後続の API 設計で決める。
+- [x] 出力先の文脈を保持し、条件・selector・support dependency・property 使用情報を
       文字列化前に受け渡す。無関係な global selector へ frame declaration を漏出させない。
 
 対象: design-system の variant 解決、`crates/ir/src/model.rs`、`crates/js-oxc/src/refs`、
 compiler の `style_variants.rs` / `variants.rs` / `motion.rs`、公開 TypeScript API。
+
+検証: workspace 全テスト、rustdoc（warnings を error）、host 全54テスト、Chrome の実動作を確認。
+Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
+`experiments/module-graph` で `vp run verify:animation`。通常 `0 → 1`、reduced motion で
+省略した `from` が要素の基礎値を使う `.25 → .5` を検証する。
+
+#### 有限 scope を受け取る ref 定義の後続実装
+
+現行の `HandleDefinition.scope: Option<ScopeDefinition>` は、1つの相関候補を表す。
+`handles_from_alternatives` は利用側の有限 scope 集合を既に候補ごとに展開するが、
+定義側 `collect_ref_definition` は singleton を要求する。この要件は未解消。
+
+後続実装では定義と利用候補を分ける。定義は1つの ref identity と有限 scope 集合、元の
+scope 選択式を保持し、利用側は既存の `(ref identity, scope identity)` の組として扱う。
+全 ref と全 scope の直積を作らない。scope 選択は ref の新しい identity を生成しない。
+
+両候補の scope が同時に DOM に存在する場合も、実行時に選択された組だけが適用される必要がある。
+そのため単純な selector の OR 展開だけで完了としない。組ごとの marker と実行時の選択表を
+持たせる案を、singleton の marker、ref projections、同一 callsite identity と合わせて検証する。
+static singleton では選択表を省き、dynamic の receiver は元の値式を一度だけ評価する。
+
+受け入れテストは同時に存在する2つの scope、scope を返す factory、import/re-export、
+条件分岐、projection、SSR/hydration、scoped selector の誤適用の不在を対象とする。
+実装時には宣言用 IR・runtime descriptor・checker 型の対応を一括更新する。
 
 ### 7. D1 の拒否理由を固定する
 

@@ -46,6 +46,16 @@ pub(super) struct StyleVariantPlan {
 }
 
 impl StyleVariantPlan {
+    /// Compares resolved wrappers with the shared registry ordering and identity tie-break.
+    pub fn compare_order(&self, other: &Self, theme: &ThemeIndex) -> std::cmp::Ordering {
+        stillwind_design_system::compare_variant_sequences(&self.variants, &other.variants, theme)
+            .then_with(|| self.canonical.cmp(&other.canonical))
+    }
+
+    /// Resolved alternatives, retaining every selector and condition for context validation.
+    pub fn applications(&self) -> &[Vec<VariantApplication>] {
+        &self.paths
+    }
     /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
     ///
     /// A ref wrapper with no known ref identity is an error rather than a fallthrough

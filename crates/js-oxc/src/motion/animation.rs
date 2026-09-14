@@ -5,11 +5,16 @@
 //! literal options string. Both are validated here so the declaration-site identity and
 //! its frames are known before the compiler runs.
 
-use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
+use oxc::ast::ast::{
+    CallExpression, Expression, ObjectExpression, ObjectPropertyKind, PropertyKind,
+};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{AnimationDefinition, AnimationFrame, AssetReference, ClassExpression};
+use stillwind_ir::{
+    AnimationBody, AnimationBranch, AnimationDefinition, AnimationFrame, AssetReference,
+    ClassExpression, StyleVariant,
+};
 use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::{Span, Spanned};
 
@@ -158,6 +163,16 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
+        let body = self.animation_body(object)?;
+        Some(AnimationDefinition {
+            name,
+            call_span: self.source_span(call.span),
+            body,
+        })
+    }
+
+    fn animation_body(&mut self, object: &ObjectExpression<'a>) -> Option<AnimationBody> {
+        let mut branches = Vec::new();
         let mut frames = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
@@ -167,14 +182,39 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             };
-            if property.computed || property.method || property.kind != PropertyKind::Init {
+            if property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidAnimationProperty,
                     self.source_span(property.span),
                 ));
                 continue;
             }
-            let Some(selector) = self.property_name(&property.key) else {
+            let key = self.static_property_name(&property.key);
+            let variant = if key.as_ref().is_some_and(|key| key.value.ends_with(':')) {
+                key.clone().map(StyleVariant::Prefix)
+            } else if property.computed && key.is_none() {
+                property
+                    .key
+                    .as_expression()
+                    .and_then(|key| self.ref_variant(key))
+            } else {
+                None
+            };
+            if let Some(variant) = variant {
+                if let Expression::ObjectExpression(nested) = property.value.get_inner_expression()
+                {
+                    if let Some(body) = self.animation_body(nested) {
+                        branches.push(AnimationBranch { variant, body });
+                    }
+                } else {
+                    self.diagnostics.push(CompileError::new(
+                        CompileErrorKind::InvalidAnimationDefinition,
+                        self.source_span(property.value.span()),
+                    ));
+                }
+                continue;
+            }
+            let Some(selector) = key else {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidAnimationFrameKey,
                     self.source_span(property.key.span()),
@@ -200,18 +240,14 @@ impl<'a> MacroExtractor<'a> {
                 utilities: self.string_literal(utilities),
             });
         }
-        if frames.is_empty() {
+        if frames.is_empty() && branches.is_empty() {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::EmptyAnimation,
-                self.source_span(call.span),
+                self.source_span(object.span),
             ));
             return None;
         }
-        Some(AnimationDefinition {
-            name,
-            call_span: self.source_span(call.span),
-            frames,
-        })
+        Some(AnimationBody { frames, branches })
     }
 }
 

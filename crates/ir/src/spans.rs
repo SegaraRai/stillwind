@@ -16,8 +16,8 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AnimationDefinition, AssetReference, ClassExpression, GroupEntry, HandleDefinition,
-    HandleProjection, ModuleIr, ScopeDefinition, StyleInput, StyleVariant,
+    AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry,
+    HandleDefinition, HandleProjection, ModuleIr, ScopeDefinition, StyleInput, StyleVariant,
 };
 
 impl ModuleIr {
@@ -122,9 +122,20 @@ fn map_animation<E>(
 ) -> Result<(), E> {
     map_value(&mut animation.name, map)?;
     animation.call_span = map(animation.call_span)?;
-    for frame in &mut animation.frames {
+    map_animation_body(&mut animation.body, map)
+}
+
+fn map_animation_body<E>(
+    body: &mut AnimationBody,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    for frame in &mut body.frames {
         map_value(&mut frame.selector, map)?;
         map_value(&mut frame.utilities, map)?;
+    }
+    for branch in &mut body.branches {
+        map_variant(&mut branch.variant, map)?;
+        map_animation_body(&mut branch.body, map)?;
     }
     Ok(())
 }
@@ -252,19 +263,7 @@ fn map_class_expression<E>(
             }
         }
         ClassExpression::Variant { variant, inputs } => {
-            match variant {
-                StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
-                StyleVariant::Ref { handles, prefix }
-                | StyleVariant::Container {
-                    handles,
-                    query: prefix,
-                } => {
-                    map_value(prefix, map)?;
-                    for handle in handles {
-                        map_handle(handle, map)?;
-                    }
-                }
-            }
+            map_variant(variant, map)?;
             for input in inputs {
                 map_class_expression(input, map)?;
             }
@@ -310,6 +309,26 @@ fn map_class_expression<E>(
                 map_asset(animation, map)?;
             }
             map_value(options, map)?;
+        }
+    }
+    Ok(())
+}
+
+fn map_variant<E>(
+    variant: &mut StyleVariant,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    match variant {
+        StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
+        StyleVariant::Ref { handles, prefix }
+        | StyleVariant::Container {
+            handles,
+            query: prefix,
+        } => {
+            map_value(prefix, map)?;
+            for handle in handles {
+                map_handle(handle, map)?;
+            }
         }
     }
     Ok(())

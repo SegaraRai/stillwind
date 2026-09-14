@@ -2,17 +2,16 @@
 //!
 //! A definition is emitted once per declaration under a name hashed from the declaration's
 //! identity, and every use references that name, so a keyframe pair or view-transition pair is
-//! written to the stylesheet once however many call sites use it. Utilities inside a definition
-//! must be unconditional: a variant needs a target element to attach to, and a pseudo-element
-//! rule has none, so those are reported with the definition's own diagnostic code instead of
-//! being lowered into something that cannot work.
+//! written to the stylesheet once however many call sites use it. `animation` emits complete
+//! conditional keyframe definitions. Frame utilities and view-transition buckets require
+//! unprefixed utilities; conditions on animations belong to their definition branches.
 //!
 //! Options are resolved through the shared candidate resolver, which is why a theme duration
 //! is usable as an animation option even though it is not a utility.
 
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{AnimationDefinition, AssetReference, ViewTransitionDefinition};
+use stillwind_ir::{AssetReference, ViewTransitionDefinition};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Spanned};
 
@@ -22,54 +21,9 @@ use super::symbols::{motion_symbol_name, symbol_name};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
 
-/// Writes the `@keyframes` rule for one animation declaration.
-///
-/// Frames keep their authored order and selectors; each frame's utilities are combined with
-/// the same declaration ordering the utilities layer uses.
-pub(super) fn emit_animation_definition(
-    contribution: &mut CssContribution,
-    source: &SourceFile,
-    animation: &AnimationDefinition,
-    theme: &ThemeIndex,
-    diagnostics: &mut Vec<CompileError>,
-) {
-    contribution.keyframes = true;
-    let output = &mut contribution.css;
-    output.push_str("@keyframes ");
-    output.push_str(&symbol_name(source, AssetKind::Animation, &animation.name));
-    output.push('{');
-    for frame in &animation.frames {
-        let mut utilities = Vec::new();
-        for utility in lex_utilities(&frame.utilities, diagnostics) {
-            match resolve_utility(&utility.value.raw, theme) {
-                Some(utility) if utility.variants.is_empty() => utilities.push(utility),
-                Some(_) => diagnostics.push(CompileError::new(
-                    CompileErrorKind::AnimationFrameVariants,
-                    utility.span,
-                )),
-                None => diagnostics.push(CompileError::new(
-                    CompileErrorKind::UnavailableUtility {
-                        utility: utility.value.raw.clone(),
-                    },
-                    utility.span,
-                )),
-            }
-        }
-        contribution.required_properties.extend(
-            utilities
-                .iter()
-                .flat_map(|utility| utility.required_properties.clone()),
-        );
-        output.push_str(&frame.selector.value);
-        output.push('{');
-        output.push_str(&combine_declarations_for_theme(
-            &utilities.iter().collect::<Vec<_>>(),
-            theme,
-        ));
-        output.push('}');
-    }
-    output.push('}');
-}
+mod animation;
+
+pub(super) use animation::emit_animation_definition;
 
 /// Builds the declarations one animation use contributes.
 ///

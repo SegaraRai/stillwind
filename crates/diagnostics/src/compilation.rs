@@ -172,6 +172,11 @@ pub enum CompileErrorKind {
     /// A keyframe utility contains a variant forbidden in animation frames.
     #[error("animation keyframes cannot contain variants")]
     AnimationFrameVariants,
+    /// A definition-level variant cannot wrap a keyframes rule in valid CSS.
+    #[error(
+        "animation definition variants must be media or supports conditions; container queries do not condition global keyframes"
+    )]
+    InvalidAnimationVariant,
     /// A motion utility contains a variant forbidden in that definition.
     #[error("motion definition utilities cannot contain variants")]
     MotionVariants,
@@ -613,6 +618,7 @@ impl CompileErrorKind {
             Self::StyleBaseFrameworkMismatch => "SHCOMP007",
             Self::MultipleViewTransitions => "SHVIEW004",
             Self::AnimationFrameVariants => "SHANIMATION003",
+            Self::InvalidAnimationVariant => "SHANIMATION004",
             Self::MotionVariants => "SHMOTION001",
             Self::InvalidVariantPrefix | Self::UnavailableVariantPrefix | Self::UnidentifiedRef => {
                 "SHREF003"
