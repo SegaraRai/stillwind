@@ -58,6 +58,33 @@ fn literal_spreads_and_fixed_keys_preserve_object_overwrites() {
 }
 
 #[test]
+fn inline_custom_properties_combine_with_variant_utilities() {
+    let css = "@variant hover { &:hover { @slot; } }";
+    for value in ["'red'", "0", "dynamicValue"] {
+        let (_, result) = compile(
+            &format!("const x = style({{'hover:': {{'--x': {value}}}}});"),
+            css,
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|error| error.kind == CompileErrorKind::InvalidVariantInput),
+            "{result:#?}"
+        );
+        assert!(result.transforms.is_empty());
+    }
+    let (_, result) = compile(
+        "const x = style('hover:[--x:var(--y)]', {'--y': dynamicValue});",
+        css,
+    );
+    assert!(result.diagnostics.is_empty(), "{result:#?}");
+    assert!(result.css.contains("--x:var(--y)"), "{}", result.css);
+    assert!(!result.css.contains("dynamicValue"));
+    assert!(result.transforms[0].replacement.contains("dynamicValue"));
+}
+
+#[test]
 fn opaque_spreads_and_dynamic_keys_remain_diagnostics() {
     for (input, expected) in [
         ("[...values]", CompileErrorKind::StyleArraySpread),

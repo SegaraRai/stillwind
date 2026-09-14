@@ -460,12 +460,9 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
-/// Variant wrappers scope class declarations only; attributes and user class values
-/// cannot be variant-scoped.
-///
-/// Returns true only for the node kinds a wrapper may contain, so an attribute or an
-/// external class value inside a `:`-keyed wrapper is reported instead of silently
-/// emitting a selector that cannot apply.
+/// Variant wrappers scope stylesheet declarations. Custom-property object keys supply
+/// inline values even when literal; conditional variable changes use utility syntax.
+/// Attributes and external class values also have no stylesheet declaration to scope.
 fn variant_compatible(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Utilities(_)
