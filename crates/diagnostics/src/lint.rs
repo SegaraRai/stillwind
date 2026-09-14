@@ -16,6 +16,16 @@ use crate::Label;
 /// Producers select the cause; hosts decide its presentation and configured severity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 pub enum LintKind {
+    /// A macro value expression visibly mutates state; default severity is error.
+    #[error(
+        "macro arguments must be pure; perform assignments, updates, and deletes before the macro call"
+    )]
+    MacroArgumentMutation,
+    /// A macro expression suspends execution or loads a module; default severity is error.
+    #[error(
+        "evaluate await, yield, and dynamic imports outside macro arguments, then pass their values"
+    )]
+    MacroExecutionBoundary,
     /// A ref uses positioning without a known anchor attachment.
     #[error("ref `{name}` uses position without an anchor projection")]
     MissingAnchor {
@@ -98,6 +108,8 @@ impl LintKind {
     /// Returns the stable reporting code; lint codes also name suppression rules.
     pub const fn code(&self) -> &'static str {
         match self {
+            Self::MacroArgumentMutation => "macro-argument-mutation",
+            Self::MacroExecutionBoundary => "macro-execution-boundary",
             Self::MissingAnchor { .. } => "require-anchor-provider",
             Self::MissingContainer { .. } => "require-container-provider",
             Self::MissingRefAncestor { .. } => "valid-ref-ancestry",

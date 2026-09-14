@@ -64,16 +64,16 @@ fn projected_script(script: &str) -> SourceInput {
 }
 
 #[test]
-fn contract_errors_map_to_original_framework_expression_spans() {
+fn contract_findings_map_to_original_framework_expression_spans() {
     let input = projected_script(
         "import {style} from 'stillwind/svelte'; const 状態 = 1; const props = style({'--x': 状態++});",
     );
     let original = input.projection.as_ref().unwrap().original.clone();
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
     let error = analysis
-        .diagnostics
+        .lint_findings
         .iter()
-        .find(|error| error.kind == CompileErrorKind::MacroArgumentMutation)
+        .find(|error| error.kind == stillwind_diagnostics::LintKind::MacroArgumentMutation)
         .unwrap();
     assert_eq!(error.labels[0].span.file, original.id());
     assert_eq!(original.slice(error.labels[0].span).unwrap(), "状態++");

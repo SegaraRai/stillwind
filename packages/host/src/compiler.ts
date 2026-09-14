@@ -182,6 +182,7 @@ export async function compileModule(
     const deniedFindings: string[] = [];
     for (const finding of output.lint_findings ?? []) {
       const level = output.lint_policy?.[finding.rule] ?? "warn";
+      if (level === "off") continue;
       if (level !== "deny") {
         host.warn(`${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`);
       } else {

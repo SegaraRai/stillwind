@@ -28,16 +28,6 @@ pub enum CompileErrorKind {
     /// A composition base is an inline macro call instead of a bound style value.
     #[error("nested style() calls are not supported; bind the base to a variable")]
     NestedStyleCall,
-    /// A macro argument directly changes state outside its value computation.
-    #[error(
-        "macro arguments must be pure; perform assignments, updates, and deletes before the macro call"
-    )]
-    MacroArgumentMutation,
-    /// A macro argument contains an operation tied to its evaluation context.
-    #[error(
-        "evaluate Hooks, suspension, imports, class initialization, and JSX outside macro arguments, then pass their values"
-    )]
-    MacroExecutionBoundary,
     /// A style input array contains a spread that cannot be statically expanded.
     #[error("style() array spreads require a literal array")]
     StyleArraySpread,
@@ -579,8 +569,6 @@ impl CompileErrorKind {
             | Self::ProjectedFactsUnsupported
             | Self::InvalidTypeScriptFacts => "SHFACT001",
             Self::NestedStyleCall => "SHCOMP001",
-            Self::MacroArgumentMutation => "SHMACRO001",
-            Self::MacroExecutionBoundary => "SHMACRO002",
             Self::StyleArraySpread
             | Self::StyleArrayHole
             | Self::InvalidStyleInput

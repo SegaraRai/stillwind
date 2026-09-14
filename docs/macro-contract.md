@@ -1,7 +1,6 @@
 # マクロ引数の契約
 
-Stillwind のマクロは UI を記述するための宣言である。React の render に求める純粋性と同様に、
-値を計算する式は同じ入力から同じ意味の値を返し、外部へ観測可能な変更を起こさない。
+Stillwind のマクロは UI を記述するための宣言である。値を計算する式は同じ入力から同じ意味の値を返し、外部へ観測可能な変更を起こさない。
 この条件はコンポーネント全体だけでなく、**マクロ内の各引数式**に適用する。
 
 ## 実行時の値式
@@ -14,8 +13,9 @@ Stillwind のマクロは UI を記述するための宣言である。React の
 - 関数内で新しく作った一時データの変更は許可する。ほかの引数と共有するデータの変更は許可しない。
 - 評価順・評価回数・結果に不要な式の実行には依存しない。`PURE` コメントは不要。
 - `Date.now()`、`Math.random()`、通信、DOM 書き換え、状態更新は外で実行し、その結果を渡す。
-- Hooks、`await` / `yield`、dynamic import、class 初期化、JSX は外で評価し、その結果を渡す。
-  Suspense や意図的な例外を使う制御も外で処理する。省略される式が投げる例外の観測は保証しない。
+- `await` / `yield`、dynamic import は外で評価し、その結果を渡す。
+  省略される式が投げる例外の観測は保証しない。
+- 関数名や class / JSX という構文自体に追加の規約はない。内部の値計算にも同じ純粋性契約を適用する。
 - リアクティブ値の読み取りは現在の計算スコープ内で行う。マクロの値以外を目的とする購読や
   実行回数には依存しない。必要なら値の読み取りを同じスコープ内でマクロより前に記述する。
 
@@ -44,20 +44,20 @@ const props = style({ "--progress": value });
 
 ## 宣言と静的な構文
 
-| マクロ／入力                                | 引数の契約                                                                 |
-| ------------------------------------------- | -------------------------------------------------------------------------- |
-| `style.scope(name?)`                        | 名前は省略または空でない英数字・`_`・`-` の文字列リテラル                  |
-| `style.ref(scope?, name?)`                  | scope は解決可能な scope identity。名前は scope と同じ制約                 |
-| `style.animation(definition)`               | 静的 object。`from` / `to` / 百分率のキーと utility 文字列リテラル         |
-| `animation(options)`                        | options は文字列リテラル。receiver は有限の animation 候補                 |
-| `style.viewTransition(definition)`          | 静的 object。`group` / `old` / `new` の utility 文字列リテラル             |
-| `transition.for(key)`                       | transition は有限候補、key は純粋な `string` / `number` の値式             |
-| `ref.anchor` / `.position` / `.anchorScope` | ref は有限候補。receiver は純粋な選択式                                    |
-| `ref.container(type)`                       | type は `"size"` / `"inline-size"` の文字列リテラル                        |
-| `ref.at(query, utilities)`                  | 単一 ref、文字列リテラル2個                                                |
-| `ref()` / `ref("variant:")` / ref タグ      | prefix は静的。タグ内の補間は不可                                          |
-| `style()` の utility / variant key          | 静的な CSS 記述。utility テンプレートの補間は所定の ref variant のみ       |
-| 配列・variant object                        | 対応する入力を再帰的に記述。DSL の spread・配列の穴・getter・method は不可 |
+| マクロ／入力                                | 引数の契約                                                                         |
+| ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `style.scope(name?)`                        | 名前は省略または任意の文字列リテラル。生成名は安全な identifier に符号化           |
+| `style.ref(scope?, name?)`                  | scope は解決可能な scope identity。名前は scope と同じ制約                         |
+| `style.animation(definition)`               | 静的 object。`from` / `to` / 百分率のキーと utility 文字列リテラル                 |
+| `animation(options)`                        | options は文字列リテラル。receiver は有限の animation 候補                         |
+| `style.viewTransition(definition)`          | 静的 object。`group` / `old` / `new` の utility 文字列リテラル                     |
+| `transition.for(key)`                       | transition は有限候補、key は純粋な `string` / `number` の値式                     |
+| `ref.anchor` / `.position` / `.anchorScope` | ref は有限候補。receiver は純粋な選択式                                            |
+| `ref.container(type)`                       | type は `"size"` / `"inline-size"` の文字列リテラル                                |
+| `ref.at(query, utilities)`                  | 単一 ref、文字列リテラル2個                                                        |
+| `ref()` / `ref("variant:")` / ref タグ      | prefix は静的。タグ内の補間は不可                                                  |
+| `style()` の utility / variant key          | 静的な CSS 記述。utility テンプレートの補間は所定の ref variant のみ               |
+| 配列・variant object                        | 対応する入力を再帰的に記述。literal spread と配列の穴に対応。getter・method は不可 |
 
 コンパイル時に identity が確定すれば、receiver を実行時に読む必要がなくなる場合もある。
 型定義にある `StillwindDeclarationIdentity` の追加引数は checker 用の内部情報であり、
@@ -72,10 +72,14 @@ const props = style({ "--progress": value });
 隣接する `clsx` の変換を統合する。CSS の優先順位、クラスの連結順、重複プロパティの優先順位、
 最終 props のキー順は維持する。値を持つ条件分岐は選択構造を維持し、別の実行スコープへ移動しない。
 
-直接の代入・更新・delete は `MacroArgumentMutation` (`SHMACRO001`) として拒否する。
-Hooks の慣用名 `use` / `useXxx` の呼び出しと明示的な実行境界は `MacroExecutionBoundary`
-(`SHMACRO002`) として拒否する。これらはコンパイルエラーで、lint suppression では抑制できない。
-通常の関数呼び出しの本体、Hook の別名、入力オブジェクト内部の実装までは証明しない。
+直接の代入・更新・delete は `MacroArgumentMutation` (`macro-argument-mutation`) の lint finding とする。
+`await` / `yield` / dynamic import は `MacroExecutionBoundary` (`macro-execution-boundary`) とする。
+両ルールの既定 severity は `deny`（error）。CSS の `@stillwind` による `warn` / `off` の設定と
+`swlint-disable*` による局所抑制に対応する。lint finding があっても変換結果は保持し、
+build host は有効 policy が `deny` の finding が残っていれば失敗とする。
+抑制しても、契約に違反する副作用の順序・回数の保存を保証することにはならない。
+構造の抽出や構文変換ができない場合は、引き続き抑制不可能なコンパイルエラーとする。
+通常の関数呼び出しの本体や入力オブジェクト内部の実装までは証明しない。
 診断がないことは純粋性の証明ではなく、ユーザーが契約を満たす責任を持つ。
 
 API は `packages/core/src/index.ts`、検証は `crates/js-oxc/src/contract.rs`、

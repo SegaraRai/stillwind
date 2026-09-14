@@ -8,6 +8,7 @@
 use std::collections::BTreeMap;
 
 use stillwind_css::{extract_named_blocks, strip_css_comments};
+use stillwind_diagnostics::LintKind;
 
 /// Extracts the configuration from every `@stillwind` block, after comments are removed
 /// so a commented example cannot configure a project.
@@ -38,15 +39,31 @@ pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
     config
 }
 
-/// CSS-authored configuration before it is resolved against host defaults.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// CSS configuration with effective lint severities, including rule defaults.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StillwindConfig {
     /// Stillwind-owned prefix, when the CSS configures one.
     pub prefix: Option<String>,
     /// Tailwind-compatibility prefix, when the CSS configures one.
     pub tailwind_prefix: Option<String>,
-    /// Severities for lint rules named by the CSS.
+    /// Rule defaults overridden by CSS-authored severities.
     pub lint_rules: BTreeMap<String, String>,
+}
+
+impl Default for StillwindConfig {
+    fn default() -> Self {
+        Self {
+            prefix: None,
+            tailwind_prefix: None,
+            lint_rules: [
+                LintKind::MacroArgumentMutation,
+                LintKind::MacroExecutionBoundary,
+            ]
+            .into_iter()
+            .map(|kind| (kind.code().to_owned(), "deny".to_owned()))
+            .collect(),
+        }
+    }
 }
 
 impl StillwindConfig {

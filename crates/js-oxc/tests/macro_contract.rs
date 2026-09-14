@@ -1,6 +1,6 @@
 //! Public diagnostics for the macro value-expression contract.
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile};
 
@@ -18,11 +18,19 @@ fn calls_constructors_and_local_computation_need_no_pure_annotation() {
         "{ get active() { return input; } }",
         "() => { outside++; }",
         "useful(input)",
+        "useTheme()",
+        "React.useContext(context)",
+        "React['useContext'](context)",
+        "use(resource)",
+        "useTheme?.()",
+        "class { static { run(); } }",
+        "<Widget />",
     ] {
         let source = SourceFile::new(FileId(1), "contract.tsx", format!(
             "import {{style}} from 'stillwind/react'; const props = style({{ class: {value} }});"
         )).unwrap();
         let parsed = parse(&source);
+        assert!(parsed.lint_findings.is_empty(), "{value}: {parsed:#?}");
         assert!(
             parsed.diagnostics.is_empty(),
             "{value}: {:?}",
@@ -32,7 +40,7 @@ fn calls_constructors_and_local_computation_need_no_pure_annotation() {
 }
 
 #[test]
-fn visible_mutations_are_rejected_even_in_empty_branches_or_pure_calls() {
+fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
     for value in [
         "state++",
         "--state",
@@ -57,9 +65,9 @@ fn visible_mutations_are_rejected_even_in_empty_branches_or_pure_calls() {
             .unwrap();
             let parsed = parse(&source);
             let errors = parsed
-                .diagnostics
+                .lint_findings
                 .iter()
-                .filter(|error| error.kind == CompileErrorKind::MacroArgumentMutation)
+                .filter(|error| error.kind == LintKind::MacroArgumentMutation)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{body}: {:?}", parsed.diagnostics);
             assert!(
@@ -68,35 +76,24 @@ fn visible_mutations_are_rejected_even_in_empty_branches_or_pure_calls() {
                     .unwrap()
                     .contains("state")
             );
-            assert_eq!(errors[0].code(), "SHMACRO001");
+            assert_eq!(errors[0].code(), "macro-argument-mutation");
         }
     }
 }
 
 #[test]
 fn execution_boundaries_must_be_evaluated_outside_macros() {
-    for value in [
-        "await read()",
-        "yield read()",
-        "useTheme()",
-        "React.useContext(context)",
-        "React['useContext'](context)",
-        "use(resource)",
-        "useTheme?.()",
-        "import('module')",
-        "class { static { run(); } }",
-        "<Widget />",
-    ] {
+    for value in ["await read()", "yield read()", "import('module')"] {
         let source = SourceFile::new(FileId(1), "contract.tsx", format!("import {{style}} from 'stillwind/react'; async function* render() {{ return style({{ 'data-value': {value} }}); }}")).unwrap();
         let parsed = parse(&source);
         let errors = parsed
-            .diagnostics
+            .lint_findings
             .iter()
-            .filter(|error| error.kind == CompileErrorKind::MacroExecutionBoundary)
+            .filter(|error| error.kind == LintKind::MacroExecutionBoundary)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{value}: {:?}", parsed.diagnostics);
         assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), value);
-        assert_eq!(errors[0].code(), "SHMACRO002");
+        assert_eq!(errors[0].code(), "macro-execution-boundary");
     }
     let source = SourceFile::new(FileId(1), "contract.tsx", "import {style} from 'stillwind/react'; async function render() { const theme = useTheme(); const value = await read(); state++; return style({ '--x': value, class: theme }); }").unwrap();
     assert!(parse(&source).diagnostics.is_empty());
@@ -116,9 +113,9 @@ fn keyed_assets_and_macros_inside_function_bodies_are_validated() {
         .unwrap();
         assert!(
             parse(&source)
-                .diagnostics
+                .lint_findings
                 .iter()
-                .any(|error| error.kind == CompileErrorKind::MacroArgumentMutation)
+                .any(|error| error.kind == LintKind::MacroArgumentMutation)
         );
     }
 }

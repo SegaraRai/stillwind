@@ -170,18 +170,22 @@ ASCII の英数字・ハイフン以外は `_hex_` に符号化する。非 ASCI
 
 ### 4. F6: 契約診断の移行
 
-- [ ] `use` / `useXxx` の呼び出し名判定など、React 固有の規約を Stillwind の共通 validator から除去する。
-- [ ] `MacroArgumentMutation` / `MacroExecutionBoundary` の現行検出対象を、変換可能な契約違反と
+- [x] `use` / `useXxx` の呼び出し名判定など、React 固有の規約を Stillwind の共通 validator から除去する。
+- [x] `MacroArgumentMutation` / `MacroExecutionBoundary` の現行検出対象を、変換可能な契約違反と
       実際に変換不可能な入力に分ける。既存 enum をそのまま移すだけにしない。
-- [ ] 前者は型付き `LintKind` と `LintFinding`、既定 error の有効 policy で扱う。
+- [x] 前者は型付き `LintKind` と `LintFinding`、既定 error の有効 policy で扱う。
       通常の関数名、class/JSX などを一律に不可能とはみなさず、値式として保持できるか確認する。
-- [ ] `await` / `yield` 等も使用文脈で確認する。必要な scope を保てない変換は compile error とし、
+- [x] `await` / `yield` 等も使用文脈で確認する。必要な scope を保てない変換は compile error とし、
       そのケースのために変換機構を複雑化しない。
-- [ ] default error、warn、off、局所 suppression、editor の結果保持、build の失敗判定を検証する。
-- [ ] `docs/macro-contract.md` を、React の規約を前提としない Stillwind の引数契約へ更新する。
+- [x] default error、warn、off、局所 suppression、editor の結果保持、build の失敗判定を検証する。
+- [x] `docs/macro-contract.md` を、React の規約を前提としない Stillwind の引数契約へ更新する。
 
 対象: `crates/js-oxc/src/contract.rs`、`crates/diagnostics`、policy の解決・公開、
 `packages/host/src/compiler.ts` / `editor.ts`、CLI/native の出力。
+
+実装: mutation と suspension/import は suppressible lint とし、既定 policy を `deny` とする。
+class/JSX 自体と Hook 風の関数名では診断しない。構造抽出不能な入力は既存 compile error を維持する。
+検証: js-oxc 全テスト、各 FW の生成構文、severity/suppression、host 全54テストを通過。
 
 ### 5. L1/L2: TODO と別途検証
 

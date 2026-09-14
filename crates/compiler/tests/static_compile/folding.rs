@@ -4,7 +4,6 @@
 //! bindings, typed findings, and independently converted source coordinates.
 
 use stillwind_compiler::{CompileResult, render_transforms};
-use stillwind_diagnostics::CompileErrorKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
@@ -430,7 +429,7 @@ fn multiple_clsx_calls_merge_without_losing_source_occurrences() {
 }
 
 #[test]
-fn macro_contract_errors_prevent_output_even_for_empty_conditions() {
+fn macro_contract_findings_retain_output_even_for_empty_conditions() {
     let source = SourceFile::new(
         FileId(1),
         "contract.tsx",
@@ -441,11 +440,12 @@ fn macro_contract_errors_prevent_output_even_for_empty_conditions() {
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &css);
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|error| error.kind == CompileErrorKind::MacroArgumentMutation)
+            .any(|error| error.kind == stillwind_diagnostics::LintKind::MacroArgumentMutation)
     );
-    assert!(result.transforms.is_empty());
+    assert!(!result.transforms.is_empty());
+    assert_eq!(result.lint_policy["macro-argument-mutation"], "deny");
 }
 
 #[test]

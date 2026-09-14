@@ -140,3 +140,24 @@ void test("semantic reads select a barrel export and exclude unrelated runtime i
   assert.ok(result.checkerStats!.overlayReads > 0);
   assert.ok(result.checkerStats!.diskReadRequests > 0);
 });
+
+void test("default error contracts retain editable output and previous success", async () => {
+  const editor = project();
+  editor.update({ id: entry, version: 1, source: literal });
+  assert.equal((await editor.analyze(entry)).status, "success");
+  editor.update({
+    id: entry,
+    version: 2,
+    source:
+      "import {style} from 'stillwind/react'; let n = 0; export const props = style({'--x': n++});",
+  });
+  const result = await editor.analyze(entry);
+  assert.equal(result.status, "partial");
+  assert.equal(result.previousSuccess?.version, 1);
+  assert.equal(result.output?.diagnostics.length, 0);
+  assert.ok(result.output?.code);
+  assert.equal(result.output?.lint_policy["macro-argument-mutation"], "deny");
+  assert.ok(
+    result.output?.lint_findings.some((finding) => finding.rule === "macro-argument-mutation"),
+  );
+});

@@ -127,7 +127,7 @@ pub fn parse_with_language(
         &mut summary,
     );
     diagnostics.extend(extractor.diagnostics);
-    let lint_findings = extractor.lint_findings;
+    let mut lint_findings = extractor.lint_findings;
 
     let module = ModuleIr {
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
@@ -138,7 +138,7 @@ pub fn parse_with_language(
         animation_declarations: extractor.animation_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
     };
-    diagnostics.extend(validate(&result.program, &module, source.id()));
+    lint_findings.extend(validate(&result.program, &module, source.id()));
     ParsedJavaScript {
         framework: extractor.adapter,
         type_probes: extractor

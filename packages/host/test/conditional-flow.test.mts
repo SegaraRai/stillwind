@@ -261,10 +261,10 @@ void test("pure folding and empty-branch removal preserve materialized values", 
   }
 });
 
-void test("macro mutations and execution boundaries surface native diagnostics", async () => {
+void test("macro mutations and execution boundaries fail builds by default", async () => {
   for (const [expression, code] of [
-    ["value++", "SHMACRO001"],
-    ["useTheme()", "SHMACRO002"],
+    ["value++", "macro-argument-mutation"],
+    ["import('module')", "macro-execution-boundary"],
   ]) {
     await assert.rejects(
       compile(
