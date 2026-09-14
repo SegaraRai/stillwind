@@ -1,0 +1,76 @@
+/*
+The property-initials slot inserts declarations for selected builtin registrations.
+Each element and the listed pseudo-elements receive their own fallback values in the
+queried compatibility environments; a root-only reset would allow inherited state to
+reach descendants. Keep this declaration slot inside the selector rule.
+*/
+
+@layer properties {
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
+  }
+}
+._s_3ddadc9e {
+  display: grid;
+  height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);
+  width: if(style(--enabled): 120px;else: 60px);
+  opacity: calc(100 * 1%);
+}
+@supports (color: revert-rule) and (--sw-if-rule-206d56df0b56b3d8: 0) {
+  ._s_3ddadc9e {
+    display: if(style(--enabled): flex;else: revert-rule);
+  }
+}
+@supports (color: revert-rule) and (--sw-if-rule-e9e42428d313139f: 0) {
+  ._s_3ddadc9e {
+    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);
+    opacity: if(style(--sw-if-gate-b43b4071a90424a4): calc(50 * 1%) ;else: revert-rule) !important;
+  }
+}
+._s_25c0b58c {
+  display: grid;
+  width: if(style(--enabled): 80px;else: 40px);
+}
+@supports (color: revert-rule) and (--sw-if-rule-71e8810bb6033b4f: 0) {
+  ._s_25c0b58c {
+    display: if(style(--enabled): revert-rule;else: flex);
+  }
+}
+._s_e86d655f {
+  display: grid;
+  width: if(style(--mode: compact): 40px;else: 80px);
+}
+@supports (color: revert-rule) and (--sw-if-rule-aeedbd714413bd1c: 0) {
+  ._s_e86d655f {
+    display: if(style(--mode: compact): flex;else: revert-rule);
+  }
+}
+
+.authored {
+  display: grid;
+  @supports (color: revert-rule) and (--sw-if-rule-6d3404ae8194f4cb: 0) {
+    & {
+      display: if(style(--enabled): flex;else: revert-rule);
+    }
+  }
+  width: if(style(--enabled): 120px;else: 60px);
+}
+
+.negated {
+  display: grid;
+  @supports (color: revert-rule) and (--sw-if-rule-224b4472cc536ac0: 0) {
+    & {
+      display: if(style(--enabled): revert-rule;else: flex);
+    }
+  }
+}
+
+.compared {
+  display: grid;
+  @supports (color: revert-rule) and (--sw-if-rule-c91825168d496370: 0) {
+    & {
+      display: if(style(--mode: compact): flex;else: revert-rule);
+    }
+  }
+  width: if(style(--mode: compact): 40px;else: 80px);
+}

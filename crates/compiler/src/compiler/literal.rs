@@ -4,9 +4,12 @@
 //! findings while applying semantic wrappers to resolved utilities.
 
 use stillwind_design_system::{
-    ThemeIndex, compatibility_marker_class, is_tailwind_relationship_candidate,
+    ThemeIndex, compatibility_marker_class, is_condition_variant,
+    is_tailwind_relationship_candidate, resolve_variant,
 };
-use stillwind_diagnostics::{CompileError, LintFinding, LintKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
+use stillwind_source::Spanned;
+use stillwind_syntax::parse_candidate;
 
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
@@ -40,8 +43,10 @@ impl LiteralContribution {
     /// A compatibility marker is emitted instead of utilities when the candidate only marks a
     /// Tailwind relationship, and an unresolved candidate becomes an external class name plus a
     /// lint finding, which keeps the user's class in the output rather than dropping it.
+    /// A malformed CSS-registered runtime condition appends a compile diagnostic and skips
+    /// that candidate; callers must discard the compilation if diagnostics are present.
     pub(super) fn resolve(
-        value: &stillwind_source::Spanned<String>,
+        value: &Spanned<String>,
         plan: &StyleVariantPlan,
         options: &CompilerOptions,
         theme: &ThemeIndex,
@@ -53,6 +58,20 @@ impl LiteralContribution {
             let canonical_candidate = format!("{}{}", plan.canonical, utility.value.raw);
             let mut raw = utility.value.raw.clone();
             raw.insert_str(0, &plan.prefix);
+            if parse_candidate(&raw).is_some_and(|candidate| {
+                candidate.variants.iter().any(|variant| {
+                    resolve_variant(variant, theme).is_none()
+                        && is_condition_variant(&variant.raw, theme)
+                })
+            }) {
+                diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidRuntimeConditional {
+                        detail: "invalid CSS-registered if-condition capture".to_owned(),
+                    },
+                    utility.span,
+                ));
+                continue;
+            }
             if (options.forbid_tailwind_relationships
                 || theme.config.lint_enabled("prefer-typed-relationships"))
                 && is_tailwind_relationship_candidate(&raw, theme)

@@ -19,6 +19,7 @@ Insert selected keyframes as complete animation rules outside the selector block
 The slot inherits the importer's layer; moving it to another layer or outside all
 layers changes precedence when user CSS defines keyframes with the same name.
 */
+
 @stillwind-slot keyframes;
 
 /*
@@ -26,6 +27,7 @@ Register fallback design tokens for utility resolution. The default modifier let
 non-default user theme definitions override these values. Registration is separate
 from output: selected declarations are emitted at the theme slot above.
 */
+
 @theme default {
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial,
@@ -533,6 +535,7 @@ Inline resolution substitutes their values into utilities; reference prevents th
 definitions from independently emitting custom properties. Keep these modifiers when
 maintaining aliases so compatibility tokens do not add separate runtime variables.
 */
+
 @theme default inline reference {
   --blur: 8px;
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);

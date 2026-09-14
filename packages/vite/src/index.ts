@@ -47,6 +47,11 @@ export interface StillwindOptions {
    * client and server builds; changing it changes those identities. Defaults to empty.
    */
   classNamespace?: string;
+  /**
+   * Emit native CSS if() for experimental values and variants; false uses fallback helpers.
+   * Defaults to false. Comparisons, negated variants, and CSS-wide helper branches require true.
+   */
+  useCssIf?: boolean;
 }
 
 const virtualCssId = "virtual:stillwind.css";
@@ -89,6 +94,7 @@ function compilerOptions(options: StillwindOptions) {
     tailwindPrefix: options.tailwindPrefix ?? "--tw-",
     forbidTailwindRelationships: options.forbidTailwindRelationships ?? false,
     classNamespace: options.classNamespace ?? "",
+    useCssIf: options.useCssIf ?? false,
   };
 }
 

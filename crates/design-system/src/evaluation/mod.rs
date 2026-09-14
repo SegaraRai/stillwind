@@ -28,7 +28,7 @@ pub use utilities::{
 };
 pub use variants::{
     VariantApplication, VariantDeclaration, compare_variant_sequences, compatibility_marker_class,
-    is_tailwind_relationship_candidate, resolve_variant,
+    is_condition_variant, is_tailwind_relationship_candidate, resolve_variant,
 };
 
 #[cfg(test)]

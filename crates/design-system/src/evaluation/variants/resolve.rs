@@ -12,6 +12,8 @@
 //! rather than about evaluation: relational marker classes and the relationship-pattern
 //! query used by handle APIs.
 
+use cssparser::{Parser, Token};
+
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
 
 use super::super::builtins::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
@@ -23,11 +25,18 @@ use super::substitution::{
     apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
     substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
 };
-use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex};
+use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex, is_runtime_condition};
 
-/// What one variant contributes to the rule it is applied to.
+/// A variant's selector, at-rule, declaration, or computed-value effect.
+/// Resolution retains runtime conditions as data; rendering chooses their CSS strategy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariantApplication {
+    /// Tests custom-property presence or equality at computed-value time.
+    Conditional(
+        /// Validated presence test or `--name:value` comparison, optionally prefixed by one `!`.
+        /// Refers to the styled element or pseudo-element, never a ref ancestor.
+        String,
+    ),
     /// Several applications, one per block of a compound body, in authored order.
     Compound(Vec<VariantApplication>),
     /// A fixed selector suffix appended to the utility's own selector.
@@ -82,7 +91,9 @@ pub struct VariantDeclaration {
 /// An arbitrary variant is a selector template, except for the `@supports(...)` form,
 /// which becomes a support condition. A named variant is matched against project
 /// definitions first and built-ins second, and only its first matching candidate is
-/// used.
+/// used. A CSS definition with `[if-condition]` and the `builtin-if-variant`
+/// intrinsic produces a `Conditional` application; its public spelling comes only
+/// from the registered pattern. Invalid captures and unmatched variants return `None`.
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let VariantKind::Arbitrary(value) = &variant.kind {
@@ -166,6 +177,35 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
     }
 }
 
+/// Identifies a named variant for runtime-condition diagnostics using CSS registrations.
+/// A successfully resolved definition takes precedence, returning true only for a
+/// conditional application. Otherwise, a matching `[if-condition]` registration with
+/// the known intrinsic returns true even when its nonempty capture is malformed.
+pub fn is_condition_variant(value: &str, theme: &ThemeIndex) -> bool {
+    if let Some(application) = resolve_registered_variant(value, theme) {
+        return matches!(application, VariantApplication::Conditional(_));
+    }
+    registered_variant_candidates(&theme.variants, value)
+        .into_iter()
+        .chain(registered_variant_candidates(
+            builtin_variants(theme),
+            value,
+        ))
+        .any(|(custom, _)| {
+            custom.value_type == Some(BuiltinVariantValueType::IfCondition)
+                && is_conditional_intrinsic(custom)
+        })
+}
+
+/// Recognizes the complete compiler intrinsic body (`@stillwind-intrinsic builtin-if-variant;`).
+fn is_conditional_intrinsic(custom: &CustomVariant) -> bool {
+    let mut parser = Parser::new(&custom.body);
+    matches!(parser.next(), Ok(Token::AtKeyword(name)) if name.as_ref() == "stillwind-intrinsic")
+        && matches!(parser.next(), Ok(Token::Ident(name)) if name.as_ref() == "builtin-if-variant")
+        && matches!(parser.next(), Ok(Token::Semicolon))
+        && parser.is_exhausted()
+}
+
 /// Resolves a named variant through project definitions, then built-ins, then the bare
 /// token form.
 pub(crate) fn resolve_registered_variant(
@@ -191,8 +231,8 @@ pub(crate) fn resolve_bare_registered_variant(
         let sort = variant.sort.as_ref().filter(|sort| sort.bare)?;
         let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
         theme.token_in(namespace, value)?;
-        let prefix = variant.name.strip_suffix('*')?;
-        let expanded = format!("{prefix}{value}");
+        let (prefix, suffix) = variant.wildcard_parts()?;
+        let expanded = format!("{prefix}{value}{suffix}");
         resolve_registered_variant_candidate(variant, Some(value), &expanded, theme)
     })
 }
@@ -239,16 +279,25 @@ pub(crate) fn resolve_registered_variant_candidate(
 /// data captures become attribute selectors; `nth` and support conditions are validated
 /// by CSS itself before substitution. A modifier is serialized through the declared
 /// modifier type, so a modifier that is not a valid class identifier fails instead of
-/// producing a broken selector.
+/// producing a broken selector. `[if-condition]` captures bypass modifier splitting
+/// and preserve their CSS text, including slashes in comparison values. They require
+/// an exact `builtin-if-variant` intrinsic body and no modifier declaration.
 pub(crate) fn resolve_typed_variant(
     custom: &CustomVariant,
     value_type: BuiltinVariantValueType,
     capture: &str,
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
+    if value_type == BuiltinVariantValueType::IfCondition {
+        return (custom.modifier_type.is_none()
+            && is_conditional_intrinsic(custom)
+            && is_runtime_condition(capture))
+        .then(|| VariantApplication::Conditional(capture.trim().to_owned()));
+    }
     let (capture, modifier) = split_variant_modifier(capture);
     let body = substitute_typed_modifier(&custom.body, custom.modifier_type, modifier)?;
     match value_type {
+        BuiltinVariantValueType::IfCondition => None,
         BuiltinVariantValueType::Variant => {
             let inner = parse_nested_variant(capture);
             let application = resolve_variant(&inner, theme)?;

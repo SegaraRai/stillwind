@@ -15,6 +15,9 @@
 //! The compiler chooses which generated strings to pass through that operation; loading
 //! a design system does not rewrite every authored value to the configured prefixes.
 //!
+//! Runtime-conditional syntax is shared by value and variant resolution through
+//! [`is_runtime_condition`] and [`runtime_if_arguments`]; the compiler chooses its lowering.
+//!
 //! A snapshot is immutable after construction and clones an `Arc`, so a compile or
 //! editor request pins one clone for its whole duration instead of observing two
 //! revisions. Reloading CSS builds a new snapshot.
@@ -31,6 +34,7 @@
     )
 )]
 
+mod conditionals;
 mod evaluation;
 mod loading;
 mod options;
@@ -39,6 +43,7 @@ mod registry;
 mod snapshot;
 mod theme;
 
+pub use conditionals::{is_runtime_condition, runtime_condition_value, runtime_if_arguments};
 pub use evaluation::*;
 pub use loading::*;
 pub use options::*;

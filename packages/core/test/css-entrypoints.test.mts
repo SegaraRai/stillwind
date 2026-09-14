@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -39,29 +39,38 @@ void test("every exported CSS import stays inside the published package", () => 
 
 void test("builtins.css imports every split registry file", () => {
   const css = readFileSync(path.join(cssRoot, "builtins.css"), "utf8");
-  const imports = [...css.matchAll(/@import "\.\/builtins\/(.+\.css)";/g)].map((match) => match[1]);
+  const imports = [
+    ...css.matchAll(/@import "\.\/(builtin-(?:utilities|variants|metadata)\/.+\.css)";/g),
+  ].map((match) => match[1]);
 
   assert.deepEqual(imports, [
-    "registry-metadata.css",
-    "relationship-metadata.css",
-    "layout-utilities.css",
-    "spacing-sizing-utilities.css",
-    "flex-grid-utilities.css",
-    "typography-utilities.css",
-    "backgrounds-utilities.css",
-    "borders-utilities.css",
-    "effects-utilities.css",
-    "masks-utilities.css",
-    "transforms-utilities.css",
-    "motion-utilities.css",
-    "interactivity-utilities.css",
-    "svg-utilities.css",
-    "relationship-variants.css",
-    "structural-variants.css",
-    "state-variants.css",
-    "dynamic-selector-variants.css",
-    "conditional-variants.css",
-    "properties.css",
+    "builtin-metadata/tw-registry-metadata.css",
+    "builtin-metadata/tw-relationship-metadata.css",
+    "builtin-utilities/tw-layout.css",
+    "builtin-utilities/tw-spacing-sizing.css",
+    "builtin-utilities/tw-flex-grid.css",
+    "builtin-utilities/tw-typography.css",
+    "builtin-utilities/tw-backgrounds.css",
+    "builtin-utilities/tw-borders.css",
+    "builtin-utilities/tw-effects.css",
+    "builtin-utilities/tw-masks.css",
+    "builtin-utilities/tw-transforms.css",
+    "builtin-utilities/tw-motion.css",
+    "builtin-utilities/tw-interactivity.css",
+    "builtin-utilities/tw-svg.css",
+    "builtin-variants/tw-relationship.css",
+    "builtin-variants/tw-structural.css",
+    "builtin-variants/tw-state.css",
+    "builtin-variants/tw-dynamic-selector.css",
+    "builtin-variants/tw-conditional.css",
+    "builtin-variants/sw-conditional.css",
+    "builtin-metadata/tw-properties.css",
   ]);
-  assert(imports.every((file) => existsSync(path.join(cssRoot, "builtins", file))));
+  const files = ["builtin-utilities", "builtin-variants", "builtin-metadata"].flatMap((directory) =>
+    readdirSync(path.join(cssRoot, directory)).map((file) => `${directory}/${file}`),
+  );
+  assert.deepEqual([...imports].sort(), files.sort());
+  assert(files.every((file) => /\/(tw|sw)-.+\.css$/.test(file)));
+  assert(files.every((file) => !/-(utilities|variants)\.css$/.test(file)));
+  assert(imports.every((file) => existsSync(path.join(cssRoot, file))));
 });

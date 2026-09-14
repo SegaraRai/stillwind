@@ -47,6 +47,9 @@ style("w-[calc(var(--progress)*100%)]", { "--progress": progress });
 See [custom properties](docs/custom-properties.md) for URL values, bundler-owned
 image imports, conditional values, and framework output formats.
 
+See [experimental runtime CSS conditions](docs/runtime-if.md) for `--if(...)`,
+`if(...):utility`, and the shared `useCssIf` compiler option.
+
 ## Workspace
 
 This repository contains a pnpm workspace backed by Vite+.

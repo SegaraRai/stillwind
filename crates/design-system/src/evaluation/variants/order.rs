@@ -26,8 +26,8 @@ use crate::{
 
 /// The single built-in definition that captures this variant text, if any.
 ///
-/// An exact name wins outright; otherwise the longest matching wildcard prefix is used,
-/// so `min-lg` is not captured by a shorter `min-*` when a longer family exists.
+/// An exact name wins outright; otherwise the matching pattern with the most literal
+/// prefix-plus-suffix bytes wins. Equal specificity selects the last definition.
 pub(crate) fn direct_builtin_variant<'a>(
     value: &str,
     theme: &'a ThemeIndex,
@@ -35,15 +35,12 @@ pub(crate) fn direct_builtin_variant<'a>(
     builtin_variants(theme)
         .iter()
         .filter_map(|variant| {
-            if !variant.wildcard && variant.name == value {
+            if variant.wildcard.is_none() && variant.name == value {
                 return Some((usize::MAX, variant));
             }
             variant
-                .wildcard
-                .then(|| variant.name.strip_suffix('*'))
-                .flatten()
-                .filter(|prefix| !prefix.is_empty() && value.starts_with(prefix))
-                .map(|prefix| (prefix.len(), variant))
+                .capture(value)
+                .map(|_| (variant.name.len() - 1, variant))
         })
         .max_by_key(|(specificity, _)| *specificity)
         .map(|(_, variant)| variant)
@@ -151,7 +148,7 @@ pub(crate) fn compare_sort_values(
 
 /// The sort value of a variant: the theme token value named by its capture.
 ///
-/// A wildcard capture is the text after the definition's prefix, a bare variant is the
+/// A wildcard capture is the text between the definition's literal boundaries, a bare variant is the
 /// whole name, and an arbitrary capture is accepted only when the group's namespace
 /// value types accept it. A capture's `/modifier` part takes no part in ordering.
 pub(crate) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
@@ -161,9 +158,8 @@ pub(crate) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
     let definition = builtin_variant_for_order(variant, theme)?;
     let sort = definition.sort.as_ref()?;
     let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
-    let capture = if definition.wildcard {
-        let prefix = definition.name.strip_suffix('*')?;
-        value.strip_prefix(prefix).or(sort.bare.then_some(value))?
+    let capture = if definition.wildcard.is_some() {
+        definition.capture(value).or(sort.bare.then_some(value))?
     } else if sort.bare {
         value
     } else {

@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compileReactProject, renderReactStylesheet, summarizeReact } from "@stillwind/native";
+import type { NativeCompilerOptions } from "@stillwind/native";
 import { format } from "prettier";
 
 import {
@@ -21,6 +22,8 @@ type Manifest = {
   tags: string[];
   theme: string;
   sources: string[];
+  /** Compiler overrides shared by module compilation and project stylesheet rendering. */
+  compilerOptions?: NativeCompilerOptions;
 };
 type ModuleOutput = {
   path: string;
@@ -105,6 +108,7 @@ function compileProject(root: string, manifest: Manifest) {
       type_facts: facts.get(sourcePath) ?? [],
     })),
     theme,
+    manifest.compilerOptions,
   ) as { modules: ModuleOutput[] };
   const diagnostics = output.modules.flatMap((module) =>
     module.diagnostics.map(
@@ -118,7 +122,11 @@ function compileProject(root: string, manifest: Manifest) {
   );
   return {
     modules: output.modules,
-    projectCss: renderReactStylesheet(output.modules.map((module) => module.css).join("\n"), theme),
+    projectCss: renderReactStylesheet(
+      output.modules.map((module) => module.css).join("\n"),
+      theme,
+      manifest.compilerOptions,
+    ),
   };
 }
 

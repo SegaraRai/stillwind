@@ -1,4 +1,4 @@
-//! Registry audits over the vendored CSS and the parity fixtures.
+//! Registry audits over the vendored CSS, parity fixtures, and Stillwind fixtures.
 //!
 //! The regular test checks that negative-value definitions state their sign explicitly.
 //! The ignored, opt-in audit checks built-in reachability from parity fixtures; normal
@@ -57,14 +57,34 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
         .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
         .collect::<Vec<_>>();
     fixture_paths.sort();
+    for project in ["runtime-if-fallback", "runtime-if-native"] {
+        fixture_paths.push(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join(format!("../../fixtures/projects/{project}/stillwind.css")),
+        );
+    }
 
     let mut candidate_count = 0_usize;
     let mut skipped_scope_candidates = 0_usize;
     let mut theme_parse_failures = 0_usize;
     let mut candidate_parse_failures = 0_usize;
     for path in fixture_paths {
-        let markdown = fs::read_to_string(&path).expect("parity fixture");
-        for (case_index, (input, candidates)) in parity_cases(&markdown).into_iter().enumerate() {
+        let input = fs::read_to_string(&path).expect("registry fixture");
+        let applications = stillwind_css::extract_named_statements(&input, "@apply");
+        // Project @apply inputs also produce checked-in compiler output through
+        // fixtures:check, so reachability witnesses exercise real transformations.
+        let cases = if path.extension().is_some_and(|extension| extension == "css") {
+            vec![(
+                input.as_str(),
+                applications
+                    .iter()
+                    .flat_map(|(_, candidates)| candidates.split_whitespace())
+                    .collect(),
+            )]
+        } else {
+            parity_cases(&input)
+        };
+        for (case_index, (input, candidates)) in cases.into_iter().enumerate() {
             // `prefix(...)` import modifiers are explicitly unsupported, and the scope
             // directives select sources outside a resolved stylesheet.
             if ["@source", "@config", "@plugin", "@reference", "prefix("]

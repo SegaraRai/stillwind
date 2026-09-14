@@ -13,13 +13,14 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::filter_lint_findings;
+use stillwind_diagnostics::{CompileError, filter_lint_findings};
 use stillwind_ir::{
     ModuleAnalysis, composition_dependencies, ordered_style_calls, validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::SourceFile;
 
+use super::conditionals::lower;
 use super::emission::{CallEmitter, CallEmitterInputs};
 use super::handles::{
     handle_marker_class, named_identity, ref_identity, scope_identity, scope_marker_class,
@@ -65,6 +66,9 @@ impl Compiler {
     ///
     /// `parsed.ir` is cloned before ordering, because the call order is a property of the
     /// compilation, not of the frontend's output, and the analysis may be reused.
+    /// `compiler_options` selects conditional lowering after rule construction and
+    /// before generated-prefix rewriting. Lowering errors join the diagnostics and
+    /// clear generated CSS, classes, symbols, and transforms transactionally.
     #[allow(clippy::too_many_lines)]
     fn compile_snapshot(
         source: &SourceFile,
@@ -272,6 +276,16 @@ impl Compiler {
             result.transforms.clear();
         }
 
+        if result.diagnostics.is_empty() {
+            for contribution in &mut utility_css {
+                match lower(&contribution.css, options.use_css_if) {
+                    Ok(css) => contribution.css = css,
+                    Err(kind) => result
+                        .diagnostics
+                        .push(CompileError::new(kind, source.full_span())),
+                }
+            }
+        }
         if result.diagnostics.is_empty() {
             for contribution in &mut utility_css {
                 contribution.css = options.rewrite_generated(&contribution.css);

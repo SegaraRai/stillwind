@@ -149,84 +149,90 @@ pub(super) fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a s
 /// The vendored registry CSS files and the name each is reported under.
 pub(super) const REGISTRY_FILES: &[(&str, &str)] = &[
     (
-        "registry-metadata.css",
-        include_str!("../../../../../packages/core/css/builtins/registry-metadata.css"),
+        "builtin-metadata/tw-registry-metadata.css",
+        include_str!("../../../../../packages/core/css/builtin-metadata/tw-registry-metadata.css"),
     ),
     (
-        "relationship-metadata.css",
-        include_str!("../../../../../packages/core/css/builtins/relationship-metadata.css"),
+        "builtin-metadata/tw-relationship-metadata.css",
+        include_str!(
+            "../../../../../packages/core/css/builtin-metadata/tw-relationship-metadata.css"
+        ),
     ),
     (
-        "layout-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/layout-utilities.css"),
+        "builtin-utilities/tw-layout.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-layout.css"),
     ),
     (
-        "spacing-sizing-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/spacing-sizing-utilities.css"),
+        "builtin-utilities/tw-spacing-sizing.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-spacing-sizing.css"),
     ),
     (
-        "flex-grid-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/flex-grid-utilities.css"),
+        "builtin-utilities/tw-flex-grid.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-flex-grid.css"),
     ),
     (
-        "typography-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/typography-utilities.css"),
+        "builtin-utilities/tw-typography.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-typography.css"),
     ),
     (
-        "backgrounds-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/backgrounds-utilities.css"),
+        "builtin-utilities/tw-backgrounds.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-backgrounds.css"),
     ),
     (
-        "borders-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/borders-utilities.css"),
+        "builtin-utilities/tw-borders.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-borders.css"),
     ),
     (
-        "effects-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/effects-utilities.css"),
+        "builtin-utilities/tw-effects.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-effects.css"),
     ),
     (
-        "masks-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/masks-utilities.css"),
+        "builtin-utilities/tw-masks.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-masks.css"),
     ),
     (
-        "transforms-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/transforms-utilities.css"),
+        "builtin-utilities/tw-transforms.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-transforms.css"),
     ),
     (
-        "motion-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/motion-utilities.css"),
+        "builtin-utilities/tw-motion.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-motion.css"),
     ),
     (
-        "interactivity-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/interactivity-utilities.css"),
+        "builtin-utilities/tw-interactivity.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-interactivity.css"),
     ),
     (
-        "svg-utilities.css",
-        include_str!("../../../../../packages/core/css/builtins/svg-utilities.css"),
+        "builtin-utilities/tw-svg.css",
+        include_str!("../../../../../packages/core/css/builtin-utilities/tw-svg.css"),
     ),
     (
-        "relationship-variants.css",
-        include_str!("../../../../../packages/core/css/builtins/relationship-variants.css"),
+        "builtin-variants/tw-relationship.css",
+        include_str!("../../../../../packages/core/css/builtin-variants/tw-relationship.css"),
     ),
     (
-        "structural-variants.css",
-        include_str!("../../../../../packages/core/css/builtins/structural-variants.css"),
+        "builtin-variants/tw-structural.css",
+        include_str!("../../../../../packages/core/css/builtin-variants/tw-structural.css"),
     ),
     (
-        "state-variants.css",
-        include_str!("../../../../../packages/core/css/builtins/state-variants.css"),
+        "builtin-variants/tw-state.css",
+        include_str!("../../../../../packages/core/css/builtin-variants/tw-state.css"),
     ),
     (
-        "dynamic-selector-variants.css",
-        include_str!("../../../../../packages/core/css/builtins/dynamic-selector-variants.css"),
+        "builtin-variants/tw-dynamic-selector.css",
+        include_str!("../../../../../packages/core/css/builtin-variants/tw-dynamic-selector.css"),
     ),
     (
-        "conditional-variants.css",
-        include_str!("../../../../../packages/core/css/builtins/conditional-variants.css"),
+        "builtin-variants/tw-conditional.css",
+        include_str!("../../../../../packages/core/css/builtin-variants/tw-conditional.css"),
     ),
     (
-        "properties.css",
-        include_str!("../../../../../packages/core/css/builtins/properties.css"),
+        "builtin-variants/sw-conditional.css",
+        include_str!("../../../../../packages/core/css/builtin-variants/sw-conditional.css"),
+    ),
+    (
+        "builtin-metadata/tw-properties.css",
+        include_str!("../../../../../packages/core/css/builtin-metadata/tw-properties.css"),
     ),
     (
         "builtins.css",
@@ -358,7 +364,9 @@ pub(super) fn resolve_registry_variant_branches(
                 .iter()
                 .enumerate()
                 .rev()
-                .filter(|(index, (_, custom))| Some(*index) != excluded && custom.wildcard)
+                .filter(|(index, (_, custom))| {
+                    Some(*index) != excluded && custom.wildcard.is_some()
+                })
                 .find_map(|(_, (_, custom))| resolve(custom))
         })
 }

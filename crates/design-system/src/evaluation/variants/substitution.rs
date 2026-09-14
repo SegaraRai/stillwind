@@ -90,7 +90,8 @@ pub(crate) fn apply_nested_variant(
             attach_declarations(apply_nested_selector(body, selector)?, declarations.clone())?,
             condition,
         ),
-        VariantApplication::Media(_)
+        VariantApplication::Conditional(_)
+        | VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
         | VariantApplication::StartingStyle => None,
@@ -165,25 +166,12 @@ pub(crate) fn registered_variant_candidates<'a, 'b>(
 ) -> Vec<(&'a CustomVariant, Option<&'b str>)> {
     let mut candidates = Vec::new();
     for variant in variants.iter().rev() {
-        if !variant.wildcard && variant.name == value {
+        if variant.wildcard.is_none() && variant.name == value {
             candidates.push((variant, None));
         }
     }
     for variant in variants.iter().rev() {
-        let Some(prefix) = variant
-            .wildcard
-            .then(|| variant.name.strip_suffix('*'))
-            .flatten()
-        else {
-            continue;
-        };
-        if prefix.is_empty() {
-            continue;
-        }
-        let Some(capture) = value.strip_prefix(prefix) else {
-            continue;
-        };
-        if !capture.is_empty() {
+        if let Some(capture) = variant.capture(value) {
             candidates.push((variant, Some(capture)));
         }
     }

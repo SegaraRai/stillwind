@@ -11,6 +11,11 @@ use stillwind_design_system::{VariantApplication, VariantDeclaration};
 /// One non-compound effect of a variant.
 #[derive(Clone, Copy)]
 pub(super) enum VariantStep<'a> {
+    /// Custom-property test evaluated on the target element or pseudo-element.
+    Conditional(
+        /// Validated presence test or `--name:value` comparison, optionally prefixed by one `!`.
+        &'a str,
+    ),
     /// Appends a selector suffix to the current selector.
     SelectorSuffix(
         /// CSS selector suffix, including its combinators or punctuation; no separator is inserted.
@@ -109,6 +114,7 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
                 VariantApplication::Media(condition) => VariantStep::Media(condition),
                 VariantApplication::Container(condition) => VariantStep::Container(condition),
                 VariantApplication::Supports(condition) => VariantStep::Supports(condition),
+                VariantApplication::Conditional(condition) => VariantStep::Conditional(condition),
                 VariantApplication::StartingStyle => VariantStep::StartingStyle,
             };
             alternatives.push(step);

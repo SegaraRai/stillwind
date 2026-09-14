@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "runtime-if-native",
+  "title": "Runtime conditions: native",
+  "description": "Conditional utility values, stacked variants, and authored CSS using native CSS if(), including negation and value comparisons.",
+  "tags": ["runtime-if", "native", "custom-properties"],
+  "theme": "stillwind.css",
+  "sources": ["src/Conditions.tsx"],
+  "compilerOptions": {
+    "useCssIf": true
+  }
+}

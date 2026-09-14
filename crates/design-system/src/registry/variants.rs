@@ -5,10 +5,12 @@
 //! typed header - a value type, a modifier type, or sort metadata - which is parsed
 //! here and used only for built-ins.
 //!
-//! A trailing `*` captures the variant's argument; an escaped `\*` is a literal
-//! asterisk in the name. Capture and sort handling stay in the evaluator; this module
-//! only records what the CSS declared and never invents defaults for missing metadata.
+//! One unescaped `*` captures the variant's argument between literal boundaries; an
+//! escaped `\*` is a literal asterisk in the name. Capture and sort handling stay in
+//! the evaluator; this module only records what the CSS declared and never invents
+//! defaults for missing metadata.
 
+use cssparser::{Parser, Token};
 use lightningcss::printer::PrinterOptions;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
@@ -18,6 +20,8 @@ use stillwind_css::{
     extract_named_blocks, extract_named_blocks_with_offsets, extract_named_statements,
     strip_css_comments,
 };
+
+use crate::is_runtime_condition;
 
 /// Direction applied to a sort group's numeric values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,11 +50,11 @@ pub struct BuiltinVariantSort {
 /// One variant definition, from user CSS or from the compiler-owned registry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomVariant {
-    /// Decoded name, retaining a trailing capture `*` when `wildcard` is true.
+    /// Decoded name, retaining the capture `*` at `wildcard` when present.
     pub name: String,
-    /// Whether the final `*` in `name` captures a value. Escaped `\*` in a definition
-    /// header is decoded as a literal asterisk instead.
-    pub wildcard: bool,
+    /// UTF-8 byte offset of the one unescaped capture `*` in the decoded name.
+    /// `None` denotes an exact name; escaped asterisks remain literal characters.
+    pub wildcard: Option<usize>,
     /// Selector shorthand from `@custom-variant name (selector)`.
     pub selector: String,
     /// Full `@variant` body. Empty for the `@custom-variant` selector shorthand.
@@ -63,6 +67,34 @@ pub struct CustomVariant {
     pub value_type: Option<BuiltinVariantValueType>,
     /// Grammar required when the capture contains a `/modifier` suffix.
     pub modifier_type: Option<BuiltinVariantModifierType>,
+}
+
+impl CustomVariant {
+    /// Splits the decoded pattern around its one capture, preserving literal suffixes.
+    /// Returns `None` for exact names or an inconsistent capture offset.
+    pub fn wildcard_parts(&self) -> Option<(&str, &str)> {
+        let index = self.wildcard?;
+        if self.name.as_bytes().get(index) != Some(&b'*') {
+            return None;
+        }
+        Some((
+            self.name.get(..index)?,
+            self.name.get(index.checked_add(1)?..)?,
+        ))
+    }
+
+    /// Extracts a nonempty candidate capture matching both literal pattern boundaries.
+    /// Returns `None` for an exact name, invalid offset, empty prefix, or mismatch.
+    pub fn capture<'a>(&self, value: &'a str) -> Option<&'a str> {
+        let (prefix, suffix) = self.wildcard_parts()?;
+        if prefix.is_empty() {
+            return None;
+        }
+        value
+            .strip_prefix(prefix)?
+            .strip_suffix(suffix)
+            .filter(|capture| !capture.is_empty())
+    }
 }
 
 /// Grammar and semantic kind of a variant's wildcard capture.
@@ -78,6 +110,8 @@ pub enum BuiltinVariantValueType {
     Nth,
     /// A `@supports` condition validated by CSS itself.
     SupportsCondition,
+    /// A runtime custom-property presence test, negation, or value comparison.
+    IfCondition,
 }
 
 impl BuiltinVariantValueType {
@@ -88,17 +122,20 @@ impl BuiltinVariantValueType {
             "data" => Some(Self::Data),
             "nth" => Some(Self::Nth),
             "supports-condition" => Some(Self::SupportsCondition),
+            "if-condition" => Some(Self::IfCondition),
             _ => None,
         }
     }
 
-    /// Validates CSS-defined captures whose grammar can be delegated to Lightning CSS.
+    /// Validates nth/support captures with Lightning CSS and `[if-condition]` captures
+    /// with the shared runtime-condition parser.
     /// Compound variants and attribute shorthands are resolved structurally by the
     /// Tailwind registry instead, so those types report `false` here rather than
     /// accepting anything.
     #[must_use]
     pub fn accepts_css(self, value: &str) -> bool {
         let stylesheet = match self {
+            Self::IfCondition => return is_runtime_condition(value),
             Self::Nth => format!(".x:nth-child({value}) {{ color: red; }}"),
             Self::SupportsCondition => {
                 format!("@supports ({value}) {{ .x {{ color: red; }} }}")
@@ -178,10 +215,10 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
 
 /// The parsed header of a `@stillwind-variant` definition.
 pub(crate) struct ParsedBuiltinVariantHeader {
-    /// Decoded definition name, retaining the capture suffix when wildcard is true.
+    /// Decoded definition name, retaining a capture asterisk at the recorded offset, if present.
     name: String,
-    /// Whether the final unescaped asterisk captures a candidate value.
-    wildcard: bool,
+    /// UTF-8 byte offset of the unescaped capture in the decoded name, if present.
+    wildcard: Option<usize>,
     /// Optional ordering metadata parsed from the definition header.
     sort: Option<BuiltinVariantSort>,
     /// Optional grammar of the wildcard capture.
@@ -190,17 +227,31 @@ pub(crate) struct ParsedBuiltinVariantHeader {
     modifier_type: Option<BuiltinVariantModifierType>,
 }
 
-/// Splits an authored variant name into its decoded name and whether it captures a
-/// value.
+/// Returns the decoded variant name and the optional UTF-8 byte offset of its capture `*`.
 ///
-/// An escaped trailing asterisk is a literal character in the name, so it does not make
-/// the variant a wildcard. An empty name is rejected.
-pub(crate) fn parse_variant_name(value: &str) -> Option<(String, bool)> {
-    if value.is_empty() {
-        return None;
+/// CSS escapes decode as literal name characters; one unescaped asterisk captures
+/// between fixed prefix and suffix text. Empty names, multiple captures, whitespace,
+/// comments, and tokens other than identifiers, leading `@`, and `*` return `None`.
+pub(crate) fn parse_variant_name(value: &str) -> Option<(String, Option<usize>)> {
+    let mut parser = Parser::new(value);
+    let mut name = String::new();
+    let mut wildcard = None;
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+        match token {
+            Token::Ident(literal) => name.push_str(literal),
+            Token::AtKeyword(literal) if name.is_empty() => {
+                name.push('@');
+                name.push_str(literal);
+            }
+            Token::Delim('@') if name.is_empty() => name.push('@'),
+            Token::Delim('*') if wildcard.is_none() => {
+                wildcard = Some(name.len());
+                name.push('*');
+            }
+            _ => return None,
+        }
     }
-    let wildcard = value.ends_with('*') && !value.ends_with(r"\*");
-    Some((value.replace(r"\*", "*"), wildcard))
+    (!name.is_empty()).then_some((name, wildcard))
 }
 
 /// Parses the optional `(key: value, ...)` descriptor list of a built-in variant
@@ -359,8 +410,8 @@ mod tests {
 
         assert_eq!(variants.len(), 3);
         assert_eq!(variants[0].name, "*");
-        assert!(!variants[0].wildcard);
-        assert!(variants[1].wildcard);
+        assert!(variants[0].wildcard.is_none());
+        assert!(variants[1].wildcard.is_some());
         assert_eq!(
             variants[1].value_type,
             Some(BuiltinVariantValueType::Variant)
@@ -404,12 +455,33 @@ mod boundary_tests {
     use super::*;
 
     #[test]
+    fn functional_patterns_capture_between_decoded_literal_boundaries() {
+        let variants = parse_builtin_variant_definitions(
+            r"
+            @stillwind-variant when\(*\) (value: [if-condition]) { @stillwind-intrinsic builtin-if-variant; }
+            @stillwind-variant literal\**\* { & { @slot; } }
+        ",
+        );
+        assert_eq!(variants[0].name, "when(*)");
+        assert_eq!(variants[0].capture("when(--c:v)"), Some("--c:v"));
+        assert_eq!(variants[0].capture("when(--c)v"), None);
+        assert_eq!(variants[0].capture("when()"), None);
+        assert_eq!(
+            variants[0].value_type,
+            Some(BuiltinVariantValueType::IfCondition)
+        );
+        assert_eq!(variants[1].capture("literal*value*"), Some("value"));
+        assert!(parse_variant_name("two-*-*").is_none());
+        assert!(parse_builtin_variant_header(r"when\(*\) (value: [condition])").is_none());
+    }
+
+    #[test]
     fn variant_names_and_sort_headers_reject_invalid_metadata() {
         assert_eq!(
             parse_variant_name(r"literal\*"),
-            Some(("literal*".into(), false))
+            Some(("literal*".into(), None))
         );
-        assert_eq!(parse_variant_name("min-*"), Some(("min-*".into(), true)));
+        assert_eq!(parse_variant_name("min-*"), Some(("min-*".into(), Some(4))));
         assert_eq!(parse_variant_name(""), None);
         assert!(parse_builtin_variant_header("min-* (direction: sideways)").is_none());
         assert!(parse_builtin_variant_header("min-* (unknown: x)").is_none());

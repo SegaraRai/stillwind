@@ -51,7 +51,8 @@ impl StyleVariantPlan {
     /// to an unscoped selector, because that would silently target the wrong element.
     ///
     /// Returns `None` after pushing a diagnostic; the caller must abandon the
-    /// contribution.
+    /// contribution. A runtime condition inside a ref wrapper also rejects, since
+    /// computed-value conditions test the target rather than the referenced element.
     pub fn resolve(
         wrappers: &[StyleVariant],
         theme: &ThemeIndex,
@@ -106,6 +107,17 @@ impl StyleVariantPlan {
                     }
                     plan.has_refs = true;
                     let paths = variant_paths(&applications);
+                    if paths
+                        .iter()
+                        .flatten()
+                        .any(|step| matches!(step, VariantStep::Conditional(_)))
+                    {
+                        diagnostics.push(CompileError::new(
+                            CompileErrorKind::UnavailableVariantPrefix,
+                            prefix.span,
+                        ));
+                        return None;
+                    }
                     let mut alternatives = Vec::new();
                     let mut identities = Vec::new();
                     for handle in handles {
@@ -258,6 +270,9 @@ fn reference_path(
             }
             VariantStep::Supports(condition) => {
                 conditions.push(VariantApplication::Supports((*condition).to_owned()));
+            }
+            VariantStep::Conditional(condition) => {
+                conditions.push(VariantApplication::Conditional((*condition).to_owned()));
             }
             VariantStep::StartingStyle => {
                 conditions.push(VariantApplication::StartingStyle);

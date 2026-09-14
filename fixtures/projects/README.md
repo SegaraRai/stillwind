@@ -17,6 +17,8 @@ fixtures/projects/<project-id>/
 
 `project.json` is schema-versioned. Project IDs and source paths are URL keys:
 rename them only when intentionally breaking existing viewer permalinks.
+Optional `compilerOptions` are passed to both module compilation and project CSS
+rendering. The runtime-if projects use this to compare fallback and native output.
 
 Refresh snapshots after building the local native package:
 

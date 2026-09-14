@@ -1,0 +1,5 @@
+/* Built-in Stillwind conditional variant. */
+
+@stillwind-variant if\(*\) (value: [if-condition]) {
+  @stillwind-intrinsic builtin-if-variant;
+}

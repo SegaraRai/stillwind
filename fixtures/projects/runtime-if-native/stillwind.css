@@ -1,0 +1,16 @@
+@import "stillwind/builtins.css";
+@stillwind-slot utilities;
+
+.authored {
+  @apply grid if(--enabled):flex;
+  width: --if(--enabled, 120px, 60px);
+}
+
+.negated {
+  @apply grid if(!--enabled):flex;
+}
+
+.compared {
+  @apply grid if(--mode:compact):flex;
+  width: --if(--mode: compact, 40px, 80px);
+}

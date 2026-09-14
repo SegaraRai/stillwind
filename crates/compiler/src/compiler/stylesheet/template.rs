@@ -28,6 +28,7 @@ use stillwind_design_system::{
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{SourceFile, Span};
 
+use super::super::conditionals::lower;
 use super::authored_directives::expand_authored_directives;
 use super::keyframes::extract_authored_keyframes;
 use super::properties::{PropertyOutput, render_used_properties};
@@ -78,7 +79,10 @@ pub(super) fn render(
 ///
 /// Returns [`CompileErrorKind`] for malformed or unknown registration requirements,
 /// unresolved authored theme references, invalid property-usage syntax, or a missing
-/// destination for a nonempty generated contribution.
+/// destination for a nonempty generated contribution. Conditional lowering can also
+/// fail for included authored CSS, selected theme tokens, or emitted keyframes.
+/// `options` controls their strategy and helper names; supplied utility rules must
+/// already have been lowered by the module compiler.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn render_mapped(
     template: &CssOutputTemplate,
@@ -90,7 +94,7 @@ pub(crate) fn render_mapped(
 ) -> Result<MappedStylesheet, CompileErrorKind> {
     let mut explicit = utility_css.required_properties.clone();
     let authored = if document {
-        render_authored(theme.custom_css(), theme, &mut explicit)?
+        render_authored(theme.custom_css(), theme, &mut explicit, options)?
     } else {
         String::new()
     };
@@ -200,8 +204,8 @@ pub(crate) fn render_mapped(
             origin,
         } = definition
         {
-            let variables = context.theme_fragment(tokens, keyframes, *origin, true, false);
-            let frames = context.theme_fragment(tokens, keyframes, *origin, false, true);
+            let variables = context.theme_fragment(tokens, keyframes, *origin, true, false)?;
+            let frames = context.theme_fragment(tokens, keyframes, *origin, false, true)?;
             context.theme_variables.append(&variables);
             context.keyframes.append(&frames);
         }
@@ -238,7 +242,7 @@ struct Context<'a> {
     theme: &'a ThemeIndex,
     /// Mapped utility contribution inserted at utilities slots.
     utility_css: &'a MappedStylesheet,
-    /// Generated-name configuration used during template expansion.
+    /// Generated-name configuration and runtime-conditional strategy for template expansion.
     options: &'a CompilerOptions,
     /// Whether authored document rules are included rather than only carrier support.
     document: bool,
@@ -282,7 +286,15 @@ impl Context<'_> {
     /// `tokens` contains indices into `self.theme`, in definition order. The two flags
     /// select declaration and keyframe output independently. Declarations retain their
     /// token origins; selected frames use the block's `origin`. The result has no
-    /// selector or layer wrapper.
+    /// selector or layer wrapper. Runtime conditionals use `self.options`; lowered
+    /// token declarations map to the original value span rather than separate name/value spans.
+    /// Unresolved theme references are omitted.
+    ///
+    /// # Errors
+    ///
+    /// Returns conditional-lowering errors for selected token values or emitted keyframes.
+    /// Token values are validated even when only keyframes are requested. No partial
+    /// mapped output is returned and the context is unchanged.
     fn theme_fragment(
         &self,
         tokens: &[usize],
@@ -290,13 +302,22 @@ impl Context<'_> {
         origin: Option<Span>,
         emit_tokens: bool,
         emit_keyframes: bool,
-    ) -> MappedStylesheet {
+    ) -> Result<MappedStylesheet, CompileErrorKind> {
         let mut output = MappedStylesheet::default();
         let mut declarations = MappedStylesheet::default();
         for index in tokens.iter().filter(|index| self.tokens.contains(index)) {
             if let Some(token) = self.theme.tokens.get(*index)
                 && let Some(value) = self.theme.resolve_theme_references(&token.value.value)
             {
+                if value.contains("--if(") {
+                    let declaration = format!("{}:{value};", token.name.value);
+                    let lowered = lower(&declaration, self.options.use_css_if)?;
+                    declarations.text(
+                        &self.options.rewrite_generated(&lowered),
+                        self.origin(Some(token.value.span)),
+                    );
+                    continue;
+                }
                 declarations.text(&token.name.value, self.origin(Some(token.name.span)));
                 declarations.text(":", None);
                 declarations.text(&value, self.origin(Some(token.value.span)));
@@ -308,13 +329,14 @@ impl Context<'_> {
         }
         if emit_keyframes {
             output.text(
-                &self
-                    .options
-                    .rewrite_generated(&extract_authored_keyframes(keyframes, &self.animations)),
+                &self.options.rewrite_generated(&lower(
+                    &extract_authored_keyframes(keyframes, &self.animations),
+                    self.options.use_css_if,
+                )?),
                 self.origin(origin),
             );
         }
-        output
+        Ok(output)
     }
 
     /// Renders a template node list into mapped CSS.
@@ -329,7 +351,7 @@ impl Context<'_> {
     /// # Errors
     ///
     /// Returns an error if an included authored node has an invalid registration
-    /// directive or an unresolved theme reference.
+    /// directive, an unresolved theme reference, or an invalid runtime conditional.
     fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, CompileErrorKind> {
         self.nodes_in_context(nodes, false)
     }
@@ -342,7 +364,8 @@ impl Context<'_> {
     ///
     /// # Errors
     ///
-    /// Returns errors from authored directive expansion and theme-reference resolution.
+    /// Returns errors from authored directives, theme references, and conditional
+    /// lowering. Template counters may already have advanced when an error is returned.
     fn nodes_in_context(
         &mut self,
         nodes: &[CssOutputNode],
@@ -353,7 +376,7 @@ impl Context<'_> {
             match node {
                 CssOutputNode::LayerOrder { css, origin } => output.text(css, self.origin(*origin)),
                 CssOutputNode::Authored { css, origin } if self.document || declarations => {
-                    let authored = render_authored(css, self.theme, &mut Vec::new())?;
+                    let authored = render_authored(css, self.theme, &mut Vec::new(), self.options)?;
                     output.text(&authored, self.origin(*origin));
                 }
                 CssOutputNode::Authored { .. } | CssOutputNode::Theme { .. } => {}
@@ -468,14 +491,19 @@ fn is_layer(header: &str) -> bool {
 /// `required_properties` retains its existing entries and may gain duplicate names.
 /// Requirements written in the input precede those collected from `@apply` expansion.
 ///
+/// `options` selects runtime-conditional lowering and the generated conditional-helper
+/// prefix; other authored custom-property names are preserved.
+///
 /// # Errors
 ///
-/// Returns an error for a malformed requirement directive or an unresolved theme
-/// reference. Dependencies already appended remain in the accumulator on error.
+/// Returns an error for malformed requirements, unresolved theme references, or a
+/// conditional unsupported by the chosen strategy. Dependencies already appended
+/// remain in the accumulator on error; no partial CSS string is returned.
 fn render_authored(
     css: &str,
     theme: &ThemeIndex,
     required_properties: &mut Vec<String>,
+    options: &CompilerOptions,
 ) -> Result<String, CompileErrorKind> {
     let (css, requirements) =
         take_property_requirements(css).ok_or(CompileErrorKind::InvalidPropertyRequirement)?;
@@ -487,6 +515,8 @@ fn render_authored(
             required_properties,
         ))
         .ok_or(CompileErrorKind::UnresolvedThemeReference)
+        .and_then(|css| lower(&css, options.use_css_if))
+        .map(|css| css.replace("--sw-if-", &format!("{}if-", options.prefix)))
 }
 
 #[cfg(test)]

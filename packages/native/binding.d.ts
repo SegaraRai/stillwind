@@ -135,6 +135,11 @@ export interface NativeCompilerOptions {
   tailwindPrefix?: string
   forbidTailwindRelationships?: boolean
   classNamespace?: string
+  /**
+   * Emit native CSS if() for experimental values and variants; false uses fallback helpers.
+   * Defaults to false. Comparisons, negated variants, and CSS-wide helper branches require true.
+   */
+  useCssIf?: boolean
 }
 
 export interface NativeConverterIdentity {

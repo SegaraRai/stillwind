@@ -392,6 +392,12 @@ pub enum CompileErrorKind {
     /// An authored registration requirement cannot be parsed.
     #[error("invalid Stillwind property requirement")]
     InvalidPropertyRequirement,
+    /// An experimental runtime condition cannot be lowered using the selected output strategy.
+    #[error("invalid runtime conditional: {detail}")]
+    InvalidRuntimeConditional {
+        /// Syntax or output-strategy limitation preventing compilation.
+        detail: String,
+    },
     /// CSS parsing failed while collecting custom-property usage.
     #[error("CSS parse error: {detail}")]
     PropertyUsage {
@@ -628,6 +634,7 @@ impl CompileErrorKind {
             | Self::MissingUtilitiesSlot
             | Self::MissingPropertySlot { .. }
             | Self::InvalidPropertyRequirement
+            | Self::InvalidRuntimeConditional { .. }
             | Self::PropertyUsage { .. }
             | Self::MissingRule
             | Self::InvalidCssGraph

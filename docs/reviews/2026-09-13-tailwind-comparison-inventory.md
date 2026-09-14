@@ -64,7 +64,7 @@ filter: var(--tw-blur,) var(--tw-brightness,) /* 他のfilter項 */ var(--tw-dro
 filter: drop-shadow(var(--tw-drop-shadow));
 ```
 
-Stillwindのarbitrary shadow分岐は共有filterチェーンを通らず、`--tw-drop-shadow-color`も参照しない。blur等との合成やdrop-shadow色の上書きに影響する。原因候補は[effects-utilities.css](../../packages/core/css/builtins/effects-utilities.css)の`--value([shadow])`分岐。出力後の文字列修正ではなく、builtin宣言の生成元を揃える対象。
+Stillwindのarbitrary shadow分岐は共有filterチェーンを通らず、`--tw-drop-shadow-color`も参照しない。blur等との合成やdrop-shadow色の上書きに影響する。原因候補は[tw-effects.css](../../packages/core/css/builtin-utilities/tw-effects.css)の`--value([shadow])`分岐。出力後の文字列修正ではなく、builtin宣言の生成元を揃える対象。
 
 ### B. theme変数のレイヤー配置 — 10件
 
@@ -94,7 +94,7 @@ transformではStillwindだけが`--tw-rotate-x/y/z`と`--tw-skew-x/y`を`syntax
 
 カスタムプロパティの登録は継承と初期値を変える。例えば単独のtransform出力に対して親で`--tw-rotate-x`を設定した場合、未登録の場合の継承と、登録済み`inherits:false`の場合は同じではない。対応するrotate utilityも生成されて両者が同じ登録を持つケースと分ける必要がある。[CSS Properties and Values API](https://www.w3.org/TR/css-properties-values-api-1/#behavior-of-custom-properties)
 
-既存ゲートには「参照されるプロパティの追加登録」を許容する例外があるが、それ自体は意味的一致の証明ではない。今回は空themeレイヤー差もあるため、その例外では合格しなかった。[transforms-utilities.css](../../packages/core/css/builtins/transforms-utilities.css)、[effects-utilities.css](../../packages/core/css/builtins/effects-utilities.css)、登録の到達性判定が調査対象。
+既存ゲートには「参照されるプロパティの追加登録」を許容する例外があるが、それ自体は意味的一致の証明ではない。今回は空themeレイヤー差もあるため、その例外では合格しなかった。[tw-transforms.css](../../packages/core/css/builtin-utilities/tw-transforms.css)、[tw-effects.css](../../packages/core/css/builtin-utilities/tw-effects.css)、登録の到達性判定が調査対象。
 
 ## 大量に出る差の扱い
 

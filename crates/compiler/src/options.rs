@@ -2,10 +2,11 @@
 //!
 //! [`CompilerOptions`] travels with one compilation. It carries the Stillwind-owned
 //! property prefix, the separately configurable Tailwind-compatibility prefix, the
-//! caller's class namespace, and the optional policy that forbids relationship
-//! utilities. [`CompilerOptions::resolved`] pins both prefixes to the snapshot's own
-//! configuration, so a caller that passes stale options still compiles against the
-//! theme it handed over. Every generated text that carries a prefix is substituted by
+//! caller's class namespace, the runtime-conditional output strategy, and the optional
+//! policy that reports relationship utilities. [`CompilerOptions::resolved`] pins both
+//! prefixes to the snapshot's own configuration, so a caller that passes stale options
+//! still compiles against the theme it handed over. Every generated text that carries
+//! a prefix is substituted by
 //! this module's `rewrite_generated`; the two namespaces must stay distinct, because a
 //! consumer that recognizes one must not match the other.
 
@@ -19,7 +20,8 @@ use stillwind_source::normalized_module_path;
 ///
 /// Serialized in camel case with `#[serde(default)]`, so adding a field is compatible
 /// with previously written configuration; defaults match the built-in `stillwind`
-/// package and an unnamespaced project.
+/// package and an unnamespaced project. Runtime-condition output strategy applies
+/// to utilities and authored CSS, independently of design-system prefix resolution.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompilerOptions {
@@ -33,6 +35,10 @@ pub struct CompilerOptions {
     /// Extra namespace mixed into class identity, so two independently built projects
     /// can share one design system without colliding on generated class names.
     pub class_namespace: String,
+    /// Emit native CSS `if()` for experimental value and variant conditions.
+    /// False (default) uses custom-property fallbacks; all conditional variants need
+    /// `revert-rule`. Value comparisons, negated variants, and CSS-wide helper branches require true.
+    pub use_css_if: bool,
 }
 
 impl Default for CompilerOptions {
@@ -42,6 +48,7 @@ impl Default for CompilerOptions {
             tailwind_prefix: "--tw-".to_owned(),
             forbid_tailwind_relationships: false,
             class_namespace: String::new(),
+            use_css_if: false,
         }
     }
 }

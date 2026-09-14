@@ -12,6 +12,7 @@
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_syntax::parse_candidate;
 
+use super::super::conditionals::{guard, isolate_rule};
 use super::super::utilities::declaration_order::{
     order_builtin_utilities, prepend_missing_declarations,
 };
@@ -24,6 +25,9 @@ use super::blocks::find_at_rule_block;
 /// Returns a new string; `css` and `theme` are not modified. Resolved applications
 /// append registration names to `required_properties` in utility emission order,
 /// retaining existing entries and duplicates. Applications are expanded before variants.
+/// Within an application, unconditional declarations precede runtime-guarded rules; builtin
+/// ordering is retained within each group. Runtime guards remain unresolved `--if`
+/// expressions for the later options-aware lowering pass.
 /// A directive that cannot be expanded remains in the returned text, so this function
 /// is not a CSS validator.
 pub(in crate::compiler) fn expand_authored_directives(
@@ -41,11 +45,34 @@ pub(in crate::compiler) fn expand_authored_directives(
         let utilities = candidates
             .filter_map(|candidate| resolve_utility(candidate, theme))
             .collect::<Vec<_>>();
-        let declarations = order_builtin_utilities(utilities.iter().collect())
+        let mut ordered = order_builtin_utilities(utilities.iter().collect());
+        ordered.sort_by_key(|utility| {
+            utility.variants.iter().any(|variant| {
+                matches!(
+                    resolve_variant(variant, theme),
+                    Some(VariantApplication::Conditional(_))
+                )
+            })
+        });
+        let declarations = ordered
             .into_iter()
             .map(|utility| {
                 required_properties.extend(utility.required_properties.iter().cloned());
-                utility.declaration.clone()
+                if utility.variants.iter().any(|variant| {
+                    matches!(
+                        resolve_variant(variant, theme),
+                        Some(VariantApplication::Conditional(_))
+                    )
+                }) {
+                    let applications = utility
+                        .variants
+                        .iter()
+                        .filter_map(|variant| resolve_variant(variant, theme))
+                        .collect::<Vec<_>>();
+                    render_authored_variant_path(&utility.declaration, &applications)
+                } else {
+                    utility.declaration.clone()
+                }
             })
             .collect::<String>();
         output.replace_range(start..=end, &declarations);
@@ -144,6 +171,9 @@ pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> 
 /// The innermost step is applied first, so the outermost at-rule of the path ends up containing
 /// the whole rule. Declarations a variant contributes are prepended only when the body does not
 /// already set that property, which keeps an explicit authored value authoritative.
+/// Runtime conditions guard declarations recursively and add distinct support groups
+/// to preserve `revert-rule` boundaries during minification. The result still contains
+/// `--if` expressions; callers must lower it using the selected compiler strategy.
 pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
@@ -188,6 +218,9 @@ pub(in crate::compiler) fn render_authored_variant_path(
                     }
                     VariantStep::Supports(condition) => {
                         format!("@supports ({condition}){{{body}}}")
+                    }
+                    VariantStep::Conditional(condition) => {
+                        isolate_rule(&format!("&{{{}}}", guard(&body, condition)))
                     }
                     VariantStep::StartingStyle => {
                         format!("@starting-style{{{body}}}")

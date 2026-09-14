@@ -83,7 +83,7 @@ RustのCSS生成・レジストリ処理を中心に、関連するJS出力と�
 
 ### `@stillwind-format` の責務混在
 
-[registry-metadata.css](../../packages/core/css/builtins/registry-metadata.css) は空白、fallback追加、長さの型付与、transform合成を同じformatメタデータで扱っている。
+[tw-registry-metadata.css](../../packages/core/css/builtin-metadata/tw-registry-metadata.css) は空白、fallback追加、長さの型付与、transform合成を同じformatメタデータで扱っている。
 
 書式設定、値の意味、宣言の結合規則に分ける必要がある。特に `var-fallback`・`zero-length`・`compose-space` は、任意の整形オプションと同じ扱いで無効化すべきではない。
 

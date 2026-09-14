@@ -11,16 +11,20 @@ use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
 };
 
+use super::super::conditionals::{guard, isolate_rule};
+use super::super::variants::{VariantStep, variant_paths};
 use super::declaration_order::prepend_missing_declarations;
 use super::resolve::CompiledUtility;
-use crate::compiler::variants::{VariantStep, variant_paths};
 
 /// Renders one utility as one or more complete rules.
 ///
 /// A utility that carries pre-resolved applications is rendered from those, without re-resolving
 /// its variants; otherwise each variant is resolved and every alternative it expands to produces a
 /// separate rule. A variant that no longer resolves is skipped rather than failing the rule, which
-/// keeps one stale variant from hiding a whole unit.
+/// keeps one stale variant from hiding a whole unit. Runtime conditions guard the
+/// final declarations, including variant additions, with unresolved `--if` expressions.
+/// Their rules receive distinct support groups; callers must subsequently run the
+/// conditional-lowering pass with compiler options before publishing CSS.
 pub(in crate::compiler) fn render_utility_rule(
     class_name: &str,
     utility: &CompiledUtility,
@@ -71,7 +75,9 @@ pub(in crate::compiler) fn render_utility_rule(
         .collect()
 }
 
-/// Renders the rules of one already-resolved variant path.
+/// Renders all alternatives of an already-resolved variant path.
+/// Runtime guards remain unresolved and use separate support groups, as in
+/// [`render_utility_rule`]; no registry lookup or output-strategy choice occurs here.
 pub(in crate::compiler) fn render_utility_rule_path(
     class_name: &str,
     utility: &CompiledUtility,
@@ -107,6 +113,7 @@ fn render_utility_steps(
     let mut containers = Vec::new();
     let mut supports = Vec::new();
     let mut starting_style = false;
+    let mut conditions = Vec::new();
     for &application in applications {
         match application {
             VariantStep::SelectorSuffix(suffix) => {
@@ -147,10 +154,15 @@ fn render_utility_steps(
             VariantStep::Supports(condition) => {
                 supports.push(condition.to_owned());
             }
+            VariantStep::Conditional(condition) => conditions.push(condition),
             VariantStep::StartingStyle => {
                 starting_style = true;
             }
         }
+    }
+    let conditional = !conditions.is_empty();
+    for condition in conditions {
+        declaration = guard(&declaration, condition);
     }
     let mut rule = format!("{selector}{{{declaration}}}");
     if let Some(nested) = nested_rule {
@@ -178,5 +190,9 @@ fn render_utility_steps(
     if let Some(container) = &utility.container {
         rule = format!("@container {container}{{{rule}}}");
     }
-    rule
+    if conditional {
+        isolate_rule(&rule)
+    } else {
+        rule
+    }
 }

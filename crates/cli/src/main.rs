@@ -197,6 +197,7 @@ fn run() -> Result<(), CommandError> {
         tailwind_prefix: optional_argument("--tailwind-prefix")
             .unwrap_or_else(|| "--tw-".to_owned()),
         forbid_tailwind_relationships: has_flag("--forbid-tailwind-relationships"),
+        use_css_if: has_flag("--use-css-if"),
         ..CompilerOptions::default()
     };
     options.validate()?;
@@ -257,7 +258,7 @@ fn main() {
     if let Err(error) = run() {
         eprintln!("stillwind: {error}");
         eprintln!(
-            "usage: stillwind compile --source <component.tsx> --theme <stillwind.css> [--prefix <--sw->] [--tailwind-prefix <--tw->]"
+            "usage: stillwind compile --source <component.tsx> --theme <stillwind.css> [--prefix <--sw->] [--tailwind-prefix <--tw->] [--use-css-if]"
         );
         std::process::exit(2);
     }

@@ -6,10 +6,13 @@
 //! `integer`, `number`, `percentage`, `--spacing()`, `--fraction()`, and the axis-size
 //! built-ins, and theme namespace patterns such as `--color-*`.
 
+use cssparser::{Parser, Token};
+
 use stillwind_css::ValueDomain;
 
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use super::theme::{axis_size_value, fraction_value, theme_value, theme_value_literal};
+use crate::conditionals::accepts_runtime_value;
 use crate::{ThemeIndex, ThemeNamespace};
 
 /// Resolves the first matching domain in a comma-separated domain list.
@@ -17,7 +20,9 @@ use crate::{ThemeIndex, ThemeNamespace};
 /// A theme namespace domain looks the capture up in that namespace and may append an
 /// authored suffix; a CSS grammar domain accepts either a parenthesized variable (whose
 /// optional hint must fit) or an arbitrary value (whose value and hint must fit).
-/// [`None`] means no domain matched.
+/// Whole `--if` values must have two branches accepted by the same domain; nested
+/// expressions use deferred-variable validation after their conditional syntax is checked.
+/// [`None`] means no domain matched, including malformed conditional captures.
 pub(crate) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
@@ -73,11 +78,25 @@ pub(crate) fn resolve_value_domains(
             return hint_is_compatible.then(|| format!("var({})", variable.name));
         }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
-        let (hint, value) = arbitrary.split_once(':').unwrap_or(("", arbitrary));
+        let (hint, value) = arbitrary_hint(arbitrary);
         let value = decode_arbitrary(value);
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
-        (hint_is_compatible && expected.accepts(&value)).then_some(value)
+        (hint_is_compatible && accepts_runtime_value(expected, &value)).then_some(value)
     })
+}
+
+/// Separates a type hint at the first top-level colon, leaving conditional tests,
+/// quoted strings, and function arguments intact.
+/// Returns `(hint, value)` without trimming, or `("", input)` if no colon is found.
+fn arbitrary_hint(value: &str) -> (&str, &str) {
+    let mut parser = Parser::new(value);
+    while let Ok(token) = parser.next() {
+        if matches!(token, Token::Colon) {
+            let end = parser.position().byte_index();
+            return (&value[..end - 1], &value[end..]);
+        }
+    }
+    ("", value)
 }
 
 /// Resolves a typed domain to its authored theme token value rather than a

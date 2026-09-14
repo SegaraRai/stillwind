@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "runtime-if-fallback",
+  "title": "Runtime conditions: fallback",
+  "description": "Conditional utility values, stacked variants, and authored CSS using local custom-property fallback helpers and revert-rule.",
+  "tags": ["runtime-if", "fallback", "custom-properties"],
+  "theme": "stillwind.css",
+  "sources": ["src/Conditions.tsx"],
+  "compilerOptions": {
+    "useCssIf": false
+  }
+}

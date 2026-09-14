@@ -6,7 +6,7 @@
 //! does not know is preserved here, because the lint code a user sees depends on it.
 
 use stillwind_design_system::{
-    NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, VariantApplication,
+    NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, VariantApplication, resolve_variant,
 };
 use stillwind_diagnostics::UtilityFailure;
 use stillwind_syntax::{Variant, parse_candidate};
@@ -82,12 +82,17 @@ pub(crate) fn unresolved_utility_kind(raw: &str) -> UtilityFailure {
 /// Resolves a candidate into every rule it expands to, in emission order.
 ///
 /// Returns `None` when the candidate is unknown or unavailable in this theme; the caller decides
-/// whether that is a lint finding, an external class name, or a diagnostic.
+/// whether that is a lint finding, an external class name, or a diagnostic. Every
+/// variant must also resolve; an absent CSS registration never drops its guard and
+/// turns the candidate into an unconditional utility.
 pub(crate) fn resolve_utility_targets(
     utility: &str,
     theme: &ThemeIndex,
 ) -> Option<Vec<CompiledUtility>> {
     let resolved = CandidateResolver::resolve(utility, theme)?;
+    for variant in &resolved.candidate.variants {
+        resolve_variant(variant, theme)?;
+    }
     let mut targets = vec![ResolvedUtilityTarget {
         declaration: resolved.declaration,
         selector: resolved.selector,

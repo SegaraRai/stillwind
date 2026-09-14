@@ -1,6 +1,16 @@
 @layer properties, theme, base, components, utilities;
 @layer theme {
-  /* Definitions are collected globally; these slots own their output placement. */
+  /*
+Defines Stillwind's default design tokens and the output locations for selected theme
+custom properties and keyframes. The importing stylesheet chooses their cascade layer.
+*/
+
+  /*
+Expose selected theme custom properties to both document roots and shadow hosts.
+The theme slot emits declarations, so it must remain inside this selector block.
+Keep both selectors so the same theme values are available in either scope.
+*/
+
   :root,
   :host {
     --font-sans:
@@ -474,7 +484,10 @@
     animation-fill-mode: both;
   }
 } /*
-Runtime placement is authored CSS. Registrations remain outside the fallback query.
+The property-initials slot inserts declarations for selected builtin registrations.
+Each element and the listed pseudo-elements receive their own fallback values in the
+queried compatibility environments; a root-only reset would allow inherited state to
+reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {

@@ -9,7 +9,8 @@ use napi_derive::napi;
 
 use stillwind_compiler::CompilerOptions;
 
-/// Optional host overrides; omitted fields keep the compiler defaults.
+/// Optional host overrides for prefixes, lint policy, class identity, and conditional CSS.
+/// Conversion validates prefixes; omitted fields retain `CompilerOptions` defaults.
 #[napi(object)]
 #[derive(Default)]
 pub struct NativeCompilerOptions {
@@ -17,10 +18,13 @@ pub struct NativeCompilerOptions {
     pub prefix: Option<String>,
     /// Prefix for the retained Tailwind-compatibility namespace.
     pub tailwind_prefix: Option<String>,
-    /// Whether theme relationships that only Tailwind needs are rejected.
+    /// Whether Tailwind relationship candidates produce the nonfatal typed-relationship lint.
     pub forbid_tailwind_relationships: Option<bool>,
     /// Identifier namespace for generated class names.
     pub class_namespace: Option<String>,
+    /// Emit native CSS `if()` for experimental conditional values and variants.
+    /// Defaults to false; comparisons, negated variants, and CSS-wide helper branches require true.
+    pub use_css_if: Option<bool>,
 }
 
 impl TryFrom<NativeCompilerOptions> for CompilerOptions {
@@ -35,6 +39,7 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                 .forbid_tailwind_relationships
                 .unwrap_or(defaults.forbid_tailwind_relationships),
             class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),
+            use_css_if: input.use_css_if.unwrap_or(defaults.use_css_if),
         };
         options
             .validate()

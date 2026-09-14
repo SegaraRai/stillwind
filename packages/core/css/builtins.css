@@ -5,8 +5,8 @@ Load the metadata required for Tailwind CSS compatibility, deterministic
 serialization, and relationship-aware linting.
 */
 
-@import "./builtins/registry-metadata.css";
-@import "./builtins/relationship-metadata.css";
+@import "./builtin-metadata/tw-registry-metadata.css";
+@import "./builtin-metadata/tw-relationship-metadata.css";
 
 /*
 Load the built-in utility definitions.
@@ -23,18 +23,18 @@ desired position; Stillwind does not need them because the definition position
 is itself the sort key.
 */
 
-@import "./builtins/layout-utilities.css";
-@import "./builtins/spacing-sizing-utilities.css";
-@import "./builtins/flex-grid-utilities.css";
-@import "./builtins/typography-utilities.css";
-@import "./builtins/backgrounds-utilities.css";
-@import "./builtins/borders-utilities.css";
-@import "./builtins/effects-utilities.css";
-@import "./builtins/masks-utilities.css";
-@import "./builtins/transforms-utilities.css";
-@import "./builtins/motion-utilities.css";
-@import "./builtins/interactivity-utilities.css";
-@import "./builtins/svg-utilities.css";
+@import "./builtin-utilities/tw-layout.css";
+@import "./builtin-utilities/tw-spacing-sizing.css";
+@import "./builtin-utilities/tw-flex-grid.css";
+@import "./builtin-utilities/tw-typography.css";
+@import "./builtin-utilities/tw-backgrounds.css";
+@import "./builtin-utilities/tw-borders.css";
+@import "./builtin-utilities/tw-effects.css";
+@import "./builtin-utilities/tw-masks.css";
+@import "./builtin-utilities/tw-transforms.css";
+@import "./builtin-utilities/tw-motion.css";
+@import "./builtin-utilities/tw-interactivity.css";
+@import "./builtin-utilities/tw-svg.css";
 
 /*
 Load the built-in variant definitions.
@@ -47,11 +47,13 @@ when variants apply together, reordering them can change which declarations win.
 Preserve that precedence when adding or moving definitions.
 */
 
-@import "./builtins/relationship-variants.css";
-@import "./builtins/structural-variants.css";
-@import "./builtins/state-variants.css";
-@import "./builtins/dynamic-selector-variants.css";
-@import "./builtins/conditional-variants.css";
+@import "./builtin-variants/tw-relationship.css";
+@import "./builtin-variants/tw-structural.css";
+@import "./builtin-variants/tw-state.css";
+@import "./builtin-variants/tw-dynamic-selector.css";
+@import "./builtin-variants/tw-conditional.css";
+
+@import "./builtin-variants/sw-conditional.css";
 
 /*
 Load custom-property registrations used by the built-in utilities.
@@ -60,7 +62,7 @@ Each `@stillwind-property` defines the syntax, inheritance behavior, initial
 value, and activation conditions for a generated standard @property rule.
 */
 
-@import "./builtins/properties.css";
+@import "./builtin-metadata/tw-properties.css";
 
 /*
 Arbitrary properties not assigned a family-specific position are emitted
