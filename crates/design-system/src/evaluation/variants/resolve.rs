@@ -39,6 +39,8 @@ pub enum VariantApplication {
     ),
     /// Several applications, one per block of a compound body, in authored order.
     Compound(Vec<VariantApplication>),
+    /// Applications composed in order within one branch, retaining nested wrappers.
+    Sequence(Vec<VariantApplication>),
     /// A fixed selector suffix appended to the utility's own selector.
     SelectorSuffix(&'static str),
     /// A resolved selector template containing `&` for the utility selector.
@@ -77,6 +79,26 @@ pub enum VariantApplication {
     StartingStyle,
 }
 
+impl VariantApplication {
+    /// Whether resolving this application requires the current element's selector.
+    /// External container identities do not themselves require a subject selector.
+    pub fn uses_subject(&self) -> bool {
+        match self {
+            Self::Conditional(_) | Self::SelectorSuffix(_) => true,
+            Self::Compound(children) | Self::Sequence(children) => {
+                children.iter().any(Self::uses_subject)
+            }
+            Self::SelectorTemplate(selector)
+            | Self::SelectorRule { selector, .. }
+            | Self::SelectorMedia { selector, .. }
+            | Self::SelectorMediaRule { selector, .. } => {
+                stillwind_css::selector_uses_subject(selector)
+            }
+            Self::Media(_) | Self::Container(_) | Self::Supports(_) | Self::StartingStyle => false,
+        }
+    }
+}
+
 /// One declaration carried by a variant rather than by the utility.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariantDeclaration {
@@ -88,8 +110,8 @@ pub struct VariantDeclaration {
 
 /// Resolves one variant against the theme.
 ///
-/// An arbitrary variant is a selector template, except for the `@supports(...)` form,
-/// which becomes a support condition. A named variant is matched against project
+/// Arbitrary selectors become selector templates; arbitrary at-rules use the
+/// same structural body resolver as named definitions. A named variant is matched against project
 /// definitions first and built-ins second, and only its first matching candidate is
 /// used. A CSS definition with `[if-condition]` and the `builtin-if-variant`
 /// intrinsic produces a `Conditional` application; its public spelling comes only
@@ -97,11 +119,8 @@ pub struct VariantDeclaration {
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let VariantKind::Arbitrary(value) = &variant.kind {
-        if let Some(condition) = value
-            .strip_prefix("@supports(")
-            .and_then(|value| value.strip_suffix(')'))
-        {
-            return Some(VariantApplication::Supports(condition.to_owned()));
+        if value.starts_with('@') {
+            return resolve_variant_body(&format!("{value} {{ @slot; }}"));
         }
         return Some(VariantApplication::SelectorTemplate(value.clone()));
     }

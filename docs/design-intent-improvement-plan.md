@@ -217,7 +217,7 @@ CSS を値として取得する経路は、import 先の相対解決・収集と
 
 ### 6. F4/D2: variant の構造と利用文脈の統一
 
-- [ ] variant 解決結果に、適用先 `&` への依存を構造的に保持する。
+- [x] variant 解決結果に、適用先 `&` への依存を構造的に保持する。
 - [ ] 通常/任意/custom/compound variant、at-rule と selector の混在、quoted/escaped `&` を検証する。
 - [ ] `ref.at(query, utilities)` を、`ref.at(query)` が variant を返す規約へ変更する。
       `` ref.at`query` `` も同じ意味として扱う。utility は通常の wrapper/template の operand にする。

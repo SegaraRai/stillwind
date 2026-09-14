@@ -70,6 +70,22 @@ pub(crate) fn apply_nested_variant(
             .map(|application| apply_nested_variant(body, application))
             .collect::<Option<Vec<_>>>()
             .map(VariantApplication::Compound),
+        VariantApplication::Sequence(applications) => {
+            let mut outer = None;
+            let mut conditions = Vec::new();
+            for application in applications {
+                if application.uses_subject() {
+                    if outer.is_some() {
+                        return None;
+                    }
+                    outer = Some(apply_nested_variant(body, application)?);
+                } else {
+                    conditions.push(application.clone());
+                }
+            }
+            conditions.push(outer?);
+            Some(VariantApplication::Sequence(conditions))
+        }
         VariantApplication::SelectorSuffix(suffix) => {
             apply_nested_selector(body, &format!("&{suffix}"))
         }

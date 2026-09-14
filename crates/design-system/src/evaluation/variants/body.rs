@@ -29,48 +29,59 @@ pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
             .collect::<Option<Vec<_>>>()
             .map(VariantApplication::Compound);
     }
-    if body.contains("@starting-style") {
-        return Some(VariantApplication::StartingStyle);
-    }
-    if let Some(start) = body.find("@media ") {
-        let condition_start = start + "@media ".len();
-        let condition_end = body[condition_start..].find('{')? + condition_start;
-        let media_end = closing_brace(body, condition_end)?;
-        let condition = body[condition_start..condition_end].trim().to_owned();
-        let nested = &body[condition_end + 1..media_end];
-        if let Some(rule) = selector_rule_from_variant_body(nested) {
-            return if rule.declarations.is_empty() {
-                Some(VariantApplication::SelectorMedia {
-                    selector: rule.selector,
+    let body = body.trim();
+    if body.starts_with('@') {
+        let open = block_open(body)?;
+        let close = closing_brace(body, open)?;
+        let header = body[..open].trim();
+        let (name, condition) = header
+            .split_once(|c: char| c.is_whitespace() || c == '(')
+            .map_or((header, ""), |(name, _)| {
+                (name, header[name.len()..].trim())
+            });
+        let wrapper = match name {
+            "@media" if !condition.is_empty() => VariantApplication::Media(condition.to_owned()),
+            "@container" if !condition.is_empty() => {
+                VariantApplication::Container(condition.to_owned())
+            }
+            "@supports" if !condition.is_empty() => VariantApplication::Supports(
+                condition
+                    .strip_prefix('(')
+                    .and_then(|value| value.strip_suffix(')'))
+                    .unwrap_or(condition)
+                    .to_owned(),
+            ),
+            "@starting-style" if condition.is_empty() => VariantApplication::StartingStyle,
+            _ => return None,
+        };
+        let inner = body[open + 1..close].trim();
+        if inner == "@slot;" {
+            return Some(wrapper);
+        }
+        let nested = resolve_variant_body(inner)?;
+        if let VariantApplication::Media(condition) = wrapper {
+            return match nested {
+                VariantApplication::SelectorTemplate(selector) => {
+                    Some(VariantApplication::SelectorMedia {
+                        selector,
+                        condition,
+                    })
+                }
+                VariantApplication::SelectorRule {
+                    selector,
+                    declarations,
+                } => Some(VariantApplication::SelectorMediaRule {
+                    selector,
+                    declarations,
                     condition,
-                })
-            } else {
-                Some(VariantApplication::SelectorMediaRule {
-                    selector: rule.selector,
-                    declarations: rule.declarations,
-                    condition,
-                })
+                }),
+                other => Some(VariantApplication::Sequence(vec![
+                    VariantApplication::Media(condition),
+                    other,
+                ])),
             };
         }
-        return Some(VariantApplication::Media(condition));
-    }
-    if let Some(start) = body.find("@container ") {
-        let condition_start = start + "@container ".len();
-        let condition_end = body[condition_start..].find('{')? + condition_start;
-        return Some(VariantApplication::Container(
-            body[condition_start..condition_end].trim().to_owned(),
-        ));
-    }
-    if let Some(start) = body.find("@supports ") {
-        let condition_start = start + "@supports ".len();
-        let condition_end = body[condition_start..].find('{')? + condition_start;
-        let condition = body[condition_start..condition_end]
-            .trim()
-            .strip_prefix('(')
-            .and_then(|condition| condition.strip_suffix(')'))?
-            .trim()
-            .to_owned();
-        return Some(VariantApplication::Supports(condition));
+        return Some(VariantApplication::Sequence(vec![wrapper, nested]));
     }
     let rule = selector_rule_from_variant_body(body)?;
     if rule.declarations.is_empty() {
@@ -80,6 +91,20 @@ pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
             selector: rule.selector,
             declarations: rule.declarations,
         })
+    }
+}
+
+/// Finds a rule body without treating quoted braces or function contents as blocks.
+fn block_open(body: &str) -> Option<usize> {
+    let mut parser = cssparser::Parser::new(body);
+    loop {
+        let offset = parser.position().byte_index();
+        if matches!(
+            parser.next_including_whitespace_and_comments().ok()?,
+            cssparser::Token::CurlyBracketBlock
+        ) {
+            return Some(offset);
+        }
     }
 }
 
@@ -98,7 +123,7 @@ pub(crate) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
         if start == body.len() {
             break;
         }
-        let open = body[start..].find('{')? + start;
+        let open = block_open(&body[start..])? + start;
         let close = closing_brace(body, open)?;
         blocks.push(&body[start..=close]);
         cursor = close + 1;
@@ -117,19 +142,18 @@ pub(crate) struct VariantSelectorRule {
 
 /// Reads a selector block from a variant body.
 ///
-/// The selector must contain `&` - a variant that does not reference the utility's own
-/// selector cannot wrap it - and must be the only construct in the body. Nested blocks,
+/// The selector must be the only construct in the body. Nested blocks,
 /// an empty selector, and declarations without a property or value are all rejected, so
 /// a malformed definition fails instead of emitting a selector the author did not
 /// write.
 pub(crate) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
-    let open = body.find('{')?;
+    let open = block_open(body)?;
     let close = closing_brace(body, open)?;
     if !body[close + 1..].trim().is_empty() {
         return None;
     }
     let selector = body[..open].trim();
-    if selector.is_empty() || !selector.contains('&') {
+    if selector.is_empty() || selector.starts_with('@') {
         return None;
     }
 
@@ -174,6 +198,30 @@ pub(crate) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelec
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subject_dependency_comes_from_selector_tokens_inside_retained_wrappers() {
+        for (body, expected) in [
+            (
+                "@media print { @supports (display:grid) { &:hover { @slot; } } }",
+                true,
+            ),
+            (
+                "@container panel (width > 1px) { @media print { @slot; } }",
+                false,
+            ),
+            (r#"[data-value="&{"] .\& /* & */ { @slot; }"#, false),
+            (r#":is(&, [data-value="&"]) { @slot; }"#, true),
+            ("::view-transition-old(*) { @slot; }", false),
+        ] {
+            let application = resolve_variant_body(body).unwrap();
+            assert_eq!(
+                application.uses_subject(),
+                expected,
+                "{body}: {application:?}"
+            );
+        }
+    }
 
     #[test]
     fn recognizes_selector_media_supports_and_rejects_missing_slots() {

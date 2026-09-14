@@ -68,11 +68,11 @@ pub(super) enum VariantStep<'a> {
     StartingStyle,
 }
 
-/// Expand alternatives without recursion, preserving authored branch order.
+/// Expands alternatives and sequential compositions, preserving authored branch order.
 ///
 /// The returned order is the order a reader sees in the source: alternatives of one compound
 /// application keep their written order, and later applications only multiply the paths. The
-/// traversal uses an explicit stack, so deeply nested compounds cannot overflow the stack.
+/// Compound alternatives use an explicit stack; sequential children share this expansion.
 pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<VariantStep<'_>>> {
     let mut paths = vec![Vec::new()];
     for application in applications {
@@ -82,6 +82,10 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
             let step = match application {
                 VariantApplication::Compound(children) => {
                     pending.extend(children.iter().rev());
+                    continue;
+                }
+                VariantApplication::Sequence(children) => {
+                    alternatives.extend(variant_paths(children));
                     continue;
                 }
                 VariantApplication::SelectorSuffix(suffix) => VariantStep::SelectorSuffix(suffix),
@@ -117,14 +121,14 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
                 VariantApplication::Conditional(condition) => VariantStep::Conditional(condition),
                 VariantApplication::StartingStyle => VariantStep::StartingStyle,
             };
-            alternatives.push(step);
+            alternatives.push(vec![step]);
         }
         paths = paths
             .into_iter()
             .flat_map(|path| {
                 alternatives.iter().map(move |step| {
                     let mut path = path.clone();
-                    path.push(*step);
+                    path.extend(step);
                     path
                 })
             })
@@ -139,6 +143,26 @@ mod tests {
     use super::super::utilities::render::render_utility_rule_path;
     use super::super::utilities::resolve::CompiledUtility;
     use super::*;
+
+    #[test]
+    fn sequential_wrappers_retain_every_condition_and_alternative() {
+        let applications = [VariantApplication::Sequence(vec![
+            VariantApplication::Container("panel (width > 1px)".into()),
+            VariantApplication::Supports("display:grid".into()),
+            VariantApplication::Compound(vec![
+                VariantApplication::SelectorTemplate("&:hover".into()),
+                VariantApplication::SelectorTemplate("&:focus".into()),
+            ]),
+        ])];
+        let css = render_authored_variant_path("color:red;", &applications);
+        assert_eq!(
+            css.matches("@container panel (width > 1px)").count(),
+            2,
+            "{css}"
+        );
+        assert_eq!(css.matches("@supports (display:grid)").count(), 2, "{css}");
+        assert!(css.contains("&:hover") && css.contains("&:focus"), "{css}");
+    }
 
     #[test]
     fn nested_alternatives_render_in_both_css_paths() {

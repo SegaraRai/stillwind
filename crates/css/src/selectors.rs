@@ -2,6 +2,14 @@
 
 use cssparser::{ParseError, Parser, Token};
 
+/// Whether a selector contains a nesting token referring to its current subject.
+/// Quoted, escaped, commented, and attribute-value ampersands are literal text.
+pub fn selector_uses_subject(selector: &str) -> bool {
+    let mut positions = Vec::new();
+    collect(&mut Parser::new(selector), &mut positions);
+    !positions.is_empty()
+}
+
 /// Emits a selector template with CSS nesting tokens bound to `parent`.
 /// Strings, comments, escaped identifiers and attribute values remain literal.
 pub fn instantiate_selector(template: &str, parent: &str) -> String {
