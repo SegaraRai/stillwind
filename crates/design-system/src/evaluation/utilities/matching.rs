@@ -165,6 +165,9 @@ pub(crate) fn resolve_css_utility_branches<'a>(
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
         // competing overloads cannot overwrite a more-specific property branch.
+        if resolution.tw_sort.is_none() {
+            resolution.tw_sort.clone_from(&branch.tw_sort);
+        }
         resolution
             .required_properties
             .extend(branch.required_properties);
@@ -379,11 +382,13 @@ mod tests {
     #[test]
     fn exact_branches_outrank_wildcards_and_value_types_are_deduplicated() {
         let exact = CustomUtility {
+            tw_sort: None,
             name: "w-1".into(),
             body: "width:--value([length]);x:--value([length]);".into(),
             builtin_order: None,
         };
         let wildcard = CustomUtility {
+            tw_sort: None,
             name: "w-*".into(),
             ..exact.clone()
         };

@@ -17,11 +17,14 @@ use super::body::UtilityResolution;
 use super::formatting::finalize_declaration;
 use super::matching::{matching_utilities, resolve_css_utility_branches, resolve_named_utility};
 use super::nested::NestedUtilityRule;
+use super::order::{UtilityOrder, UtilityPropertySort};
 use crate::ThemeIndex;
 
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
+    /// Snapshot-selected utility ordering before variant application.
+    pub order: UtilityOrder,
     /// The parsed candidate, including its variants, flags, and modifier.
     pub candidate: Candidate,
     /// Registrations explicitly required by the selected utility branches.
@@ -72,6 +75,31 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
+    let order = if theme.config.authored_utility_order {
+        UtilityOrder::Authored(resolution.builtin_order)
+    } else {
+        let groups = std::iter::once(resolution.declaration.as_str())
+            .chain(
+                resolution
+                    .nested
+                    .iter()
+                    .filter(|rule| !rule.compatibility)
+                    .map(|rule| rule.declaration.as_str()),
+            )
+            .chain(resolution.additional.iter().flat_map(|target| {
+                std::iter::once(target.declaration.as_str()).chain(
+                    target
+                        .nested
+                        .iter()
+                        .filter(|rule| !rule.compatibility)
+                        .map(|rule| rule.declaration.as_str()),
+                )
+            }));
+        UtilityOrder::Tailwind(UtilityPropertySort::from_groups(
+            groups,
+            resolution.tw_sort.as_deref(),
+        ))
+    };
     let declaration = finalize_declaration(resolution.declaration, candidate.important, theme);
     let nested: Vec<NestedUtilityRule> = resolution
         .nested
@@ -100,6 +128,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         .collect();
     let selector = resolution.selector;
     Some(ResolvedUtility {
+        order,
         required_properties: resolution.required_properties,
         candidate,
         builtin_order: resolution.builtin_order,

@@ -12,8 +12,7 @@ use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
-    ThemeIndex, VariantDeclaration, builtin_declaration_formats, compare_utility_order,
-    declaration_format,
+    ThemeIndex, VariantDeclaration, builtin_declaration_formats, declaration_format,
 };
 
 use super::resolve::CompiledUtility;
@@ -173,12 +172,8 @@ pub(in crate::compiler) fn order_utilities(
     mut utilities: Vec<&CompiledUtility>,
 ) -> Vec<&CompiledUtility> {
     utilities.sort_by(|left, right| {
-        compare_utility_order(
-            left.builtin_order,
-            &left.candidate,
-            right.builtin_order,
-            &right.candidate,
-        )
+        left.order
+            .compare(&left.candidate, &right.order, &right.candidate)
     });
     utilities
 }
@@ -196,6 +191,8 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_design_system::UtilityOrder;
+
     use super::*;
 
     #[test]
@@ -209,7 +206,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: Some(2),
+                order: UtilityOrder::Authored(Some(2)),
                 candidate: "ml-2".to_owned(),
             },
             CompiledUtility {
@@ -220,7 +217,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: Some(1),
+                order: UtilityOrder::Authored(Some(1)),
                 candidate: "mx-3".to_owned(),
             },
             CompiledUtility {
@@ -231,7 +228,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: Some(0),
+                order: UtilityOrder::Authored(Some(0)),
                 candidate: "m-4".to_owned(),
             },
         ];
@@ -254,7 +251,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: Some(usize::MAX),
+                order: UtilityOrder::Authored(Some(usize::MAX)),
                 candidate: "[all:unset]".to_owned(),
             },
             CompiledUtility {
@@ -265,7 +262,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: Some(1),
+                order: UtilityOrder::Authored(Some(1)),
                 candidate: "skew-x-6".to_owned(),
             },
         ];
@@ -288,7 +285,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: None,
+                order: UtilityOrder::Authored(None),
                 candidate: String::new(),
             },
             CompiledUtility {
@@ -299,7 +296,7 @@ mod tests {
                 selector: None,
                 container: None,
                 nested: Vec::new(),
-                builtin_order: None,
+                order: UtilityOrder::Authored(None),
                 candidate: String::new(),
             },
         ];
@@ -337,7 +334,7 @@ mod tests {
             selector: None,
             container: None,
             nested: Vec::new(),
-            builtin_order: None,
+            order: UtilityOrder::Authored(None),
             candidate: String::new(),
         };
         let first = make("transform:rotate(1deg)!important;");

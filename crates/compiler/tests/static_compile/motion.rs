@@ -34,7 +34,7 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
     assert!(result.css.contains("@keyframes --sw-a-"));
     assert!(
         fold_calc_expressions(&result.css)
-            .contains("from{opacity:0%;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}"),
+            .contains("from{--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);opacity:0%;}"),
         "{}",
         result.css
     );

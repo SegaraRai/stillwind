@@ -139,6 +139,8 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
 
 #[cfg(test)]
 mod tests {
+    use stillwind_design_system::UtilityOrder;
+
     use super::super::stylesheet::authored_directives::render_authored_variant_path;
     use super::super::utilities::render::render_utility_rule_path;
     use super::super::utilities::resolve::CompiledUtility;
@@ -185,7 +187,7 @@ mod tests {
             selector: None,
             container: None,
             nested: Vec::new(),
-            builtin_order: None,
+            order: UtilityOrder::Authored(None),
             candidate: String::new(),
         };
         assert_eq!(

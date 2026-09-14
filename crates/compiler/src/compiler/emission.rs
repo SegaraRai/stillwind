@@ -11,7 +11,7 @@
 
 use std::collections::BTreeSet;
 
-use stillwind_design_system::ThemeIndex;
+use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
@@ -460,7 +460,7 @@ impl<'a> CallEmitter<'a> {
                     selector: None,
                     container: None,
                     nested: Vec::new(),
-                    builtin_order: None,
+                    order: UtilityOrder::Authored(None),
                     candidate: String::new(),
                 };
                 let marker = handle_marker_class(handle);
@@ -509,7 +509,7 @@ impl<'a> CallEmitter<'a> {
                             selector: None,
                             container: None,
                             nested: Vec::new(),
-                            builtin_order: None,
+                            order: UtilityOrder::Authored(None),
                             candidate: String::new(),
                         }],
                         markers: Vec::new(),

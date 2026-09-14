@@ -9,7 +9,7 @@
 //! Options are resolved through the shared candidate resolver, which is why a theme duration
 //! is usable as an animation option even though it is not a utility.
 
-use stillwind_design_system::{ThemeIndex, resolve_animation_option};
+use stillwind_design_system::{ThemeIndex, UtilityOrder, resolve_animation_option};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AssetReference, ViewTransitionDefinition};
 use stillwind_semantic::AssetKind;
@@ -48,7 +48,7 @@ pub(super) fn resolve_animation_use(
         selector: None,
         container: None,
         nested: Vec::new(),
-        builtin_order: None,
+        order: UtilityOrder::Authored(None),
         candidate: String::new(),
     }
 }

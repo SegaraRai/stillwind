@@ -43,20 +43,6 @@ pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap
     positions
 }
 
-/// Compares utility precedence within one variant context.
-/// Unpositioned utilities precede registry-positioned utilities; equal positions use
-/// candidate spelling. Callers retain the branch order of one candidate on equal keys.
-pub fn compare_utility_order(
-    left_order: Option<usize>,
-    left_candidate: &str,
-    right_order: Option<usize>,
-    right_candidate: &str,
-) -> std::cmp::Ordering {
-    left_order
-        .cmp(&right_order)
-        .then_with(|| left_candidate.cmp(right_candidate))
-}
-
 /// One authored cascade position: an exact property name or a prefix pattern ending in
 /// `*`, plus the byte offset the directive was authored at.
 #[derive(Clone, Debug, Eq, PartialEq)]

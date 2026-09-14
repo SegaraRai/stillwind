@@ -1,0 +1,195 @@
+//! Tailwind 4.3.3 utility ordering before CSS optimization and variant application.
+//!
+//! Property metadata follows Tailwind's `src/property-order.ts`; comparison follows
+//! `compile.ts` and `utils/compare.ts`. The adjacent data file retains upstream order.
+
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use std::sync::LazyLock;
+
+use cssparser::Parser;
+
+use stillwind_css::declaration_ranges;
+
+/// Utility precedence within a variant context, pinned to the snapshot's ordering mode.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UtilityOrder {
+    /// First registration offset; synthetic utilities have no registration.
+    Authored(Option<usize>),
+    /// Resolved declaration metadata before optimization.
+    Tailwind(UtilityPropertySort),
+}
+
+impl UtilityOrder {
+    /// Compares rule precedence, using candidate spelling only after semantic keys tie.
+    pub fn compare(&self, left: &str, other: &Self, right: &str) -> Ordering {
+        match (self, other) {
+            (Self::Authored(a), Self::Authored(b)) => a.cmp(b).then_with(|| left.cmp(right)),
+            (Self::Tailwind(a), Self::Tailwind(b)) => {
+                a.compare(b).then_with(|| compare_candidates(left, right))
+            }
+            (Self::Authored(_), Self::Tailwind(_)) => Ordering::Less,
+            (Self::Tailwind(_), Self::Authored(_)) => Ordering::Greater,
+        }
+    }
+}
+
+/// Tailwind's sorted unique property indices and total declaration count.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct UtilityPropertySort {
+    /// Ascending indices in Tailwind's global property table; unknown properties add no index.
+    pub properties: Vec<usize>,
+    /// Tailwind AST-equivalent count, including duplicates, empty values, and the header sort marker.
+    pub count: usize,
+}
+
+impl UtilityPropertySort {
+    /// Reads declaration groups before optimization. Support definitions outside
+    /// the utility rule must be excluded by the caller.
+    pub(crate) fn from_groups<'a>(
+        groups: impl IntoIterator<Item = &'a str>,
+        tw_sort: Option<&str>,
+    ) -> Self {
+        static PROPERTIES: LazyLock<Vec<&str>> = LazyLock::new(|| {
+            include_str!("tailwind-property-order.txt")
+                .lines()
+                .collect()
+        });
+        let mut properties = BTreeSet::new();
+        let mut count = usize::from(tw_sort.is_some());
+        let override_index =
+            tw_sort.and_then(|value| PROPERTIES.iter().position(|name| *name == value));
+        for group in groups {
+            for range in declaration_ranges(group) {
+                let mut parser = Parser::new(&group[range]);
+                parser.skip_whitespace();
+                let start = parser.position();
+                if parser.expect_ident().is_err() {
+                    continue;
+                }
+                let property = parser.slice_from(start).to_owned();
+                if parser.expect_colon().is_err() {
+                    continue;
+                }
+                count += 1;
+                if let Some(index) = PROPERTIES
+                    .iter()
+                    .position(|name| *name == property.as_str())
+                {
+                    properties.insert(index);
+                }
+            }
+        }
+        if let Some(index) = override_index {
+            properties = BTreeSet::from([index]);
+        }
+        Self {
+            properties: properties.into_iter().collect(),
+            count,
+        }
+    }
+
+    fn compare(&self, other: &Self) -> Ordering {
+        for index in 0..self.properties.len().max(other.properties.len()) {
+            let comparison = self
+                .properties
+                .get(index)
+                .unwrap_or(&usize::MAX)
+                .cmp(other.properties.get(index).unwrap_or(&usize::MAX));
+            if comparison != Ordering::Equal {
+                return comparison;
+            }
+        }
+        other.count.cmp(&self.count)
+    }
+}
+
+/// Mirrors JavaScript UTF-16 and Number comparisons, including leading-zero ties.
+fn compare_candidates(left: &str, right: &str) -> Ordering {
+    let left: Vec<_> = left.encode_utf16().collect();
+    let right: Vec<_> = right.encode_utf16().collect();
+    let digit = |value: &u16| (48..=57).contains(value);
+    for index in 0..left.len().min(right.len()) {
+        if digit(&left[index]) && digit(&right[index]) {
+            let a = &left[index
+                ..index
+                    + left[index..]
+                        .iter()
+                        .take_while(|value| digit(value))
+                        .count()];
+            let b = &right[index
+                ..index
+                    + right[index..]
+                        .iter()
+                        .take_while(|value| digit(value))
+                        .count()];
+            let number = |digits: &[u16]| {
+                String::from_utf16_lossy(digits)
+                    .parse::<f64>()
+                    .unwrap_or(f64::INFINITY)
+            };
+            let difference = number(a) - number(b);
+            if difference < 0.0 {
+                return Ordering::Less;
+            }
+            if difference > 0.0 {
+                return Ordering::Greater;
+            }
+            let comparison = a.cmp(b);
+            if comparison != Ordering::Equal {
+                return comparison;
+            }
+        } else {
+            let comparison = left[index].cmp(&right[index]);
+            if comparison != Ordering::Equal {
+                return comparison;
+            }
+        }
+    }
+    left.len().cmp(&right.len())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn property_sequences_use_infinity_and_counts_include_unknown_empty_and_repeated_declarations()
+    {
+        let key = |css| UtilityPropertySort::from_groups([css], None);
+        assert_eq!(key("color:red;--x:;color:blue").count, 3);
+        assert_eq!(
+            key("color:red;display:block").compare(&key("display:block")),
+            Ordering::Less
+        );
+        assert_eq!(
+            key("color:red;--x:;").compare(&key("color:red")),
+            Ordering::Less
+        );
+        assert_eq!(key("unregistered:1").properties, Vec::<usize>::new());
+        assert_eq!(
+            key("--tw-sort:margin;color:red").properties,
+            key("color:red").properties
+        );
+        let overridden =
+            UtilityPropertySort::from_groups(["color:red;display:block;"], Some("margin"));
+        assert_eq!(overridden.properties, key("margin:0").properties);
+        assert_eq!(overridden.count, 3);
+        let unknown = UtilityPropertySort::from_groups(["color:red"], Some("unknown"));
+        assert_eq!(unknown.properties, key("color:red").properties);
+        assert_eq!(unknown.count, 2);
+    }
+
+    #[test]
+    fn names_follow_upstream_numeric_and_utf16_comparison() {
+        for (a, b) in [
+            ("x-2", "x-10"),
+            ("x-02", "x-2"),
+            ("x-2", "x-2/3"),
+            ("x-𐀀", "x-\u{e000}"),
+        ] {
+            assert_eq!(compare_candidates(a, b), Ordering::Less);
+            assert_eq!(compare_candidates(b, a), Ordering::Greater);
+        }
+    }
+}

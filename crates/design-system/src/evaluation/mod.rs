@@ -23,8 +23,8 @@ pub use builtins::{
     builtin_utility_token_prefixes, builtin_variant_names,
 };
 pub use utilities::{
-    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget,
-    resolve_animation_option, resolve_utility,
+    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget, UtilityOrder,
+    UtilityPropertySort, resolve_animation_option, resolve_utility,
 };
 pub use variants::{
     VariantApplication, VariantDeclaration, compare_variant_sequences, compatibility_marker_class,

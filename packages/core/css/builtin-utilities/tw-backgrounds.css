@@ -275,7 +275,7 @@
 
 @stillwind-arbitrary-property --tw-gradient-via;
 
-@stillwind-utility via-* {
+@stillwind-utility via-* (tw-sort: --tw-gradient-via) {
   --tw-gradient-via: --value(--color-*, current, inherit, transparent);
   --tw-gradient-via-stops:
     var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position),
@@ -284,7 +284,7 @@
   --tw-gradient-stops: var(--tw-gradient-via-stops);
 }
 
-@stillwind-utility via-* {
+@stillwind-utility via-* (tw-sort: --tw-gradient-via) {
   --tw-gradient-via: --compat-color(
     --value-literal(--color-*, current, inherit, transparent),
     --alpha(--modifier())
@@ -305,7 +305,7 @@
 @stillwind-arbitrary-property --tw-gradient-stops;
 @stillwind-arbitrary-property --tw-gradient-from;
 
-@stillwind-utility from-* {
+@stillwind-utility from-* (tw-sort: --tw-gradient-from) {
   --tw-gradient-from: --value(--color-*, current, inherit, transparent);
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
@@ -315,7 +315,7 @@
   );
 }
 
-@stillwind-utility from-* {
+@stillwind-utility from-* (tw-sort: --tw-gradient-from) {
   --tw-gradient-from: --compat-color(
     --value-literal(--color-*, current, inherit, transparent),
     --alpha(--modifier())
@@ -336,7 +336,7 @@
 
 @stillwind-arbitrary-property --tw-gradient-to;
 
-@stillwind-utility to-* {
+@stillwind-utility to-* (tw-sort: --tw-gradient-to) {
   --tw-gradient-to: --value(--color-*, current, inherit, transparent);
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
@@ -346,7 +346,7 @@
   );
 }
 
-@stillwind-utility to-* {
+@stillwind-utility to-* (tw-sort: --tw-gradient-to) {
   --tw-gradient-to: --compat-color(
     --value-literal(--color-*, current, inherit, transparent),
     --alpha(--modifier())

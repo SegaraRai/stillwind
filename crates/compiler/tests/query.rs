@@ -28,7 +28,7 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
     let mut ordering_fingerprints = Vec::new();
     for (mode, expected) in [
         ("authored", ["early", "builtin", "late"]),
-        ("tailwind", ["early", "late", "builtin"]),
+        ("tailwind", ["builtin", "early", "late"]),
     ] {
         let source = SourceFile::new(
             FileId(1),
@@ -62,8 +62,8 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
         let compiled = Compiler::compile_source(&OxcSourceAnalyzer, &input, &source);
         assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
         let blue = compiled.css.find("color:blue").unwrap();
-        let green = compiled.css.find("color:green").unwrap();
-        assert_eq!(blue < green, mode == "authored", "{}", compiled.css);
+        let purple = compiled.css.find("color:purple").unwrap();
+        assert_eq!(purple < blue, mode == "authored", "{}", compiled.css);
     }
     assert_ne!(ordering_fingerprints[0], ordering_fingerprints[1]);
 }
@@ -81,7 +81,7 @@ fn editor_order_uses_custom_utility_and_variant_precedence() {
     let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
     let mut candidates = ["hover:b", "b", "hover:a", "a", "flex"];
     candidates.sort_by(|left, right| query.compare_candidates(left, right).unwrap());
-    assert_eq!(candidates, ["a", "b", "flex", "hover:a", "hover:b"]);
+    assert_eq!(candidates, ["flex", "a", "b", "hover:a", "hover:b"]);
     assert_eq!(
         query.compare_candidates("a", "a"),
         Some(std::cmp::Ordering::Equal)

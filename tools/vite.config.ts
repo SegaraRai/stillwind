@@ -35,6 +35,14 @@ export default defineConfig({
       "tailwind:parity": {
         command: "cargo test -p stillwind-compiler --test static_compile matches_tailwind_",
       },
+      "tailwind:utility-order-fixture": {
+        command: "node generate-utility-order-fixture.mts --check",
+      },
+      "tailwind:utility-order": {
+        command: "cargo test -p stillwind-compiler --test utility_order",
+        env: ["CARGO_INCREMENTAL"],
+        dependsOn: ["tailwind:utility-order-fixture"],
+      },
       "tailwind:inventory": {
         command: "node tailwind-inventory.mts",
         dependsOn: ["@stillwind/native#build"],

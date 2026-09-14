@@ -267,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn expands_authored_apply_in_builtin_registry_order() {
+    fn expands_authored_apply_in_tailwind_property_order() {
         let source = crate::css_fixture::source(
             FileId(1),
             "stillwind.css",
@@ -286,7 +286,7 @@ mod tests {
             .collect::<String>();
 
         assert!(compact.contains(
-            "display:inline-flex;padding-inline:calc(var(--spacing)*4);background-color:var(--color-red-500);"
+            "display:inline-flex;background-color:var(--color-red-500);padding-inline:calc(var(--spacing)*4);"
         ), "actual output: {compact}");
     }
 }

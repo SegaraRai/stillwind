@@ -1,10 +1,10 @@
 ._s_4b7bffee {
-  --authored-progress: 1;
-  --button-progress: 0.5;
   display: inline-flex;
-  padding-inline: var(--spacing-4);
   align-items: center;
   border-radius: var(--radius-md);
+  padding-inline: var(--spacing-4);
+  --authored-progress: 1;
+  --button-progress: 0.5;
 }
 @media (hover: hover) {
   ._s_4b7bffee:hover {

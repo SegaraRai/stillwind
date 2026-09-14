@@ -12,17 +12,47 @@
 
 use std::collections::BTreeSet;
 
+use cssparser::Parser;
+
 use stillwind_css::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
 
 /// One utility definition: its name, its body, and where it was registered.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomUtility {
+    /// Optional Tailwind property-order override from the registration header.
+    pub tw_sort: Option<String>,
     /// Authored name; a trailing `*` marks a prefix pattern.
     pub name: String,
     /// Declaration body, excluding the selector block or `@slot`.
     pub body: String,
     /// Global registration order for built-in utilities (`@stillwind-utility`).
     pub builtin_order: Option<usize>,
+}
+
+/// Parses a utility name and its optional `(tw-sort: property)` descriptor.
+fn parse_utility_header(header: &str) -> Option<(String, Option<String>)> {
+    let end = header.find(char::is_whitespace).unwrap_or(header.len());
+    let name = header[..end].to_owned();
+    if name.is_empty() {
+        return None;
+    }
+    let descriptor = header[end..].trim();
+    if descriptor.is_empty() {
+        return Some((name, None));
+    }
+    let (key, value) = descriptor
+        .strip_prefix('(')?
+        .strip_suffix(')')?
+        .split_once(':')?;
+    if key.trim() != "tw-sort" {
+        return None;
+    }
+    let value = value.trim();
+    let mut parser = Parser::new(value);
+    parser.expect_ident().ok()?;
+    parser
+        .is_exhausted()
+        .then(|| (name, Some(value.to_owned())))
 }
 
 /// Parses user-authored `@utility` definitions without requiring a complete theme
@@ -66,8 +96,9 @@ pub(crate) fn parse_ordered_utility_definitions(css: &str, directive: &str) -> V
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
-            let name = header.split_whitespace().next()?.to_owned();
+            let (name, tw_sort) = parse_utility_header(&header)?;
             Some(CustomUtility {
+                tw_sort,
                 name,
                 body,
                 builtin_order: Some(builtin_order),
@@ -98,8 +129,9 @@ pub(crate) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<Cu
     extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(header, body)| {
-            let name = header.split_whitespace().next()?.to_owned();
+            let (name, tw_sort) = parse_utility_header(&header)?;
             Some(CustomUtility {
+                tw_sort,
                 name,
                 body,
                 builtin_order: None,
@@ -124,6 +156,26 @@ pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_sort_metadata_without_adding_css_declarations() {
+        for directive in ["@utility", "@stillwind-utility"] {
+            let css = format!("{directive} space-x-* (tw-sort: row-gap) {{ margin:0; }}");
+            let utilities = parse_ordered_utility_definitions(&css, directive);
+            assert_eq!(utilities.len(), 1);
+            assert_eq!(utilities[0].name, "space-x-*");
+            assert_eq!(utilities[0].tw_sort.as_deref(), Some("row-gap"));
+            assert_eq!(utilities[0].body.trim(), "margin:0;");
+        }
+        for header in [
+            "",
+            "x (tw-sort:)",
+            "x (tw-sort: row-gap color)",
+            "x (other: color)",
+        ] {
+            assert!(parse_utility_header(header).is_none());
+        }
+    }
 
     #[test]
     fn parses_animation_option_definitions() {

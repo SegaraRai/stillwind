@@ -142,9 +142,17 @@ variant 順は import 展開後の CSS で built-in と user 定義を混ぜた�
 同名 variant の上書きでは位置を移動しない。関連 variant の group 内の値比較は保持する。
 utility 順は `@stillwind { utility-order: authored; }` または `utility-order: tailwind;` で選ぶ。
 既定は `tailwind`。`authored` は variant 同様、built-in/user を混ぜた最初の登録位置を使う。
-`tailwind` は既存の utility/property registry 順を使用する。registry 順のない utility を
-先に置き、同順位は candidate 名の辞書順で決める。任意 property は明示された property 順を使う。
+`tailwind` は Tailwind CSS 4.3.3 の解決後 AST と同じキーを使う。built-in / user / 任意 property を
+区別せず、プロパティ順位の昇順列（同じ prefix の短い列は後）、宣言数の降順、数値を認識する
+UTF-16 candidate 名比較の順に比較する。未知 property は順位列に入れず、宣言数には数える。
+順位の上書きは `@stillwind-utility space-x-* (tw-sort: row-gap) { ... }` のヘッダーメタデータで指定する。CSS の特殊変数は使わない。Tailwind の同順位比較に合わせ、指定自体を宣言数相当のカウントに1つ加える。未知のプロパティ名では通常のプロパティ順位を使う。
+互換性対応による追加ルールや rule 外の property/keyframes 定義を宣言数へ混入させない。
+プロパティ表と比較処理の出典は Tailwind `property-order.ts` / `compile.ts` / `utils/compare.ts`。
+`authored` の任意 property は従来の明示 property 順を使う。
 同一 candidate の複数ルールは resolver が返す順を保つ。`@apply` も同じ比較関数を使用する。
+`vp run @stillwind/tools#tailwind:utility-order` で Tailwind 本体による fixture 再照合と Rust 差分テストを実行する。
+fixture は `tools/generate-utility-order-fixture.mts` が生成する。既存の解決未対応14候補を固定して検出し、
+解決可能な候補の順位列・宣言数・全体の比較順を検証する。
 `DesignSystemQuery::compare_candidates` が同じ resolver と比較関数を参照する。
 未解決 utility / variant は `None` を返し、source の並べ替えや canonical 化は行わない。
 検証: compiler の全 unit/integration test と query の順序テストを通過。editor のソート操作は未実装。

@@ -26,6 +26,8 @@ use crate::{CustomUtility, ThemeIndex, ThemeNamespace};
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UtilityResolution {
+    /// Header-level Tailwind ordering override from the selected definition.
+    pub(crate) tw_sort: Option<String>,
     /// Declarations for the matched selector, or for the utility itself.
     pub(crate) declaration: String,
     /// Explicit custom-property registration dependencies collected from requirement
@@ -45,6 +47,7 @@ impl UtilityResolution {
     /// A declaration with no selector, conditionals, or ordering.
     pub(crate) fn plain(declaration: String) -> Self {
         Self {
+            tw_sort: None,
             declaration,
             required_properties: Vec::new(),
             selector: None,
@@ -104,6 +107,7 @@ pub(crate) fn resolve_css_utility_body(
     let mut resolved_nested = Vec::new();
     for modern in declarations.compat_modern {
         resolved_nested.push(NestedUtilityRule {
+            compatibility: true,
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_owned(),
             declaration: modern,
@@ -127,6 +131,7 @@ pub(crate) fn resolve_css_utility_body(
             if !declaration.is_empty() {
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
+                    compatibility: false,
                     at_rule,
                     condition,
                     declaration,
@@ -134,6 +139,7 @@ pub(crate) fn resolve_css_utility_body(
                 });
                 for modern in declarations.compat_modern {
                     resolved_nested.push(NestedUtilityRule {
+                        compatibility: true,
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: COMPAT_COLOR_SUPPORT.to_owned(),
                         declaration: modern,
@@ -156,6 +162,7 @@ pub(crate) fn resolve_css_utility_body(
             }]
         })?;
         (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
+            tw_sort: utility.tw_sort.clone(),
             required_properties,
             declaration: parent_declaration,
             selector: None,
@@ -169,6 +176,7 @@ pub(crate) fn resolve_css_utility_body(
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
+            tw_sort: utility.tw_sort.clone(),
             required_properties,
             declaration,
             selector,

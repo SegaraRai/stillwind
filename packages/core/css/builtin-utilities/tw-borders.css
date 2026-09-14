@@ -610,7 +610,7 @@
 
 /* MARK: Dividers */
 
-@stillwind-utility divide-x {
+@stillwind-utility divide-x (tw-sort: divide-x-width) {
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
@@ -619,7 +619,7 @@
   }
 }
 
-@stillwind-utility divide-x-[initial] {
+@stillwind-utility divide-x-[initial] (tw-sort: divide-x-width) {
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
@@ -638,14 +638,14 @@
 
 @stillwind-arbitrary-property divide-x-width;
 
-@stillwind-utility divide-x-* {
+@stillwind-utility divide-x-* (tw-sort: divide-x-width) {
   :where(& > :not(:last-child)) {
     border-inline-end-style: var(--tw-border-style);
     border-inline-end-width: --value([line-width]);
   }
 }
 
-@stillwind-utility divide-x-* {
+@stillwind-utility divide-x-* (tw-sort: divide-x-width) {
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
@@ -654,7 +654,7 @@
   }
 }
 
-@stillwind-utility divide-y {
+@stillwind-utility divide-y (tw-sort: divide-y-width) {
   :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 0;
     border-bottom-style: var(--tw-border-style);
@@ -664,7 +664,7 @@
   }
 }
 
-@stillwind-utility divide-y-[initial] {
+@stillwind-utility divide-y-[initial] (tw-sort: divide-y-width) {
   :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 0;
     border-bottom-style: var(--tw-border-style);
@@ -684,14 +684,14 @@
 
 @stillwind-arbitrary-property divide-y-width;
 
-@stillwind-utility divide-y-* {
+@stillwind-utility divide-y-* (tw-sort: divide-y-width) {
   :where(& > :not(:last-child)) {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: --value([line-width]);
   }
 }
 
-@stillwind-utility divide-y-* {
+@stillwind-utility divide-y-* (tw-sort: divide-y-width) {
   :where(& > :not(:last-child)) {
     --tw-divide-y-reverse: 0;
     border-bottom-style: var(--tw-border-style);
@@ -701,28 +701,28 @@
   }
 }
 
-@stillwind-utility divide-dashed {
+@stillwind-utility divide-dashed (tw-sort: divide-style) {
   :where(& > :not(:last-child)) {
     --tw-border-style: dashed;
     border-style: dashed;
   }
 }
 
-@stillwind-utility divide-dotted {
+@stillwind-utility divide-dotted (tw-sort: divide-style) {
   :where(& > :not(:last-child)) {
     --tw-border-style: dotted;
     border-style: dotted;
   }
 }
 
-@stillwind-utility divide-double {
+@stillwind-utility divide-double (tw-sort: divide-style) {
   :where(& > :not(:last-child)) {
     --tw-border-style: double;
     border-style: double;
   }
 }
 
-@stillwind-utility divide-none {
+@stillwind-utility divide-none (tw-sort: divide-style) {
   :where(& > :not(:last-child)) {
     --tw-border-style: none;
     border-style: none;
@@ -731,7 +731,7 @@
 
 @stillwind-arbitrary-property divide-style;
 
-@stillwind-utility divide-solid {
+@stillwind-utility divide-solid (tw-sort: divide-style) {
   :where(& > :not(:last-child)) {
     --tw-border-style: solid;
     border-style: solid;
@@ -740,13 +740,13 @@
 
 @stillwind-arbitrary-property divide-color;
 
-@stillwind-utility divide-* {
+@stillwind-utility divide-* (tw-sort: divide-color) {
   :where(& > :not(:last-child)) {
     border-color: --value(--color-*, current, inherit, transparent);
   }
 }
 
-@stillwind-utility divide-* {
+@stillwind-utility divide-* (tw-sort: divide-color) {
   :where(& > :not(:last-child)) {
     border-color: --compat-color(
       --value-literal(--color-*, current, inherit, transparent),

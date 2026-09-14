@@ -1,4 +1,8 @@
 ._s_c8d8de10 {
+  container-name: sidebar;
+  container-type: inline-size;
+}
+._s_c8d8de10 {
   width: 100%;
   @media (width >= 40rem) {
     max-width: 40rem;
@@ -17,10 +21,8 @@
   }
 }
 ._s_c8d8de10 {
-  container-name: sidebar;
-  container-type: inline-size;
-  padding: calc(var(--spacing) * 4);
   border-radius: var(--radius-lg);
+  padding: calc(var(--spacing) * 4);
 }
 @media (hover: hover) {
   ._s_05298044:is(:where(.group\/menu):hover *) {

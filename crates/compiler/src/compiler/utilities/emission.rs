@@ -9,8 +9,7 @@
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
-    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_utility_order,
-    compare_variant_sequences,
+    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
 
 use super::super::CssContribution;
@@ -80,12 +79,8 @@ fn emit_utility_css(
         .collect::<Vec<_>>();
     variant_utilities.sort_by(|left, right| {
         compare_variant_sequences(&left.variants, &right.variants, theme).then_with(|| {
-            compare_utility_order(
-                left.builtin_order,
-                &left.candidate,
-                right.builtin_order,
-                &right.candidate,
-            )
+            left.order
+                .compare(&left.candidate, &right.order, &right.candidate)
         })
     });
     for utility in variant_utilities {
@@ -209,6 +204,7 @@ mod tests {
     fn nested_declarations_follow_the_property_they_override() {
         let declaration = "color:red;width:1px;";
         let rule = NestedUtilityRule {
+            compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
             declaration: "color:blue;".into(),
@@ -221,6 +217,7 @@ mod tests {
     #[test]
     fn nested_rules_keep_boundaries_unmatched_rules_and_source_order() {
         let first = NestedUtilityRule {
+            compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
             declaration: "color:blue;".into(),

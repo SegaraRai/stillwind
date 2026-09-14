@@ -6,7 +6,8 @@
 //! does not know is preserved here, because the lint code a user sees depends on it.
 
 use stillwind_design_system::{
-    NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, VariantApplication, resolve_variant,
+    NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, UtilityOrder, VariantApplication,
+    resolve_variant,
 };
 use stillwind_diagnostics::UtilityFailure;
 use stillwind_syntax::{Variant, parse_candidate};
@@ -26,7 +27,7 @@ pub(in crate::compiler) fn view_transition_utility() -> CompiledUtility {
         selector: None,
         container: None,
         nested: Vec::new(),
-        builtin_order: None,
+        order: UtilityOrder::Authored(None),
         candidate: String::new(),
     }
 }
@@ -51,9 +52,8 @@ pub(crate) struct CompiledUtility {
     pub(in crate::compiler) container: Option<String>,
     /// Conditional utility rules in resolved emission order.
     pub(in crate::compiler) nested: Vec<NestedUtilityRule>,
-    /// Global built-in definition position used as an ordering key; None for
-    /// unpositioned rules.
-    pub(in crate::compiler) builtin_order: Option<usize>,
+    /// Snapshot-selected declaration metadata or authored registration position.
+    pub(in crate::compiler) order: UtilityOrder,
     /// Original candidate spelling for ordering and diagnostics; empty for synthetic
     /// utility rules.
     pub(in crate::compiler) candidate: String,
@@ -110,7 +110,7 @@ pub(crate) fn resolve_utility_targets(
                 selector: target.selector,
                 container: None,
                 nested: target.nested,
-                builtin_order: resolved.builtin_order,
+                order: resolved.order.clone(),
                 candidate: utility.to_owned(),
             })
             .collect(),

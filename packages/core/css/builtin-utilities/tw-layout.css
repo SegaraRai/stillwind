@@ -5,7 +5,7 @@
 /* Container max-width rules are generated from the configured breakpoints. */
 @stillwind-arbitrary-property --tw-container-component;
 
-@stillwind-utility container {
+@stillwind-utility container (tw-sort: --tw-container-component) {
   width: 100%;
 
   @media (width >= --value(--breakpoint-*)) {

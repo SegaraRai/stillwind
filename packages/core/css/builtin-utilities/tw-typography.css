@@ -437,13 +437,13 @@
 
 @stillwind-arbitrary-property placeholder-color;
 
-@stillwind-utility placeholder-* {
+@stillwind-utility placeholder-* (tw-sort: placeholder-color) {
   &::placeholder {
     color: --value(--color-*, current, inherit, transparent, [color]);
   }
 }
 
-@stillwind-utility placeholder-* {
+@stillwind-utility placeholder-* (tw-sort: placeholder-color) {
   &::placeholder {
     color: --compat-color(
       --value-literal(--color-*, current, inherit, transparent, [color]),

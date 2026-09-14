@@ -12,8 +12,8 @@ use std::collections::BTreeSet;
 
 use stillwind_design_system::{
     DesignSystemRevision, DesignSystemSnapshot, ThemeNamespace, ThemeTokenKind,
-    builtin_property_definitions, builtin_utility_token_prefixes, compare_utility_order,
-    compare_variant_sequences, resolve_variant,
+    builtin_property_definitions, builtin_utility_token_prefixes, compare_variant_sequences,
+    resolve_variant,
 };
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_source::{FileId, Span};
@@ -112,12 +112,9 @@ impl DesignSystemQuery {
                 theme,
             )
             .then_with(|| {
-                compare_utility_order(
-                    left_resolved.builtin_order,
-                    left,
-                    right_resolved.builtin_order,
-                    right,
-                )
+                left_resolved
+                    .order
+                    .compare(left, &right_resolved.order, right)
             }),
         )
     }
