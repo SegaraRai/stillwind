@@ -146,7 +146,7 @@ pub enum CompileErrorKind {
     #[error("non-local or conditional ref projections require TypeScript checker facts")]
     RefProjectionFactsRequired,
     /// A container query projection lacks its literal query and utility arguments.
-    #[error("ref.at() requires a literal query and a literal utility string")]
+    #[error("ref.at() requires one nonempty literal query or a static template")]
     InvalidContainerQuery,
     /// A projection receiver is not an identity created by a ref declaration.
     #[error("ref projections must use an identity returned by style.ref()")]

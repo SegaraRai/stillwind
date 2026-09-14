@@ -11,7 +11,7 @@ export function Popover() {
         <div
           {...style(
             trigger.position,
-            trigger.at("width >= 40rem", "grid-cols-2"),
+            { [trigger.at("width >= 40rem")]: "grid-cols-2" },
             `${trigger`hover:`}:text-accent`,
             "absolute",
           )}

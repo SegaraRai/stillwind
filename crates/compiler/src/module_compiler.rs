@@ -281,17 +281,8 @@ fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
 
 fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
     for input in inputs {
-        match input {
-            StyleInput::Class(expression) => collect_class(expression, prefix, candidates),
-            StyleInput::ContainerQuery { value, .. } => {
-                candidates.extend(
-                    value
-                        .value
-                        .split_whitespace()
-                        .map(|token| format!("{prefix}{token}")),
-                );
-            }
-            _ => {}
+        if let StyleInput::Class(expression) = input {
+            collect_class(expression, prefix, candidates);
         }
     }
 }
@@ -323,7 +314,7 @@ fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BT
         ClassExpression::Variant { variant, inputs } => {
             let prefix = match variant {
                 StyleVariant::Prefix(value) => format!("{prefix}{}", value.value),
-                StyleVariant::Ref { .. } => prefix.to_owned(),
+                StyleVariant::Ref { .. } | StyleVariant::Container { .. } => prefix.to_owned(),
             };
             for input in inputs {
                 collect_class(input, &prefix, candidates);

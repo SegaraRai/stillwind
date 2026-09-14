@@ -19,11 +19,12 @@ use std::fmt::Write as _;
 use stillwind_css::instantiate_selector;
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::StyleVariant;
+use stillwind_ir::{HandleDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::handles::{handle_marker_class, scope_marker_class};
+use super::symbols::ref_symbol_name;
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 
@@ -67,8 +68,13 @@ impl StyleVariantPlan {
             ordinary_count: 0,
         };
         for wrapper in wrappers {
+            if let StyleVariant::Container { handles, query } = wrapper {
+                plan.add_container(handles, query, diagnostics)?;
+                continue;
+            }
             let prefix = match wrapper {
                 StyleVariant::Prefix(prefix) | StyleVariant::Ref { prefix, .. } => prefix,
+                StyleVariant::Container { query, .. } => query,
             };
             let Some(variants) = parse_prefix(prefix) else {
                 diagnostics.push(CompileError::new(
@@ -89,6 +95,7 @@ impl StyleVariantPlan {
                 return None;
             };
             match wrapper {
+                StyleVariant::Container { .. } => {}
                 StyleVariant::Prefix(_) => {
                     plan.prefix.push_str(&prefix.value);
                     plan.canonical.push_str(&prefix.value);
@@ -152,6 +159,38 @@ impl StyleVariantPlan {
             plan.variants.extend(variants);
         }
         Some(plan)
+    }
+
+    fn add_container(
+        &mut self,
+        handles: &[HandleDefinition],
+        query: &Spanned<String>,
+        diagnostics: &mut Vec<CompileError>,
+    ) -> Option<()> {
+        if handles.is_empty() {
+            diagnostics.push(CompileError::new(
+                CompileErrorKind::UnidentifiedRef,
+                query.span,
+            ));
+            return None;
+        }
+        self.has_refs = true;
+        let conditions = handles
+            .iter()
+            .map(|handle| format!("{} ({})", ref_symbol_name(handle), query.value))
+            .collect::<Vec<_>>();
+        let _ = write!(self.canonical, "container({conditions:?}):");
+        self.paths = std::mem::take(&mut self.paths)
+            .into_iter()
+            .flat_map(|path| {
+                conditions.iter().map(move |condition| {
+                    let mut path = path.clone();
+                    path.push(VariantApplication::Container(condition.clone()));
+                    path
+                })
+            })
+            .collect();
+        Some(())
     }
 
     /// Applies the plan to a utility the ordinary resolver already prefixed.

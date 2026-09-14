@@ -12,7 +12,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
     StyleInput, StyleVariant,
@@ -26,7 +26,6 @@ use super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
 use super::handles::{
     handle_marker_class, ref_identity, render_handle_projection, scope_identity, scope_marker_class,
 };
-use super::lexer::lex_utilities;
 use super::literal::LiteralContribution;
 use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
@@ -34,9 +33,7 @@ use super::style_variants::StyleVariantPlan;
 use super::symbols::{
     handle_projection_name, motion_symbol_name, ref_symbol_name, runtime_projection_class,
 };
-use super::utilities::resolve::{
-    CompiledUtility, resolve_utility_targets, unresolved_utility_kind, view_transition_utility,
-};
+use super::utilities::resolve::{CompiledUtility, view_transition_utility};
 use crate::generated::{Code, js_string};
 use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
@@ -194,39 +191,6 @@ impl<'a> CallEmitter<'a> {
                     span: *value,
                 };
                 self.push_expression(expression, value.start.0);
-            }
-            StyleInput::ContainerQuery {
-                handle,
-                query,
-                value,
-            } => {
-                self.units.base.canonical.push_str("container:");
-                self.units.base.canonical.push_str(&ref_symbol_name(handle));
-                self.units.base.canonical.push(':');
-                self.units.base.canonical.push_str(&query.value);
-                self.units.base.canonical.push('\u{0}');
-                for utility in lex_utilities(value, self.diagnostics) {
-                    self.units.base.canonical.push_str(&utility.value.raw);
-                    self.units.base.canonical.push('\u{0}');
-                    if let Some(mut utilities) =
-                        resolve_utility_targets(&utility.value.raw, self.theme)
-                    {
-                        for resolved in &mut utilities {
-                            resolved.container =
-                                Some(format!("{} ({})", ref_symbol_name(handle), query.value));
-                        }
-                        self.units.base.utilities.append(&mut utilities);
-                    } else {
-                        self.lint_findings.push(LintFinding::new(
-                            LintKind::UnresolvedUtility {
-                                utility: utility.value.raw.clone(),
-                                classification: unresolved_utility_kind(&utility.value.raw),
-                            },
-                            utility.span,
-                        ));
-                        self.units.base.names.push(utility.value.raw.clone());
-                    }
-                }
             }
             StyleInput::ViewTransitionUse { transition, key } => {
                 self.motion_assets.insert(transition.identity.clone());
@@ -758,7 +722,9 @@ fn expression_position(expression: &ClassExpression) -> u32 {
         ClassExpression::Array(elements) => elements.first().map_or(0, expression_position),
         ClassExpression::Conditional { test, .. } => test.start.0,
         ClassExpression::Variant { variant, .. } => match variant {
-            StyleVariant::Prefix(prefix) | StyleVariant::Ref { prefix, .. } => prefix.span.start.0,
+            StyleVariant::Prefix(prefix)
+            | StyleVariant::Ref { prefix, .. }
+            | StyleVariant::Container { query: prefix, .. } => prefix.span.start.0,
         },
         ClassExpression::Group { span, .. } | ClassExpression::External { span, .. } => {
             span.start.0

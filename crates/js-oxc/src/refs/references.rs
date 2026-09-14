@@ -18,15 +18,6 @@ use stillwind_source::{Span, Spanned};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    /// Resolves an expression to exactly one ref, or `None`.
-    ///
-    /// Prefer this over [`Self::handle_references`] wherever a single identity is
-    /// required; an ambiguous value must not be resolved by choosing.
-    pub(crate) fn handle_reference(&self, expression: &Expression<'a>) -> Option<HandleDefinition> {
-        let handles = self.handle_references(expression)?;
-        (handles.len() == 1).then(|| handles[0].clone())
-    }
-
     /// Resolves an expression to every ref it may denote.
     ///
     /// Records a type probe for non-literal expressions, so the host checker can answer

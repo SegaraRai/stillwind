@@ -419,12 +419,12 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             CompileErrorKind::InvalidContainerType,
         ),
         (
-            "const r=style.ref(); const x=style(r.at(...args,'flex'));",
-            CompileErrorKind::InvalidContainerQuery,
+            "const r=style.ref(); const x=style({[r.at(...args)]: 'flex'});",
+            CompileErrorKind::InvalidComputedAttribute,
         ),
         (
-            "const r=style.ref(); const x=style(r.at('width > 1px',...args));",
-            CompileErrorKind::InvalidContainerQuery,
+            "const r=style.ref(); const x=style({[r.at('width > 1px',...args)]: 'flex'});",
+            CompileErrorKind::InvalidComputedAttribute,
         ),
     ] {
         let source = SourceFile::new(

@@ -429,11 +429,11 @@ Keep both selectors so the same theme values are available in either scope.
 }
 @layer utilities {
   ._s_4b7bffee {
+    --authored-progress: 1;
+    --button-progress: 0.5;
     display: inline-flex;
     padding-inline: var(--spacing-4);
     align-items: center;
-    --button-progress: 0.5;
-    --authored-progress: 1;
     border-radius: var(--radius-md);
   }
   @media (hover: hover) {

@@ -8,17 +8,17 @@
   position: relative;
   display: inline-flex;
 }
-._s_f725a74a {
+._s_daa10279 {
   position-anchor: --sw-r-5c7d76f9;
   position: absolute;
 }
 @container --sw-r-5c7d76f9 (width >= 40rem) {
-  ._s_f725a74a {
+  ._s_daa10279 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (hover: hover) {
-  .s_menu_3523e441:has(.s_trigger_5c7d76f9:where(:hover)) ._s_f725a74a {
+  .s_menu_3523e441:has(.s_trigger_5c7d76f9:where(:hover)) ._s_daa10279 {
     color: var(--color-accent);
   }
 }

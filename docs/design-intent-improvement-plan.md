@@ -219,9 +219,9 @@ CSS を値として取得する経路は、import 先の相対解決・収集と
 
 - [x] variant 解決結果に、適用先 `&` への依存を構造的に保持する。
 - [ ] 通常/任意/custom/compound variant、at-rule と selector の混在、quoted/escaped `&` を検証する。
-- [ ] `ref.at(query, utilities)` を、`ref.at(query)` が variant を返す規約へ変更する。
+- [x] `ref.at(query, utilities)` を、`ref.at(query)` が variant を返す規約へ変更する。
       `` ref.at`query` `` も同じ意味として扱う。utility は通常の wrapper/template の operand にする。
-- [ ] ref variant と同じ使用箇所で動作させる。最低限、次の2つを同じ意味として検証する。
+- [x] ref variant と同じ使用箇所で動作させる。最低限、次の2つを同じ意味として検証する。
 
 ```ts
 style({ [ref.at("width > 40rem")]: { "hover:": "grid-cols-2" } });

@@ -160,15 +160,6 @@ fn map_input<E>(
 ) -> Result<(), E> {
     match input {
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
-        StyleInput::ContainerQuery {
-            handle,
-            query,
-            value,
-        } => {
-            map_handle(handle, map)?;
-            map_value(query, map)?;
-            map_value(value, map)?;
-        }
         StyleInput::ScopeAttachment(scope) => {
             map_scope(scope, map)?;
         }
@@ -263,7 +254,11 @@ fn map_class_expression<E>(
         ClassExpression::Variant { variant, inputs } => {
             match variant {
                 StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
-                StyleVariant::Ref { handles, prefix } => {
+                StyleVariant::Ref { handles, prefix }
+                | StyleVariant::Container {
+                    handles,
+                    query: prefix,
+                } => {
                     map_value(prefix, map)?;
                     for handle in handles {
                         map_handle(handle, map)?;

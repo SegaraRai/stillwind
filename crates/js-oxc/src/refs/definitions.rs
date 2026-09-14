@@ -162,6 +162,35 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => return None,
         };
+        if let Expression::StaticMemberExpression(member) = reference
+            && member.property.name == "at"
+        {
+            let Some(handles) = self.handle_references(&member.object) else {
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::UnidentifiedRefVariant,
+                    self.source_span(member.object.span()),
+                ));
+                return None;
+            };
+            if prefix.value.is_empty() {
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidContainerQuery,
+                    prefix.span,
+                ));
+                return None;
+            }
+            for handle in &handles {
+                self.record_handle_use(
+                    handle,
+                    "container-query",
+                    self.source_span(expression.span()),
+                );
+            }
+            return Some(StyleVariant::Container {
+                handles,
+                query: prefix,
+            });
+        }
         let Some(handles) = self.handle_references(reference) else {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::UnidentifiedRefVariant,

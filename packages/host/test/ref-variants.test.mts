@@ -21,6 +21,8 @@ export const b = style.ref(scopeB, 'b');`;
     for (const expression of [
       "`${selected`hover:`}:active:accent`",
       '{ [selected("hover")]: { "active:": "accent" } }',
+      '{ [selected.at("width > 40rem")]: { "active:": "accent" } }',
+      "`${selected.at`width > 40rem`}:active:accent`",
     ]) {
       const consumer = `import {style} from 'stillwind/react';
 import {a, b} from './ref-producer';
@@ -51,16 +53,24 @@ export const props = style(${expression});`;
       const output = result.modules.find((module) => module.path === "ref-consumer.ts");
       assert.ok(output);
       assert.deepEqual(output.diagnostics, []);
-      assert.match(output.css, /\.s_scopeA_\w+:has\(\.s_a_\w+:where\(:hover\)\)/);
-      assert.match(output.css, /\.s_scopeB_\w+:has\(\.s_b_\w+:where\(:hover\)\)/);
-      assert.doesNotMatch(output.css, /\.s_scopeA_\w+:has\(\.s_b_/);
-      assert.doesNotMatch(output.css, /\.s_scopeB_\w+:has\(\.s_a_/);
+      if (expression.includes(".at")) {
+        assert.equal(new Set(output.css.match(/@container --sw-r-[\w-]+/g)).size, 2);
+        assert.match(output.css, /\(width > 40rem\)/);
+        assert.doesNotMatch(output.css, /:has\(/);
+      } else {
+        assert.match(output.css, /\.s_scopeA_\w+:has\(\.s_a_\w+:where\(:hover\)\)/);
+        assert.match(output.css, /\.s_scopeB_\w+:has\(\.s_b_\w+:where\(:hover\)\)/);
+        assert.doesNotMatch(output.css, /\.s_scopeA_\w+:has\(\.s_b_/);
+        assert.doesNotMatch(output.css, /\.s_scopeB_\w+:has\(\.s_a_/);
+      }
       assert.match(output.css, /:active\{color:red;/);
-      assert.doesNotMatch(output.code, /selected\(|selected`/);
+      assert.doesNotMatch(output.code, /selected\(|selected`|selected\.at/);
       outputs.push(output);
     }
     assert.equal(outputs[0].css, outputs[1].css);
     assert.equal(outputs[0].code, outputs[1].code);
+    assert.equal(outputs[2].css, outputs[3].css);
+    assert.equal(outputs[2].code, outputs[3].code);
   } finally {
     service.close();
   }

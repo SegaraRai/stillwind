@@ -67,7 +67,7 @@ fn emits_named_container_rules_from_ref_queries() {
         r#"import { style } from "stillwind/react";
 const card = style.ref();
 const root = style(card.container("inline-size"));
-const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
+const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
@@ -82,6 +82,25 @@ const content = style(card.at("width >= 40rem", "grid-cols-2"));"#,
             .css
             .contains_css("grid-template-columns:repeat(2,minmax(0,1fr));")
     );
+}
+
+#[test]
+fn container_query_variants_support_calls_tags_and_nested_wrappers() {
+    for input in [
+        "{[card.at('width >= 40rem')]: {'hover:': 'grid-cols-2'}}",
+        "{[card.at`width >= 40rem`]: {'hover:': 'grid-cols-2'}}",
+        "`${card.at('width >= 40rem')}:hover:grid-cols-2`",
+    ] {
+        let source = SourceFile::new(FileId(1), "entry.tsx", format!(
+            "import {{style}} from 'stillwind/react'; const card = style.ref(); const root = style(card.container('size')); const x = style({input});"
+        )).unwrap();
+        let theme = crate::css_fixture::source(FileId(2), "theme.css", "@theme {}").unwrap();
+        let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert!(result.lint_findings.is_empty(), "{result:#?}");
+        assert!(result.css.contains("@container --sw-r-"), "{}", result.css);
+        assert!(result.css.contains(":hover"), "{}", result.css);
+    }
 }
 
 #[test]

@@ -73,7 +73,8 @@ export type StyleRef<RefId extends string = string, ScopeId extends string = nev
   readonly position: StyleRefProjection<RefId, ScopeId>;
   readonly anchorScope: StyleRefProjection<RefId, ScopeId>;
   container(type: "size" | "inline-size"): StyleRefProjection<RefId, ScopeId>;
-  at(query: string, utilities: string): StyleRefProjection<RefId, ScopeId>;
+  at(query: string): StyleRefVariant<RefId, ScopeId>;
+  at(strings: TemplateStringsArray): StyleRefVariant<RefId, ScopeId>;
   (strings: TemplateStringsArray): StyleRefVariant<RefId, ScopeId>;
   (): StyleRefVariant<RefId, ScopeId>;
   (variants: string): StyleRefVariant<RefId, ScopeId>;

@@ -9,7 +9,7 @@
 //! ancestry validation later reads. A projection over several candidates becomes an
 //! explicitly dynamic projection instead of one candidate.
 
-use oxc::ast::ast::{CallExpression, Expression, StaticMemberExpression};
+use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -53,12 +53,6 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
-        if let Expression::CallExpression(call) = expression
-            && let Expression::StaticMemberExpression(member) = &call.callee
-            && member.property.name.as_str() == "at"
-        {
-            return self.collect_container_query_projection(call, member);
-        }
         let (handle_expression, projection) = match expression {
             Expression::StaticMemberExpression(member) => {
                 let projection = match member.property.name.as_str() {
@@ -127,47 +121,6 @@ impl<'a> MacroExtractor<'a> {
                 },
             ))
         }
-    }
-
-    /// Lowers `ref.at("query", "utilities")` into a container query input.
-    ///
-    /// Both arguments must be literals and the receiver must resolve to a single ref,
-    /// so the query can be emitted as CSS instead of evaluated at runtime.
-    pub(crate) fn collect_container_query_projection(
-        &mut self,
-        call: &CallExpression<'a>,
-        member: &StaticMemberExpression<'a>,
-    ) -> Option<StyleInput> {
-        if call.arguments.len() != 2 {
-            self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidContainerQuery,
-                self.source_span(call.span),
-            ));
-            return None;
-        }
-        let Some(handle) = self.handle_reference(&member.object) else {
-            self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidRefProjection,
-                self.source_span(call.span),
-            ));
-            return None;
-        };
-        let (Some(Expression::StringLiteral(query)), Some(Expression::StringLiteral(value))) = (
-            call.arguments[0].as_expression(),
-            call.arguments[1].as_expression(),
-        ) else {
-            self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidContainerQuery,
-                self.source_span(call.span),
-            ));
-            return None;
-        };
-        self.record_handle_use(&handle, "container-query", self.source_span(call.span));
-        Some(StyleInput::ContainerQuery {
-            handle,
-            query: self.string_literal(query),
-            value: self.string_literal(value),
-        })
     }
 
     /// Records one ref use for later ancestry validation.

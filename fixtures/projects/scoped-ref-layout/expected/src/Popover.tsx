@@ -9,7 +9,7 @@ export function Popover() {
       <div {...{className:"_s_818153bd s_trigger_5c7d76f9"}}>
         <button {...{className:"_s_bcf2abc9 s_trigger_5c7d76f9"}}>Open</button>
         <div
-          {...{className:"_s_f725a74a s_trigger_5c7d76f9"}}
+          {...{className:"_s_daa10279 s_trigger_5c7d76f9"}}
         />
       </div>
     </section>

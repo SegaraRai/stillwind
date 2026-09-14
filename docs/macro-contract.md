@@ -54,7 +54,7 @@ const props = style({ "--progress": value });
 | `transition.for(key)`                       | transition は有限候補、key は純粋な `string` / `number` の値式                     |
 | `ref.anchor` / `.position` / `.anchorScope` | ref は有限候補。receiver は純粋な選択式                                            |
 | `ref.container(type)`                       | type は `"size"` / `"inline-size"` の文字列リテラル                                |
-| `ref.at(query, utilities)`                  | 単一 ref、文字列リテラル2個                                                        |
+| `ref.at(query)` / ref.at タグ               | ref は有限候補。query は静的文字列で variant を返す                                |
 | `ref()` / `ref("variant:")` / ref タグ      | prefix は静的。タグ内の補間は不可                                                  |
 | `style()` の utility / variant key          | 静的な CSS 記述。utility テンプレートの補間は所定の ref variant のみ               |
 | 配列・variant object                        | 対応する入力を再帰的に記述。literal spread と配列の穴に対応。getter・method は不可 |

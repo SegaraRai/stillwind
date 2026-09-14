@@ -214,6 +214,13 @@ pub enum HandleProjection {
 pub enum StyleVariant {
     /// A normal variant prefix, including its final separator.
     Prefix(Spanned<String>),
+    /// A named-container query over finite ref candidates.
+    Container {
+        /// Each candidate supplies a container identity, independently of the subject selector.
+        handles: Vec<HandleDefinition>,
+        /// Literal CSS query condition, without the generated container name.
+        query: Spanned<String>,
+    },
     /// Correlated ref/scope alternatives, with a normalized variant prefix.
     Ref {
         /// The refs this variant may refer to at this use site.
@@ -238,15 +245,6 @@ pub enum StyleInput {
     },
     /// Class contributions that keep the source expression structure.
     Class(ClassExpression),
-    /// `ref.at("query", "utilities")`: applies utilities inside a container query.
-    ContainerQuery {
-        /// The container ref this query applies to.
-        handle: HandleDefinition,
-        /// Query condition text, such as `sm` or a size feature list.
-        query: Spanned<String>,
-        /// Utility string to emit inside the query.
-        value: Spanned<String>,
-    },
     /// `style(scope)`: mark the element as a member of a scope.
     ScopeAttachment(ScopeDefinition),
     /// `style(ref)`: attach a ref's props and marker class to the element.
