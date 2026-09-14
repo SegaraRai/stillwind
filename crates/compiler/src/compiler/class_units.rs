@@ -10,8 +10,9 @@ use std::collections::BTreeSet;
 use stillwind_design_system::ThemeIndex;
 use stillwind_source::{SourceFile, Span};
 
+use super::fragment::expression::Emitted;
 use super::literal::LiteralContribution;
-use super::props::{Emitted, GeneratedClass, GuardStep};
+use super::props::{GeneratedClass, GuardStep};
 use super::symbols::{class_name, generated_class_symbol};
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;

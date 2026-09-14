@@ -16,6 +16,8 @@
 //!
 //! The module compiler executes compilation; compiled module results own edit
 //! application; module CSS artifacts own rule identity and serialization.
+//! `generated` composes JavaScript fragments with expression provenance; `transforms`
+//! converts their source ranges to UTF-16 mappings for host source-map generation.
 
 #![cfg_attr(
     not(test),
@@ -32,6 +34,7 @@
 mod candidate;
 mod compiled_module;
 mod compiler;
+mod generated;
 mod imports;
 mod module_compiler;
 mod module_css;
@@ -59,7 +62,8 @@ pub use query::{
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
 pub use stylesheet_map::{MappedStylesheet, StylesheetMapping};
 pub use transforms::{
-    RenderedSource, SourceTransform, TransformError, TransformMapping, render_transforms,
+    ExpressionMapping, ExpressionTransformMapping, RenderedSource, SourceTransform, TransformError,
+    TransformMapping, render_transforms,
 };
 
 #[cfg(test)]

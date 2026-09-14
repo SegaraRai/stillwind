@@ -21,6 +21,7 @@ fn rewrite(text: &str, lower: bool, unknown: bool) -> Result<String, CompileErro
             .map(|call| SourceTransform {
                 call_span: call.span,
                 replacement: "({})".into(),
+                expressions: Vec::new(),
             })
             .collect::<Vec<_>>()
     } else {

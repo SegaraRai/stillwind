@@ -1,51 +1,58 @@
 //! JavaScript serialization of lowered class expressions.
 //!
-//! [`render_plain`] proves a class expression fits one class property; [`render_fragment`]
-//! retains attributes and runtime values for the merge helper. Both preserve tree order.
+//! [`is_plain`] checks structural compatibility without side effects; [`render_plain`]
+//! serializes accepted trees while retaining code mappings and registering deferred
+//! helpers. Property-bearing groups belong to fragment rendering. These operations
+//! do not analyze source-value types or decide whether evaluations can be reordered.
 
 use stillwind_ir::ConditionalKind;
-use stillwind_source::Span;
 
-use super::props::{Emitted, EmittedEntry};
-use crate::runtime::{RuntimeBindings, RuntimeHelper};
+use super::fragment::expression::{Emitted, EmittedEntry, ValueExpr};
+use crate::generated::{Code, code, js_string};
+use crate::runtime::RuntimeBindings;
 
-/// Renders a plain class value: strings that clsx can join directly.
+/// Serializes a class-value tree without introducing framework property keys.
 ///
-/// Returns `None` when the value cannot be expressed without the fragment runtime, which is what
-/// makes Tier 1 a proof obligation rather than a preference. An attribute can never appear inside
-/// one class property, so any attribute entry makes the whole value unrenderable this way.
-pub(super) fn render_plain(value: &Emitted) -> Option<String> {
+/// Source mappings and branch/array order are retained; missing slots become `null`.
+/// Returns `None` for groups with ordinary/custom properties or no retained class
+/// entries. Opaque expressions are emitted verbatim, not normalized or type-checked.
+/// Deferred helpers visited before a failure may already have been registered, so
+/// production callers establish structural compatibility before rendering.
+pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -> Option<Code> {
     match value {
-        Emitted::Expression(text) => Some(text.clone()),
-        Emitted::Leaf { names } => Some(format!("\"{}\"", names.join(" "))),
+        Emitted::Expression(expression) => Some(expression.render(runtime)),
+        Emitted::Leaf { names } => Some(js_string(&names.join(" ")).into()),
         Emitted::Array(items) => {
             let mut parts = Vec::new();
             for item in items {
                 parts.push(match item {
-                    Some(item) => render_plain(item)?,
-                    None => "null".to_owned(),
+                    Some(item) => render_plain(item, runtime)?,
+                    None => "null".into(),
                 });
             }
-            Some(format!("[{}]", parts.join(",")))
+            Some(code!["[", Code::join(parts, ","), "]"])
         }
         Emitted::Conditional {
-            test,
+            code: test,
             kind,
             consequent,
             alternate,
+            ..
         } => {
             let consequent = match consequent {
-                Some(value) => render_plain(value)?,
-                None => "null".to_owned(),
+                Some(value) => render_plain(value, runtime)?,
+                None => "null".into(),
             };
             match kind {
-                ConditionalKind::LogicalAnd => Some(format!("({test}) && ({consequent})")),
+                ConditionalKind::LogicalAnd => Some(code!["(", test, ") && (", consequent, ")"]),
                 ConditionalKind::Ternary => {
                     let alternate = match alternate {
-                        Some(value) => render_plain(value)?,
-                        None => "null".to_owned(),
+                        Some(value) => render_plain(value, runtime)?,
+                        None => "null".into(),
                     };
-                    Some(format!("({test}) ? ({consequent}) : ({alternate})"))
+                    Some(code![
+                        "(", test, ") ? (", consequent, ") : (", alternate, ")"
+                    ])
                 }
             }
         }
@@ -58,7 +65,7 @@ pub(super) fn render_plain(value: &Emitted) -> Option<String> {
                         return None;
                     }
                     Some(EmittedEntry::Class(value)) => {
-                        parts.push(render_plain(value)?);
+                        parts.push(render_plain(value, runtime)?);
                     }
                     None => {}
                 }
@@ -66,83 +73,34 @@ pub(super) fn render_plain(value: &Emitted) -> Option<String> {
             match parts.len() {
                 0 => None,
                 1 => parts.pop(),
-                _ => Some(format!("[{}]", parts.join(","))),
+                _ => Some(code!["[", Code::join(parts, ","), "]"]),
             }
         }
     }
 }
 
-/// Renders a fragment expression that `stillwindMerge` can consume.
-///
-/// The output is a fresh expression, not a reference to anything already emitted, so the same
-/// tree can be rendered once per tier decision without sharing state.
-pub(super) fn render_fragment(
-    value: &Emitted,
-    runtime: &mut RuntimeBindings<'_>,
-    span: Span,
-) -> String {
+/// Checks whether a tree can remain a class-only atom without registering helpers.
+/// Rejects opaque source values and empty or property-bearing groups. Deferred calls
+/// and class-only arrays/branches qualify; this does not imply purity or nonemptiness.
+pub(crate) fn is_plain(value: &Emitted) -> bool {
     match value {
-        Emitted::Expression(text) => {
-            let key = runtime.require(RuntimeHelper::ClassKey, span);
-            format!("{{[{key}]:({text})}}")
-        }
-        Emitted::Leaf { names } => fragment(runtime, span, &[names.join(" ")]),
-        Emitted::Array(items) => {
-            let mut parts = Vec::new();
-            for item in items {
-                parts.push(match item {
-                    Some(item) => render_fragment(item, runtime, span),
-                    None => "null".to_owned(),
-                });
-            }
-            format!("[{}]", parts.join(","))
-        }
+        Emitted::Expression(ValueExpr::Source(_)) => false,
+        Emitted::Expression(_) | Emitted::Leaf { .. } => true,
+        Emitted::Array(items) => items.iter().flatten().all(is_plain),
         Emitted::Conditional {
-            test,
-            kind,
             consequent,
             alternate,
-        } => {
-            let consequent = match consequent {
-                Some(value) => render_fragment(value, runtime, span),
-                None => "null".to_owned(),
-            };
-            match kind {
-                ConditionalKind::LogicalAnd => format!("({test}) && ({consequent})"),
-                ConditionalKind::Ternary => {
-                    let alternate = match alternate {
-                        Some(value) => render_fragment(value, runtime, span),
-                        None => "null".to_owned(),
-                    };
-                    format!("({test}) ? ({consequent}) : ({alternate})")
-                }
-            }
-        }
+            ..
+        } => consequent
+            .iter()
+            .chain(alternate)
+            .all(|value| is_plain(value)),
         Emitted::Group(entries) => {
-            let mut parts = Vec::new();
-            for entry in entries {
-                match entry {
-                    Some(EmittedEntry::CustomProperty(text)) => {
-                        let key = runtime.require(RuntimeHelper::CustomPropertiesKey, span);
-                        parts.push(format!("{{[{key}]:{{{text}}}}}"));
-                    }
-                    Some(EmittedEntry::Attribute(text)) => parts.push(format!("{{{text}}}")),
-                    Some(EmittedEntry::Class(value)) => {
-                        parts.push(render_fragment(value, runtime, span));
-                    }
-                    None => parts.push("null".to_owned()),
-                }
-            }
-            if parts.len() == 1 {
-                return parts.remove(0);
-            }
-            format!("[{}]", parts.join(","))
+            entries
+                .iter()
+                .flatten()
+                .all(|entry| matches!(entry, EmittedEntry::Class(value) if is_plain(value)))
+                && entries.iter().any(Option::is_some)
         }
     }
-}
-
-/// Builds a fragment object for one already-joined class string.
-fn fragment(runtime: &mut RuntimeBindings<'_>, span: Span, values: &[String]) -> String {
-    let key = runtime.require(RuntimeHelper::ClassKey, span);
-    format!("{{[{key}]:\"{}\"}}", values.join(" "))
 }

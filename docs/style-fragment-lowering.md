@@ -1,5 +1,9 @@
 # Structure-preserving style lowering and the fragment runtime
 
+The JavaScript output selection described here is superseded by
+[contextual fragment folding](style-fragment-folding.md). The source evaluation
+and CSS ordering contracts remain applicable.
+
 Status: implemented (2026-09-12). It replaces the
 flattened conditional lowering described in
 [style composition](style-composition.md) and the "rule units and cascade

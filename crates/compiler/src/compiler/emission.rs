@@ -1,16 +1,15 @@
 //! Structure-preserving style emission.
 //!
-//! The conditional and array structure of every class expression is kept: each
-//! user expression appears once in the output, is evaluated once, and keeps its
-//! source position. Class contributions are emitted either as a plain class
-//! value (Tier 1) or as a fragment (Tier 2); the renderer picks the shape.
+//! [`CallEmitter::run`] resolves style inputs into class units and typed contributions
+//! for fragment folding. It retains guards, source occurrences, and frontend effect
+//! proofs; provably empty, effect-free subtrees are omitted. It does not choose final
+//! framework keys or allocate runtime helper imports.
 //!
-//! The traversal delegates class allocation and stylesheet publication to [`ClassUnits`],
-//! which writes base rules before conditional rules. [`LiteralContribution`] resolves
-//! utility text; [`super::expression_render`] serializes lowered class trees
-//! independently of CSS order, so the cascade never depends on class attribute order.
+//! [`ClassUnits`] owns class identities and base-before-conditional CSS publication.
+//! [`LiteralContribution`] resolves utility text, and fragment rendering later chooses
+//! a representation without changing those CSS identities or declaration order.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
@@ -23,14 +22,14 @@ use stillwind_source::{SourceFile, Span};
 
 use super::CssContribution;
 use super::class_units::ClassUnits;
-use super::expression_render::render_plain;
+use super::fragment::expression::{Emitted, EmittedEntry, Property, ValueExpr};
 use super::handles::{
     handle_marker_class, ref_identity, render_handle_projection, scope_identity, scope_marker_class,
 };
 use super::lexer::lex_utilities;
 use super::literal::LiteralContribution;
 use super::motion::resolve_animation_use;
-use super::props::{Emitted, EmittedEntry, GuardStep, StyleEmission, StyleEmissionPart};
+use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::StyleVariantPlan;
 use super::symbols::{
     handle_projection_name, motion_symbol_name, ref_symbol_name, runtime_projection_class,
@@ -38,7 +37,8 @@ use super::symbols::{
 use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_kind, view_transition_utility,
 };
-use crate::runtime::{RuntimeBindings, RuntimeHelper};
+use crate::generated::{Code, js_string};
+use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
 
 /// One `style()` call being lowered.
@@ -46,17 +46,18 @@ use crate::{CompilerOptions, GeneratedSymbol};
 /// The emitter accumulates state rather than building a tree in one pass, because the base unit
 /// has to be collected across argument positions while each conditional leaf needs its own class
 /// unit and guard path.
-pub(super) struct CallEmitter<'a, 'b> {
+pub(super) struct CallEmitter<'a> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
+    /// Exact original-source spans proven effect-free by the frontend heuristic.
+    /// A missing span is unproven; lookup order does not affect output.
+    pure_expressions: &'a HashSet<Span>,
     /// Compiler configuration for generated identities and output.
     options: &'a CompilerOptions,
     /// Resolved theme and utility registry for this compilation.
     theme: &'a ThemeIndex,
     /// Analyzed style call being lowered.
     call: &'a StyleCall,
-    /// Framework class attribute spelling, such as className or class.
-    class_property: &'static str,
     /// Compilation errors appended while lowering the call.
     diagnostics: &'a mut Vec<CompileError>,
     /// Nonfatal findings appended in encounter order.
@@ -66,33 +67,33 @@ pub(super) struct CallEmitter<'a, 'b> {
     runtime_assets: &'a mut BTreeSet<IdentityId>,
     /// Motion identities reached by static or dynamic uses.
     motion_assets: &'a mut BTreeSet<IdentityId>,
-    /// Per-module allocator of helper bindings and import realms.
-    runtime: &'a mut RuntimeBindings<'b>,
     /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
     /// Owns class allocation and base-before-conditional CSS publication.
     units: ClassUnits<'a>,
-    /// Set when a props object sits inside a conditional expression, which forces Tier 2.
-    conditional_props: bool,
     /// Set once the call contributed a view transition, so a second one is reported.
     view_transition_seen: bool,
 }
 
-impl<'a, 'b> CallEmitter<'a, 'b> {
-    /// Lowers one call, or returns `None` after pushing a diagnostic.
+impl<'a> CallEmitter<'a> {
+    /// Lowers one analyzed call into finalized class units and ordered contributions.
+    ///
+    /// Input spans and effect proofs must address `source`. Shared CSS, symbol, asset,
+    /// and diagnostic destinations may be extended during traversal. `None` means an
+    /// input could not be lowered; `Some` is not proof of diagnostic-free compilation.
+    /// The pipeline must inspect diagnostics and discard failed output transactionally.
     #[allow(clippy::needless_pass_by_value)] // The struct owns the borrows this call consumes.
-    pub(super) fn run(inputs: CallEmitterInputs<'a, 'b>) -> Option<StyleEmission> {
+    pub(super) fn run(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
         let emitter = Self {
             source: inputs.source,
+            pure_expressions: inputs.pure_expressions,
             options: inputs.options,
             theme: inputs.theme,
             call: inputs.call,
-            class_property: inputs.class_property,
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,
             runtime_assets: inputs.runtime_assets,
             motion_assets: inputs.motion_assets,
-            runtime: inputs.runtime,
             parts: Vec::new(),
             units: ClassUnits::new(
                 inputs.source,
@@ -103,13 +104,13 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 inputs.symbols,
                 inputs.emitted_utility_classes,
             ),
-            conditional_props: false,
             view_transition_seen: false,
         };
         emitter.emit()
     }
 
-    /// Walks the call's inputs in source order and finishes the emission.
+    /// Traverses top-level inputs and publishes accumulated class units on completion.
+    /// Stops on an input returning `None`; shared output destinations are not rolled back.
     fn emit(mut self) -> Option<StyleEmission> {
         for input in self.call.inputs.clone() {
             self.emit_input(&input)?;
@@ -119,8 +120,10 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
 
     /// Dispatches one style input.
     ///
-    /// Inputs that carry no user expressions fold into the base unit; everything else becomes a
-    /// part whose source position decides where it sits in the emitted expression.
+    /// Static utility contributions join class allocation; retained runtime values become
+    /// parts with original-source ordering anchors and mappings. `None` propagates a
+    /// required lowering/slicing failure; diagnostics and accumulated state remain owned
+    /// by the pipeline, including failures represented by omitted nested contributions.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the style inputs.
     fn emit_input(&mut self, input: &StyleInput) -> Option<()> {
         match input {
@@ -132,16 +135,16 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                             self.emit_item(expression, position);
                         }
                         GroupEntry::Attribute(attribute) => {
-                            let text = self.render_attribute(attribute)?;
+                            let property = self.render_attribute(attribute)?;
                             self.parts.push(StyleEmissionPart::Attributes {
-                                text,
+                                property,
                                 position: attribute.value.start.0,
                             });
                         }
                         GroupEntry::CustomProperty(property) => {
-                            let text = self.render_custom_property(property)?;
+                            let custom_property = self.render_custom_property(property)?;
                             self.parts.push(StyleEmissionPart::CustomProperties {
-                                text,
+                                property: custom_property,
                                 position: property.value.start.0,
                             });
                         }
@@ -153,9 +156,9 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 self.emit_item(expression, position);
             }
             StyleInput::Composition { value, .. } => {
-                let text = self.slice(*value)?;
+                let expression = self.source_expression(*value)?;
                 self.parts.push(StyleEmissionPart::Base {
-                    text,
+                    expression,
                     position: value.start.0,
                 });
             }
@@ -180,15 +183,23 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
             StyleInput::DynamicScopeAttachment { value, scopes } => {
                 self.runtime_assets
                     .extend(scopes.iter().map(scope_identity));
-                let helper = self.runtime.require(RuntimeHelper::HandleClass, *value);
-                let text = format!("{helper}({})", self.slice(*value)?);
-                self.push_expression(text, value.start.0);
+                let expression = ValueExpr::Call {
+                    pure: self.pure_expressions.contains(value),
+                    helper: RuntimeHelper::HandleClass,
+                    arguments: vec![self.source_expression(*value)?],
+                    span: *value,
+                };
+                self.push_expression(expression, value.start.0);
             }
             StyleInput::DynamicHandleAttachment { value, handles } => {
                 self.runtime_assets.extend(handles.iter().map(ref_identity));
-                let helper = self.runtime.require(RuntimeHelper::HandleClass, *value);
-                let text = format!("{helper}({})", self.slice(*value)?);
-                self.push_expression(text, value.start.0);
+                let expression = ValueExpr::Call {
+                    pure: self.pure_expressions.contains(value),
+                    helper: RuntimeHelper::HandleClass,
+                    arguments: vec![self.source_expression(*value)?],
+                    span: *value,
+                };
+                self.push_expression(expression, value.start.0);
             }
             StyleInput::ContainerQuery {
                 handle,
@@ -231,17 +242,23 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 let name = motion_symbol_name(&transition.identity);
                 self.emit_view_transition_class();
                 let key = match key {
-                    Some(key) => self.slice(*key)?,
-                    None => "undefined".to_owned(),
+                    Some(key) => self.source_expression(*key)?,
+                    None => "undefined".into(),
                 };
-                let helper = self
-                    .runtime
-                    .require(RuntimeHelper::ViewTransitionStyle, self.call.span);
-                let text = format!(
-                    "{helper}(\"{name}\",{key},[\"{name}\"],\"--sw-vt-name\",\"--sw-vt-class\")"
-                );
+                let expression = ValueExpr::Call {
+                    pure: false,
+                    helper: RuntimeHelper::ViewTransitionStyle,
+                    arguments: vec![
+                        format!("\"{name}\"").into(),
+                        key,
+                        format!("[\"{name}\"]").into(),
+                        "\"--sw-vt-name\"".into(),
+                        "\"--sw-vt-class\"".into(),
+                    ],
+                    span: self.call.span,
+                };
                 self.parts.push(StyleEmissionPart::Style {
-                    text,
+                    expression,
                     position: self.call.span.start.0,
                 });
             }
@@ -260,23 +277,28 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 }
                 self.emit_view_transition_class();
                 let key = match key {
-                    Some(key) => self.slice(*key)?,
-                    None => "undefined".to_owned(),
+                    Some(key) => self.source_expression(*key)?,
+                    None => "undefined".into(),
                 };
                 let candidates = candidates
                     .iter()
                     .map(|candidate| format!("\"{candidate}\""))
                     .collect::<Vec<_>>()
                     .join(",");
-                let helper = self
-                    .runtime
-                    .require(RuntimeHelper::ViewTransitionStyle, self.call.span);
-                let text = format!(
-                    "{helper}({},{key},[{candidates}],\"--sw-vt-name\",\"--sw-vt-class\")",
-                    self.slice(*value)?
-                );
+                let expression = ValueExpr::Call {
+                    pure: false,
+                    helper: RuntimeHelper::ViewTransitionStyle,
+                    arguments: vec![
+                        self.source_expression(*value)?,
+                        key,
+                        format!("[{candidates}]").into(),
+                        "\"--sw-vt-name\"".into(),
+                        "\"--sw-vt-class\"".into(),
+                    ],
+                    span: self.call.span,
+                };
                 self.parts.push(StyleEmissionPart::Style {
-                    text,
+                    expression,
                     position: value.start.0,
                 });
             }
@@ -301,27 +323,24 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         true
     }
 
-    /// Adds a class value that is a helper call over user expressions.
-    fn push_expression(&mut self, text: String, position: u32) {
+    /// Appends a deferred class value at an original-source UTF-8 ordering position.
+    /// Records the expression without rendering it or registering its runtime helper.
+    fn push_expression(&mut self, expression: ValueExpr, position: u32) {
         self.parts.push(StyleEmissionPart::Class {
-            emitted: Emitted::Expression(text),
+            emitted: Emitted::Expression(expression),
             position,
-            user_code: true,
-            user_value: true,
         });
     }
 
-    /// Lowers one top-level class item of a call or of an attribute object.
+    /// Lowers one top-level class item with empty guard and variant stacks.
+    /// Appends retained runtime code at `position`; omitted contributions may instead
+    /// have joined the base unit or reported diagnostics during lowering.
     fn emit_item(&mut self, expression: &ClassExpression, position: u32) {
         let mut wrappers = Vec::new();
         let mut guard = Vec::new();
         if let Some(emitted) = self.emit_expression(expression, &mut guard, &mut wrappers, true) {
-            self.parts.push(StyleEmissionPart::Class {
-                emitted,
-                position,
-                user_code: uses_user_code(expression),
-                user_value: is_user_value(expression),
-            });
+            self.parts
+                .push(StyleEmissionPart::Class { emitted, position });
         }
     }
 
@@ -330,8 +349,26 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
     /// `fold` is set at the top level of a call: a leaf reached without a guard can join the base
     /// unit, while a leaf under any test keeps its own class unit. Conditional arms clear the flag
     /// for their contents, so a nested leaf never merges into the base unit by accident.
-    #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
+    /// `None` covers base-folded, provably empty, and failed contributions. Guard and
+    /// wrapper stacks are restored after nested traversal; callers inspect diagnostics
+    /// separately rather than treating absence as a successful empty expression.
     fn emit_expression(
+        &mut self,
+        expression: &ClassExpression,
+        guard: &mut Vec<GuardStep>,
+        wrappers: &mut Vec<StyleVariant>,
+        fold: bool,
+    ) -> Option<Emitted> {
+        self.emit_expression_inner(expression, guard, wrappers, fold)
+            .filter(|value| !value.is_empty())
+    }
+
+    /// Resolves one class node while preserving guards, variant context, and source mappings.
+    /// May allocate CSS/class units or record asset dependencies and diagnostics.
+    /// Returns `None` for a base-folded leaf or a lowering failure; empty runtime nodes
+    /// are left for `emit_expression` to filter.
+    #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
+    fn emit_expression_inner(
         &mut self,
         expression: &ClassExpression,
         guard: &mut Vec<GuardStep>,
@@ -378,12 +415,13 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 });
                 let consequent = self.emit_sequence(consequent, guard, wrappers);
                 guard.pop();
-                let test = self.slice(test_span)?;
+                let test = self.source_expression(test_span)?;
                 match kind {
                     ConditionalKind::LogicalAnd => Some(Emitted::Conditional {
-                        test,
+                        pure: self.pure_expressions.contains(&test_span),
+                        code: test,
                         kind: *kind,
-                        consequent: Some(Box::new(consequent?)),
+                        consequent: consequent.map(Box::new),
                         alternate: None,
                     }),
                     ConditionalKind::Ternary => {
@@ -393,11 +431,9 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                         });
                         let alternate = self.emit_sequence(alternate, guard, wrappers);
                         guard.pop();
-                        if consequent.is_none() && alternate.is_none() {
-                            return None;
-                        }
                         Some(Emitted::Conditional {
-                            test,
+                            pure: self.pure_expressions.contains(&test_span),
+                            code: test,
                             kind: *kind,
                             consequent: consequent.map(Box::new),
                             alternate: alternate.map(Box::new),
@@ -433,14 +469,12 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                             .emit_expression(expression, guard, wrappers, fold)
                             .map(EmittedEntry::Class),
                         GroupEntry::Attribute(attribute) => {
-                            let text = self.render_attribute(attribute)?;
-                            self.conditional_props = true;
-                            Some(EmittedEntry::Attribute(text))
+                            let property = self.render_attribute(attribute)?;
+                            Some(EmittedEntry::Attribute(property))
                         }
                         GroupEntry::CustomProperty(property) => {
-                            let text = self.render_custom_property(property)?;
-                            self.conditional_props = true;
-                            Some(EmittedEntry::CustomProperty(text))
+                            let custom_property = self.render_custom_property(property)?;
+                            Some(EmittedEntry::CustomProperty(custom_property))
                         }
                     };
                     any |= item.is_some();
@@ -449,8 +483,13 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                 any.then_some(Emitted::Group(items))
             }
             ClassExpression::External(value) => {
-                let text = self.slice(*value)?;
-                Some(Emitted::Expression(text))
+                let expression = ValueExpr::Call {
+                    pure: self.pure_expressions.contains(value),
+                    helper: RuntimeHelper::Clsx,
+                    arguments: vec![self.source_expression(*value)?],
+                    span: *value,
+                };
+                Some(Emitted::Expression(expression))
             }
             ClassExpression::HandleProjection { handle, projection } => {
                 let name = handle_projection_name(projection);
@@ -519,13 +558,23 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                         plain: Vec::new(),
                     };
                     let class = self.units.leaf(contribution, guard);
-                    let class = render_plain(&class)?;
+                    let Emitted::Leaf { names } = class else {
+                        return None;
+                    };
+                    let class = js_string(&names.join(" "));
                     table.push(format!("\"{marker}\":{class}"));
                 }
                 let table = table.join(",");
-                let helper = self.runtime.require(RuntimeHelper::HandleClass, *value);
-                let text = format!("{helper}({},{table})", self.slice(*value)?);
-                Some(Emitted::Expression(text))
+                let expression = ValueExpr::Call {
+                    pure: self.pure_expressions.contains(value),
+                    helper: RuntimeHelper::HandleClass,
+                    arguments: vec![
+                        self.source_expression(*value)?,
+                        format!("{{{table}}}").into(),
+                    ],
+                    span: *value,
+                };
+                Some(Emitted::Expression(expression))
             }
             ClassExpression::AnimationUse { animation, options } => {
                 self.motion_assets.insert(animation.identity.clone());
@@ -579,21 +628,33 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
                         plain: Vec::new(),
                     };
                     let class = self.units.leaf(contribution, guard);
-                    let class = render_plain(&class)?;
+                    let Emitted::Leaf { names } = class else {
+                        return None;
+                    };
+                    let class = js_string(&names.join(" "));
                     table.push(format!("\"{identity}\":{class}"));
                 }
                 let table = table.join(",");
-                let helper = self.runtime.require(RuntimeHelper::AssetClass, *value);
-                let text = format!("{helper}({},{table})", self.slice(*value)?);
-                Some(Emitted::Expression(text))
+                let expression = ValueExpr::Call {
+                    pure: self.pure_expressions.contains(value),
+                    helper: RuntimeHelper::AssetClass,
+                    arguments: vec![
+                        self.source_expression(*value)?,
+                        format!("{{{table}}}").into(),
+                    ],
+                    span: *value,
+                };
+                Some(Emitted::Expression(expression))
             }
         }
     }
 
     /// Lowers a whole branch of a conditional expression.
     ///
-    /// Every element must be emittable: a branch is a single value, so dropping one element would
-    /// silently change what the test selects.
+    /// Visits every child with base folding disabled under the current guard/wrappers.
+    /// Returns `None` for no children or one omitted child, the child for a singleton,
+    /// and an array retaining empty slots otherwise. Later evaluations are never
+    /// skipped because an earlier child was omitted; the pipeline owns diagnostics.
     fn emit_sequence(
         &mut self,
         expressions: &[ClassExpression],
@@ -602,29 +663,37 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
     ) -> Option<Emitted> {
         let mut items = Vec::new();
         for expression in expressions {
-            items.push(self.emit_expression(expression, guard, wrappers, false)?);
+            items.push(self.emit_expression(expression, guard, wrappers, false));
         }
         match items.len() {
             0 => None,
-            1 => items.pop(),
-            _ => Some(Emitted::Array(items.into_iter().map(Some).collect())),
+            1 => items.pop().flatten(),
+            _ => Some(Emitted::Array(items)),
         }
     }
 
-    /// Emits one custom property through the framework's fragment channel.
-    fn render_custom_property(&mut self, property: &CustomPropertyEntry) -> Option<String> {
-        let value = self.slice(property.value)?;
-        let helper = self
-            .runtime
-            .require(RuntimeHelper::CssValue, property.value);
-        let name = serde_json::to_string(&property.name.value).ok()?;
-        Some(format!("[{name}]:{helper}(({value}))"))
+    /// Captures the decoded custom-property name, original value text/span, and effect proof.
+    /// Returns `None` if the source value cannot be sliced. CSS-value conversion and
+    /// JavaScript quoting are deferred until a representation has been selected.
+    fn render_custom_property(&self, property: &CustomPropertyEntry) -> Option<Property> {
+        Some(Property {
+            name: property.name.value.clone(),
+            value: self.slice(property.value)?,
+            pure: self.pure_expressions.contains(&property.value),
+            span: property.value,
+        })
     }
 
-    /// Renders one attribute entry of an object literal, with its value verbatim.
-    fn render_attribute(&mut self, attribute: &AttributeEntry) -> Option<String> {
-        let value = self.slice(attribute.value)?;
-        Some(format!("\"{}\":{value}", attribute.name.value))
+    /// Captures an ordinary property and its original value occurrence without conversion.
+    /// An authored `style` stays an ordinary property. Returns `None` for an unreadable
+    /// value span, without appending a diagnostic here.
+    fn render_attribute(&self, attribute: &AttributeEntry) -> Option<Property> {
+        Some(Property {
+            name: attribute.name.value.clone(),
+            value: self.slice(attribute.value)?,
+            pure: self.pure_expressions.contains(&attribute.value),
+            span: attribute.value,
+        })
     }
 
     /// Contributes the class that carries a view transition's name and class properties.
@@ -634,37 +703,47 @@ impl<'a, 'b> CallEmitter<'a, 'b> {
         self.units.base.utilities.push(view_transition_utility());
     }
 
-    /// Slices an original span, or reports that it cannot be read.
+    /// Copies one original expression with an exact occurrence mapping.
+    /// Returns `None` if the span has a foreign file, invalid bounds, or UTF-8 boundaries.
+    fn source_expression(&self, span: Span) -> Option<Code> {
+        Some(Code::source(self.slice(span)?, span))
+    }
+
+    /// Copies a valid source slice verbatim, retaining authored whitespace.
+    /// Returns `None` on a slicing error; this helper does not emit diagnostics.
     fn slice(&self, span: Span) -> Option<String> {
         self.source.slice(span).ok().map(str::to_owned)
     }
 
-    /// Publishes the class units and returns the expression parts in source order.
+    /// Consumes the emitter, publishes class units, and returns accumulated contributions.
+    /// Parts retain traversal order here; fragment construction later sorts their source
+    /// positions. This operation neither renders JavaScript nor checks final diagnostics.
     fn finish(self) -> StyleEmission {
         let (static_names, classes) = self.units.finish();
         StyleEmission {
-            class_property: self.class_property,
             static_names,
             parts: self.parts,
             classes,
-            conditional_props: self.conditional_props,
             call_span: self.call.span,
         }
     }
 }
 
-/// The borrows one call needs, grouped so the emitter can be constructed in one place.
-pub(super) struct CallEmitterInputs<'a, 'b> {
+/// Source, analysis, and shared output destinations for lowering one style call.
+/// Spans in the call and purity set must address `source`; destinations are appended
+/// during lowering and are not individually rolled back on failure.
+pub(super) struct CallEmitterInputs<'a> {
     /// Original buffer used to slice user expressions.
     pub source: &'a SourceFile,
+    /// Exact original-source spans proven effect-free by the frontend heuristic.
+    /// A missing span is unproven; lookup order does not affect output.
+    pub pure_expressions: &'a HashSet<Span>,
     /// Compiler configuration for this call.
     pub options: &'a CompilerOptions,
     /// Resolved theme and utility registry.
     pub theme: &'a ThemeIndex,
     /// Analyzed style call to lower.
     pub call: &'a StyleCall,
-    /// Framework class attribute spelling.
-    pub class_property: &'static str,
     /// Shared destination for compilation errors.
     pub diagnostics: &'a mut Vec<CompileError>,
     /// Shared destination for lint findings, appended in encounter order.
@@ -679,59 +758,12 @@ pub(super) struct CallEmitterInputs<'a, 'b> {
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
     /// Motion definitions reached by static or dynamic uses.
     pub motion_assets: &'a mut BTreeSet<IdentityId>,
-    /// Shared helper binding allocator for the module.
-    pub runtime: &'a mut RuntimeBindings<'b>,
 }
 
-/// Whether the emitted text evaluates user expressions.
-///
-/// This is what separates Tier 1 from Tier 0: a static leaf can be folded into a string, while a
-/// test, an external name, or a dynamic asset lookup has to be evaluated where the user wrote it.
-fn uses_user_code(expression: &ClassExpression) -> bool {
-    match expression {
-        ClassExpression::Conditional { .. }
-        | ClassExpression::External(_)
-        | ClassExpression::DynamicHandleProjection { .. }
-        | ClassExpression::DynamicAnimationUse { .. } => true,
-        ClassExpression::Array(elements) => elements.iter().any(uses_user_code),
-        ClassExpression::Variant { inputs, .. } => inputs.iter().any(uses_user_code),
-        ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
-            GroupEntry::Class(expression) => uses_user_code(expression),
-            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => true,
-        }),
-        _ => false,
-    }
-}
-
-/// Whether the expression carries a user-owned class or asset value.
-///
-/// Such a value can only be resolved at runtime, so it cannot be hoisted next to a static class
-/// without changing what is evaluated and in which order.
-fn is_user_value(expression: &ClassExpression) -> bool {
-    match expression {
-        ClassExpression::External(_)
-        | ClassExpression::DynamicHandleProjection { .. }
-        | ClassExpression::DynamicAnimationUse { .. } => true,
-        ClassExpression::Array(elements) => elements.iter().any(is_user_value),
-        ClassExpression::Variant { inputs, .. } => inputs.iter().any(is_user_value),
-        ClassExpression::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => consequent.iter().chain(alternate.iter()).any(is_user_value),
-        ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
-            GroupEntry::Class(expression) => is_user_value(expression),
-            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => false,
-        }),
-        _ => false,
-    }
-}
-
-/// The source position used to order an expression among a call's parts.
-///
-/// Tests order by their own span, so a conditional part sits where its test is written rather than
-/// where its first literal is. A container query or group has no single token, so it orders by its
-/// opening span, which keeps evaluation order equal to the source order the user sees.
+/// Returns an original-source UTF-8 byte anchor for sorting a call's contributions.
+/// Conditionals use their test, variants and groups use their enclosing span, and
+/// arrays use their first element or zero when empty. This establishes initial
+/// contribution order; folding separately proves whether evaluations may move.
 fn expression_position(expression: &ClassExpression) -> u32 {
     match expression {
         ClassExpression::Utilities(value) => value.span.start.0,

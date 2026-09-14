@@ -8,8 +8,8 @@
 //! Ordering is semantic and must survive any consumer. [`ModuleIr::style_calls`],
 //! [`ModuleIr::handle_definitions`], and the input entries inside one call stay in
 //! source order; the class expression tree mirrors the source expression so that each
-//! user expression is evaluated exactly once, in source order, with short-circuiting
-//! intact.
+//! effectful user expression is evaluated exactly once, in source order, with
+//! short-circuiting intact. Frontend effect proofs permit pure folding downstream.
 
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +31,13 @@ pub struct ModuleIr {
     /// Bindings and imports needed by code generation.
     #[serde(default)]
     pub imports: ModuleImports,
+    /// Original-source UTF-8 expression spans proven effect-free by the frontend heuristic.
+    /// Missing entries are unproven; list order has no semantic meaning. Proofs permit
+    /// reordering or removing empty branches under assumptions excluding getters,
+    /// proxies, implicit coercions, iteration effects, and reference errors. They do
+    /// not assert that arbitrary execution is exception-free. Defaults to an empty list.
+    #[serde(default)]
+    pub pure_expressions: Vec<Span>,
     /// In source order. A call can emit a base unit plus conditional units, or no CSS.
     pub style_calls: Vec<StyleCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
@@ -54,6 +61,7 @@ impl ModuleIr {
                 macros: Vec::new(),
                 module_css: Vec::new(),
             },
+            pure_expressions: Vec::new(),
             style_calls: Vec::new(),
             handle_definitions: Vec::new(),
             scope_definitions: Vec::new(),

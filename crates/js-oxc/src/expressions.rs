@@ -149,7 +149,7 @@ impl<'a> MacroExtractor<'a> {
     /// Lowers one class-valued expression while mirroring the source structure.
     ///
     /// Returns `None` when the expression contributes no class, such as `null`,
-    /// `undefined`, or `false`.
+    /// `undefined`, or `false`. Conditional tests remain even when both branches are empty.
     ///
     /// Falsy literals and `undefined` disappear rather than becoming a branch, and a
     /// spread or an empty array slot is an error, so the emitted IR is never a guess
@@ -173,9 +173,6 @@ impl<'a> MacroExtractor<'a> {
             {
                 let test = self.source_span(expression.left.span());
                 let consequent = self.class_expression_sequence(&expression.right);
-                if consequent.is_empty() {
-                    return None;
-                }
                 Some(ClassExpression::Conditional {
                     test,
                     kind: ConditionalKind::LogicalAnd,
@@ -187,9 +184,6 @@ impl<'a> MacroExtractor<'a> {
                 let test = self.source_span(expression.test.span());
                 let consequent = self.class_expression_sequence(&expression.consequent);
                 let alternate = self.class_expression_sequence(&expression.alternate);
-                if consequent.is_empty() && alternate.is_empty() {
-                    return None;
-                }
                 Some(ClassExpression::Conditional {
                     test,
                     kind: ConditionalKind::Ternary,

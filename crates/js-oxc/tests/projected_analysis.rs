@@ -167,6 +167,18 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
     );
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
     assert_eq!(analysis.ir.adapter, AdapterKind::Svelte);
+    assert!(
+        analysis.ir.pure_expressions.iter().any(|span| {
+            span.file == original.id() && original.slice(*span).unwrap() == "active"
+        })
+    );
+    assert!(
+        analysis
+            .ir
+            .pure_expressions
+            .iter()
+            .all(|span| span.file == original.id())
+    );
     assert!(analysis.source.text().starts_with("<script>"));
     assert_eq!(analysis.ir.style_calls.len(), 1);
     assert!(

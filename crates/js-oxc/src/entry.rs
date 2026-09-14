@@ -2,7 +2,7 @@
 //!
 //! [`parse_with_language`] is the single entry point: it runs Oxc, builds the semantic
 //! scoping table, seeds direct producer bindings, visits the program with
-//! [`MacroExtractor`], and then adds the demand-driven import slices. Checker facts are
+//! [`MacroExtractor`], then adds demand-driven import slices and expression-effect proofs. Checker facts are
 //! optional inputs that let expressions imported from other modules resolve without a
 //! type checker in this crate.
 //!
@@ -78,7 +78,10 @@ pub fn parse_with_type_facts(
 ///
 /// The language decides the Oxc source type, so a shadow module for a `.vue` or
 /// `.svelte` file must be given the language of its script rather than one
-/// guessed from the path.
+/// guessed from the path. Returned spans address `source`; projection back to an
+/// editable framework file is a separate step. Syntactic effect proofs are collected
+/// for extracted expression spans, and parse/extraction failures are returned as
+/// diagnostics rather than as a `Result` error.
 pub fn parse_with_language(
     source: &SourceFile,
     type_facts: &[TypeFact],
@@ -125,6 +128,17 @@ pub fn parse_with_language(
     diagnostics.extend(extractor.diagnostics);
     let lint_findings = extractor.lint_findings;
 
+    let mut module = ModuleIr {
+        adapter: extractor.adapter.unwrap_or(AdapterKind::React),
+        imports: collect(&result.program, semantic.scoping(), source.id()),
+        pure_expressions: Vec::new(),
+        style_calls: extractor.style_calls,
+        handle_definitions: extractor.handle_definitions,
+        scope_definitions: extractor.scope_definitions,
+        animation_declarations: extractor.animation_declarations,
+        view_transition_declarations: extractor.view_transition_declarations,
+    };
+    module.pure_expressions = super::effects::collect(&result.program, &module, source.id());
     ParsedJavaScript {
         framework: extractor.adapter,
         type_probes: extractor
@@ -136,15 +150,7 @@ pub fn parse_with_language(
         diagnostics,
         lint_findings,
         summary,
-        module: ModuleIr {
-            adapter: extractor.adapter.unwrap_or(AdapterKind::React),
-            imports: collect(&result.program, semantic.scoping(), source.id()),
-            style_calls: extractor.style_calls,
-            handle_definitions: extractor.handle_definitions,
-            scope_definitions: extractor.scope_definitions,
-            animation_declarations: extractor.animation_declarations,
-            view_transition_declarations: extractor.view_transition_declarations,
-        },
+        module,
     }
 }
 

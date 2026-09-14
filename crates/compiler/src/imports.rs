@@ -107,6 +107,7 @@ pub fn plan_macro_import_removals(
             edits.push(SourceTransform {
                 call_span: import.span,
                 replacement: String::new(),
+                expressions: Vec::new(),
             });
             continue;
         }
@@ -149,6 +150,7 @@ pub fn plan_macro_import_removals(
         edits.push(SourceTransform {
             call_span: import.span,
             replacement,
+            expressions: Vec::new(),
         });
     }
     Ok(edits)

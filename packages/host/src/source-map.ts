@@ -62,17 +62,50 @@ export function composeModuleSourceMap(
 }
 
 /**
- * A native replacement span, using half-open UTF-16 offsets in the original and
- * compiled buffers respectively.
+ * One compiler replacement before host prefix insertion or import removal.
+ * All offsets are absolute UTF-16 code units in the original and compiled buffers.
+ * Replacement gaps without expression intervals map to `original_start`.
  */
 export interface CompilerMapping {
+  /** Inclusive original offset; equals end for insertion. */
   original_start: number;
+  /** Exclusive original offset, at or after start. */
   original_end: number;
+  /** Inclusive offset in the complete compiled buffer. */
   generated_start: number;
+  /** Exclusive compiled offset; equals start for deletion. */
   generated_end: number;
+  /**
+   * Nonempty, nonoverlapping intervals contained in this replacement, sorted by
+   * generated start. Source order may differ. Missing/empty means anchor-only mapping.
+   */
+  expressions?: Array<{
+    /** Inclusive original offset; the anchor for a nonexact interval. */
+    original_start: number;
+    /** Exclusive original offset of the expression or encoded character. */
+    original_end: number;
+    /** Inclusive compiled offset, before host edits. */
+    generated_start: number;
+    /** Exclusive compiled offset, strictly greater than start. */
+    generated_end: number;
+    /** True requires identical text/equal lengths; false anchors all units at original start. */
+    exact: boolean;
+  }>;
 }
 
-/** Compose native UTF-16 edits, removed macro imports and synthetic host imports. */
+/**
+ * Builds a source-map v3 object for `prefix` followed by `compiled` with `removed` ranges omitted.
+ *
+ * `source` is the original buffer embedded as sourcesContent under `id`. `mappings`
+ * must contain valid, nonoverlapping edits ordered by generated/original replacement
+ * start; nested expression intervals follow generated order, not original order.
+ * `removed` must be sorted, nonoverlapping half-open UTF-16 ranges in `compiled`.
+ * The caller validates these contracts; inputs are not changed.
+ *
+ * Untouched text and exact expressions map by code-unit offset, encoded expressions
+ * use their original anchor, and other replacement syntax maps to the call start.
+ * The synthetic prefix is unmapped. Upstream framework/loader maps are composed separately.
+ */
 export function moduleSourceMap(
   source: string,
   compiled: string,
@@ -91,6 +124,7 @@ export function moduleSourceMap(
   let column = prefix.length - prefix.lastIndexOf("\n") - 1;
   let editIndex = 0;
   let removedIndex = 0;
+  let expressionIndex = 0;
   let delta = 0;
   let originalLine = 0;
   for (let index = 0; index < compiled.length; index++) {
@@ -99,10 +133,36 @@ export function moduleSourceMap(
     while (editIndex < mappings.length && mappings[editIndex].generated_end <= index) {
       const edit = mappings[editIndex++];
       delta = edit.original_end - edit.generated_end;
+      expressionIndex = 0;
     }
     const edit = mappings[editIndex];
-    const original = edit && edit.generated_start <= index ? edit.original_start : index + delta;
-    while (originalLine + 1 < lines.length && lines[originalLine + 1] <= original) originalLine++;
+    const expressions = edit?.expressions ?? [];
+    while (
+      expressionIndex < expressions.length &&
+      expressions[expressionIndex].generated_end <= index
+    )
+      expressionIndex++;
+    const expression = expressions[expressionIndex];
+    const original =
+      expression && expression.generated_start <= index
+        ? expression.original_start + (expression.exact ? index - expression.generated_start : 0)
+        : edit && edit.generated_start <= index
+          ? edit.original_start
+          : index + delta;
+    // A folded record can jump backwards between distant source lines.
+    if (
+      original < lines[originalLine] ||
+      (originalLine + 1 < lines.length && lines[originalLine + 1] <= original)
+    ) {
+      let low = 0;
+      let high = lines.length;
+      while (low < high) {
+        const middle = (low + high) >>> 1;
+        if (lines[middle] <= original) low = middle + 1;
+        else high = middle;
+      }
+      originalLine = low - 1;
+    }
     addSegment(map, line, column, id, originalLine, original - lines[originalLine]);
     if (compiled[index] === "\n") {
       line++;

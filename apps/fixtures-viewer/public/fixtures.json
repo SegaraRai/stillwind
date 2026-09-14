@@ -51,7 +51,7 @@
           "path": "src/Dialog.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = style(\n  \"rounded-md\",\n  selectedAnimation(\"duration-normal ease-standard both\"),\n  { \"[&[data-state=closed]]:\": exit(\"duration-fast ease-standard both\") },\n);\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
-          "after": "import { stillwindAssetClass, stillwindClsx } from \"stillwind/react/runtime\";\n\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = {className:stillwindClsx(\"_s_2cd391d8\",stillwindAssetClass(selectedAnimation(\"duration-normal ease-standard both\"),\"--sw-a-5bc60e1e\":\"_s_31dcda56\",\"--sw-a-59b85d3d\":\"_s_b60071b6\"))};\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
+          "after": "import { stillwindAssetClass, stillwindClsx } from \"stillwind/react/runtime\";\n\nimport { exit, selectedAnimation } from \"./animations\";\n\nexport const panelProps = {className:stillwindClsx(\"_s_2cd391d8\",stillwindAssetClass(selectedAnimation(\"duration-normal ease-standard both\"),{\"--sw-a-5bc60e1e\":\"_s_31dcda56\",\"--sw-a-59b85d3d\":\"_s_b60071b6\"}))};\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
           "css": "._s_2cd391d8 {\n  border-radius: var(--radius-md);\n}\n._s_2cd391d8[data-state=\"closed\"] {\n  animation-name: --sw-a-59b85d3d;\n  animation-duration: var(--duration-fast);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n._s_31dcda56 {\n  animation-name: --sw-a-5bc60e1e;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n._s_b60071b6 {\n  animation-name: --sw-a-59b85d3d;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n",
           "diff": [
             {
@@ -64,7 +64,7 @@
               "fromA": 125,
               "toA": 283,
               "fromB": 162,
-              "toB": 343
+              "toB": 345
             }
           ]
         }
@@ -87,32 +87,32 @@
       "compilerOptions": {
         "useCssIf": false
       },
-      "css": "/*\nThe property-initials slot inserts declarations for selected builtin registrations.\nEach element and the listed pseudo-elements receive their own fallback values in the\nqueried compatibility environments; a root-only reset would allow inherited state to\nreach descendants. Keep this declaration slot inside the selector rule.\n*/\n\n@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n  }\n}\n._s_3ddadc9e {\n  display: grid;\n  --sw-if-7781566dbeb6214f: var(--second) 30px;\n  --sw-if-508d317e87e9da0d: var(--enabled) var(--sw-if-7781566dbeb6214f, 20px);\n  height: var(--sw-if-508d317e87e9da0d, 10px);\n  --sw-if-66300b5d0a73b3f2: var(--enabled) 120px;\n  width: var(--sw-if-66300b5d0a73b3f2, 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-206d56df0b56b3d8: 0) {\n  ._s_3ddadc9e {\n    --sw-if-b8c10c629159230c: var(--enabled) flex;\n    display: var(--sw-if-b8c10c629159230c, revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-e9e42428d313139f: 0) {\n  ._s_3ddadc9e {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    --sw-if-1306116a384ec93c: var(--sw-if-gate-b43b4071a90424a4) calc(50 * 1%);\n    opacity: var(--sw-if-1306116a384ec93c, revert-rule) !important;\n  }\n}\n._s_249c1946 {\n  --sw-if-5ff6cbf0f7f75516: var(--enabled) 80px;\n  width: var(--sw-if-5ff6cbf0f7f75516, 40px);\n}\n\n.authored {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-6d3404ae8194f4cb: 0) {\n    & {\n      --sw-if-b8c10c629159230c: var(--enabled) flex;\n      display: var(--sw-if-b8c10c629159230c, revert-rule);\n    }\n  }\n  --sw-if-b0fcfdfae6cfa075: var(--enabled) 120px;\n  width: var(--sw-if-b0fcfdfae6cfa075, 60px);\n}\n",
+      "css": "/*\nThe property-initials slot inserts declarations for selected builtin registrations.\nEach element and the listed pseudo-elements receive their own fallback values in the\nqueried compatibility environments; a root-only reset would allow inherited state to\nreach descendants. Keep this declaration slot inside the selector rule.\n*/\n\n@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n  }\n}\n._s_465c1769 {\n  display: grid;\n  --sw-if-7781566dbeb6214f: var(--second) 30px;\n  --sw-if-508d317e87e9da0d: var(--enabled) var(--sw-if-7781566dbeb6214f, 20px);\n  height: var(--sw-if-508d317e87e9da0d, 10px);\n  --sw-if-66300b5d0a73b3f2: var(--enabled) 120px;\n  width: var(--sw-if-66300b5d0a73b3f2, 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-01668d4f8ca15da8: 0) {\n  ._s_465c1769 {\n    --sw-if-b8c10c629159230c: var(--enabled) flex;\n    display: var(--sw-if-b8c10c629159230c, revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-aa4653a592b32dff: 0) {\n  ._s_465c1769 {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    --sw-if-1306116a384ec93c: var(--sw-if-gate-b43b4071a90424a4) calc(50 * 1%);\n    opacity: var(--sw-if-1306116a384ec93c, revert-rule) !important;\n  }\n}\n._s_e1553c13 {\n  --sw-if-5ff6cbf0f7f75516: var(--enabled) 80px;\n  width: var(--sw-if-5ff6cbf0f7f75516, 40px);\n}\n\n.authored {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-6d3404ae8194f4cb: 0) {\n    & {\n      --sw-if-b8c10c629159230c: var(--enabled) flex;\n      display: var(--sw-if-b8c10c629159230c, revert-rule);\n    }\n  }\n  --sw-if-b0fcfdfae6cfa075: var(--enabled) 120px;\n  width: var(--sw-if-b0fcfdfae6cfa075, 60px);\n}\n",
       "files": [
         {
           "path": "src/Conditions.tsx",
           "language": "tsx",
-          "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section {...style(\"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\", { \"--enabled\": enabled, \"--second\": second })}>\n      <div {...style(\"w-[--if(!--enabled,40px,80px)]\")} />\n    </section>\n  );\n}\n",
-          "after": "import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindMerge } from \"stillwind/react/runtime\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section {...stillwindMerge({[stillwindClassKey]:\"_s_3ddadc9e\"},{[stillwindCustomPropertiesKey]:{[\"--enabled\"]:stillwindCssValue((enabled))}},{[stillwindCustomPropertiesKey]:{[\"--second\"]:stillwindCssValue((second))}})}>\n      <div {...{className:\"_s_249c1946\"}} />\n    </section>\n  );\n}\n",
-          "css": "._s_3ddadc9e {\n  display: grid;\n  --sw-if-7781566dbeb6214f: var(--second) 30px;\n  --sw-if-508d317e87e9da0d: var(--enabled) var(--sw-if-7781566dbeb6214f, 20px);\n  height: var(--sw-if-508d317e87e9da0d, 10px);\n  --sw-if-66300b5d0a73b3f2: var(--enabled) 120px;\n  width: var(--sw-if-66300b5d0a73b3f2, 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-206d56df0b56b3d8: 0) {\n  ._s_3ddadc9e {\n    --sw-if-b8c10c629159230c: var(--enabled) flex;\n    display: var(--sw-if-b8c10c629159230c, revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-e9e42428d313139f: 0) {\n  ._s_3ddadc9e {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    --sw-if-1306116a384ec93c: var(--sw-if-gate-b43b4071a90424a4) calc(50 * 1%);\n    opacity: var(--sw-if-1306116a384ec93c, revert-rule) !important;\n  }\n}\n._s_249c1946 {\n  --sw-if-5ff6cbf0f7f75516: var(--enabled) 80px;\n  width: var(--sw-if-5ff6cbf0f7f75516, 40px);\n}\n",
+          "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...style(\n        \"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\",\n        { \"--enabled\": enabled, \"--second\": second },\n      )}\n    >\n      <div {...style(\"w-[--if(!--enabled,40px,80px)]\")} />\n    </section>\n  );\n}\n",
+          "after": "import { stillwindCssValue } from \"stillwind/react/runtime\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"_s_465c1769\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"_s_e1553c13\"}} />\n    </section>\n  );\n}\n",
+          "css": "._s_465c1769 {\n  display: grid;\n  --sw-if-7781566dbeb6214f: var(--second) 30px;\n  --sw-if-508d317e87e9da0d: var(--enabled) var(--sw-if-7781566dbeb6214f, 20px);\n  height: var(--sw-if-508d317e87e9da0d, 10px);\n  --sw-if-66300b5d0a73b3f2: var(--enabled) 120px;\n  width: var(--sw-if-66300b5d0a73b3f2, 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-01668d4f8ca15da8: 0) {\n  ._s_465c1769 {\n    --sw-if-b8c10c629159230c: var(--enabled) flex;\n    display: var(--sw-if-b8c10c629159230c, revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-aa4653a592b32dff: 0) {\n  ._s_465c1769 {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    --sw-if-1306116a384ec93c: var(--sw-if-gate-b43b4071a90424a4) calc(50 * 1%);\n    opacity: var(--sw-if-1306116a384ec93c, revert-rule) !important;\n  }\n}\n._s_e1553c13 {\n  --sw-if-5ff6cbf0f7f75516: var(--enabled) 80px;\n  width: var(--sw-if-5ff6cbf0f7f75516, 40px);\n}\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 125
+              "toB": 60
             },
             {
-              "fromA": 159,
-              "toA": 369,
-              "fromB": 244,
-              "toB": 449
+              "fromA": 165,
+              "toA": 400,
+              "fromB": 185,
+              "toB": 294
             },
             {
-              "fromA": 387,
-              "toA": 426,
-              "fromB": 467,
-              "toB": 492
+              "fromA": 423,
+              "toA": 462,
+              "fromB": 317,
+              "toB": 342
             }
           ]
         }
@@ -135,38 +135,38 @@
       "compilerOptions": {
         "useCssIf": true
       },
-      "css": "/*\nThe property-initials slot inserts declarations for selected builtin registrations.\nEach element and the listed pseudo-elements receive their own fallback values in the\nqueried compatibility environments; a root-only reset would allow inherited state to\nreach descendants. Keep this declaration slot inside the selector rule.\n*/\n\n@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n  }\n}\n._s_3ddadc9e {\n  display: grid;\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-206d56df0b56b3d8: 0) {\n  ._s_3ddadc9e {\n    display: if(style(--enabled): flex;else: revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-e9e42428d313139f: 0) {\n  ._s_3ddadc9e {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    opacity: if(style(--sw-if-gate-b43b4071a90424a4): calc(50 * 1%) ;else: revert-rule) !important;\n  }\n}\n._s_25c0b58c {\n  display: grid;\n  width: if(style(--enabled): 80px;else: 40px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-71e8810bb6033b4f: 0) {\n  ._s_25c0b58c {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n._s_e86d655f {\n  display: grid;\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-aeedbd714413bd1c: 0) {\n  ._s_e86d655f {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n\n.authored {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-6d3404ae8194f4cb: 0) {\n    & {\n      display: if(style(--enabled): flex;else: revert-rule);\n    }\n  }\n  width: if(style(--enabled): 120px;else: 60px);\n}\n\n.negated {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-224b4472cc536ac0: 0) {\n    & {\n      display: if(style(--enabled): revert-rule;else: flex);\n    }\n  }\n}\n\n.compared {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-c91825168d496370: 0) {\n    & {\n      display: if(style(--mode: compact): flex;else: revert-rule);\n    }\n  }\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n",
+      "css": "/*\nThe property-initials slot inserts declarations for selected builtin registrations.\nEach element and the listed pseudo-elements receive their own fallback values in the\nqueried compatibility environments; a root-only reset would allow inherited state to\nreach descendants. Keep this declaration slot inside the selector rule.\n*/\n\n@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n  }\n}\n._s_465c1769 {\n  display: grid;\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-01668d4f8ca15da8: 0) {\n  ._s_465c1769 {\n    display: if(style(--enabled): flex;else: revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-aa4653a592b32dff: 0) {\n  ._s_465c1769 {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    opacity: if(style(--sw-if-gate-b43b4071a90424a4): calc(50 * 1%) ;else: revert-rule) !important;\n  }\n}\n._s_f8c0af1e {\n  display: grid;\n  width: if(style(--enabled): 80px;else: 40px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-028379a5a2688ff5: 0) {\n  ._s_f8c0af1e {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n._s_5a7841d0 {\n  display: grid;\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-f9c11b4ddf25f20e: 0) {\n  ._s_5a7841d0 {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n\n.authored {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-6d3404ae8194f4cb: 0) {\n    & {\n      display: if(style(--enabled): flex;else: revert-rule);\n    }\n  }\n  width: if(style(--enabled): 120px;else: 60px);\n}\n\n.negated {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-224b4472cc536ac0: 0) {\n    & {\n      display: if(style(--enabled): revert-rule;else: flex);\n    }\n  }\n}\n\n.compared {\n  display: grid;\n  @supports (color: revert-rule) and (--sw-if-rule-c91825168d496370: 0) {\n    & {\n      display: if(style(--mode: compact): flex;else: revert-rule);\n    }\n  }\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n",
       "files": [
         {
           "path": "src/Conditions.tsx",
           "language": "tsx",
-          "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section {...style(\"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\", { \"--enabled\": enabled, \"--second\": second })}>\n      <div {...style(\"grid if(!--enabled):flex w-[--if(!--enabled,40px,80px)]\")} />\n      <div {...style(\"grid if(--mode:compact):flex w-[--if(--mode:compact,40px,80px)]\", { \"--mode\": \"compact\" })} />\n    </section>\n  );\n}\n",
-          "after": "import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindMerge } from \"stillwind/react/runtime\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section {...stillwindMerge({[stillwindClassKey]:\"_s_3ddadc9e\"},{[stillwindCustomPropertiesKey]:{[\"--enabled\"]:stillwindCssValue((enabled))}},{[stillwindCustomPropertiesKey]:{[\"--second\"]:stillwindCssValue((second))}})}>\n      <div {...{className:\"_s_25c0b58c\"}} />\n      <div {...stillwindMerge({[stillwindClassKey]:\"_s_e86d655f\"},{[stillwindCustomPropertiesKey]:{[\"--mode\"]:stillwindCssValue((\"compact\"))}})} />\n    </section>\n  );\n}\n",
-          "css": "._s_3ddadc9e {\n  display: grid;\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-206d56df0b56b3d8: 0) {\n  ._s_3ddadc9e {\n    display: if(style(--enabled): flex;else: revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-e9e42428d313139f: 0) {\n  ._s_3ddadc9e {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    opacity: if(style(--sw-if-gate-b43b4071a90424a4): calc(50 * 1%) ;else: revert-rule) !important;\n  }\n}\n._s_25c0b58c {\n  display: grid;\n  width: if(style(--enabled): 80px;else: 40px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-71e8810bb6033b4f: 0) {\n  ._s_25c0b58c {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n._s_e86d655f {\n  display: grid;\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-aeedbd714413bd1c: 0) {\n  ._s_e86d655f {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n",
+          "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...style(\n        \"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\",\n        { \"--enabled\": enabled, \"--second\": second },\n      )}\n    >\n      <div {...style(\"grid if(!--enabled):flex w-[--if(!--enabled,40px,80px)]\")} />\n      <div\n        {...style(\"grid if(--mode:compact):flex w-[--if(--mode:compact,40px,80px)]\", {\n          \"--mode\": \"compact\",\n        })}\n      />\n    </section>\n  );\n}\n",
+          "after": "import { stillwindCssValue } from \"stillwind/react/runtime\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"_s_465c1769\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"_s_f8c0af1e\"}} />\n      <div\n        {...{className:\"_s_5a7841d0\",style:{\"--mode\":stillwindCssValue(\"compact\")}}}\n      />\n    </section>\n  );\n}\n",
+          "css": "._s_465c1769 {\n  display: grid;\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-if-rule-01668d4f8ca15da8: 0) {\n  ._s_465c1769 {\n    display: if(style(--enabled): flex;else: revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-if-rule-aa4653a592b32dff: 0) {\n  ._s_465c1769 {\n    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);\n    opacity: if(style(--sw-if-gate-b43b4071a90424a4): calc(50 * 1%) ;else: revert-rule) !important;\n  }\n}\n._s_f8c0af1e {\n  display: grid;\n  width: if(style(--enabled): 80px;else: 40px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-028379a5a2688ff5: 0) {\n  ._s_f8c0af1e {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n._s_5a7841d0 {\n  display: grid;\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n@supports (color: revert-rule) and (--sw-if-rule-f9c11b4ddf25f20e: 0) {\n  ._s_5a7841d0 {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 125
+              "toB": 60
             },
             {
-              "fromA": 159,
-              "toA": 369,
-              "fromB": 244,
-              "toB": 449
+              "fromA": 165,
+              "toA": 400,
+              "fromB": 185,
+              "toB": 294
             },
             {
-              "fromA": 387,
-              "toA": 451,
-              "fromB": 467,
-              "toB": 492
+              "fromA": 423,
+              "toA": 487,
+              "fromB": 317,
+              "toB": 342
             },
             {
-              "fromA": 471,
-              "toA": 568,
-              "fromB": 512,
-              "toB": 640
+              "fromA": 515,
+              "toA": 631,
+              "fromB": 370,
+              "toB": 441
             }
           ]
         }
@@ -377,32 +377,32 @@
           "path": "src/consumer.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\nexport const anchorProvider = style(selectedRef.anchor);\nexport const attachedScope = style(selectedScope);\n",
-          "after": "import { stillwindClsx, stillwindHandleClass } from \"stillwind/react/runtime\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = {className:stillwindClsx(stillwindHandleClass(selectedRef))};\nexport const anchorProvider = {className:stillwindClsx(stillwindHandleClass(selectedRef.anchor,\"_swp_s_primary_047d522c_anchor\":\"_s_69e145a4\",\"_swp_s_secondary_994d70ad_anchor\":\"_s_0a26174f\"))};\nexport const attachedScope = {className:stillwindClsx(stillwindHandleClass(selectedScope))};\n",
+          "after": "import { stillwindClassKey, stillwindHandleClass, stillwindMerge } from \"stillwind/react/runtime\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = stillwindMerge({[stillwindClassKey]:(stillwindHandleClass(selectedRef))});\nexport const anchorProvider = stillwindMerge({[stillwindClassKey]:(stillwindHandleClass(selectedRef.anchor,{\"_swp_s_primary_047d522c_anchor\":\"_s_69e145a4\",\"_swp_s_secondary_994d70ad_anchor\":\"_s_0a26174f\"}))});\nexport const attachedScope = stillwindMerge({[stillwindClassKey]:(stillwindHandleClass(selectedScope))});\n",
           "css": "._s_69e145a4 {\n  anchor-name: --sw-r-047d522c;\n}\n._s_0a26174f {\n  anchor-name: --sw-r-994d70ad;\n}\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 78
+              "toB": 98
             },
             {
               "fromA": 125,
               "toA": 143,
-              "fromB": 163,
-              "toB": 223
+              "fromB": 183,
+              "toB": 256
             },
             {
               "fromA": 175,
               "toA": 200,
-              "fromB": 255,
-              "toB": 418
+              "fromB": 288,
+              "toB": 466
             },
             {
               "fromA": 231,
               "toA": 251,
-              "fromB": 449,
-              "toB": 511
+              "fromB": 497,
+              "toB": 572
             }
           ]
         }
@@ -431,7 +431,7 @@
           "path": "src/SaveButton.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = style(\n  [\n    \"inline-flex items-center rounded-md px-4 progress-[.5] authored-progress\",\n    loading && \"opacity-60\",\n  ],\n  emphasized ? \"bg-accent\" : \"bg-muted\",\n  {\n    class: [\"legacy-button\", loading && \"is-loading\"],\n    \"aria-busy\": loading,\n    \"data-emphasis\": emphasized ? \"high\" : \"normal\",\n    \"hover:\": \"bg-accent/90\",\n  },\n);\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
-          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"_s_4b7bffee\",[null,(loading) && (\"_s_d7909e1f\")],(emphasized) ? (\"_s_a87e225d\") : (\"_s_7bafcdd5\"),[\"legacy-button\", loading && \"is-loading\"]),\"aria-busy\":loading,\"data-emphasis\":emphasized ? \"high\" : \"normal\"};\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"_s_4b7bffee\",[null,(loading) && (\"_s_d7909e1f\")],(emphasized) ? (\"_s_a87e225d\") : (\"_s_7bafcdd5\"),stillwindClsx([\"legacy-button\", loading && \"is-loading\"])),\"aria-busy\":loading,\"data-emphasis\":emphasized ? \"high\" : \"normal\"};\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
           "css": "._s_4b7bffee {\n  display: inline-flex;\n  padding-inline: var(--spacing-4);\n  align-items: center;\n  --button-progress: 0.5;\n  --authored-progress: 1;\n  border-radius: var(--radius-md);\n}\n@media (hover: hover) {\n  ._s_4b7bffee:hover {\n    background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);\n    @supports (color: color-mix(in lab, red, red)) {\n      background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);\n    }\n  }\n}\n._s_d7909e1f {\n  opacity: calc(60 * 1%);\n}\n._s_a87e225d {\n  background-color: var(--color-accent);\n}\n._s_7bafcdd5 {\n  background-color: var(--color-muted);\n}\n",
           "diff": [
             {
@@ -444,7 +444,7 @@
               "fromA": 160,
               "toA": 500,
               "fromB": 176,
-              "toB": 411
+              "toB": 426
             }
           ]
         }

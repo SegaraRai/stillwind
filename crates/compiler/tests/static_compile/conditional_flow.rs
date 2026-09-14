@@ -74,7 +74,9 @@ fn attribute_values_keep_their_source_evaluation_order() {
     let result = compile("const props = style({ \"aria-busy\": f() }, b ? \"p-2\" : \"m-2\");");
     let replacement = emitted(&result);
     let attribute = replacement.find("\"aria-busy\":f()").expect("attribute");
-    let classes = replacement.find("className:").expect("class property");
+    let classes = replacement
+        .find("(b) ?")
+        .expect("conditional class evaluation");
     assert!(attribute < classes, "{replacement}");
 }
 

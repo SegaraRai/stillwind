@@ -1,10 +1,14 @@
-import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindMerge } from "stillwind/react/runtime";
+import { stillwindCssValue } from "stillwind/react/runtime";
 
 export function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {
   return (
-    <section {...stillwindMerge({[stillwindClassKey]:"_s_3ddadc9e"},{[stillwindCustomPropertiesKey]:{["--enabled"]:stillwindCssValue((enabled))}},{[stillwindCustomPropertiesKey]:{["--second"]:stillwindCssValue((second))}})}>
-      <div {...{className:"_s_25c0b58c"}} />
-      <div {...stillwindMerge({[stillwindClassKey]:"_s_e86d655f"},{[stillwindCustomPropertiesKey]:{["--mode"]:stillwindCssValue(("compact"))}})} />
+    <section
+      {...{className:"_s_465c1769",style:{"--enabled":stillwindCssValue(enabled),"--second":stillwindCssValue(second)}}}
+    >
+      <div {...{className:"_s_f8c0af1e"}} />
+      <div
+        {...{className:"_s_5a7841d0",style:{"--mode":stillwindCssValue("compact")}}}
+      />
     </section>
   );
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { transform as compileAstro } from "@astrojs/compiler";
+import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import {
   compileReactProject,
   NativeDesignSystemLoader,
@@ -13,6 +14,7 @@ import { compile as compileSvelte } from "svelte/compiler";
 
 import { compileModule } from "../src/compiler.ts";
 import type { ProjectCompilerOutput } from "../src/protocol.ts";
+import { moduleSourceMap } from "../src/source-map.ts";
 
 const examples = {
   vue: `<script setup lang="ts">\nimport {style} from 'stillwind/vue';\nconst active = true, external = 'extra';\n</script>\n<template><div v-bind="style(active ? 'flex' : 'grid', {class: external})" /></template>`,
@@ -214,6 +216,26 @@ for (const { extension, source, name, imports } of [
       );
     }
     assert.ok(module.code);
+    const map = new TraceMap(
+      moduleSourceMap(source, module.code, filename, module.mappings, [], ""),
+    );
+    for (const expression of module.mappings.flatMap((mapping) => mapping.expressions)) {
+      const generated = module.code.slice(expression.generated_start, expression.generated_end);
+      const original = source.slice(expression.original_start, expression.original_end);
+      if (expression.exact) assert.equal(generated, original);
+      const origin = originalPositionFor(map, {
+        line: module.code.slice(0, expression.generated_start).split("\n").length,
+        column:
+          expression.generated_start -
+          module.code.lastIndexOf("\n", expression.generated_start - 1) -
+          1,
+      });
+      assert.equal(origin.line, source.slice(0, expression.original_start).split("\n").length);
+      assert.equal(
+        origin.column,
+        expression.original_start - source.lastIndexOf("\n", expression.original_start - 1) - 1,
+      );
+    }
     const explicit = source.includes("stillwind/module-css");
     assert.equal(module.code.split('import "virtual:stillwind.css";').length, explicit ? 1 : 2);
     assert.equal(

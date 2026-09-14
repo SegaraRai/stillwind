@@ -1,16 +1,14 @@
 //! Source-spanned replacements shared by compiler output representations.
 //!
-//! A [`SourceTransform`] replaces one span of the original source with generated text;
-//! [`render_transforms`] applies a whole plan in one forward pass and reports both the
-//! new code and the UTF-16 boundaries a source map needs. The plan is validated before
-//! anything is emitted: every span must belong to the source file, and no two edits may
-//! overlap or share a start offset, because an insertion at the same anchor as a
-//! replacement has no defined order. Intervals no edit touches are copied verbatim, so
-//! comments and user formatting survive exactly.
+//! [`SourceTransform`] replaces a range of the original buffer and retains exact or
+//! anchored origins inside its replacement. [`render_transforms`] validates the plan,
+//! applies edits, and returns UTF-16 intervals for host source-map construction.
+//! Unedited text is copied verbatim; synthetic replacement gaps use the edit's anchor.
+//! This module does not produce source-map v3 or compose framework/loader maps.
 
 use serde::Serialize;
 
-use stillwind_source::{SourceError, SourceFile, Span};
+use stillwind_source::{CoordinateIndex, SourceError, SourceFile, Span};
 
 /// Reasons a transform plan cannot be applied.
 #[derive(Debug, thiserror::Error)]
@@ -20,7 +18,17 @@ pub enum TransformError {
     CompilationFailed,
     /// The span does not address a valid range of the given source file.
     #[error("invalid stillwind transform span: {0}")]
-    InvalidSpan(#[source] SourceError),
+    InvalidSpan(
+        /// Source slicing failure, including a foreign file or invalid UTF-8 boundary.
+        #[source]
+        SourceError,
+    ),
+    /// Expression ranges are empty, overlap, are out of bounds, or falsely claim exact text.
+    #[error("invalid expression mapping in replacement at {0:?}")]
+    InvalidExpressionMapping(
+        /// Original call span of the replacement containing the invalid expression mapping.
+        Span,
+    ),
     /// `span` overlaps the preceding edit or shares its start offset.
     #[error("overlapping stillwind transform span {span:?}, previous start {previous_start}")]
     Overlap {
@@ -36,37 +44,168 @@ pub enum TransformError {
 
 /// One replacement of an original source range.
 ///
-/// `call_span` always addresses the original buffer, never previously generated text,
-/// so edits are expressed against one stable coordinate space. An empty replacement
-/// deletes the range.
+/// All edits share one original coordinate space; application order never rebases
+/// their source spans. Use `render_transforms` to validate and apply a complete plan.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SourceTransform {
-    /// Range of the original source to replace; never a range of generated text.
+    /// Half-open UTF-8 range in the original source; an empty span denotes insertion.
     pub call_span: Span,
-    /// Text to put in its place; empty means deletion.
+    /// UTF-8 replacement text; empty text deletes a nonempty source range.
     pub replacement: String,
+    /// Nonempty, nonoverlapping intervals in ascending replacement-byte order.
+    /// Offsets must be UTF-8 boundaries within `replacement`; all origins belong to
+    /// the source being edited. Empty lists are omitted from serialized transforms.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub expressions: Vec<ExpressionMapping>,
 }
 
-/// UTF-16 replacement boundaries; untouched intervals retain exact correspondence.
-/// One replaced range in both coordinate spaces, in UTF-16 code units.
+impl SourceTransform {
+    /// Rewrites each unmapped text interval while retaining mapped values verbatim.
+    ///
+    /// Requires valid ordered expression ranges. Replaces `replacement` and rebases
+    /// generated offsets without changing origins or exactness. With no mappings,
+    /// the callback receives the whole replacement; empty gaps may also be passed.
+    ///
+    /// # Panics
+    ///
+    /// Panics for invalid slicing boundaries or if `rewrite` panics. Mutation is not
+    /// transactional: the original replacement has already been taken in either case.
+    pub(crate) fn rewrite_generated(&mut self, rewrite: impl Fn(&str) -> String) {
+        let old = std::mem::take(&mut self.replacement);
+        let mut cursor = 0;
+        for mapping in &mut self.expressions {
+            self.replacement
+                .push_str(&rewrite(&old[cursor..mapping.start]));
+            cursor = mapping.end;
+            let value = &old[mapping.start..mapping.end];
+            mapping.start = self.replacement.len();
+            self.replacement.push_str(value);
+            mapping.end = self.replacement.len();
+        }
+        self.replacement.push_str(&rewrite(&old[cursor..]));
+    }
+
+    /// Replaces an attribute delimiter throughout the generated replacement.
+    ///
+    /// Requires valid ordered mappings and a nonempty entity spelling. Exact intervals
+    /// must equal their original slices. Intervals containing the delimiter are split
+    /// by scalar; each expanded entity becomes an anchored mapping to its original
+    /// character, and unaffected intervals retain exactness. All generated offsets
+    /// are rebased; synthetic text is encoded without acquiring source mappings.
+    ///
+    /// # Panics
+    ///
+    /// Invalid range boundaries can panic while slicing; invalid exact origins can
+    /// overflow source offsets. The replacement may already be partially rewritten.
+    #[allow(clippy::cast_possible_truncation)] // Source-owned byte offsets fit in u32; scalars occupy at most four bytes.
+    pub(crate) fn encode_attribute(&mut self, character: char, entity: &str) {
+        let old = std::mem::take(&mut self.replacement);
+        let mut cursor = 0;
+        let mut mappings = Vec::new();
+        for mapping in &self.expressions {
+            self.replacement
+                .push_str(&old[cursor..mapping.start].replace(character, entity));
+            let value = &old[mapping.start..mapping.end];
+            if !value.contains(character) {
+                let start = self.replacement.len();
+                self.replacement.push_str(value);
+                mappings.push(ExpressionMapping {
+                    start,
+                    end: self.replacement.len(),
+                    ..mapping.clone()
+                });
+                cursor = mapping.end;
+                continue;
+            }
+            for (offset, scalar) in value.char_indices() {
+                let start = self.replacement.len();
+                if scalar == character {
+                    self.replacement.push_str(entity);
+                } else {
+                    self.replacement.push(scalar);
+                }
+                let original = if mapping.exact {
+                    // All offsets originate in a SourceFile, whose size fits in u32.
+                    let start = mapping.original.start.0 + offset as u32;
+                    Span::new(
+                        mapping.original.file,
+                        start,
+                        start + scalar.len_utf8() as u32,
+                    )
+                } else {
+                    mapping.original
+                };
+                mappings.push(ExpressionMapping {
+                    start,
+                    end: self.replacement.len(),
+                    original,
+                    exact: mapping.exact && scalar != character,
+                });
+            }
+            cursor = mapping.end;
+        }
+        self.replacement
+            .push_str(&old[cursor..].replace(character, entity));
+        self.expressions = mappings;
+    }
+}
+
+/// Correspondence for one retained occurrence inside a generated replacement.
+/// The owner orders these by generated position; source order need not match.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ExpressionMapping {
+    /// Inclusive UTF-8 byte offset in the replacement; a scalar boundary less than `end`.
+    pub start: usize,
+    /// Exclusive UTF-8 byte offset in the replacement; a scalar boundary within its length.
+    pub end: usize,
+    /// Valid original-source UTF-8 span; distinct occurrences may contain identical text.
+    pub original: Span,
+    /// `true` requires identical generated and original text. `false` maps the whole
+    /// generated interval to the original start, as used for an encoded delimiter.
+    pub exact: bool,
+}
+
+/// One applied edit in original and generated coordinates for host map construction.
+/// Intervals between edits remain exact; replacement gaps without expression mappings
+/// use `original_start` as their fallback location.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct TransformMapping {
-    /// Start of the replaced range, in UTF-16 code units of the original source.
+    /// Inclusive absolute UTF-16 offset in the original source; equals end for insertion.
     pub original_start: u32,
-    /// End of the replaced range, exclusive.
+    /// Exclusive absolute UTF-16 offset in the original source.
     pub original_end: u32,
-    /// Start of the replacement, in UTF-16 code units of the generated source.
+    /// Inclusive absolute UTF-16 offset in rendered code, before host insertions/removals.
     pub generated_start: u32,
-    /// End of the replacement, exclusive.
+    /// Exclusive absolute UTF-16 offset in rendered code; equals start for deletion.
     pub generated_end: u32,
+    /// Nonoverlapping expression intervals ordered by generated position and contained
+    /// in this replacement. Original positions may move backwards or repeat.
+    pub expressions: Vec<ExpressionTransformMapping>,
 }
 
-/// Rendered source code with the boundaries of every replacement.
+/// A retained expression's source correspondence after byte-to-UTF-16 conversion.
+/// Used inside a replacement mapping to distinguish exact text from encoded anchors.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ExpressionTransformMapping {
+    /// Inclusive absolute UTF-16 offset in the original buffer.
+    pub original_start: u32,
+    /// Exclusive absolute UTF-16 offset in the original buffer.
+    pub original_end: u32,
+    /// Inclusive absolute generated UTF-16 offset.
+    pub generated_start: u32,
+    /// Exclusive absolute generated UTF-16 offset.
+    pub generated_end: u32,
+    /// `true` advances both buffers by the same code-unit offset within the interval;
+    /// `false` anchors every generated code unit at `original_start`.
+    pub exact: bool,
+}
+
+/// Applied source edits and the correspondence needed to map their resulting code.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenderedSource {
-    /// The rendered source text.
+    /// Complete UTF-8 source after all edits, without host-added prefixes or removals.
     pub code: String,
-    /// One entry per transform, in source order.
+    /// One entry per edit, ordered by both original and generated replacement start.
     pub mappings: Vec<TransformMapping>,
 }
 
@@ -82,13 +221,18 @@ pub(crate) fn apply_transforms(
     render_transforms(source, transforms).map(|output| output.code)
 }
 
-/// Validates all edits, then emits code and UTF-16 boundaries in one forward pass.
-/// Work after sorting is linear in source, replacement text, and edit count.
+/// Applies edits against `source` and returns code with absolute UTF-16 mappings.
+///
+/// Input edits may be unsorted. The result orders them by source position, copies
+/// untouched intervals, and validates expression correspondence while emitting each
+/// replacement. Inputs are unchanged. Source offsets use one coordinate index;
+/// expression lookups use binary search rather than rescanning source prefixes.
 ///
 /// # Errors
 ///
-/// Rejects invalid spans, overlapping edits (including coincident insertions),
-/// and output exceeding the 32-bit coordinate limit. No partial output is returned.
+/// Rejects foreign or invalid source spans, overlapping edits or shared edit starts,
+/// invalid expression intervals, unequal text marked exact, and output beyond the
+/// 32-bit coordinate limit. No partial output is returned.
 pub fn render_transforms(
     source: &SourceFile,
     transforms: &[SourceTransform],
@@ -111,6 +255,7 @@ pub fn render_transforms(
         }
         previous_start = transform.call_span.start.0;
     }
+    let coordinates = CoordinateIndex::new(source);
     let mut output = String::with_capacity(source.text().len());
     let mut cursor = 0;
     let mut original_utf16 = 0_u32;
@@ -130,6 +275,7 @@ pub fn render_transforms(
             original_end,
             generated_start: generated_utf16,
             generated_end,
+            expressions: expression_mappings(source, &coordinates, transform, generated_utf16)?,
         });
         output.push_str(gap);
         output.push_str(&transform.replacement);
@@ -145,6 +291,68 @@ pub fn render_transforms(
     })
 }
 
+/// Validates one replacement's expression ranges and converts them to absolute UTF-16.
+/// `coordinates` must index `source`; `generated_start` is the replacement's absolute
+/// UTF-16 start. Returned intervals follow generated order, regardless of source order.
+///
+/// # Errors
+///
+/// Rejects invalid original spans, empty/overlapping/non-boundary generated ranges,
+/// unequal text marked exact, and UTF-16 offset overflow.
+fn expression_mappings(
+    source: &SourceFile,
+    coordinates: &CoordinateIndex,
+    transform: &SourceTransform,
+    generated_start: u32,
+) -> Result<Vec<ExpressionTransformMapping>, TransformError> {
+    let mut cursor = 0;
+    let mut generated = generated_start;
+    let mut result = Vec::new();
+    for expression in &transform.expressions {
+        let invalid = || TransformError::InvalidExpressionMapping(transform.call_span);
+        let original = source
+            .slice(expression.original)
+            .map_err(TransformError::InvalidSpan)?;
+        if expression.start < cursor || expression.start >= expression.end {
+            return Err(invalid());
+        }
+        let prefix = transform
+            .replacement
+            .get(cursor..expression.start)
+            .ok_or_else(invalid)?;
+        let value = transform
+            .replacement
+            .get(expression.start..expression.end)
+            .ok_or_else(invalid)?;
+        if expression.exact && value != original {
+            return Err(invalid());
+        }
+        generated = add_offset(generated, utf16_length(prefix)?)?;
+        let end = add_offset(generated, utf16_length(value)?)?;
+        result.push(ExpressionTransformMapping {
+            original_start: coordinates
+                .utf16(expression.original.start)
+                .map_err(|_| invalid())?
+                .0,
+            original_end: coordinates
+                .utf16(expression.original.end)
+                .map_err(|_| invalid())?
+                .0,
+            generated_start: generated,
+            generated_end: end,
+            exact: expression.exact,
+        });
+        cursor = expression.end;
+        generated = end;
+    }
+    Ok(result)
+}
+
+/// Counts UTF-16 code units without allocating an encoded copy.
+///
+/// # Errors
+///
+/// Returns `TooLarge` when the count cannot fit in `u32`.
 fn utf16_length(text: &str) -> Result<u32, TransformError> {
     u32::try_from(text.encode_utf16().count()).map_err(|_| TransformError::TooLarge)
 }
@@ -162,14 +370,92 @@ mod tests {
 
     use super::*;
 
+    /// Builds synthetic one-character replacements without expression-level correspondence.
     fn replacements(spans: &[Span]) -> Vec<SourceTransform> {
         spans
             .iter()
             .map(|&call_span| SourceTransform {
                 call_span,
                 replacement: "x".into(),
+                expressions: Vec::new(),
             })
             .collect()
+    }
+
+    /// Exercises prefix expansion, unchanged authored prefixes, surrogate pairs, and encoded quotes.
+    #[test]
+    fn encoded_characters_and_synthetic_rewrites_keep_expression_origins() {
+        let source = SourceFile::new(FileId(1), "x", "\"😀--sw-user\"").unwrap();
+        let mut edit = SourceTransform {
+            call_span: source.full_span(),
+            replacement: format!("--sw-generated({})", source.text()),
+            expressions: vec![ExpressionMapping {
+                start: 15,
+                end: 15 + source.text().len(),
+                original: source.full_span(),
+                exact: true,
+            }],
+        };
+        edit.rewrite_generated(|value| value.replace("--sw-", "--long-prefix-"));
+        assert!(edit.replacement.starts_with("--long-prefix-generated("));
+        assert!(edit.replacement.contains("--sw-user"));
+        edit.encode_attribute('"', "&quot;");
+        let rendered = render_transforms(&source, &[edit]).unwrap();
+        let mappings = &rendered.mappings[0].expressions;
+        assert_eq!(mappings.iter().filter(|mapping| !mapping.exact).count(), 2);
+        let generated = rendered.code.encode_utf16().collect::<Vec<_>>();
+        let original = source.text().encode_utf16().collect::<Vec<_>>();
+        for mapping in mappings {
+            let value =
+                &generated[mapping.generated_start as usize..mapping.generated_end as usize];
+            if mapping.exact {
+                assert_eq!(
+                    value,
+                    &original[mapping.original_start as usize..mapping.original_end as usize]
+                );
+            } else {
+                assert_eq!(String::from_utf16(value).unwrap(), "&quot;");
+                assert_eq!(original[mapping.original_start as usize], u16::from(b'"'));
+            }
+        }
+    }
+
+    /// Rejects duplicate, reversed, out-of-bounds, and falsely exact expression intervals.
+    #[test]
+    fn invalid_expression_ranges_are_rejected() {
+        let source = SourceFile::new(FileId(1), "x", "abc").unwrap();
+        let mapping = ExpressionMapping {
+            start: 0,
+            end: 3,
+            original: source.full_span(),
+            exact: true,
+        };
+        for expressions in [
+            vec![mapping.clone(), mapping.clone()],
+            vec![ExpressionMapping {
+                start: 2,
+                end: 1,
+                ..mapping.clone()
+            }],
+            vec![ExpressionMapping {
+                end: 4,
+                ..mapping.clone()
+            }],
+            vec![ExpressionMapping {
+                original: Span::new(source.id(), 0, 1),
+                ..mapping
+            }],
+        ] {
+            let edit = SourceTransform {
+                call_span: source.full_span(),
+                replacement: "abc".into(),
+                expressions,
+            };
+            assert!(matches!(
+                render_transforms(&source, &[edit]),
+                Err(TransformError::InvalidExpressionMapping(_))
+            ));
+        }
     }
 
     #[test]
@@ -222,10 +508,12 @@ mod tests {
             SourceTransform {
                 call_span: Span::new(FileId(1), 13, 16),
                 replacement: "終".into(),
+                expressions: Vec::new(),
             },
             SourceTransform {
                 call_span: Span::new(FileId(1), 4, 7),
                 replacement: "開始".into(),
+                expressions: Vec::new(),
             },
         ];
         assert_eq!(
@@ -235,6 +523,7 @@ mod tests {
         let insertion = SourceTransform {
             call_span: Span::new(FileId(1), 4, 4),
             replacement: "import;".into(),
+            expressions: Vec::new(),
         };
         for edits in [
             vec![insertion.clone(), transforms[1].clone()],
@@ -261,8 +550,16 @@ mod tests {
             let second_start = first_end + middle.len();
             let second_end = second_start + "😀".len();
             let edits = vec![
-                SourceTransform { call_span: Span::new(FileId(1), u32::try_from(second_start).unwrap(), u32::try_from(second_end).unwrap()), replacement: second.clone() },
-                SourceTransform { call_span: Span::new(FileId(1), u32::try_from(first_start).unwrap(), u32::try_from(first_end).unwrap()), replacement: first.clone() },
+                SourceTransform {
+                    call_span: Span::new(FileId(1), u32::try_from(second_start).unwrap(), u32::try_from(second_end).unwrap()),
+                    replacement: second.clone(),
+                    expressions: Vec::new(),
+                },
+                SourceTransform {
+                    call_span: Span::new(FileId(1), u32::try_from(first_start).unwrap(), u32::try_from(first_end).unwrap()),
+                    replacement: first.clone(),
+                    expressions: Vec::new(),
+                },
             ];
             let rendered = render_transforms(&source, &edits).unwrap();
             proptest::prop_assert_eq!(&rendered.code, &format!("{prefix}{first}{middle}{second}{suffix}"));
@@ -283,7 +580,8 @@ mod tests {
             let start = u32::try_from(prefix.len()).unwrap();
             let transform = SourceTransform {
                 call_span: Span::new(FileId(1), start, start + 2),
-                replacement: replacement.clone()
+                replacement: replacement.clone(),
+                expressions: Vec::new(),
             };
             proptest::prop_assert_eq!(
                 apply_transforms(&source, &[transform]).unwrap(),

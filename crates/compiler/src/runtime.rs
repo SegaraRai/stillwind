@@ -209,6 +209,7 @@ impl<'a> RuntimeBindings<'a> {
             edits.push(SourceTransform {
                 call_span: span,
                 replacement: quoted.replace('<', "\\u003c"),
+                expressions: Vec::new(),
             });
         }
         if module.ir.imports.module_css.is_empty() && !module.input.stylesheet_imports.is_empty() {
@@ -356,9 +357,20 @@ fn projection_region(
 /// instead, and the surrounding characters are verified so a bad region is reported
 /// rather than producing broken output.
 ///
+/// Source expression intervals are rebased through entity expansion; encoded characters
+/// map to their original scalar and unaffected text retains its exact correspondence.
+/// Edits outside quoted regions are left unchanged.
+///
 /// # Errors
 ///
-/// Returns invalid metadata when a region's span is not delimited by its recorded quote.
+/// Returns invalid metadata when regions cannot be resolved unambiguously or a quoted
+/// region is not delimited by its recorded quote. Earlier edits may already be encoded;
+/// the caller discards the plan on failure.
+///
+/// # Panics
+///
+/// Invalid internal expression ranges can panic during attribute encoding. `edits`
+/// must satisfy the `SourceTransform` mapping contracts before entering this pass.
 pub(crate) fn encode_projected_edits(
     module: &ModuleAnalysis,
     edits: &mut [SourceTransform],
@@ -388,7 +400,7 @@ pub(crate) fn encode_projected_edits(
                 region.source,
             ));
         }
-        edit.replacement = edit.replacement.replace(character, entity);
+        edit.encode_attribute(character, entity);
     }
     Ok(())
 }

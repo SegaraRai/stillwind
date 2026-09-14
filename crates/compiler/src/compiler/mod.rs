@@ -1,10 +1,12 @@
 //! The compilation pipeline, split by concern.
 //!
 //! [`api`] holds the stateless entry points, [`pipeline`] orders the passes, and
-//! [`emission`], [`props`], [`style_variants`], and [`variants`] lower and render style calls.
+//! [`emission`] lowers style inputs, [`props`] carries call metadata, and
+//! [`style_variants`] and [`variants`] resolve variant wrappers.
+//! [`fragment`] folds ordered contributions and materializes framework props.
 //! [`conditionals`] lowers runtime value tests after rule construction.
 //! [`literal`] resolves utility text; [`class_units`] allocates classes and orders CSS.
-//! [`expression_render`] serializes lowered class trees for either runtime tier.
+//! [`expression_render`] serializes lowered class trees in class-value context.
 //! [`symbols`], [`handles`], [`motion`], and [`lexer`] allocate names and emit asset definitions,
 //! while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders framework type
 //! declarations. [`output`] defines compilation results and structured CSS contributions.
@@ -18,6 +20,7 @@ mod class_units;
 mod conditionals;
 mod emission;
 mod expression_render;
+mod fragment;
 mod handles;
 mod lexer;
 mod literal;

@@ -1,19 +1,15 @@
-//! The emitted shape of one compiled `style()` call.
+//! Per-call metadata shared by class allocation, fragment construction, and reporting.
 //!
-//! [`Emitted`] mirrors the source expression tree, and [`StyleEmission`] holds the ordered
-//! parts the renderer serializes. [`StyleEmission::render`] picks the tier: a call whose class
-//! values are all static folds into a plain object literal, a call with runtime class values
-//! but no interleaving hazard keeps them at one class property, and every other call
-//! materializes fragments through the framework merge. The tier changes the JavaScript shape
-//! only; the CSS and its order are decided earlier and never depend on it.
+//! [`StyleEmission`] carries finalized names and unrendered contributions to folding;
+//! [`GeneratedClass`] and [`GuardStep`] expose class selection to consumers. These
+//! records preserve source ordering anchors but do not select keys or serialize props.
 
 use serde::Serialize;
 
-use stillwind_ir::ConditionalKind;
 use stillwind_source::Span;
 
-use super::expression_render::{render_fragment, render_plain};
-use crate::runtime::{RuntimeBindings, RuntimeHelper};
+use super::fragment::expression::{Emitted, Property, ValueExpr};
+use crate::generated::Code;
 
 /// One conditional step of a class contribution's guard path.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -38,310 +34,59 @@ pub struct GeneratedClass {
     pub guard_path: Vec<GuardStep>,
 }
 
-/// A class expression that keeps the source structure.
+/// One contribution plus its original-source ordering anchor.
+/// Variants keep ordinary attributes, custom properties, and whole-style payloads
+/// separate because their merge semantics differ. Parts need not arrive sorted.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum Emitted {
-    /// Class-name contributions in one leaf.
-    Leaf {
-        /// Class strings in contribution order, joined with spaces and quoted by the renderer.
-        names: Vec<String>,
-    },
-    /// A helper call whose result is a class value (handles, assets).
-    Expression(
-        /// Complete JavaScript expression text, without an enclosing attribute or statement.
-        String,
-    ),
-    /// A JavaScript array expression.
-    Array(
-        /// Elements in source order; None marks a contribution folded into the base unit.
-        Vec<Option<Emitted>>,
-    ),
-    /// A JavaScript conditional expression.
-    Conditional {
-        /// Original JavaScript test expression, preserving its internal whitespace.
-        test: String,
-        /// Whether serialization uses a ternary or logical conjunction.
-        kind: ConditionalKind,
-        /// Truthy branch, or None when its class contribution folded into the base unit.
-        consequent: Option<Box<Emitted>>,
-        /// Falsy branch for a ternary; absent for conjunction or a folded contribution.
-        alternate: Option<Box<Emitted>>,
-    },
-    /// An object literal inside a conditional expression.
-    Group(
-        /// Entries in source order; None denotes a contribution folded into the base unit.
-        Vec<Option<EmittedEntry>>,
-    ),
-}
-
-/// One entry of an object literal inside a class expression.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum EmittedEntry {
-    /// A rendered custom-property entry inside an inline style payload.
-    CustomProperty(String),
-    /// A rendered `"name": value` attribute entry.
-    Attribute(
-        /// Serialized JavaScript property entry without outer object braces or a trailing comma.
-        String,
-    ),
-    /// A nested class expression.
-    Class(
-        /// Class-expression subtree to materialize within the object.
-        Emitted,
-    ),
-}
-
-/// One source-ordered contribution to a compiled call site.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum StyleEmissionPart {
+pub(crate) enum StyleEmissionPart {
     /// One inline custom property, merged independently at runtime.
     CustomProperties {
-        /// Serialized JavaScript property entry, including its CSS value conversion.
-        text: String,
-        /// Original-source UTF-8 byte position preserving evaluation order.
+        /// Property identity and source value, converted only when rendered.
+        property: Property,
+        /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },
     /// A runtime class expression.
     Class {
         /// Class-expression subtree preserving branch structure.
         emitted: Emitted,
-        /// Original-source UTF-8 byte position used to order contributions.
+        /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
-        /// Contains user expressions, so it is a runtime class expression.
-        user_code: bool,
-        /// Contains a user-owned class or asset value (external class, handle,
-        /// animation, or dynamic attachment).
-        user_value: bool,
     },
     /// A single attribute entry, rendered as `"name": value`.
     Attributes {
-        /// Serialized property entry without outer object braces or a trailing comma.
-        text: String,
-        /// Original-source UTF-8 byte position used to order contributions.
+        /// Ordinary property identity and source value.
+        property: Property,
+        /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },
     /// A composition base expression (a materialized props object).
     Base {
-        /// Complete JavaScript expression producing materialized props.
-        text: String,
-        /// Original-source UTF-8 byte position used to order contributions.
+        /// Complete expression producing materialized props, with retained occurrence mappings.
+        expression: Code,
+        /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },
     /// The style payload expression.
     Style {
-        /// Complete JavaScript expression producing the style payload.
-        text: String,
-        /// Original-source UTF-8 byte position used to order contributions.
+        /// Source expression or deferred helper producing the style payload.
+        expression: ValueExpr,
+        /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },
 }
 
-impl StyleEmissionPart {
-    fn position(&self) -> u32 {
-        match self {
-            Self::Class { position, .. }
-            | Self::Attributes { position, .. }
-            | Self::Base { position, .. }
-            | Self::CustomProperties { position, .. }
-            | Self::Style { position, .. } => *position,
-        }
-    }
-
-    fn user_code(&self) -> bool {
-        matches!(
-            self,
-            Self::Class {
-                user_code: true,
-                ..
-            }
-        )
-    }
-
-    fn user_value(&self) -> bool {
-        matches!(
-            self,
-            Self::Class {
-                user_value: true,
-                ..
-            }
-        )
-    }
-}
-
-/// The class-property entries of one compiled call, in source order.
-pub(super) struct StyleEmission {
-    /// The framework's class attribute name, taken from its [`stillwind_ir::FrameworkSpec`].
-    pub(super) class_property: &'static str,
-    /// Class names that are always applied (the unconditional base unit).
-    pub(super) static_names: Vec<String>,
-    /// Runtime parts, ordered by source position when they are rendered.
-    pub(super) parts: Vec<StyleEmissionPart>,
+/// Finalized CSS/class metadata and unrendered runtime contributions for one call.
+/// Fragment construction consumes these records to choose a JavaScript representation
+/// without reallocating class identities or changing CSS order.
+pub(crate) struct StyleEmission {
+    /// Unquoted unconditional class names in concatenation order; may be empty.
+    pub(crate) static_names: Vec<String>,
+    /// Parts in traversal order; fragment construction stably sorts their source positions.
+    pub(crate) parts: Vec<StyleEmissionPart>,
     /// Classes generated by this call, base unit first.
-    pub(super) classes: Vec<GeneratedClass>,
-    /// The call carries props inside a conditional expression.
-    pub(super) conditional_props: bool,
-    /// The call's own span, used as the position of a style payload and as the anchor for
-    /// helper imports that have no better source position.
-    pub(super) call_span: Span,
-}
-
-impl StyleEmission {
-    /// Renders the call site.
-    ///
-    /// Tier 0 folds a call without runtime class expressions into a plain
-    /// object literal. Tier 1 keeps runtime class expressions at one class
-    /// property when no other user expression can fall between two of them and
-    /// every class value has a plain form. Every other call materializes
-    /// fragments through `stillwindMerge` with arguments in source evaluation
-    /// order.
-    ///
-    /// Property and class order in the emitted expression never affects the
-    /// cascade: the compiler keeps emitting the base unit first and conditional
-    /// units after it.
-    pub(super) fn render(&self, runtime: &mut RuntimeBindings<'_>) -> String {
-        let mut parts = self.parts.iter().collect::<Vec<_>>();
-        parts.sort_by_key(|part| part.position());
-        let has_class = parts.iter().any(|part| part.user_code());
-        let has_base = parts
-            .iter()
-            .any(|part| matches!(part, StyleEmissionPart::Base { .. }));
-        let has_style = parts.iter().any(|part| {
-            matches!(
-                part,
-                StyleEmissionPart::Style { .. } | StyleEmissionPart::CustomProperties { .. }
-            )
-        });
-        if !has_class && !has_base && !has_style {
-            return self.render_static(&parts);
-        }
-        let first = parts
-            .iter()
-            .find(|part| part.user_code())
-            .map_or(0, |part| part.position());
-        let last = parts
-            .iter()
-            .rev()
-            .find(|part| part.user_code())
-            .map_or(0, |part| part.position());
-        let hazard = parts.iter().any(|part| {
-            part.position() > first
-                && part.position() < last
-                && (matches!(
-                    part,
-                    StyleEmissionPart::Attributes { .. }
-                        | StyleEmissionPart::Style { .. }
-                        | StyleEmissionPart::CustomProperties { .. }
-                ) || part.user_value())
-        });
-        if !has_base && !has_style && !hazard && !self.conditional_props {
-            let plain = parts
-                .iter()
-                .filter_map(|part| match part {
-                    StyleEmissionPart::Class { emitted, .. } => Some(render_plain(emitted)),
-                    _ => None,
-                })
-                .collect::<Option<Vec<_>>>();
-            if let Some(plain) = plain {
-                return self.render_class_property(runtime, &parts, &plain, first, last);
-            }
-        }
-        self.render_merge(runtime, &parts)
-    }
-
-    fn render_static(&self, parts: &[&StyleEmissionPart]) -> String {
-        let mut entries = Vec::new();
-        if !self.static_names.is_empty() {
-            entries.push(format!(
-                "{}:\"{}\"",
-                self.class_property,
-                self.static_names.join(" ")
-            ));
-        }
-        for part in parts {
-            if let StyleEmissionPart::Attributes { text, .. } = part {
-                entries.push(text.clone());
-            }
-        }
-        format!("{{{}}}", entries.join(","))
-    }
-
-    /// Tier 1: every class contribution is evaluated at one class property.
-    fn render_class_property(
-        &self,
-        runtime: &mut RuntimeBindings<'_>,
-        parts: &[&StyleEmissionPart],
-        plain: &[String],
-        first: u32,
-        last: u32,
-    ) -> String {
-        let mut arguments = Vec::new();
-        if !self.static_names.is_empty() {
-            arguments.push(format!("\"{}\"", self.static_names.join(" ")));
-        }
-        arguments.extend(plain.iter().cloned());
-        let clsx = runtime.require(RuntimeHelper::Clsx, self.call_span);
-        let class_value = format!("{clsx}({})", arguments.join(","));
-        let mut entries = Vec::new();
-        for part in parts {
-            if let StyleEmissionPart::Attributes { text, .. } = part
-                && part.position() < first
-            {
-                entries.push(text.clone());
-            }
-        }
-        entries.push(format!("{}:{class_value}", self.class_property));
-        for part in parts {
-            if let StyleEmissionPart::Attributes { text, .. } = part
-                && part.position() > last
-            {
-                entries.push(text.clone());
-            }
-        }
-        format!("{{{}}}", entries.join(","))
-    }
-
-    /// Tier 2: fragments materialized through the framework merge in source order.
-    fn render_merge(
-        &self,
-        runtime: &mut RuntimeBindings<'_>,
-        parts: &[&StyleEmissionPart],
-    ) -> String {
-        let mut arguments = Vec::new();
-        if !self.static_names.is_empty() {
-            let key = runtime.require(RuntimeHelper::ClassKey, self.call_span);
-            arguments.push(format!("{{[{key}]:\"{}\"}}", self.static_names.join(" ")));
-        }
-        for part in parts {
-            match part {
-                StyleEmissionPart::Class { emitted, .. } => {
-                    arguments.push(render_fragment(emitted, runtime, self.call_span));
-                }
-                StyleEmissionPart::Attributes { text, .. } => {
-                    arguments.push(format!("{{{text}}}"));
-                }
-                StyleEmissionPart::Base { text, .. } => {
-                    let helper = runtime.require(RuntimeHelper::ToFragment, self.call_span);
-                    arguments.push(format!("{helper}(({text}))"));
-                }
-                StyleEmissionPart::CustomProperties { text, .. } => {
-                    let key = runtime.require(RuntimeHelper::CustomPropertiesKey, self.call_span);
-                    arguments.push(format!("{{[{key}]:{{{text}}}}}"));
-                }
-                StyleEmissionPart::Style { text, .. } => {
-                    let key = runtime.require(RuntimeHelper::StyleKey, self.call_span);
-                    arguments.push(format!("{{[{key}]:{text}}}"));
-                }
-            }
-        }
-        let merge = runtime.require(RuntimeHelper::Merge, self.call_span);
-        format!("{merge}({})", arguments.join(","))
-    }
-}
-
-/// Renders the call site for one compiled `style()` call.
-pub(super) fn render_style_call(
-    emission: &StyleEmission,
-    runtime: &mut RuntimeBindings<'_>,
-) -> String {
-    emission.render(runtime)
+    pub(crate) classes: Vec<GeneratedClass>,
+    /// Original-source UTF-8 call span used for replacement, diagnostics, and fallback
+    /// helper import placement when a contribution has no narrower origin.
+    pub(crate) call_span: Span,
 }

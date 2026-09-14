@@ -15,7 +15,8 @@ use napi_derive::napi;
 use serde::Serialize;
 
 use stillwind_compiler::{
-    GeneratedClass, GeneratedSymbol, GuardStep, ModuleResourceReference, TransformMapping,
+    ExpressionTransformMapping, GeneratedClass, GeneratedSymbol, GuardStep,
+    ModuleResourceReference, TransformMapping,
 };
 use stillwind_ir::StyleDependency;
 use stillwind_source::Span;
@@ -148,31 +149,74 @@ impl From<ModuleResourceReference> for NativeModuleResource {
     }
 }
 
-/// One mapping from generated source to original source, in UTF-16 code-unit offsets.
+/// An applied compiler edit, exposed to JavaScript for source-map construction.
+/// Offsets are absolute UTF-16 code units before host prefix insertion or import removal;
+/// generated gaps outside `expressions` use the edit's original start as an anchor.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeTransformMapping {
-    /// UTF-16 start in the original source.
+    /// Inclusive original offset; may equal `original_end` for insertion.
     #[napi(js_name = "original_start")]
     pub original_start: u32,
-    /// UTF-16 end in the original source.
+    /// Exclusive original offset, at or after `original_start`.
     #[napi(js_name = "original_end")]
     pub original_end: u32,
-    /// UTF-16 start in the generated source.
+    /// Inclusive generated offset in the complete compiled buffer.
     #[napi(js_name = "generated_start")]
     pub generated_start: u32,
-    /// UTF-16 end in the generated source.
+    /// Exclusive generated offset; may equal `generated_start` for deletion.
     #[napi(js_name = "generated_end")]
     pub generated_end: u32,
+    /// Nonoverlapping intervals contained in this replacement, ordered by generated start.
+    /// Original positions may repeat or move backwards; an empty array means anchor-only mapping.
+    pub expressions: Vec<NativeExpressionMapping>,
 }
 
 impl From<TransformMapping> for NativeTransformMapping {
+    /// Copies compiler coordinates and nested intervals without sorting or rebasing them.
     fn from(value: TransformMapping) -> Self {
         Self {
             original_start: value.original_start,
             original_end: value.original_end,
             generated_start: value.generated_start,
             generated_end: value.generated_end,
+            expressions: value.expressions.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+/// One retained expression or encoded character inside a compiler replacement.
+/// Coordinates are absolute UTF-16 code units in the original and complete compiled
+/// buffers; exact intervals advance both positions, while encoded intervals use an anchor.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct NativeExpressionMapping {
+    /// Inclusive original UTF-16 offset; the anchor when `exact` is false.
+    #[napi(js_name = "original_start")]
+    pub original_start: u32,
+    /// Exclusive original UTF-16 offset of the expression or encoded character.
+    #[napi(js_name = "original_end")]
+    pub original_end: u32,
+    /// Inclusive generated UTF-16 offset within the enclosing replacement.
+    #[napi(js_name = "generated_start")]
+    pub generated_start: u32,
+    /// Exclusive generated UTF-16 offset, strictly greater than `generated_start`.
+    #[napi(js_name = "generated_end")]
+    pub generated_end: u32,
+    /// `true` means identical text and equal interval lengths; `false` maps every
+    /// generated code unit to `original_start`, as for an HTML entity.
+    pub exact: bool,
+}
+
+impl From<ExpressionTransformMapping> for NativeExpressionMapping {
+    /// Preserves coordinates and exactness from the validated compiler interval.
+    fn from(value: ExpressionTransformMapping) -> Self {
+        Self {
+            original_start: value.original_start,
+            original_end: value.original_end,
+            generated_start: value.generated_start,
+            generated_end: value.generated_end,
+            exact: value.exact,
         }
     }
 }

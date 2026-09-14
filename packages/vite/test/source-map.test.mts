@@ -15,11 +15,14 @@ void test("Vite development composes carrier CSS maps through framework preproce
   const root = mkdtempSync(path.join(repo, ".session-test-"));
   writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
   const source =
-    "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props=style('red');";
+    "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props=style('red', { '--x': progress },\n { 'data-value': data },\n { '--y': progress });";
   writeFileSync(path.join(root, "entry.ts"), source);
   const server = await createServer({
     configFile: false,
     root,
+    resolve: {
+      alias: { "stillwind/react/runtime": path.join(repo, "packages/core/src/runtime/react.ts") },
+    },
     plugins: [
       {
         name: "framework-preprocessing-fixture",
@@ -42,6 +45,25 @@ void test("Vite development composes carrier CSS maps through framework preproce
   try {
     const result = await server.transformRequest("/entry.ts");
     assert.ok(result);
+    assert.ok(result.map);
+    const jsMap = new TraceMap(JSON.stringify(result.map));
+    const generatedProgress = [...result.code.matchAll(/\bprogress\b/g)];
+    const originalProgress = [...source.matchAll(/\bprogress\b/g)];
+    assert.equal(generatedProgress.length, 2, result.code);
+    for (let index = 0; index < generatedProgress.length; index++) {
+      const generatedOffset = generatedProgress[index].index!;
+      const originalOffset = originalProgress[index].index!;
+      const origin = originalPositionFor(jsMap, {
+        line: result.code.slice(0, generatedOffset).split("\n").length,
+        column: generatedOffset - result.code.lastIndexOf("\n", generatedOffset - 1) - 1,
+      });
+      assert.ok(origin.source?.endsWith("entry.ts"), JSON.stringify(origin));
+      assert.equal(origin.line, source.slice(0, originalOffset).split("\n").length);
+      assert.equal(
+        origin.column,
+        originalOffset - source.lastIndexOf("\n", originalOffset - 1) - 1,
+      );
+    }
     const carrier = result.code.match(/(?:from |import )"([^"\n]+stillwind-carrier\.css[^"\n]+)"/);
     assert.ok(carrier, result.code);
     const css = await server.transformRequest(carrier[1] + "&direct");

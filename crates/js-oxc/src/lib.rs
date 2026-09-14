@@ -4,7 +4,10 @@
 //! `style` binding that came from a Stillwind macro import, extracts style calls,
 //! handle definitions, animation and view-transition declarations, resolves the
 //! framework adapter, and publishes a [`stillwind_semantic::ModuleSummary`] plus the
-//! type probes the host checker still has to answer.
+//! type probes the host checker still has to answer. `entry` coordinates parsing and
+//! extraction; `effects` adds syntactic effect proofs consumed by fragment folding.
+//! `normalization` and `projected_scan` restore editable source coordinates for
+//! converted framework input, including the effect-proof spans.
 //!
 //! Three contracts hold throughout. Extraction is binding-bound, never name-bound: a
 //! local `style` that shadows the import is not the macro. Every span in a result
@@ -29,6 +32,7 @@ mod analyzer;
 mod ast;
 mod bindings;
 mod demand;
+mod effects;
 mod entry;
 mod expressions;
 mod imports;

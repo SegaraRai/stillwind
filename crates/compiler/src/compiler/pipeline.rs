@@ -4,13 +4,13 @@
 //! symbol for every declaration, then runs one [`CallEmitter`] per call in that order.
 //! Exported or referenced motion definitions are prepended to the emitted utility CSS.
 //! Source edits and helper imports are planned last, and prefix rewriting happens after
-//! all generated text exists, so a configured `--sw-` or `--tw-` spelling is never
-//! re-interpreted in the middle of a pass.
+//! all generated text exists. Rewriting applies to synthetic fragments while authored
+//! expression text and its original source mappings remain unchanged.
 //!
 //! Failure is all-or-nothing: once any diagnostic exists, the transforms, classes, symbols,
 //! and CSS are cleared, so a caller never receives a plan that describes half a compilation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, filter_lint_findings};
@@ -22,13 +22,13 @@ use stillwind_source::SourceFile;
 
 use super::conditionals::lower;
 use super::emission::{CallEmitter, CallEmitterInputs};
+use super::fragment::render_style_call;
 use super::handles::{
     handle_marker_class, named_identity, ref_identity, scope_identity, scope_marker_class,
     summary_runtime_assets,
 };
 use super::motion::{emit_animation_definition, emit_view_transition_definition};
 use super::output::CompileResult;
-use super::props::render_style_call;
 use super::symbols::{
     generated_ref_marker_symbol, generated_ref_symbol, generated_scope_marker_symbol,
     generated_scope_symbol, generated_symbol, symbol_name,
@@ -62,13 +62,16 @@ impl Compiler {
         Self::compile_snapshot(source, parsed, snapshot, compiler_options, false)
     }
 
-    /// The shared pass sequence; `emit_source` selects whether edits are returned.
+    /// Runs the shared pass sequence, returning emitted artifacts and accumulated findings.
+    /// `emit_source` selects whether source replacements and helper imports are retained.
     ///
     /// `parsed.ir` is cloned before ordering, because the call order is a property of the
     /// compilation, not of the frontend's output, and the analysis may be reused.
     /// `compiler_options` selects conditional lowering after rule construction and
     /// before generated-prefix rewriting. Lowering errors join the diagnostics and
     /// clear generated CSS, classes, symbols, and transforms transactionally.
+    /// `source` must be the original editable buffer described by `parsed`; source
+    /// expression mappings retain that coordinate space through prefix and attribute encoding.
     #[allow(clippy::too_many_lines)]
     fn compile_snapshot(
         source: &SourceFile,
@@ -134,13 +137,18 @@ impl Compiler {
                     generated_symbol(source, AssetKind::ViewTransition, &definition.name)
                 }),
         );
+        let pure_expressions = module
+            .pure_expressions
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
         for call in module.style_calls {
             let Some(emission) = CallEmitter::run(CallEmitterInputs {
                 source,
                 options,
                 theme,
                 call: &call,
-                class_property: module.adapter.spec().class_property,
+                pure_expressions: &pure_expressions,
                 diagnostics: &mut result.diagnostics,
                 lint_findings: &mut result.lint_findings,
                 utility_css: &mut utility_css,
@@ -148,15 +156,20 @@ impl Compiler {
                 emitted_utility_classes: &mut emitted_utility_classes,
                 runtime_assets: &mut runtime_assets,
                 motion_assets: &mut motion_assets,
-                runtime: &mut runtime,
             }) else {
                 continue;
             };
             result.classes.extend(emission.classes.iter().cloned());
-            let replacement = render_style_call(&emission, &mut runtime);
+            let replacement = render_style_call(
+                &emission,
+                module.adapter.spec(),
+                &mut runtime,
+                &mut result.lint_findings,
+            );
             result.transforms.push(SourceTransform {
                 call_span: call.span,
-                replacement,
+                replacement: replacement.text,
+                expressions: replacement.mappings,
             });
         }
         motion_assets.extend(runtime_assets.iter().cloned());
@@ -209,6 +222,7 @@ impl Compiler {
                 } else {
                     "undefined".to_owned()
                 },
+                expressions: Vec::new(),
             });
         }
         for scope_definition in module.scope_definitions {
@@ -223,6 +237,7 @@ impl Compiler {
                 } else {
                     "undefined".to_owned()
                 },
+                expressions: Vec::new(),
             });
         }
         for animation in module.animation_declarations {
@@ -241,6 +256,7 @@ impl Compiler {
                 } else {
                     "undefined".to_owned()
                 },
+                expressions: Vec::new(),
             });
         }
         for transition in module.view_transition_declarations {
@@ -259,6 +275,7 @@ impl Compiler {
                 } else {
                     "undefined".to_owned()
                 },
+                expressions: Vec::new(),
             });
         }
 
@@ -303,7 +320,7 @@ impl Compiler {
         }
 
         for transform in &mut result.transforms {
-            transform.replacement = options.rewrite_generated(&transform.replacement);
+            transform.rewrite_generated(|text| options.rewrite_generated(text));
         }
         for symbol in &mut result.symbols {
             symbol.name = options.rewrite_generated(&symbol.name);

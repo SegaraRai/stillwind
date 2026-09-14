@@ -24,8 +24,9 @@ impl ModuleIr {
     /// Maps every local source span, retaining this IR unchanged on failure. The
     /// frontend owns correspondence validation and keeps its provenance.
     ///
-    /// The mapping function is called once per span and must be pure with respect to
-    /// the IR: it sees only the incoming span, not its role.
+    /// The mapping function is called for each stored span occurrence, including
+    /// purity proofs. The same coordinates can be visited more than once when roles
+    /// share a span; it sees only the coordinates and must map them consistently.
     ///
     /// # Errors
     ///
@@ -35,6 +36,9 @@ impl ModuleIr {
         mut map: impl FnMut(Span) -> Result<Span, E>,
     ) -> Result<Self, E> {
         let mut result = self.clone();
+        for span in &mut result.pure_expressions {
+            *span = map(*span)?;
+        }
         for source in &mut result.imports.module_css {
             *source = map(*source)?;
         }

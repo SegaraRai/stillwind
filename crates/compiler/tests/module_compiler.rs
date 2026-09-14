@@ -220,6 +220,7 @@ fn invalid_transform_byte_boundaries_return_errors() {
         transforms: vec![SourceTransform {
             call_span: Span::new(FileId(1), 1, 3),
             replacement: "x".into(),
+            expressions: Vec::new(),
         }],
         ..CompileResult::default()
     };

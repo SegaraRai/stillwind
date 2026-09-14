@@ -29,12 +29,18 @@
   Do not seek out or scan TODOs for review unless the user explicitly requests it; follow the requested scope when they do.
 - When a TODO appears incorrect, gather objective evidence for both its claim and the rebuttal. Have an independent Sol or Luna subagent judge
   both claims with no conversation history (`fork_turns="none"`); provide the relevant code and evidence without steering its conclusion.
-- Only if that review validates the rebuttal, replace the TODO with an explanatory comment of at most 3 lines: "It may appear that X, but Y,
-  because Z." State the concrete evidence clearly enough to prevent the same mistaken TODO from being reintroduced; otherwise retain the TODO.
+- Only if that review validates the rebuttal, replace the TODO with an explanatory comment of at most 3 lines that directly states the relevant fact
+  and concrete evidence, following Comment Guidelines; otherwise retain the TODO.
 
 ## Comment Guidelines
 
 - Describe the current codebase objectively for its readers. Do not record session history, received instructions, or the changes made in the current task.
+- Write a factual statement such as "This is A" only when it is worth reading. It must satisfy both conditions: it provides new information absent
+  from the surrounding context (including adjacent lines and linked material) that would otherwise require reading the implementation to discover;
+  and ignorance of that fact could cause critical misuse or misunderstanding. Apply this threshold to all comments described below.
+- Avoid formulations such as "This is A, not B" and "A; B": these are typical ways to slip history or excuses into comments. Merely echoing a user's
+  request to "satisfy X" as "This satisfies X" is also an excuse, not useful documentation. State the relevant fact directly only if it meets both
+  conditions above; otherwise omit the comment.
 - Crate and module doc comments explain their purpose, responsibilities, non-goals, and main entry points with usage guidance. In `lib.rs` / `mod.rs`, also
   describe each module's role. Omit entry-point guidance when there are no main entry points.
 - Function doc comments explain purpose and input/output contracts. Document necessary state preconditions and postconditions for state changes, error
