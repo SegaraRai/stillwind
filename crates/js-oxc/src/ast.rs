@@ -60,4 +60,26 @@ impl<'a> MacroExtractor<'a> {
             _ => None,
         }
     }
+
+    /// Resolves literal object keys, including expression-free template keys.
+    pub(crate) fn static_property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<String>> {
+        if let Some(name) = self.property_name(key) {
+            return Some(name);
+        }
+        let expression = key.as_expression()?.get_inner_expression();
+        match expression {
+            oxc::ast::ast::Expression::StringLiteral(literal) => Some(self.string_literal(literal)),
+            oxc::ast::ast::Expression::TemplateLiteral(template)
+                if template.expressions.is_empty() =>
+            {
+                let value = template.quasis.first()?.value.cooked.as_ref()?.to_string();
+                let span = self.source_span(template.span);
+                Some(Spanned::new(
+                    value,
+                    Span::new(span.file, span.start.0 + 1, span.end.0 - 1),
+                ))
+            }
+            _ => None,
+        }
+    }
 }

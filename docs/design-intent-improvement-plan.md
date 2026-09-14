@@ -137,18 +137,21 @@ CLI/native、build、editor が同じ結果を扱うようにする。
 
 ### 2. F2/F3: 静的構文の正規化
 
-- [ ] `style([...['a', 'b']])`、`style(...['a', 'b'])`、静的 object spread、配列の穴を
+- [x] `style([...['a', 'b']])`、`style(...['a', 'b'])`、静的 object spread、配列の穴を
       内容を直接記述した形と同じ抽出経路へ乗せる。
-- [ ] `{'data-a': value}` と `{['data-a']: value}` を同じ既知キーとして扱う。
+- [x] `{'data-a': value}` と `{['data-a']: value}` を同じ既知キーとして扱う。
       固定 template key 等も同じ静的キー抽出の責務で判定する。
-- [ ] object spread の上書き、重複キー、クラス項目、属性項目を扱う際は、spread 元の object が
+- [x] object spread の上書き、重複キー、クラス項目、属性項目を扱う際は、spread 元の object が
       JavaScript として評価される意味を保つ。単に全 property を連結して同じとみなさない。
-- [ ] 動的 spread の未解決、配列 iterator と clsx の意味の差、評価対象外の構造を区別する。
+- [x] 動的 spread の未解決、配列 iterator と clsx の意味の差、評価対象外の構造を区別する。
       既知の構造まで一律に拒否せず、解析・変換が成立しない入力は診断する。
 - [ ] raw/decoded 文字列の位置、Unicode、コメント、projection を含む source map を検証する。
 
 対象: `crates/js-oxc/src/expressions.rs` と macro 引数抽出、関連 IR。
 変数に保存した補間 utility 文字列の追跡は、この変更の要件に追加しない。
+
+実装: literal spread を再帰展開し、固定キーの重複は最初のキー位置と最後の値を保持する。
+検証: js-oxc 全テストと compiler の静的構文回帰テストを通過。Unicode キーと値の元ソース位置を確認。
 
 ### 3. F5: label と CSS 識別子の扱い
 

@@ -226,10 +226,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         let mut inputs = Vec::new();
         for argument in &call.arguments {
             if let Argument::SpreadElement(spread) = argument {
-                self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::StyleArgumentSpread,
-                    self.source_span(spread.span),
-                ));
+                self.collect_style_spread(&spread.argument, &mut inputs);
             } else if let Some(expression) = argument.as_expression() {
                 self.collect_style_expression(expression, &mut inputs);
             }

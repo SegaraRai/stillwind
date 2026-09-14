@@ -11,8 +11,8 @@
 //! analysed source.
 
 use oxc::ast::ast::{
-    ArrayExpressionElement, CallExpression, Expression, ObjectExpression, ObjectPropertyKind,
-    PropertyKey, PropertyKind,
+    ArrayExpressionElement, CallExpression, Expression, ObjectExpression, ObjectProperty,
+    ObjectPropertyKind, PropertyKind,
 };
 use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
@@ -151,9 +151,7 @@ impl<'a> MacroExtractor<'a> {
     /// Returns `None` when the expression contributes no class, such as `null`,
     /// `undefined`, or `false`. Conditional tests remain even when both branches are empty.
     ///
-    /// Falsy literals and `undefined` disappear rather than becoming a branch, and a
-    /// spread or an empty array slot is an error, so the emitted IR is never a guess
-    /// about the author's intent.
+    /// Literal array spreads are expanded; empty slots contribute no class.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
     fn class_expression(&mut self, expression: &Expression<'a>) -> Option<ClassExpression> {
         match expression {
@@ -199,17 +197,19 @@ impl<'a> MacroExtractor<'a> {
                 for element in &array.elements {
                     match element {
                         ArrayExpressionElement::SpreadElement(spread) => {
-                            self.diagnostics.push(CompileError::new(
-                                CompileErrorKind::StyleArraySpread,
-                                self.source_span(spread.span),
-                            ));
+                            if matches!(
+                                spread.argument.get_inner_expression(),
+                                Expression::ArrayExpression(_)
+                            ) {
+                                elements.extend(self.class_expression_sequence(&spread.argument));
+                            } else {
+                                self.diagnostics.push(CompileError::new(
+                                    CompileErrorKind::StyleArraySpread,
+                                    self.source_span(spread.span),
+                                ));
+                            }
                         }
-                        ArrayExpressionElement::Elision(elision) => {
-                            self.diagnostics.push(CompileError::new(
-                                CompileErrorKind::StyleArrayHole,
-                                self.source_span(elision.span),
-                            ));
-                        }
+                        ArrayExpressionElement::Elision(_) => {}
                         _ => {
                             if let Some(expression) = element.as_expression()
                                 && let Some(value) = self.class_expression(expression)
@@ -265,22 +265,16 @@ impl<'a> MacroExtractor<'a> {
     /// Keys are interpreted by shape: `class` passes a user value through, quoted
     /// `aria-*`/`data-*` keys become attributes, `--*` keys become inline custom
     /// properties, and a key ending in `:` becomes a variant
-    /// wrapper, and a computed key must be a ref variant. Spread properties and any
-    /// other key shapes are errors, because guessing at them would change what the
-    /// object means.
+    /// wrapper. Computed keys resolve to literal names or ref variants. Literal
+    /// object spreads are expanded with the last value of each known key.
     fn object_class_expression(
         &mut self,
         object: &ObjectExpression<'a>,
     ) -> Option<ClassExpression> {
         let mut entries = Vec::new();
-        for property in &object.properties {
-            let ObjectPropertyKind::ObjectProperty(property) = property else {
-                self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::AttributeSpread,
-                    self.source_span(property.span()),
-                ));
-                continue;
-            };
+        let mut properties = Vec::new();
+        self.collect_object_properties(object, &mut properties);
+        for property in properties {
             if property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidAttributeProperty,
@@ -288,7 +282,8 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             }
-            if property.computed {
+            let name = self.static_property_name(&property.key);
+            if property.computed && name.is_none() {
                 let Some(variant) = property
                     .key
                     .as_expression()
@@ -305,10 +300,7 @@ impl<'a> MacroExtractor<'a> {
                 }
                 continue;
             }
-            if self
-                .property_name(&property.key)
-                .is_some_and(|name| name.value == "class")
-            {
+            if name.as_ref().is_some_and(|name| name.value == "class") {
                 let mut arguments = Vec::new();
                 self.collect_class_arguments(&property.value, &mut arguments);
                 entries.push(GroupEntry::Class(Box::new(ClassExpression::External {
@@ -317,14 +309,13 @@ impl<'a> MacroExtractor<'a> {
                 })));
                 continue;
             }
-            let PropertyKey::StringLiteral(name) = &property.key else {
+            let Some(name) = name else {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidAttributeKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
             };
-            let name = self.string_literal(name);
             if name.value.starts_with("--") {
                 entries.push(GroupEntry::CustomProperty(CustomPropertyEntry {
                     name,
@@ -359,6 +350,65 @@ impl<'a> MacroExtractor<'a> {
                 span: self.source_span(object.span),
                 entries,
             })
+        }
+    }
+
+    /// Expands literal argument spreads without changing ordinary argument lowering.
+    pub(crate) fn collect_style_spread(
+        &mut self,
+        expression: &Expression<'a>,
+        inputs: &mut Vec<StyleInput>,
+    ) {
+        let Expression::ArrayExpression(array) = expression.get_inner_expression() else {
+            self.diagnostics.push(CompileError::new(
+                CompileErrorKind::StyleArgumentSpread,
+                self.source_span(expression.span()),
+            ));
+            return;
+        };
+        for element in &array.elements {
+            if let ArrayExpressionElement::SpreadElement(spread) = element {
+                self.collect_style_spread(&spread.argument, inputs);
+            } else if let Some(expression) = element.as_expression() {
+                self.collect_style_expression(expression, inputs);
+            }
+        }
+    }
+
+    /// Keeps the first key position and last value when literal objects overwrite keys.
+    fn collect_object_properties<'b>(
+        &mut self,
+        object: &'b ObjectExpression<'a>,
+        properties: &mut Vec<&'b ObjectProperty<'a>>,
+    ) {
+        for property in &object.properties {
+            match property {
+                ObjectPropertyKind::SpreadProperty(spread) => {
+                    if let Expression::ObjectExpression(object) =
+                        spread.argument.get_inner_expression()
+                    {
+                        self.collect_object_properties(object, properties);
+                    } else {
+                        self.diagnostics.push(CompileError::new(
+                            CompileErrorKind::AttributeSpread,
+                            self.source_span(spread.span),
+                        ));
+                    }
+                }
+                ObjectPropertyKind::ObjectProperty(property) => {
+                    let previous = self.static_property_name(&property.key).and_then(|name| {
+                        properties.iter().position(|other| {
+                            self.static_property_name(&other.key)
+                                .is_some_and(|other| other.value == name.value)
+                        })
+                    });
+                    if let Some(index) = previous {
+                        properties[index] = property;
+                    } else {
+                        properties.push(property);
+                    }
+                }
+            }
         }
     }
 

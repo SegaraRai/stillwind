@@ -39,7 +39,7 @@ pub enum CompileErrorKind {
     )]
     MacroExecutionBoundary,
     /// A style input array contains a spread that cannot be statically expanded.
-    #[error("style() arrays do not support spread elements")]
+    #[error("style() array spreads require a literal array")]
     StyleArraySpread,
     /// A style input array contains an omitted element.
     #[error("style() arrays cannot contain empty slots")]
@@ -52,14 +52,14 @@ pub enum CompileErrorKind {
         "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers"
     )]
     InvalidStyleInput,
-    /// An attribute object contains a spread property.
-    #[error("style() attribute objects do not support spread properties")]
+    /// An attribute object contains a spread whose properties cannot be resolved.
+    #[error("style() object spreads require a literal object")]
     AttributeSpread,
     /// An attribute entry is not a plain key-value property.
     #[error("style() attributes must be plain key-value properties")]
     InvalidAttributeProperty,
-    /// A computed attribute key cannot be resolved as a ref variant.
-    #[error("computed style() keys must be ref variants")]
+    /// A computed attribute key cannot be resolved as a literal name or ref variant.
+    #[error("computed style() keys must be literal strings or ref variants")]
     InvalidComputedAttribute,
     /// An object key is neither an attribute, a class entry, nor a variant prefix.
     #[error(
@@ -77,8 +77,8 @@ pub enum CompileErrorKind {
     /// One module imports style macros for more than one framework.
     #[error("a module cannot mix framework style macros")]
     MixedFrameworks,
-    /// A style call contains a spread argument.
-    #[error("style() does not support spread arguments")]
+    /// A style call contains a spread argument whose elements cannot be resolved.
+    #[error("style() argument spreads require a literal array")]
     StyleArgumentSpread,
     /// An animation use does not supply one literal options string.
     #[error("an animation use requires one literal options string")]
