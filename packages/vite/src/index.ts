@@ -474,6 +474,8 @@ export function stillwind(options: StillwindOptions): Plugin {
           },
         );
         if (!output) return "";
+        // TODO: Transport base module CSS through imports from standalone projections
+        // and verify dependency order when both base and derived CSS are requested.
         if (output.compositionModules.length > 0)
           this.error(
             "Cross-module style composition is not supported by standalone CSS projections; import the producer JavaScript through Vite instead.",
@@ -641,6 +643,8 @@ export function stillwind(options: StillwindOptions): Plugin {
           },
         );
         if (!output?.code) return undefined;
+        // TODO: Verify dependent CSS imports for explicit module CSS values, including
+        // consumers inserting base and derived stylesheets in different orders.
         if (output.hasModuleCssImport && output.compositionModules.length > 0)
           this.error(
             "Cross-module style composition requires automatic CSS transport; explicit module CSS values currently support same-module composition only.",

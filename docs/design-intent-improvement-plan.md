@@ -189,9 +189,9 @@ class/JSX 自体と Hook 風の関数名では診断しない。構造抽出不�
 
 ### 5. L1/L2: TODO と別途検証
 
-- [ ] L1 の拒否箇所に、projected facts の座標対応が未実装であることと、対応すべき処理を
+- [x] L1 の拒否箇所に、projected facts の座標対応が未実装であることと、対応すべき処理を
       3行以内の TODO として記載する。入力全体が不正という説明にしない。
-- [ ] L2 の loader / standalone projection / explicit module CSS の拒否箇所に、
+- [x] L2 の loader / standalone projection / explicit module CSS の拒否箇所に、
       CSS dependency transport と順序保証が未検証であることを3行以内の TODO として記載する。
 - [ ] L2 の実験を別途行う。派生 module の CSS が基底 module の CSS を import する形で、
       base→derived を保証できるか確認する。現在の拒否は検証前に除去しない。

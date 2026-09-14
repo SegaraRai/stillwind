@@ -96,6 +96,8 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         let mut integration_diagnostics = Vec::new();
         let facts = facts.filter(|facts| {
             if scan.input.projection.is_some() {
+                // TODO: Map checker fact spans into the projected analysis buffer before
+                // re-extraction; imported finite identities in SFC scripts need this mapping.
                 if !facts.facts.is_empty() {
                     integration_diagnostics.push(IntegrationDiagnostic {
                         module_id: Some(scan.module_id.clone()),
