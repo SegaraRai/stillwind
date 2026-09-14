@@ -23,6 +23,7 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
         @stillwind-utility builtin { color:blue; }
         @utility late { color:green; }
         @utility early { color:purple; }";
+    let mut ordering_fingerprints = Vec::new();
     for (mode, expected) in [
         ("authored", ["early", "builtin", "late"]),
         ("tailwind", ["early", "late", "builtin"]),
@@ -35,6 +36,7 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
         .unwrap();
         let snapshot =
             DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap();
+        ordering_fingerprints.push(snapshot.fingerprints().ordering.clone());
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         let mut utilities = ["late", "builtin", "early"];
         utilities.sort_by(|a, b| query.compare_candidates(a, b).unwrap());
@@ -62,6 +64,7 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
         let green = compiled.css.find("color:green").unwrap();
         assert_eq!(blue < green, mode == "authored", "{}", compiled.css);
     }
+    assert_ne!(ordering_fingerprints[0], ordering_fingerprints[1]);
 }
 
 #[test]

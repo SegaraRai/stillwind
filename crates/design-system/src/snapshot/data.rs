@@ -240,9 +240,12 @@ impl DesignSystemSnapshot {
         semantic_template.map_origins(|_| None);
         let config_hash = Fingerprint::of(format!("{config:?}"));
         let ordering = Fingerprint::of(format!(
-            "{:?}{:?}",
+            "{:?}{:?}{:?}{:?}{}",
             semantic_template,
-            builtin_theme_order(&theme)
+            builtin_theme_order(&theme),
+            theme.variant_positions,
+            theme.utility_positions,
+            theme.config.authored_utility_order,
         ));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
         let builtins = Some(builtin_definitions(&theme));
