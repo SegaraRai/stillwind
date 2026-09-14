@@ -12,7 +12,6 @@
 //! static motion uses retain CSS without requiring a runtime producer value.
 
 use std::collections::BTreeSet;
-use std::fmt::Write;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
@@ -59,26 +58,27 @@ pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
     }
 }
 
-/// Encodes labels as identifier fragments shared by DOM tokens and CSS selectors.
-/// Underscores are doubled so hexadecimal escapes cannot collide with literal labels.
+/// Labels remain readable DOM tokens; whitespace becomes underscores.
 fn marker_label(label: &str) -> String {
-    let mut encoded = String::new();
-    for character in label.chars() {
-        match character {
-            '_' => encoded.push_str("__"),
-            character
-                if character.is_ascii_alphanumeric()
-                    || character == '-'
-                    || character >= '\u{80}' =>
-            {
-                encoded.push(character);
+    label
+        .chars()
+        .map(|character| {
+            if character.is_whitespace() {
+                '_'
+            } else if character == '\0' {
+                '\u{fffd}'
+            } else {
+                character
             }
-            character => {
-                let _ = write!(encoded, "_{:x}_", u32::from(character));
-            }
-        }
-    }
-    encoded
+        })
+        .collect()
+}
+
+/// Serializes one DOM class token for use in a CSS selector.
+pub(super) fn marker_selector(marker: &str) -> String {
+    let mut selector = String::from(".");
+    let _ = cssparser::serialize_identifier(marker, &mut selector);
+    selector
 }
 
 /// Identity of a ref declaration, spanning its name token.
@@ -166,18 +166,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn label_encoding_keeps_tokens_distinct_and_identifiers_readable() {
+    fn labels_preserve_punctuation_and_replace_whitespace() {
         assert_eq!(marker_label("項目-🧭"), "項目-🧭");
-        assert_eq!(marker_label("a b:c\\d\0"), "a_20_b_3a_c_5c_d_0_");
-        let labels = ["", "_", " ", "_20_", "__20__", "a:b", "a_3a_b"];
-        assert_eq!(
-            labels
-                .iter()
-                .map(|label| marker_label(label))
-                .collect::<BTreeSet<_>>()
-                .len(),
-            labels.len()
-        );
+        assert_eq!(marker_label("a b:c/d_"), "a_b:c/d_");
+        assert_eq!(marker_label("a\t\nb"), "a__b");
+        assert_eq!(marker_selector("a:b/c"), r".a\:b\/c");
     }
 
     #[test]

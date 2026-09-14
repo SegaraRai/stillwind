@@ -1,8 +1,8 @@
 //! Validation and extraction of `style.ref()`, `style.scope()` and ref variants.
 //!
 //! Both producers accept an optional literal marker name, and a ref may instead bind to
-//! a scope identity. Labels retain their decoded text; the compiler encodes that text
-//! when generating marker names.
+//! a scope identity. Labels retain their decoded text for marker generation; the
+//! compiler handles whitespace normalization and CSS/JavaScript serialization.
 //!
 //! Ref variants accept the tagged-template, no-argument call and single-literal call
 //! forms; every other shape is reported. The prefix is normalized to end with `:` so

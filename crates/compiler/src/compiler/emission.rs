@@ -521,7 +521,7 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     };
                     let class = js_string(&names.join(" "));
-                    table.push(format!("\"{marker}\":{class}"));
+                    table.push(format!("{}:{class}", js_string(&marker)));
                 }
                 let table = table.join(",");
                 let expression = ValueExpr::Call {

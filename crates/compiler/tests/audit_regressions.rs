@@ -66,6 +66,28 @@ fn utility_precedence_is_independent_of_literal_and_array_order() {
 }
 
 #[test]
+fn punctuation_labels_produce_valid_javascript_strings() {
+    let (_, result) = compile(
+        r#"export const scope = style.scope('a"b/c'); export const ref = style.ref(scope, 'd"e/f'); export const child = style({[ref()]: 'a'});"#,
+        "@utility a { color:red; }",
+    );
+    assert!(result.diagnostics.is_empty(), "{result:#?}");
+    for edit in &result.transforms {
+        if edit.replacement.starts_with("import ") {
+            continue;
+        }
+        let source = SourceFile::new(
+            FileId(3),
+            "generated.ts",
+            format!("const value = {};", edit.replacement),
+        )
+        .unwrap();
+        assert!(parse(&source).diagnostics.is_empty(), "{}", source.text());
+    }
+    assert!(result.css.contains(r#"d\"e\/f"#), "{}", result.css);
+}
+
+#[test]
 fn unicode_and_punctuation_labels_share_dom_and_selector_names() {
     let (_, result) = compile(
         "const scope = style.scope('領域 :'); const ref = style.ref(scope, '項目 🧭'); \
@@ -79,9 +101,9 @@ fn unicode_and_punctuation_labels_share_dom_and_selector_names() {
         .iter()
         .map(|edit| edit.replacement.as_str())
         .collect::<String>();
-    for prefix in ["s_領域_20__3a__", "s_項目_20_🧭_"] {
-        assert!(code.contains(prefix), "{code}");
-        assert!(result.css.contains(prefix), "{}", result.css);
+    for (dom, css) in [("s_領域_:_", r"s_領域_\:_"), ("s_項目_🧭_", "s_項目_🧭_")] {
+        assert!(code.contains(dom), "{code}");
+        assert!(result.css.contains(css), "{}", result.css);
     }
 }
 

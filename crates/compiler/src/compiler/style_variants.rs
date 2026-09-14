@@ -25,7 +25,7 @@ use stillwind_ir::{HandleDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::handles::{handle_marker_class, scope_marker_class};
+use super::handles::{handle_marker_class, marker_selector, scope_marker_class};
 use super::symbols::ref_symbol_name;
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
@@ -142,7 +142,9 @@ impl StyleVariantPlan {
                     let mut identities = Vec::new();
                     for handle in handles {
                         let marker = handle_marker_class(handle);
-                        let scope = handle.scope.as_ref().map(scope_marker_class);
+                        let scope = handle.scope.as_ref().map(|scope| {
+                            marker_selector(scope_marker_class(scope).trim_start_matches('.'))
+                        });
                         identities.push((marker.clone(), scope.clone()));
                         for path in &paths {
                             alternatives.push(reference_path(&marker, scope.as_deref(), path));
@@ -332,16 +334,16 @@ fn reference_path(
         }
     }
     let reference = match reference.strip_prefix('&') {
-        Some("") => format!(".{marker}"),
+        Some("") => marker_selector(marker),
         Some(suffix)
             if suffix.starts_with([':', '['])
                 && !suffix.contains(['&', ' ', '>', '+', '~', ',']) =>
         {
-            format!(".{marker}:where({suffix})")
+            format!("{}:where({suffix})", marker_selector(marker))
         }
         _ => format!(
             ":where({})",
-            instantiate_selector(&reference, &format!(".{marker}"))
+            instantiate_selector(&reference, &marker_selector(marker))
         ),
     };
     let selector = match scope {

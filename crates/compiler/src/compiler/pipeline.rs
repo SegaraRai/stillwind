@@ -204,9 +204,9 @@ impl Compiler {
                 call_span: handle_definition.call_span,
                 replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
                     format!(
-                        "{}(\"{}\")",
+                        "{}({})",
                         runtime.require(RuntimeHelper::Ref, handle_definition.call_span),
-                        handle_marker_class(&handle_definition)
+                        crate::generated::js_string(&handle_marker_class(&handle_definition))
                     )
                 } else {
                     "undefined".to_owned()
@@ -219,9 +219,11 @@ impl Compiler {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
                     format!(
-                        "{}(\"{}\")",
+                        "{}({})",
                         runtime.require(RuntimeHelper::Scope, scope_definition.call_span),
-                        scope_marker_class(&scope_definition).trim_start_matches('.')
+                        crate::generated::js_string(
+                            scope_marker_class(&scope_definition).trim_start_matches('.')
+                        )
                     )
                 } else {
                     "undefined".to_owned()

@@ -179,10 +179,11 @@ decoded 値、raw 文字列の span、属性値の span が元ファイルへ対
 対象: `crates/js-oxc/src/refs/definitions.rs`、compiler の `handles.rs` / `symbols.rs`。
 許容範囲の詳細は CSS/DOM の契約から決める。ASCII 限定を CSS 上の必須条件とは説明しない。
 
-実装: label は空文字を含む任意の literal string を受け付ける。生成名では `_` を二重化し、
-ASCII の英数字・ハイフン以外は `_hex_` に符号化する。非 ASCII は保持する。
-これにより DOM token と CSS selector は同じ名前を使用できる。identity のハッシュ計算は不変。
-検証: 符号化の衝突回避、Unicode・空白・記号付き ref/scope の生成 CSS と DOM 名の一致を確認。
+label は開発者向けの可読な名前であり、round-trip や一意性を担わない。
+空文字を含む任意の literal string を受け付け、空白だけを `_` に置き換える。
+記号・既存の `_`・Unicode は保持する。CSS で表現できない NUL は置換文字にする。
+CSS selector と生成 JavaScript の文字列はそれぞれの直列化境界で escape する。
+identity のハッシュ計算は不変。Unicode・空白・記号付き ref/scope の DOM/CSS 対応を検証する。
 
 ### 4. F6: 契約診断の移行
 
