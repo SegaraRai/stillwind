@@ -449,6 +449,28 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
     }
 }
 
+#[test]
+fn ref_definition_requires_one_scope_identity() {
+    for (choice, valid) in [("first", true), ("enabled ? first : second", false)] {
+        let source = SourceFile::new(FileId(1), "entry.ts", format!(
+            "import {{style}} from 'stillwind/react'; const first=style.scope(); const second=style.scope(); const ref=style.ref({choice}, 'item');"
+        )).unwrap();
+        let parsed = parse(&source);
+        if valid {
+            assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        } else {
+            assert!(
+                parsed
+                    .diagnostics
+                    .iter()
+                    .any(|error| error.kind == CompileErrorKind::InvalidRefScope),
+                "{:?}",
+                parsed.diagnostics
+            );
+        }
+    }
+}
+
 /// Attribute entries keep the span of the value expression.
 #[test]
 fn extracts_aria_and_data_attributes_with_value_expression_spans() {

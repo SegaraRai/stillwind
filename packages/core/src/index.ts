@@ -191,7 +191,9 @@ export type StyleMacro<Props = StyleProps> = {
   ): StyleScope<Id>;
   ref(): StyleRef;
   ref(name: string): StyleRef;
+  /** The compiler requires scope to resolve to exactly one identity. */
   ref(scope: StyleScope): StyleRef;
+  /** The compiler requires scope to resolve to exactly one identity. */
   ref(scope: StyleScope, name: string): StyleRef;
   ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
   ref<const Id extends string>(

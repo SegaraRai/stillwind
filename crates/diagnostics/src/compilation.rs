@@ -122,10 +122,14 @@ pub enum CompileErrorKind {
     #[error("style.scope() accepts at most one literal name")]
     TooManyScopeArguments,
     /// A single ref argument is neither a literal name nor a known scope.
-    #[error("style.ref() accepts an optional literal name or a scope identity")]
+    #[error(
+        "style.ref() accepts an optional literal name or exactly one statically resolved scope identity"
+    )]
     InvalidRefArgument,
     /// The first argument of a two-argument ref declaration is not a known scope.
-    #[error("the first style.ref() argument must be an identity returned by style.scope()")]
+    #[error(
+        "the first style.ref() argument must resolve statically to exactly one style.scope() identity"
+    )]
     InvalidRefScope,
     /// The second ref argument is not a literal name.
     #[error("the second style.ref() argument must be a literal name")]

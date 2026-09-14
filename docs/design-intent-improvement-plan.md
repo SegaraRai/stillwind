@@ -250,8 +250,8 @@ style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
       無条件に適用せず、runtime の選択と対応させる。
 - [x] API 型、抽出器、IR、compiler、runtime metadata、query と fixture を一貫して更新する。
       旧2引数 API の互換維持をこの計画の要件には追加しない。
-- [x] `style.ref(scope)` の有限 scope 制限は別 subtask として設計する。`ref.at` の変更だけで
-      F4 全体を完了と扱わない。ref 生成自体を variant にせず、scope 候補と ref の相関を保持する。
+- [x] `style.ref(scope)` の scope は静的に一つの identity に特定されることを正式な契約とする。
+      ref 定義に複数の scope 候補を保持する実装は行わない。
 - [x] animation 定義 object に variant key を追加し、その値を条件付き animation 定義として解析する。
       `from` / `to` / 百分率の値は variant なしの utility 文字列のままとする。
 - [x] animation の通常定義、条件付き定義、条件の同時成立、任意 variant、要素依存 variant の拒否を
@@ -268,24 +268,12 @@ Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
 `experiments/module-graph` で `vp run verify:animation`。通常 `0 → 1`、reduced motion で
 省略した `from` が要素の基礎値を使う `.25 → .5` を検証する。
 
-#### 有限 scope を受け取る ref 定義の後続実装
+#### ref 定義の scope 契約
 
-現行の `HandleDefinition.scope: Option<ScopeDefinition>` は、1つの相関候補を表す。
-`handles_from_alternatives` は利用側の有限 scope 集合を既に候補ごとに展開するが、
-定義側 `collect_ref_definition` は singleton を要求する。この要件は未解消。
-
-後続実装では定義と利用候補を分ける。定義は1つの ref identity と有限 scope 集合、元の
-scope 選択式を保持し、利用側は既存の `(ref identity, scope identity)` の組として扱う。
-全 ref と全 scope の直積を作らない。scope 選択は ref の新しい identity を生成しない。
-
-両候補の scope が同時に DOM に存在する場合も、実行時に選択された組だけが適用される必要がある。
-そのため単純な selector の OR 展開だけで完了としない。組ごとの marker と実行時の選択表を
-持たせる案を、singleton の marker、ref projections、同一 callsite identity と合わせて検証する。
-static singleton では選択表を省き、dynamic の receiver は元の値式を一度だけ評価する。
-
-受け入れテストは同時に存在する2つの scope、scope を返す factory、import/re-export、
-条件分岐、projection、SSR/hydration、scoped selector の誤適用の不在を対象とする。
-実装時には宣言用 IR・runtime descriptor・checker 型の対応を一括更新する。
+`style.ref(scope)` / `style.ref(scope, name)` は、scope が静的に一つの identity に
+特定できる場合に限り受け付ける。alias や条件式でも候補が同一 identity に収束すればよい。
+異なる scope の有限集合は compile error とする。この契約を未実装項目として扱わない。
+利用側で有限候補の ref や scope を選択する既存の機能は維持する。
 
 ### 7. D1 の拒否理由を固定する
 
