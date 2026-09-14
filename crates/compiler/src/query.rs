@@ -7,11 +7,13 @@
 //! verified by resolving them before they are offered, so inserting a completion never
 //! produces a diagnostic.
 
+use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
 use stillwind_design_system::{
     DesignSystemRevision, DesignSystemSnapshot, ThemeNamespace, ThemeTokenKind,
-    builtin_property_definitions, builtin_utility_token_prefixes, resolve_variant,
+    builtin_property_definitions, builtin_utility_token_prefixes, compare_utility_order,
+    compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_source::{FileId, Span};
@@ -84,6 +86,41 @@ pub struct DesignSystemQuery {
 }
 
 impl DesignSystemQuery {
+    /// Compares two valid candidates using the compiler's variant and utility order.
+    ///
+    /// Returns `None` if either utility or any of its variants cannot be resolved.
+    /// Callers decide how to preserve unresolved text and expression boundaries;
+    /// this comparison does not rewrite source or normalize candidate spelling.
+    pub fn compare_candidates(&self, left: &str, right: &str) -> Option<Ordering> {
+        let theme = self.design_system.theme();
+        let resolve = |raw| {
+            crate::candidate::CandidateResolver::resolve(raw, theme).filter(|resolved| {
+                resolved
+                    .candidate
+                    .variants
+                    .iter()
+                    .all(|variant| resolve_variant(variant, theme).is_some())
+            })
+        };
+        let left_resolved = resolve(left)?;
+        let right_resolved = resolve(right)?;
+        Some(
+            compare_variant_sequences(
+                &left_resolved.candidate.variants,
+                &right_resolved.candidate.variants,
+                theme,
+            )
+            .then_with(|| {
+                compare_utility_order(
+                    left_resolved.builtin_order,
+                    left,
+                    right_resolved.builtin_order,
+                    right,
+                )
+            }),
+        )
+    }
+
     /// Creates a query pinned to `design_system`.
     ///
     /// The options' prefixes are resolved against the snapshot so rendered previews match

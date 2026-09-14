@@ -127,8 +127,9 @@ CLI/native、build、editor が同じ結果を扱うようにする。
 - [x] user utility、arbitrary property、複数ルールを返す utility、variant 付き utility まで
       入力順から独立した適用順を定義する。built-in 順と custom utility の相対位置・同順位の
       比較規則は実装前に明示し、コードの現在位置を根拠にしない。
-- [ ] 順序の情報を resolver/emitter/editor query で共有する。文字列ソートと配列要素ソートは
-      独立オプションとし、エディターソートのためだけの別順序表を作らない。
+- [x] 順序の情報を resolver/emitter/editor query で共有する。
+- [ ] 文字列ソートと配列要素ソートを独立オプションとして editor に実装する。
+      エディターソートのためだけの別順序表は作らない。
 - [x] 同一 utility 集合について、文字列内・配列内・複数字句の順列で CSS の適用結果が変わらない
       回帰テストを用意する。生成 class 名の一致だけで判定しない。
 - [x] 条件ユニットの順序、base→derived の依存順、属性・動的 custom property の後勝ちは保持する。
@@ -140,7 +141,9 @@ CLI/native、build、editor が同じ結果を扱うようにする。
 適用順は既存の variant 順を第一キーとし、同じ variant 内では registry 順のない utility を
 先に置く。registry 順を持つ utility はその順に置き、同順位は candidate 名の辞書順で決める。
 同一 candidate の複数ルールは resolver が返す順を保つ。`@apply` も同じ比較関数を使用する。
-検証: compiler の全 unit/integration test を通過。editor のソート操作は未実装。
+`DesignSystemQuery::compare_candidates` が同じ resolver と比較関数を参照する。
+未解決 utility / variant は `None` を返し、source の並べ替えや canonical 化は行わない。
+検証: compiler の全 unit/integration test と query の順序テストを通過。editor のソート操作は未実装。
 
 ### 2. F2/F3: 静的構文の正規化
 

@@ -14,6 +14,28 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
 #[test]
+fn editor_order_uses_custom_utility_and_variant_precedence() {
+    let theme = crate::css_fixture::source(
+        FileId(1),
+        "theme",
+        "@utility a { color:red; } @utility b { color:blue; }",
+    )
+    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+    let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+    let mut candidates = ["hover:b", "b", "hover:a", "a", "flex"];
+    candidates.sort_by(|left, right| query.compare_candidates(left, right).unwrap());
+    assert_eq!(candidates, ["a", "b", "flex", "hover:a", "hover:b"]);
+    assert_eq!(
+        query.compare_candidates("a", "a"),
+        Some(std::cmp::Ordering::Equal)
+    );
+    assert_eq!(query.compare_candidates("unknown:a", "a"), None);
+    assert_eq!(query.compare_candidates("a", "unknown-utility"), None);
+}
+
+#[test]
 fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     let theme =
         crate::css_fixture::source(FileId(1), "theme", "@utility brand { color: red; }").unwrap();
