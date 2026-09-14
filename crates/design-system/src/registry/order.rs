@@ -17,8 +17,13 @@ pub(crate) fn registration_positions(
     for directive in directives {
         let blocks = stillwind_css::extract_named_blocks_with_offsets(css, directive)
             .into_iter()
+            .filter(|(_, _, body)| *directive != "@variant" || body.contains("@slot"))
             .map(|(offset, header, _)| (offset, header));
-        let statements = stillwind_css::extract_named_statements(css, directive);
+        let statements = if *directive == "@custom-variant" {
+            stillwind_css::extract_named_statements(css, directive)
+        } else {
+            Vec::new()
+        };
         for (offset, header) in blocks.chain(statements) {
             let Some(raw) = header.split_whitespace().next() else {
                 continue;
