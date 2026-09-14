@@ -1,0 +1,357 @@
+//! Assembly contracts spanning dependency selection and template emission.
+//!
+//! Covers authored placement, carrier layers, dependency destinations, and repeated
+//! source mappings through the rendering entry points; it does not test CSS minification.
+
+use std::sync::Arc;
+
+use stillwind_css::CssOutputNode;
+use stillwind_design_system::parse_theme;
+use stillwind_diagnostics::CompileErrorKind;
+use stillwind_source::{FileId, SourceFile};
+
+use super::emit::anonymous_layer_prefix;
+use super::{render, render_mapped};
+use crate::{CompilerOptions, MappedStylesheet};
+
+#[test]
+fn declaration_slots_keep_css_owned_selectors_conditions_and_order() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.css",
+        r#"
+        @theme { --brand: red; }
+        @stillwind-property --n { syntax: "<number>"; inherits: false; initial-value: 0; }
+        @media print { @layer defaults {
+            .theme-scope { color:blue; @stillwind-slot theme; color:green; }
+            .reset::before { @stillwind-slot property-initials; }
+        } }
+        @stillwind-slot properties;
+        @stillwind-slot utilities;
+    "#,
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let css = render(
+        &theme.output_template,
+        &theme,
+        ".x{color:var(--brand);opacity:var(--n)}",
+        &CompilerOptions::default(),
+        false,
+    )
+    .unwrap();
+    assert!(
+        css.contains("@media print{@layer defaults{.theme-scope{"),
+        "{css}"
+    );
+    assert!(css.contains("--brand:red;"), "{css}");
+    assert!(css.find("color:blue").unwrap() < css.find("--brand:red").unwrap());
+    assert!(css.find("--brand:red").unwrap() < css.find("color:green").unwrap());
+    assert!(css.contains(".reset::before{"), "{css}");
+    assert!(!css.contains(":root") && !css.contains(":host") && !css.contains("::backdrop"));
+    assert!(!css.contains("@stillwind-slot"));
+}
+
+#[test]
+fn generated_keyframes_keep_mapping_while_raw_css_keeps_its_placement() {
+    let source = SourceFile::new(FileId(1), "entry.css", "@layer animations { @stillwind-slot keyframes; } @layer utilities { @stillwind-slot utilities; }").unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let original =
+        Arc::new(SourceFile::new(FileId(9), "日本.tsx", "日本 animation source").unwrap());
+    let mut frames = MappedStylesheet::default();
+    frames.text(
+        "@keyframes generated{to{opacity:0}}",
+        Some((original.clone(), original.full_span())),
+    );
+    let utilities = MappedStylesheet {
+        css: "@media print{@keyframes authored{to{opacity:1}}}.x{content:'@keyframes fake{}'}"
+            .into(),
+        keyframes: vec![frames],
+        ..MappedStylesheet::default()
+    };
+    let output = render_mapped(
+        &theme.output_template,
+        &theme,
+        &utilities,
+        &CompilerOptions::default(),
+        true,
+        None,
+    )
+    .unwrap();
+    assert!(
+        output
+            .css
+            .contains("@layer animations{@keyframes generated{")
+    );
+    assert!(
+        output
+            .css
+            .contains("@layer utilities{@media print{@keyframes authored{")
+    );
+    assert!(output.css.contains("content:'@keyframes fake{}'"));
+    let mapping = &output.mappings[0];
+    assert_eq!(
+        &output.css[mapping.generated.clone()],
+        "@keyframes generated{to{opacity:0}}"
+    );
+    assert_eq!(mapping.original, 0..original.text().len());
+    assert!(Arc::ptr_eq(&mapping.source, &original));
+}
+
+#[test]
+fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
+    let source = SourceFile::new(FileId(1), "styles/entry.css", "@layer { .base{color:red} } @layer /* anonymous */ { @layer { @stillwind-slot utilities; } } @layer named { .end{color:blue} }").unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let template = &theme.output_template;
+    let options = CompilerOptions::default();
+    let prefix = anonymous_layer_prefix(template, &options);
+    let document = render(template, &theme, "", &options, true).unwrap();
+    let module = render(template, &theme, ".x{color:green}", &options, false).unwrap();
+    assert!(
+        document.contains(&format!("@layer {prefix}-0{{")),
+        "{document}"
+    );
+    assert!(document.contains(&format!("@layer {prefix}-1{{@layer {prefix}-2{{}}}}")));
+    assert_eq!(
+        module,
+        format!(
+            "@layer {prefix}-0;@layer {prefix}-1{{@layer {prefix}-2{{.x{{color:green}}}}}}@layer named;"
+        )
+    );
+    assert!(document.contains("@layer named"));
+    let isolated = CompilerOptions {
+        class_namespace: "other-app".into(),
+        ..options
+    };
+    assert_ne!(prefix, anonymous_layer_prefix(template, &isolated));
+    let other_source = SourceFile::new(FileId(2), "other/entry.css", source.text()).unwrap();
+    let other_theme = parse_theme(&other_source).unwrap();
+    assert_ne!(
+        prefix,
+        anonymous_layer_prefix(&other_theme.output_template, &CompilerOptions::default())
+    );
+}
+
+#[test]
+fn slots_and_support_preserve_authored_conditions_in_document_and_module_outputs() {
+    let source = SourceFile::new(FileId(1), "entry.css", "@layer theme, utilities; @layer theme { :root,:host { @stillwind-slot theme; } @theme { --color-brand: red; --unused:blue; } } .before{display:block;} @layer utilities { @supports (display:grid) { @media print { @stillwind-slot utilities; } } } .after{color:blue;}").unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let template = &theme.output_template;
+    let utility = ".x{color:var(--color-brand);}";
+    let css = render(template, &theme, utility, &CompilerOptions::default(), true).unwrap();
+    assert!(css.contains("@layer theme{:root,:host{--color-brand:red;}}"));
+    assert!(css.contains(
+        "@layer utilities{@supports (display:grid){@media print{.x{color:var(--color-brand);}}}}"
+    ));
+    assert!(css.find(".before").unwrap() < css.find(".x{").unwrap());
+    assert!(css.find(".x{").unwrap() < css.find(".after").unwrap());
+    assert!(!css.contains("--unused"));
+    let module = render(
+        template,
+        &theme,
+        utility,
+        &CompilerOptions::default(),
+        false,
+    )
+    .unwrap();
+    assert!(!module.contains(".before"));
+    assert!(!module.contains(".after"));
+    assert!(module.contains("@media print{.x{"));
+    assert!(module.contains("--color-brand:red;"));
+}
+
+#[test]
+fn slots_relocate_definitions_without_hoisting_conditions_or_layers() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.css",
+        r#"
+        @layer theme, utilities;
+        @layer theme { :root,:host { @stillwind-slot theme; } }
+        @layer utilities { @stillwind-slot utilities; }
+        @media print { @layer motion { @stillwind-slot keyframes; } }
+        @stillwind-slot properties;
+    *,:before,:after,::backdrop { @stillwind-slot property-initials; }
+        @theme { --color-brand: red; --animate-spin: spin 1s;
+            @keyframes spin { to { opacity: 0; } }
+        }
+        @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    "#,
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let css = render(
+        &theme.output_template,
+        &theme,
+        ".x{color:var(--color-brand);animation:var(--animate-spin);width:var(--length)}",
+        &CompilerOptions::default(),
+        true,
+    )
+    .unwrap();
+    assert!(
+        css.contains("@layer theme{:root,:host{--color-brand:red;--animate-spin:spin 1s;}}"),
+        "{css}"
+    );
+    assert!(
+        css.contains("@media print{@layer motion{@keyframes spin"),
+        "{css}"
+    );
+    assert_eq!(css.matches("@keyframes spin").count(), 1);
+    assert!(css.find("@layer utilities{").unwrap() < css.find("@keyframes spin").unwrap());
+    assert!(css.find("@property --length").unwrap() > css.find("@keyframes spin").unwrap());
+}
+
+#[test]
+fn theme_declarations_activate_registrations_in_document_and_carrier_outputs() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.css",
+        r#"
+        @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+        @theme { --spacing-brand: var(--length); --spacing-unused: var(--unused); }
+        @media print { :root { @stillwind-slot theme; } }
+        @stillwind-slot utilities;
+        @stillwind-slot properties;
+        * { @stillwind-slot property-initials; }
+    "#,
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+    for document in [true, false] {
+        let css = render(
+            &theme.output_template,
+            &theme,
+            ".x{width:var(--spacing-brand)}",
+            &CompilerOptions::default(),
+            document,
+        )
+        .unwrap();
+        assert!(css.contains("@property --length"), "{css}");
+        assert!(
+            css.contains("@media print{:root{--spacing-brand:var(--length);}}"),
+            "{css}"
+        );
+        assert!(!css.contains("--unused"), "{css}");
+    }
+}
+
+#[test]
+fn registrations_require_a_destination_instead_of_implicit_tail_output() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.css",
+        r#"
+        @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+        @stillwind-slot utilities;
+    "#,
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+    assert!(matches!(
+        render(
+            &theme.output_template,
+            &theme,
+            ".x{width:var(--length)}",
+            &CompilerOptions::default(),
+            true
+        ),
+        Err(CompileErrorKind::MissingPropertySlot { slot }) if slot == "properties"
+    ));
+}
+
+#[test]
+fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
+    let source = SourceFile::new(FileId(1), "entry.css", ".a{color:red;}").unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let template = &theme.output_template;
+    assert_eq!(
+        render(template, &theme, "", &CompilerOptions::default(), true).unwrap(),
+        ".a{color:red;}"
+    );
+    assert!(matches!(
+        render(
+            template,
+            &theme,
+            ".x{display:block}",
+            &CompilerOptions::default(),
+            true
+        ),
+        Err(CompileErrorKind::MissingUtilitiesSlot)
+    ));
+    assert!(theme.registry.utilities.is_empty());
+    assert!(theme.tokens.is_empty());
+}
+
+#[test]
+fn repeated_keyframe_slots_preserve_each_mapping_and_wrapper() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.css",
+        "@media print { @stillwind-slot keyframes; } @layer motion { @stillwind-slot keyframes; }",
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let original = Arc::new(SourceFile::new(FileId(2), "motion.ts", "animation").unwrap());
+    let mut frames = MappedStylesheet::default();
+    let css = "@keyframes generated{to{opacity:0}}";
+    frames.text(css, Some((original.clone(), original.full_span())));
+    let utility = MappedStylesheet {
+        keyframes: vec![frames],
+        ..MappedStylesheet::default()
+    };
+    for document in [true, false] {
+        let output = render_mapped(
+            &theme.output_template,
+            &theme,
+            &utility,
+            &CompilerOptions::default(),
+            document,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            output.css,
+            format!("@media print{{{css}}}@layer motion{{{css}}}")
+        );
+        assert_eq!(output.mappings.len(), 2);
+        for mapping in &output.mappings {
+            assert_eq!(&output.css[mapping.generated.clone()], css);
+            assert_eq!(mapping.original, 0..original.text().len());
+            assert!(Arc::ptr_eq(&mapping.source, &original));
+        }
+    }
+}
+
+#[test]
+fn registration_destinations_are_checked_before_theme_lowering() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.css",
+        r#"
+        @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+        @theme { --brand: --if(invalid); }
+        :root { @stillwind-slot theme; }
+        @stillwind-slot utilities;
+    "#,
+    )
+    .unwrap();
+    let mut theme = parse_theme(&source).unwrap();
+    let utility = ".x{color:var(--brand);width:var(--length)}";
+    assert!(matches!(render(&theme.output_template, &theme, utility,
+        &CompilerOptions::default(), false),
+        Err(CompileErrorKind::MissingPropertySlot { slot }) if slot == "properties"));
+    theme
+        .output_template
+        .nodes
+        .extend([CssOutputNode::Properties, CssOutputNode::PropertyInitials]);
+    assert!(matches!(
+        render(
+            &theme.output_template,
+            &theme,
+            utility,
+            &CompilerOptions::default(),
+            false
+        ),
+        Err(CompileErrorKind::InvalidRuntimeConditional { .. })
+    ));
+}
