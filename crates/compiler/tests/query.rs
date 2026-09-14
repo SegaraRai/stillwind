@@ -6,7 +6,9 @@
 
 use std::sync::Arc;
 
-use stillwind_compiler::{CompilerOptions, CompletionInput, DesignSystemQuery, ModuleCompiler};
+use stillwind_compiler::{
+    Compiler, CompilerOptions, CompletionInput, DesignSystemQuery, ModuleCompiler,
+};
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{LintKind, UtilityFailure};
 use stillwind_ir::SourceAnalyzer;
@@ -57,8 +59,7 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
             "import {style} from 'stillwind/react'; const value=style('late builtin early');",
         )
         .unwrap();
-        let compiled =
-            stillwind_compiler::Compiler::compile_source(&OxcSourceAnalyzer, &input, &source);
+        let compiled = Compiler::compile_source(&OxcSourceAnalyzer, &input, &source);
         assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
         let blue = compiled.css.find("color:blue").unwrap();
         let green = compiled.css.find("color:green").unwrap();

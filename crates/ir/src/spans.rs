@@ -319,7 +319,9 @@ fn map_variant<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match variant {
-        StyleVariant::Prefix(prefix) => map_value(prefix, map)?,
+        StyleVariant::Prefix(prefix) => {
+            map_value(prefix, map)?;
+        }
         StyleVariant::Ref { handles, prefix }
         | StyleVariant::Container {
             handles,

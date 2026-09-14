@@ -13,6 +13,8 @@
 
 use std::collections::BTreeSet;
 
+use cssparser::serialize_identifier;
+
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Spanned};
@@ -77,7 +79,7 @@ fn marker_label(label: &str) -> String {
 /// Serializes one DOM class token for use in a CSS selector.
 pub(super) fn marker_selector(marker: &str) -> String {
     let mut selector = String::from(".");
-    let _ = cssparser::serialize_identifier(marker, &mut selector);
+    let _ = serialize_identifier(marker, &mut selector);
     selector
 }
 

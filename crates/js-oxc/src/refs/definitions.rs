@@ -59,8 +59,8 @@ impl<'a> MacroExtractor<'a> {
     /// Validates one `style.ref()` declaration.
     ///
     /// Accepts `()`, `(name)`, `(scope)` and `(scope, name)`. The scope argument must
-    /// resolve to exactly one `style.scope()` identity, so a ref can never be bound to an
-    /// arbitrary value.
+    /// resolve to exactly one `style.scope()` identity, so a ref can never be bound to
+    /// an arbitrary value.
     pub(crate) fn collect_ref_definition(
         &mut self,
         name: Spanned<String>,

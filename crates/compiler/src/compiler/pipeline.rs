@@ -35,6 +35,7 @@ use super::symbols::{
 };
 use super::{Compiler, CssContribution};
 use crate::CompilerOptions;
+use crate::generated::js_string;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
 
@@ -206,7 +207,7 @@ impl Compiler {
                     format!(
                         "{}({})",
                         runtime.require(RuntimeHelper::Ref, handle_definition.call_span),
-                        crate::generated::js_string(&handle_marker_class(&handle_definition))
+                        js_string(&handle_marker_class(&handle_definition))
                     )
                 } else {
                     "undefined".to_owned()
@@ -221,9 +222,7 @@ impl Compiler {
                     format!(
                         "{}({})",
                         runtime.require(RuntimeHelper::Scope, scope_definition.call_span),
-                        crate::generated::js_string(
-                            scope_marker_class(&scope_definition).trim_start_matches('.')
-                        )
+                        js_string(scope_marker_class(&scope_definition).trim_start_matches('.'))
                     )
                 } else {
                     "undefined".to_owned()

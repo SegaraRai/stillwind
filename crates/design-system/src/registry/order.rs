@@ -6,21 +6,24 @@
 //! byte offset in the registry CSS, which is what lets a property sort before or after
 //! a utility that was authored between two statements.
 
-use stillwind_css::extract_order_statements;
+use std::collections::BTreeMap;
+
+use stillwind_css::{
+    extract_named_blocks_with_offsets, extract_named_statements, extract_order_statements,
+};
+
+use crate::variants::parse_variant_name;
 
 /// First registration offsets in the import-expanded stylesheet; redefinitions retain their slot.
-pub(crate) fn registration_positions(
-    css: &str,
-    directives: &[&str],
-) -> std::collections::BTreeMap<String, usize> {
-    let mut positions = std::collections::BTreeMap::<String, usize>::new();
+pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<String, usize> {
+    let mut positions = BTreeMap::<String, usize>::new();
     for directive in directives {
-        let blocks = stillwind_css::extract_named_blocks_with_offsets(css, directive)
+        let blocks = extract_named_blocks_with_offsets(css, directive)
             .into_iter()
             .filter(|(_, _, body)| *directive != "@variant" || body.contains("@slot"))
             .map(|(offset, header, _)| (offset, header));
         let statements = if *directive == "@custom-variant" {
-            stillwind_css::extract_named_statements(css, directive)
+            extract_named_statements(css, directive)
         } else {
             Vec::new()
         };
@@ -28,7 +31,7 @@ pub(crate) fn registration_positions(
             let Some(raw) = header.split_whitespace().next() else {
                 continue;
             };
-            let Some((name, _)) = super::variants::parse_variant_name(raw) else {
+            let Some((name, _)) = parse_variant_name(raw) else {
                 continue;
             };
             positions

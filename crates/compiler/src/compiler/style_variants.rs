@@ -81,99 +81,102 @@ impl StyleVariantPlan {
             ordinary_count: 0,
         };
         for wrapper in wrappers {
-            if let StyleVariant::Container { handles, query } = wrapper {
-                plan.add_container(handles, query, diagnostics)?;
-                continue;
-            }
-            let prefix = match wrapper {
-                StyleVariant::Prefix(prefix) | StyleVariant::Ref { prefix, .. } => prefix,
-                StyleVariant::Container { query, .. } => query,
-            };
-            let Some(variants) = parse_prefix(prefix) else {
-                diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidVariantPrefix,
-                    prefix.span,
-                ));
-                return None;
-            };
-            let Some(applications) = variants
-                .iter()
-                .map(|variant| resolve_variant(variant, theme))
-                .collect::<Option<Vec<_>>>()
-            else {
-                diagnostics.push(CompileError::new(
-                    CompileErrorKind::UnavailableVariantPrefix,
-                    prefix.span,
-                ));
-                return None;
-            };
             match wrapper {
-                StyleVariant::Container { .. } => {}
-                StyleVariant::Prefix(_) => {
-                    plan.prefix.push_str(&prefix.value);
-                    plan.canonical.push_str(&prefix.value);
-                    plan.ordinary_count += variants.len();
-                    for path in &mut plan.paths {
-                        path.extend(applications.clone());
-                    }
+                StyleVariant::Prefix(prefix) => {
+                    plan.add_prefix(theme, prefix, diagnostics)?;
                 }
-                StyleVariant::Ref { handles, .. } => {
-                    if handles.is_empty() {
-                        diagnostics.push(CompileError::new(
-                            CompileErrorKind::UnidentifiedRef,
-                            prefix.span,
-                        ));
-                        return None;
-                    }
-                    plan.has_refs = true;
-                    let paths = variant_paths(&applications);
-                    if paths
-                        .iter()
-                        .flatten()
-                        .any(|step| matches!(step, VariantStep::Conditional(_)))
-                    {
-                        diagnostics.push(CompileError::new(
-                            CompileErrorKind::UnavailableVariantPrefix,
-                            prefix.span,
-                        ));
-                        return None;
-                    }
-                    let mut alternatives = Vec::new();
-                    let mut identities = Vec::new();
-                    for handle in handles {
-                        let marker = handle_marker_class(handle);
-                        let scope = handle.scope.as_ref().map(|scope| {
-                            marker_selector(scope_marker_class(scope).trim_start_matches('.'))
-                        });
-                        identities.push((marker.clone(), scope.clone()));
-                        for path in &paths {
-                            alternatives.push(reference_path(&marker, scope.as_deref(), path));
-                        }
-                    }
-                    // Names and scopes are generated identifiers; prefix length makes
-                    // the variable-length authored portion unambiguous.
-                    let _ = write!(
-                        plan.canonical,
-                        "ref({identities:?};{}:{}):",
-                        prefix.value.len(),
-                        prefix.value
-                    );
-                    plan.paths = plan
-                        .paths
-                        .into_iter()
-                        .flat_map(|path| {
-                            alternatives.iter().map(move |alternative| {
-                                let mut path = path.clone();
-                                path.extend(alternative.clone());
-                                path
-                            })
-                        })
-                        .collect();
+                StyleVariant::Ref { handles, prefix } => {
+                    plan.add_ref(theme, handles, prefix, diagnostics)?;
+                }
+                StyleVariant::Container { handles, query } => {
+                    plan.add_container(handles, query, diagnostics)?;
                 }
             }
-            plan.variants.extend(variants);
         }
         Some(plan)
+    }
+
+    fn add_prefix(
+        &mut self,
+        theme: &ThemeIndex,
+        prefix: &Spanned<String>,
+        diagnostics: &mut Vec<CompileError>,
+    ) -> Option<()> {
+        let (variants, applications) =
+            collect_variant_and_applications(theme, prefix, diagnostics)?;
+        self.prefix.push_str(&prefix.value);
+        self.canonical.push_str(&prefix.value);
+        self.ordinary_count += variants.len();
+        for path in &mut self.paths {
+            path.extend(applications.clone());
+        }
+        self.variants.extend(variants);
+        Some(())
+    }
+
+    fn add_ref(
+        &mut self,
+        theme: &ThemeIndex,
+        handles: &[HandleDefinition],
+        prefix: &Spanned<String>,
+        diagnostics: &mut Vec<CompileError>,
+    ) -> Option<()> {
+        let (variants, applications) =
+            collect_variant_and_applications(theme, prefix, diagnostics)?;
+        if handles.is_empty() {
+            diagnostics.push(CompileError::new(
+                CompileErrorKind::UnidentifiedRef,
+                prefix.span,
+            ));
+            return None;
+        }
+        self.has_refs = true;
+        let paths = variant_paths(&applications);
+        if paths
+            .iter()
+            .flatten()
+            .any(|step| matches!(step, VariantStep::Conditional(_)))
+        {
+            diagnostics.push(CompileError::new(
+                CompileErrorKind::UnavailableVariantPrefix,
+                prefix.span,
+            ));
+            return None;
+        }
+        let mut alternatives = Vec::new();
+        let mut identities = Vec::new();
+        for handle in handles {
+            let marker = handle_marker_class(handle);
+            let scope = handle
+                .scope
+                .as_ref()
+                .map(|scope| marker_selector(scope_marker_class(scope).trim_start_matches('.')));
+            identities.push((marker.clone(), scope.clone()));
+            for path in &paths {
+                alternatives.push(reference_path(&marker, scope.as_deref(), path));
+            }
+        }
+        // Names and scopes are generated identifiers; prefix length makes
+        // the variable-length authored portion unambiguous.
+        let _ = write!(
+            self.canonical,
+            "ref({identities:?};{}:{}):",
+            prefix.value.len(),
+            prefix.value
+        );
+        self.paths = self
+            .paths
+            .iter()
+            .flat_map(|path| {
+                alternatives.iter().map(move |alternative| {
+                    let mut path = path.clone();
+                    path.extend(alternative.clone());
+                    path
+                })
+            })
+            .collect();
+        self.variants.extend(variants);
+        Some(())
     }
 
     fn add_container(
@@ -246,6 +249,32 @@ impl StyleVariantPlan {
             utility.variant_applications.clone_from(&self.paths);
         }
     }
+}
+
+fn collect_variant_and_applications(
+    theme: &ThemeIndex,
+    prefix: &Spanned<String>,
+    diagnostics: &mut Vec<CompileError>,
+) -> Option<(Vec<Variant>, Vec<VariantApplication>)> {
+    let Some(variants) = parse_prefix(prefix) else {
+        diagnostics.push(CompileError::new(
+            CompileErrorKind::InvalidVariantPrefix,
+            prefix.span,
+        ));
+        return None;
+    };
+    let Some(applications) = variants
+        .iter()
+        .map(|variant| resolve_variant(variant, theme))
+        .collect::<Option<Vec<_>>>()
+    else {
+        diagnostics.push(CompileError::new(
+            CompileErrorKind::UnavailableVariantPrefix,
+            prefix.span,
+        ));
+        return None;
+    };
+    Some((variants, applications))
 }
 
 /// Parses a wrapper prefix into its variants, requiring complete `name:` segments.
