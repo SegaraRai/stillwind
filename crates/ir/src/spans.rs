@@ -24,9 +24,9 @@ impl ModuleIr {
     /// Maps every local source span, retaining this IR unchanged on failure. The
     /// frontend owns correspondence validation and keeps its provenance.
     ///
-    /// The mapping function is called for each stored span occurrence, including
-    /// purity proofs. The same coordinates can be visited more than once when roles
-    /// share a span; it sees only the coordinates and must map them consistently.
+    /// The mapping function is called for each stored span occurrence, and the same
+    /// coordinates can be visited more than once when roles share a span; it sees only
+    /// the coordinates and must map them consistently.
     ///
     /// # Errors
     ///
@@ -36,9 +36,6 @@ impl ModuleIr {
         mut map: impl FnMut(Span) -> Result<Span, E>,
     ) -> Result<Self, E> {
         let mut result = self.clone();
-        for span in &mut result.pure_expressions {
-            *span = map(*span)?;
-        }
         for source in &mut result.imports.module_css {
             *source = map(*source)?;
         }
@@ -283,7 +280,12 @@ fn map_class_expression<E>(
                 map_group_entry(entry, map)?;
             }
         }
-        ClassExpression::External(value) => *value = map(*value)?,
+        ClassExpression::External { span, arguments } => {
+            *span = map(*span)?;
+            for argument in arguments {
+                *argument = map(*argument)?;
+            }
+        }
         ClassExpression::HandleProjection { handle, projection } => {
             map_handle(handle, map)?;
             map_projection(projection, map)?;

@@ -22,6 +22,10 @@ use stillwind_source::{FileId, ProjectionMap, SourceFile, VolarMapping};
 /// points at the analyzer rather than at the fixture's arithmetic.
 fn projected() -> SourceInput {
     let script = "import {style} from 'stillwind/svelte'; export const target = style.ref('target'); const active: boolean = true; const props = style(target, active ? 'flex' : 'grid');";
+    projected_script(script)
+}
+
+fn projected_script(script: &str) -> SourceInput {
     let original = Arc::new(
         SourceFile::new(
             FileId(1),
@@ -43,7 +47,7 @@ fn projected() -> SourceInput {
                 mappings: vec![VolarMapping {
                     source_offsets: vec![8],
                     generated_offsets: vec![0],
-                    lengths: vec![u32::try_from(script.len()).unwrap()],
+                    lengths: vec![u32::try_from(script.encode_utf16().count()).unwrap()],
                     generated_lengths: None,
                 }],
             },
@@ -57,6 +61,22 @@ fn projected() -> SourceInput {
             regions: Vec::new(),
         }),
     }
+}
+
+#[test]
+fn contract_errors_map_to_original_framework_expression_spans() {
+    let input = projected_script(
+        "import {style} from 'stillwind/svelte'; const 状態 = 1; const props = style({'--x': 状態++});",
+    );
+    let original = input.projection.as_ref().unwrap().original.clone();
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
+    let error = analysis
+        .diagnostics
+        .iter()
+        .find(|error| error.kind == CompileErrorKind::MacroArgumentMutation)
+        .unwrap();
+    assert_eq!(error.labels[0].span.file, original.id());
+    assert_eq!(original.slice(error.labels[0].span).unwrap(), "状態++");
 }
 
 /// Only scaffolding the map proves was inserted is discarded.
@@ -167,18 +187,6 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
     );
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
     assert_eq!(analysis.ir.adapter, AdapterKind::Svelte);
-    assert!(
-        analysis.ir.pure_expressions.iter().any(|span| {
-            span.file == original.id() && original.slice(*span).unwrap() == "active"
-        })
-    );
-    assert!(
-        analysis
-            .ir
-            .pure_expressions
-            .iter()
-            .all(|span| span.file == original.id())
-    );
     assert!(analysis.source.text().starts_with("<script>"));
     assert_eq!(analysis.ir.style_calls.len(), 1);
     assert!(

@@ -76,7 +76,7 @@ impl<'a> MacroExtractor<'a> {
                 if member.property.name.as_str() != "container" {
                     return None;
                 }
-                let Some(argument) = call.arguments.first() else {
+                let [argument] = call.arguments.as_slice() else {
                     self.diagnostics.push(CompileError::new(
                         CompileErrorKind::InvalidContainerType,
                         self.source_span(call.span),

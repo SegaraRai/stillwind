@@ -1,31 +1,15 @@
-//! Representation and evaluation proofs for combining style contributions.
+//! Representation proofs for combining style contributions.
 //!
-//! [`record_fields`] selects a layout for a known record and consumer demand.
-//! [`fold`] reduces adjacent contributions bottom-up when a whole-call layout fails.
-//! This module does not render JavaScript or allocate runtime bindings; rejected
-//! candidates remain available for runtime composition.
+//! [`record_fields`] selects a layout for a known record and consumer demand. [`fold`]
+//! reduces adjacent contributions bottom-up when a whole-call layout fails. This module
+//! does not render JavaScript or allocate runtime bindings; rejected candidates remain
+//! available for runtime composition.
 
 use std::collections::BTreeSet;
 
 use stillwind_ir::{ConditionalKind, FrameworkSpec, StyleFormat};
 
 use super::expression::{Atom, Emitted, Fragment, ValueExpr};
-
-/// Why a candidate cannot represent this ordered record.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum Rejection {
-    /// Grouping a channel would cross an evaluation in a record with unproven effects.
-    EvaluationOrder {
-        /// Zero-based index of the first grouped occurrence in the candidate's atom slice.
-        before: usize,
-        /// Index of an evaluated occurrence in another channel, strictly between the pair.
-        between: usize,
-        /// Index of the later grouped occurrence; `before < between < after`.
-        after: usize,
-    },
-    /// Value shape, key layout, or framework serialization cannot represent the record.
-    Representation,
-}
 
 /// The representation accepted by the immediate consumer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -59,22 +43,15 @@ pub(super) enum Field {
 /// Plans output fields for `atoms` under the consumer's representation and framework.
 ///
 /// Returned indices address this exact atom slice and preserve order within each
-/// channel. Cross-channel reordering is permitted only when every atom is proven
-/// pure; otherwise evaluated occurrences keep source order. Final props also retain
-/// runtime field presence and insertion order. The input is not modified.
-///
-/// # Errors
-///
-/// Returns an evaluation-order obstruction when grouping crosses another evaluated
-/// channel in an unproven record. Other unsupported shapes, special property names,
-/// empty-class uncertainty, or incompatible style serialization return `Representation`.
+/// channel. Inputs must satisfy the macro purity contract. Final props retain runtime
+/// field presence and insertion order. Returns `None` for unsupported shapes, special
+/// property names, empty-class uncertainty, or incompatible style serialization.
 #[allow(clippy::too_many_lines)] // One proof over record fields and their runtime channels.
 pub(super) fn record_fields(
     atoms: &[Atom],
     demand: Demand,
     fw: &FrameworkSpec,
-) -> Result<Vec<Field>, Rejection> {
-    let pure = atoms.iter().all(Atom::is_pure);
+) -> Option<Vec<Field>> {
     let classes = atoms
         .iter()
         .enumerate()
@@ -85,11 +62,7 @@ pub(super) fn record_fields(
         .enumerate()
         .filter_map(|(i, atom)| matches!(atom, Atom::Custom(_)).then_some(i))
         .collect::<Vec<_>>();
-    let class_at = classes
-        .iter()
-        .copied()
-        .find(|i| atoms[*i].evaluates())
-        .or_else(|| classes.first().copied());
+    let class_at = classes.first().copied();
     let custom_at = custom.first().copied();
     let mut fields = Vec::new();
     for (i, atom) in atoms.iter().enumerate() {
@@ -103,79 +76,30 @@ pub(super) fn record_fields(
             fields.push(Field::Attribute(i));
         }
     }
-    let expected = atoms
-        .iter()
-        .enumerate()
-        .filter_map(|(i, atom)| atom.evaluates().then_some(i))
-        .collect::<Vec<_>>();
-    let actual = fields
-        .iter()
-        .flat_map(|field| match field {
-            Field::Classes(items) | Field::Custom(items) => items.clone(),
-            Field::Attribute(i) => vec![*i],
-        })
-        .filter(|i| atoms[*i].evaluates())
-        .collect::<Vec<_>>();
-    if !pure && expected != actual {
-        for group in [&classes, &custom] {
-            let evaluations = group
-                .iter()
-                .copied()
-                .filter(|i| atoms[*i].evaluates())
-                .collect::<Vec<_>>();
-            for pair in evaluations.windows(2) {
-                if let Some(between) =
-                    (pair[0] + 1..pair[1]).find(|i| atoms[*i].evaluates() && !group.contains(i))
-                {
-                    return Err(Rejection::EvaluationOrder {
-                        before: pair[0],
-                        between,
-                        after: pair[1],
-                    });
-                }
-            }
-        }
-        return Err(Rejection::Representation);
-    }
     if atoms.iter().any(|atom| matches!(atom, Atom::Attribute(p) if p.name == "__proto__" || p.name == fw.class_property)) {
-        return Err(Rejection::Representation);
+        return None;
     }
     if atoms
         .iter()
         .any(|atom| matches!(atom, Atom::Class(Emitted::Expression(ValueExpr::Source(_)))))
         && (demand == Demand::Props || classes.len() > 1)
     {
-        return Err(Rejection::Representation);
+        return None;
     }
     if demand == Demand::Props {
-        // Materialization inserts class before ordinary props and style after
-        // them. A literal must preserve both this key order and evaluation order.
-        let first_attribute = atoms
-            .iter()
-            .position(|atom| matches!(atom, Atom::Attribute(_)));
-        let last_attribute = atoms
-            .iter()
-            .rposition(|atom| matches!(atom, Atom::Attribute(_)));
-        if (!pure
-            && (class_at
-                .zip(first_attribute)
-                .is_some_and(|(class, attr)| class > attr)
-                || custom_at
-                    .zip(last_attribute)
-                    .is_some_and(|(custom, attr)| custom < attr)))
-            || (!classes.is_empty()
-                && !classes
-                    .iter()
-                    .any(|i| matches!(&atoms[*i], Atom::Class(value) if nonempty_class(value))))
+        if !classes.is_empty()
+            && !classes
+                .iter()
+                .any(|i| matches!(&atoms[*i], Atom::Class(value) if nonempty_class(value)))
         {
-            return Err(Rejection::Representation);
+            return None;
         }
         if !custom.is_empty()
             && atoms
                 .iter()
                 .any(|atom| matches!(atom, Atom::Attribute(p) if p.name == "style"))
         {
-            return Err(Rejection::Representation);
+            return None;
         }
         if fw.style_format == StyleFormat::String {
             let mut names = BTreeSet::new();
@@ -183,11 +107,11 @@ pub(super) fn record_fields(
                 .iter()
                 .any(|i| matches!(&atoms[*i], Atom::Custom(p) if !names.insert(&p.name)))
             {
-                return Err(Rejection::Representation);
+                return None;
             }
         }
     }
-    if pure && demand == Demand::Props {
+    if demand == Demand::Props {
         // Match runtime property insertion order independently of pure evaluations.
         fields.sort_by_key(|field| match field {
             Field::Classes(_) => 0,
@@ -195,7 +119,7 @@ pub(super) fn record_fields(
             Field::Custom(_) => 2,
         });
     }
-    Ok(fields)
+    Some(fields)
 }
 
 /// Reduces children before combining adjacent record contributions.
@@ -261,66 +185,40 @@ pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
     }
 }
 
-/// Compatibility state for a pending sequence of record atoms.
-/// A failed append closes that pending record; the caller must reset this state
-/// before retrying the rejected atom.
+/// Representation state for a pending record. Opaque classes cannot share a class field.
 #[derive(Default)]
 struct Channels {
-    /// Whether an evaluated class (index 0) or custom-property (index 1) channel was seen.
-    seen: [bool; 2],
-    /// Last evaluated channel; `None` initially and after an ordinary attribute.
-    last: Option<usize>,
-    /// An opaque class or special attribute closes the record to subsequent atoms.
-    special: bool,
-    /// At least one accepted evaluation lacks an effect-free proof.
-    effectful: bool,
-    /// Grouping accepted pure channels requires reordering, forbidding later effects.
-    reordered: bool,
+    has_class: bool,
+    closed: bool,
 }
 
 impl Channels {
-    /// Tests and records one occurrence against the pending layout.
-    /// On `true`, the caller may append the atom. On `false`, discard this state:
-    /// rejection is not transactional and may already have set the closing flag.
+    /// A rejected atom must be retried with fresh state before appending it.
     fn append(&mut self, atom: &Atom, fw: &FrameworkSpec) -> bool {
-        if self.special {
+        if self.closed {
             return false;
         }
-        if matches!(atom, Atom::Class(Emitted::Expression(ValueExpr::Source(_)))) {
-            self.special = true;
-            return !self.seen[0];
-        }
-        let effectful = self.effectful || !atom.is_pure();
-        if effectful && self.reordered {
-            return false;
-        }
-        let channel = match atom {
-            Atom::Class(_) if atom.evaluates() => Some(0),
-            Atom::Class(_) => return true,
-            Atom::Custom(_) => Some(1),
+        match atom {
+            Atom::Class(Emitted::Expression(ValueExpr::Source(_))) => {
+                self.closed = true;
+                !self.has_class
+            }
+            Atom::Class(_) => {
+                self.has_class = true;
+                true
+            }
             Atom::Attribute(p) => {
-                self.special = p.name == "__proto__" || p.name == fw.class_property;
-                None
+                self.closed = p.name == "__proto__" || p.name == fw.class_property;
+                true
             }
-        };
-        if let Some(channel) = channel {
-            if self.seen[channel] && self.last != Some(channel) {
-                if effectful {
-                    return false;
-                }
-                self.reordered = true;
-            }
-            self.seen[channel] = true;
+            Atom::Custom(_) => true,
         }
-        self.effectful = effectful;
-        self.last = channel;
-        true
     }
 }
 
-/// Clones and flattens records/sequences into one ordered root candidate.
-/// Returns `None` for any branch, opaque props, or style payload; an empty subtree
-/// returns an empty atom list. No representation or effect proof is performed here.
+/// Clones and flattens records/sequences into one ordered root candidate. Returns
+/// `None` for any branch, opaque props, or style payload; an empty subtree returns an
+/// empty atom list. No representation proof is performed here.
 pub(super) fn known_record(fragment: &Fragment) -> Option<Vec<Atom>> {
     match fragment {
         Fragment::Record(atoms) => Some(atoms.clone()),

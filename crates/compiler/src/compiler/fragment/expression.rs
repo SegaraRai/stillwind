@@ -2,8 +2,8 @@
 //!
 //! [`Fragment::from_emission`] builds an ordered tree from finalized class units.
 //! [`Emitted`] retains class guards and property groups; [`Property`] and [`ValueExpr`]
-//! carry source provenance and effect proofs. Folding and field selection belong to
-//! `fold`; rendering is deferred so rejected candidates never allocate helper imports.
+//! carry source provenance. Folding and field selection belong to [`super::fold`];
+//! rendering is deferred so rejected candidates never allocate helper imports.
 
 use stillwind_ir::ConditionalKind;
 use stillwind_source::Span;
@@ -16,16 +16,13 @@ use crate::runtime::{RuntimeBindings, RuntimeHelper};
 /// A source expression or a runtime call whose binding is allocated only on output.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ValueExpr {
-    /// An opaque value whose shape and effects have not been proven.
+    /// An opaque value whose shape has not been proven.
     Source(
         /// Complete expression code; source-derived text retains its occurrence mappings.
         Code,
     ),
     /// A compiler-owned call; arguments retain their evaluation order.
     Call {
-        /// True only when source arguments satisfy the frontend's effect-free model.
-        /// This is a proof supplied by lowering, not an inspection of the helper body.
-        pure: bool,
         /// Runtime operation; its local binding is allocated only during rendering.
         helper: RuntimeHelper,
         /// Complete argument expressions in JavaScript evaluation order, without separators.
@@ -56,14 +53,14 @@ impl ValueExpr {
 }
 
 impl From<String> for ValueExpr {
-    /// Wraps text as an opaque value with no exact source mappings or effect proof.
+    /// Wraps text as an opaque value with no exact source mappings.
     fn from(value: String) -> Self {
         Self::Source(value.into())
     }
 }
 
 impl From<&str> for ValueExpr {
-    /// Copies text into an opaque value with no exact source mappings or effect proof.
+    /// Copies text into an opaque value with no exact source mappings.
     fn from(value: &str) -> Self {
         Self::Source(value.into())
     }
@@ -76,9 +73,6 @@ pub(crate) struct Property {
     pub name: String,
     /// Verbatim UTF-8 expression text equal to the original source slice at `span`.
     pub value: String,
-    /// True when the frontend permits reordering under its effect heuristic;
-    /// false includes unknown effects. Getter and implicit-coercion effects are excluded.
-    pub pure: bool,
     /// Original-source UTF-8 value span identifying this occurrence and its import realm.
     pub span: Span,
 }
@@ -107,8 +101,6 @@ pub(crate) enum Emitted {
     Conditional {
         /// Complete test expression with original whitespace and occurrence mappings.
         code: Code,
-        /// Effect-free proof for the test alone; it may be omitted only if both arms are empty.
-        pure: bool,
         /// Whether serialization uses a ternary or logical conjunction.
         kind: ConditionalKind,
         /// Truthy contributions; `None` contributes no value but does not itself erase the test.
@@ -164,53 +156,21 @@ pub(super) enum Atom {
 }
 
 impl Emitted {
-    /// Returns whether all evaluated children and guards have effect-free proofs.
-    /// Opaque `Source` values remain unproven even if their code has source mappings;
-    /// helper calls use the proof supplied by lowering.
-    pub(crate) fn is_pure(&self) -> bool {
-        match self {
-            Self::Leaf { .. } => true,
-            Self::Expression(ValueExpr::Call { pure, .. }) => *pure,
-            Self::Expression(ValueExpr::Source(_)) => false,
-            Self::Array(items) => items.iter().flatten().all(Self::is_pure),
-            Self::Conditional {
-                pure,
-                consequent,
-                alternate,
-                ..
-            } => {
-                *pure
-                    && consequent
-                        .iter()
-                        .chain(alternate)
-                        .all(|item| item.is_pure())
-            }
-            Self::Group(entries) => entries.iter().flatten().all(|entry| match entry {
-                EmittedEntry::Class(value) => value.is_pure(),
-                EmittedEntry::Attribute(p) | EmittedEntry::CustomProperty(p) => p.pure,
-            }),
-        }
-    }
-
-    /// Returns whether the subtree may be removed without losing contributions or effects.
-    /// A conditional qualifies only when its test is proven pure and both arms qualify.
-    /// Dynamic expressions and property entries are never treated as empty here.
+    /// Returns whether the subtree contributes no value under the macro purity
+    /// contract. Conditions whose arms are both empty may be discarded. namic
+    /// expressions and property entries are never treated as empty here.
     pub(crate) fn is_empty(&self) -> bool {
         match self {
             Self::Leaf { names } => names.iter().all(String::is_empty),
             Self::Array(items) => items.iter().flatten().all(Self::is_empty),
             Self::Conditional {
-                pure,
                 consequent,
                 alternate,
                 ..
-            } => {
-                *pure
-                    && consequent
-                        .iter()
-                        .chain(alternate)
-                        .all(|item| item.is_empty())
-            }
+            } => consequent
+                .iter()
+                .chain(alternate)
+                .all(|item| item.is_empty()),
             Self::Group(entries) => entries
                 .iter()
                 .flatten()
@@ -220,26 +180,9 @@ impl Emitted {
     }
 }
 
-impl Atom {
-    /// Returns the property proof or recursively checks the class subtree.
-    pub(super) fn is_pure(&self) -> bool {
-        match self {
-            Self::Class(value) => value.is_pure(),
-            Self::Attribute(p) | Self::Custom(p) => p.pure,
-        }
-    }
-
-    /// Returns whether the record-order proof must account for this occurrence.
-    /// Only static class leaves have no evaluation boundary; this is independent of
-    /// purity, since a pure read must not move across an effectful write.
-    pub(super) fn evaluates(&self) -> bool {
-        !matches!(self, Self::Class(Emitted::Leaf { .. }))
-    }
-}
-
-/// A composable value before symbolic fragments become framework props.
-/// Sequences and records initially retain contribution order. Folding may group
-/// effect-free channels but keeps guards, opaque operations, and occurrence origins.
+/// A composable value before symbolic fragments become framework props. Sequences and
+/// records initially retain contribution order. Folding may group channels under the
+/// macro contract but keeps guards, opaque operations, and occurrence origins.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Fragment {
     /// Contributions eligible for one field-layout proof.

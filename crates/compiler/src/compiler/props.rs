@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use stillwind_source::Span;
 
-use super::fragment::expression::{Emitted, Property, ValueExpr};
+use super::fragment::{Emitted, Property, ValueExpr};
 use crate::generated::Code;
 
 /// One conditional step of a class contribution's guard path.

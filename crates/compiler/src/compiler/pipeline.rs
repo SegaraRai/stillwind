@@ -10,7 +10,7 @@
 //! Failure is all-or-nothing: once any diagnostic exists, the transforms, classes, symbols,
 //! and CSS are cleared, so a caller never receives a plan that describes half a compilation.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, filter_lint_findings};
@@ -137,18 +137,12 @@ impl Compiler {
                     generated_symbol(source, AssetKind::ViewTransition, &definition.name)
                 }),
         );
-        let pure_expressions = module
-            .pure_expressions
-            .iter()
-            .copied()
-            .collect::<HashSet<_>>();
         for call in module.style_calls {
             let Some(emission) = CallEmitter::run(CallEmitterInputs {
                 source,
                 options,
                 theme,
                 call: &call,
-                pure_expressions: &pure_expressions,
                 diagnostics: &mut result.diagnostics,
                 lint_findings: &mut result.lint_findings,
                 utility_css: &mut utility_css,
@@ -160,12 +154,7 @@ impl Compiler {
                 continue;
             };
             result.classes.extend(emission.classes.iter().cloned());
-            let replacement = render_style_call(
-                &emission,
-                module.adapter.spec(),
-                &mut runtime,
-                &mut result.lint_findings,
-            );
+            let replacement = render_style_call(&emission, module.adapter.spec(), &mut runtime);
             result.transforms.push(SourceTransform {
                 call_span: call.span,
                 replacement: replacement.text,

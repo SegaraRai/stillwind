@@ -431,7 +431,7 @@
           "path": "src/SaveButton.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = style(\n  [\n    \"inline-flex items-center rounded-md px-4 progress-[.5] authored-progress\",\n    loading && \"opacity-60\",\n  ],\n  emphasized ? \"bg-accent\" : \"bg-muted\",\n  {\n    class: [\"legacy-button\", loading && \"is-loading\"],\n    \"aria-busy\": loading,\n    \"data-emphasis\": emphasized ? \"high\" : \"normal\",\n    \"hover:\": \"bg-accent/90\",\n  },\n);\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
-          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"_s_4b7bffee\",[null,(loading) && (\"_s_d7909e1f\")],(emphasized) ? (\"_s_a87e225d\") : (\"_s_7bafcdd5\"),stillwindClsx([\"legacy-button\", loading && \"is-loading\"])),\"aria-busy\":loading,\"data-emphasis\":emphasized ? \"high\" : \"normal\"};\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"_s_4b7bffee\",(loading) && (\"_s_d7909e1f\"),(emphasized) ? (\"_s_a87e225d\") : (\"_s_7bafcdd5\"),\"legacy-button\",loading && \"is-loading\"),\"aria-busy\":loading,\"data-emphasis\":emphasized ? \"high\" : \"normal\"};\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
           "css": "._s_4b7bffee {\n  display: inline-flex;\n  padding-inline: var(--spacing-4);\n  align-items: center;\n  --button-progress: 0.5;\n  --authored-progress: 1;\n  border-radius: var(--radius-md);\n}\n@media (hover: hover) {\n  ._s_4b7bffee:hover {\n    background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);\n    @supports (color: color-mix(in lab, red, red)) {\n      background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);\n    }\n  }\n}\n._s_d7909e1f {\n  opacity: calc(60 * 1%);\n}\n._s_a87e225d {\n  background-color: var(--color-accent);\n}\n._s_7bafcdd5 {\n  background-color: var(--color-muted);\n}\n",
           "diff": [
             {
@@ -444,7 +444,7 @@
               "fromA": 160,
               "toA": 500,
               "fromB": 176,
-              "toB": 426
+              "toB": 401
             }
           ]
         }

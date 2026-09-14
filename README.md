@@ -47,6 +47,11 @@ style("w-[calc(var(--progress)*100%)]", { "--progress": progress });
 See [custom properties](docs/custom-properties.md) for URL values, bundler-owned
 image imports, conditional values, and framework output formats.
 
+Macro argument expressions must be pure: ordinary calculation calls are allowed,
+but shared mutation and effects belong outside the macro. Evaluation order and
+unused evaluations are not guaranteed. See [macro contracts](docs/macro-contract.md)
+for static arguments, reactive reads, execution boundaries, and diagnostics.
+
 See [experimental runtime CSS conditions](docs/runtime-if.md) for `--if(...)`,
 `if(...):utility`, and the shared `useCssIf` compiler option.
 

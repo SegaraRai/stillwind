@@ -1,7 +1,7 @@
 //! Structure-preserving lowering of conditional class expressions.
 //!
 //! Checks emitted code structure and occurrences of test expressions (without executing
-//! JS), that `&&` and `?:` keep their short-circuiting and source evaluation order
+//! JS), that `&&` and `?:` keep their short-circuiting and contribution order
 //! (attribute values included), that base rules precede conditional rules in the
 //! stylesheet, and that unsupported forms keep reporting their existing diagnostics.
 
@@ -70,21 +70,24 @@ fn short_circuit_and_null_branches_lower_without_a_class() {
 }
 
 #[test]
-fn attribute_values_keep_their_source_evaluation_order() {
+fn pure_attribute_values_allow_class_first_materialization() {
     let result = compile("const props = style({ \"aria-busy\": f() }, b ? \"p-2\" : \"m-2\");");
     let replacement = emitted(&result);
     let attribute = replacement.find("\"aria-busy\":f()").expect("attribute");
     let classes = replacement
         .find("(b) ?")
         .expect("conditional class evaluation");
-    assert!(attribute < classes, "{replacement}");
+    assert!(classes < attribute, "{replacement}");
 }
 
 #[test]
-fn arrays_and_conditional_objects_keep_their_structure() {
+fn clsx_flattens_outer_arrays_but_keeps_guarded_arrays_and_objects() {
     let result = compile("const props = style([a ? [\"p-2\", b && \"m-2\"] : \"p-4\"]);");
     let replacement = emitted(&result);
-    assert!(replacement.contains("[(a) ? (["), "{replacement}");
+    assert!(
+        replacement.contains("stillwindClsx((a) ? (["),
+        "{replacement}"
+    );
     let attributes =
         compile("const props = style(a ? { \"aria-busy\": f() } : { \"data-x\": 1 });");
     let replacement = emitted(&attributes);
@@ -105,12 +108,12 @@ fn base_rules_precede_conditional_rules_in_the_stylesheet() {
 }
 
 #[test]
-fn await_and_this_tests_keep_their_positions() {
+fn precomputed_async_values_and_this_keep_their_context() {
     for (body, expected) in [
         (
             "declare function ready(): Promise<boolean>;\n\
-             export async function make() { return style(await ready() ? 'p-2' : 'm-2'); }",
-            "(await ready()) ? (",
+             export async function make() { const readyValue = await ready(); return style(readyValue ? 'p-2' : 'm-2'); }",
+            "(readyValue) ? (",
         ),
         (
             "export class Panel { ready = true; props = style(this.ready ? 'p-2' : 'm-2'); }",

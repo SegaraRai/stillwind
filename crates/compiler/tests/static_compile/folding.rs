@@ -1,10 +1,10 @@
-//! Public compiler contracts for fragment layouts, effect proofs, and source attribution.
+//! Public compiler contracts for fragment layouts, macro contracts, and source attribution.
 //!
 //! Cases compile authored calls through the frontend, then inspect output, helper
 //! bindings, typed findings, and independently converted source coordinates.
 
 use stillwind_compiler::{CompileResult, render_transforms};
-use stillwind_diagnostics::LintKind;
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
@@ -70,56 +70,23 @@ fn custom_properties_materialize_directly_for_every_framework() {
     }
 }
 
-/// Pins both the public lint code and the three source occurrences explaining a grouping obstruction.
 #[test]
-fn order_rejection_reports_one_typed_finding_with_source_labels() {
-    let (source, result) = compile(
-        "react",
-        r#"const props = style({ "--x": f() }, { "data-value": g() }, { "--y": h() });"#,
-    );
-    let findings = result
-        .lint_findings
-        .iter()
-        .filter(|finding| matches!(finding.kind, LintKind::StyleFoldEvaluationOrder))
-        .collect::<Vec<_>>();
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].code(), "style-fold-evaluation-order");
-    let spans = findings[0]
-        .labels
-        .iter()
-        .map(|label| source.slice(label.span).unwrap())
-        .collect::<Vec<_>>();
-    assert!(spans[0].starts_with("style("));
-    assert_eq!(&spans[1..], ["f()", "g()", "h()"]);
-    let code = &result.transforms[0].replacement;
-    assert!(code.contains("stillwindMerge"));
-    assert!(code.find("f()").unwrap() < code.find("g()").unwrap());
-    assert!(code.find("g()").unwrap() < code.find("h()").unwrap());
-}
-
-/// Applies existing lint directives to a folding finding produced after initial analysis.
-#[test]
-fn folding_findings_obey_existing_suppression() {
-    for directive in [
-        "// swlint-disable-next-line style-fold-evaluation-order",
-        "/* swlint-disable style-fold-evaluation-order */",
-    ] {
+fn ordinary_calls_fold_across_channels_without_pure_annotations() {
+    for fw in ["react", "svelte"] {
         let (_, result) = compile(
-            "react",
-            &format!(
-                "{directive}\nconst props = style({{ '--x': f() }}, {{ 'data-value': g() }}, {{ '--y': h() }});"
-            ),
+            fw,
+            r#"const props = style({ "--x": f() }, { "data-value": g() }, { "--y": h() });"#,
         );
-        assert!(
-            result.lint_findings.is_empty(),
-            "{:?}",
-            result.lint_findings
-        );
-        assert!(result.transforms[0].replacement.contains("stillwindMerge"));
+        assert!(result.lint_findings.is_empty());
+        let code = &result.transforms[0].replacement;
+        assert!(!code.contains("stillwindMerge"), "{code}");
+        for call in ["f()", "g()", "h()"] {
+            assert_eq!(code.matches(call).count(), 1);
+        }
     }
 }
 
-/// Distinguishes serialization limits from effect-order obstructions without losing repeated calls.
+/// Checks duplicate-name serialization limits without losing contributions.
 #[test]
 fn unimpeded_and_duplicate_records_do_not_report_order_findings() {
     for fw in ["react", "svelte"] {
@@ -156,11 +123,11 @@ fn conditional_children_fold_without_materializing_the_parent() {
     assert!(result.lint_findings.is_empty());
 }
 
-/// Exercises source expressions whose meaning depends on the enclosing async or class context.
+/// Keeps async work outside the macro while preserving source-owned value reads.
 #[test]
-fn direct_custom_values_keep_await_and_this_in_the_original_context() {
+fn custom_values_use_precomputed_async_results_and_original_this() {
     for body in [
-        "async function make() { return style({ '--x': await read() }); }",
+        "async function make() { const value = await read(); return style({ '--x': value }); }",
         "class Component { props = style({ '--x': this.value }); }",
     ] {
         let (source, result) = compile("svelte", body);
@@ -200,9 +167,9 @@ fn deferred_helpers_remain_binding_safe() {
     assert!(!code.contains("stillwindMerge"));
 }
 
-/// Keeps effectful tests when both arms are empty and retains values following an empty slot.
+/// Drops empty conditions while retaining guards for nonempty contributions.
 #[test]
-fn empty_branches_do_not_erase_tests_or_later_contributions() {
+fn empty_branches_keep_only_guards_with_contributions() {
     for expression in [
         "test() ? [] : []",
         "test() && []",
@@ -210,18 +177,22 @@ fn empty_branches_do_not_erase_tests_or_later_contributions() {
     ] {
         let (_, result) = compile("react", &format!("const props = style({expression});"));
         let code = &result.transforms[0].replacement;
-        assert_eq!(code.matches("test()").count(), 1, "{code}");
+        assert_eq!(
+            code.matches("test()").count(),
+            usize::from(expression.contains("value()")),
+            "{code}"
+        );
         if expression.contains("value()") {
             assert_eq!(code.matches("value()").count(), 1, "{code}");
         }
     }
 }
 
-/// Exercises identifiers, property reads, and PURE calls across interleaved channels in every framework.
+/// Exercises identifiers, property reads, and ordinary calls across interleaved channels in every framework.
 #[test]
 fn pure_records_can_reorder_evaluations_but_keep_runtime_key_order() {
     for fw in ["react", "preact", "solid", "vue", "svelte", "astro"] {
-        for value in ["x", "object.value", "/*#__PURE__*/ f(x)"] {
+        for value in ["x", "object.value", "f(x)", "f?.(g())", "new URL(path)"] {
             let (_, result) = compile(
                 fw,
                 &format!(
@@ -247,33 +218,16 @@ fn pure_records_can_reorder_evaluations_but_keep_runtime_key_order() {
     }
 }
 
-/// Places a write or call between pure reads to check conservative order rejection.
+/// Removes nested empty guards without requiring annotations on calls.
 #[test]
-fn mixed_effects_keep_reads_on_their_original_side_of_writes_and_calls() {
-    for value in ["f()", "f?.()", "x++", "x = 2", "/*#__PURE__*/ f(g())"] {
-        let (_, result) = compile(
-            "react",
-            &format!(
-                "const props = style({{ '--x': x }}, {{ 'data-value': {value} }}, {{ '--y': x }});"
-            ),
-        );
-        let code = &result.transforms[0].replacement;
-        assert!(code.contains("stillwindMerge"), "{value}: {code}");
-        assert!(
-            result
-                .lint_findings
-                .iter()
-                .any(|finding| matches!(finding.kind, LintKind::StyleFoldEvaluationOrder)),
-            "{value}: {:?}",
-            result.lint_findings
-        );
-    }
-}
-
-/// Compares nested empty pure guards with calls, updates, and impure arguments to PURE calls.
-#[test]
-fn empty_pure_conditions_are_removed_recursively_without_erasing_effectful_tests() {
-    for test in ["flag", "object.value", "/*#__PURE__*/ check(flag)"] {
+fn empty_conditions_are_removed_recursively_under_the_contract() {
+    for test in [
+        "flag",
+        "object.value",
+        "check(flag)",
+        "check?.()",
+        "check(other())",
+    ] {
         for expression in [
             format!("{test} ? [] : []"),
             format!("{test} && []"),
@@ -290,23 +244,6 @@ fn empty_pure_conditions_are_removed_recursively_without_erasing_effectful_tests
             );
             assert!(!code.contains("outer"), "{expression}: {code}");
         }
-    }
-    for test in [
-        "check()",
-        "check?.()",
-        "flag++",
-        "/*#__PURE__*/ check(effect())",
-    ] {
-        let (_, result) = compile("react", &format!("const props = style({test} ? [] : []);"));
-        let code = &result.transforms[0].replacement;
-        assert!(
-            code.contains(if test.contains("effect()") {
-                "effect()"
-            } else {
-                test
-            }),
-            "{test}: {code}"
-        );
     }
 }
 
@@ -405,5 +342,157 @@ fn custom_values_keep_authored_parentheses_and_source_mapping() {
             &transform.replacement[mapping.start..mapping.end],
             expression
         );
+    }
+}
+
+#[test]
+fn class_arguments_flatten_arrays_and_merge_trailing_clsx() {
+    let (source, result) = compile(
+        "react",
+        r#"const props = style("p-2", ["m-2", [loading && "opacity-50"]], emphasized ? "px-2" : "px-4", { class: ["legacy-button", loading && "is-loading"] });"#,
+    );
+    let edit = &result.transforms[0];
+    assert!(!edit.replacement.contains("[null"), "{}", edit.replacement);
+    assert_eq!(
+        edit.replacement.matches("stillwindClsx(").count(),
+        1,
+        "{}",
+        edit.replacement
+    );
+    assert!(
+        edit.replacement
+            .contains("\"legacy-button\",loading && \"is-loading\"")
+    );
+    render_transforms(&source, &result.transforms).unwrap();
+}
+
+#[test]
+fn flattened_guards_keep_distinct_unicode_source_mappings() {
+    let (source, result) = compile(
+        "react",
+        "const props = style(\"p-2\", [[状態 && \"m-2\"], [状態 && \"px-2\"]]);",
+    );
+    let edit = &result.transforms[0];
+    assert!(!edit.replacement.contains('['), "{}", edit.replacement);
+    let guards = edit
+        .expressions
+        .iter()
+        .filter(|m| source.slice(m.original).unwrap() == "状態")
+        .collect::<Vec<_>>();
+    assert_eq!(guards.len(), 2);
+    assert_ne!(guards[0].original, guards[1].original);
+    for mapping in guards {
+        assert_eq!(&edit.replacement[mapping.start..mapping.end], "状態");
+    }
+    render_transforms(&source, &result.transforms).unwrap();
+}
+
+#[test]
+fn nested_clsx_combines_with_later_value_calls() {
+    let (_, result) = compile(
+        "react",
+        r#"const props = style({ class: ["legacy", loading && "is-loading"] }, check() && "p-2");"#,
+    );
+    assert_eq!(
+        result.transforms[0]
+            .replacement
+            .matches("stillwindClsx(")
+            .count(),
+        1,
+        "{}",
+        result.transforms[0].replacement
+    );
+}
+
+#[test]
+fn multiple_clsx_calls_merge_without_losing_source_occurrences() {
+    let (source, result) = compile(
+        "react",
+        "const props = style('flex', {class: getClasses()}, test() && 'p-2', {class: getClasses()});",
+    );
+    let edit = &result.transforms[0];
+    assert_eq!(
+        edit.replacement.matches("stillwindClsx(").count(),
+        1,
+        "{}",
+        edit.replacement
+    );
+    assert_eq!(edit.replacement.matches("getClasses()").count(), 2);
+    assert_eq!(edit.replacement.matches("test()").count(), 1);
+    let calls = edit
+        .expressions
+        .iter()
+        .filter(|mapping| source.slice(mapping.original).unwrap() == "getClasses()")
+        .collect::<Vec<_>>();
+    assert_eq!(calls.len(), 2);
+    assert_ne!(calls[0].original, calls[1].original);
+    render_transforms(&source, &result.transforms).unwrap();
+}
+
+#[test]
+fn macro_contract_errors_prevent_output_even_for_empty_conditions() {
+    let source = SourceFile::new(
+        FileId(1),
+        "contract.tsx",
+        "import {style} from 'stillwind/react'; const props = style(index++ ? [] : []);",
+    )
+    .unwrap();
+    let css = crate::css_fixture::source(FileId(2), "style.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &css);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|error| error.kind == CompileErrorKind::MacroArgumentMutation)
+    );
+    assert!(result.transforms.is_empty());
+}
+
+#[test]
+fn external_class_arrays_flatten_with_exact_leaf_mappings() {
+    let (source, result) = compile(
+        "react",
+        "const props = style({class: [same, [,, '日本😀', same, []], flag && ['later']]});",
+    );
+    let edit = &result.transforms[0];
+    assert!(
+        edit.replacement
+            .contains("stillwindClsx(same,'日本😀',same,flag && ['later'])"),
+        "{}",
+        edit.replacement
+    );
+    assert_eq!(edit.expressions.len(), 4);
+    assert_ne!(edit.expressions[0].original, edit.expressions[2].original);
+    for mapping in &edit.expressions {
+        assert_eq!(
+            source.slice(mapping.original).unwrap(),
+            &edit.replacement[mapping.start..mapping.end]
+        );
+    }
+    render_transforms(&source, &result.transforms).unwrap();
+}
+
+#[test]
+fn external_empty_arrays_omit_clsx_and_spreads_stay_iterable() {
+    for expression in ["[]", "[,,]", "[[], [, []]]", "([[]] as const)"] {
+        let (_, result) = compile(
+            "react",
+            &format!("const props = style({{class: {expression}}});"),
+        );
+        assert_eq!(result.transforms[0].replacement, "{}");
+    }
+    for expression in ["[...'ab']", "[...values]", "[first, ...values, [last]]"] {
+        let (source, result) = compile(
+            "react",
+            &format!("const props = style({{class: [{expression}]}});"),
+        );
+        let edit = &result.transforms[0];
+        assert!(
+            edit.replacement
+                .contains(&format!("stillwindClsx({expression})")),
+            "{}",
+            edit.replacement
+        );
+        render_transforms(&source, &result.transforms).unwrap();
     }
 }

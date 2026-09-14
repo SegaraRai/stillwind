@@ -309,9 +309,12 @@ impl<'a> MacroExtractor<'a> {
                 .property_name(&property.key)
                 .is_some_and(|name| name.value == "class")
             {
-                entries.push(GroupEntry::Class(Box::new(ClassExpression::External(
-                    self.source_span(property.value.span()),
-                ))));
+                let mut arguments = Vec::new();
+                self.collect_class_arguments(&property.value, &mut arguments);
+                entries.push(GroupEntry::Class(Box::new(ClassExpression::External {
+                    span: self.source_span(property.value.span()),
+                    arguments,
+                })));
                 continue;
             }
             let PropertyKey::StringLiteral(name) = &property.key else {
@@ -356,6 +359,30 @@ impl<'a> MacroExtractor<'a> {
                 span: self.source_span(object.span),
                 entries,
             })
+        }
+    }
+
+    /// Expands external class arrays into original-source argument spans.
+    /// Spread arrays stay intact because iteration and clsx consumption accept
+    /// different values. Guarded arrays remain inside their original expression.
+    fn collect_class_arguments(
+        &self,
+        expression: &Expression<'a>,
+        arguments: &mut Vec<stillwind_source::Span>,
+    ) {
+        if let Expression::ArrayExpression(array) = expression.get_inner_expression()
+            && !array
+                .elements
+                .iter()
+                .any(|element| matches!(element, ArrayExpressionElement::SpreadElement(_)))
+        {
+            for element in &array.elements {
+                if let Some(value) = element.as_expression() {
+                    self.collect_class_arguments(value, arguments);
+                }
+            }
+        } else {
+            arguments.push(self.source_span(expression.span()));
         }
     }
 
@@ -408,7 +435,7 @@ fn variant_compatible(expression: &ClassExpression) -> bool {
             GroupEntry::Class(expression) => variant_compatible(expression),
             GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => false,
         }),
-        ClassExpression::External(_)
+        ClassExpression::External { .. }
         | ClassExpression::HandleProjection { .. }
         | ClassExpression::DynamicHandleProjection { .. } => false,
     }

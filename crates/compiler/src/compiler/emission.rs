@@ -1,15 +1,15 @@
 //! Structure-preserving style emission.
 //!
 //! [`CallEmitter::run`] resolves style inputs into class units and typed contributions
-//! for fragment folding. It retains guards, source occurrences, and frontend effect
-//! proofs; provably empty, effect-free subtrees are omitted. It does not choose final
+//! for fragment folding. It retains guards, source occurrences; subtrees with no
+//! contribution are omitted under the macro purity contract. It does not choose final
 //! framework keys or allocate runtime helper imports.
 //!
 //! [`ClassUnits`] owns class identities and base-before-conditional CSS publication.
 //! [`LiteralContribution`] resolves utility text, and fragment rendering later chooses
 //! a representation without changing those CSS identities or declaration order.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
@@ -22,7 +22,7 @@ use stillwind_source::{SourceFile, Span};
 
 use super::CssContribution;
 use super::class_units::ClassUnits;
-use super::fragment::expression::{Emitted, EmittedEntry, Property, ValueExpr};
+use super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
 use super::handles::{
     handle_marker_class, ref_identity, render_handle_projection, scope_identity, scope_marker_class,
 };
@@ -49,9 +49,6 @@ use crate::{CompilerOptions, GeneratedSymbol};
 pub(super) struct CallEmitter<'a> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
-    /// Exact original-source spans proven effect-free by the frontend heuristic.
-    /// A missing span is unproven; lookup order does not affect output.
-    pure_expressions: &'a HashSet<Span>,
     /// Compiler configuration for generated identities and output.
     options: &'a CompilerOptions,
     /// Resolved theme and utility registry for this compilation.
@@ -78,15 +75,14 @@ pub(super) struct CallEmitter<'a> {
 impl<'a> CallEmitter<'a> {
     /// Lowers one analyzed call into finalized class units and ordered contributions.
     ///
-    /// Input spans and effect proofs must address `source`. Shared CSS, symbol, asset,
-    /// and diagnostic destinations may be extended during traversal. `None` means an
-    /// input could not be lowered; `Some` is not proof of diagnostic-free compilation.
-    /// The pipeline must inspect diagnostics and discard failed output transactionally.
+    /// Input spans must address `source`. Shared CSS, symbol, asset, and diagnostic
+    /// destinations may be extended during traversal. `None` means an input could not
+    /// be lowered; `Some` is not proof of diagnostic-free compilation. The pipeline
+    /// must inspect diagnostics and discard failed output transactionally.
     #[allow(clippy::needless_pass_by_value)] // The struct owns the borrows this call consumes.
     pub(super) fn run(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
         let emitter = Self {
             source: inputs.source,
-            pure_expressions: inputs.pure_expressions,
             options: inputs.options,
             theme: inputs.theme,
             call: inputs.call,
@@ -184,7 +180,6 @@ impl<'a> CallEmitter<'a> {
                 self.runtime_assets
                     .extend(scopes.iter().map(scope_identity));
                 let expression = ValueExpr::Call {
-                    pure: self.pure_expressions.contains(value),
                     helper: RuntimeHelper::HandleClass,
                     arguments: vec![self.source_expression(*value)?],
                     span: *value,
@@ -194,7 +189,6 @@ impl<'a> CallEmitter<'a> {
             StyleInput::DynamicHandleAttachment { value, handles } => {
                 self.runtime_assets.extend(handles.iter().map(ref_identity));
                 let expression = ValueExpr::Call {
-                    pure: self.pure_expressions.contains(value),
                     helper: RuntimeHelper::HandleClass,
                     arguments: vec![self.source_expression(*value)?],
                     span: *value,
@@ -246,7 +240,6 @@ impl<'a> CallEmitter<'a> {
                     None => "undefined".into(),
                 };
                 let expression = ValueExpr::Call {
-                    pure: false,
                     helper: RuntimeHelper::ViewTransitionStyle,
                     arguments: vec![
                         format!("\"{name}\"").into(),
@@ -286,7 +279,6 @@ impl<'a> CallEmitter<'a> {
                     .collect::<Vec<_>>()
                     .join(",");
                 let expression = ValueExpr::Call {
-                    pure: false,
                     helper: RuntimeHelper::ViewTransitionStyle,
                     arguments: vec![
                         self.source_expression(*value)?,
@@ -418,7 +410,6 @@ impl<'a> CallEmitter<'a> {
                 let test = self.source_expression(test_span)?;
                 match kind {
                     ConditionalKind::LogicalAnd => Some(Emitted::Conditional {
-                        pure: self.pure_expressions.contains(&test_span),
                         code: test,
                         kind: *kind,
                         consequent: consequent.map(Box::new),
@@ -432,7 +423,6 @@ impl<'a> CallEmitter<'a> {
                         let alternate = self.emit_sequence(alternate, guard, wrappers);
                         guard.pop();
                         Some(Emitted::Conditional {
-                            pure: self.pure_expressions.contains(&test_span),
                             code: test,
                             kind: *kind,
                             consequent: consequent.map(Box::new),
@@ -482,12 +472,17 @@ impl<'a> CallEmitter<'a> {
                 }
                 any.then_some(Emitted::Group(items))
             }
-            ClassExpression::External(value) => {
+            ClassExpression::External { span, arguments } => {
+                if arguments.is_empty() {
+                    return None;
+                }
                 let expression = ValueExpr::Call {
-                    pure: self.pure_expressions.contains(value),
                     helper: RuntimeHelper::Clsx,
-                    arguments: vec![self.source_expression(*value)?],
-                    span: *value,
+                    arguments: arguments
+                        .iter()
+                        .map(|argument| self.source_expression(*argument))
+                        .collect::<Option<Vec<_>>>()?,
+                    span: *span,
                 };
                 Some(Emitted::Expression(expression))
             }
@@ -566,7 +561,6 @@ impl<'a> CallEmitter<'a> {
                 }
                 let table = table.join(",");
                 let expression = ValueExpr::Call {
-                    pure: self.pure_expressions.contains(value),
                     helper: RuntimeHelper::HandleClass,
                     arguments: vec![
                         self.source_expression(*value)?,
@@ -636,7 +630,6 @@ impl<'a> CallEmitter<'a> {
                 }
                 let table = table.join(",");
                 let expression = ValueExpr::Call {
-                    pure: self.pure_expressions.contains(value),
                     helper: RuntimeHelper::AssetClass,
                     arguments: vec![
                         self.source_expression(*value)?,
@@ -672,14 +665,13 @@ impl<'a> CallEmitter<'a> {
         }
     }
 
-    /// Captures the decoded custom-property name, original value text/span, and effect proof.
-    /// Returns `None` if the source value cannot be sliced. CSS-value conversion and
-    /// JavaScript quoting are deferred until a representation has been selected.
+    /// Captures the decoded custom-property name, original value text/span. Returns
+    /// `None` if the source value cannot be sliced. CSS-value conversion and JavaScript
+    /// quoting are deferred until a representation has been selected.
     fn render_custom_property(&self, property: &CustomPropertyEntry) -> Option<Property> {
         Some(Property {
             name: property.name.value.clone(),
             value: self.slice(property.value)?,
-            pure: self.pure_expressions.contains(&property.value),
             span: property.value,
         })
     }
@@ -691,7 +683,6 @@ impl<'a> CallEmitter<'a> {
         Some(Property {
             name: attribute.name.value.clone(),
             value: self.slice(attribute.value)?,
-            pure: self.pure_expressions.contains(&attribute.value),
             span: attribute.value,
         })
     }
@@ -703,14 +694,14 @@ impl<'a> CallEmitter<'a> {
         self.units.base.utilities.push(view_transition_utility());
     }
 
-    /// Copies one original expression with an exact occurrence mapping.
-    /// Returns `None` if the span has a foreign file, invalid bounds, or UTF-8 boundaries.
+    /// Copies one original expression with an exact occurrence mapping. Returns `None`
+    /// if the span has a foreign file, invalid bounds, or UTF-8 boundaries.
     fn source_expression(&self, span: Span) -> Option<Code> {
         Some(Code::source(self.slice(span)?, span))
     }
 
-    /// Copies a valid source slice verbatim, retaining authored whitespace.
-    /// Returns `None` on a slicing error; this helper does not emit diagnostics.
+    /// Copies a valid source slice verbatim, retaining authored whitespace. Returns
+    /// `None` on a slicing error; this helper does not emit diagnostics.
     fn slice(&self, span: Span) -> Option<String> {
         self.source.slice(span).ok().map(str::to_owned)
     }
@@ -730,14 +721,11 @@ impl<'a> CallEmitter<'a> {
 }
 
 /// Source, analysis, and shared output destinations for lowering one style call.
-/// Spans in the call and purity set must address `source`; destinations are appended
+/// Spans in the call must address `source`; destinations are appended
 /// during lowering and are not individually rolled back on failure.
 pub(super) struct CallEmitterInputs<'a> {
     /// Original buffer used to slice user expressions.
     pub source: &'a SourceFile,
-    /// Exact original-source spans proven effect-free by the frontend heuristic.
-    /// A missing span is unproven; lookup order does not affect output.
-    pub pure_expressions: &'a HashSet<Span>,
     /// Compiler configuration for this call.
     pub options: &'a CompilerOptions,
     /// Resolved theme and utility registry.
@@ -772,11 +760,12 @@ fn expression_position(expression: &ClassExpression) -> u32 {
         ClassExpression::Variant { variant, .. } => match variant {
             StyleVariant::Prefix(prefix) | StyleVariant::Ref { prefix, .. } => prefix.span.start.0,
         },
-        ClassExpression::Group { span, .. } => span.start.0,
+        ClassExpression::Group { span, .. } | ClassExpression::External { span, .. } => {
+            span.start.0
+        }
         ClassExpression::HandleProjection { handle, .. } => handle.call_span.start.0,
         ClassExpression::AnimationUse { animation, .. } => animation.span.start.0,
-        ClassExpression::External(value)
-        | ClassExpression::DynamicHandleProjection { value, .. }
+        ClassExpression::DynamicHandleProjection { value, .. }
         | ClassExpression::DynamicAnimationUse { value, .. } => value.start.0,
     }
 }

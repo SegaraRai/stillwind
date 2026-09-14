@@ -57,57 +57,46 @@ function evaluate(code: string, context: Record<string, unknown>) {
   };
 }
 
-void test("each conditional test is evaluated exactly once", async () => {
+void test("pure conditional calls select one class branch", async () => {
   const output = await compile(
     [
       "import {style} from 'stillwind/react';",
-      "let calls = 0;",
-      "const first = () => { calls += 1; return calls === 1; };",
-      "const events = [];",
+      "const first = () => enabled; const events = [];",
       "const props = style('red', first() ? 'blue' : 'green');",
-      "events.push('calls:' + calls);",
     ].join("\n"),
   );
-  const { props, events } = evaluate(output.code!, {});
-  assert.deepEqual(Array.from(events), ["calls:1"]);
-  assert.equal(String(props.className).split(" ").length, 2);
-  assert.match(String(props.className), /_s_[0-9a-f]{8}$/);
+  const yes = evaluate(output.code!, { enabled: true }).props;
+  const no = evaluate(output.code!, { enabled: false }).props;
+  assert.equal(String(yes.className).split(" ").length, 2);
+  assert.equal(String(no.className).split(" ").length, 2);
+  assert.notEqual(yes.className, no.className);
 });
 
-void test("short-circuiting keeps a nested test from running", async () => {
+void test("short-circuiting leaves an unselected nested value unread", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react';",
-      "let nested = 0;",
-      "const second = () => { nested += 1; return true; };",
-      "const events = [];",
+      "import {style} from 'stillwind/react'; const events = [];",
       "const props = style('red', enabled && (second() ? 'blue' : 'green'));",
-      "events.push('nested:' + nested);",
     ].join("\n"),
   );
   const disabled = evaluate(output.code!, { enabled: false });
-  assert.deepEqual(Array.from(disabled.events), ["nested:0"]);
   assert.equal(String(disabled.props.className).split(" ").length, 1);
-  const enabled = evaluate(output.code!, { enabled: true });
-  assert.deepEqual(Array.from(enabled.events), ["nested:1"]);
+  const enabled = evaluate(output.code!, { enabled: true, second: () => true });
   assert.equal(String(enabled.props.className).split(" ").length, 2);
 });
 
-void test("attribute values and class guards keep their source order", async () => {
+void test("pure attribute and guard calls materialize directly", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react';",
-      "const events = [];",
-      "const props = style(",
-      "  { 'aria-busy': (events.push('attribute'), true) },",
-      "  (events.push('guard'), enabled) ? 'blue' : 'green',",
-      ");",
+      "import {style} from 'stillwind/react'; const events = [];",
+      "const read = (value) => value;",
+      "const props = style({ 'aria-busy': read(true) }, read(enabled) ? 'blue' : 'green');",
     ].join("\n"),
   );
-  const { props, events } = evaluate(output.code!, { enabled: true });
-  assert.deepEqual(Array.from(events), ["attribute", "guard"]);
+  assert.doesNotMatch(output.code!, /stillwindMerge/);
+  const { props } = evaluate(output.code!, { enabled: true });
+  assert.deepEqual(Object.keys(props), ["className", "aria-busy"]);
   assert.equal(props["aria-busy"], true);
-  assert.equal(String(props.className).split(" ").length, 1);
 });
 
 void test("direct props and fragment materialization produce the same classes", async () => {
@@ -203,17 +192,16 @@ void test("custom-property folding materializes object and string framework prop
   }
 });
 
-void test("custom-property fallback preserves intervening attribute evaluation", async () => {
+void test("interleaved pure calls fold into one property record", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react';",
-      "const events = [];",
-      "const props = style({ '--x': (events.push('x'), 1) }, { 'data-value': (events.push('attribute'), 2) }, { '--y': (events.push('y'), 3) });",
+      "import {style} from 'stillwind/react'; const events = [];",
+      "const read = (value) => value;",
+      "const props = style({ '--x': read(1) }, { 'data-value': read(2) }, { '--y': read(3) });",
     ].join("\n"),
   );
-  assert.match(output.code!, /stillwindMerge/);
-  const { props, events } = evaluate(output.code!, {});
-  assert.deepEqual(Array.from(events), ["x", "attribute", "y"]);
+  assert.doesNotMatch(output.code!, /stillwindMerge/);
+  const { props } = evaluate(output.code!, {});
   assert.equal(props["data-value"], 2);
   assert.deepEqual(Object.entries(props.style as object), [
     ["--x", "1"],
@@ -221,7 +209,7 @@ void test("custom-property fallback preserves intervening attribute evaluation",
   ]);
 });
 
-void test("empty conditional branches still evaluate their test exactly once", async () => {
+void test("empty branches omit calls while nonempty branches keep guards", async () => {
   for (const branch of [
     "check() ? [] : []",
     "check() && []",
@@ -229,15 +217,15 @@ void test("empty conditional branches still evaluate their test exactly once", a
   ]) {
     const output = await compile(
       [
-        "import {style} from 'stillwind/react';",
-        "const events = [];",
-        "const check = () => { events.push('test'); return enabled; };",
+        "import {style} from 'stillwind/react'; const events = [];",
         `const props = style(${branch});`,
       ].join("\n"),
     );
     for (const enabled of [false, true]) {
-      const { props, events } = evaluate(output.code!, { enabled });
-      assert.deepEqual(Array.from(events), ["test"]);
+      const { props } = evaluate(
+        output.code!,
+        branch.includes("--x") ? { check: () => enabled } : {},
+      );
       assert.equal(Object.hasOwn(props, "className"), false);
       assert.equal(Object.hasOwn(props, "style"), enabled && branch.includes("--x"));
     }
@@ -253,7 +241,7 @@ void test("pure folding and empty-branch removal preserve materialized values", 
       [
         `import {style} from 'stillwind/${framework}';`,
         "const events = []; const read = (value) => value;",
-        "const props = style({ '--x': /* @__PURE__ */ read(x) }, { 'data-value': x }, { '--y': x + 1 }, enabled && [], 'red');",
+        "const props = style({ '--x': read(x) }, { 'data-value': x }, { '--y': x + 1 }, enabled && [], 'red');",
       ].join("\n"),
     );
     assert.doesNotMatch(output.code!, /stillwindMerge|enabled/);
@@ -273,21 +261,21 @@ void test("pure folding and empty-branch removal preserve materialized values", 
   }
 });
 
-void test("pure reads stay on each side of an effectful write", async () => {
-  const output = await compile(
-    [
-      "import {style} from 'stillwind/react';",
-      "const events = []; let value = 1;",
-      "const props = style({ '--before': value }, { 'data-value': value++ }, { '--after': value });",
-    ].join("\n"),
-  );
-  assert.match(output.code!, /stillwindMerge/);
-  const { props } = evaluate(output.code!, {});
-  assert.equal(props["data-value"], 1);
-  assert.deepEqual(Object.entries(props.style as object), [
-    ["--before", "1"],
-    ["--after", "2"],
-  ]);
+void test("macro mutations and execution boundaries surface native diagnostics", async () => {
+  for (const [expression, code] of [
+    ["value++", "SHMACRO001"],
+    ["useTheme()", "SHMACRO002"],
+  ]) {
+    await assert.rejects(
+      compile(
+        [
+          "import {style} from 'stillwind/react'; const events = []; let value = 1;",
+          `const props = style({ '--x': ${expression} });`,
+        ].join("\n"),
+      ),
+      new RegExp(code),
+    );
+  }
 });
 
 void test("folded expressions map to distinct original occurrences through native output", async () => {
@@ -298,6 +286,7 @@ void test("folded expressions map to distinct original occurrences through nativ
   for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
     for (const call of [
       "style({ '--x': same },\r\n { 'data-value': other },\r\n { '--y': same }, 'red')",
+      "style({ '--x': other }, { class: [same, [,, '😀日本', same]] }, 'red')",
       "style(check() ? { '--x': first() } : { '--y': last() })",
       "style('red', enabled && 'blue', { class: extra })",
       "style({ '--x': `😀${value}\n日本語` })",
@@ -354,5 +343,21 @@ void test("folded expressions map to distinct original occurrences through nativ
           ),
         );
     }
+  }
+});
+
+void test("external class arrays flatten while spread keeps iterable semantics", async () => {
+  for (const [expression, expected] of [
+    ['["first", [,, "日本😀", ["last"]]]', "first 日本😀 last"],
+    ['[..."ab"]', "a b"],
+    ['[[...new Set(["a", "b"])], "c"]', "a b c"],
+    ['[enabled ? ["a", "b"] : [], "c"]', "a b c"],
+    ['[("ignored", "kept"), "last"]', "kept last"],
+    ["[[], [,,]]", undefined],
+  ] as const) {
+    const output = await compile(
+      `import {style} from 'stillwind/react'; const events = []; const props = style({class: ${expression}});`,
+    );
+    assert.equal(evaluate(output.code!, { enabled: true }).props.className, expected, output.code);
   }
 });

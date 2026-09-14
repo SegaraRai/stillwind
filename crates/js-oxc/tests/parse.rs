@@ -603,3 +603,43 @@ const props = style({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }
     assert_eq!(value.value, "text-blue");
     assert_eq!(source.slice(value.span).unwrap(), "text-blue");
 }
+
+#[test]
+fn external_class_arrays_keep_leaf_occurrences_and_spread_boundaries() {
+    let source = SourceFile::new(FileId(1), "classes.tsx", "import {style} from 'stillwind/react'; const props = style({class: [first, [,, second, []], flag ? [third] : [], [...values], (fourth, fifth)]});").unwrap();
+    let parsed = parse(&source);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let StyleInput::Class(ClassExpression::Group { entries, .. }) =
+        &parsed.module.style_calls[0].inputs[0]
+    else {
+        panic!("class group")
+    };
+    let GroupEntry::Class(value) = &entries[0] else {
+        panic!("class entry")
+    };
+    let ClassExpression::External { span, arguments } = value.as_ref() else {
+        panic!("external class")
+    };
+    assert!(source.slice(*span).unwrap().starts_with("[first,"));
+    assert_eq!(
+        arguments
+            .iter()
+            .map(|span| source.slice(*span).unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "first",
+            "second",
+            "flag ? [third] : []",
+            "[...values]",
+            "(fourth, fifth)"
+        ]
+    );
+    let relocated = parsed
+        .module
+        .try_map_spans(|span| Ok::<_, ()>(Span::new(FileId(2), span.start.0 + 10, span.end.0 + 10)))
+        .unwrap();
+    let restored = relocated
+        .try_map_spans(|span| Ok::<_, ()>(Span::new(FileId(1), span.start.0 - 10, span.end.0 - 10)))
+        .unwrap();
+    assert_eq!(restored, parsed.module);
+}

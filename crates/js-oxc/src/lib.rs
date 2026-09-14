@@ -5,7 +5,7 @@
 //! handle definitions, animation and view-transition declarations, resolves the
 //! framework adapter, and publishes a [`stillwind_semantic::ModuleSummary`] plus the
 //! type probes the host checker still has to answer. `entry` coordinates parsing and
-//! extraction; `effects` adds syntactic effect proofs consumed by fragment folding.
+//! extraction; `contract` validates macro argument expressions before folding.
 //! `normalization` and `projected_scan` restore editable source coordinates for
 //! converted framework input, including the effect-proof spans.
 //!
@@ -31,8 +31,8 @@
 mod analyzer;
 mod ast;
 mod bindings;
+mod contract;
 mod demand;
-mod effects;
 mod entry;
 mod expressions;
 mod imports;

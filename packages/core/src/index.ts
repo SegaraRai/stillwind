@@ -105,6 +105,7 @@ export type StyleViewTransitionUse<Id extends string = string> = {
 };
 
 export type StyleViewTransition<Id extends string = string> = StyleViewTransitionUse<Id> & {
+  /** Instance key evaluated under the pure value-expression contract of {@link StyleMacro}. */
   for(key: string | number): StyleViewTransitionUse<Id>;
 };
 
@@ -154,6 +155,25 @@ export type StyleArgument =
   | StyleAnimationUse
   | StyleViewTransitionUse;
 
+/**
+ * Compile-time UI declarations with pure value expressions.
+ * Each argument expression must return an equivalent value for the same inputs and
+ * must not mutate shared data or perform observable effects, including through
+ * callees, getters, or value conversion. Calls need no PURE annotation. Functions
+ * may mutate fresh local data used only to compute their result.
+ *
+ * Evaluation order and count are not API guarantees: unused expressions may be
+ * omitted and class/value conversions may be combined. Do not rely on exceptions
+ * from unused expressions. Read time/randomness and perform I/O, state updates,
+ * Hooks, await/yield, imports, JSX, and class initialization outside the macro;
+ * pass their resulting values. Reactive reads stay in the current computation
+ * scope and must not be used only to establish a subscription.
+ *
+ * Names, utility definitions, animation options, and selector/query arguments are
+ * static declarations. Dynamic identity selectors and view-transition keys obey
+ * the same value-expression contract. Declaration-identity overloads are internal
+ * checker metadata.
+ */
 export type StyleMacro<Props = StyleProps> = {
   <Id extends string>(
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]

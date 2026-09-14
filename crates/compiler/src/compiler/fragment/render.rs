@@ -3,31 +3,28 @@
 //! [`render_style_call`] tries direct framework props, then renders a folded symbolic
 //! tree through the merge runtime. Source-owned fragments retain occurrence mappings;
 //! synthetic keys and helpers receive the enclosing transform's fallback location.
-//! CSS allocation and effect analysis are inputs, not responsibilities of this module.
+//! The caller supplies finalized CSS identities and validates the macro contract.
 
-use stillwind_diagnostics::{Label, LintFinding, LintKind};
 use stillwind_ir::{ConditionalKind, FrameworkSpec, StyleFormat};
 use stillwind_source::Span;
 
-use super::super::expression_render::render_plain;
+use super::super::expression_render::{collect_class_arguments, render_plain};
 use super::super::props::StyleEmission;
 use super::expression::{Atom, Emitted, Fragment, Property, ValueExpr};
-use super::fold::{Demand, Field, Rejection, fold, known_record, record_fields, static_class};
+use super::fold::{Demand, Field, fold, known_record, record_fields, static_class};
 use crate::generated::{Code, code, js_string};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
 /// Returns code for one finalized call, registering helpers only for the selected output.
 ///
 /// Uses direct framework props when the whole record is representable; otherwise
-/// folds subtrees and wraps symbolic values in the merge runtime. An obstructed
-/// root evaluation order appends one typed lint finding; shape-only rejection does
-/// not. Existing findings are retained and lint suppression is applied by the caller.
+/// folds subtrees and wraps symbolic values in the merge runtime. The input must
+/// satisfy the macro value-expression contract, which permits evaluation reordering.
 /// All source-owned expressions keep their occurrence mappings.
 pub(in super::super) fn render_style_call(
     emission: &StyleEmission,
     fw: &FrameworkSpec,
     runtime: &mut RuntimeBindings<'_>,
-    findings: &mut Vec<LintFinding>,
 ) -> Code {
     let source = Fragment::from_emission(emission);
     let mut renderer = Renderer {
@@ -35,33 +32,10 @@ pub(in super::super) fn render_style_call(
         runtime,
         span: emission.call_span,
     };
-    if let Some(atoms) = known_record(&source) {
-        match record_fields(&atoms, Demand::Props, fw) {
-            Ok(fields) => return renderer.record(&atoms, &fields, Demand::Props),
-            Err(Rejection::EvaluationOrder {
-                before,
-                between,
-                after,
-            }) => {
-                let mut finding =
-                    LintFinding::new(LintKind::StyleFoldEvaluationOrder, emission.call_span);
-                for (index, message) in [
-                    (before, "first contribution"),
-                    (between, "intervening evaluation"),
-                    (after, "later contribution"),
-                ] {
-                    if let Atom::Attribute(p) | Atom::Custom(p) = &atoms[index] {
-                        finding.labels.push(Label {
-                            span: p.span,
-                            message: Some(message.into()),
-                        });
-                    }
-                }
-                finding.notes.push("Combining these contributions would move an evaluation across another; the fragment runtime preserves their source order.".into());
-                findings.push(finding);
-            }
-            Err(Rejection::Representation) => {}
-        }
+    if let Some(atoms) = known_record(&source)
+        && let Some(fields) = record_fields(&atoms, Demand::Props, fw)
+    {
+        return renderer.record(&atoms, &fields, Demand::Props);
     }
     let folded = fold(source, fw);
     let arguments = match &folded {
@@ -98,8 +72,8 @@ impl Renderer<'_, '_> {
                     return "null".into();
                 }
                 match record_fields(atoms, Demand::Fragment, self.fw) {
-                    Ok(fields) => self.record(atoms, &fields, Demand::Fragment),
-                    Err(_) => code![
+                    Some(fields) => self.record(atoms, &fields, Demand::Fragment),
+                    None => code![
                         "[",
                         Code::join(
                             atoms
@@ -284,39 +258,21 @@ impl Renderer<'_, '_> {
     }
 
     /// Joins renderable class values through clsx without changing argument provenance.
-    /// A single deferred clsx call surrounded only by static leaves is flattened;
-    /// other helper calls retain their own evaluation boundaries.
+    /// Deferred clsx calls become arguments of the surrounding clsx under the macro
+    /// purity contract; guards remain single expressions.
     ///
     /// # Panics
     ///
     /// Panics if any value is not accepted by `render_plain`.
     #[allow(clippy::expect_used)] // Atom::Class is constructed only after render_plain succeeds.
     fn classes(&mut self, values: &[&Emitted]) -> Code {
-        // Only static siblings may move into a source clsx call: then argument
-        // evaluation and user-owned value coercion stay at the same boundary.
-        let mut source_calls = 0;
-        let collapsible = values.iter().all(|value| match value {
-            Emitted::Leaf { .. } => true,
-            Emitted::Expression(ValueExpr::Call {
-                helper: RuntimeHelper::Clsx,
-                ..
-            }) => {
-                source_calls += 1;
-                true
-            }
-            _ => false,
-        });
-        if collapsible && source_calls == 1 {
-            let arguments = values
-                .iter()
-                .flat_map(|value| match value {
-                    Emitted::Leaf { names } => vec![js_string(&names.join(" ")).into()],
-                    Emitted::Expression(ValueExpr::Call { arguments, .. }) => arguments.clone(),
-                    _ => Vec::new(),
-                })
-                .collect::<Vec<_>>();
-            let helper = self.runtime.require(RuntimeHelper::Clsx, self.span);
-            return code![helper, "(", Code::join(arguments, ","), ")"];
+        let mut arguments = Vec::new();
+        for value in values {
+            collect_class_arguments(value, &mut arguments);
+        }
+        let values = arguments;
+        if values.is_empty() {
+            return js_string("").into();
         }
         let helper = self.runtime.require(RuntimeHelper::Clsx, self.span);
         code![
@@ -325,7 +281,14 @@ impl Renderer<'_, '_> {
             Code::join(
                 values
                     .iter()
-                    .map(|v| render_plain(v, self.runtime).expect("class-only tree"))
+                    .flat_map(|value| match value {
+                        Emitted::Expression(ValueExpr::Call {
+                            helper: RuntimeHelper::Clsx,
+                            arguments,
+                            ..
+                        }) => arguments.clone(),
+                        _ => vec![render_plain(value, self.runtime).expect("class-only tree")],
+                    })
                     .collect::<Vec<_>>(),
                 ","
             ),

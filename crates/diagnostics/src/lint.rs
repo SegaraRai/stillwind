@@ -16,9 +16,6 @@ use crate::Label;
 /// Producers select the cause; hosts decide its presentation and configured severity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 pub enum LintKind {
-    /// Direct props folding cannot preserve evaluation order under the available effect proofs.
-    #[error("style folding was skipped to preserve evaluation order")]
-    StyleFoldEvaluationOrder,
     /// A ref uses positioning without a known anchor attachment.
     #[error("ref `{name}` uses position without an anchor projection")]
     MissingAnchor {
@@ -101,7 +98,6 @@ impl LintKind {
     /// Returns the stable reporting code; lint codes also name suppression rules.
     pub const fn code(&self) -> &'static str {
         match self {
-            Self::StyleFoldEvaluationOrder => "style-fold-evaluation-order",
             Self::MissingAnchor { .. } => "require-anchor-provider",
             Self::MissingContainer { .. } => "require-container-provider",
             Self::MissingRefAncestor { .. } => "valid-ref-ancestry",
