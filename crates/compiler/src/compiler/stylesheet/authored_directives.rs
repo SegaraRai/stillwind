@@ -13,9 +13,7 @@ use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_syntax::parse_candidate;
 
 use super::super::conditionals::{guard, isolate_rule};
-use super::super::utilities::declaration_order::{
-    order_builtin_utilities, prepend_missing_declarations,
-};
+use super::super::utilities::declaration_order::{order_utilities, prepend_missing_declarations};
 use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
 use super::blocks::find_at_rule_block;
@@ -45,7 +43,7 @@ pub(in crate::compiler) fn expand_authored_directives(
         let utilities = candidates
             .filter_map(|candidate| resolve_utility(candidate, theme))
             .collect::<Vec<_>>();
-        let mut ordered = order_builtin_utilities(utilities.iter().collect());
+        let mut ordered = order_utilities(utilities.iter().collect());
         ordered.sort_by_key(|utility| {
             utility.variants.iter().any(|variant| {
                 matches!(

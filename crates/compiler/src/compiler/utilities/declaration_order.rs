@@ -1,8 +1,7 @@
 //! Declaration-level ordering inside one rule.
 //!
-//! Built-in utilities are reordered into their registry definition order, which is what makes
-//! shorthand and longhand precedence reproducible; a user definition records no position and stays
-//! where the author wrote it. Two equal positions fall back to the candidate spelling, so output is
+//! Utilities follow the design system's precedence, which makes
+//! shorthand and longhand precedence reproducible. Equal positions use candidate spelling, so output is
 //! stable for a given input. Combining, rather than concatenating, the declarations is also where
 //! semantic declaration composition applies, so a caller must always go
 //! through `combine_declarations_for_theme` instead of joining declaration strings itself.
@@ -13,7 +12,8 @@ use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
-    ThemeIndex, VariantDeclaration, builtin_declaration_formats, declaration_format,
+    ThemeIndex, VariantDeclaration, builtin_declaration_formats, compare_utility_order,
+    declaration_format,
 };
 
 use super::resolve::CompiledUtility;
@@ -79,7 +79,7 @@ pub(in crate::compiler) fn combine_declarations_with_formats(
     }
     let mut composed = HashMap::<&str, usize>::new();
     let mut ordered = Vec::<Declaration<'_>>::new();
-    for utility in order_builtin_utilities(utilities.to_vec()) {
+    for utility in order_utilities(utilities.to_vec()) {
         for range in declaration_ranges(&utility.declaration) {
             let declaration = &utility.declaration[range];
             if let Some((property, value)) = declaration.split_once(':')
@@ -168,31 +168,18 @@ fn composition_value(value: &str) -> (&str, bool) {
     priority.map_or((value.trim(), false), |start| (value[..start].trim(), true))
 }
 
-/// Reorders the utilities that carry a built-in position, leaving every other element in place.
-///
-/// Only the slots already occupied by built-ins are permuted: a user definition or an arbitrary
-/// property keeps its source position, which is what keeps a user's own `@utility` from moving
-/// when the registry changes.
-pub(in crate::compiler) fn order_builtin_utilities(
+/// Orders utilities by shared precedence while retaining branches of the same candidate.
+pub(in crate::compiler) fn order_utilities(
     mut utilities: Vec<&CompiledUtility>,
 ) -> Vec<&CompiledUtility> {
-    let positions = utilities
-        .iter()
-        .enumerate()
-        .filter_map(|(index, utility)| utility.builtin_order.map(|_| index))
-        .collect::<Vec<_>>();
-    let mut builtins = positions
-        .iter()
-        .map(|index| utilities[*index])
-        .collect::<Vec<_>>();
-    builtins.sort_by(|left, right| {
-        left.builtin_order
-            .cmp(&right.builtin_order)
-            .then_with(|| left.candidate.cmp(&right.candidate))
+    utilities.sort_by(|left, right| {
+        compare_utility_order(
+            left.builtin_order,
+            &left.candidate,
+            right.builtin_order,
+            &right.candidate,
+        )
     });
-    for (position, utility) in positions.into_iter().zip(builtins) {
-        utilities[position] = utility;
-    }
     utilities
 }
 

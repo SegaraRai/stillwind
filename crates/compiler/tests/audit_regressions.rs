@@ -35,6 +35,37 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
 }
 
 #[test]
+fn utility_precedence_is_independent_of_literal_and_array_order() {
+    let css = "@utility a { color:red; } @utility b { color:blue; } \
+               @stillwind-utility builtin { color:green; }";
+    for input in [
+        "'a b builtin'",
+        "'builtin b a'",
+        "['b', 'builtin', 'a']",
+        "'b', 'a', 'builtin'",
+    ] {
+        let (_, result) = compile(&format!("export const x = style({input});"), css);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert!(result.lint_findings.is_empty(), "{result:#?}");
+        assert!(
+            result.css.ends_with("{color:red;color:blue;color:green;}"),
+            "{input}: {}",
+            result.css
+        );
+    }
+    for input in ["'hover:b hover:a'", "['hover:a', 'hover:b']"] {
+        let (_, result) = compile(
+            &format!("export const x = style({input});"),
+            &format!("{css} @variant hover {{ &:hover {{ @slot; }} }}"),
+        );
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        let red = result.css.find("color:red;").unwrap();
+        let blue = result.css.find("color:blue;").unwrap();
+        assert!(red < blue, "{input}: {}", result.css);
+    }
+}
+
+#[test]
 fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
     for value in ["--value(--color-*)", "calc(--value(--color-*) + 1)"] {
         let (_, result) = compile(

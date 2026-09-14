@@ -9,11 +9,12 @@
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
-    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
+    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_utility_order,
+    compare_variant_sequences,
 };
 
 use super::super::CssContribution;
-use super::declaration_order::{combine_declarations_for_theme, order_builtin_utilities};
+use super::declaration_order::{combine_declarations_for_theme, order_utilities};
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
 
@@ -45,7 +46,7 @@ fn emit_utility_css(
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
 ) {
-    let utilities = order_builtin_utilities(utilities.iter().collect());
+    let utilities = order_utilities(utilities.iter().collect());
     let base = utilities
         .iter()
         .copied()
@@ -78,9 +79,14 @@ fn emit_utility_css(
         })
         .collect::<Vec<_>>();
     variant_utilities.sort_by(|left, right| {
-        compare_variant_sequences(&left.variants, &right.variants, theme)
-            .then_with(|| left.builtin_order.cmp(&right.builtin_order))
-            .then_with(|| left.candidate.cmp(&right.candidate))
+        compare_variant_sequences(&left.variants, &right.variants, theme).then_with(|| {
+            compare_utility_order(
+                left.builtin_order,
+                &left.candidate,
+                right.builtin_order,
+                &right.candidate,
+            )
+        })
     });
     for utility in variant_utilities {
         let declaration = assemble_nested_declarations(
