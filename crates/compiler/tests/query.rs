@@ -49,6 +49,18 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
                 .css
                 .contains(":focus")
         );
+        let input = SourceFile::new(
+            FileId(2),
+            "entry.ts",
+            "import {style} from 'stillwind/react'; const value=style('late builtin early');",
+        )
+        .unwrap();
+        let compiled =
+            stillwind_compiler::Compiler::compile_source(&OxcSourceAnalyzer, &input, &source);
+        assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
+        let blue = compiled.css.find("color:blue").unwrap();
+        let green = compiled.css.find("color:green").unwrap();
+        assert_eq!(blue < green, mode == "authored", "{}", compiled.css);
     }
 }
 
