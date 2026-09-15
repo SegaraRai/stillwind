@@ -426,29 +426,35 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ._s_818153bd {
+  ._s_07a47159 {
     anchor-scope: --sw-r-5c7d76f9;
+  }
+  ._s_62f9b27b {
     container-name: --sw-s-5c7d76f9;
     container-type: inline-size;
   }
-  ._s_bcf2abc9 {
-    anchor-name: --sw-r-5c7d76f9;
+  ._s_6afa1e8f {
     position: relative;
     display: inline-flex;
   }
-  ._s_daa10279 {
-    position-anchor: --sw-r-5c7d76f9;
+  ._s_576a26bf {
+    anchor-name: --sw-r-5c7d76f9;
+  }
+  ._s_0277c3bb {
     position: absolute;
   }
   @container --sw-r-5c7d76f9 (width >= 40rem) {
-    ._s_daa10279 {
+    ._s_0277c3bb {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (hover: hover) {
-    .s_menu_3523e441:has(.s_trigger_5c7d76f9:where(:hover)) ._s_daa10279 {
+    .s_menu_3523e441:has(.s_trigger_5c7d76f9:where(:hover)) ._s_0277c3bb {
       color: var(--color-accent);
     }
+  }
+  ._s_a4d34624 {
+    position-anchor: --sw-r-5c7d76f9;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

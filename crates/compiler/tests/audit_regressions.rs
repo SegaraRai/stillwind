@@ -97,7 +97,9 @@ fn punctuation_labels_produce_valid_javascript_strings() {
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");
     for edit in &result.transforms {
-        if edit.replacement.starts_with("import ") {
+        // Import insertions and removals are statements of their own; every other edit
+        // has to carry a parseable value.
+        if edit.replacement.starts_with("import ") || edit.replacement.is_empty() {
             continue;
         }
         let source = SourceFile::new(
@@ -108,7 +110,10 @@ fn punctuation_labels_produce_valid_javascript_strings() {
         .unwrap();
         assert!(parse(&source).diagnostics.is_empty(), "{}", source.text());
     }
-    assert!(result.css.contains(r#"d\"e\/f"#), "{}", result.css);
+    // The label stays in the marker token, and the token is escaped where the selector
+    // and the anchor-name value are written.
+    assert!(result.css.contains(r#"s_d\"e\/f_"#), "{}", result.css);
+    assert!(result.css.contains(r#".s_d\"e\/f_"#), "{}", result.css);
 }
 
 #[test]

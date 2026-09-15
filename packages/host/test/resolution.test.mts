@@ -150,7 +150,7 @@ void test("external package runtime exports do not replace declaration resolutio
     );
     assert.ok(output);
     assert.deepEqual(output.diagnostics, []);
-    assert.match(output.code!, /stillwindHandleClass\(selected\)/);
+    assert.match(output.code!, /}\)\[selected\.c\]/);
   } finally {
     service.close();
     rmSync(root, { recursive: true, force: true });

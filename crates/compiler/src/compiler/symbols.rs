@@ -53,27 +53,6 @@ pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static 
     }
 }
 
-/// Class name used by the runtime projection lookup table.
-///
-/// The table key is the marker class of the handle, so the runtime picks the projected
-/// class of whichever handle it was given.
-pub(super) fn runtime_projection_class(
-    context: &IdentifierContext,
-    handle: &HandleDefinition,
-    projection: &HandleProjection,
-) -> Result<String, CompileErrorKind> {
-    let suffix = match projection {
-        HandleProjection::Anchor => "anchor",
-        HandleProjection::Position => "position",
-        HandleProjection::Scope => "scope",
-        HandleProjection::Container(kind) => kind.value.as_str(),
-    };
-    Ok(format!(
-        "_swp_{}_{suffix}",
-        ref_marker_name(context, handle)?
-    ))
-}
-
 /// Canonical identity input of a ref declaration's generated names.
 pub(super) fn ref_name_input(definition: &HandleDefinition) -> String {
     asset_identity(&definition.module_path, "ref", &definition.name)

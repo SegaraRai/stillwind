@@ -29,11 +29,10 @@ use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::StyleVariantPlan;
 use super::symbols::{
-    anchor_name, handle_projection_name, motion_name_symbol, ref_marker_name,
-    runtime_projection_class, scope_marker_name,
+    anchor_name, handle_projection_name, motion_name_symbol, ref_marker_name, scope_marker_name,
 };
 use super::utilities::resolve::{CompiledUtility, view_transition_utility};
-use crate::generated::{Code, js_string};
+use crate::generated::{Code, code, js_string};
 use crate::identifier::IdentifierContext;
 use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
@@ -209,20 +208,12 @@ impl<'a> CallEmitter<'a> {
             StyleInput::DynamicScopeAttachment { value, scopes } => {
                 self.runtime_assets
                     .extend(scopes.iter().map(scope_identity));
-                let expression = ValueExpr::Call {
-                    helper: RuntimeHelper::HandleClass,
-                    arguments: vec![self.source_expression(*value)?],
-                    span: *value,
-                };
+                let expression = handle_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
             StyleInput::DynamicHandleAttachment { value, handles } => {
                 self.runtime_assets.extend(handles.iter().map(ref_identity));
-                let expression = ValueExpr::Call {
-                    helper: RuntimeHelper::HandleClass,
-                    arguments: vec![self.source_expression(*value)?],
-                    span: *value,
-                };
+                let expression = handle_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
             StyleInput::ViewTransitionUse { transition, key } => {
@@ -545,6 +536,9 @@ impl<'a> CallEmitter<'a> {
             }
             ClassExpression::HandleProjection { handle, projection } => {
                 let name = handle_projection_name(projection);
+                // The projection reads the declaration's canonical token, so the
+                // declaration has to keep its runtime value.
+                self.runtime_assets.insert(ref_identity(handle));
                 let anchor = match anchor_name(self.identifiers, handle) {
                     Ok(anchor) => anchor,
                     Err(failure) => {
@@ -585,32 +579,32 @@ impl<'a> CallEmitter<'a> {
                     order: UtilityOrder::Authored(None),
                     candidate: String::new(),
                 };
-                if fold && guard.is_empty() {
-                    self.units.base.canonical.push_str("handle:");
-                    self.units.base.canonical.push_str(&anchor);
-                    self.units.base.canonical.push(':');
-                    self.units.base.canonical.push_str(name);
-                    self.units.base.canonical.push('\u{0}');
-                    self.units.base.utilities.push(utility);
-                    if !self.units.base.names.contains(&marker) {
-                        self.units.base.names.push(marker);
-                    }
-                    return None;
-                }
                 let contribution = LiteralContribution {
                     canonical: format!("handle:{anchor}:{name}\u{0}"),
                     utilities: vec![utility],
                     markers: Vec::new(),
                     external: Vec::new(),
-                    plain: vec![marker],
+                    plain: Vec::new(),
                 };
-                match self.units.leaf(contribution, guard) {
-                    Ok(leaf) => Some(leaf),
+                // The projection is read through the declaration's canonical token, so
+                // the element keeps its marker class and the caller needs no helper.
+                let class = match self.units.leaf(contribution, guard) {
+                    Ok(leaf) => leaf,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
-                        None
+                        return None;
                     }
-                }
+                };
+                let Emitted::Leaf { mut names } = class else {
+                    return None;
+                };
+                names.push(marker.clone());
+                let entry = format!("{}:{}", js_string(&marker), js_string(&names.join(" ")));
+                Some(Emitted::Expression(ValueExpr::Lookup {
+                    value: Box::new(ValueExpr::Source(handle.name.value.clone().into())),
+                    key: "c".to_owned(),
+                    table: format!("{{{entry}}}").into(),
+                }))
             }
             ClassExpression::DynamicHandleProjection {
                 value,
@@ -620,14 +614,13 @@ impl<'a> CallEmitter<'a> {
                 let mut table = Vec::new();
                 for handle in handles {
                     self.runtime_assets.insert(ref_identity(handle));
-                    let marker =
-                        match runtime_projection_class(self.identifiers, handle, projection) {
-                            Ok(marker) => marker,
-                            Err(failure) => {
-                                self.reject_name(failure, self.call.span);
-                                return None;
-                            }
-                        };
+                    let marker = match ref_marker_name(self.identifiers, handle) {
+                        Ok(marker) => marker,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
                     let anchor = match anchor_name(self.identifiers, handle) {
                         Ok(anchor) => anchor,
                         Err(failure) => {
@@ -685,13 +678,10 @@ impl<'a> CallEmitter<'a> {
                     table.push(format!("{}:{class}", js_string(&marker)));
                 }
                 let table = table.join(",");
-                let expression = ValueExpr::Call {
-                    helper: RuntimeHelper::HandleClass,
-                    arguments: vec![
-                        self.source_expression(*value)?,
-                        format!("{{{table}}}").into(),
-                    ],
-                    span: *value,
+                let expression = ValueExpr::Lookup {
+                    value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
+                    key: "c".to_owned(),
+                    table: format!("{{{table}}}").into(),
                 };
                 Some(Emitted::Expression(expression))
             }
@@ -904,7 +894,16 @@ pub(super) struct CallEmitterInputs<'a> {
     pub motion_assets: &'a mut BTreeSet<IdentityId>,
 }
 
+/// Reads the canonical class token off a compiled ref or scope value.
+///
+/// Every handle value carries its token under `c`, so an attachment is a property read
+/// and needs no runtime helper.
+fn handle_class_read(value: Code) -> ValueExpr {
+    ValueExpr::Source(code!["(", value, ").c"])
+}
+
 /// Returns an original-source UTF-8 byte anchor for sorting a call's contributions.
+///
 /// Conditionals use their test, variants and groups use their enclosing span, and
 /// arrays use their first element or zero when empty. This establishes initial
 /// contribution order; folding separately proves whether evaluations may move.

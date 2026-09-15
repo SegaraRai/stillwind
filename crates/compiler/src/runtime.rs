@@ -34,14 +34,8 @@ pub(crate) enum RuntimeHelper {
     CssValue,
     /// The `stillwindCustomPropertiesKey` runtime export.
     CustomPropertiesKey,
-    /// The `stillwindHandleClass` runtime export.
-    HandleClass,
     /// The `stillwindMerge` runtime export.
     Merge,
-    /// The `stillwindRef` runtime export.
-    Ref,
-    /// The `stillwindScope` runtime export.
-    Scope,
     /// The `stillwindStyleKey` runtime export.
     StyleKey,
     /// The `stillwindToFragment` runtime export.
@@ -62,10 +56,7 @@ impl RuntimeHelper {
             Self::Clsx => "stillwindClsx",
             Self::CssValue => "stillwindCssValue",
             Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
-            Self::HandleClass => "stillwindHandleClass",
             Self::Merge => "stillwindMerge",
-            Self::Ref => "stillwindRef",
-            Self::Scope => "stillwindScope",
             Self::StyleKey => "stillwindStyleKey",
             Self::ToFragment => "stillwindToFragment",
             Self::ViewTransition => "stillwindViewTransition",

@@ -6,9 +6,6 @@ import {
   stillwindAssetClass,
   stillwindClassKey,
   stillwindToFragment,
-  stillwindHandleClass,
-  stillwindRef,
-  stillwindScope,
   stillwindMerge,
   stillwindViewTransition,
   stillwindViewTransitionStyle,
@@ -27,30 +24,6 @@ void test("composition joins base classes, preserves delta props, and leaves inp
   });
   assert.deepEqual(stillwindMerge(), {});
   assert.deepEqual(Object.getOwnPropertySymbols(stillwindMerge(stillwindToFragment(first))), []);
-});
-
-void test("dynamic projections select the calling style's own CSS class", () => {
-  const projection = stillwindRef("ref").anchor;
-  assert.equal(
-    stillwindHandleClass(projection, { _swp_ref_anchor: "_swp_ref_anchor own" }),
-    "_swp_ref_anchor own",
-  );
-  assert.throws(() => stillwindHandleClass(projection, {}), /unknown ref projection/);
-});
-
-void test("selects the marker carried by a dynamic compiled handle", () => {
-  const first = stillwindRef("s_first_01234567");
-  const second = stillwindRef("s_second_89abcdef");
-  const selected = process.argv.includes("--select-first") ? first : second;
-
-  assert.equal(stillwindHandleClass(selected), "s_second_89abcdef");
-  assert.equal(stillwindHandleClass(selected.anchor), "_swp_s_second_89abcdef_anchor");
-  assert.equal(
-    stillwindHandleClass(selected.container("inline-size")),
-    "_swp_s_second_89abcdef_inline-size",
-  );
-  assert.equal(stillwindHandleClass(stillwindScope("s_menu_76543210")), "s_menu_76543210");
-  assert.throws(() => stillwindHandleClass({ className: "user-owned" }), TypeError);
 });
 
 void test("view-transition styles share properties and encode keyed instance names", () => {

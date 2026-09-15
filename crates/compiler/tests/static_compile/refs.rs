@@ -44,8 +44,17 @@ const panel = style(popover.position, "absolute");"#,
     );
     assert!(result.css.contains_css("container-type:inline-size;"));
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(!transformed.contains("style.ref()"));
-    assert!(transformed.contains("const popover = undefined;"));
+    assert!(!transformed.contains("style.ref()"), "{transformed}");
+    // The projection reads the declaration's canonical token, so the declaration stays a
+    // value instead of being erased as unused.
+    assert!(
+        transformed.contains("const popover = {c:\"s_"),
+        "{transformed}"
+    );
+    assert!(
+        transformed.contains("({\"s_") && transformed.contains("})[popover.c]"),
+        "{transformed}"
+    );
 }
 
 #[test]

@@ -20,16 +20,6 @@ export function stillwindClsx(...values: readonly unknown[]): string {
   return values.flatMap(flatten).filter(Boolean).join(" ");
 }
 
-/**
- * Structural runtime representation of a compiled ref, scope, or projection.
- * className is a generated class token without a selector dot; the shape is not
- * a nominal authenticity check.
- */
-export interface StillwindRuntimeHandle {
-  readonly kind: "ref" | "scope" | "projection";
-  readonly className: string;
-}
-
 interface StillwindRuntimeAsset {
   readonly kind: "animation" | "view-transition" | "animation-use";
   readonly identity: string;
@@ -121,61 +111,6 @@ export function stillwindAssetClass(
     throw new TypeError("Stillwind received an unknown animation or view transition identity.");
   }
   return classes[identity];
-}
-
-/** Creates the minimal runtime value needed when a ref crosses static data flow. */
-export function stillwindRef(className: string): StillwindRuntimeHandle & {
-  readonly anchor: StillwindRuntimeHandle;
-  readonly position: StillwindRuntimeHandle;
-  readonly anchorScope: StillwindRuntimeHandle;
-  container(type: "size" | "inline-size"): StillwindRuntimeHandle;
-} {
-  const projection = (name: string): StillwindRuntimeHandle => ({
-    kind: "projection",
-    className: `_swp_${className}_${name}`,
-  });
-  return {
-    kind: "ref",
-    className,
-    anchor: projection("anchor"),
-    position: projection("position"),
-    anchorScope: projection("scope"),
-    container: projection,
-  };
-}
-
-/** Creates the minimal runtime value needed when a scope crosses static data flow. */
-export function stillwindScope(className: string): StillwindRuntimeHandle {
-  return { kind: "scope", className };
-}
-
-/**
- * Reads className from a structurally valid ref, scope, or projection handle.
- * With classes, returns its own-entry lookup instead and rejects unknown markers.
- * Throws TypeError for invalid shapes or missing table entries; without a table,
- * a matching object shape is sufficient and compiler provenance is not checked.
- */
-export function stillwindHandleClass(
-  value: unknown,
-  classes?: Readonly<Record<string, string>>,
-): string {
-  if (
-    !value ||
-    typeof value !== "object" ||
-    !("kind" in value) ||
-    (value.kind !== "ref" && value.kind !== "scope" && value.kind !== "projection") ||
-    !("className" in value) ||
-    typeof value.className !== "string"
-  ) {
-    throw new TypeError("Stillwind expected a compiled ref or scope value.");
-  }
-  if (classes) {
-    if (!Object.hasOwn(classes, value.className)) {
-      throw new TypeError("Stillwind received an unknown ref projection identity.");
-    }
-    return classes[value.className];
-  }
-  return value.className;
 }
 
 function flatten(value: unknown): string[] {

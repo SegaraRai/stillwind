@@ -246,11 +246,7 @@ impl Compiler {
                 call_span: handle_definition.call_span,
                 replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
                     match ref_marker_name(identifiers, &handle_definition) {
-                        Ok(marker) => format!(
-                            "{}({})",
-                            runtime.require(RuntimeHelper::Ref, handle_definition.call_span),
-                            js_string(&marker)
-                        ),
+                        Ok(marker) => handle_value(&marker),
                         Err(failure) => {
                             diagnostics
                                 .push(CompileError::new(failure, handle_definition.call_span));
@@ -268,11 +264,7 @@ impl Compiler {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
                     match scope_marker_name(identifiers, &scope_definition) {
-                        Ok(marker) => format!(
-                            "{}({})",
-                            runtime.require(RuntimeHelper::Scope, scope_definition.call_span),
-                            js_string(&marker)
-                        ),
+                        Ok(marker) => handle_value(&marker),
                         Err(failure) => {
                             diagnostics
                                 .push(CompileError::new(failure, scope_definition.call_span));
@@ -420,6 +412,16 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
             ))
         })
         .collect()
+}
+
+/// Keeps a named symbol, or reports the generator's failure at `span`.
+/// One ref or scope declaration's runtime value: its canonical class token under `c`.
+///
+/// A declaration is an identity, and every attachment reads that one key, so a handle
+/// needs no runtime helper and no projection helper functions. The key is a plain
+/// property read, which is what makes `style(ref)` and the projections static.
+fn handle_value(marker: &str) -> String {
+    format!("{{c:{}}}", js_string(marker))
 }
 
 /// Keeps a named symbol, or reports the generator's failure at `span`.

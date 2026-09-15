@@ -441,9 +441,10 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         .unwrap_or_else(|| panic!("{:?} {:?}", compiled.symbols, compiled.diagnostics));
     assert!(marker.name.starts_with("s_fixed"), "{}", marker.name);
     assert!(
-        compiled.code_transforms.iter().any(|transform| transform
-            .replacement
-            .contains("stillwindRef(\"s_fixed36\")")),
+        compiled
+            .code_transforms
+            .iter()
+            .any(|transform| transform.replacement.contains("{c:\"s_fixed36\"}")),
         "{:?}",
         compiled.code_transforms
     );

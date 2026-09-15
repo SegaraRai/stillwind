@@ -125,7 +125,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   const consumer = withFacts.modules.find((module) => module.path === "src/consumer.ts");
   assert(consumer);
   assert.deepEqual(consumer.diagnostics, []);
-  assert.match(consumer.code, /stillwindHandleClass\(selected\)/);
+  assert.match(consumer.code, /}\)\[selected\.c\]/);
   assert.match(consumer.code, /stillwindAssetClass\(selectedAnimation\("infinite"\)/);
   assert.match(consumer.code, /stillwindViewTransitionStyle\(selectedTransition,undefined/);
   assert.match(consumer.code, /stillwindViewTransitionStyle\("--sw-v-[^"]+",transitionKey/);
@@ -207,7 +207,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);
   assert.match(
     runnable,
-    /^import \{ stillwindAssetClass, stillwindClassKey, stillwindHandleClass, stillwindMerge, stillwindStyleKey, stillwindViewTransitionStyle \} from "stillwind\/react\/runtime";/,
+    /^import \{ stillwindAssetClass, stillwindClassKey, stillwindMerge, stillwindStyleKey, stillwindViewTransitionStyle \} from "stillwind\/react\/runtime";/,
   );
   for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
     assert.match(runnable, new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));
