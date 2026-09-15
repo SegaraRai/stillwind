@@ -35,6 +35,7 @@ mod candidate;
 mod compiled_module;
 mod compiler;
 mod generated;
+mod identifier;
 mod imports;
 mod module_compiler;
 mod module_css;
@@ -52,6 +53,7 @@ pub use compiled_module::{
 pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
+pub use identifier::{IdentifierKind, IdentifierPool};
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;
 pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
