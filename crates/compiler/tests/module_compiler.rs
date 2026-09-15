@@ -382,6 +382,51 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
 
+#[test]
+fn development_mode_imports_the_checked_helper_from_the_dev_module() {
+    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+            .unwrap();
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "button.tsx",
+            "import { style } from 'stillwind/react'; const x = style('flex', flag && 'grid');",
+        )
+        .unwrap(),
+    );
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let compile = |mode: IdentifierMode| {
+        ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
+            .with_identifier_mode(mode)
+            .compile(&analysis)
+    };
+    let development = compile(IdentifierMode::Development);
+    assert!(development.is_success(), "{:?}", development.diagnostics);
+    let import = development
+        .code_transforms
+        .iter()
+        .map(|transform| transform.replacement.as_str())
+        .find(|replacement| replacement.starts_with("import "))
+        .unwrap_or_else(|| panic!("{:?}", development.code_transforms));
+    assert!(
+        import.contains("stillwindClsxChecked") && import.contains("stillwind/runtime/dev"),
+        "{import}"
+    );
+    let release = compile(IdentifierMode::Release);
+    let import = release
+        .code_transforms
+        .iter()
+        .map(|transform| transform.replacement.as_str())
+        .find(|replacement| replacement.starts_with("import "))
+        .unwrap_or_else(|| panic!("{:?}", release.code_transforms));
+    assert!(
+        import.contains("stillwindClsx") && import.contains("stillwind/react/runtime"),
+        "{import}"
+    );
+}
+
 /// Fails for every handled family and rejects bodies that are not canonical.
 #[derive(Debug)]
 struct FailingGenerator;

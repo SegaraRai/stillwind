@@ -11,6 +11,7 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",
     runtime_import: "stillwind/vue/runtime",
+    runtime_import_dev: "stillwind/runtime/dev",
     class_property: "class",
     style_format: StyleFormat::Object,
     projected_input: true,

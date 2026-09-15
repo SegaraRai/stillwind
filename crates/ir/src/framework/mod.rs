@@ -74,6 +74,13 @@ pub struct FrameworkSpec {
     pub macro_import: &'static str,
     /// Module that provides the fragment runtime for lowered calls.
     pub runtime_import: &'static str,
+    /// Module that provides the development-only helpers, used when the compilation
+    /// runs in development mode.
+    ///
+    /// It is an ordinary specifier without an export condition: the mode is decided by
+    /// the compiler, so a condition here would resolve twice, once for the module and
+    /// once for the name.
+    pub runtime_import_dev: &'static str,
     /// Attribute name the framework expects for classes: `className` or `class`.
     pub class_property: &'static str,
     /// How the framework runtime materializes the style payload of a fragment.

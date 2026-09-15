@@ -30,6 +30,8 @@ pub(crate) enum RuntimeHelper {
     ClassKey,
     /// The `stillwindClsx` runtime export.
     Clsx,
+    /// The `stillwindClsxChecked` export of the development runtime module.
+    ClsxChecked,
     /// The `stillwindCssValue` runtime export.
     CssValue,
     /// The `stillwindCustomPropertiesKey` runtime export.
@@ -54,6 +56,7 @@ impl RuntimeHelper {
             Self::AssetClass => "stillwindAssetClass",
             Self::ClassKey => "stillwindClassKey",
             Self::Clsx => "stillwindClsx",
+            Self::ClsxChecked => "stillwindClsxChecked",
             Self::CssValue => "stillwindCssValue",
             Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
             Self::Merge => "stillwindMerge",
@@ -63,6 +66,29 @@ impl RuntimeHelper {
             Self::ViewTransitionStyle => "stillwindViewTransitionStyle",
         }
     }
+
+    /// The development-only export that replaces this helper, when one exists.
+    ///
+    /// The checked helper keeps the release helper's call shape, so only the import
+    /// changes between modes.
+    fn development_variant(self) -> Option<Self> {
+        match self {
+            Self::Clsx => Some(Self::ClsxChecked),
+            _ => None,
+        }
+    }
+}
+
+/// One macro import and the module its helpers are imported from.
+///
+/// A helper with a development variant is imported from the development module, which
+/// has no export condition; the generated call itself does not change between modes.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct ImportAnchor {
+    /// Index of the macro import whose replacement carries the import statement.
+    index: usize,
+    /// Whether this group's helpers come from the development module.
+    development: bool,
 }
 
 /// Allocates local helper names and plans their imports for one module.
@@ -79,6 +105,8 @@ pub(crate) struct RuntimeBindings<'a> {
     names: BTreeMap<(RuntimeHelper, Option<u32>), String>,
     /// Every recorded use, in the order it was requested.
     uses: Vec<(RuntimeHelper, Span, Option<u32>)>,
+    /// Whether the compilation runs in development mode.
+    development: bool,
 }
 
 impl<'a> RuntimeBindings<'a> {
@@ -96,7 +124,18 @@ impl<'a> RuntimeBindings<'a> {
             reserved: module.ir.imports.reserved_names.iter().cloned().collect(),
             names: BTreeMap::new(),
             uses: Vec::new(),
+            development: false,
         }
+    }
+
+    /// Returns the same bindings for a compilation in `mode`.
+    ///
+    /// The mode selects the module a helper is imported from and, for a helper with a
+    /// development variant, the export itself. The generated call is the same in both
+    /// modes, because only the import differs.
+    pub(crate) fn in_mode(mut self, mode: crate::IdentifierMode) -> Self {
+        self.development = mode == crate::IdentifierMode::Development;
+        self
     }
 
     /// Records a use of `helper` at `at` and returns the local name to call it with.
@@ -127,6 +166,51 @@ impl<'a> RuntimeBindings<'a> {
             .clone()
     }
 
+    /// Builds one import statement for a group of helpers sharing a module and anchor.
+    ///
+    /// A helper with a development variant is imported under its development export name
+    /// and bound to the release name, so the generated call sites are mode independent.
+    fn import_statement(
+        &self,
+        module: &ModuleAnalysis,
+        anchor: ImportAnchor,
+        helpers: BTreeSet<(RuntimeHelper, Option<u32>)>,
+    ) -> String {
+        let names = helpers
+            .into_iter()
+            .map(|(helper, realm_id)| {
+                let local = self
+                    .local_name(helper, realm_id)
+                    .unwrap_or_else(|| helper.exported().to_owned());
+                let exported = match helper.development_variant() {
+                    Some(development) if anchor.development => development.exported(),
+                    _ => helper.exported(),
+                };
+                if local == exported {
+                    local
+                } else {
+                    format!("{exported} as {local}")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let spec = module.ir.adapter.spec();
+        let runtime_module = if anchor.development {
+            spec.runtime_import_dev
+        } else {
+            spec.runtime_import
+        };
+        format!("import {{ {names} }} from \"{runtime_module}\";")
+    }
+
+    ///
+    /// A helper whose development variant has a different export name is bound under
+    /// the release name in both modes, so the generated call sites do not depend on the
+    /// mode.
+    fn local_name(&self, helper: RuntimeHelper, realm: Option<u32>) -> Option<String> {
+        self.names.get(&(helper, realm)).cloned()
+    }
+
     /// Returns the import edits and macro-removal edits for the recorded uses.
     ///
     /// Each realm's helpers are appended to the replacement of the macro import that
@@ -144,33 +228,21 @@ impl<'a> RuntimeBindings<'a> {
         lowered: &[SourceTransform],
     ) -> Result<Vec<SourceTransform>, CompileError> {
         let mut edits = plan_macro_import_removals(&module.source, &module.ir.imports, lowered)?;
-        let mut anchors: BTreeMap<usize, BTreeSet<(RuntimeHelper, Option<u32>)>> = BTreeMap::new();
+        let mut anchors: BTreeMap<ImportAnchor, BTreeSet<(RuntimeHelper, Option<u32>)>> =
+            BTreeMap::new();
         for &(helper, at, realm_id) in &self.uses {
             let anchor = runtime_anchor(module, at)?;
             anchors
-                .entry(anchor)
+                .entry(ImportAnchor {
+                    index: anchor,
+                    development: self.development && helper.development_variant().is_some(),
+                })
                 .or_default()
                 .insert((helper, realm_id));
         }
         for (anchor, helpers) in anchors {
-            let span = module.ir.imports.macros[anchor].span;
-            let names = helpers
-                .into_iter()
-                .map(|(helper, realm_id)| {
-                    let exported = helper.exported();
-                    let local = &self.names[&(helper, realm_id)];
-                    if local == exported {
-                        local.clone()
-                    } else {
-                        format!("{exported} as {local}")
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            let import = format!(
-                "import {{ {names} }} from \"{}\";",
-                module.ir.adapter.spec().runtime_import
-            );
+            let span = module.ir.imports.macros[anchor.index].span;
+            let import = self.import_statement(module, anchor, helpers);
             if let Some(edit) = edits.iter_mut().find(|edit| edit.call_span == span) {
                 if !edit.replacement.is_empty() {
                     edit.replacement.push('\n');

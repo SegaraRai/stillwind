@@ -20,6 +20,20 @@ export function stillwindClsx(...values: readonly unknown[]): string {
   return values.flatMap(flatten).filter(Boolean).join(" ");
 }
 
+/**
+ * The development variant of {@link stillwindClsx}: a value that cannot become part of
+ * a class attribute is reported instead of being dropped silently. The compiler imports
+ * this helper only in development mode.
+ */
+export function stillwindClsxChecked(...values: readonly unknown[]): string {
+  for (const value of values.flatMap(flatten)) {
+    if (typeof value !== "string") {
+      throw new TypeError(`Stillwind received a non-string class value: ${typeof value}.`);
+    }
+  }
+  return stillwindClsx(...values);
+}
+
 interface StillwindRuntimeAsset {
   readonly kind: "animation" | "view-transition" | "animation-use";
   readonly identity: string;

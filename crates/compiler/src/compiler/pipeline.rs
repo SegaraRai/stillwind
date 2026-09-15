@@ -122,7 +122,7 @@ impl Compiler {
         let mut emitted_utility_classes = BTreeSet::new();
         let mut module = parsed.ir.clone();
         module.style_calls = ordered_style_calls(parsed);
-        let mut runtime = RuntimeBindings::new(parsed);
+        let mut runtime = RuntimeBindings::new(parsed).in_mode(identifiers.mode());
         let mut symbols = std::mem::take(&mut result.symbols);
         symbols.extend(
             module

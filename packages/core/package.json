@@ -11,6 +11,7 @@
     "./preflight.css": "./css/preflight.css",
     "./react": "./src/index.ts",
     "./react/runtime": "./src/runtime/react.ts",
+    "./runtime/dev": "./src/runtime/dev.ts",
     "./preact": "./src/preact.ts",
     "./preact/runtime": "./src/runtime/preact.ts",
     "./vue/runtime": "./src/runtime/vue.ts",
