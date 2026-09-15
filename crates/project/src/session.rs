@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use stillwind_compiler::{CompiledModule, CompilerOptions, ModuleCompiler};
+use stillwind_compiler::{CompiledModule, CompilerOptions, GeneratorSet, ModuleCompiler};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ModuleAnalysis;
@@ -76,6 +76,8 @@ pub struct ProjectSession {
     current: DesignSystemSnapshot,
     /// Compiler configuration shared by all artifacts in this session.
     options: CompilerOptions,
+    /// Identifier generators shared by all artifacts in this session.
+    generators: GeneratorSet,
     /// Whether a failed reload invalidates output or retains the last successful revision.
     mode: SessionMode,
     /// Retained frontend analyses keyed by module identity, used for recompilation.
@@ -100,6 +102,7 @@ impl ProjectSession {
         Self {
             current: snapshot,
             options,
+            generators: GeneratorSet::builtin(),
             mode,
             analyses: BTreeMap::new(),
             artifacts: BTreeMap::new(),
@@ -112,6 +115,23 @@ impl ProjectSession {
     /// Generation options in effect for this revision.
     pub fn options(&self) -> &CompilerOptions {
         &self.options
+    }
+
+    /// Identifier generators used by every compilation in this session.
+    ///
+    /// Generators are not part of [`CompilerOptions`], because options must stay a
+    /// plain serializable configuration whose `Debug` output is the artifact key. A
+    /// host that changes generators must also change
+    /// [`CompilerOptions::naming_revision`], or cached artifacts keep the old names.
+    pub fn generators(&self) -> &GeneratorSet {
+        &self.generators
+    }
+
+    /// Returns the same session with `generators` supplying the generated names.
+    #[must_use]
+    pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
+        self.generators = generators;
+        self
     }
 
     /// Pins the current immutable design-system revision. Cheap to clone.
@@ -170,7 +190,8 @@ impl ProjectSession {
     /// On failure the behaviour follows [`SessionMode`]: watch keeps the last good
     /// artifact, build removes it.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
-        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
+        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone())
+            .with_generators(self.generators.clone());
         if analysis.diagnostics.is_empty()
             && analysis.integration_diagnostics.is_empty()
             && self
@@ -273,7 +294,8 @@ impl ProjectSession {
             }
         };
         let old_css = self.css();
-        let mut next = Self::new(snapshot, self.mode, options);
+        let mut next =
+            Self::new(snapshot, self.mode, options).with_generators(self.generators.clone());
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
             let changed = next.update_module(analysis.clone());

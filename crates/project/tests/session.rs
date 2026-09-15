@@ -9,8 +9,8 @@
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompilerOptions, GeneratedRule, ModuleCssArtifact, RuleKey, StylesheetPlacement,
-    StylesheetRenderer,
+    CompilerOptions, GeneratedBody, GeneratedRule, GeneratorSet, IdentifierGenerator,
+    IdentifierKind, ModuleCssArtifact, RuleKey, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -341,3 +341,46 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
 
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
+
+/// Names utility classes with a fixed, readable body.
+#[derive(Debug)]
+struct FixedClassGenerator;
+
+impl IdentifierGenerator for FixedClassGenerator {
+    fn handles(&self, kind: IdentifierKind) -> bool {
+        kind == IdentifierKind::UtilityClass
+    }
+
+    fn generate(
+        &self,
+        _kind: IdentifierKind,
+        input: &str,
+        _label: Option<&str>,
+    ) -> Result<GeneratedBody, String> {
+        Ok(GeneratedBody::new(format!("fixed{}", input.len())))
+    }
+}
+
+#[test]
+fn session_generators_name_generated_classes() {
+    let mut session = ProjectSession::new(
+        snapshot("red"),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+    )
+    .with_generators(GeneratorSet::new(Arc::new(FixedClassGenerator)));
+    assert!(
+        session
+            .update_module(module("button.tsx", "flex"))
+            .diagnostics
+            .is_empty()
+    );
+    let artifact = &session.artifacts()["button.tsx"];
+    let class = artifact
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "class")
+        .expect("class symbol");
+    assert!(class.name.starts_with("_s_fixed"), "{}", class.name);
+    assert!(session.css().unwrap().contains(&class.name));
+}
