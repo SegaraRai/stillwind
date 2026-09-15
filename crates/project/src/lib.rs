@@ -33,11 +33,13 @@
 
 mod dependencies;
 mod project_stylesheet;
+mod reserved;
 mod session;
 mod stylesheet_plan;
 
 pub use dependencies::DependencyIndex;
 pub use project_stylesheet::ProjectStylesheet;
+pub use reserved::ReservedNames;
 pub use session::*;
 pub use stylesheet_plan::*;
 

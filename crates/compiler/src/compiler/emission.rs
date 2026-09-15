@@ -17,7 +17,7 @@ use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
     StyleInput, StyleVariant,
 };
-use stillwind_semantic::IdentityId;
+use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span};
 
 use super::CssContribution;
@@ -29,7 +29,7 @@ use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::StyleVariantPlan;
 use super::symbols::{
-    anchor_name, handle_projection_name, motion_symbol_name, ref_marker_name,
+    anchor_name, handle_projection_name, motion_name_symbol, ref_marker_name,
     runtime_projection_class, scope_marker_name,
 };
 use super::utilities::resolve::{CompiledUtility, view_transition_utility};
@@ -230,7 +230,11 @@ impl<'a> CallEmitter<'a> {
                 if !self.begin_view_transition() {
                     return Some(());
                 }
-                let name = match motion_symbol_name(self.identifiers, &transition.identity) {
+                let name = match self.record_motion_name(
+                    &transition.identity,
+                    AssetKind::ViewTransition,
+                    transition.span,
+                ) {
                     Ok(name) => name,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
@@ -269,7 +273,11 @@ impl<'a> CallEmitter<'a> {
                 let mut candidates = Vec::new();
                 for transition in transitions {
                     self.runtime_assets.insert(transition.identity.clone());
-                    match motion_symbol_name(self.identifiers, &transition.identity) {
+                    match self.record_motion_name(
+                        &transition.identity,
+                        AssetKind::ViewTransition,
+                        transition.span,
+                    ) {
                         Ok(name) => candidates.push(name),
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);
@@ -305,6 +313,26 @@ impl<'a> CallEmitter<'a> {
             }
         }
         Some(())
+    }
+
+    /// Generates one motion asset's name and records it for pool validation.
+    ///
+    /// A motion name is written by every use of its declaration, so the report keeps
+    /// one record per declaration and the pipeline drops later repeats.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the asset's family.
+    fn record_motion_name(
+        &mut self,
+        identity: &IdentityId,
+        kind: AssetKind,
+        span: Span,
+    ) -> Result<String, CompileErrorKind> {
+        let symbol = motion_name_symbol(self.identifiers, identity, kind, span)?;
+        let name = symbol.name.clone();
+        self.written_name_symbols.push(symbol);
+        Ok(name)
     }
 
     /// Converts a generator failure into a fatal diagnostic at `span`.
@@ -720,7 +748,11 @@ impl<'a> CallEmitter<'a> {
                 let mut table = Vec::new();
                 for animation in animations {
                     self.runtime_assets.insert(animation.identity.clone());
-                    let identity = match motion_symbol_name(self.identifiers, &animation.identity) {
+                    let identity = match self.record_motion_name(
+                        &animation.identity,
+                        AssetKind::Animation,
+                        animation.span,
+                    ) {
                         Ok(identity) => identity,
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);

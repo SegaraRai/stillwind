@@ -39,7 +39,7 @@ pub(super) fn resolve_animation_use(
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        match motion_symbol_name(identifiers, &animation.identity) {
+        match motion_symbol_name(identifiers, &animation.identity, AssetKind::Animation) {
             Ok(name) => custom_ident(&name),
             Err(failure) => {
                 diagnostics.push(CompileError::new(failure, options.span));

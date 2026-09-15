@@ -344,9 +344,33 @@ pub(super) fn generated_class_symbol(
     }
 }
 
-/// Class unit name for a canonical input.
-/// Uses declaration identity directly, without fabricating a source-buffer span.
-/// Uses declaration identity directly, without fabricating a source-buffer span.
+/// Generates the name of a declared motion asset and reports it as a symbol.
+///
+/// `kind` selects the family the name belongs to, which is the kind the report carries.
+/// The span addresses the declaration; the writer's span is the caller's business.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the asset's family.
+pub(super) fn motion_name_symbol(
+    context: &IdentifierContext,
+    identity: &IdentityId,
+    kind: AssetKind,
+    span: Span,
+) -> Result<GeneratedSymbol, CompileErrorKind> {
+    let name = motion_symbol_name(context, identity, kind)?;
+    Ok(GeneratedSymbol {
+        name,
+        kind: kind_name(kind).to_owned(),
+        pool: kind_pool(kind),
+        identity: identity_input(identity),
+        source_path: normalized_module_path(&identity.module_path),
+        start: span.start.0,
+        end: span.end.0,
+    })
+}
+
+/// Generated name of a declared motion asset, prefixed by its family.
 ///
 /// # Errors
 ///
@@ -354,22 +378,28 @@ pub(super) fn generated_class_symbol(
 pub(super) fn motion_symbol_name(
     context: &IdentifierContext,
     identity: &IdentityId,
+    kind: AssetKind,
 ) -> Result<String, CompileErrorKind> {
-    let identity_input = format!(
-        "stillwind/v1\0{}\0{}\0{}:{}:{}",
-        normalized_module_path(&identity.module_path),
-        kind_name(identity.kind),
-        identity.start,
-        identity.end,
-        identity.binding_name
-    );
-    match identity.kind {
+    let identity_input = identity_input(identity);
+    match kind {
         AssetKind::Animation => context.animation_name(&identity_input),
         AssetKind::ViewTransition => context.view_transition_name(&identity_input),
         AssetKind::Style => context.class_name(&identity_input),
         AssetKind::Ref => context.anchor_name(&identity_input),
         AssetKind::Scope => context.container_name(&identity_input),
     }
+}
+
+/// Canonical identity input for a declaration's generated names.
+fn identity_input(identity: &IdentityId) -> String {
+    format!(
+        "stillwind/v1\0{}\0{}\0{}:{}:{}",
+        normalized_module_path(&identity.module_path),
+        kind_name(identity.kind),
+        identity.start,
+        identity.end,
+        identity.binding_name
+    )
 }
 
 /// Builds the reportable symbol for a written anchor or container name.

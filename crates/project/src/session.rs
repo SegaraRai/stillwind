@@ -11,12 +11,15 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use stillwind_compiler::{CompiledModule, CompilerOptions, GeneratorSet, ModuleCompiler};
+use stillwind_compiler::{
+    CompiledModule, CompilerOptions, GeneratorSet, IdentifierPool, ModuleCompiler,
+};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
 
+use crate::ReservedNames;
 use crate::{DependencyIndex, ProjectStylesheet};
 
 /// Why a design-system reload could not be applied.
@@ -78,6 +81,8 @@ pub struct ProjectSession {
     options: CompilerOptions,
     /// Identifier generators shared by all artifacts in this session.
     generators: GeneratorSet,
+    /// Names the design system's authored CSS already uses, per CSS namespace.
+    reserved: ReservedNames,
     /// Whether a failed reload invalidates output or retains the last successful revision.
     mode: SessionMode,
     /// Retained frontend analyses keyed by module identity, used for recompilation.
@@ -99,10 +104,25 @@ impl ProjectSession {
         mode: SessionMode,
         options: CompilerOptions,
     ) -> Self {
+        let mut reserved = ReservedNames::default();
+        reserved.collect(&snapshot.theme().custom_css);
+        for source in &snapshot.sources().sources {
+            reserved.collect(source.source.text());
+        }
+        // Theme tokens are declared properties of the emitted theme layer even though a
+        // `@theme` block is not a declaration block in the authored text.
+        reserved.custom_properties.extend(
+            snapshot
+                .theme()
+                .tokens
+                .iter()
+                .map(|token| token.name.value.clone()),
+        );
         Self {
             current: snapshot,
             options,
             generators: GeneratorSet::builtin(),
+            reserved,
             mode,
             analyses: BTreeMap::new(),
             artifacts: BTreeMap::new(),
@@ -132,6 +152,16 @@ impl ProjectSession {
     pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
         self.generators = generators;
         self
+    }
+
+    /// Names the design system's authored CSS already uses.
+    ///
+    /// A generated name that would collide with one of these is reported, because the
+    /// authored declaration or reference already owns the name in that namespace.
+    /// The set covers the accepted design-system sources and the authored CSS the theme
+    /// keeps outside its definition blocks; CSS a module authors itself is not included.
+    pub fn reserved_names(&self) -> &ReservedNames {
+        &self.reserved
     }
 
     /// Pins the current immutable design-system revision. Cheap to clone.
@@ -218,6 +248,23 @@ impl ProjectSession {
                 )
             })
             .collect();
+        // An authored name already owns its namespace, so a generated name equal to
+        // one is reported even when no other module generated it.
+        for name in &self.reserved.custom_properties {
+            symbols.insert(
+                (IdentifierPool::CustomProperty, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        for name in &self.reserved.layers {
+            symbols.insert((IdentifierPool::LayerName, name.as_str()), "<authored CSS>");
+        }
+        for name in &self.reserved.keyframes {
+            symbols.insert(
+                (IdentifierPool::KeyframesName, name.as_str()),
+                "<authored CSS>",
+            );
+        }
         for symbol in &compiled.symbols {
             if symbols
                 .insert((symbol.pool, symbol.name.as_str()), &symbol.identity)

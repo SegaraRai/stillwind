@@ -342,6 +342,65 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
 
+/// Names the keyframes family with one fixed body so it can collide with authored CSS.
+#[derive(Debug)]
+struct FixedKeyframesGenerator;
+
+impl IdentifierGenerator for FixedKeyframesGenerator {
+    fn handles(&self, kind: IdentifierKind) -> bool {
+        kind == IdentifierKind::KeyframesName
+    }
+
+    fn generate(
+        &self,
+        _kind: IdentifierKind,
+        _input: &str,
+        _label: Option<&str>,
+    ) -> Result<GeneratedBody, String> {
+        Ok(GeneratedBody::new("authored"))
+    }
+}
+
+#[test]
+fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
+    let theme = css_fixture::source(
+        FileId(2),
+        "theme",
+        "@theme {} @keyframes --sw-a-authored { to { opacity: 0; } }",
+    )
+    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+    let mut session = ProjectSession::new(snapshot, SessionMode::Watch, CompilerOptions::default())
+        .with_generators(GeneratorSet::new(Arc::new(FixedKeyframesGenerator)));
+    assert!(
+        session
+            .reserved_names()
+            .keyframes
+            .contains("--sw-a-authored")
+    );
+    let module = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "dialog.tsx",
+                "import { style } from 'stillwind/react'; export const dialog = style.animation({ to: 'opacity-0' }); const x = style(dialog('both'));",
+            )
+            .unwrap(),
+        )),
+        None,
+    );
+    let update = session.update_module(module);
+    assert!(
+        update.diagnostics.iter().any(|error| matches!(
+            error.kind,
+            CompileErrorKind::GeneratedIdentifierCollision { .. }
+        )),
+        "{:?}",
+        update.diagnostics
+    );
+}
+
 /// Names every handled family with one fixed, readable body.
 #[derive(Debug)]
 struct FixedBodyGenerator {
