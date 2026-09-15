@@ -53,7 +53,10 @@ pub use compiled_module::{
 pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
-pub use identifier::{IdentifierKind, IdentifierPool};
+pub use identifier::{
+    GeneratedBody, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierKind,
+    IdentifierPool,
+};
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;
 pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};

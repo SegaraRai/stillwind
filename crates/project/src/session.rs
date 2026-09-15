@@ -197,7 +197,7 @@ impl ProjectSession {
             {
                 compiled.diagnostics.push(CompileError::new(
                     CompileErrorKind::GeneratedIdentifierCollision {
-                        name: symbol.name.clone(),
+                        name: symbol.name.clone().into(),
                     },
                     analysis.source.full_span(),
                 ));

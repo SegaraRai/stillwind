@@ -9,6 +9,19 @@
 //! themselves, because CSS resolves them in one namespace. Validation compares a name
 //! to the identity that produced it, so one declaration that appears in two pools is
 //! not a conflict and only distinct identities sharing a spelling are reported.
+//!
+//! [`GeneratorSet`] is the stage-1 injection point: a host may compute the raw body of
+//! any family, and a family the host leaves out keeps the built-in generator. Bodies
+//! are hashed from canonical content, so recompiling unchanged sources reproduces the
+//! same names; hosts must hold to the same rule, because nothing downstream can tell a
+//! deterministic generator from an unstable one.
+
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::fmt;
+use std::sync::Arc;
+
+use stillwind_diagnostics::CompileErrorKind;
 
 /// One family of generated names.
 ///
@@ -111,9 +124,316 @@ impl IdentifierPool {
     }
 }
 
+/// The raw body a generator produced for one name, before any family prefix.
+///
+/// The body is the family-specific part of the name, and the writing step adds the
+/// prefix. Symbol records and diagnostics report the body, so a failure points at the
+/// content the host chose rather than at a name the compiler assembled.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedBody {
+    /// Host-supplied body, before the family prefix.
+    pub body: String,
+}
+
+impl GeneratedBody {
+    /// Wraps `body` as a generated name body.
+    pub fn new(body: impl Into<String>) -> Self {
+        Self { body: body.into() }
+    }
+}
+
+/// A host-provided generator for one or more identifier families.
+///
+/// Implementations must be pure: the same request must produce the same body, and the
+/// result must not depend on call order, call count, time, randomness, or the build
+/// mode. A family the implementation does not handle keeps the built-in generator, so
+/// overriding a single family is a supported use.
+///
+/// Sharing a generator across threads only forwards calls, because the purity contract
+/// already forbids state-dependent output. Generators are still used synchronously
+/// within one compilation.
+pub trait IdentifierGenerator: fmt::Debug + Send + Sync {
+    /// Whether this generator produces names of `kind`.
+    ///
+    /// A generator that answers true must return a body for every later request of
+    /// that kind, or fail the compilation.
+    fn handles(&self, kind: IdentifierKind) -> bool;
+
+    /// Produces the body of one name.
+    ///
+    /// `input` is the canonical identity input for the family, and `label` is the
+    /// authored label normalized for name use, present only where the family has one.
+    /// Repeated requests with the same kind, input, and label reuse the first result,
+    /// so implementations do not need memoization of their own.
+    ///
+    /// # Errors
+    ///
+    /// Returns a failure that becomes a diagnostic at the declaration being named.
+    /// Implementations must not panic: a panic aborts the host's build.
+    fn generate(
+        &self,
+        kind: IdentifierKind,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<GeneratedBody, String>;
+}
+
+/// The generators one compilation uses, with the built-in generator as fallback.
+///
+/// Equality compares generator identity, so rebuilding a set from the same generator
+/// compares equal while a different generator never does.
+#[derive(Clone, Debug, Default)]
+pub struct GeneratorSet {
+    generator: Option<Arc<dyn IdentifierGenerator>>,
+}
+
+impl GeneratorSet {
+    /// A set that generates every name with the built-in generator.
+    pub fn builtin() -> Self {
+        Self::default()
+    }
+
+    /// A set that asks `generator` first and falls back per family.
+    pub fn new(generator: Arc<dyn IdentifierGenerator>) -> Self {
+        Self {
+            generator: Some(generator),
+        }
+    }
+
+    /// The host generator, if any.
+    pub fn generator(&self) -> Option<&dyn IdentifierGenerator> {
+        self.generator.as_deref()
+    }
+}
+
+impl PartialEq for GeneratorSet {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.generator, &other.generator) {
+            (None, None) => true,
+            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for GeneratorSet {}
+
+/// One compilation's name allocation: host generator first, built-in fallback, memoized.
+///
+/// A kind and input pair always yields one result within a compilation, so a helper
+/// asked twice cannot observe two calls of an impure generator and cannot produce two
+/// names for one declaration.
+///
+/// Fallible generation memoizes the decoded failure message, and the reported diagnostic
+/// is rebuilt from it, so a repeated request reports the same failure without calling
+/// the generator again.
+#[derive(Clone, Debug)]
+pub struct IdentifierContext {
+    generators: GeneratorSet,
+    memo: RefCell<BTreeMap<MemoKey, Result<String, String>>>,
+}
+
+/// Memo key: the family, its canonical input, and the normalized label if it has one.
+type MemoKey = (IdentifierKind, String, Option<String>);
+
+impl IdentifierContext {
+    /// Starts a context for `generators` with an empty memo.
+    pub fn new(generators: GeneratorSet) -> Self {
+        Self {
+            generators,
+            memo: RefCell::new(BTreeMap::new()),
+        }
+    }
+
+    /// Starts a context that uses the built-in generator for every family.
+    pub fn builtin() -> Self {
+        Self::new(GeneratorSet::builtin())
+    }
+
+    /// The generators this context was built from.
+    pub fn generators(&self) -> &GeneratorSet {
+        &self.generators
+    }
+
+    /// Whether a host generator supplies the bodies of `kind`.
+    pub fn handles(&self, kind: IdentifierKind) -> bool {
+        self.generators
+            .generator()
+            .is_some_and(|generator| generator.handles(kind))
+    }
+
+    /// The body for one name, or the built-in body when no generator handles `kind`.
+    ///
+    /// Repeated requests with the same kind, input, and label reuse the first result,
+    /// including a failure, so one compilation reports a failing generator once per
+    /// distinct request rather than once per call site.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CompileErrorKind::IdentifierGenerationFailed`] when the host generator
+    /// handles `kind` and rejects this input.
+    pub fn body(
+        &self,
+        kind: IdentifierKind,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<GeneratedBody, CompileErrorKind> {
+        let key = (kind, input.to_owned(), label.map(str::to_owned));
+        if let Some(cached) = self.memo.borrow().get(&key) {
+            return cached
+                .clone()
+                .map(GeneratedBody::new)
+                .map_err(|message| generation_failure(kind, message));
+        }
+        let generated = match self.generators.generator() {
+            Some(generator) if generator.handles(kind) => generator
+                .generate(kind, input, label)
+                .map_err(|message| generation_failure(kind, message)),
+            _ => Ok(builtin_body(kind, input, label)),
+        };
+        self.memo.borrow_mut().insert(
+            key,
+            generated
+                .as_ref()
+                .map(|body| body.body.clone())
+                .map_err(ToString::to_string),
+        );
+        generated
+    }
+}
+
+/// Wraps a generator failure with the family it concerned.
+fn generation_failure(kind: IdentifierKind, message: String) -> CompileErrorKind {
+    CompileErrorKind::IdentifierGenerationFailed(kind.as_str().into(), message.into())
+}
+
+/// The built-in body for one family: a hash of the identity input.
+///
+/// Class names hash the input alone, because a class is unique per call and branch
+/// rather than per declaration, and ref-like families mix in the normalized label so
+/// the generated name stays readable where a DOM token shows it.
+pub(crate) fn builtin_body(
+    kind: IdentifierKind,
+    input: &str,
+    label: Option<&str>,
+) -> GeneratedBody {
+    let hash = blake3::hash(input.as_bytes());
+    let hex = hash.to_hex();
+    let body = match kind {
+        IdentifierKind::RefMarker
+        | IdentifierKind::ScopeMarker
+        | IdentifierKind::AnchorName
+        | IdentifierKind::ContainerName => match label {
+            Some(label) => format!("{label}_{}", &hex[..8]),
+            None => hex[..8].to_owned(),
+        },
+        IdentifierKind::UtilityClass
+        | IdentifierKind::KeyframesName
+        | IdentifierKind::ViewTransitionName
+        | IdentifierKind::ViewTransitionClass
+        | IdentifierKind::CustomProperty
+        | IdentifierKind::LayerName => hex[..8].to_owned(),
+    };
+    GeneratedBody::new(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Records requests so memoization and per-family fallback are observable.
+    #[derive(Debug, Default)]
+    struct CountingGenerator {
+        handled: Vec<IdentifierKind>,
+        calls: Mutex<Vec<(IdentifierKind, String, Option<String>)>>,
+    }
+
+    impl IdentifierGenerator for CountingGenerator {
+        fn handles(&self, kind: IdentifierKind) -> bool {
+            self.handled.contains(&kind)
+        }
+
+        fn generate(
+            &self,
+            kind: IdentifierKind,
+            input: &str,
+            label: Option<&str>,
+        ) -> Result<GeneratedBody, String> {
+            self.calls.lock().expect("test generator lock").push((
+                kind,
+                input.to_owned(),
+                label.map(str::to_owned),
+            ));
+            Ok(GeneratedBody::new(format!("gen-{kind:?}")))
+        }
+    }
+
+    #[test]
+    fn unhandled_families_keep_the_builtin_body() {
+        let generator = Arc::new(CountingGenerator {
+            handled: vec![IdentifierKind::RefMarker],
+            ..CountingGenerator::default()
+        });
+        let context = IdentifierContext::new(GeneratorSet::new(generator.clone()));
+        let custom = context
+            .body(IdentifierKind::RefMarker, "ref\0x", Some("label"))
+            .unwrap();
+        let builtin = context
+            .body(IdentifierKind::UtilityClass, "class\0x", None)
+            .unwrap();
+        assert_eq!(custom.body, "gen-RefMarker");
+        assert_eq!(
+            builtin,
+            builtin_body(IdentifierKind::UtilityClass, "class\0x", None)
+        );
+        assert_eq!(generator.calls.lock().expect("lock").len(), 1);
+    }
+
+    #[test]
+    fn repeated_requests_reuse_one_generator_call() {
+        let generator = Arc::new(CountingGenerator {
+            handled: vec![IdentifierKind::KeyframesName],
+            ..CountingGenerator::default()
+        });
+        let context = IdentifierContext::new(GeneratorSet::new(generator.clone()));
+        let first = context
+            .body(IdentifierKind::KeyframesName, "spin", None)
+            .unwrap();
+        let second = context
+            .body(IdentifierKind::KeyframesName, "spin", None)
+            .unwrap();
+        assert_eq!(first, second);
+        assert_eq!(generator.calls.lock().expect("lock").len(), 1);
+        let labelled = context
+            .body(IdentifierKind::KeyframesName, "spin", Some("enter"))
+            .unwrap();
+        assert_eq!(labelled.body, first.body);
+        assert_eq!(generator.calls.lock().expect("lock").len(), 2);
+        assert_eq!(
+            generator.calls.lock().expect("lock")[1],
+            (
+                IdentifierKind::KeyframesName,
+                "spin".to_owned(),
+                Some("enter".to_owned())
+            )
+        );
+    }
+
+    #[test]
+    fn builtin_bodies_hash_the_input_and_keep_labels_readable() {
+        assert_eq!(
+            builtin_body(IdentifierKind::UtilityClass, "flex", None),
+            builtin_body(IdentifierKind::UtilityClass, "flex", None)
+        );
+        assert_ne!(
+            builtin_body(IdentifierKind::UtilityClass, "flex", None),
+            builtin_body(IdentifierKind::UtilityClass, "grid", None)
+        );
+        let labelled = builtin_body(IdentifierKind::RefMarker, "ref", Some("primary"));
+        assert!(labelled.body.starts_with("primary_"), "{labelled:?}");
+        assert_eq!(labelled.body.len(), "primary_".len() + 8);
+    }
 
     #[test]
     fn families_map_to_the_namespace_they_are_written_in() {

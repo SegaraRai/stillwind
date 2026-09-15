@@ -199,8 +199,16 @@ pub enum CompileErrorKind {
     #[error("generated identifier collision: {name}")]
     GeneratedIdentifierCollision {
         /// Identifier whose generated definitions collide.
-        name: String,
+        name: Box<str>,
     },
+    /// A host-provided identifier generator failed for one name.
+    #[error("identifier generation failed for {0}: {1}")]
+    IdentifierGenerationFailed(
+        /// Identifier family the generator was asked for.
+        Box<str>,
+        /// Generator-supplied failure description, not interpreted by the compiler.
+        Box<str>,
+    ),
     /// A utility required by fatal compilation cannot be resolved.
     #[error("unknown or unavailable utility `{utility}`")]
     UnavailableUtility {
@@ -638,6 +646,7 @@ impl CompileErrorKind {
                 "SHREF003"
             }
             Self::GeneratedIdentifierCollision { .. } => "SHSYMBOL001",
+            Self::IdentifierGenerationFailed { .. } => "SHSYMBOL002",
             Self::UnavailableUtility { .. } => "SH001",
             Self::JavaScriptParse => "SHJS001",
             Self::InvalidGeneratedCss { .. }

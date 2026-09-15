@@ -98,6 +98,25 @@ fn wrappers_roundtrip_owned_causes_labels_and_notes() {
 }
 
 #[test]
+fn generator_failures_report_their_family_and_message() {
+    let span = Span::new(FileId(7), 4, 12);
+    let error = CompileError::new(
+        CompileErrorKind::IdentifierGenerationFailed(
+            "keyframes".into(),
+            "no name for this declaration".into(),
+        ),
+        span,
+    );
+    assert_eq!(error.code(), "SHSYMBOL002");
+    assert_eq!(
+        error.to_string(),
+        "identifier generation failed for keyframes: no name for this declaration"
+    );
+    let json = serde_json::to_string(&error).unwrap();
+    assert_eq!(serde_json::from_str::<CompileError>(&json).unwrap(), error);
+}
+
+#[test]
 fn suppression_uses_primary_label_and_typed_rule_only() {
     let source = SourceFile::new(
         FileId(1),
