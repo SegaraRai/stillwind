@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::{
-    CompiledModule, CompilerOptions, GeneratorSet, IdentifierPool, ModuleCompiler,
+    CompiledModule, CompilerOptions, GeneratorSet, IdentifierMode, IdentifierPool, ModuleCompiler,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -81,6 +81,8 @@ pub struct ProjectSession {
     options: CompilerOptions,
     /// Identifier generators shared by all artifacts in this session.
     generators: GeneratorSet,
+    /// Whether rejected generated names are reported instead of failing the compile.
+    identifier_mode: IdentifierMode,
     /// Names the design system's authored CSS already uses, per CSS namespace.
     reserved: ReservedNames,
     /// Whether a failed reload invalidates output or retains the last successful revision.
@@ -122,6 +124,7 @@ impl ProjectSession {
             current: snapshot,
             options,
             generators: GeneratorSet::builtin(),
+            identifier_mode: IdentifierMode::Release,
             reserved,
             mode,
             analyses: BTreeMap::new(),
@@ -151,6 +154,18 @@ impl ProjectSession {
     #[must_use]
     pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
         self.generators = generators;
+        self
+    }
+
+    /// Returns the same session compiled in `mode`.
+    ///
+    /// A development session keeps producing usable names when a host generator is
+    /// rejected and reports the rejection as a lint finding; a release session fails
+    /// instead. The mode is a compilation input, so a host that caches artifacts must
+    /// keep the two modes apart.
+    #[must_use]
+    pub fn with_identifier_mode(mut self, mode: IdentifierMode) -> Self {
+        self.identifier_mode = mode;
         self
     }
 
@@ -223,7 +238,8 @@ impl ProjectSession {
     /// artifact, build removes it.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone())
-            .with_generators(self.generators.clone());
+            .with_generators(self.generators.clone())
+            .with_identifier_mode(self.identifier_mode);
         if analysis.diagnostics.is_empty()
             && analysis.integration_diagnostics.is_empty()
             && self
@@ -348,8 +364,9 @@ impl ProjectSession {
             }
         };
         let old_css = self.css();
-        let mut next =
-            Self::new(snapshot, self.mode, options).with_generators(self.generators.clone());
+        let mut next = Self::new(snapshot, self.mode, options)
+            .with_generators(self.generators.clone())
+            .with_identifier_mode(self.identifier_mode);
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
             let changed = next.update_module(analysis.clone());

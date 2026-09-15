@@ -15,7 +15,9 @@ use std::collections::BTreeMap;
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_compiler::{CompilerOptions, StylesheetPlacement, StylesheetRenderer};
+use stillwind_compiler::{
+    CompilerOptions, IdentifierMode, StylesheetPlacement, StylesheetRenderer,
+};
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
@@ -248,8 +250,21 @@ pub struct NativeProjectSession {
 impl NativeProjectSession {
     /// Creates a session from a completed loader. `watch` selects whether a failed
     /// reload retains the last known good revision.
+    ///
+    /// `mode` is `"development"` for a dev server and anything else for a release
+    /// build; it decides whether a rejected host-supplied identifier name is reported
+    /// as a lint finding or fails the compilation. A development session is offered to
+    /// a dev server, where usable output matters more than a fatal diagnostic.
     #[napi(constructor)]
-    pub fn new(loader: &NativeDesignSystemLoader, watch: bool) -> napi::Result<Self> {
+    pub fn new(
+        loader: &NativeDesignSystemLoader,
+        watch: bool,
+        mode: Option<String>,
+    ) -> napi::Result<Self> {
+        let identifier_mode = match mode.as_deref() {
+            Some("development") => IdentifierMode::Development,
+            _ => IdentifierMode::Release,
+        };
         Ok(Self {
             session: ProjectSession::new(
                 loader.completed()?,
@@ -259,7 +274,8 @@ impl NativeProjectSession {
                     SessionMode::Build
                 },
                 loader.options.clone(),
-            ),
+            )
+            .with_identifier_mode(identifier_mode),
         })
     }
 

@@ -246,6 +246,9 @@ export function stillwind(options: StillwindOptions): Plugin {
     return state;
   };
   let watching = false;
+  // The compiler decides name validation from this mode; a dev server keeps compiling
+  // when a host generator is rejected, a build fails instead.
+  let compilerMode = "release";
   const cssFiles = new Set<string>();
   const previewBundles = new Map<string, string>();
   let projectRoot = "";
@@ -338,7 +341,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           dependencies,
         );
         if (state.revision !== revision) return;
-        state.session = new NativeProjectSession(loader, watching);
+        state.session = new NativeProjectSession(loader, watching, compilerMode);
         state.resources = loaderResources.get(loader) ?? new Map();
         state.cssFiles = dependencies;
         state.producers.clear();
@@ -511,6 +514,7 @@ export function stillwind(options: StillwindOptions): Plugin {
     configResolved(config) {
       projectRoot = config.root;
       watching = config.command === "serve";
+      compilerMode = watching ? "development" : "release";
       closeTypeFacts();
     },
     async buildStart() {

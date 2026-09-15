@@ -29,8 +29,13 @@ export declare class NativeProjectSession {
   /**
    * Creates a session from a completed loader. `watch` selects whether a failed
    * reload retains the last known good revision.
+   *
+   * `mode` is `"development"` for a dev server and anything else for a release
+   * build; it decides whether a rejected host-supplied identifier name is reported
+   * as a lint finding or fails the compilation. A development session is offered to
+   * a dev server, where usable output matters more than a fatal diagnostic.
    */
-  constructor(loader: NativeDesignSystemLoader, watch: boolean)
+  constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null)
   /**
    * Publishes a reloaded design system and reports what changed.
    *
