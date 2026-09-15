@@ -114,9 +114,11 @@ pub(crate) fn extract_theme_declarations(
             };
             if delimiter == ';' {
                 cursor += offset + 1;
-            } else if let Some(close) = matching_brace(body, cursor + offset) {
+            } else if let Ok(close) = matching_brace(body, cursor + offset) {
                 cursor = close + 1;
             } else {
+                // An unclosed or unusable block ends the scan; the caller treats the
+                // remaining text as declarations rather than guessing an end.
                 break;
             }
             continue;

@@ -71,6 +71,13 @@ pub(in crate::compiler) fn find_at_rule_block(
 ///
 /// A `;` before the brace means the at-rule is a statement, so the search reports `None` instead
 /// of matching a later block.
+///
+/// # Panics
+///
+/// Panics when `from` is past the end of `css` or does not lie on a UTF-8 character boundary,
+/// because the scan begins by slicing at `from`. Callers must pass the offset just past an
+/// `@<name>` match in this same string, as [`find_at_rule_block`] does; an offset measured
+/// against a rewritten or different buffer panics.
 pub(in crate::compiler) fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
     let mut stack = Vec::new();
     let mut quote = None;
@@ -121,6 +128,13 @@ pub(in crate::compiler) fn find_at_rule_block_open(css: &str, from: usize) -> Op
 /// Offset of the `}` matching the `{` at `open`, ignoring braces in strings and comments.
 ///
 /// `open` must itself be a `{`; an unbalanced body returns `None`.
+///
+/// # Panics
+///
+/// Panics when `open` is past the end of `value` or does not lie on a UTF-8 character boundary,
+/// because the scan begins by slicing at `open`. Callers must pass the offset of a `{` in this
+/// same string, as [`find_at_rule_block_open`] returns; an offset that addresses another buffer
+/// panics.
 pub(in crate::compiler) fn matching_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;

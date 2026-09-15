@@ -9,6 +9,14 @@
 use super::expression::{MathExpression, MathValue};
 use super::folding::matching_parenthesis;
 
+/// Deepest parenthesis nesting accepted inside one value.
+///
+/// The parser descends one level per `(` and per nested `calc()`, so this bounds the
+/// stack a single value can consume. A value that nests deeper fails to parse and is
+/// left byte-for-byte as authored; [`super::folding::value_nesting_overflow`] applies
+/// the same limit before parsing.
+pub const MAX_VALUE_NESTING: usize = 64;
+
 /// One cursor over an expression string.
 ///
 /// The parser borrows its input and allocates owned units, atom text, and boxed
@@ -18,12 +26,42 @@ pub(crate) struct MathParser<'a> {
     input: &'a str,
     /// Byte offset of the next unread character.
     cursor: usize,
+    /// Nesting levels entered by this parser and by the parsers that called it.
+    depth: usize,
 }
 
 impl<'a> MathParser<'a> {
     /// Creates a parser positioned at the start of `input`.
     pub(crate) fn new(input: &'a str) -> Self {
-        Self { input, cursor: 0 }
+        Self {
+            input,
+            cursor: 0,
+            depth: 0,
+        }
+    }
+
+    /// Creates a parser for a nested `calc()` inside a parse that is already `depth`
+    /// levels deep, so the nesting limit covers the value rather than one parser call.
+    fn nested(input: &'a str, depth: usize) -> Self {
+        Self {
+            input,
+            cursor: 0,
+            depth,
+        }
+    }
+
+    /// Enters one nesting level; `false` means the value nests past [`MAX_VALUE_NESTING`].
+    fn enter(&mut self) -> bool {
+        if self.depth >= MAX_VALUE_NESTING {
+            return false;
+        }
+        self.depth += 1;
+        true
+    }
+
+    /// Leaves the level entered by [`Self::enter`].
+    fn leave(&mut self) {
+        self.depth -= 1;
     }
 
     /// Parses the whole input, returning `None` when anything is left over.
@@ -115,7 +153,12 @@ impl<'a> MathParser<'a> {
         self.skip_whitespace();
         if self.peek() == Some('(') {
             self.cursor += 1;
-            let expression = self.parse_sum()?;
+            if !self.enter() {
+                return None;
+            }
+            let expression = self.parse_sum();
+            self.leave();
+            let expression = expression?;
             self.skip_whitespace();
             (self.peek() == Some(')')).then_some(())?;
             self.cursor += 1;
@@ -140,7 +183,12 @@ impl<'a> MathParser<'a> {
             let open = self.cursor;
             let close = matching_parenthesis(self.input, open)?;
             if self.input[start..open].eq_ignore_ascii_case("calc") {
-                let expression = MathParser::new(&self.input[open + 1..close]).parse()?;
+                if !self.enter() {
+                    return None;
+                }
+                let nested = MathParser::nested(&self.input[open + 1..close], self.depth).parse();
+                self.leave();
+                let expression = nested?;
                 self.cursor = close + 1;
                 return Some(expression);
             }

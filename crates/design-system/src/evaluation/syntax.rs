@@ -10,6 +10,14 @@
 ///
 /// `None` means the group is unclosed or contains a closer without an opener. `open` is
 /// assumed to be at an opening brace.
+///
+/// # Panics
+///
+/// Panics when `open` is past the end of `value` or does not lie on a UTF-8 character
+/// boundary, because the scan begins by slicing at `open`. Callers must pass the offset of
+/// a `{` in this same string, obtained from `char_indices`, `find`, or the block scanner
+/// in the same module; an offset advanced by byte arithmetic or measured against another
+/// buffer panics.
 pub(super) fn closing_brace(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     for (offset, character) in value[open..].char_indices() {

@@ -3,8 +3,9 @@
 use std::collections::BTreeMap;
 
 use stillwind_compiler::{CompileResult, Compiler};
+use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{LintKind, UtilityFailure};
+use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
 use stillwind_ir::{ClassExpression, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse, parse_with_type_facts};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
@@ -32,6 +33,29 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     .unwrap();
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
     (source, result)
+}
+
+#[test]
+fn deeply_nested_utility_values_fail_with_a_nesting_diagnostic() {
+    let levels = MAX_VALUE_NESTING + 1;
+    let value = format!("{}1{}", "(".repeat(levels), ")".repeat(levels));
+    let utility = format!("w-[calc({value})]");
+    let (source, result) = compile(
+        &format!("export const x = style(\"{utility}\");"),
+        "@theme { --spacing: 1px; }",
+    );
+    let diagnostic = result.diagnostics.first().expect("a nesting diagnostic");
+    assert!(
+        matches!(
+            diagnostic.kind,
+            CompileErrorKind::CssNestingTooDeep { limit, .. }
+                if limit == MAX_VALUE_NESTING
+        ),
+        "{:#?}",
+        result.diagnostics
+    );
+    assert_eq!(source.slice(diagnostic.labels[0].span).unwrap(), utility);
+    assert!(result.css.is_empty(), "{}", result.css);
 }
 
 #[test]

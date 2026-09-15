@@ -369,8 +369,14 @@ fn projection_region(
 ///
 /// # Panics
 ///
-/// Invalid internal expression ranges can panic during attribute encoding. `edits`
-/// must satisfy the `SourceTransform` mapping contracts before entering this pass.
+/// Panics when an edit carries expression ranges that are not ordered, in bounds, and
+/// scalar-aligned within its replacement, because encoding those ranges slices the
+/// replacement directly.
+///
+/// `edits` must therefore be the transforms this pass's own compilation lowered -
+/// [`RuntimeBindings::plan`] and the fragment renderer build them together with their
+/// replacement text. Do not re-enter this pass with transforms carried over from
+/// another compilation or reconstructed from host metadata.
 pub(crate) fn encode_projected_edits(
     module: &ModuleAnalysis,
     edits: &mut [SourceTransform],

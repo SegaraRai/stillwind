@@ -7,6 +7,8 @@ use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
 
+use crate::blocks::ScanError;
+
 /// One unescaped function invocation found during a batch scan.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssFunctionMatch {
@@ -121,14 +123,28 @@ fn collect_functions(
 /// Returns the offset of the `closer` matching the `opener` at `open`.
 ///
 /// `opener` and `closer` are supplied by the caller so one scanner serves parentheses
-/// and brackets. Quotes and comments are skipped; `None` means the delimiter is never
-/// closed or the nesting underflows.
+/// and brackets. Quotes and comments are skipped, so delimiters inside them are literal
+/// text.
+///
+/// # Errors
+///
+/// Returns [`ScanError::InvalidOffset`] when `open` is past the end of `value` or
+/// falls inside a multi-byte scalar, and [`ScanError::Unclosed`] when the delimiter is
+/// never closed or the nesting underflows. Callers that obtain `open` from
+/// `char_indices` or `find` over this same string always satisfy the offset
+/// requirement.
 pub fn matching_css_delimiter(
     value: &str,
     open: usize,
     opener: char,
     closer: char,
-) -> Option<usize> {
+) -> Result<usize, ScanError> {
+    if !value.is_char_boundary(open) {
+        return Err(ScanError::InvalidOffset {
+            offset: open,
+            length: value.len(),
+        });
+    }
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;
@@ -150,22 +166,22 @@ pub fn matching_css_delimiter(
         match character {
             '\'' | '"' => quote = Some(character),
             '/' if bytes.get(index + 1) == Some(&b'*') => {
-                let end = value[index + 2..].find("*/")?;
+                let end = value[index + 2..].find("*/").ok_or(ScanError::Unclosed)?;
                 index += end + 4;
                 continue;
             }
             _ if character == opener => depth += 1,
             _ if character == closer => {
-                depth = depth.checked_sub(1)?;
+                depth = depth.checked_sub(1).ok_or(ScanError::Unclosed)?;
                 if depth == 0 {
-                    return Some(index);
+                    return Ok(index);
                 }
             }
             _ => {}
         }
         index += 1;
     }
-    None
+    Err(ScanError::Unclosed)
 }
 
 /// Splits an argument list at its first top-level comma.
@@ -256,9 +272,30 @@ mod tests {
         assert_eq!(find_css_function("/* never closed", "--theme", 0), None);
         assert_eq!(
             matching_css_delimiter("(a(')') /* ) */)", 0, '(', ')'),
-            Some(15)
+            Ok(15)
         );
-        assert_eq!(matching_css_delimiter("(a", 0, '(', ')'), None);
+        assert_eq!(
+            matching_css_delimiter("(a", 0, '(', ')'),
+            Err(ScanError::Unclosed)
+        );
+        assert_eq!(
+            matching_css_delimiter("(a)", 4, '(', ')'),
+            Err(ScanError::InvalidOffset {
+                offset: 4,
+                length: 3
+            })
+        );
+        assert_eq!(
+            matching_css_delimiter("é(a)", 1, '(', ')'),
+            Err(ScanError::InvalidOffset {
+                offset: 1,
+                length: 5
+            })
+        );
+        assert_eq!(
+            matching_css_delimiter(")(a)", 0, '(', ')'),
+            Err(ScanError::Unclosed)
+        );
     }
 
     #[test]

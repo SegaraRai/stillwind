@@ -22,6 +22,13 @@ use stillwind_source::{FileId, Span};
 use crate::ThemeToken;
 use crate::parser::extract_keyframe_blocks;
 
+/// Deepest group nesting accepted in one authored buffer.
+///
+/// Parsing recurses once per nested group, so this bounds the stack one stylesheet can
+/// consume; deeper input is reported as [`CompileErrorKind::CssNestingTooDeep`] instead
+/// of exhausting the stack.
+const MAX_BLOCK_NESTING: usize = 64;
+
 /// Parses one CSS buffer into a source-ordered output template.
 ///
 /// `tokens` are the already extracted theme tokens; each `@theme` node records the
@@ -37,7 +44,7 @@ pub fn parse_output_template(
     css: &str,
     tokens: &[ThemeToken],
 ) -> Result<CssOutputTemplate, CompileErrorKind> {
-    let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), false)?;
+    let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), false, 0)?;
     validate_slots(&nodes, false)?;
     Ok(CssOutputTemplate {
         source_identity: String::new(),
@@ -58,7 +65,7 @@ pub(crate) fn theme_blocks(
     css: &str,
 ) -> Result<Vec<(std::ops::Range<usize>, String)>, CompileErrorKind> {
     let mut blocks = Vec::new();
-    parse_nodes(css, 0, &[], &mut blocks, false)?;
+    parse_nodes(css, 0, &[], &mut blocks, false, 0)?;
     Ok(blocks)
 }
 
@@ -109,12 +116,13 @@ fn consume_block(
 /// `base` is the byte offset of `css` inside the root buffer, so every origin span and
 /// error offset refers to the root buffer rather than to the slice. `conditional`
 /// records whether an enclosing group is conditional; a definition below such a group
-/// is rejected.
+/// is rejected. `depth` counts the groups already open around this level.
 ///
 /// # Errors
 ///
 /// Returns an error for conditional definitions, malformed blocks, unknown slots, and
-/// offsets that exceed the 32-bit source limit.
+/// offsets that exceed the 32-bit source limit, or when the buffer nests groups deeper
+/// than [`MAX_BLOCK_NESTING`].
 #[allow(clippy::too_many_lines)] // One dispatch keeps source ranges aligned for authored rules, definitions, and slots.
 fn parse_nodes(
     css: &str,
@@ -122,7 +130,14 @@ fn parse_nodes(
     tokens: &[ThemeToken],
     theme_blocks: &mut Vec<(std::ops::Range<usize>, String)>,
     conditional: bool,
+    depth: usize,
 ) -> Result<Vec<CssOutputNode>, CompileErrorKind> {
+    if depth > MAX_BLOCK_NESTING {
+        return Err(CompileErrorKind::CssNestingTooDeep {
+            offset: base,
+            limit: MAX_BLOCK_NESTING,
+        });
+    }
     let mut parser = Parser::new(css);
     let mut nodes = Vec::new();
     while !parser.is_exhausted() {
@@ -211,6 +226,7 @@ fn parse_nodes(
                         tokens,
                         theme_blocks,
                         conditional || name.as_deref() != Some("layer"),
+                        depth + 1,
                     )?,
                 });
             }
@@ -221,6 +237,7 @@ fn parse_nodes(
                     tokens,
                     theme_blocks,
                     conditional,
+                    depth + 1,
                 )?;
                 if children.iter().any(|node| {
                     matches!(

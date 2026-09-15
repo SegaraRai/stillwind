@@ -2,8 +2,11 @@
 //!
 //! Tokenization cannot fail on ordinary input; only a source-coordinate problem produces an
 //! error, and that error has to reach the user as a diagnostic rather than as a panic or as a
-//! silently empty token list that hides the real cause.
+//! silently empty token list that hides the real cause. The same rule covers a token whose
+//! value nests deeper than the calculator accepts: it is reported against the token's own
+//! span so the value never reaches a parser that would refuse it.
 
+use stillwind_css::{MAX_VALUE_NESTING, value_nesting_overflow};
 use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
 use stillwind_source::Spanned;
 use stillwind_syntax::UtilityToken;
@@ -17,7 +20,10 @@ pub(super) fn lex_utilities(
     diagnostics: &mut Vec<CompileError>,
 ) -> Vec<Spanned<UtilityToken>> {
     match stillwind_syntax::lex_utilities(input) {
-        Ok(tokens) => tokens,
+        Ok(tokens) => tokens
+            .into_iter()
+            .filter(|token| !reject_excessive_nesting(token, diagnostics))
+            .collect(),
         Err(error) => {
             diagnostics.push(CompileError::new(
                 CompileErrorKind::source_failure(&error, SourceFailureContext::Utility),
@@ -26,4 +32,26 @@ pub(super) fn lex_utilities(
             Vec::new()
         }
     }
+}
+
+/// Appends a fatal error and reports `true` when `token` nests values deeper than the
+/// calculator accepts.
+///
+/// The reported offset is absolute in the token's source file: the token span start plus
+/// the offset within the token text. Nesting inside quotes and comments does not count.
+fn reject_excessive_nesting(
+    token: &Spanned<UtilityToken>,
+    diagnostics: &mut Vec<CompileError>,
+) -> bool {
+    let Some(offset) = value_nesting_overflow(&token.value.raw) else {
+        return false;
+    };
+    diagnostics.push(CompileError::new(
+        CompileErrorKind::CssNestingTooDeep {
+            offset: token.span.start.0 as usize + offset,
+            limit: MAX_VALUE_NESTING,
+        },
+        token.span,
+    ));
+    true
 }

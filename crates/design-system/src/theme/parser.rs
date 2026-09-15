@@ -16,8 +16,8 @@ use std::sync::Arc;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
-    CssOutputTemplate, extract_authored_property_names, extract_property_definitions,
-    unterminated_block,
+    CssOutputTemplate, MAX_VALUE_NESTING, extract_authored_property_names,
+    extract_property_definitions, unterminated_block, value_nesting_overflow,
 };
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_source::{FileId, SourceFile, Span, normalized_module_path};
@@ -41,8 +41,9 @@ use crate::registry::variants::extract_custom_variants;
 ///
 /// # Errors
 ///
-/// Returns malformed CSS, unterminated blocks, invalid output slots or contexts,
-/// conditional compile-time definitions, or positions outside the source-coordinate limit.
+/// Returns malformed CSS, unterminated blocks, values or blocks nested past the
+/// supported depth, invalid output slots or contexts, conditional compile-time
+/// definitions, or positions outside the source-coordinate limit.
 /// The error retains the cause, uses `source.full_span()` as its primary label, and
 /// prefixes its display message with `source.path()`; cause offsets refer to this buffer.
 pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
@@ -58,6 +59,12 @@ pub fn parse_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
 fn parse_theme_contents(source: &SourceFile) -> Result<ThemeIndex, CompileErrorKind> {
     if let Some(offset) = unterminated_block(source.text()) {
         return Err(CompileErrorKind::UnterminatedCssBlock { offset });
+    }
+    if let Some(offset) = value_nesting_overflow(source.text()) {
+        return Err(CompileErrorKind::CssNestingTooDeep {
+            offset,
+            limit: MAX_VALUE_NESTING,
+        });
     }
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     let mut template = parse_output_template(source.text(), &theme.tokens)?;
@@ -248,5 +255,42 @@ mod panic_regressions {
         )
         .unwrap();
         assert_eq!(parse_theme(&source).unwrap().utilities.len(), 1);
+    }
+
+    #[test]
+    fn nested_values_and_groups_past_the_limit_return_errors() {
+        let levels = MAX_VALUE_NESTING + 1;
+        let css = format!(
+            "@theme {{ --x: calc({}1{}); }}",
+            "(".repeat(levels),
+            ")".repeat(levels)
+        );
+        let source = SourceFile::new(FileId(1), "deep-value.css", css.as_str()).unwrap();
+        assert!(
+            matches!(
+                parse_theme(&source),
+                Err(CompileError {
+                    kind: CompileErrorKind::CssNestingTooDeep { .. },
+                    ..
+                })
+            ),
+            "{css}"
+        );
+
+        let depth = 200;
+        let mut css = String::from("@theme { --x: red; }");
+        css.push_str(&"@layer x {".repeat(depth));
+        css.push_str(&"}".repeat(depth));
+        let source = SourceFile::new(FileId(1), "deep-groups.css", css.as_str()).unwrap();
+        assert!(
+            matches!(
+                parse_theme(&source),
+                Err(CompileError {
+                    kind: CompileErrorKind::CssNestingTooDeep { .. },
+                    ..
+                })
+            ),
+            "{css}"
+        );
     }
 }

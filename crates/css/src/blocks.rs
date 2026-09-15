@@ -13,6 +13,25 @@
 
 use cssparser::{ParseError, Parser, Token};
 
+/// Reason a byte-offset delimiter scan cannot return a closing offset.
+///
+/// The brace and delimiter scanners share it, so a caller can tell an unusable
+/// starting offset apart from input that does not close the delimiter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum ScanError {
+    /// The requested offset is past the end of the input or inside a multi-byte scalar.
+    #[error("scan offset {offset} is not a character boundary within {length} bytes")]
+    InvalidOffset {
+        /// Requested byte offset.
+        offset: usize,
+        /// Length in bytes of the scanned input.
+        length: usize,
+    },
+    /// The delimiter is never closed, or a closer appears before its opener.
+    #[error("delimiter has no matching closer")]
+    Unclosed,
+}
+
 /// Removes complete block comments and preserves an unterminated comment tail.
 pub fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
@@ -302,13 +321,24 @@ pub fn find_block_open(value: &str) -> Option<usize> {
 
 /// Returns the offset of the `}` matching the `{` at `open`.
 ///
-/// Quoted strings and escapes are respected; `None` means the brace is never closed or
-/// a `}` appears first.
-pub fn matching_brace(value: &str, open: usize) -> Option<usize> {
+/// Quoted strings and escapes are respected, so braces inside them are literal text.
+///
+/// # Errors
+///
+/// Returns [`ScanError::InvalidOffset`] when `open` is past the end of `value` or
+/// falls inside a multi-byte scalar, and [`ScanError::Unclosed`] when the brace is
+/// never closed or a `}` appears first. Callers that obtain `open` from
+/// [`find_block_open`] or from `char_indices` over this same string always satisfy
+/// the offset requirement.
+pub fn matching_brace(value: &str, open: usize) -> Result<usize, ScanError> {
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;
-    for (offset, character) in value[open..].char_indices() {
+    let rest = value.get(open..).ok_or(ScanError::InvalidOffset {
+        offset: open,
+        length: value.len(),
+    })?;
+    for (offset, character) in rest.char_indices() {
         if let Some(current_quote) = quote {
             if escaped {
                 escaped = false;
@@ -323,15 +353,15 @@ pub fn matching_brace(value: &str, open: usize) -> Option<usize> {
             '\'' | '"' => quote = Some(character),
             '{' => depth += 1,
             '}' => {
-                depth = depth.checked_sub(1)?;
+                depth = depth.checked_sub(1).ok_or(ScanError::Unclosed)?;
                 if depth == 0 {
-                    return Some(open + offset);
+                    return Ok(open + offset);
                 }
             }
             _ => {}
         }
     }
-    None
+    Err(ScanError::Unclosed)
 }
 
 /// Detect EOF inside a block before CSS parsers implicitly close it. Strings, comments
@@ -425,8 +455,23 @@ mod tests {
         assert_eq!(strip_blocks("a @theme { x {y} } b", "@theme"), "a  b");
         assert_eq!(strip_blocks("a @theme { x", "@theme"), "a @theme { x");
         assert_eq!(find_block_open("x-{modifier} { y }"), Some(13));
-        assert_eq!(matching_brace("{ '}' {x} }", 0), Some(10));
-        assert_eq!(matching_brace("{x", 0), None);
+        assert_eq!(matching_brace("{ '}' {x} }", 0), Ok(10));
+        assert_eq!(matching_brace("{x", 0), Err(ScanError::Unclosed));
+        assert_eq!(
+            matching_brace("{x", 3),
+            Err(ScanError::InvalidOffset {
+                offset: 3,
+                length: 2
+            })
+        );
+        assert_eq!(
+            matching_brace("é{x}", 1),
+            Err(ScanError::InvalidOffset {
+                offset: 1,
+                length: 5
+            })
+        );
+        assert_eq!(matching_brace("x}", 0), Err(ScanError::Unclosed));
     }
 }
 

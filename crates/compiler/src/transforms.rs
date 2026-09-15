@@ -68,8 +68,14 @@ impl SourceTransform {
     ///
     /// # Panics
     ///
-    /// Panics for invalid slicing boundaries or if `rewrite` panics. Mutation is not
-    /// transactional: the original replacement has already been taken in either case.
+    /// Panics when an expression range starts before the previous range ended, extends
+    /// past `replacement`, or falls inside a multi-byte scalar, because each range is
+    /// sliced directly; a panicking `rewrite` propagates as well.
+    ///
+    /// Callers must build the ranges together with the replacement text they address -
+    /// the compiler does this while lowering one macro call - and must not attach ranges
+    /// carried over from another compilation. Mutation is not transactional: the
+    /// replacement has been taken even when a panic starts.
     pub(crate) fn rewrite_generated(&mut self, rewrite: impl Fn(&str) -> String) {
         let old = std::mem::take(&mut self.replacement);
         let mut cursor = 0;
@@ -95,8 +101,15 @@ impl SourceTransform {
     ///
     /// # Panics
     ///
-    /// Invalid range boundaries can panic while slicing; invalid exact origins can
-    /// overflow source offsets. The replacement may already be partially rewritten.
+    /// Panics when a mapping range starts before the previous range ended, extends past
+    /// `replacement`, or falls inside a multi-byte scalar, because each range is sliced
+    /// directly; an exact mapping whose original span does not cover the text it claims
+    /// overflows the 32-bit source offset.
+    ///
+    /// Callers must pass the ranges that [`render_transforms`] validates against this
+    /// same replacement, produced together with the generated text by the compiler;
+    /// ranges from another compilation cannot be used. The replacement may already be
+    /// partially rewritten when a panic starts.
     #[allow(clippy::cast_possible_truncation)] // Source-owned byte offsets fit in u32; scalars occupy at most four bytes.
     pub(crate) fn encode_attribute(&mut self, character: char, entity: &str) {
         let old = std::mem::take(&mut self.replacement);

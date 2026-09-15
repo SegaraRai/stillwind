@@ -391,7 +391,8 @@ pub fn generate_react_types(theme: String) -> napi::Result<String> {
 
 /// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
 /// Exposed so parity and integration tools compare both compilers after the same
-/// semantic normalization.
+/// semantic normalization. Expressions that do not parse, or that nest values deeper
+/// than the calculator accepts, are retained byte-for-byte.
 #[napi(js_name = "foldCalcExpressions")]
 pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)

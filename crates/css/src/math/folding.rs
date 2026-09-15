@@ -7,14 +7,69 @@
 //! produces a real error there.
 
 use super::expression::{MathExpression, MathValue};
-use super::parser::MathParser;
+use super::parser::{MAX_VALUE_NESTING, MathParser};
 use crate::find_css_functions;
+
+/// Returns the byte offset where `value` nests parentheses deeper than
+/// [`MAX_VALUE_NESTING`].
+///
+/// Parentheses inside quoted strings, comments, and escapes are literal text and do not
+/// count. Callers use this to reject a value before the calculator parses it; the parser
+/// enforces the same limit on its own, so a value that passes this check never fails a
+/// parse for nesting depth. `None` means the value stays within the limit.
+#[must_use]
+pub fn value_nesting_overflow(value: &str) -> Option<usize> {
+    let mut depth = 0_usize;
+    let mut quote = None;
+    let mut chars = value.char_indices().peekable();
+    while let Some((offset, character)) = chars.next() {
+        if character == '\\' {
+            chars.next();
+            continue;
+        }
+        if let Some(delimiter) = quote {
+            if character == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '/' if chars.peek().is_some_and(|(_, ch)| *ch == '*') => {
+                chars.next();
+                while let Some((_, ch)) = chars.next() {
+                    if ch == '*' && chars.peek().is_some_and(|(_, ch)| *ch == '/') {
+                        chars.next();
+                        break;
+                    }
+                }
+            }
+            '(' => {
+                depth += 1;
+                if depth > MAX_VALUE_NESTING {
+                    return Some(offset);
+                }
+            }
+            ')' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    None
+}
 
 /// Returns the byte offset of the `)` matching the `(` at `open`.
 ///
 /// Quoted strings and escaped characters are skipped, so parentheses inside a string do
 /// not affect the depth. `None` means the parenthesis is never closed or a `)` appears
 /// first.
+///
+/// # Panics
+///
+/// Panics when `open` is past the end of `value` or does not lie on a UTF-8 character
+/// boundary, because the scan begins by slicing at `open`. Callers must pass the offset
+/// of the `(` they want matched, taken from `char_indices`, `find`, or a parser cursor on
+/// this same string; an offset computed against another buffer, or advanced by bytes
+/// instead of scalars, panics.
 pub(crate) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
@@ -150,6 +205,26 @@ mod tests {
             ),
             "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:-5px;"
         );
+    }
+
+    #[test]
+    fn nesting_past_the_limit_is_reported_and_left_unfolded() {
+        let levels = MAX_VALUE_NESTING + 1;
+        let value = format!("{}1{}", "(".repeat(levels), ")".repeat(levels));
+        assert_eq!(value_nesting_overflow(&value), Some(MAX_VALUE_NESTING));
+        let css = format!("width:calc({value})");
+        assert_eq!(fold_calc_expressions(&css), css);
+    }
+
+    #[test]
+    fn sibling_groups_and_quoted_parentheses_do_not_consume_nesting() {
+        let siblings = format!("calc({})", "(1) + ".repeat(200).trim_end_matches(" + "));
+        assert_eq!(value_nesting_overflow(&siblings), None);
+        assert_eq!(
+            value_nesting_overflow(&format!("content:\"{}\"", "(".repeat(100))),
+            None
+        );
+        assert_eq!(fold_calc_expressions(&siblings), "200");
     }
 }
 

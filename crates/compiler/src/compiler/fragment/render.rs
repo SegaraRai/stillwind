@@ -153,8 +153,13 @@ impl Renderer<'_, '_> {
     ///
     /// # Panics
     ///
-    /// Panics on out-of-range field indices or class subtrees that cannot be rendered
-    /// as class values. Callers must use a proven layout or a matching singleton field.
+    /// Panics when a field names an atom index outside `atoms`, because field indices are
+    /// used to index the slice directly, and when a class subtree cannot be rendered as a
+    /// class value, which [`Self::classes`] explains.
+    ///
+    /// Callers must pass fields that `record_fields` produced for this exact atom slice
+    /// and demand, or a single field whose index they just computed; a layout kept across
+    /// a rebuilt atom list panics.
     fn record(&mut self, atoms: &[Atom], fields: &[Field], demand: Demand) -> Code {
         let mut entries = Vec::new();
         for field in fields {
@@ -263,7 +268,12 @@ impl Renderer<'_, '_> {
     ///
     /// # Panics
     ///
-    /// Panics if any value is not accepted by `render_plain`.
+    /// Panics when a value is a class tree that `render_plain` refuses, which happens only
+    /// for a group holding attribute or custom-property entries, or a group with no
+    /// retained class entry.
+    ///
+    /// Callers must build class atoms through the fragment lowering in
+    /// `fragment::expression`, which keeps those groups out of class values.
     #[allow(clippy::expect_used)] // Atom::Class is constructed only after render_plain succeeds.
     fn classes(&mut self, values: &[&Emitted]) -> Code {
         let mut arguments = Vec::new();

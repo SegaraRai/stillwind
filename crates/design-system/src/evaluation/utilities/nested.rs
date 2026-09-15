@@ -93,6 +93,13 @@ pub(crate) fn split_nested_conditions(
 /// Returns the offset, the at-rule kind, and the keyword, so the caller can slice the
 /// condition without re-scanning. `@supports` wins a tie because a body cannot open
 /// both at the same byte.
+///
+/// # Panics
+///
+/// Panics when `cursor` is past the end of `body` or does not lie on a UTF-8 character
+/// boundary, because the search begins by slicing at `cursor`. Callers must pass `0` or
+/// an offset just past a previously returned block in this same string; an offset from
+/// another buffer, or advanced by bytes instead of scalars, panics.
 pub(crate) fn next_nested_condition(
     body: &str,
     cursor: usize,

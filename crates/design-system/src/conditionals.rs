@@ -161,8 +161,7 @@ fn split_arguments(value: &str) -> (&str, Option<&str>) {
 /// Removes one brace pair only when it encloses the whole input; otherwise returns
 /// the input unchanged. Neither branch trims whitespace or validates its contents.
 fn unbrace(value: &str) -> &str {
-    if value.starts_with('{') && matching_css_delimiter(value, 0, '{', '}') == Some(value.len() - 1)
-    {
+    if value.starts_with('{') && matching_css_delimiter(value, 0, '{', '}') == Ok(value.len() - 1) {
         &value[1..value.len() - 1]
     } else {
         value

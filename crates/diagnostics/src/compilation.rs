@@ -519,6 +519,14 @@ pub enum CompileErrorKind {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: usize,
     },
+    /// A CSS construct nests deeper than the depth the scanner can process.
+    #[error("CSS nesting exceeds {limit} levels at byte {offset}")]
+    CssNestingTooDeep {
+        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
+        offset: usize,
+        /// Deepest nesting level the failing operation accepts.
+        limit: usize,
+    },
     /// An import modifier uses an unsupported form.
     #[error("unsupported import modifier at byte {offset}: {modifier}")]
     UnsupportedImportModifier {
@@ -659,6 +667,7 @@ impl CompileErrorKind {
             | Self::CssParse { .. }
             | Self::UnterminatedTheme { .. }
             | Self::UnterminatedCssBlock { .. }
+            | Self::CssNestingTooDeep { .. }
             | Self::UnsupportedImportModifier { .. }
             | Self::InvalidImportModifierOrder { .. }
             | Self::InvalidImportBlock { .. }
