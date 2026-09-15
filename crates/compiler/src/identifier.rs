@@ -377,8 +377,11 @@ impl IdentifierContext {
         self.mode
     }
 
-    /// Takes the findings collected so far, leaving the context empty of reports.
-    pub fn take_reports(&self) -> Vec<LintFinding> {
+    /// Drains the findings collected so far, leaving the context empty of reports.
+    ///
+    /// The pipeline drains them into the compilation's lint findings after lowering, so
+    /// one compilation reports each rejected body once.
+    pub(crate) fn drain_lint_findings(&self) -> Vec<LintFinding> {
         std::mem::take(&mut self.reports.borrow_mut())
     }
 
@@ -741,7 +744,7 @@ mod tests {
             .unwrap();
         // A body the DOM cannot carry is rejected, and the built-in name takes its place.
         assert_ne!(marker.body, "fixed_token");
-        let reports = context.take_reports();
+        let reports = context.drain_lint_findings();
         assert_eq!(reports.len(), 1, "{reports:?}");
         assert_eq!(reports[0].code(), "rejected-identifier");
         let animation = context
@@ -761,7 +764,7 @@ mod tests {
         assert!(body.body.starts_with("a_b_"), "{body:?}");
         assert!(
             context
-                .take_reports()
+                .drain_lint_findings()
                 .iter()
                 .any(|report| report.code() == "rejected-identifier")
         );

@@ -389,7 +389,9 @@ impl Compiler {
 
         // Development compilations report rejected generator output as findings; release
         // compilations fail instead, so a host never receives a name it did not ask for.
-        result.lint_findings.extend(identifiers.take_reports());
+        result
+            .lint_findings
+            .extend(identifiers.drain_lint_findings());
         result
     }
 }
