@@ -1,11 +1,16 @@
 //! Derived names and identities for ref and scope assets.
 //!
-//! Marker class names and anchor custom-property names are hashes of the declaration's
-//! stable identity, so unchanged declarations keep their names across recompiles.
-//! Truncated hashes may collide; symbol validation reports conflicting identities. A
-//! declaration's identity is independent of its projections: `anchor`, `position`,
-//! `scope`, and `container` all reference the same generated name, which is what makes
-//! anchor positioning resolve to the element the ref was attached to.
+//! Marker class names combine a declaration's label, when it has one, with a hash of its
+//! stable identity, and anchor custom-property names use that hash alone, so unchanged
+//! declarations keep their generated names across recompiles. Truncated hashes may
+//! collide; symbol validation reports conflicting identities. A declaration's identity is
+//! independent of its projections: `anchor`, `position`, `scope`, and `container` all
+//! reference the same generated name, which is what makes anchor positioning resolve to
+//! the element the ref was attached to.
+//!
+//! A label stays readable in the marker class, so the DOM token keeps the authored text;
+//! escaping for a CSS selector or a generated JavaScript string literal happens where
+//! those are written.
 //!
 //! [`summary_runtime_assets`] seeds runtime reachability from module exports; call
 //! emission adds uses. Unreferenced producer calls are replaced by `undefined`, but
@@ -38,9 +43,9 @@ pub(super) fn render_handle_projection(
 }
 
 /// Marker class applied where a ref is attached, without the leading dot.
-//
-// The hash is over the stable identity, not the label, so renaming the label changes only the
-// human-readable part of the class name.
+///
+/// The hash covers the stable identity, so renaming the label changes only the readable
+/// part of the class name.
 pub(super) fn handle_marker_class(handle: &HandleDefinition) -> String {
     let hash = &blake3::hash(asset_identity(&handle.module_path, "ref", &handle.name).as_bytes())
         .to_hex()[..8];
@@ -60,7 +65,12 @@ pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
     }
 }
 
-/// Labels remain readable DOM tokens; whitespace becomes underscores.
+/// Normalizes a label for use inside a marker class token.
+///
+/// Characters are the authored ones so the token stays readable, with two exceptions:
+/// whitespace becomes `_`, and NUL becomes U+FFFD because CSS cannot represent it. The
+/// result is a DOM class token, so escaping belongs to the CSS and JavaScript boundaries
+/// that write it out.
 fn marker_label(label: &str) -> String {
     label
         .chars()
@@ -76,7 +86,11 @@ fn marker_label(label: &str) -> String {
         .collect()
 }
 
-/// Serializes one DOM class token for use in a CSS selector.
+/// Serializes one marker class token as a CSS selector, including its leading `.`.
+///
+/// `marker` is the class token without the dot, so a caller holding a selector from
+/// [`scope_marker_class`] must strip it first. Escaping is what lets a label keep
+/// characters such as `:` and `/`.
 pub(super) fn marker_selector(marker: &str) -> String {
     let mut selector = String::from(".");
     let _ = serialize_identifier(marker, &mut selector);

@@ -127,7 +127,8 @@ pub struct HandleDefinition {
     pub name: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
-    /// The single statically resolved scope identity supplied to `style.ref(scope)`.
+    /// The single scope identity passed to `style.ref()`, resolved statically; `None`
+    /// for `style.ref()` and `style.ref(name)`.
     pub scope: Option<ScopeDefinition>,
     /// Span of the producing call, used for replacement; identity uses `name.span`.
     pub call_span: Span,

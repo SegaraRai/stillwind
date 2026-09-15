@@ -14,7 +14,12 @@ use stillwind_css::{
 
 use crate::variants::parse_variant_name;
 
-/// First registration offsets in the import-expanded stylesheet; redefinitions retain their slot.
+/// First registration offsets in the import-expanded stylesheet; redefinitions retain
+/// their slot.
+///
+/// Only definitions that can register a name reserve a slot: `@variant` blocks must
+/// carry an `@slot`, and `@custom-variant` also registers from its statement form. The
+/// name is the header's first whitespace-delimited token.
 pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<String, usize> {
     let mut positions = BTreeMap::<String, usize>::new();
     for directive in directives {

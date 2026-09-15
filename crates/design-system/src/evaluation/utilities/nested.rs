@@ -15,7 +15,8 @@ use super::super::syntax::closing_brace;
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NestedUtilityRule {
-    /// Added by compatibility lowering after utility resolution, excluded from ordering metadata.
+    /// True for the modern-color branch the compatibility path wraps in `@supports`;
+    /// ordering metadata leaves these branches out.
     pub compatibility: bool,
     /// Which conditional wrapper the emitter must use.
     pub at_rule: NestedUtilityAtRule,

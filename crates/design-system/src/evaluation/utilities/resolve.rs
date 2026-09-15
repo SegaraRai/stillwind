@@ -23,13 +23,16 @@ use crate::ThemeIndex;
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
-    /// Snapshot-selected utility ordering before variant application.
+    /// Ordering key of this resolution in the snapshot's configured mode, computed
+    /// before variant application.
     pub order: UtilityOrder,
     /// The parsed candidate, including its variants, flags, and modifier.
     pub candidate: Candidate,
     /// Registrations explicitly required by the selected utility branches.
     pub required_properties: Vec<String>,
-    /// Source order of the matched `@stillwind-utility`.
+    /// Authored position of the matched definition, from the import-expanded stylesheet
+    /// when the snapshot orders by authored position and from the built-in registry
+    /// otherwise.
     pub builtin_order: Option<usize>,
     /// Finalized declarations for the utility itself.
     pub declaration: String,

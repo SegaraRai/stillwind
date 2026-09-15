@@ -96,6 +96,8 @@ impl StyleVariantPlan {
         Some(plan)
     }
 
+    /// Applies one ordinary prefix wrapper: its text joins the canonical spelling and its
+    /// variants extend every path.
     fn add_prefix(
         &mut self,
         theme: &ThemeIndex,
@@ -114,6 +116,10 @@ impl StyleVariantPlan {
         Some(())
     }
 
+    /// Applies one ref wrapper, expanding one alternative path per matched ref identity.
+    ///
+    /// Pushes a diagnostic and returns `None` for a ref without an identity and for a path
+    /// that carries a runtime condition, which a static selector cannot express.
     fn add_ref(
         &mut self,
         theme: &ThemeIndex,
@@ -251,6 +257,10 @@ impl StyleVariantPlan {
     }
 }
 
+/// Parses a wrapper prefix and resolves each of its variants.
+///
+/// Returns `None` after pushing the diagnostic for a prefix that is not a complete
+/// `name:` list and for a variant the registry does not know.
 fn collect_variant_and_applications(
     theme: &ThemeIndex,
     prefix: &Spanned<String>,

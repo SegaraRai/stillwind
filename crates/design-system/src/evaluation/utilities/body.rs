@@ -26,8 +26,6 @@ use crate::{CustomUtility, ThemeIndex, ThemeNamespace};
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UtilityResolution {
-    /// Header-level Tailwind ordering override from the selected definition.
-    pub(crate) tw_sort: Option<String>,
     /// Declarations for the matched selector, or for the utility itself.
     pub(crate) declaration: String,
     /// Explicit custom-property registration dependencies collected from requirement
@@ -39,21 +37,26 @@ pub(crate) struct UtilityResolution {
     pub(crate) nested: Vec<NestedUtilityRule>,
     /// Extra selector targets produced by further overloads.
     pub(crate) additional: Vec<ResolvedUtilityTarget>,
-    /// Authored position of the matched built-in, used for ordering.
+    /// Authored position of the matched definition: its registration offset when the
+    /// snapshot orders by authored position, otherwise the built-in registry offset.
+    /// `None` when the definition has no position, as for synthetic rules.
     pub(crate) builtin_order: Option<usize>,
+    /// `(tw-sort: property)` value authored on the definition header, which replaces
+    /// the resolved property indices when the snapshot selects Tailwind ordering.
+    pub(crate) tw_sort: Option<String>,
 }
 
 impl UtilityResolution {
     /// A declaration with no selector, conditionals, or ordering.
     pub(crate) fn plain(declaration: String) -> Self {
         Self {
-            tw_sort: None,
             declaration,
             required_properties: Vec::new(),
             selector: None,
             nested: Vec::new(),
             additional: Vec::new(),
             builtin_order: None,
+            tw_sort: None,
         }
     }
 }
@@ -162,7 +165,6 @@ pub(crate) fn resolve_css_utility_body(
             }]
         })?;
         (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
-            tw_sort: utility.tw_sort.clone(),
             required_properties,
             declaration: parent_declaration,
             selector: None,
@@ -173,10 +175,10 @@ pub(crate) fn resolve_css_utility_body(
             } else {
                 utility.builtin_order
             },
+            tw_sort: utility.tw_sort.clone(),
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
-            tw_sort: utility.tw_sort.clone(),
             required_properties,
             declaration,
             selector,
@@ -187,6 +189,7 @@ pub(crate) fn resolve_css_utility_body(
             } else {
                 utility.builtin_order
             },
+            tw_sort: utility.tw_sort.clone(),
         })
     }
 }

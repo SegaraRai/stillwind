@@ -1,10 +1,12 @@
 //! Declaration-level ordering inside one rule.
 //!
-//! Utilities follow the design system's precedence, which makes
-//! shorthand and longhand precedence reproducible. Equal positions use candidate spelling, so output is
-//! stable for a given input. Combining, rather than concatenating, the declarations is also where
-//! semantic declaration composition applies, so a caller must always go
-//! through `combine_declarations_for_theme` instead of joining declaration strings itself.
+//! Utilities are ordered by the key the snapshot's utility ordering mode produced, which
+//! makes shorthand and longhand precedence reproducible. Equal keys fall back to a
+//! candidate-name comparison and branches of one candidate keep their resolved order, so
+//! output is stable for a given input. Combining, rather than concatenating, the
+//! declarations is also where semantic declaration composition applies, so a caller must
+//! always go through `combine_declarations_for_theme` instead of joining declaration
+//! strings itself.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 

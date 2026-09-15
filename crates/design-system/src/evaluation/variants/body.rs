@@ -9,6 +9,8 @@
 //! variant that also sets a custom property). Those declarations are kept separate from
 //! the utility's declarations so the emitter can place them correctly.
 
+use cssparser::{Parser, Token};
+
 use super::super::syntax::closing_brace;
 use super::resolve::{VariantApplication, VariantDeclaration};
 
@@ -96,12 +98,12 @@ pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
 
 /// Finds a rule body without treating quoted braces or function contents as blocks.
 fn block_open(body: &str) -> Option<usize> {
-    let mut parser = cssparser::Parser::new(body);
+    let mut parser = Parser::new(body);
     loop {
         let offset = parser.position().byte_index();
         if matches!(
             parser.next_including_whitespace_and_comments().ok()?,
-            cssparser::Token::CurlyBracketBlock
+            Token::CurlyBracketBlock
         ) {
             return Some(offset);
         }

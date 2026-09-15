@@ -1,5 +1,7 @@
 //! Tailwind 4.3.3 utility ordering before CSS optimization and variant application.
 //!
+//! [`UtilityOrder`] is the sort key of one resolved rule: Tailwind property metadata in
+//! the default mode, or the authored registration position when the theme selects it.
 //! Property metadata follows Tailwind's `src/property-order.ts`; comparison follows
 //! `compile.ts` and `utils/compare.ts`. The adjacent data file retains upstream order.
 
@@ -22,7 +24,13 @@ pub enum UtilityOrder {
 }
 
 impl UtilityOrder {
-    /// Compares rule precedence, using candidate spelling only after semantic keys tie.
+    /// Compares two rules' precedence; `left` and `right` are their candidate spellings.
+    ///
+    /// Authored keys compare by registration position, Tailwind keys by property
+    /// metadata, and a tie falls back to the names: byte order in authored mode,
+    /// Tailwind's numeric-aware comparison in Tailwind mode. Keys of different modes
+    /// compare by mode, so a synthetic rule, which has no registration position, sorts
+    /// ahead of a resolved utility in either mode.
     pub fn compare(&self, left: &str, other: &Self, right: &str) -> Ordering {
         match (self, other) {
             (Self::Authored(a), Self::Authored(b)) => a.cmp(b).then_with(|| left.cmp(right)),
@@ -45,8 +53,13 @@ pub struct UtilityPropertySort {
 }
 
 impl UtilityPropertySort {
-    /// Reads declaration groups before optimization. Support definitions outside
-    /// the utility rule must be excluded by the caller.
+    /// Builds one utility's sort key from the declaration groups it authors.
+    ///
+    /// `groups` holds the utility's own declaration lists (base, conditional, and
+    /// additional targets) with the compatibility fallback branches left out by the
+    /// caller. Every declaration counts, including duplicates and empty values, and a
+    /// `tw_sort` property counts once and replaces the collected indices when the
+    /// property table knows it.
     pub(crate) fn from_groups<'a>(
         groups: impl IntoIterator<Item = &'a str>,
         tw_sort: Option<&str>,
@@ -100,7 +113,9 @@ impl UtilityPropertySort {
     }
 }
 
-/// Mirrors JavaScript UTF-16 and Number comparisons, including leading-zero ties.
+/// Tailwind's candidate comparison: digit runs compare as numbers, numerically equal
+/// runs fall back to their text, other characters compare by UTF-16 code unit, and a
+/// strict prefix sorts first.
 fn compare_candidates(left: &str, right: &str) -> Ordering {
     let left: Vec<_> = left.encode_utf16().collect();
     let right: Vec<_> = right.encode_utf16().collect();

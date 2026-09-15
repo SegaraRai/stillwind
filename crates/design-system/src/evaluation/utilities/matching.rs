@@ -119,7 +119,8 @@ pub(crate) fn resolve_builtin_css_utility(
 /// Branches are ordered by specificity, then merged: branches sharing a selector
 /// contribute one declaration list, and branches with distinct selectors become
 /// additional targets. A property already claimed by a more-specific branch is not
-/// overwritten by a broader one.
+/// overwritten by a broader one. The most specific branch that carries a `tw_sort`
+/// override supplies the retained one.
 pub(crate) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
@@ -382,14 +383,14 @@ mod tests {
     #[test]
     fn exact_branches_outrank_wildcards_and_value_types_are_deduplicated() {
         let exact = CustomUtility {
-            tw_sort: None,
             name: "w-1".into(),
             body: "width:--value([length]);x:--value([length]);".into(),
             builtin_order: None,
+            tw_sort: None,
         };
         let wildcard = CustomUtility {
-            tw_sort: None,
             name: "w-*".into(),
+            tw_sort: None,
             ..exact.clone()
         };
         assert_eq!(utility_value_types(&exact), vec![ValueType::Length]);

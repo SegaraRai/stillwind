@@ -110,11 +110,13 @@ pub struct DesignSystemRevision(
 /// CSS agree even when their revisions differ.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionFingerprints {
-    /// Whole-snapshot content, including the compiler version and the selected built-in CSS.
+    /// Whole-snapshot content, including the compiler version and the selected built-in
+    /// CSS.
     pub content: Fingerprint,
     /// Resolved prefix configuration only.
     pub config: Fingerprint,
-    /// Output template and theme-order metadata, which decide emitted ordering.
+    /// Output template, theme order, registration positions, and the utility ordering
+    /// mode, which decide emitted ordering.
     pub ordering: Fingerprint,
     /// Authored lint severities.
     pub lint_policy: Fingerprint,
