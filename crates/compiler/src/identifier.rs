@@ -307,7 +307,157 @@ fn generation_failure(kind: IdentifierKind, message: String) -> CompileErrorKind
     CompileErrorKind::IdentifierGenerationFailed(kind.as_str().into(), message.into())
 }
 
-/// The built-in body for one family: a hash of the identity input.
+/// The Stillwind-owned custom-property prefix before a host-level rewrite.
+const STILLWIND_PREFIX: &str = "--sw-";
+
+/// Prefix of a generated ref marker class token.
+const REF_MARKER_PREFIX: &str = "s_";
+/// Prefix of a generated scope marker class token.
+const SCOPE_MARKER_PREFIX: &str = "s_";
+/// Prefix of a generated keyframes name.
+const ANIMATION_PREFIX: &str = "--sw-a-";
+/// Prefix of a generated view-transition name.
+const VIEW_TRANSITION_PREFIX: &str = "--sw-v-";
+/// Prefix of a generated utility class token.
+const CLASS_PREFIX: &str = "_s_";
+
+/// Normalizes an authored label for use inside a generated name.
+///
+/// Characters are the authored ones so the token stays readable, with two exceptions:
+/// whitespace becomes `_`, and NUL becomes U+FFFD because CSS cannot represent it. The
+/// result is a DOM class token, so escaping belongs to the CSS and JavaScript
+/// boundaries that write it out.
+pub(crate) fn marker_label(label: &str) -> String {
+    label
+        .chars()
+        .map(|character| {
+            if character.is_whitespace() {
+                '_'
+            } else if character == '\0' {
+                '\u{fffd}'
+            } else {
+                character
+            }
+        })
+        .collect()
+}
+
+impl IdentifierContext {
+    /// The body for `kind`, or the built-in body, as a diagnostic-carrying result.
+    fn required(
+        &self,
+        kind: IdentifierKind,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<String, CompileErrorKind> {
+        Ok(self.body(kind, input, label)?.body)
+    }
+
+    /// A utility class token for one canonical class input.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn class_name(&self, canonical_input: &str) -> Result<String, CompileErrorKind> {
+        let body = self.required(IdentifierKind::UtilityClass, canonical_input, None)?;
+        Ok(format!("{CLASS_PREFIX}{body}"))
+    }
+
+    /// A ref marker class token, without a leading dot.
+    ///
+    /// `label` is the authored label; whitespace and NUL are normalized before the
+    /// generator sees it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn ref_marker_name(
+        &self,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<String, CompileErrorKind> {
+        self.marker_name(IdentifierKind::RefMarker, REF_MARKER_PREFIX, input, label)
+    }
+
+    /// A scope marker class token, without a leading dot.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn scope_marker_name(
+        &self,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<String, CompileErrorKind> {
+        self.marker_name(
+            IdentifierKind::ScopeMarker,
+            SCOPE_MARKER_PREFIX,
+            input,
+            label,
+        )
+    }
+
+    /// An `anchor-name` custom-ident for a ref's identity.
+    ///
+    /// The built-in generator delegates to the ref marker generator, so one declaration
+    /// has one string in both namespaces unless a host overrides a family.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn anchor_name(
+        &self,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<String, CompileErrorKind> {
+        let body = self.required(IdentifierKind::AnchorName, input, label)?;
+        Ok(format!("{STILLWIND_PREFIX}r-{body}"))
+    }
+
+    /// A `container-name` custom-ident for a scope's identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn container_name(&self, input: &str) -> Result<String, CompileErrorKind> {
+        let body = self.required(IdentifierKind::ContainerName, input, None)?;
+        Ok(format!("{STILLWIND_PREFIX}s-{body}"))
+    }
+
+    /// A `@keyframes` name, referenced by `animation-name`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn animation_name(&self, input: &str) -> Result<String, CompileErrorKind> {
+        let body = self.required(IdentifierKind::KeyframesName, input, None)?;
+        Ok(format!("{ANIMATION_PREFIX}{body}"))
+    }
+
+    /// A `view-transition-name` custom-ident.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for this family.
+    pub(crate) fn view_transition_name(&self, input: &str) -> Result<String, CompileErrorKind> {
+        let body = self.required(IdentifierKind::ViewTransitionName, input, None)?;
+        Ok(format!("{VIEW_TRANSITION_PREFIX}{body}"))
+    }
+
+    /// A marker class token with `prefix` and an optional normalized label.
+    fn marker_name(
+        &self,
+        kind: IdentifierKind,
+        prefix: &str,
+        input: &str,
+        label: Option<&str>,
+    ) -> Result<String, CompileErrorKind> {
+        let normalized = label.map(marker_label);
+        let body = self.required(kind, input, normalized.as_deref())?;
+        Ok(format!("{prefix}{body}"))
+    }
+}
+
 ///
 /// Class names hash the input alone, because a class is unique per call and branch
 /// rather than per declaration, and ref-like families mix in the normalized label so

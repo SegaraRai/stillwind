@@ -17,9 +17,10 @@ use stillwind_source::{SourceFile, Spanned};
 
 use super::CssContribution;
 use super::lexer::lex_utilities;
-use super::symbols::{motion_symbol_name, symbol_name};
+use super::symbols::{motion_name, motion_symbol_name};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
+use crate::identifier::IdentifierContext;
 
 mod animation;
 
@@ -30,6 +31,7 @@ pub(super) use animation::emit_animation_definition;
 /// The `animation-name` always names this declaration's keyframes, and the options follow in
 /// their written order.
 pub(super) fn resolve_animation_use(
+    identifiers: &IdentifierContext,
     animation: &AssetReference,
     options: &Spanned<String>,
     theme: &ThemeIndex,
@@ -37,7 +39,13 @@ pub(super) fn resolve_animation_use(
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        motion_symbol_name(&animation.identity)
+        match motion_symbol_name(identifiers, &animation.identity) {
+            Ok(name) => name,
+            Err(failure) => {
+                diagnostics.push(CompileError::new(failure, options.span));
+                String::new()
+            }
+        }
     );
     declaration.push_str(&resolve_motion_options(options, theme, diagnostics));
     CompiledUtility {
@@ -87,12 +95,24 @@ pub(super) fn resolve_motion_options(
 pub(super) fn emit_view_transition_definition(
     contribution: &mut CssContribution,
     source: &SourceFile,
+    identifiers: &IdentifierContext,
     transition: &ViewTransitionDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
     let output = &mut contribution.css;
-    let name = symbol_name(source, AssetKind::ViewTransition, &transition.name);
+    let name = match motion_name(
+        identifiers,
+        source.path(),
+        AssetKind::ViewTransition,
+        &transition.name,
+    ) {
+        Ok(name) => name,
+        Err(failure) => {
+            diagnostics.push(CompileError::new(failure, transition.call_span));
+            return;
+        }
+    };
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
         output.push('.');

@@ -20,9 +20,8 @@ use stillwind_source::{FileId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
 use crate::candidate::CandidateResolver;
-use crate::compiler::{
-    class_name, emit_utility_rules, resolve_utility_targets, unresolved_utility_kind,
-};
+use crate::compiler::{emit_utility_rules, resolve_utility_targets, unresolved_utility_kind};
+use crate::identifier::IdentifierContext;
 use crate::{CompilerOptions, GeneratedRule, ModuleCssArtifact};
 
 /// Everything one candidate produces for an editor.
@@ -145,6 +144,11 @@ impl DesignSystemQuery {
             0,
             u32::try_from(candidate.len()).unwrap_or(u32::MAX),
         );
+        // The built-in generator cannot reject an input, so the fallback name is
+        // unreachable; previews keep the empty string rather than panicking a host.
+        let name = IdentifierContext::builtin()
+            .class_name(&format!("{candidate}\0"))
+            .unwrap_or_default();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
         let targets = resolve_utility_targets(candidate, theme).filter(|_| {
@@ -157,12 +161,7 @@ impl DesignSystemQuery {
         });
         let mut contributions = Vec::new();
         let mut diagnostics = if let Some(targets) = targets {
-            emit_utility_rules(
-                &mut contributions,
-                &class_name(&format!("{candidate}\0")),
-                &targets,
-                theme,
-            );
+            emit_utility_rules(&mut contributions, &name, &targets, theme);
             Vec::new()
         } else {
             vec![LintFinding::new(

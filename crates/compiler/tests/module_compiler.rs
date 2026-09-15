@@ -5,11 +5,12 @@
 //! transform output against a pinned snapshot, invalid IR and byte boundaries returning
 //! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompileResult, Compiler, CompilerOptions, ModuleCompiler, SourceTransform, StylesheetRenderer,
+    CompileResult, Compiler, CompilerOptions, GeneratedBody, GeneratorSet, IdentifierGenerator,
+    IdentifierKind, ModuleCompiler, SourceTransform, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
@@ -17,7 +18,8 @@ use stillwind_ir::{
     ClassExpression, ConditionalKind, HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceFile, Span, Spanned};
+use stillwind_semantic::TypeFacts;
+use stillwind_source::{FileId, Fingerprint, SourceFile, Span, Spanned};
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
@@ -379,3 +381,76 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
 
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
+
+/// Names every handled family with a fixed, readable body.
+#[derive(Debug)]
+struct FixedGenerator {
+    kinds: Vec<IdentifierKind>,
+}
+
+impl IdentifierGenerator for FixedGenerator {
+    fn handles(&self, kind: IdentifierKind) -> bool {
+        self.kinds.contains(&kind)
+    }
+
+    fn generate(
+        &self,
+        _kind: IdentifierKind,
+        input: &str,
+        _label: Option<&str>,
+    ) -> Result<GeneratedBody, String> {
+        Ok(GeneratedBody::new(format!("fixed{}", input.len())))
+    }
+}
+
+#[test]
+fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
+    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+            .unwrap();
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "menu.tsx",
+            "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor); const y = style('flex');",
+        )
+        .unwrap(),
+    );
+    let generators = GeneratorSet::new(Arc::new(FixedGenerator {
+        kinds: vec![IdentifierKind::RefMarker],
+    }));
+    let scan = OxcSourceAnalyzer.scan(Arc::clone(&source));
+    let facts = TypeFacts {
+        schema: TypeFacts::SCHEMA,
+        module_id: scan.module_id.clone(),
+        source_revision: scan.source_revision.clone(),
+        semantic_revision: Fingerprint::of("facts"),
+        facts: Vec::new(),
+        assets: BTreeMap::new(),
+    };
+    let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
+    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default())
+        .with_generators(generators)
+        .compile(&analysis);
+    assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
+    let marker = compiled
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "ref-marker")
+        .unwrap_or_else(|| panic!("{:?} {:?}", compiled.symbols, compiled.diagnostics));
+    assert!(marker.name.starts_with("s_fixed"), "{}", marker.name);
+    assert!(
+        compiled.code_transforms.iter().any(|transform| transform
+            .replacement
+            .contains("stillwindRef(\"s_fixed36\")")),
+        "{:?}",
+        compiled.code_transforms
+    );
+    let utility = compiled
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "class")
+        .expect("class symbol");
+    assert!(utility.name.starts_with("_s_"), "{}", utility.name);
+}

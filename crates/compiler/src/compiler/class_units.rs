@@ -8,14 +8,16 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::ThemeIndex;
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::fragment::Emitted;
 use super::literal::LiteralContribution;
 use super::props::{GeneratedClass, GuardStep};
-use super::symbols::{class_name, generated_class_symbol};
+use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;
+use crate::identifier::IdentifierContext;
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
 /// Unconditional class contributions, accumulated in source order before publication.
@@ -35,6 +37,8 @@ pub(super) struct ClassUnits<'a> {
     source: &'a SourceFile,
     /// Generation settings for canonical class inputs.
     options: &'a CompilerOptions,
+    /// Name allocation shared with the rest of this compilation.
+    identifiers: &'a IdentifierContext,
     /// Registry used to emit resolved utilities.
     theme: &'a ThemeIndex,
     /// Original call span used in class identities and guard metadata.
@@ -43,7 +47,8 @@ pub(super) struct ClassUnits<'a> {
     utility_css: &'a mut Vec<CssContribution>,
     /// Symbol records shared across calls in this module.
     symbols: &'a mut Vec<GeneratedSymbol>,
-    /// Previously emitted (class name, canonical input) pairs.
+    /// Previously emitted (class name, canonical input) pairs, so identical units are
+    /// written once per module.
     emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     /// Unconditional contributions accumulated across all argument positions.
     pub(super) base: BaseUnit,
@@ -57,9 +62,11 @@ pub(super) struct ClassUnits<'a> {
 
 impl<'a> ClassUnits<'a> {
     /// Starts one call without publishing any CSS or allocating a class identity.
+    #[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
     pub(super) fn new(
         source: &'a SourceFile,
         options: &'a CompilerOptions,
+        identifiers: &'a IdentifierContext,
         theme: &'a ThemeIndex,
         call_span: Span,
         utility_css: &'a mut Vec<CssContribution>,
@@ -69,6 +76,7 @@ impl<'a> ClassUnits<'a> {
         Self {
             source,
             options,
+            identifiers,
             theme,
             call_span,
             utility_css,
@@ -95,11 +103,15 @@ impl<'a> ClassUnits<'a> {
     /// The branch index is part of the class identity, so identical utilities in two
     /// branches still produce distinct units and the later unit can override the
     /// earlier one.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the utility class family.
     pub(super) fn leaf(
         &mut self,
         contribution: LiteralContribution,
         guard: &[GuardStep],
-    ) -> Emitted {
+    ) -> Result<Emitted, CompileErrorKind> {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() {
             self.class_index += 1;
@@ -109,24 +121,7 @@ impl<'a> ClassUnits<'a> {
                 self.call_span.start.0,
                 &canonical,
             );
-            let name = class_name(&canonical);
-            if self
-                .emitted_utility_classes
-                .insert((name.clone(), canonical.clone()))
-            {
-                emit_utility_rules(
-                    &mut self.runtime_css,
-                    &name,
-                    &contribution.utilities,
-                    self.theme,
-                );
-                self.symbols.push(generated_class_symbol(
-                    self.source,
-                    &name,
-                    &canonical,
-                    self.call_span,
-                ));
-            }
+            let name = self.emit_unit(&canonical, &contribution.utilities)?;
             names.push(name.clone());
             self.classes.push(GeneratedClass {
                 class_name: name,
@@ -137,13 +132,17 @@ impl<'a> ClassUnits<'a> {
         names.extend(contribution.markers);
         names.extend(contribution.external);
         names.extend(contribution.plain);
-        Emitted::Leaf { names }
+        Ok(Emitted::Leaf { names })
     }
 
     /// Publishes base CSS before leaf CSS and returns unconditional names and class
     /// metadata. The generated base name precedes retained marker/external names, and
     /// its metadata precedes leaf metadata. Leaf metadata retains allocation order.
-    pub(super) fn finish(mut self) -> (Vec<String>, Vec<GeneratedClass>) {
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the base unit's utility class.
+    pub(super) fn finish(mut self) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileErrorKind> {
         let mut names = Vec::new();
         if !self.base.utilities.is_empty() {
             let canonical = format!("0:{}", self.base.canonical);
@@ -152,19 +151,8 @@ impl<'a> ClassUnits<'a> {
                 self.call_span.start.0,
                 &canonical,
             );
-            let name = class_name(&canonical);
-            if self
-                .emitted_utility_classes
-                .insert((name.clone(), canonical.clone()))
-            {
-                emit_utility_rules(self.utility_css, &name, &self.base.utilities, self.theme);
-                self.symbols.push(generated_class_symbol(
-                    self.source,
-                    &name,
-                    &canonical,
-                    self.call_span,
-                ));
-            }
+            let definitions = std::mem::take(&mut self.base.utilities);
+            let name = self.emit_unit(&canonical, &definitions)?;
             self.classes.insert(
                 0,
                 GeneratedClass {
@@ -178,6 +166,36 @@ impl<'a> ClassUnits<'a> {
         names.extend(std::mem::take(&mut self.base.names));
         // The base unit must precede every conditional unit in the stylesheet.
         self.utility_css.append(&mut self.runtime_css);
-        (names, self.classes)
+        Ok((names, self.classes))
+    }
+
+    /// Generates one class unit, publishing its rules and symbol on first use.
+    ///
+    /// `canonical` is the full identity input the name is generated from. The first
+    /// caller for a pair writes the rules, so identical calls in one module share one
+    /// rule set.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the utility class family.
+    fn emit_unit(
+        &mut self,
+        canonical: &str,
+        definitions: &[CompiledUtility],
+    ) -> Result<String, CompileErrorKind> {
+        let name = self.identifiers.class_name(canonical)?;
+        if self
+            .emitted_utility_classes
+            .insert((name.clone(), canonical.to_owned()))
+        {
+            emit_utility_rules(&mut self.runtime_css, &name, definitions, self.theme);
+            self.symbols.push(generated_class_symbol(
+                self.source,
+                &name,
+                canonical,
+                self.call_span,
+            ));
+        }
+        Ok(name)
     }
 }

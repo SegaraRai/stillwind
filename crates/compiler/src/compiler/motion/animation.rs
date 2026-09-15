@@ -9,16 +9,18 @@ use stillwind_source::{SourceFile, Span};
 use super::super::CssContribution;
 use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
-use super::super::symbols::symbol_name;
+use super::super::symbols::motion_name;
 use super::super::utilities::declaration_order::combine_declarations_for_theme;
 use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
+use crate::identifier::IdentifierContext;
 
 /// Emits default keyframes first and complete replacements in canonical variant order.
 /// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
 pub(in crate::compiler) fn emit_animation_definition(
     contribution: &mut CssContribution,
     source: &SourceFile,
+    identifiers: &IdentifierContext,
     animation: &AnimationDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
@@ -27,12 +29,24 @@ pub(in crate::compiler) fn emit_animation_definition(
     collect_definitions(
         &animation.body,
         &mut Vec::new(),
+        identifiers,
         theme,
         diagnostics,
         &mut definitions,
     );
     definitions.sort_by(|(left, _), (right, _)| left.compare_order(right, theme));
-    let name = symbol_name(source, AssetKind::Animation, &animation.name);
+    let name = match motion_name(
+        identifiers,
+        source.path(),
+        AssetKind::Animation,
+        &animation.name,
+    ) {
+        Ok(name) => name,
+        Err(failure) => {
+            diagnostics.push(CompileError::new(failure, animation.call_span));
+            return;
+        }
+    };
     contribution.keyframes = true;
     for (plan, frames) in definitions {
         let mut frame_contribution = CssContribution::default();
@@ -60,11 +74,12 @@ pub(in crate::compiler) fn emit_animation_definition(
 fn collect_definitions<'a>(
     body: &'a AnimationBody,
     wrappers: &mut Vec<StyleVariant>,
+    identifiers: &IdentifierContext,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     definitions: &mut Vec<(StyleVariantPlan, &'a [AnimationFrame])>,
 ) {
-    if let Some(plan) = StyleVariantPlan::resolve(wrappers, theme, diagnostics) {
+    if let Some(plan) = StyleVariantPlan::resolve(identifiers, wrappers, theme, diagnostics) {
         let valid = plan.applications().iter().all(|applications| {
             !applications.iter().any(VariantApplication::uses_subject)
                 && variant_paths(applications)
@@ -87,7 +102,14 @@ fn collect_definitions<'a>(
     }
     for branch in &body.branches {
         wrappers.push(branch.variant.clone());
-        collect_definitions(&branch.body, wrappers, theme, diagnostics, definitions);
+        collect_definitions(
+            &branch.body,
+            wrappers,
+            identifiers,
+            theme,
+            diagnostics,
+            definitions,
+        );
         wrappers.pop();
     }
 }

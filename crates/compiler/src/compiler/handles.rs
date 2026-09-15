@@ -1,12 +1,8 @@
 //! Derived names and identities for ref and scope assets.
 //!
-//! Marker class names combine a declaration's label, when it has one, with a hash of its
-//! stable identity, and anchor custom-property names use that hash alone, so unchanged
-//! declarations keep their generated names across recompiles. Truncated hashes may
-//! collide; symbol validation reports conflicting identities. A declaration's identity is
-//! independent of its projections: `anchor`, `position`, `scope`, and `container` all
-//! reference the same generated name, which is what makes anchor positioning resolve to
-//! the element the ref was attached to.
+//! A declaration's identity is independent of its projections: `anchor`, `position`,
+//! `scope`, and `container` all reference the same generated name, which is what makes
+//! anchor positioning resolve to the element the ref was attached to.
 //!
 //! A label stays readable in the marker class, so the DOM token keeps the authored text;
 //! escaping for a CSS selector or a generated JavaScript string literal happens where
@@ -24,73 +20,31 @@ use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Spanned};
 
-use super::symbols::{asset_identity, ref_symbol_name};
+use super::symbols::anchor_name;
+use crate::identifier::IdentifierContext;
 
 /// The declaration that makes a projection usable on the element itself.
 pub(super) fn render_handle_projection(
+    context: &IdentifierContext,
     handle: &HandleDefinition,
     projection: &HandleProjection,
-) -> String {
-    let name = ref_symbol_name(handle);
-    match projection {
+) -> Result<String, stillwind_diagnostics::CompileErrorKind> {
+    let name = anchor_name(context, handle)?;
+    Ok(match projection {
         HandleProjection::Anchor => format!("anchor-name:{name};"),
         HandleProjection::Position => format!("position-anchor:{name};"),
         HandleProjection::Scope => format!("anchor-scope:{name};"),
         HandleProjection::Container(kind) => {
             format!("container-name:{name};container-type:{};", kind.value)
         }
-    }
-}
-
-/// Marker class applied where a ref is attached, without the leading dot.
-///
-/// The hash covers the stable identity, so renaming the label changes only the readable
-/// part of the class name.
-pub(super) fn handle_marker_class(handle: &HandleDefinition) -> String {
-    let hash = &blake3::hash(asset_identity(&handle.module_path, "ref", &handle.name).as_bytes())
-        .to_hex()[..8];
-    match &handle.label {
-        Some(label) => format!("s_{}_{}", marker_label(&label.value), hash),
-        None => format!("s_{hash}"),
-    }
-}
-
-/// Marker class applied where a scope is attached, with the leading dot.
-pub(super) fn scope_marker_class(scope: &ScopeDefinition) -> String {
-    let hash = &blake3::hash(asset_identity(&scope.module_path, "scope", &scope.name).as_bytes())
-        .to_hex()[..8];
-    match &scope.label {
-        Some(label) => format!(".s_{}_{}", marker_label(&label.value), hash),
-        None => format!(".s_{hash}"),
-    }
-}
-
-/// Normalizes a label for use inside a marker class token.
-///
-/// Characters are the authored ones so the token stays readable, with two exceptions:
-/// whitespace becomes `_`, and NUL becomes U+FFFD because CSS cannot represent it. The
-/// result is a DOM class token, so escaping belongs to the CSS and JavaScript boundaries
-/// that write it out.
-fn marker_label(label: &str) -> String {
-    label
-        .chars()
-        .map(|character| {
-            if character.is_whitespace() {
-                '_'
-            } else if character == '\0' {
-                '\u{fffd}'
-            } else {
-                character
-            }
-        })
-        .collect()
+    })
 }
 
 /// Serializes one marker class token as a CSS selector, including its leading `.`.
 ///
-/// `marker` is the class token without the dot, so a caller holding a selector from
-/// [`scope_marker_class`] must strip it first. Escaping is what lets a label keep
-/// characters such as `:` and `/`.
+/// `marker` is the class token, so a caller holding a scope marker name from
+/// [`scope_marker_name`] must not pass its selector spelling. Escaping is what lets a
+/// label keep characters such as `:` and `/`.
 pub(super) fn marker_selector(marker: &str) -> String {
     let mut selector = String::from(".");
     let _ = serialize_identifier(marker, &mut selector);
@@ -180,6 +134,8 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
+    use crate::compiler::symbols::{ref_marker_name, scope_marker_name};
+    use crate::identifier::{IdentifierContext, marker_label};
 
     #[test]
     fn labels_preserve_punctuation_and_replace_whitespace() {
@@ -219,22 +175,26 @@ mod tests {
             scope: None,
             call_span: name.span,
         };
-        let marker = handle_marker_class(&handle);
-        let anchor = render_handle_projection(&handle, &HandleProjection::Anchor);
+        let identifiers = IdentifierContext::builtin();
+        let marker = ref_marker_name(&identifiers, &handle).unwrap();
+        let anchor =
+            render_handle_projection(&identifiers, &handle, &HandleProjection::Anchor).unwrap();
         let reference = anchor.strip_prefix("anchor-name:").unwrap();
         assert_eq!(
-            render_handle_projection(&handle, &HandleProjection::Position),
+            render_handle_projection(&identifiers, &handle, &HandleProjection::Position).unwrap(),
             format!("position-anchor:{reference}")
         );
         assert_eq!(
-            render_handle_projection(&handle, &HandleProjection::Scope),
+            render_handle_projection(&identifiers, &handle, &HandleProjection::Scope).unwrap(),
             format!("anchor-scope:{reference}")
         );
         assert_eq!(
             render_handle_projection(
+                &identifiers,
                 &handle,
                 &HandleProjection::Container(Spanned::new("size".into(), name.span))
-            ),
+            )
+            .unwrap(),
             format!("container-name:{reference}container-type:size;")
         );
         handle.scope = Some(ScopeDefinition {
@@ -243,11 +203,11 @@ mod tests {
             label: Some(name.clone()),
             call_span: name.span,
         });
-        let scope = scope_marker_class(handle.scope.as_ref().unwrap());
-        assert!(scope.starts_with(".s_ref_"));
+        let scope = scope_marker_name(&identifiers, handle.scope.as_ref().unwrap()).unwrap();
+        assert!(scope.starts_with("s_ref_"));
         handle.label = Some(name);
         assert_eq!(
-            handle_marker_class(&handle),
+            ref_marker_name(&identifiers, &handle).unwrap(),
             marker.replacen("s_", "s_ref_", 1)
         );
     }

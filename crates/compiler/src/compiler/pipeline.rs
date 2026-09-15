@@ -23,19 +23,17 @@ use stillwind_source::SourceFile;
 use super::conditionals::lower;
 use super::emission::{CallEmitter, CallEmitterInputs};
 use super::fragment::render_style_call;
-use super::handles::{
-    handle_marker_class, named_identity, ref_identity, scope_identity, scope_marker_class,
-    summary_runtime_assets,
-};
+use super::handles::{named_identity, ref_identity, scope_identity, summary_runtime_assets};
 use super::motion::{emit_animation_definition, emit_view_transition_definition};
 use super::output::CompileResult;
 use super::symbols::{
     generated_ref_marker_symbol, generated_ref_symbol, generated_scope_marker_symbol,
-    generated_scope_symbol, generated_symbol, symbol_name,
+    generated_scope_symbol, generated_symbol, motion_name, ref_marker_name, scope_marker_name,
 };
 use super::{Compiler, CssContribution};
 use crate::CompilerOptions;
 use crate::generated::js_string;
+use crate::identifier::IdentifierContext;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
 
@@ -46,8 +44,16 @@ impl Compiler {
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
         compiler_options: &CompilerOptions,
+        identifiers: &IdentifierContext,
     ) -> CompileResult {
-        Self::compile_snapshot(source, parsed, snapshot, compiler_options, true)
+        Self::compile_snapshot(
+            source,
+            parsed,
+            snapshot,
+            compiler_options,
+            identifiers,
+            true,
+        )
     }
 
     /// Compiles a module whose only role is to supply support declarations.
@@ -59,8 +65,16 @@ impl Compiler {
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
         compiler_options: &CompilerOptions,
+        identifiers: &IdentifierContext,
     ) -> CompileResult {
-        Self::compile_snapshot(source, parsed, snapshot, compiler_options, false)
+        Self::compile_snapshot(
+            source,
+            parsed,
+            snapshot,
+            compiler_options,
+            identifiers,
+            false,
+        )
     }
 
     /// Runs the shared pass sequence, returning emitted artifacts and accumulated findings.
@@ -79,6 +93,7 @@ impl Compiler {
         parsed: &ModuleAnalysis,
         snapshot: &DesignSystemSnapshot,
         compiler_options: &CompilerOptions,
+        identifiers: &IdentifierContext,
         emit_source: bool,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
@@ -101,42 +116,63 @@ impl Compiler {
             return result;
         }
 
+        let mut diagnostics = std::mem::take(&mut result.diagnostics);
         let mut utility_css = Vec::new();
         let mut emitted_utility_classes = BTreeSet::new();
         let mut module = parsed.ir.clone();
         module.style_calls = ordered_style_calls(parsed);
         let mut runtime = RuntimeBindings::new(parsed);
-        result
-            .symbols
-            .extend(module.handle_definitions.iter().map(generated_ref_symbol));
-        result.symbols.extend(
+        let mut symbols = std::mem::take(&mut result.symbols);
+        symbols.extend(
             module
                 .handle_definitions
                 .iter()
-                .map(generated_ref_marker_symbol),
+                .map(|definition| generated_ref_symbol(identifiers, definition))
+                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
-        result
-            .symbols
-            .extend(module.scope_definitions.iter().map(generated_scope_symbol));
-        result.symbols.extend(
+        symbols.extend(
+            module
+                .handle_definitions
+                .iter()
+                .map(|definition| generated_ref_marker_symbol(identifiers, definition))
+                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
+        );
+        symbols.extend(
             module
                 .scope_definitions
                 .iter()
-                .map(generated_scope_marker_symbol),
+                .map(|definition| generated_scope_symbol(identifiers, definition))
+                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
-        result.symbols.extend(
+        symbols.extend(
+            module
+                .scope_definitions
+                .iter()
+                .map(|definition| generated_scope_marker_symbol(identifiers, definition))
+                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
+        );
+        symbols.extend(
             module
                 .animation_declarations
                 .iter()
-                .map(|definition| generated_symbol(source, AssetKind::Animation, &definition.name)),
+                .map(|definition| {
+                    generated_symbol(identifiers, source, AssetKind::Animation, &definition.name)
+                })
+                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
-        result.symbols.extend(
+        symbols.extend(
             module
                 .view_transition_declarations
                 .iter()
                 .map(|definition| {
-                    generated_symbol(source, AssetKind::ViewTransition, &definition.name)
-                }),
+                    generated_symbol(
+                        identifiers,
+                        source,
+                        AssetKind::ViewTransition,
+                        &definition.name,
+                    )
+                })
+                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
         for call in module.style_calls {
             let Some(emission) = CallEmitter::run(CallEmitterInputs {
@@ -144,10 +180,11 @@ impl Compiler {
                 options,
                 theme,
                 call: &call,
-                diagnostics: &mut result.diagnostics,
+                identifiers,
+                diagnostics: &mut diagnostics,
                 lint_findings: &mut result.lint_findings,
                 utility_css: &mut utility_css,
-                symbols: &mut result.symbols,
+                symbols: &mut symbols,
                 emitted_utility_classes: &mut emitted_utility_classes,
                 runtime_assets: &mut runtime_assets,
                 motion_assets: &mut motion_assets,
@@ -169,9 +206,10 @@ impl Compiler {
             emit_animation_definition(
                 &mut definition_css,
                 source,
+                identifiers,
                 animation,
                 theme,
-                &mut result.diagnostics,
+                &mut diagnostics,
             );
             if motion_assets.contains(&named_identity(
                 source,
@@ -186,9 +224,10 @@ impl Compiler {
             emit_view_transition_definition(
                 &mut definition_css,
                 source,
+                identifiers,
                 transition,
                 theme,
-                &mut result.diagnostics,
+                &mut diagnostics,
             );
             if motion_assets.contains(&named_identity(
                 source,
@@ -204,11 +243,18 @@ impl Compiler {
             result.transforms.push(SourceTransform {
                 call_span: handle_definition.call_span,
                 replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
-                    format!(
-                        "{}({})",
-                        runtime.require(RuntimeHelper::Ref, handle_definition.call_span),
-                        js_string(&handle_marker_class(&handle_definition))
-                    )
+                    match ref_marker_name(identifiers, &handle_definition) {
+                        Ok(marker) => format!(
+                            "{}({})",
+                            runtime.require(RuntimeHelper::Ref, handle_definition.call_span),
+                            js_string(&marker)
+                        ),
+                        Err(failure) => {
+                            diagnostics
+                                .push(CompileError::new(failure, handle_definition.call_span));
+                            "undefined".to_owned()
+                        }
+                    }
                 } else {
                     "undefined".to_owned()
                 },
@@ -219,11 +265,18 @@ impl Compiler {
             result.transforms.push(SourceTransform {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
-                    format!(
-                        "{}({})",
-                        runtime.require(RuntimeHelper::Scope, scope_definition.call_span),
-                        js_string(scope_marker_class(&scope_definition).trim_start_matches('.'))
-                    )
+                    match scope_marker_name(identifiers, &scope_definition) {
+                        Ok(marker) => format!(
+                            "{}({})",
+                            runtime.require(RuntimeHelper::Scope, scope_definition.call_span),
+                            js_string(&marker)
+                        ),
+                        Err(failure) => {
+                            diagnostics
+                                .push(CompileError::new(failure, scope_definition.call_span));
+                            "undefined".to_owned()
+                        }
+                    }
                 } else {
                     "undefined".to_owned()
                 },
@@ -238,11 +291,21 @@ impl Compiler {
                     AssetKind::Animation,
                     &animation.name,
                 )) {
-                    format!(
-                        "{}(\"{}\")",
-                        runtime.require(RuntimeHelper::Animation, animation.call_span),
-                        symbol_name(source, AssetKind::Animation, &animation.name)
-                    )
+                    match motion_name(
+                        identifiers,
+                        source.path(),
+                        AssetKind::Animation,
+                        &animation.name,
+                    ) {
+                        Ok(name) => format!(
+                            "{}(\"{name}\")",
+                            runtime.require(RuntimeHelper::Animation, animation.call_span)
+                        ),
+                        Err(failure) => {
+                            diagnostics.push(CompileError::new(failure, animation.call_span));
+                            "undefined".to_owned()
+                        }
+                    }
                 } else {
                     "undefined".to_owned()
                 },
@@ -257,11 +320,21 @@ impl Compiler {
                     AssetKind::ViewTransition,
                     &transition.name,
                 )) {
-                    format!(
-                        "{}(\"{}\")",
-                        runtime.require(RuntimeHelper::ViewTransition, transition.call_span),
-                        symbol_name(source, AssetKind::ViewTransition, &transition.name)
-                    )
+                    match motion_name(
+                        identifiers,
+                        source.path(),
+                        AssetKind::ViewTransition,
+                        &transition.name,
+                    ) {
+                        Ok(name) => format!(
+                            "{}(\"{name}\")",
+                            runtime.require(RuntimeHelper::ViewTransition, transition.call_span)
+                        ),
+                        Err(failure) => {
+                            diagnostics.push(CompileError::new(failure, transition.call_span));
+                            "undefined".to_owned()
+                        }
+                    }
                 } else {
                     "undefined".to_owned()
                 },
@@ -269,6 +342,8 @@ impl Compiler {
             });
         }
 
+        result.diagnostics = diagnostics;
+        result.symbols = symbols;
         if emit_source && result.diagnostics.is_empty() {
             match runtime.plan(parsed, &result.transforms).and_then(|edits| {
                 encode_projected_edits(parsed, &mut result.transforms)?;
@@ -319,5 +394,24 @@ impl Compiler {
         filter_lint_findings(source, &mut result.lint_findings);
 
         result
+    }
+}
+
+/// Keeps a named symbol, or reports the generator's failure at `span`.
+///
+/// A rejected name means the declaration has no generated identifier, so the symbol is
+/// dropped; the pipeline clears every artifact once a diagnostic exists, so no consumer
+/// sees a partially named module.
+fn push_or_report<T>(
+    diagnostics: &mut Vec<CompileError>,
+    value: Result<T, stillwind_diagnostics::CompileErrorKind>,
+    span: stillwind_source::Span,
+) -> Option<T> {
+    match value {
+        Ok(value) => Some(value),
+        Err(failure) => {
+            diagnostics.push(CompileError::new(failure, span));
+            None
+        }
     }
 }

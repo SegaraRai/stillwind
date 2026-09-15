@@ -25,10 +25,11 @@ use stillwind_ir::{HandleDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::handles::{handle_marker_class, marker_selector, scope_marker_class};
-use super::symbols::ref_symbol_name;
+use super::handles::marker_selector;
+use super::symbols::{anchor_name, ref_marker_name, scope_marker_name};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
+use crate::identifier::IdentifierContext;
 
 /// The lowered form of the variant wrappers around one utility literal.
 pub(super) struct StyleVariantPlan {
@@ -68,6 +69,7 @@ impl StyleVariantPlan {
     /// contribution. A runtime condition inside a ref wrapper also rejects, since
     /// computed-value conditions test the target rather than the referenced element.
     pub fn resolve(
+        context: &IdentifierContext,
         wrappers: &[StyleVariant],
         theme: &ThemeIndex,
         diagnostics: &mut Vec<CompileError>,
@@ -86,10 +88,10 @@ impl StyleVariantPlan {
                     plan.add_prefix(theme, prefix, diagnostics)?;
                 }
                 StyleVariant::Ref { handles, prefix } => {
-                    plan.add_ref(theme, handles, prefix, diagnostics)?;
+                    plan.add_ref(context, theme, handles, prefix, diagnostics)?;
                 }
                 StyleVariant::Container { handles, query } => {
-                    plan.add_container(handles, query, diagnostics)?;
+                    plan.add_container(context, handles, query, diagnostics)?;
                 }
             }
         }
@@ -122,6 +124,7 @@ impl StyleVariantPlan {
     /// that carries a runtime condition, which a static selector cannot express.
     fn add_ref(
         &mut self,
+        context: &IdentifierContext,
         theme: &ThemeIndex,
         handles: &[HandleDefinition],
         prefix: &Spanned<String>,
@@ -152,11 +155,23 @@ impl StyleVariantPlan {
         let mut alternatives = Vec::new();
         let mut identities = Vec::new();
         for handle in handles {
-            let marker = handle_marker_class(handle);
-            let scope = handle
-                .scope
-                .as_ref()
-                .map(|scope| marker_selector(scope_marker_class(scope).trim_start_matches('.')));
+            let marker = match ref_marker_name(context, handle) {
+                Ok(marker) => marker,
+                Err(failure) => {
+                    diagnostics.push(CompileError::new(failure, handle.call_span));
+                    return None;
+                }
+            };
+            let scope = match handle.scope.as_ref() {
+                Some(scope) => match scope_marker_name(context, scope) {
+                    Ok(name) => Some(marker_selector(&name)),
+                    Err(failure) => {
+                        diagnostics.push(CompileError::new(failure, scope.call_span));
+                        return None;
+                    }
+                },
+                None => None,
+            };
             identities.push((marker.clone(), scope.clone()));
             for path in &paths {
                 alternatives.push(reference_path(&marker, scope.as_deref(), path));
@@ -187,6 +202,7 @@ impl StyleVariantPlan {
 
     fn add_container(
         &mut self,
+        context: &IdentifierContext,
         handles: &[HandleDefinition],
         query: &Spanned<String>,
         diagnostics: &mut Vec<CompileError>,
@@ -201,8 +217,17 @@ impl StyleVariantPlan {
         self.has_refs = true;
         let conditions = handles
             .iter()
-            .map(|handle| format!("{} ({})", ref_symbol_name(handle), query.value))
-            .collect::<Vec<_>>();
+            .map(|handle| {
+                anchor_name(context, handle).map(|name| format!("{name} ({})", query.value))
+            })
+            .collect::<Result<Vec<_>, _>>();
+        let conditions = match conditions {
+            Ok(conditions) => conditions,
+            Err(failure) => {
+                diagnostics.push(CompileError::new(failure, query.span));
+                return None;
+            }
+        };
         let _ = write!(self.canonical, "container({conditions:?}):");
         self.paths = std::mem::take(&mut self.paths)
             .into_iter()

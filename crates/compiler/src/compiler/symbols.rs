@@ -10,12 +10,13 @@
 //! instead of names.
 
 use serde::Serialize;
+use stillwind_diagnostics::CompileErrorKind;
 
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
-use super::handles::{handle_marker_class, scope_marker_class};
+use crate::identifier::IdentifierContext;
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
 ///
@@ -54,16 +55,87 @@ pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static 
 /// The table key is the marker class of the handle, so the runtime picks the projected
 /// class of whichever handle it was given.
 pub(super) fn runtime_projection_class(
+    context: &IdentifierContext,
     handle: &HandleDefinition,
     projection: &HandleProjection,
-) -> String {
+) -> Result<String, CompileErrorKind> {
     let suffix = match projection {
         HandleProjection::Anchor => "anchor",
         HandleProjection::Position => "position",
         HandleProjection::Scope => "scope",
         HandleProjection::Container(kind) => kind.value.as_str(),
     };
-    format!("_swp_{}_{suffix}", handle_marker_class(handle))
+    Ok(format!(
+        "_swp_{}_{suffix}",
+        ref_marker_name(context, handle)?
+    ))
+}
+
+/// Canonical identity input of a ref declaration's generated names.
+pub(super) fn ref_name_input(definition: &HandleDefinition) -> String {
+    asset_identity(&definition.module_path, "ref", &definition.name)
+}
+
+/// Generated ref marker class token for one declaration.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the ref marker family.
+pub(crate) fn ref_marker_name(
+    context: &IdentifierContext,
+    definition: &HandleDefinition,
+) -> Result<String, CompileErrorKind> {
+    context.ref_marker_name(
+        &ref_name_input(definition),
+        definition.label.as_ref().map(|label| label.value.as_str()),
+    )
+}
+
+/// Canonical identity input of a scope declaration's generated names.
+pub(super) fn scope_name_input(definition: &ScopeDefinition) -> String {
+    asset_identity(&definition.module_path, "scope", &definition.name)
+}
+
+/// Generated scope marker class token for one declaration, without a leading dot.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the scope marker family.
+pub(crate) fn scope_marker_name(
+    context: &IdentifierContext,
+    definition: &ScopeDefinition,
+) -> Result<String, CompileErrorKind> {
+    context.scope_marker_name(
+        &scope_name_input(definition),
+        definition.label.as_ref().map(|label| label.value.as_str()),
+    )
+}
+
+/// Generated `anchor-name` for a ref declaration's identity.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the anchor family.
+pub(crate) fn anchor_name(
+    context: &IdentifierContext,
+    definition: &HandleDefinition,
+) -> Result<String, CompileErrorKind> {
+    context.anchor_name(
+        &ref_name_input(definition),
+        definition.label.as_ref().map(|label| label.value.as_str()),
+    )
+}
+
+/// Generated `container-name` for a scope declaration's identity.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the container family.
+pub(super) fn container_name(
+    context: &IdentifierContext,
+    definition: &ScopeDefinition,
+) -> Result<String, CompileErrorKind> {
+    context.container_name(&scope_name_input(definition))
 }
 
 /// Identity string for a declaration inside one source file.
@@ -100,14 +172,6 @@ pub(super) fn asset_identity(
 }
 
 /// Generated custom-property name of a ref's anchor identity.
-pub(super) fn ref_symbol_name(definition: &HandleDefinition) -> String {
-    let identity = asset_identity(&definition.module_path, "ref", &definition.name);
-    format!(
-        "--sw-r-{}",
-        &blake3::hash(identity.as_bytes()).to_hex()[..8]
-    )
-}
-
 fn kind_name(kind: AssetKind) -> &'static str {
     match kind {
         AssetKind::Style => "style",
@@ -118,103 +182,127 @@ fn kind_name(kind: AssetKind) -> &'static str {
     }
 }
 
-/// Generated name of a class or motion asset, prefix selected by kind.
-pub(super) fn symbol_name(
-    source: &SourceFile,
-    kind: AssetKind,
-    definition: &Spanned<String>,
-) -> String {
-    asset_symbol_name(source.path(), kind, definition)
-}
-
-/// Generated name of a class or motion asset, prefixed by kind so declarations of
-/// different kinds at the same span cannot collide.
-pub(super) fn asset_symbol_name(
+/// Generated name of a named motion declaration, prefix selected by kind.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the declaration's family.
+pub(super) fn motion_name(
+    context: &IdentifierContext,
     module_path: &str,
     kind: AssetKind,
     definition: &Spanned<String>,
-) -> String {
-    let prefix = match kind {
-        AssetKind::Style => "_s_",
-        AssetKind::Ref => "--sw-r-",
-        AssetKind::Scope => "--sw-s-",
-        AssetKind::Animation => "--sw-a-",
-        AssetKind::ViewTransition => "--sw-v-",
-    };
+) -> Result<String, CompileErrorKind> {
     let identity = asset_identity(module_path, kind_name(kind), definition);
-    let hash = blake3::hash(identity.as_bytes());
-    format!("{prefix}{}", &hash.to_hex()[..8])
+    match kind {
+        AssetKind::Animation => context.animation_name(&identity),
+        AssetKind::ViewTransition => context.view_transition_name(&identity),
+        AssetKind::Style => context.class_name(&identity),
+        AssetKind::Ref => context.anchor_name(&identity, None),
+        AssetKind::Scope => context.container_name(&identity),
+    }
 }
 
 /// Builds the reportable symbol for a named class or motion declaration.
+///
+/// The name is determined once and reused, so a report and the code that uses the
+/// name cannot disagree.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the declaration's family.
 pub(super) fn generated_symbol(
+    context: &IdentifierContext,
     source: &SourceFile,
     kind: AssetKind,
     definition: &Spanned<String>,
-) -> GeneratedSymbol {
-    GeneratedSymbol {
-        name: symbol_name(source, kind, definition),
+) -> Result<GeneratedSymbol, CompileErrorKind> {
+    Ok(GeneratedSymbol {
+        name: motion_name(context, source.path(), kind, definition)?,
         kind: kind_name(kind).to_owned(),
         identity: symbol_identity(source, kind_name(kind), definition),
         source_path: normalized_module_path(source.path()),
         start: definition.span.start.0,
         end: definition.span.end.0,
-    }
+    })
 }
 
 /// Builds the reportable symbol for a ref declaration's projection name.
-pub(super) fn generated_ref_symbol(definition: &HandleDefinition) -> GeneratedSymbol {
-    let identity = asset_identity(&definition.module_path, "ref", &definition.name);
-    GeneratedSymbol {
-        name: ref_symbol_name(definition),
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the anchor family.
+pub(super) fn generated_ref_symbol(
+    context: &IdentifierContext,
+    definition: &HandleDefinition,
+) -> Result<GeneratedSymbol, CompileErrorKind> {
+    let identity = ref_name_input(definition);
+    Ok(GeneratedSymbol {
+        name: anchor_name(context, definition)?,
         kind: "ref".to_owned(),
         identity,
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
         end: definition.name.span.end.0,
-    }
+    })
 }
 
 /// Builds the reportable symbol for a scope declaration's projection name.
-pub(super) fn generated_scope_symbol(definition: &ScopeDefinition) -> GeneratedSymbol {
-    let identity = asset_identity(&definition.module_path, "scope", &definition.name);
-    GeneratedSymbol {
-        name: format!(
-            "--sw-s-{}",
-            &blake3::hash(identity.as_bytes()).to_hex()[..8]
-        ),
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the container family.
+pub(super) fn generated_scope_symbol(
+    context: &IdentifierContext,
+    definition: &ScopeDefinition,
+) -> Result<GeneratedSymbol, CompileErrorKind> {
+    let identity = scope_name_input(definition);
+    Ok(GeneratedSymbol {
+        name: container_name(context, definition)?,
         kind: "scope".to_owned(),
         identity,
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
         end: definition.name.span.end.0,
-    }
+    })
 }
 
 /// Builds the reportable symbol for a ref's marker class.
-pub(super) fn generated_ref_marker_symbol(definition: &HandleDefinition) -> GeneratedSymbol {
-    GeneratedSymbol {
-        name: handle_marker_class(definition),
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the ref marker family.
+pub(super) fn generated_ref_marker_symbol(
+    context: &IdentifierContext,
+    definition: &HandleDefinition,
+) -> Result<GeneratedSymbol, CompileErrorKind> {
+    Ok(GeneratedSymbol {
+        name: ref_marker_name(context, definition)?,
         kind: "ref-marker".to_owned(),
         identity: asset_identity(&definition.module_path, "ref-marker", &definition.name),
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
         end: definition.name.span.end.0,
-    }
+    })
 }
 
 /// Builds the reportable symbol for a scope's marker class.
-pub(super) fn generated_scope_marker_symbol(definition: &ScopeDefinition) -> GeneratedSymbol {
-    GeneratedSymbol {
-        name: scope_marker_class(definition)
-            .trim_start_matches('.')
-            .to_owned(),
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the scope marker family.
+pub(super) fn generated_scope_marker_symbol(
+    context: &IdentifierContext,
+    definition: &ScopeDefinition,
+) -> Result<GeneratedSymbol, CompileErrorKind> {
+    Ok(GeneratedSymbol {
+        name: scope_marker_name(context, definition)?,
         kind: "scope-marker".to_owned(),
         identity: asset_identity(&definition.module_path, "scope-marker", &definition.name),
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
         end: definition.name.span.end.0,
-    }
+    })
 }
 
 /// Builds the reportable symbol for a generated utility class.
@@ -240,21 +328,17 @@ pub(super) fn generated_class_symbol(
 }
 
 /// Class unit name for a canonical input.
-pub(crate) fn class_name(canonical_input: &str) -> String {
-    let hash = blake3::hash(canonical_input.as_bytes());
-    format!("_s_{}", &hash.to_hex()[..8])
-}
-
 /// Uses declaration identity directly, without fabricating a source-buffer span.
-pub(super) fn motion_symbol_name(identity: &IdentityId) -> String {
-    let prefix = match identity.kind {
-        AssetKind::Animation => "--sw-a-",
-        AssetKind::ViewTransition => "--sw-v-",
-        AssetKind::Style => "_s_",
-        AssetKind::Ref => "--sw-r-",
-        AssetKind::Scope => "--sw-s-",
-    };
-    let content = format!(
+/// Uses declaration identity directly, without fabricating a source-buffer span.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the asset's family.
+pub(super) fn motion_symbol_name(
+    context: &IdentifierContext,
+    identity: &IdentityId,
+) -> Result<String, CompileErrorKind> {
+    let identity_input = format!(
         "stillwind/v1\0{}\0{}\0{}:{}:{}",
         normalized_module_path(&identity.module_path),
         kind_name(identity.kind),
@@ -262,10 +346,13 @@ pub(super) fn motion_symbol_name(identity: &IdentityId) -> String {
         identity.end,
         identity.binding_name
     );
-    format!(
-        "{prefix}{}",
-        &blake3::hash(content.as_bytes()).to_hex()[..8]
-    )
+    match identity.kind {
+        AssetKind::Animation => context.animation_name(&identity_input),
+        AssetKind::ViewTransition => context.view_transition_name(&identity_input),
+        AssetKind::Style => context.class_name(&identity_input),
+        AssetKind::Ref => context.anchor_name(&identity_input, None),
+        AssetKind::Scope => context.container_name(&identity_input),
+    }
 }
 
 #[cfg(test)]
@@ -273,9 +360,11 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
+    use crate::identifier::IdentifierContext;
 
     #[test]
     fn identities_normalize_paths_and_class_names_are_content_stable() {
+        let identifiers = IdentifierContext::builtin();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 2, 5));
         assert_eq!(
             asset_identity(r"src\x.tsx", "ref", &name),
@@ -285,13 +374,20 @@ mod tests {
             asset_identity("src/x.tsx", "ref", &name),
             asset_identity("src/y.tsx", "ref", &name)
         );
-        assert_eq!(class_name("flex"), class_name("flex"));
-        assert_ne!(class_name("flex"), class_name("grid"));
-        assert!(class_name("flex").starts_with("_s_"));
+        assert_eq!(
+            identifiers.class_name("flex"),
+            identifiers.class_name("flex")
+        );
+        assert_ne!(
+            identifiers.class_name("flex"),
+            identifiers.class_name("grid")
+        );
+        assert!(identifiers.class_name("flex").unwrap().starts_with("_s_"));
     }
 
     #[test]
     fn asset_names_distinguish_kinds_and_spans_and_keep_metadata() {
+        let identifiers = IdentifierContext::builtin();
         let source = SourceFile::new(FileId(1), r"src\x.tsx", "ref").unwrap();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
@@ -300,7 +396,7 @@ mod tests {
             (AssetKind::Animation, "--sw-a-"),
             (AssetKind::ViewTransition, "--sw-v-"),
         ] {
-            let symbol = generated_symbol(&source, kind, &name);
+            let symbol = generated_symbol(&identifiers, &source, kind, &name).unwrap();
             assert!(symbol.name.starts_with(prefix));
             assert_eq!(symbol.source_path, "src/x.tsx");
             assert_eq!((symbol.start, symbol.end), (0, 3));
@@ -308,13 +404,10 @@ mod tests {
                 symbol.identity,
                 asset_identity(source.path(), kind_name(kind), &name)
             );
+            let shifted = Spanned::new("ref".into(), Span::new(FileId(1), 1, 3));
             assert_ne!(
                 symbol.name,
-                asset_symbol_name(
-                    source.path(),
-                    kind,
-                    &Spanned::new("ref".into(), Span::new(FileId(1), 1, 3))
-                )
+                motion_name(&identifiers, source.path(), kind, &shifted).unwrap()
             );
         }
     }

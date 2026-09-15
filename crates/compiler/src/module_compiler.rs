@@ -22,7 +22,7 @@ use stillwind_source::Fingerprint;
 
 use crate::{
     CompilationDependencies, CompileResult, CompiledModule, Compiler, CompilerOptions,
-    ModuleArtifactKey, ModuleCssArtifact, ModuleResourceReference,
+    GeneratorSet, IdentifierContext, ModuleArtifactKey, ModuleCssArtifact, ModuleResourceReference,
 };
 
 /// Compiles module analyses against one immutable design system.
@@ -32,6 +32,8 @@ pub struct ModuleCompiler {
     design_system: DesignSystemSnapshot,
     /// Compiler configuration included in artifact identity.
     options: CompilerOptions,
+    /// Name allocation shared by every module this compiler compiles.
+    identifiers: IdentifierContext,
 }
 
 impl ModuleCompiler {
@@ -44,7 +46,20 @@ impl ModuleCompiler {
         Self {
             design_system,
             options,
+            identifiers: IdentifierContext::builtin(),
         }
+    }
+
+    /// Returns the same compiler with `generators` supplying the generated names.
+    ///
+    /// Generators are not part of [`CompilerOptions`], because options must stay a
+    /// plain serializable configuration; a host that supplies generators pairs them
+    /// with a matching [`CompilerOptions::naming_revision`] so cached artifacts are
+    /// not reused across naming changes.
+    #[must_use]
+    pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
+        self.identifiers = IdentifierContext::new(generators);
+        self
     }
 
     /// The snapshot this compiler was created with.
@@ -109,6 +124,7 @@ impl ModuleCompiler {
             module,
             &self.design_system,
             &self.options,
+            &self.identifiers,
         );
         self.capture_resources(&mut result, module.source.path());
         for support in &module.asset_support {
@@ -117,6 +133,7 @@ impl ModuleCompiler {
                 support,
                 &self.design_system,
                 &self.options,
+                &self.identifiers,
             );
             self.capture_resources(&mut compiled, support.source.path());
             result.module_css.push_str(&compiled.module_css);

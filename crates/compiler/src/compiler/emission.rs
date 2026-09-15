@@ -23,18 +23,18 @@ use stillwind_source::{SourceFile, Span};
 use super::CssContribution;
 use super::class_units::ClassUnits;
 use super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
-use super::handles::{
-    handle_marker_class, ref_identity, render_handle_projection, scope_identity, scope_marker_class,
-};
+use super::handles::{ref_identity, render_handle_projection, scope_identity};
 use super::literal::LiteralContribution;
 use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::StyleVariantPlan;
 use super::symbols::{
-    handle_projection_name, motion_symbol_name, ref_symbol_name, runtime_projection_class,
+    anchor_name, handle_projection_name, motion_symbol_name, ref_marker_name,
+    runtime_projection_class, scope_marker_name,
 };
 use super::utilities::resolve::{CompiledUtility, view_transition_utility};
 use crate::generated::{Code, js_string};
+use crate::identifier::IdentifierContext;
 use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
 
@@ -48,6 +48,8 @@ pub(super) struct CallEmitter<'a> {
     source: &'a SourceFile,
     /// Compiler configuration for generated identities and output.
     options: &'a CompilerOptions,
+    /// Name allocation shared with the rest of this compilation.
+    identifiers: &'a IdentifierContext,
     /// Resolved theme and utility registry for this compilation.
     theme: &'a ThemeIndex,
     /// Analyzed style call being lowered.
@@ -81,6 +83,7 @@ impl<'a> CallEmitter<'a> {
         let emitter = Self {
             source: inputs.source,
             options: inputs.options,
+            identifiers: inputs.identifiers,
             theme: inputs.theme,
             call: inputs.call,
             diagnostics: inputs.diagnostics,
@@ -91,6 +94,7 @@ impl<'a> CallEmitter<'a> {
             units: ClassUnits::new(
                 inputs.source,
                 inputs.options,
+                inputs.identifiers,
                 inputs.theme,
                 inputs.call.span,
                 inputs.utility_css,
@@ -108,7 +112,20 @@ impl<'a> CallEmitter<'a> {
         for input in self.call.inputs.clone() {
             self.emit_input(&input)?;
         }
-        Some(self.finish())
+        let parts = std::mem::take(&mut self.parts);
+        let call_span = self.call.span;
+        match self.units.finish() {
+            Ok((static_names, classes)) => Some(StyleEmission {
+                static_names,
+                parts,
+                classes,
+                call_span,
+            }),
+            Err(failure) => {
+                self.diagnostics.push(CompileError::new(failure, call_span));
+                None
+            }
+        }
     }
 
     /// Dispatches one style input.
@@ -156,7 +173,13 @@ impl<'a> CallEmitter<'a> {
                 });
             }
             StyleInput::ScopeAttachment(scope) => {
-                let marker = scope_marker_class(scope).trim_start_matches('.').to_owned();
+                let marker = match scope_marker_name(self.identifiers, scope) {
+                    Ok(marker) => marker,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
                 if !self.units.base.names.contains(&marker) {
                     self.units.base.names.push(marker);
                 }
@@ -165,7 +188,13 @@ impl<'a> CallEmitter<'a> {
                 self.units.base.canonical.push('\u{0}');
             }
             StyleInput::HandleAttachment(handle) => {
-                let marker = handle_marker_class(handle);
+                let marker = match ref_marker_name(self.identifiers, handle) {
+                    Ok(marker) => marker,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
                 if !self.units.base.names.contains(&marker) {
                     self.units.base.names.push(marker);
                 }
@@ -197,7 +226,13 @@ impl<'a> CallEmitter<'a> {
                 if !self.begin_view_transition() {
                     return Some(());
                 }
-                let name = motion_symbol_name(&transition.identity);
+                let name = match motion_symbol_name(self.identifiers, &transition.identity) {
+                    Ok(name) => name,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
                 self.emit_view_transition_class();
                 let key = match key {
                     Some(key) => self.source_expression(*key)?,
@@ -230,7 +265,13 @@ impl<'a> CallEmitter<'a> {
                 let mut candidates = Vec::new();
                 for transition in transitions {
                     self.runtime_assets.insert(transition.identity.clone());
-                    candidates.push(motion_symbol_name(&transition.identity));
+                    match motion_symbol_name(self.identifiers, &transition.identity) {
+                        Ok(name) => candidates.push(name),
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    }
                 }
                 self.emit_view_transition_class();
                 let key = match key {
@@ -260,6 +301,15 @@ impl<'a> CallEmitter<'a> {
             }
         }
         Some(())
+    }
+
+    /// Converts a generator failure into a fatal diagnostic at `span`.
+    ///
+    /// The failed call is omitted from the output, and the pipeline clears every
+    /// generated artifact once a diagnostic exists, so a rejected name never reaches
+    /// generated code.
+    fn reject_name(&mut self, failure: CompileErrorKind, span: Span) {
+        self.diagnostics.push(CompileError::new(failure, span));
     }
 
     /// Reserves the call's view-transition attachment, returning whether it is available.
@@ -333,7 +383,12 @@ impl<'a> CallEmitter<'a> {
     ) -> Option<Emitted> {
         match expression {
             ClassExpression::Utilities(value) => {
-                let plan = StyleVariantPlan::resolve(wrappers, self.theme, self.diagnostics)?;
+                let plan = StyleVariantPlan::resolve(
+                    self.identifiers,
+                    wrappers,
+                    self.theme,
+                    self.diagnostics,
+                )?;
                 let contribution = LiteralContribution::resolve(
                     value,
                     &plan,
@@ -346,7 +401,13 @@ impl<'a> CallEmitter<'a> {
                     self.units.fold(contribution);
                     return None;
                 }
-                Some(self.units.leaf(contribution, guard))
+                match self.units.leaf(contribution, guard) {
+                    Ok(leaf) => Some(leaf),
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        None
+                    }
+                }
             }
             ClassExpression::Array(elements) => {
                 let mut items = Vec::new();
@@ -452,21 +513,42 @@ impl<'a> CallEmitter<'a> {
             }
             ClassExpression::HandleProjection { handle, projection } => {
                 let name = handle_projection_name(projection);
+                let anchor = match anchor_name(self.identifiers, handle) {
+                    Ok(anchor) => anchor,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
+                let marker = match ref_marker_name(self.identifiers, handle) {
+                    Ok(marker) => marker,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
+                let declaration =
+                    match render_handle_projection(self.identifiers, handle, projection) {
+                        Ok(declaration) => declaration,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
                 let utility = CompiledUtility {
                     required_properties: Vec::new(),
                     variants: Vec::new(),
                     variant_applications: Vec::new(),
-                    declaration: render_handle_projection(handle, projection),
+                    declaration,
                     selector: None,
                     container: None,
                     nested: Vec::new(),
                     order: UtilityOrder::Authored(None),
                     candidate: String::new(),
                 };
-                let marker = handle_marker_class(handle);
                 if fold && guard.is_empty() {
                     self.units.base.canonical.push_str("handle:");
-                    self.units.base.canonical.push_str(&ref_symbol_name(handle));
+                    self.units.base.canonical.push_str(&anchor);
                     self.units.base.canonical.push(':');
                     self.units.base.canonical.push_str(name);
                     self.units.base.canonical.push('\u{0}');
@@ -477,13 +559,19 @@ impl<'a> CallEmitter<'a> {
                     return None;
                 }
                 let contribution = LiteralContribution {
-                    canonical: format!("handle:{}:{name}\u{0}", ref_symbol_name(handle)),
+                    canonical: format!("handle:{anchor}:{name}\u{0}"),
                     utilities: vec![utility],
                     markers: Vec::new(),
                     external: Vec::new(),
                     plain: vec![marker],
                 };
-                Some(self.units.leaf(contribution, guard))
+                match self.units.leaf(contribution, guard) {
+                    Ok(leaf) => Some(leaf),
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        None
+                    }
+                }
             }
             ClassExpression::DynamicHandleProjection {
                 value,
@@ -493,10 +581,23 @@ impl<'a> CallEmitter<'a> {
                 let mut table = Vec::new();
                 for handle in handles {
                     self.runtime_assets.insert(ref_identity(handle));
-                    let marker = runtime_projection_class(handle, projection);
+                    let marker =
+                        match runtime_projection_class(self.identifiers, handle, projection) {
+                            Ok(marker) => marker,
+                            Err(failure) => {
+                                self.reject_name(failure, self.call.span);
+                                return None;
+                            }
+                        };
+                    let anchor = match anchor_name(self.identifiers, handle) {
+                        Ok(anchor) => anchor,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
                     let canonical = format!(
-                        "dynamic-handle:{}:{}",
-                        ref_symbol_name(handle),
+                        "dynamic-handle:{anchor}:{}",
                         handle_projection_name(projection)
                     );
                     let contribution = LiteralContribution {
@@ -505,7 +606,17 @@ impl<'a> CallEmitter<'a> {
                             required_properties: Vec::new(),
                             variants: Vec::new(),
                             variant_applications: Vec::new(),
-                            declaration: render_handle_projection(handle, projection),
+                            declaration: match render_handle_projection(
+                                self.identifiers,
+                                handle,
+                                projection,
+                            ) {
+                                Ok(declaration) => declaration,
+                                Err(failure) => {
+                                    self.reject_name(failure, self.call.span);
+                                    return None;
+                                }
+                            },
                             selector: None,
                             container: None,
                             nested: Vec::new(),
@@ -516,7 +627,13 @@ impl<'a> CallEmitter<'a> {
                         external: Vec::new(),
                         plain: Vec::new(),
                     };
-                    let class = self.units.leaf(contribution, guard);
+                    let class = match self.units.leaf(contribution, guard) {
+                        Ok(class) => class,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
                     let Emitted::Leaf { names } = class else {
                         return None;
                     };
@@ -536,9 +653,19 @@ impl<'a> CallEmitter<'a> {
             }
             ClassExpression::AnimationUse { animation, options } => {
                 self.motion_assets.insert(animation.identity.clone());
-                let plan = StyleVariantPlan::resolve(wrappers, self.theme, self.diagnostics)?;
-                let mut utility =
-                    resolve_animation_use(animation, options, self.theme, self.diagnostics);
+                let plan = StyleVariantPlan::resolve(
+                    self.identifiers,
+                    wrappers,
+                    self.theme,
+                    self.diagnostics,
+                )?;
+                let mut utility = resolve_animation_use(
+                    self.identifiers,
+                    animation,
+                    options,
+                    self.theme,
+                    self.diagnostics,
+                );
                 plan.apply_animation(&mut utility);
                 let canonical = format!(
                     "{}{}:{}:{}\u{0}",
@@ -555,20 +682,42 @@ impl<'a> CallEmitter<'a> {
                     self.units.fold(contribution);
                     return None;
                 }
-                Some(self.units.leaf(contribution, guard))
+                match self.units.leaf(contribution, guard) {
+                    Ok(leaf) => Some(leaf),
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        None
+                    }
+                }
             }
             ClassExpression::DynamicAnimationUse {
                 value,
                 animations,
                 options,
             } => {
-                let plan = StyleVariantPlan::resolve(wrappers, self.theme, self.diagnostics)?;
+                let plan = StyleVariantPlan::resolve(
+                    self.identifiers,
+                    wrappers,
+                    self.theme,
+                    self.diagnostics,
+                )?;
                 let mut table = Vec::new();
                 for animation in animations {
                     self.runtime_assets.insert(animation.identity.clone());
-                    let identity = motion_symbol_name(&animation.identity);
-                    let mut utility =
-                        resolve_animation_use(animation, options, self.theme, self.diagnostics);
+                    let identity = match motion_symbol_name(self.identifiers, &animation.identity) {
+                        Ok(identity) => identity,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
+                    let mut utility = resolve_animation_use(
+                        self.identifiers,
+                        animation,
+                        options,
+                        self.theme,
+                        self.diagnostics,
+                    );
                     plan.apply_animation(&mut utility);
                     let canonical = if plan.canonical.is_empty() {
                         format!("dynamic-animation:{identity}:{}", options.value)
@@ -585,7 +734,13 @@ impl<'a> CallEmitter<'a> {
                         external: Vec::new(),
                         plain: Vec::new(),
                     };
-                    let class = self.units.leaf(contribution, guard);
+                    let class = match self.units.leaf(contribution, guard) {
+                        Ok(class) => class,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
                     let Emitted::Leaf { names } = class else {
                         return None;
                     };
@@ -669,19 +824,6 @@ impl<'a> CallEmitter<'a> {
     fn slice(&self, span: Span) -> Option<String> {
         self.source.slice(span).ok().map(str::to_owned)
     }
-
-    /// Consumes the emitter, publishes class units, and returns accumulated contributions.
-    /// Parts retain traversal order here; fragment construction later sorts their source
-    /// positions. This operation neither renders JavaScript nor checks final diagnostics.
-    fn finish(self) -> StyleEmission {
-        let (static_names, classes) = self.units.finish();
-        StyleEmission {
-            static_names,
-            parts: self.parts,
-            classes,
-            call_span: self.call.span,
-        }
-    }
 }
 
 /// Source, analysis, and shared output destinations for lowering one style call.
@@ -692,6 +834,8 @@ pub(super) struct CallEmitterInputs<'a> {
     pub source: &'a SourceFile,
     /// Compiler configuration for this call.
     pub options: &'a CompilerOptions,
+    /// Name allocation shared with the rest of this compilation.
+    pub identifiers: &'a IdentifierContext,
     /// Resolved theme and utility registry.
     pub theme: &'a ThemeIndex,
     /// Analyzed style call to lower.
