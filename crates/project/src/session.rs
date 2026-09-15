@@ -185,7 +185,9 @@ impl ProjectSession {
     ///
     /// Generated identifiers are checked against every other module's symbols, not only
     /// this module's, because all artifacts share one document. A collision is reported
-    /// as `SHSYMBOL001` and prevents publication.
+    /// as `SHSYMBOL001` and prevents publication. Each CSS namespace is checked on its
+    /// own, so one spelling may appear in two pools without a conflict while two
+    /// identities inside one pool may not share a spelling.
     ///
     /// On failure the behaviour follows [`SessionMode`]: watch keeps the last good
     /// artifact, build removes it.
@@ -209,11 +211,16 @@ impl ProjectSession {
             .iter()
             .filter(|(id, _)| *id != &module_id)
             .flat_map(|(_, artifact)| artifact.symbols.iter())
-            .map(|symbol| (symbol.name.as_str(), symbol.identity.as_str()))
+            .map(|symbol| {
+                (
+                    (symbol.pool, symbol.name.as_str()),
+                    symbol.identity.as_str(),
+                )
+            })
             .collect();
         for symbol in &compiled.symbols {
             if symbols
-                .insert(&symbol.name, &symbol.identity)
+                .insert((symbol.pool, symbol.name.as_str()), &symbol.identity)
                 .is_some_and(|identity| identity != symbol.identity)
             {
                 compiled.diagnostics.push(CompileError::new(

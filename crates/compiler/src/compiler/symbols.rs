@@ -16,7 +16,7 @@ use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
-use crate::identifier::IdentifierContext;
+use crate::identifier::{IdentifierContext, IdentifierPool};
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
 ///
@@ -30,6 +30,9 @@ pub struct GeneratedSymbol {
     /// Symbol family: `ref`, `scope`, `ref-marker`, `scope-marker`, `animation`,
     /// `view-transition`, or `class`.
     pub kind: String,
+    /// CSS namespace the name is written into. Names in different pools never interact,
+    /// so only equal spellings from different identities within one pool collide.
+    pub pool: IdentifierPool,
     /// Canonical identity the name hashes.
     pub identity: String,
     /// Normalized source path of the module that declared the symbol.
@@ -182,6 +185,17 @@ fn kind_name(kind: AssetKind) -> &'static str {
     }
 }
 
+/// The CSS namespace a named asset's generated name is written into.
+fn kind_pool(kind: AssetKind) -> IdentifierPool {
+    match kind {
+        AssetKind::Style => IdentifierPool::ClassToken,
+        AssetKind::Ref => IdentifierPool::AnchorName,
+        AssetKind::Scope => IdentifierPool::ContainerName,
+        AssetKind::Animation => IdentifierPool::KeyframesName,
+        AssetKind::ViewTransition => IdentifierPool::ViewTransitionName,
+    }
+}
+
 /// Generated name of a named motion declaration, prefix selected by kind.
 ///
 /// # Errors
@@ -220,6 +234,7 @@ pub(super) fn generated_symbol(
     Ok(GeneratedSymbol {
         name: motion_name(context, source.path(), kind, definition)?,
         kind: kind_name(kind).to_owned(),
+        pool: kind_pool(kind),
         identity: symbol_identity(source, kind_name(kind), definition),
         source_path: normalized_module_path(source.path()),
         start: definition.span.start.0,
@@ -240,6 +255,7 @@ pub(super) fn generated_ref_symbol(
     Ok(GeneratedSymbol {
         name: anchor_name(context, definition)?,
         kind: "ref".to_owned(),
+        pool: IdentifierPool::AnchorName,
         identity,
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
@@ -260,6 +276,7 @@ pub(super) fn generated_scope_symbol(
     Ok(GeneratedSymbol {
         name: container_name(context, definition)?,
         kind: "scope".to_owned(),
+        pool: IdentifierPool::ContainerName,
         identity,
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
@@ -279,6 +296,7 @@ pub(super) fn generated_ref_marker_symbol(
     Ok(GeneratedSymbol {
         name: ref_marker_name(context, definition)?,
         kind: "ref-marker".to_owned(),
+        pool: IdentifierPool::ClassToken,
         identity: asset_identity(&definition.module_path, "ref-marker", &definition.name),
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
@@ -298,6 +316,7 @@ pub(super) fn generated_scope_marker_symbol(
     Ok(GeneratedSymbol {
         name: scope_marker_name(context, definition)?,
         kind: "scope-marker".to_owned(),
+        pool: IdentifierPool::ClassToken,
         identity: asset_identity(&definition.module_path, "scope-marker", &definition.name),
         source_path: definition.module_path.clone(),
         start: definition.name.span.start.0,
@@ -320,6 +339,7 @@ pub(super) fn generated_class_symbol(
     GeneratedSymbol {
         name: name.to_owned(),
         kind: "class".to_owned(),
+        pool: IdentifierPool::ClassToken,
         identity: format!("stillwind/v1\0class\0{canonical_input}"),
         source_path: normalized_module_path(source.path()),
         start: span.start.0,

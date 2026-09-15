@@ -93,7 +93,10 @@ impl IdentifierKind {
 ///
 /// Names in different pools do not interact, so the same spelling may appear in both;
 /// within one pool a spelling may only belong to one identity.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "kebab-case")]
 pub enum IdentifierPool {
     /// Class tokens and class selectors: utility classes and attachment markers.
     ClassToken,

@@ -342,6 +342,67 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
 
+/// Names every handled family with one fixed, readable body.
+#[derive(Debug)]
+struct FixedBodyGenerator {
+    kinds: Vec<IdentifierKind>,
+}
+
+impl IdentifierGenerator for FixedBodyGenerator {
+    fn handles(&self, kind: IdentifierKind) -> bool {
+        self.kinds.contains(&kind)
+    }
+
+    fn generate(
+        &self,
+        _kind: IdentifierKind,
+        _input: &str,
+        _label: Option<&str>,
+    ) -> Result<GeneratedBody, String> {
+        Ok(GeneratedBody::new("shared"))
+    }
+}
+
+#[test]
+fn distinct_pools_may_publish_the_same_spelling() {
+    let generators = GeneratorSet::new(Arc::new(FixedBodyGenerator {
+        kinds: vec![IdentifierKind::AnchorName, IdentifierKind::RefMarker],
+    }));
+    let mut session = ProjectSession::new(
+        snapshot("red"),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+    )
+    .with_generators(generators);
+    let refs = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "panel.tsx",
+                "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
+            )
+            .unwrap(),
+        )),
+        None,
+    );
+    let update = session.update_module(refs);
+    assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+    let artifact = &session.artifacts()["panel.tsx"];
+    let anchor_pool = artifact
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "ref")
+        .expect("ref anchor symbol");
+    let marker_pool = artifact
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "ref-marker")
+        .expect("ref marker symbol");
+    assert!(anchor_pool.name.ends_with("shared"));
+    assert!(marker_pool.name.ends_with("shared"));
+    assert_ne!(anchor_pool.pool, marker_pool.pool);
+}
+
 /// Names utility classes with a fixed, readable body.
 #[derive(Debug)]
 struct FixedClassGenerator;
