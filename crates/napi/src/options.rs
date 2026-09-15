@@ -25,6 +25,8 @@ pub struct NativeCompilerOptions {
     /// Emit native CSS `if()` for experimental conditional values and variants.
     /// Defaults to false; comparisons, negated variants, and CSS-wide helper branches require true.
     pub use_css_if: Option<bool>,
+    /// Hash of the host's identifier generators, used to invalidate cached artifacts.
+    pub naming_revision: Option<String>,
 }
 
 impl TryFrom<NativeCompilerOptions> for CompilerOptions {
@@ -40,6 +42,7 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                 .unwrap_or(defaults.forbid_tailwind_relationships),
             class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),
             use_css_if: input.use_css_if.unwrap_or(defaults.use_css_if),
+            naming_revision: input.naming_revision.unwrap_or(defaults.naming_revision),
         };
         options
             .validate()

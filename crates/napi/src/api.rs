@@ -412,11 +412,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn naming_revision_reaches_the_artifact_key() {
+        let source = SourceFile::new(FileId(1), "src/Menu.tsx", "ref").unwrap();
+        let theme = SourceFile::new(FileId(2), "stillwind.css", "@theme {}").unwrap();
+        let snapshot =
+            DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+                .unwrap();
+        let analysis =
+            OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(source)), None);
+        let key = |naming_revision: &str| {
+            ModuleCompiler::new(
+                snapshot.clone(),
+                CompilerOptions {
+                    naming_revision: naming_revision.into(),
+                    ..CompilerOptions::default()
+                },
+            )
+            .key_for(&analysis)
+        };
+        assert_ne!(
+            key("builtin").compiler_options,
+            key("custom-1").compiler_options
+        );
+        assert_eq!(
+            key("custom-1").compiler_options,
+            key("custom-1").compiler_options
+        );
+    }
+
+    #[test]
     fn object_options_apply_defaults_and_validate_values() {
         assert_eq!(compiler_options(None).unwrap(), CompilerOptions::default());
         assert_eq!(
             compiler_options(Some(NativeCompilerOptions::default())).unwrap(),
             CompilerOptions::default()
+        );
+        assert_eq!(
+            compiler_options(Some(NativeCompilerOptions {
+                naming_revision: Some("host-hash".into()),
+                ..Default::default()
+            }))
+            .unwrap()
+            .naming_revision,
+            "host-hash"
         );
         assert!(
             compiler_options(Some(NativeCompilerOptions {

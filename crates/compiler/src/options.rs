@@ -39,6 +39,14 @@ pub struct CompilerOptions {
     /// False (default) uses custom-property fallbacks; all conditional variants need
     /// `revert-rule`. Value comparisons, negated variants, and CSS-wide helper branches require true.
     pub use_css_if: bool,
+    /// Revision of the identifier generators a host supplies for this compilation.
+    ///
+    /// A host that computes generated names in JavaScript passes a hash of its
+    /// generator functions here, because their output is otherwise invisible to the
+    /// artifact cache. It defaults to the empty string, which denotes the built-in
+    /// generators, and carries no meaning for the compiler beyond its effect on the
+    /// artifact key.
+    pub naming_revision: String,
 }
 
 impl Default for CompilerOptions {
@@ -49,6 +57,7 @@ impl Default for CompilerOptions {
             forbid_tailwind_relationships: false,
             class_namespace: String::new(),
             use_css_if: false,
+            naming_revision: String::new(),
         }
     }
 }

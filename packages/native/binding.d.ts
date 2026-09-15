@@ -242,6 +242,10 @@ export interface NativeCompilerOptions {
    * Defaults to false; comparisons, negated variants, and CSS-wide helper branches require true.
    */
   useCssIf?: boolean
+  /**
+   * Hash of the host's identifier generators. Cached artifacts are rebuilt when it changes.
+   */
+  namingRevision?: string
 }
 
 /** Converter that produced a projected input. */
