@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     CompileResult, Compiler, CompilerOptions, GeneratedBody, GeneratorSet, IdentifierGenerator,
-    IdentifierKind, ModuleCompiler, SourceTransform, StylesheetRenderer,
+    IdentifierKind, IdentifierMode, ModuleCompiler, SourceTransform, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
@@ -381,6 +381,67 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
 
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
+
+/// Fails for every handled family and rejects bodies that are not canonical.
+#[derive(Debug)]
+struct FailingGenerator;
+
+impl IdentifierGenerator for FailingGenerator {
+    fn handles(&self, _kind: IdentifierKind) -> bool {
+        true
+    }
+
+    fn generate(
+        &self,
+        _kind: IdentifierKind,
+        _input: &str,
+        _label: Option<&str>,
+    ) -> Result<GeneratedBody, String> {
+        Err("no name for this declaration".to_owned())
+    }
+}
+
+#[test]
+fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
+    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+            .unwrap();
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "button.tsx",
+            "import { style } from 'stillwind/react'; const x = style('flex');",
+        )
+        .unwrap(),
+    );
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let compile = |mode: IdentifierMode| {
+        ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
+            .with_generators(GeneratorSet::new(Arc::new(FailingGenerator)))
+            .with_identifier_mode(mode)
+            .compile(&analysis)
+    };
+    let development = compile(IdentifierMode::Development);
+    assert!(development.is_success(), "{:?}", development.diagnostics);
+    assert!(
+        development
+            .lint_findings
+            .iter()
+            .any(|finding| finding.code() == "rejected-identifier"),
+        "{:?}",
+        development.lint_findings
+    );
+    let class = development
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "class")
+        .expect("class symbol");
+    assert!(class.name.starts_with("_s_"), "{}", class.name);
+    let release = compile(IdentifierMode::Release);
+    assert!(!release.is_success());
+    assert!(release.symbols.is_empty());
+}
 
 /// Names every handled family with a fixed, readable body.
 #[derive(Debug)]

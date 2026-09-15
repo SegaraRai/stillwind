@@ -387,6 +387,9 @@ impl Compiler {
 
         filter_lint_findings(source, &mut result.lint_findings);
 
+        // Development compilations report rejected generator output as findings; release
+        // compilations fail instead, so a host never receives a name it did not ask for.
+        result.lint_findings.extend(identifiers.take_reports());
         result
     }
 }

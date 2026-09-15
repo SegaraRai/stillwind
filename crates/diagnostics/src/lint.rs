@@ -78,6 +78,14 @@ pub enum LintKind {
         /// Utility text as authored, including variants.
         utility: String,
     },
+    /// A host generator failed or returned a body its write positions cannot hold.
+    #[error("identifier generator for {kind} was rejected: {detail}")]
+    RejectedIdentifier {
+        /// Identifier family the generator was asked for.
+        kind: String,
+        /// Generator failure message, or the body that failed validation.
+        detail: String,
+    },
     /// A utility literal is retained as an external class because resolution failed.
     #[error("unknown or unavailable utility `{utility}`")]
     UnresolvedUtility {
@@ -117,6 +125,7 @@ impl LintKind {
             Self::MissingScopeAncestor { .. } => "valid-scope-ancestry",
             Self::SelectorOutsideScope { .. } => "scoped-selector-in-scope",
             Self::PreferTypedRelationships { .. } => "prefer-typed-relationships",
+            Self::RejectedIdentifier { .. } => "rejected-identifier",
             Self::UnresolvedUtility { classification, .. }
             | Self::UnresolvedCandidate { classification, .. }
             | Self::InvalidCandidateCss { classification, .. } => classification.code(),

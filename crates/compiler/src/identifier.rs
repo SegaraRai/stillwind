@@ -26,7 +26,26 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::{CompileErrorKind, LintFinding, LintKind};
+use stillwind_source::{FileId, Span};
+
+/// When the compilation runs, which decides how generator failures are handled.
+///
+/// The mode is an input of the compilation, not of [`crate::CompilerOptions`]: it
+/// changes what the compiler generates, and a condition-resolved module specifier must
+/// not stand in for it, because the same generated code would then meet both the
+/// development and the release implementation of a helper.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum IdentifierMode {
+    /// A release compilation. A generator failure is fatal, so a host build never
+    /// ships a name the host expected to control.
+    #[default]
+    Release,
+    /// A development compilation. A generator failure or an unusable body falls back
+    /// to the built-in body and is reported as a lint finding, so a running dev server
+    /// stays usable while the message points at the generator.
+    Development,
+}
 
 /// One family of generated names.
 ///
@@ -324,7 +343,11 @@ impl Eq for GeneratorSet {}
 #[derive(Clone, Debug)]
 pub struct IdentifierContext {
     generators: GeneratorSet,
+    /// Compilation mode deciding whether rejected bodies fail or fall back.
+    mode: IdentifierMode,
     memo: RefCell<BTreeMap<MemoKey, Result<String, String>>>,
+    /// Findings for bodies rejected in development mode, in request order.
+    reports: RefCell<Vec<LintFinding>>,
 }
 
 /// Memo key: the family, its canonical input, and the normalized label if it has one.
@@ -335,8 +358,42 @@ impl IdentifierContext {
     pub fn new(generators: GeneratorSet) -> Self {
         Self {
             generators,
+            mode: IdentifierMode::Release,
             memo: RefCell::new(BTreeMap::new()),
+            reports: RefCell::new(Vec::new()),
         }
+    }
+
+    /// Starts a context that reports rejected bodies instead of failing the compile.
+    pub fn in_mode(generators: GeneratorSet, mode: IdentifierMode) -> Self {
+        Self {
+            mode,
+            ..Self::new(generators)
+        }
+    }
+
+    /// The mode this context was built for.
+    pub fn mode(&self) -> IdentifierMode {
+        self.mode
+    }
+
+    /// Takes the findings collected so far, leaving the context empty of reports.
+    pub fn take_reports(&self) -> Vec<LintFinding> {
+        std::mem::take(&mut self.reports.borrow_mut())
+    }
+
+    /// Records a rejected body for a development compilation.
+    ///
+    /// The finding carries a synthetic file 0 location, because a generator is not
+    /// connected to a source buffer; a host maps it to the generator it supplied.
+    fn reject_generated(&self, kind: IdentifierKind, message: String) {
+        self.reports.borrow_mut().push(LintFinding::new(
+            LintKind::RejectedIdentifier {
+                kind: kind.as_str().to_owned(),
+                detail: message,
+            },
+            Span::new(FileId(0), 0, 0),
+        ));
     }
 
     /// Starts a context that uses the built-in generator for every family.
@@ -381,10 +438,27 @@ impl IdentifierContext {
         let generated = match self.generators.generator() {
             Some(generator) if generator.handles(kind) => {
                 let positions = write_positions(kind);
-                generator
-                    .generate(kind, input, label)
-                    .map(|body| GeneratedBody::new(canonicalize(positions, &body.body)))
-                    .map_err(|message| generation_failure(kind, message))
+                match generator.generate(kind, input, label) {
+                    Ok(body) => {
+                        let canonical = canonicalize(positions, &body.body);
+                        if canonical.is_empty() || canonical != body.body {
+                            self.reject_generated(
+                                kind,
+                                format!("body `{}` is not canonical", body.body),
+                            );
+                            Ok(builtin_body(kind, input, label))
+                        } else {
+                            Ok(GeneratedBody::new(canonical))
+                        }
+                    }
+                    Err(message) => match self.mode {
+                        IdentifierMode::Development => {
+                            self.reject_generated(kind, message);
+                            Ok(builtin_body(kind, input, label))
+                        }
+                        IdentifierMode::Release => Err(generation_failure(kind, message)),
+                    },
+                }
             }
             _ => Ok(builtin_body(kind, input, label)),
         };
@@ -665,11 +739,32 @@ mod tests {
         let marker = context
             .body(IdentifierKind::RefMarker, "ref", None)
             .unwrap();
-        assert_eq!(marker.body, "fixed_token");
+        // A body the DOM cannot carry is rejected, and the built-in name takes its place.
+        assert_ne!(marker.body, "fixed_token");
+        let reports = context.take_reports();
+        assert_eq!(reports.len(), 1, "{reports:?}");
+        assert_eq!(reports[0].code(), "rejected-identifier");
         let animation = context
             .body(IdentifierKind::KeyframesName, "spin", None)
             .unwrap();
         assert_eq!(animation.body, "fixed-ok");
+    }
+
+    #[test]
+    fn development_mode_keeps_a_usable_name_when_it_rejects_one() {
+        let generator = Arc::new(PositionalGenerator);
+        let context =
+            IdentifierContext::in_mode(GeneratorSet::new(generator), IdentifierMode::Development);
+        let body = context
+            .body(IdentifierKind::RefMarker, "ref", Some("a b"))
+            .unwrap();
+        assert!(body.body.starts_with("a_b_"), "{body:?}");
+        assert!(
+            context
+                .take_reports()
+                .iter()
+                .any(|report| report.code() == "rejected-identifier")
+        );
     }
 
     #[test]

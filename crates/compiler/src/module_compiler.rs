@@ -22,7 +22,8 @@ use stillwind_source::Fingerprint;
 
 use crate::{
     CompilationDependencies, CompileResult, CompiledModule, Compiler, CompilerOptions,
-    GeneratorSet, IdentifierContext, ModuleArtifactKey, ModuleCssArtifact, ModuleResourceReference,
+    GeneratorSet, IdentifierContext, IdentifierMode, ModuleArtifactKey, ModuleCssArtifact,
+    ModuleResourceReference,
 };
 
 /// Compiles module analyses against one immutable design system.
@@ -58,7 +59,18 @@ impl ModuleCompiler {
     /// not reused across naming changes.
     #[must_use]
     pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
-        self.identifiers = IdentifierContext::new(generators);
+        self.identifiers = IdentifierContext::in_mode(generators, self.identifiers.mode());
+        self
+    }
+
+    /// Returns the same compiler with `mode` deciding how rejected names are handled.
+    ///
+    /// The mode is a compilation input, not a configuration value, so it is not part of
+    /// [`CompilerOptions`] or of an artifact key. A host must keep artifacts and its own
+    /// persistent caches for one mode separate from the other.
+    #[must_use]
+    pub fn with_identifier_mode(mut self, mode: IdentifierMode) -> Self {
+        self.identifiers = IdentifierContext::in_mode(self.identifiers.generators().clone(), mode);
         self
     }
 

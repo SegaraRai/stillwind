@@ -55,7 +55,7 @@ pub use compiler::{
 };
 pub use identifier::{
     GeneratedBody, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierKind,
-    IdentifierPool,
+    IdentifierMode, IdentifierPool,
 };
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;
