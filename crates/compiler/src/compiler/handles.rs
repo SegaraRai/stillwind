@@ -14,14 +14,12 @@
 
 use std::collections::BTreeSet;
 
-use cssparser::serialize_identifier;
-
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Spanned};
 
 use super::symbols::anchor_name;
-use crate::identifier::IdentifierContext;
+use crate::identifier::{IdentifierContext, custom_ident};
 
 /// The declaration that makes a projection usable on the element itself.
 pub(super) fn render_handle_projection(
@@ -30,6 +28,7 @@ pub(super) fn render_handle_projection(
     projection: &HandleProjection,
 ) -> Result<String, stillwind_diagnostics::CompileErrorKind> {
     let name = anchor_name(context, handle)?;
+    let name = custom_ident(&name);
     Ok(match projection {
         HandleProjection::Anchor => format!("anchor-name:{name};"),
         HandleProjection::Position => format!("position-anchor:{name};"),
@@ -38,17 +37,6 @@ pub(super) fn render_handle_projection(
             format!("container-name:{name};container-type:{};", kind.value)
         }
     })
-}
-
-/// Serializes one marker class token as a CSS selector, including its leading `.`.
-///
-/// `marker` is the class token, so a caller holding a scope marker name from
-/// [`scope_marker_name`] must not pass its selector spelling. Escaping is what lets a
-/// label keep characters such as `:` and `/`.
-pub(super) fn marker_selector(marker: &str) -> String {
-    let mut selector = String::from(".");
-    let _ = serialize_identifier(marker, &mut selector);
-    selector
 }
 
 /// Identity of a ref declaration, spanning its name token.
@@ -135,14 +123,14 @@ mod tests {
 
     use super::*;
     use crate::compiler::symbols::{ref_marker_name, scope_marker_name};
-    use crate::identifier::{IdentifierContext, marker_label};
+    use crate::identifier::{IdentifierContext, marker_label, selector};
 
     #[test]
     fn labels_preserve_punctuation_and_replace_whitespace() {
         assert_eq!(marker_label("項目-🧭"), "項目-🧭");
         assert_eq!(marker_label("a b:c/d_"), "a_b:c/d_");
         assert_eq!(marker_label("a\t\nb"), "a__b");
-        assert_eq!(marker_selector("a:b/c"), r".a\:b\/c");
+        assert_eq!(selector("a:b/c"), r".a\:b\/c");
     }
 
     #[test]

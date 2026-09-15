@@ -1,4 +1,4 @@
-//! Generated identifier families and the CSS namespaces they share.
+//! Identifier families, CSS namespaces, generation, and write-position escaping.
 //!
 //! One family is one kind of name the compiler allocates: a utility class, a ref
 //! marker, an animation name, and so on. Identity is not the same thing as a CSS
@@ -15,6 +15,11 @@
 //! are hashed from canonical content, so recompiling unchanged sources reproduces the
 //! same names; hosts must hold to the same rule, because nothing downstream can tell a
 //! deterministic generator from an unstable one.
+//!
+//! A name becomes a canonical identifier when the characters a write position cannot
+//! hold are replaced, and it is escaped separately for each position it is written to.
+//! Comparisons, reports, and DOM tokens use the canonical spelling, so a name never
+//! changes meaning by being written.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -124,6 +129,95 @@ impl IdentifierPool {
     }
 }
 
+/// A place a generated name is written to, which decides its usable characters.
+///
+/// The position fixes the intersection of characters the name may contain; the writer
+/// escapes whatever remains, so normalization is not repeated per family.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NamePosition {
+    /// A DOM class token. A token is whitespace-separated, so it cannot hold
+    /// whitespace, and it is not escaped.
+    DomToken,
+    /// A class selector, written as `.name`.
+    Selector,
+    /// A custom-ident value, such as `anchor-name`, a `@container` name, or a
+    /// `view-transition-name`.
+    CustomIdent,
+    /// A custom property name, written with a leading `--`.
+    CustomProperty,
+    /// A `@layer` name.
+    LayerName,
+}
+
+impl NamePosition {
+    /// Cleans `name` into the canonical spelling this position can hold.
+    ///
+    /// The compiler replaces what the position cannot carry and leaves everything else
+    /// for the writer to escape. A DOM token is the only position whose characters
+    /// cannot be escaped, so it also replaces NUL, which CSS cannot represent at all.
+    pub fn canonical(self, name: &str) -> String {
+        match self {
+            Self::DomToken | Self::Selector => name
+                .chars()
+                .map(|character| {
+                    if character.is_whitespace() || character == '\0' {
+                        '_'
+                    } else {
+                        character
+                    }
+                })
+                .collect(),
+            Self::CustomIdent | Self::CustomProperty => name.to_owned(),
+            Self::LayerName => name.replace('.', "_"),
+        }
+    }
+
+    /// Escapes the canonical spelling for this position.
+    ///
+    /// `name` must already be canonical. Layer names are escaped like selectors,
+    /// because a layer name is an identifier with the same grammar.
+    pub fn escaped(self, name: &str) -> String {
+        match self {
+            Self::DomToken => name.to_owned(),
+            Self::Selector | Self::CustomIdent | Self::LayerName => {
+                let mut escaped = String::new();
+                let _ = cssparser::serialize_identifier(name, &mut escaped);
+                escaped
+            }
+            Self::CustomProperty => {
+                let mut escaped = String::from("--");
+                let _ = cssparser::serialize_identifier(name, &mut escaped);
+                escaped
+            }
+        }
+    }
+}
+
+/// Writes a class selector for a canonical class token, including its leading dot.
+pub(crate) fn selector(name: &str) -> String {
+    format!(".{}", NamePosition::Selector.escaped(name))
+}
+
+/// Writes a canonical custom-ident value for a property or at-rule prelude.
+pub(crate) fn custom_ident(name: &str) -> String {
+    NamePosition::CustomIdent.escaped(name)
+}
+
+/// The prefix that marks a ref marker class token as Stillwind-owned.
+pub(crate) const REF_MARKER_PREFIX: &str = "s_";
+/// The prefix that marks a scope marker class token as Stillwind-owned.
+pub(crate) const SCOPE_MARKER_PREFIX: &str = "s_";
+/// The custom-property prefix of a generated ref anchor name.
+pub(crate) const ANCHOR_PREFIX: &str = "--sw-r-";
+/// The custom-property prefix of a generated scope container name.
+pub(crate) const CONTAINER_PREFIX: &str = "--sw-s-";
+/// The custom-property prefix of a generated keyframes name.
+pub(crate) const ANIMATION_PREFIX: &str = "--sw-a-";
+/// The custom-property prefix of a generated view-transition name.
+pub(crate) const VIEW_TRANSITION_PREFIX: &str = "--sw-v-";
+/// The prefix of a generated utility class token.
+pub(crate) const CLASS_PREFIX: &str = "_s_";
+
 /// The raw body a generator produced for one name, before any family prefix.
 ///
 /// The body is the family-specific part of the name, and the writing step adds the
@@ -222,11 +316,8 @@ impl Eq for GeneratorSet {}
 ///
 /// A kind and input pair always yields one result within a compilation, so a helper
 /// asked twice cannot observe two calls of an impure generator and cannot produce two
-/// names for one declaration.
-///
-/// Fallible generation memoizes the decoded failure message, and the reported diagnostic
-/// is rebuilt from it, so a repeated request reports the same failure without calling
-/// the generator again.
+/// names for one declaration. Fallible generation memoizes the decoded failure message,
+/// so a repeated request reports the same failure without calling the generator again.
 #[derive(Clone, Debug)]
 pub struct IdentifierContext {
     generators: GeneratorSet,
@@ -264,9 +355,8 @@ impl IdentifierContext {
 
     /// The body for one name, or the built-in body when no generator handles `kind`.
     ///
-    /// Repeated requests with the same kind, input, and label reuse the first result,
-    /// including a failure, so one compilation reports a failing generator once per
-    /// distinct request rather than once per call site.
+    /// The body is canonical: characters the family's write positions cannot carry are
+    /// already replaced.
     ///
     /// # Errors
     ///
@@ -286,9 +376,13 @@ impl IdentifierContext {
                 .map_err(|message| generation_failure(kind, message));
         }
         let generated = match self.generators.generator() {
-            Some(generator) if generator.handles(kind) => generator
-                .generate(kind, input, label)
-                .map_err(|message| generation_failure(kind, message)),
+            Some(generator) if generator.handles(kind) => {
+                let positions = write_positions(kind);
+                generator
+                    .generate(kind, input, label)
+                    .map(|body| GeneratedBody::new(canonicalize(positions, &body.body)))
+                    .map_err(|message| generation_failure(kind, message))
+            }
             _ => Ok(builtin_body(kind, input, label)),
         };
         self.memo.borrow_mut().insert(
@@ -300,58 +394,6 @@ impl IdentifierContext {
         );
         generated
     }
-}
-
-/// Wraps a generator failure with the family it concerned.
-fn generation_failure(kind: IdentifierKind, message: String) -> CompileErrorKind {
-    CompileErrorKind::IdentifierGenerationFailed(kind.as_str().into(), message.into())
-}
-
-/// The Stillwind-owned custom-property prefix before a host-level rewrite.
-const STILLWIND_PREFIX: &str = "--sw-";
-
-/// Prefix of a generated ref marker class token.
-const REF_MARKER_PREFIX: &str = "s_";
-/// Prefix of a generated scope marker class token.
-const SCOPE_MARKER_PREFIX: &str = "s_";
-/// Prefix of a generated keyframes name.
-const ANIMATION_PREFIX: &str = "--sw-a-";
-/// Prefix of a generated view-transition name.
-const VIEW_TRANSITION_PREFIX: &str = "--sw-v-";
-/// Prefix of a generated utility class token.
-const CLASS_PREFIX: &str = "_s_";
-
-/// Normalizes an authored label for use inside a generated name.
-///
-/// Characters are the authored ones so the token stays readable, with two exceptions:
-/// whitespace becomes `_`, and NUL becomes U+FFFD because CSS cannot represent it. The
-/// result is a DOM class token, so escaping belongs to the CSS and JavaScript
-/// boundaries that write it out.
-pub(crate) fn marker_label(label: &str) -> String {
-    label
-        .chars()
-        .map(|character| {
-            if character.is_whitespace() {
-                '_'
-            } else if character == '\0' {
-                '\u{fffd}'
-            } else {
-                character
-            }
-        })
-        .collect()
-}
-
-impl IdentifierContext {
-    /// The body for `kind`, or the built-in body, as a diagnostic-carrying result.
-    fn required(
-        &self,
-        kind: IdentifierKind,
-        input: &str,
-        label: Option<&str>,
-    ) -> Result<String, CompileErrorKind> {
-        Ok(self.body(kind, input, label)?.body)
-    }
 
     /// A utility class token for one canonical class input.
     ///
@@ -359,7 +401,9 @@ impl IdentifierContext {
     ///
     /// Returns the host generator's failure for this family.
     pub(crate) fn class_name(&self, canonical_input: &str) -> Result<String, CompileErrorKind> {
-        let body = self.required(IdentifierKind::UtilityClass, canonical_input, None)?;
+        let body = self
+            .body(IdentifierKind::UtilityClass, canonical_input, None)?
+            .body;
         Ok(format!("{CLASS_PREFIX}{body}"))
     }
 
@@ -399,9 +443,6 @@ impl IdentifierContext {
 
     /// An `anchor-name` custom-ident for a ref's identity.
     ///
-    /// The built-in generator delegates to the ref marker generator, so one declaration
-    /// has one string in both namespaces unless a host overrides a family.
-    ///
     /// # Errors
     ///
     /// Returns the host generator's failure for this family.
@@ -410,8 +451,8 @@ impl IdentifierContext {
         input: &str,
         label: Option<&str>,
     ) -> Result<String, CompileErrorKind> {
-        let body = self.required(IdentifierKind::AnchorName, input, label)?;
-        Ok(format!("{STILLWIND_PREFIX}r-{body}"))
+        let body = self.body(IdentifierKind::AnchorName, input, label)?.body;
+        Ok(format!("{ANCHOR_PREFIX}{body}"))
     }
 
     /// A `container-name` custom-ident for a scope's identity.
@@ -420,8 +461,8 @@ impl IdentifierContext {
     ///
     /// Returns the host generator's failure for this family.
     pub(crate) fn container_name(&self, input: &str) -> Result<String, CompileErrorKind> {
-        let body = self.required(IdentifierKind::ContainerName, input, None)?;
-        Ok(format!("{STILLWIND_PREFIX}s-{body}"))
+        let body = self.body(IdentifierKind::ContainerName, input, None)?.body;
+        Ok(format!("{CONTAINER_PREFIX}{body}"))
     }
 
     /// A `@keyframes` name, referenced by `animation-name`.
@@ -430,7 +471,7 @@ impl IdentifierContext {
     ///
     /// Returns the host generator's failure for this family.
     pub(crate) fn animation_name(&self, input: &str) -> Result<String, CompileErrorKind> {
-        let body = self.required(IdentifierKind::KeyframesName, input, None)?;
+        let body = self.body(IdentifierKind::KeyframesName, input, None)?.body;
         Ok(format!("{ANIMATION_PREFIX}{body}"))
     }
 
@@ -440,7 +481,9 @@ impl IdentifierContext {
     ///
     /// Returns the host generator's failure for this family.
     pub(crate) fn view_transition_name(&self, input: &str) -> Result<String, CompileErrorKind> {
-        let body = self.required(IdentifierKind::ViewTransitionName, input, None)?;
+        let body = self
+            .body(IdentifierKind::ViewTransitionName, input, None)?
+            .body;
         Ok(format!("{VIEW_TRANSITION_PREFIX}{body}"))
     }
 
@@ -453,11 +496,53 @@ impl IdentifierContext {
         label: Option<&str>,
     ) -> Result<String, CompileErrorKind> {
         let normalized = label.map(marker_label);
-        let body = self.required(kind, input, normalized.as_deref())?;
+        let body = self.body(kind, input, normalized.as_deref())?.body;
         Ok(format!("{prefix}{body}"))
     }
 }
 
+/// The write positions one family appears in.
+///
+/// A name may be written more than once; the canonical spelling must be usable in every
+/// position, so a character is only kept when every position can hold it.
+fn write_positions(kind: IdentifierKind) -> &'static [NamePosition] {
+    match kind {
+        IdentifierKind::UtilityClass | IdentifierKind::RefMarker | IdentifierKind::ScopeMarker => {
+            &[NamePosition::DomToken, NamePosition::Selector]
+        }
+        IdentifierKind::AnchorName
+        | IdentifierKind::ContainerName
+        | IdentifierKind::KeyframesName
+        | IdentifierKind::ViewTransitionName
+        | IdentifierKind::ViewTransitionClass => &[NamePosition::CustomIdent],
+        IdentifierKind::CustomProperty => &[NamePosition::CustomProperty],
+        IdentifierKind::LayerName => &[NamePosition::LayerName],
+    }
+}
+
+/// Normalizes a generated body for every position its family is written to.
+fn canonicalize(positions: &[NamePosition], name: &str) -> String {
+    positions
+        .iter()
+        .fold(name.to_owned(), |name, position| position.canonical(&name))
+}
+
+/// Normalizes an authored label for use inside a generated marker token.
+///
+/// A marker token is written to the DOM and to a class selector, so whitespace and NUL
+/// are replaced and every other authored character is kept readable. Escaping for the
+/// selector happens where the selector is written, which is what lets a label keep
+/// characters such as `:`.
+pub(crate) fn marker_label(label: &str) -> String {
+    NamePosition::DomToken.canonical(label)
+}
+
+/// Wraps a generator failure with the family it concerned.
+fn generation_failure(kind: IdentifierKind, message: String) -> CompileErrorKind {
+    CompileErrorKind::IdentifierGenerationFailed(kind.as_str().into(), message.into())
+}
+
+/// The built-in body for one family: a hash of the identity input.
 ///
 /// Class names hash the input alone, because a class is unique per call and branch
 /// rather than per declaration, and ref-like families mix in the normalized label so
@@ -484,7 +569,7 @@ pub(crate) fn builtin_body(
         | IdentifierKind::CustomProperty
         | IdentifierKind::LayerName => hex[..8].to_owned(),
     };
-    GeneratedBody::new(body)
+    GeneratedBody::new(canonicalize(write_positions(kind), &body))
 }
 
 #[cfg(test)]
@@ -571,6 +656,20 @@ mod tests {
     }
 
     #[test]
+    fn a_generator_body_is_normalized_for_every_position_it_is_written_to() {
+        let generator = Arc::new(PositionalGenerator);
+        let context = IdentifierContext::new(GeneratorSet::new(generator));
+        let marker = context
+            .body(IdentifierKind::RefMarker, "ref", None)
+            .unwrap();
+        assert_eq!(marker.body, "fixed_token");
+        let animation = context
+            .body(IdentifierKind::KeyframesName, "spin", None)
+            .unwrap();
+        assert_eq!(animation.body, "fixed-ok");
+    }
+
+    #[test]
     fn builtin_bodies_hash_the_input_and_keep_labels_readable() {
         assert_eq!(
             builtin_body(IdentifierKind::UtilityClass, "flex", None),
@@ -583,6 +682,43 @@ mod tests {
         let labelled = builtin_body(IdentifierKind::RefMarker, "ref", Some("primary"));
         assert!(labelled.body.starts_with("primary_"), "{labelled:?}");
         assert_eq!(labelled.body.len(), "primary_".len() + 8);
+    }
+
+    #[test]
+    fn positions_replace_what_they_cannot_hold_and_escape_the_rest() {
+        assert_eq!(NamePosition::DomToken.canonical("a b\0c"), "a_b_c");
+        assert_eq!(NamePosition::Selector.canonical("a\tb"), "a_b");
+        assert_eq!(NamePosition::CustomIdent.canonical("a b"), "a b");
+        assert_eq!(NamePosition::LayerName.canonical("sw.anon"), "sw_anon");
+        assert_eq!(selector("a:b/c"), r".a\:b\/c");
+        assert_eq!(custom_ident("a:b"), r"a\:b");
+        assert_eq!(NamePosition::CustomProperty.escaped("a:b"), r"--a\:b");
+        assert_eq!(NamePosition::LayerName.escaped("sw_anon"), "sw_anon");
+    }
+
+    /// Emits a body that each position must clean.
+    #[derive(Debug)]
+    struct PositionalGenerator;
+
+    impl IdentifierGenerator for PositionalGenerator {
+        fn handles(&self, kind: IdentifierKind) -> bool {
+            matches!(
+                kind,
+                IdentifierKind::RefMarker | IdentifierKind::KeyframesName
+            )
+        }
+
+        fn generate(
+            &self,
+            kind: IdentifierKind,
+            _input: &str,
+            _label: Option<&str>,
+        ) -> Result<GeneratedBody, String> {
+            Ok(GeneratedBody::new(match kind {
+                IdentifierKind::RefMarker => "fixed token".to_owned(),
+                _ => "fixed-ok".to_owned(),
+            }))
+        }
     }
 
     #[test]

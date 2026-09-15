@@ -20,7 +20,7 @@ use super::lexer::lex_utilities;
 use super::symbols::{motion_name, motion_symbol_name};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
-use crate::identifier::IdentifierContext;
+use crate::identifier::{IdentifierContext, custom_ident, selector};
 
 mod animation;
 
@@ -40,7 +40,7 @@ pub(super) fn resolve_animation_use(
     let mut declaration = format!(
         "animation-name:{};",
         match motion_symbol_name(identifiers, &animation.identity) {
-            Ok(name) => name,
+            Ok(name) => custom_ident(&name),
             Err(failure) => {
                 diagnostics.push(CompileError::new(failure, options.span));
                 String::new()
@@ -113,9 +113,9 @@ pub(super) fn emit_view_transition_definition(
             return;
         }
     };
+    let name = selector(&name);
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
-        output.push('.');
         output.push_str(&name);
         output.push_str("){ ");
         output.push_str(&resolve_motion_options(group, theme, diagnostics));
@@ -131,7 +131,6 @@ pub(super) fn emit_view_transition_definition(
         output.push_str("::view-transition-");
         output.push_str(pseudo);
         output.push('(');
-        output.push('.');
         output.push_str(&name);
         output.push_str("){ ");
         output.push_str(&resolve_static_utility_list(

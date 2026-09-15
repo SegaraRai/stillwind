@@ -121,13 +121,14 @@ impl<'a> ClassUnits<'a> {
                 self.call_span.start.0,
                 &canonical,
             );
-            let name = self.emit_unit(&canonical, &contribution.utilities)?;
+            let (name, rules) = self.name_unit(&canonical, &contribution.utilities)?;
             names.push(name.clone());
             self.classes.push(GeneratedClass {
                 class_name: name,
                 call_span: self.call_span,
                 guard_path: guard.to_vec(),
             });
+            self.publish_unit(rules);
         }
         names.extend(contribution.markers);
         names.extend(contribution.external);
@@ -144,6 +145,7 @@ impl<'a> ClassUnits<'a> {
     /// Returns the host generator's failure for the base unit's utility class.
     pub(super) fn finish(mut self) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileErrorKind> {
         let mut names = Vec::new();
+        let mut deferred = Vec::new();
         if !self.base.utilities.is_empty() {
             let canonical = format!("0:{}", self.base.canonical);
             let canonical = self.options.style_class_input(
@@ -152,7 +154,9 @@ impl<'a> ClassUnits<'a> {
                 &canonical,
             );
             let definitions = std::mem::take(&mut self.base.utilities);
-            let name = self.emit_unit(&canonical, &definitions)?;
+            let (name, rules) = self.name_unit(&canonical, &definitions)?;
+            // The base unit must precede every conditional unit in the stylesheet.
+            deferred.extend(rules);
             self.classes.insert(
                 0,
                 GeneratedClass {
@@ -164,31 +168,32 @@ impl<'a> ClassUnits<'a> {
             names.push(name);
         }
         names.extend(std::mem::take(&mut self.base.names));
-        // The base unit must precede every conditional unit in the stylesheet.
-        self.utility_css.append(&mut self.runtime_css);
+        deferred.append(&mut self.runtime_css);
+        self.utility_css.append(&mut deferred);
         Ok((names, self.classes))
     }
 
-    /// Generates one class unit, publishing its rules and symbol on first use.
+    /// Generates one class unit and returns its rules without publishing them.
     ///
-    /// `canonical` is the full identity input the name is generated from. The first
-    /// caller for a pair writes the rules, so identical calls in one module share one
-    /// rule set.
+    /// `canonical` is the full identity input the name is generated from. Only the first
+    /// caller for a name records its symbol, so an identical call that reuses a name
+    /// from an earlier call carries no rules of its own.
     ///
     /// # Errors
     ///
     /// Returns the host generator's failure for the utility class family.
-    fn emit_unit(
+    fn name_unit(
         &mut self,
         canonical: &str,
         definitions: &[CompiledUtility],
-    ) -> Result<String, CompileErrorKind> {
+    ) -> Result<(String, Vec<CssContribution>), CompileErrorKind> {
         let name = self.identifiers.class_name(canonical)?;
+        let mut contribution = Vec::new();
         if self
             .emitted_utility_classes
             .insert((name.clone(), canonical.to_owned()))
         {
-            emit_utility_rules(&mut self.runtime_css, &name, definitions, self.theme);
+            emit_utility_rules(&mut contribution, &name, definitions, self.theme);
             self.symbols.push(generated_class_symbol(
                 self.source,
                 &name,
@@ -196,6 +201,11 @@ impl<'a> ClassUnits<'a> {
                 self.call_span,
             ));
         }
-        Ok(name)
+        Ok((name, contribution))
+    }
+
+    /// Publishes one conditional unit's rules, in traversal order.
+    fn publish_unit(&mut self, contribution: Vec<CssContribution>) {
+        self.runtime_css.extend(contribution);
     }
 }

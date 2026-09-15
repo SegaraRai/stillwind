@@ -13,7 +13,7 @@ use super::super::symbols::motion_name;
 use super::super::utilities::declaration_order::combine_declarations_for_theme;
 use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
-use crate::identifier::IdentifierContext;
+use crate::identifier::{IdentifierContext, custom_ident};
 
 /// Emits default keyframes first and complete replacements in canonical variant order.
 /// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
@@ -51,7 +51,11 @@ pub(in crate::compiler) fn emit_animation_definition(
     for (plan, frames) in definitions {
         let mut frame_contribution = CssContribution::default();
         emit_frames(&mut frame_contribution, frames, theme, diagnostics);
-        let rule = format!("@keyframes {name}{{{}}}", frame_contribution.css);
+        let rule = format!(
+            "@keyframes {}{{{}}}",
+            custom_ident(&name),
+            frame_contribution.css
+        );
         contribution
             .required_properties
             .extend(frame_contribution.required_properties);

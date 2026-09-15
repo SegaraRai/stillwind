@@ -25,11 +25,10 @@ use stillwind_ir::{HandleDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::handles::marker_selector;
 use super::symbols::{anchor_name, ref_marker_name, scope_marker_name};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
-use crate::identifier::IdentifierContext;
+use crate::identifier::{IdentifierContext, selector};
 
 /// The lowered form of the variant wrappers around one utility literal.
 pub(super) struct StyleVariantPlan {
@@ -164,7 +163,7 @@ impl StyleVariantPlan {
             };
             let scope = match handle.scope.as_ref() {
                 Some(scope) => match scope_marker_name(context, scope) {
-                    Ok(name) => Some(marker_selector(&name)),
+                    Ok(name) => Some(selector(&name)),
                     Err(failure) => {
                         diagnostics.push(CompileError::new(failure, scope.call_span));
                         return None;
@@ -398,16 +397,16 @@ fn reference_path(
         }
     }
     let reference = match reference.strip_prefix('&') {
-        Some("") => marker_selector(marker),
+        Some("") => selector(marker),
         Some(suffix)
             if suffix.starts_with([':', '['])
                 && !suffix.contains(['&', ' ', '>', '+', '~', ',']) =>
         {
-            format!("{}:where({suffix})", marker_selector(marker))
+            format!("{}:where({suffix})", selector(marker))
         }
         _ => format!(
             ":where({})",
-            instantiate_selector(&reference, &marker_selector(marker))
+            instantiate_selector(&reference, &selector(marker))
         ),
     };
     let selector = match scope {
