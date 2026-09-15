@@ -22,11 +22,10 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 
 残件。
 
-- ランタイム側の export condition（第 3.1 節）。dev 専用 specifier を必要とする dev 専用ヘルパは
-  まだ無く、追加するときは第 3.2 節の規則に従う。
-- 予約名はデザインシステムの authored CSS が対象で、モジュールが authored した CSS は対象外である。
-- モジュールを跨ぐ ref の射影は、コンパイル時に判明している候補集合ごとの表引きになる。
-  動的な union に対する入れ子の表引きは将来の課題である。
+- ランタイム側の export condition（第 3.1 節）。dev 専用 specifier へ移した `stillwindClsx` の検査版が
+  最初の例であり、以降も第 3.2 節の規則に従う。
+- 予約名の走査対象はデザインシステムが受理した CSS である。モジュールが authored した CSS は
+  コンパイラの入力に無いため、`reserved.rs` の TODO に従いホストからの供給が要る。
 
 関連: [compiler-design.md](compiler-design.md)（identity と producer のモデル）、
 [macro-contract.md](macro-contract.md)（マクロ引数の純粋性契約）、

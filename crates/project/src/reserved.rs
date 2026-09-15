@@ -10,6 +10,10 @@
 //! references, `@layer` statements and blocks, and `@keyframes` names. It does not
 //! resolve imports, which the caller does before scanning, and it does not attempt to
 //! interpret values.
+//!
+//! TODO: CSS a module authors rather than imports is not scanned here. The compiler
+//! receives its declarations already resolved, so that text only exists on the host
+//! side; reserving it requires the host to supply those names with the analysis.
 
 use std::collections::BTreeSet;
 
