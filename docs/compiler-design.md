@@ -325,9 +325,9 @@ cost diagnostic rather than becoming unsound.
 
 | Producer / derivative | Identity and candidate rule                                                           | Runtime/CSS consequence                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `scope()`             | declaration-site scope identity                                                       | descriptor selects an attached `.s_*` marker when dynamic                                 |
-| `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                              | selector planner preserves relation pairs; attachment selects `.s_*`                      |
-| ref projections       | derived from the ref candidate set                                                    | exact uses erase; dynamic `position-anchor` / container uses select prebuilt declarations |
+| `scope()`             | declaration-site scope identity                                                       | the value carries its `.s_*` token under `c`; dynamic attachments read that key           |
+| `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                              | selector planner preserves relation pairs; attachments read the declaration's `c`         |
+| ref projections       | derived from the ref candidate set                                                    | exact uses select a prebuilt projection class by token; dynamic uses select per candidate |
 | `animation()`         | declaration-site keyframe asset                                                       | candidate use selects prebuilt `animation-name` declarations                              |
 | `viewTransition()`    | declaration-site transition asset; `.for(key)` keeps its existing user key expression | every use shares one class; runtime identity/key populate the name and family properties  |
 

@@ -1,6 +1,32 @@
 # 生成識別子の設計
 
-Status: 設計（未実装）。決定事項と未決事項を区別して記録する。
+Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残件を記録する。
+
+## 実装の現状
+
+本文の設計のうち、次が実装済みである。
+
+1. 段 1（生成）: 種別ごとの生成関数を `IdentifierGenerator` として注入でき、未対応種別は
+   ビルトイン生成へフォールバックする。生成結果は 1 コンパイル内でメモ化される。ホストが
+   生成関数を変えたときは `CompilerOptions::naming_revision` が成果物キャッシュを無効化する。
+2. 段 2（正規化）: `NamePosition` が位置ごとの置換を、書き出し側が位置ごとのエスケープを行う。
+   カノニカル識別子は DOM トークンと比較・報告に使う。
+3. 段 3（プール）: 名前空間ごとに `名前 → identity` で衝突を検査する。anchor 名と container 名も
+   シンボルとして報告される。デザインシステムの authored CSS にある custom property /
+   レイヤ / keyframes 名は予約として先に登録される。
+4. 第 2 節（値の形）: 宣言は `{ c: <canonical> }`、添付は `.c` の読み、射影は
+   `({...})[value.c]` の表引きになる。`stillwindRef` / `stillwindScope` /
+   `stillwindHandleClass` と `_swp_` 射影クラスは削除された。
+5. 第 3 節（dev / prod）のコード生成側: `IdentifierMode` がコンパイル入力として存在し、
+   release では生成失敗が診断に、development ではビルトイン名へのフォールバックと lint 報告になる。
+
+残件。
+
+- ランタイム側の export condition（第 3.1 節）。dev 専用 specifier を必要とする dev 専用ヘルパは
+  まだ無く、追加するときは第 3.2 節の規則に従う。
+- 予約名はデザインシステムの authored CSS が対象で、モジュールが authored した CSS は対象外である。
+- モジュールを跨ぐ ref の射影は、コンパイル時に判明している候補集合ごとの表引きになる。
+  動的な union に対する入れ子の表引きは将来の課題である。
 
 関連: [compiler-design.md](compiler-design.md)（identity と producer のモデル）、
 [macro-contract.md](macro-contract.md)（マクロ引数の純粋性契約）、
