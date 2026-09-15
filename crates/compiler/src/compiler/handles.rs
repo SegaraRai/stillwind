@@ -19,22 +19,63 @@ use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, Modul
 use stillwind_source::{SourceFile, Spanned};
 
 use super::symbols::anchor_name;
+use super::symbols::{GeneratedSymbol, projection_symbol, ref_name_input};
+use crate::identifier::IdentifierPool;
 use crate::identifier::{IdentifierContext, custom_ident};
 
-/// The declaration that makes a projection usable on the element itself.
+/// The declaration that makes a projection usable on the element itself, and the
+/// reportable symbol for the name it writes.
+///
+/// An anchor projection writes the declaration's `anchor-name`, and a container
+/// projection writes its `container-name`; both names are written for the ref's
+/// identity, so one declaration can legitimately appear in two CSS namespaces under
+/// the same spelling.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the anchor or container family.
 pub(super) fn render_handle_projection(
     context: &IdentifierContext,
     handle: &HandleDefinition,
     projection: &HandleProjection,
-) -> Result<String, stillwind_diagnostics::CompileErrorKind> {
+    source_path: &str,
+) -> Result<(String, Option<GeneratedSymbol>), stillwind_diagnostics::CompileErrorKind> {
     let name = anchor_name(context, handle)?;
+    let symbol = |name: &str, pool: IdentifierPool, kind: &str| {
+        Some(projection_symbol(
+            name,
+            ref_name_input(handle),
+            pool,
+            kind,
+            source_path,
+            handle.call_span,
+        ))
+    };
     let name = custom_ident(&name);
     Ok(match projection {
-        HandleProjection::Anchor => format!("anchor-name:{name};"),
-        HandleProjection::Position => format!("position-anchor:{name};"),
-        HandleProjection::Scope => format!("anchor-scope:{name};"),
+        HandleProjection::Anchor => (
+            format!("anchor-name:{name};"),
+            symbol(&name, IdentifierPool::AnchorName, "anchor"),
+        ),
+        HandleProjection::Position => (format!("position-anchor:{name};"), None),
+        HandleProjection::Scope => (format!("anchor-scope:{name};"), None),
         HandleProjection::Container(kind) => {
-            format!("container-name:{name};container-type:{};", kind.value)
+            let container = context.container_name(&ref_name_input(handle))?;
+            (
+                format!(
+                    "container-name:{};container-type:{};",
+                    custom_ident(&container),
+                    kind.value
+                ),
+                Some(projection_symbol(
+                    &container,
+                    ref_name_input(handle),
+                    IdentifierPool::ContainerName,
+                    "container",
+                    source_path,
+                    handle.call_span,
+                )),
+            )
         }
     })
 }
@@ -123,7 +164,7 @@ mod tests {
 
     use super::*;
     use crate::compiler::symbols::{ref_marker_name, scope_marker_name};
-    use crate::identifier::{IdentifierContext, marker_label, selector};
+    use crate::identifier::{IdentifierContext, IdentifierPool, marker_label, selector};
 
     #[test]
     fn labels_preserve_punctuation_and_replace_whitespace() {
@@ -165,26 +206,36 @@ mod tests {
         };
         let identifiers = IdentifierContext::builtin();
         let marker = ref_marker_name(&identifiers, &handle).unwrap();
-        let anchor =
-            render_handle_projection(&identifiers, &handle, &HandleProjection::Anchor).unwrap();
+        let (anchor, anchor_symbol) =
+            render_handle_projection(&identifiers, &handle, &HandleProjection::Anchor, "x")
+                .unwrap();
         let reference = anchor.strip_prefix("anchor-name:").unwrap();
-        assert_eq!(
-            render_handle_projection(&identifiers, &handle, &HandleProjection::Position).unwrap(),
-            format!("position-anchor:{reference}")
-        );
-        assert_eq!(
-            render_handle_projection(&identifiers, &handle, &HandleProjection::Scope).unwrap(),
-            format!("anchor-scope:{reference}")
-        );
-        assert_eq!(
-            render_handle_projection(
-                &identifiers,
-                &handle,
-                &HandleProjection::Container(Spanned::new("size".into(), name.span))
-            )
-            .unwrap(),
-            format!("container-name:{reference}container-type:size;")
-        );
+        let anchor_symbol = anchor_symbol.expect("anchor name symbol");
+        assert_eq!(anchor_symbol.pool, IdentifierPool::AnchorName);
+        assert_eq!(anchor_symbol.identity, ref_name_input(&handle));
+        let (position, _) =
+            render_handle_projection(&identifiers, &handle, &HandleProjection::Position, "x")
+                .unwrap();
+        assert_eq!(position, format!("position-anchor:{reference}"));
+        let (scope_projection, _) =
+            render_handle_projection(&identifiers, &handle, &HandleProjection::Scope, "x").unwrap();
+        assert_eq!(scope_projection, format!("anchor-scope:{reference}"));
+        let (container, container_symbol) = render_handle_projection(
+            &identifiers,
+            &handle,
+            &HandleProjection::Container(Spanned::new("size".into(), name.span)),
+            "x",
+        )
+        .unwrap();
+        // A container name is its own family, so it is not the anchor's spelling.
+        let container_name = container
+            .strip_prefix("container-name:")
+            .and_then(|rest| rest.strip_suffix("container-type:size;"))
+            .expect("container declaration");
+        assert_eq!(container_name, format!("--sw-s-{}", &reference[7..]));
+        let container_symbol = container_symbol.expect("container name symbol");
+        assert_eq!(container_symbol.pool, IdentifierPool::ContainerName);
+        assert_eq!(container_symbol.identity, ref_name_input(&handle));
         handle.scope = Some(ScopeDefinition {
             module_path: "x".into(),
             name: name.clone(),

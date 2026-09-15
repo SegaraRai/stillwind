@@ -151,7 +151,8 @@ export declare function compileReactProject(sources: Array<NativeProjectSource>,
 /**
  * Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
  * Exposed so parity and integration tools compare both compilers after the same
- * semantic normalization.
+ * semantic normalization. Expressions that do not parse, or that nest values deeper
+ * than the calculator accepts, are retained byte-for-byte.
  */
 export declare function foldCalcExpressions(css: string): string
 
@@ -242,9 +243,7 @@ export interface NativeCompilerOptions {
    * Defaults to false; comparisons, negated variants, and CSS-wide helper branches require true.
    */
   useCssIf?: boolean
-  /**
-   * Hash of the host's identifier generators. Cached artifacts are rebuilt when it changes.
-   */
+  /** Hash of the host's identifier generators, used to invalidate cached artifacts. */
   namingRevision?: string
 }
 

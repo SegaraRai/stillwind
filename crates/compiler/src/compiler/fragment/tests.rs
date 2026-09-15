@@ -51,6 +51,7 @@ fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
         parts,
         classes: vec![],
         call_span: Span::new(FileId(1), 0, 50),
+        written_name_symbols: Vec::new(),
     }
 }
 

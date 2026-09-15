@@ -123,10 +123,7 @@ pub(crate) fn anchor_name(
     context: &IdentifierContext,
     definition: &HandleDefinition,
 ) -> Result<String, CompileErrorKind> {
-    context.anchor_name(
-        &ref_name_input(definition),
-        definition.label.as_ref().map(|label| label.value.as_str()),
-    )
+    context.anchor_name(&ref_name_input(definition))
 }
 
 /// Generated `container-name` for a scope declaration's identity.
@@ -212,7 +209,7 @@ pub(super) fn motion_name(
         AssetKind::Animation => context.animation_name(&identity),
         AssetKind::ViewTransition => context.view_transition_name(&identity),
         AssetKind::Style => context.class_name(&identity),
-        AssetKind::Ref => context.anchor_name(&identity, None),
+        AssetKind::Ref => context.anchor_name(&identity),
         AssetKind::Scope => context.container_name(&identity),
     }
 }
@@ -370,11 +367,35 @@ pub(super) fn motion_symbol_name(
         AssetKind::Animation => context.animation_name(&identity_input),
         AssetKind::ViewTransition => context.view_transition_name(&identity_input),
         AssetKind::Style => context.class_name(&identity_input),
-        AssetKind::Ref => context.anchor_name(&identity_input, None),
+        AssetKind::Ref => context.anchor_name(&identity_input),
         AssetKind::Scope => context.container_name(&identity_input),
     }
 }
 
+/// Builds the reportable symbol for a written anchor or container name.
+///
+/// Both `anchor_name` and `container_name` are written for one declaration's identity,
+/// and the same declaration may be written many times, so the pipeline drops repeated
+/// records before reporting. The identity is the declaration's, which is what makes a
+/// shared name across pools a reuse rather than a collision.
+pub(crate) fn projection_symbol(
+    name: &str,
+    identity: String,
+    pool: IdentifierPool,
+    kind: &str,
+    source_path: &str,
+    span: Span,
+) -> GeneratedSymbol {
+    GeneratedSymbol {
+        name: name.to_owned(),
+        kind: kind.to_owned(),
+        pool,
+        identity,
+        source_path: normalized_module_path(source_path),
+        start: span.start.0,
+        end: span.end.0,
+    }
+}
 #[cfg(test)]
 mod tests {
     use stillwind_source::FileId;

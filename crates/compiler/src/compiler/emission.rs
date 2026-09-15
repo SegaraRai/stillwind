@@ -69,6 +69,8 @@ pub(super) struct CallEmitter<'a> {
     units: ClassUnits<'a>,
     /// Set once the call contributed a view transition, so a second one is reported.
     view_transition_seen: bool,
+    /// Anchor and container names this call wrote, reported with the class symbols.
+    written_name_symbols: Vec<GeneratedSymbol>,
 }
 
 impl<'a> CallEmitter<'a> {
@@ -102,6 +104,7 @@ impl<'a> CallEmitter<'a> {
                 inputs.emitted_utility_classes,
             ),
             view_transition_seen: false,
+            written_name_symbols: Vec::new(),
         };
         emitter.emit()
     }
@@ -120,6 +123,7 @@ impl<'a> CallEmitter<'a> {
                 parts,
                 classes,
                 call_span,
+                written_name_symbols: std::mem::take(&mut self.written_name_symbols),
             }),
             Err(failure) => {
                 self.diagnostics.push(CompileError::new(failure, call_span));
@@ -527,14 +531,21 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     }
                 };
-                let declaration =
-                    match render_handle_projection(self.identifiers, handle, projection) {
-                        Ok(declaration) => declaration,
-                        Err(failure) => {
-                            self.reject_name(failure, self.call.span);
-                            return None;
-                        }
-                    };
+                let (declaration, name_symbol) = match render_handle_projection(
+                    self.identifiers,
+                    handle,
+                    projection,
+                    self.source.path(),
+                ) {
+                    Ok(rendered) => rendered,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
+                if let Some(symbol) = name_symbol {
+                    self.written_name_symbols.push(symbol);
+                }
                 let utility = CompiledUtility {
                     required_properties: Vec::new(),
                     variants: Vec::new(),
@@ -600,23 +611,28 @@ impl<'a> CallEmitter<'a> {
                         "dynamic-handle:{anchor}:{}",
                         handle_projection_name(projection)
                     );
+                    let (declaration, name_symbol) = match render_handle_projection(
+                        self.identifiers,
+                        handle,
+                        projection,
+                        self.source.path(),
+                    ) {
+                        Ok(rendered) => rendered,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
+                    if let Some(symbol) = name_symbol {
+                        self.written_name_symbols.push(symbol);
+                    }
                     let contribution = LiteralContribution {
                         canonical,
                         utilities: vec![CompiledUtility {
                             required_properties: Vec::new(),
                             variants: Vec::new(),
                             variant_applications: Vec::new(),
-                            declaration: match render_handle_projection(
-                                self.identifiers,
-                                handle,
-                                projection,
-                            ) {
-                                Ok(declaration) => declaration,
-                                Err(failure) => {
-                                    self.reject_name(failure, self.call.span);
-                                    return None;
-                                }
-                            },
+                            declaration,
                             selector: None,
                             container: None,
                             nested: Vec::new(),

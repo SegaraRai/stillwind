@@ -446,15 +446,15 @@ impl IdentifierContext {
 
     /// An `anchor-name` custom-ident for a ref's identity.
     ///
+    /// The name is the identity hash alone: an anchor name is a custom-ident shared by
+    /// every `position-anchor` that resolves to this declaration, so a label would make
+    /// renaming it change which elements anchor to which.
+    ///
     /// # Errors
     ///
     /// Returns the host generator's failure for this family.
-    pub(crate) fn anchor_name(
-        &self,
-        input: &str,
-        label: Option<&str>,
-    ) -> Result<String, CompileErrorKind> {
-        let body = self.body(IdentifierKind::AnchorName, input, label)?.body;
+    pub(crate) fn anchor_name(&self, input: &str) -> Result<String, CompileErrorKind> {
+        let body = self.body(IdentifierKind::AnchorName, input, None)?.body;
         Ok(format!("{ANCHOR_PREFIX}{body}"))
     }
 

@@ -32,6 +32,7 @@ use super::symbols::{
 };
 use super::{Compiler, CssContribution};
 use crate::CompilerOptions;
+use crate::GeneratedSymbol;
 use crate::generated::js_string;
 use crate::identifier::IdentifierContext;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
@@ -192,6 +193,7 @@ impl Compiler {
                 continue;
             };
             result.classes.extend(emission.classes.iter().cloned());
+            symbols.extend(emission.written_name_symbols.iter().cloned());
             let replacement = render_style_call(&emission, module.adapter.spec(), &mut runtime);
             result.transforms.push(SourceTransform {
                 call_span: call.span,
@@ -343,7 +345,7 @@ impl Compiler {
         }
 
         result.diagnostics = diagnostics;
-        result.symbols = symbols;
+        result.symbols = dedupe_name_symbols(symbols);
         if emit_source && result.diagnostics.is_empty() {
             match runtime.plan(parsed, &result.transforms).and_then(|edits| {
                 encode_projected_edits(parsed, &mut result.transforms)?;
@@ -395,6 +397,29 @@ impl Compiler {
 
         result
     }
+}
+
+/// Drops repeated records for one written name.
+///
+/// A declaration's `anchor-name` and `container-name` are written once per projection
+/// site, so the same name and identity arrives many times. Class symbols are already
+/// allocated once per unit and keep their position; a repeated name symbol keeps its
+/// first occurrence, which is the source order of the projection that first used it.
+fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
+    let mut seen = std::collections::BTreeSet::new();
+    symbols
+        .into_iter()
+        .filter(|symbol| {
+            if symbol.kind == "class" {
+                return true;
+            }
+            seen.insert((
+                symbol.kind.clone(),
+                symbol.name.clone(),
+                symbol.identity.clone(),
+            ))
+        })
+        .collect()
 }
 
 /// Keeps a named symbol, or reports the generator's failure at `span`.

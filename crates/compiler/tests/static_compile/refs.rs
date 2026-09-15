@@ -29,7 +29,19 @@ const panel = style(popover.position, "absolute");"#,
     assert!(result.css.contains("anchor-name:--sw-r-"));
     assert!(result.css.contains("position-anchor:--sw-r-"));
     assert!(result.css.contains("anchor-scope:--sw-r-"));
-    assert!(result.css.contains("container-name:--sw-r-"));
+    // The anchor and container names are separate families of the same identity, so
+    // the ref marker reaches both through one declaration without sharing a spelling.
+    assert!(result.css.contains("container-name:--sw-s-"));
+    let hash_of = |prefix: &str| {
+        let start = result.css.find(prefix).expect("declaration") + prefix.len();
+        let rest = &result.css[start..];
+        let end = rest.find([';', ':']).unwrap_or(rest.len());
+        rest[..end].to_owned()
+    };
+    assert_eq!(
+        hash_of("anchor-name:--sw-r-"),
+        hash_of("container-name:--sw-s-")
+    );
     assert!(result.css.contains_css("container-type:inline-size;"));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.ref()"));

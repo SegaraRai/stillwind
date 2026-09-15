@@ -428,7 +428,7 @@ Keep both selectors so the same theme values are available in either scope.
 @layer utilities {
   ._s_818153bd {
     anchor-scope: --sw-r-5c7d76f9;
-    container-name: --sw-r-5c7d76f9;
+    container-name: --sw-s-5c7d76f9;
     container-type: inline-size;
   }
   ._s_bcf2abc9 {

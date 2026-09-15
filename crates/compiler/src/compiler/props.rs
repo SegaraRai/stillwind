@@ -9,6 +9,7 @@ use serde::Serialize;
 use stillwind_source::Span;
 
 use super::fragment::{Emitted, Property, ValueExpr};
+use crate::GeneratedSymbol;
 use crate::generated::Code;
 
 /// One conditional step of a class contribution's guard path.
@@ -89,4 +90,6 @@ pub(crate) struct StyleEmission {
     /// Original-source UTF-8 call span used for replacement, diagnostics, and fallback
     /// helper import placement when a contribution has no narrower origin.
     pub(crate) call_span: Span,
+    /// Anchor and container names this call wrote, in the order they were written.
+    pub(crate) written_name_symbols: Vec<GeneratedSymbol>,
 }
