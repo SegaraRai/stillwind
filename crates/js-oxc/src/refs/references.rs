@@ -1,4 +1,4 @@
-//! Resolving an expression back to the refs and scopes it may denote.
+//! Resolving an expression back to the refs and subtrees it may denote.
 //!
 //! Resolution order is fixed: checker facts for the exact expression span, then a local
 //! declaration, then a local symbolic value. Imported assets are reconstructed from
@@ -11,7 +11,7 @@
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
-use stillwind_ir::{RefDefinition, ScopeDefinition};
+use stillwind_ir::{RefDefinition, SubtreeDefinition};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, RefAlternative, SymbolicValue};
 use stillwind_source::{Span, Spanned};
 
@@ -46,9 +46,9 @@ impl<'a> MacroExtractor<'a> {
 
     /// Expands correlated alternatives into the ref definitions they denote.
     ///
-    /// Each alternative keeps its own permitted scope: an alternative with a finite
-    /// scope set expands to one definition per scope, while an alternative whose scope
-    /// set is a universe yields `None`, because no single scope could be chosen without
+    /// Each alternative keeps its own permitted subtree: an alternative with a finite
+    /// subtree set expands to one definition per subtree, while an alternative whose subtree
+    /// set is a universe yields `None`, because no single subtree could be chosen without
     /// changing the selector's meaning.
     pub(crate) fn refs_from_alternatives(
         &self,
@@ -56,12 +56,13 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<Vec<RefDefinition>> {
         let mut refs = Vec::new();
         for alternative in alternatives {
-            match &alternative.permitted_scopes {
+            match &alternative.permitted_subtrees {
                 None => refs.push(self.imported_ref(alternative)?),
-                Some(scopes) => {
-                    for scope in scopes.finite_candidates()? {
+                Some(subtrees) => {
+                    for subtree in subtrees.finite_candidates()? {
                         let mut alternative = alternative.clone();
-                        alternative.permitted_scopes = Some(SymbolicValue::exact(scope.clone()));
+                        alternative.permitted_subtrees =
+                            Some(SymbolicValue::exact(subtree.clone()));
                         refs.push(self.imported_ref(&alternative)?);
                     }
                 }
@@ -70,28 +71,31 @@ impl<'a> MacroExtractor<'a> {
         Some(refs)
     }
 
-    /// Resolves an expression to exactly one scope, or `None`.
-    pub(crate) fn scope_reference(&self, expression: &Expression<'a>) -> Option<ScopeDefinition> {
-        let scopes = self.scope_references(expression)?;
-        (scopes.len() == 1).then(|| scopes[0].clone())
-    }
-
-    /// Resolves an expression to every scope it may denote.
-    ///
-    /// A scope value must be finite: a universe scope set means the checker could not
-    /// narrow the value, so the use stays unresolved instead of being widened to every
-    /// scope.
-    pub(crate) fn scope_references(
+    /// Resolves an expression to exactly one subtree, or `None`.
+    pub(crate) fn subtree_reference(
         &self,
         expression: &Expression<'a>,
-    ) -> Option<Vec<ScopeDefinition>> {
+    ) -> Option<SubtreeDefinition> {
+        let subtrees = self.subtree_references(expression)?;
+        (subtrees.len() == 1).then(|| subtrees[0].clone())
+    }
+
+    /// Resolves an expression to every subtree it may denote.
+    ///
+    /// A subtree value must be finite: a universe subtree set means the checker could not
+    /// narrow the value, so the use stays unresolved instead of being widened to every
+    /// subtree.
+    pub(crate) fn subtree_references(
+        &self,
+        expression: &Expression<'a>,
+    ) -> Option<Vec<SubtreeDefinition>> {
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(ExportedValue::Scopes(value)) = self.type_facts.get(&(span.start, span.end)) {
+        if let Some(ExportedValue::Subtrees(value)) = self.type_facts.get(&(span.start, span.end)) {
             return value
                 .finite_candidates()?
                 .iter()
-                .map(|identity| Some(self.imported_scope(identity)))
+                .map(|identity| Some(self.imported_subtree(identity)))
                 .collect();
         }
         let Expression::Identifier(identifier) = expression else {
@@ -99,37 +103,37 @@ impl<'a> MacroExtractor<'a> {
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        if let Some(scope) = self.scope_symbols.get(&symbol_id) {
-            return Some(vec![scope.clone()]);
+        if let Some(subtree) = self.subtree_symbols.get(&symbol_id) {
+            return Some(vec![subtree.clone()]);
         }
-        let ExportedValue::Scopes(value) = self.local_values.get(&symbol_id)? else {
+        let ExportedValue::Subtrees(value) = self.local_values.get(&symbol_id)? else {
             return None;
         };
         Some(
             value
                 .finite_candidates()?
                 .iter()
-                .map(|identity| self.imported_scope(identity))
+                .map(|identity| self.imported_subtree(identity))
                 .collect(),
         )
     }
 
-    /// Rebuilds a scope definition from an identity declared elsewhere.
+    /// Rebuilds a subtree definition from an identity declared elsewhere.
     ///
-    /// A locally declared scope is reused when the identity matches, so local and
-    /// imported scopes compare equal; otherwise the definition is synthesized with the
+    /// A locally declared subtree is reused when the identity matches, so local and
+    /// imported subtrees compare equal; otherwise the definition is synthesized with the
     /// identity's declaration span and the host's metadata label.
-    pub(crate) fn imported_scope(&self, identity: &IdentityId) -> ScopeDefinition {
-        if let Some(scope) = self
-            .scope_definitions
+    pub(crate) fn imported_subtree(&self, identity: &IdentityId) -> SubtreeDefinition {
+        if let Some(subtree) = self
+            .subtree_definitions
             .iter()
-            .find(|scope| self.identity(AssetKind::Scope, &scope.binding) == *identity)
+            .find(|subtree| self.identity(AssetKind::Subtree, &subtree.binding) == *identity)
         {
-            return scope.clone();
+            return subtree.clone();
         }
         let span = Span::new(self.source.id(), identity.start, identity.end);
         let metadata = self.imported_assets.get(identity);
-        ScopeDefinition {
+        SubtreeDefinition {
             module_path: identity.module_path.clone(),
             binding: Spanned::new(identity.binding_name.clone(), span),
             label: metadata
@@ -141,8 +145,8 @@ impl<'a> MacroExtractor<'a> {
 
     /// Rebuilds a ref definition from a correlated alternative.
     ///
-    /// Returns `None` when the alternative's permitted scopes are not exactly one
-    /// finite candidate, because a ref definition carries at most one scope.
+    /// Returns `None` when the alternative's permitted subtrees are not exactly one
+    /// finite candidate, because a ref definition carries at most one subtree.
     pub(crate) fn imported_ref(&self, alternative: &RefAlternative) -> Option<RefDefinition> {
         let span = Span::new(
             self.source.id(),
@@ -150,14 +154,14 @@ impl<'a> MacroExtractor<'a> {
             alternative.reference.end,
         );
         let metadata = self.imported_assets.get(&alternative.reference);
-        let scope = match &alternative.permitted_scopes {
+        let subtree = match &alternative.permitted_subtrees {
             None => None,
-            Some(scopes) => {
-                let candidates = scopes.finite_candidates()?;
+            Some(subtrees) => {
+                let candidates = subtrees.finite_candidates()?;
                 if candidates.len() != 1 {
                     return None;
                 }
-                Some(self.imported_scope(candidates.first()?))
+                Some(self.imported_subtree(candidates.first()?))
             }
         };
         let mut definition = self
@@ -173,10 +177,10 @@ impl<'a> MacroExtractor<'a> {
                 label: metadata
                     .and_then(|metadata| metadata.label.clone())
                     .map(|label| Spanned::new(label, span)),
-                scope: None,
+                subtree: None,
                 call_span: span,
             });
-        definition.scope = scope;
+        definition.subtree = subtree;
         Some(definition)
     }
 }

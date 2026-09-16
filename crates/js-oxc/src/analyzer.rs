@@ -165,7 +165,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                         ExportedValue::Refs(alternatives) => {
                             for alternative in alternatives {
                                 assets.insert(alternative.reference.clone());
-                                if let Some(scopes) = &alternative.permitted_scopes {
+                                if let Some(scopes) = &alternative.permitted_subtrees {
                                     assets.extend(
                                         scopes.finite_candidates().into_iter().flatten().cloned(),
                                     );
@@ -173,7 +173,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                             }
                         }
                         ExportedValue::Styles(value)
-                        | ExportedValue::Scopes(value)
+                        | ExportedValue::Subtrees(value)
                         | ExportedValue::Animations(value)
                         | ExportedValue::ViewTransitions(value)
                         | ExportedValue::ViewTransitionKeys(value) => {

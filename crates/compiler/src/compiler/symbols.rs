@@ -12,13 +12,13 @@
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{RefDefinition, RefProjection, ScopeDefinition};
+use stillwind_ir::{RefDefinition, RefProjection, SubtreeDefinition};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
-    IdentifierPool, Label, LocatorContext, RefMarker, ScopeMarker,
+    IdentifierPool, Label, LocatorContext, RefMarker, SubtreeMarker,
 };
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
@@ -68,7 +68,7 @@ pub(super) fn ref_projection_name(projection: &RefProjection) -> &'static str {
     match projection {
         RefProjection::Anchor => "anchor",
         RefProjection::PositionAnchor => "positionAnchor",
-        RefProjection::Scope => "scope",
+        RefProjection::AnchorScope => "anchorScope",
         RefProjection::Container(_) => "container",
     }
 }
@@ -103,7 +103,7 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
 }
 
 /// The declaration fields a scope marker or container name is built from.
-pub(super) fn scope_declaration_context(definition: &ScopeDefinition) -> DeclarationContext {
+pub(super) fn subtree_declaration_context(definition: &SubtreeDefinition) -> DeclarationContext {
     DeclarationContext {
         module: normalized_module_path(&definition.module_path),
         start: definition.binding.span.start.0,
@@ -133,8 +133,8 @@ pub(crate) fn ref_marker_name(
 }
 
 /// The declaration fields a scope's generated names are built from.
-pub(super) fn scope_context(
-    definition: &ScopeDefinition,
+pub(super) fn subtree_context(
+    definition: &SubtreeDefinition,
     projection: Option<&str>,
 ) -> LocatorContext {
     LocatorContext {
@@ -151,11 +151,11 @@ pub(super) fn scope_context(
 /// # Errors
 ///
 /// Returns the host generator's failure for the scope marker family.
-pub(crate) fn scope_marker_name(
+pub(crate) fn subtree_marker_name(
     context: &IdentifierContext,
-    definition: &ScopeDefinition,
-) -> Result<ScopeMarker, CompileErrorKind> {
-    context.scope_marker_name(&scope_declaration_context(definition))
+    definition: &SubtreeDefinition,
+) -> Result<SubtreeMarker, CompileErrorKind> {
+    context.subtree_marker_name(&subtree_declaration_context(definition))
 }
 
 /// Generated `anchor-name` for a ref declaration's identity.
@@ -178,9 +178,9 @@ pub(crate) fn anchor_name(
 /// Returns the host generator's failure for the container family.
 pub(super) fn container_name(
     context: &IdentifierContext,
-    definition: &ScopeDefinition,
+    definition: &SubtreeDefinition,
 ) -> Result<ContainerName, CompileErrorKind> {
-    context.container_name(&scope_context(definition, None))
+    context.container_name(&subtree_context(definition, None))
 }
 
 /// Identity string for a declaration inside one source file.
@@ -216,12 +216,12 @@ pub(super) fn asset_identity(
     )
 }
 
-/// Generated custom-property name of a ref's anchor identity.
+/// Identity and report spelling of one asset kind.
 fn kind_name(kind: AssetKind) -> &'static str {
     match kind {
         AssetKind::Style => "style",
         AssetKind::Ref => "ref",
-        AssetKind::Scope => "scope",
+        AssetKind::Subtree => "scope",
         AssetKind::Animation => "animation",
         AssetKind::ViewTransition => "view-transition",
     }
@@ -232,7 +232,7 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
     match kind {
         AssetKind::Style => IdentifierPool::ClassToken,
         AssetKind::Ref => IdentifierPool::AnchorName,
-        AssetKind::Scope => IdentifierPool::ContainerName,
+        AssetKind::Subtree => IdentifierPool::ContainerName,
         AssetKind::Animation => IdentifierPool::KeyframesName,
         AssetKind::ViewTransition => IdentifierPool::ViewTransitionClass,
     }
@@ -295,7 +295,7 @@ fn declared_name(
             .anchor_name(&locator(declaration))?
             .as_str()
             .to_owned(),
-        AssetKind::Scope => context
+        AssetKind::Subtree => context
             .container_name(&locator(declaration))?
             .as_str()
             .to_owned(),
@@ -365,11 +365,11 @@ pub(super) fn generated_ref_symbol(
 /// # Errors
 ///
 /// Returns the host generator's failure for the container family.
-pub(super) fn generated_scope_symbol(
+pub(super) fn generated_subtree_symbol(
     context: &IdentifierContext,
-    definition: &ScopeDefinition,
+    definition: &SubtreeDefinition,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
-    let identity = identity_input(&scope_identity(definition));
+    let identity = identity_input(&subtree_identity(definition));
     Ok(GeneratedSymbol {
         name: container_name(context, definition)?.as_str().to_owned(),
         kind: "scope".to_owned(),
@@ -406,12 +406,14 @@ pub(super) fn generated_ref_marker_symbol(
 /// # Errors
 ///
 /// Returns the host generator's failure for the scope marker family.
-pub(super) fn generated_scope_marker_symbol(
+pub(super) fn generated_subtree_marker_symbol(
     context: &IdentifierContext,
-    definition: &ScopeDefinition,
+    definition: &SubtreeDefinition,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
     Ok(GeneratedSymbol {
-        name: scope_marker_name(context, definition)?.as_str().to_owned(),
+        name: subtree_marker_name(context, definition)?
+            .as_str()
+            .to_owned(),
         kind: "scope-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
         identity: asset_identity(&definition.module_path, "scope-marker", &definition.binding),
@@ -503,14 +505,14 @@ pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
     )
 }
 
-/// Identity of a scope declaration, spanning its name token.
-pub(super) fn scope_identity(scope: &ScopeDefinition) -> IdentityId {
+/// Identity of a subtree declaration, spanning its name token.
+pub(super) fn subtree_identity(subtree: &SubtreeDefinition) -> IdentityId {
     IdentityId::new(
-        AssetKind::Scope,
-        &scope.module_path,
-        scope.binding.span.start.0,
-        scope.binding.span.end.0,
-        scope.binding.value.clone(),
+        AssetKind::Subtree,
+        &subtree.module_path,
+        subtree.binding.span.start.0,
+        subtree.binding.span.end.0,
+        subtree.binding.value.clone(),
     )
 }
 
@@ -601,7 +603,7 @@ mod tests {
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
             (AssetKind::Ref, "--sw-r-"),
-            (AssetKind::Scope, "--sw-s-"),
+            (AssetKind::Subtree, "--sw-s-"),
             (AssetKind::Animation, "--sw-a-"),
             (AssetKind::ViewTransition, "--sw-v-"),
         ] {

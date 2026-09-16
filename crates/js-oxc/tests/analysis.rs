@@ -25,7 +25,7 @@ fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
         facts: vec![TypeFact {
             start: 10,
             end: 11,
-            value: ExportedValue::Animations(SymbolicValue::universe(AssetKind::Scope)),
+            value: ExportedValue::Animations(SymbolicValue::universe(AssetKind::Subtree)),
         }],
         assets: BTreeMap::new(),
     };

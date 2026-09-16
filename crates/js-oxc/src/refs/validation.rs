@@ -1,4 +1,4 @@
-//! In-file validation of ref and scope usage rules.
+//! In-file validation of ref and subtree usage rules.
 //!
 //! These checks run after the whole module is visited, because they compare uses with
 //! declarations and with each other. A rule is only decided when the relevant JSX is
@@ -36,10 +36,10 @@ impl MacroExtractor<'_> {
                 .iter()
                 .filter(|ref_use| ref_use.name == name)
                 .collect::<Vec<_>>();
-            let is_scoped = self
+            let has_subtree = self
                 .ref_definitions
                 .iter()
-                .any(|definition| definition.binding.value == name && definition.scope.is_some());
+                .any(|definition| definition.binding.value == name && definition.subtree.is_some());
             let has_anchor = uses.iter().any(|ref_use| ref_use.projection == "anchor");
             if !has_anchor {
                 for ref_use in uses
@@ -77,7 +77,7 @@ impl MacroExtractor<'_> {
                 let Some(path) = &ref_use.jsx_path else {
                     continue;
                 };
-                if !is_scoped
+                if !has_subtree
                     && !known_anchor_paths.is_empty()
                     && !known_anchor_paths
                         .iter()
@@ -91,30 +91,31 @@ impl MacroExtractor<'_> {
             }
         }
 
-        self.validate_scoped_refs();
+        self.validate_subtree_refs();
     }
 
-    /// Checks that every bound scope is attached to a strict ancestor.
+    /// Checks that every bound subtree is attached to a strict ancestor.
     ///
-    /// Only scoped refs take part: an unscoped ref uses the descendant-only relation
+    /// Only subtree-bound refs take part: an unbound ref uses the descendant-only relation
     /// and has no provider to look for. Selector uses are checked separately from other
     /// uses because they target a different element.
-    pub(crate) fn validate_scoped_refs(&mut self) {
-        for (definition, scope) in self
-            .ref_definitions
-            .iter()
-            .filter_map(|definition| definition.scope.as_ref().map(|scope| (definition, scope)))
-        {
+    pub(crate) fn validate_subtree_refs(&mut self) {
+        for (definition, subtree) in self.ref_definitions.iter().filter_map(|definition| {
+            definition
+                .subtree
+                .as_ref()
+                .map(|subtree| (definition, subtree))
+        }) {
             let providers = self
-                .scope_uses
+                .subtree_uses
                 .iter()
-                .filter(|use_| use_.name == scope.binding.value)
+                .filter(|use_| use_.name == subtree.binding.value)
                 .collect::<Vec<_>>();
             if providers.is_empty() {
                 self.lint_findings.push(LintFinding::new(
-                    LintKind::UnattachedScope {
+                    LintKind::UnattachedSubtree {
                         name: definition.binding.value.clone(),
-                        scope: scope.binding.value.clone(),
+                        subtree: subtree.binding.value.clone(),
                     },
                     definition.call_span,
                 ));
@@ -134,8 +135,8 @@ impl MacroExtractor<'_> {
                         .is_some_and(|path| is_strict_ancestor(path, reference_path))
                 }) {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::MissingScopeAncestor {
-                            scope: scope.binding.value.clone(),
+                        LintKind::MissingSubtreeAncestor {
+                            subtree: subtree.binding.value.clone(),
                             name: definition.binding.value.clone(),
                         },
                         reference_use.span,
@@ -155,9 +156,9 @@ impl MacroExtractor<'_> {
                         .is_some_and(|path| is_strict_ancestor(path, target_path))
                 }) {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::SelectorOutsideScope {
+                        LintKind::SelectorOutsideSubtree {
                             name: definition.binding.value.clone(),
-                            scope: scope.binding.value.clone(),
+                            subtree: subtree.binding.value.clone(),
                         },
                         selector_use.span,
                     ));

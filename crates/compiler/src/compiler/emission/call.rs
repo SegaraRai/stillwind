@@ -13,7 +13,7 @@ use super::super::class_units::ClassUnits;
 use super::super::fragment::{Emitted, Property, ValueExpr};
 use super::super::props::{StyleEmission, StyleEmissionPart};
 use super::super::symbols::{
-    definition_name_symbol, ref_identity, ref_marker_name, scope_identity, scope_marker_name,
+    definition_name_symbol, ref_identity, ref_marker_name, subtree_identity, subtree_marker_name,
 };
 use super::CallEmitter;
 use super::CallEmitterInputs;
@@ -126,8 +126,8 @@ impl<'a> CallEmitter<'a> {
                     position: value.start.0,
                 });
             }
-            StyleInput::ScopeAttachment(scope) => {
-                let marker = match scope_marker_name(self.identifiers, scope) {
+            StyleInput::SubtreeAttachment(scope) => {
+                let marker = match subtree_marker_name(self.identifiers, scope) {
                     Ok(marker) => marker,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
@@ -138,7 +138,7 @@ impl<'a> CallEmitter<'a> {
                 if !self.units.base.names.contains(&marker) {
                     self.units.base.names.push(marker);
                 }
-                self.units.base.canonical.push_str("scope:");
+                self.units.base.canonical.push_str("subtree:");
                 self.units.base.canonical.push_str(&scope.binding.value);
                 self.units.base.canonical.push('\u{0}');
             }
@@ -161,9 +161,9 @@ impl<'a> CallEmitter<'a> {
                     .push_str(&definition.binding.value);
                 self.units.base.canonical.push('\u{0}');
             }
-            StyleInput::DynamicScopeAttachment { value, scopes } => {
+            StyleInput::DynamicSubtreeAttachment { value, subtrees } => {
                 self.runtime_assets
-                    .extend(scopes.iter().map(scope_identity));
+                    .extend(subtrees.iter().map(subtree_identity));
                 let expression = ref_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }

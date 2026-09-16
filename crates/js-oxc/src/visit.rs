@@ -3,8 +3,8 @@
 //!
 //! The visit records four kinds of fact: module structure (imports, re-exports,
 //! specifier literals, exported bindings), declarations of assets (`style.ref()`,
-//! `style.scope()`, animations, view transitions), `style()` call sites, and the JSX
-//! ancestry of each visited element so ref/scope validation can check containment
+//! `style.subtree()`, animations, view transitions), `style()` call sites, and the JSX
+//! ancestry of each visited element so ref/subtree validation can check containment
 //! later.
 //!
 //! Recognition always goes through resolved symbols. The one place spelling is used is
@@ -258,14 +258,14 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_ref_definition(name, call) {
                 self.ref_symbols.insert(symbol_id, definition.clone());
-                let scopes = definition.scope.as_ref().map(|scope| {
-                    SymbolicValue::exact(self.identity(AssetKind::Scope, &scope.binding))
+                let subtrees = definition.subtree.as_ref().map(|subtree| {
+                    SymbolicValue::exact(self.identity(AssetKind::Subtree, &subtree.binding))
                 });
                 self.local_values.insert(
                     symbol_id,
                     ExportedValue::Refs(vec![RefAlternative {
                         reference: self.identity(AssetKind::Ref, &definition.binding),
-                        permitted_scopes: scopes,
+                        permitted_subtrees: subtrees,
                     }]),
                 );
                 self.ref_definitions.push(definition);
@@ -275,22 +275,22 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             BindingPattern::BindingIdentifier(identifier),
             Some(Expression::CallExpression(call)),
         ) = (&declarator.id, &declarator.init)
-            && self.is_style_scope_call(call)
+            && self.is_style_subtree_call(call)
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
             let name = Spanned::new(
                 identifier.name.to_string(),
                 self.source_span(identifier.span),
             );
-            if let Some(definition) = self.collect_scope_definition(name, call) {
-                self.scope_symbols.insert(symbol_id, definition.clone());
+            if let Some(definition) = self.collect_subtree_definition(name, call) {
+                self.subtree_symbols.insert(symbol_id, definition.clone());
                 self.local_values.insert(
                     symbol_id,
-                    ExportedValue::Scopes(SymbolicValue::exact(
-                        self.identity(AssetKind::Scope, &definition.binding),
+                    ExportedValue::Subtrees(SymbolicValue::exact(
+                        self.identity(AssetKind::Subtree, &definition.binding),
                     )),
                 );
-                self.scope_definitions.push(definition);
+                self.subtree_definitions.push(definition);
             }
         }
         if let (

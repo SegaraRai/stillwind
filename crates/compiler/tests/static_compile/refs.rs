@@ -1,8 +1,8 @@
-//! Ref and scope projection.
+//! Ref and subtree projection.
 //!
 //! Pins that one declaration projects into anchor, position-anchor, anchor-scope, and
 //! container names sharing one identity, that named container queries emit rules for
-//! the ref's target, that scopes get readable marker names, and that a selector which
+//! the ref's target, that subtrees get readable marker names, and that a selector which
 //! cannot hold the required ancestry is rejected.
 
 use stillwind_diagnostics::LintKind;
@@ -163,12 +163,12 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
 }
 
 #[test]
-fn scopes_refs_across_siblings_and_uses_readable_marker_names() {
+fn subtrees_refs_across_siblings_and_uses_readable_marker_names() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const menu = style.scope("menu");
+const menu = style.subtree("menu");
 const trigger = style.ref(menu, "trigger");
 export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></section>;"#,
     ).unwrap();
@@ -194,19 +194,23 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
             .name
             .clone()
     };
-    let scope = marker_of("scope-marker");
+    let subtree = marker_of("scope-marker");
     let trigger = marker_of("ref-marker");
     assert!(
-        scope.starts_with("s_") && !scope.contains("menu"),
-        "{scope}"
+        subtree.starts_with("s_") && !subtree.contains("menu"),
+        "{subtree}"
     );
     assert!(
         trigger.starts_with("s_") && !trigger.contains("trigger"),
         "{trigger}"
     );
-    assert!(transformed.contains(&scope), "{transformed}");
+    assert!(transformed.contains(&subtree), "{transformed}");
     assert!(transformed.contains(&trigger), "{transformed}");
-    assert!(result.css.contains(&format!(".{scope}")), "{}", result.css);
+    assert!(
+        result.css.contains(&format!(".{subtree}")),
+        "{}",
+        result.css
+    );
     assert!(
         result.css.contains(&format!(":has(.{trigger}")),
         "{}",
@@ -220,12 +224,12 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
 }
 
 #[test]
-fn rejects_a_scoped_ref_selector_target_outside_its_scope() {
+fn rejects_a_scoped_ref_selector_target_outside_its_subtree() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const menu = style.scope();
+const menu = style.subtree();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
     ).unwrap();
@@ -242,19 +246,19 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
         result
             .lint_findings
             .iter()
-            .any(|item| matches!(item.kind, LintKind::SelectorOutsideScope { .. })),
+            .any(|item| matches!(item.kind, LintKind::SelectorOutsideSubtree { .. })),
         "{:#?}",
         result.lint_findings
     );
 }
 
 #[test]
-fn rejects_a_scope_attached_outside_its_ref_ancestry() {
+fn rejects_a_subtree_attached_outside_its_ref_ancestry() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const menu = style.scope();
+const menu = style.subtree();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
     )
@@ -267,7 +271,7 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
         result
             .lint_findings
             .iter()
-            .any(|item| matches!(item.kind, LintKind::MissingScopeAncestor { .. })),
+            .any(|item| matches!(item.kind, LintKind::MissingSubtreeAncestor { .. })),
         "{:#?}",
         result.lint_findings
     );

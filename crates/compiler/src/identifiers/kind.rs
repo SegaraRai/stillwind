@@ -83,7 +83,7 @@ pub enum IdentifierKind {
     /// A ref marker class, written where a ref is attached.
     RefMarker,
     /// A scope marker class, written where a scope is attached.
-    ScopeMarker,
+    SubtreeMarker,
     /// An `anchor-name` custom-ident, which the element being anchored is named by.
     AnchorName,
     /// A `container-name` custom-ident, used by `@container` queries.
@@ -104,7 +104,7 @@ impl IdentifierKind {
         match self {
             Self::UtilityClass => "class",
             Self::RefMarker => "ref-marker",
-            Self::ScopeMarker => "scope-marker",
+            Self::SubtreeMarker => "scope-marker",
             Self::AnchorName => "anchor",
             Self::ContainerName => "container",
             Self::KeyframesName => "keyframes",
@@ -117,7 +117,9 @@ impl IdentifierKind {
     /// The CSS namespace this family writes into.
     pub const fn pool(self) -> IdentifierPool {
         match self {
-            Self::UtilityClass | Self::RefMarker | Self::ScopeMarker => IdentifierPool::ClassToken,
+            Self::UtilityClass | Self::RefMarker | Self::SubtreeMarker => {
+                IdentifierPool::ClassToken
+            }
             Self::AnchorName => IdentifierPool::AnchorName,
             Self::ContainerName => IdentifierPool::ContainerName,
             Self::KeyframesName => IdentifierPool::KeyframesName,
@@ -177,7 +179,7 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
     match kind {
         IdentifierKind::UtilityClass => DEFAULT_CLASS_PREFIX,
         IdentifierKind::RefMarker => DEFAULT_REF_MARKER_PREFIX,
-        IdentifierKind::ScopeMarker => DEFAULT_SCOPE_MARKER_PREFIX,
+        IdentifierKind::SubtreeMarker => DEFAULT_SCOPE_MARKER_PREFIX,
         IdentifierKind::AnchorName => DEFAULT_ANCHOR_PREFIX,
         IdentifierKind::ContainerName => DEFAULT_CONTAINER_PREFIX,
         IdentifierKind::KeyframesName => DEFAULT_ANIMATION_PREFIX,
@@ -228,7 +230,7 @@ mod tests {
         let kinds = [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,
-            IdentifierKind::ScopeMarker,
+            IdentifierKind::SubtreeMarker,
             IdentifierKind::AnchorName,
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
@@ -247,7 +249,7 @@ mod tests {
         for kind in [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,
-            IdentifierKind::ScopeMarker,
+            IdentifierKind::SubtreeMarker,
             IdentifierKind::AnchorName,
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,

@@ -17,7 +17,7 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, AnimationDefinition, RefDefinition, ScopeDefinition, StyleCall,
+    AdapterKind, AnimationDefinition, RefDefinition, StyleCall, SubtreeDefinition,
     ViewTransitionDefinition, ViewTransitionKeyApplication,
 };
 use stillwind_semantic::{
@@ -26,7 +26,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{SourceFile, Spanned};
 
-use crate::refs::{RefUse, ScopeUse};
+use crate::refs::{RefUse, SubtreeUse};
 
 impl<'a> MacroExtractor<'a> {
     /// Builds an extractor for one parsed module.
@@ -45,11 +45,11 @@ impl<'a> MacroExtractor<'a> {
             style_symbols: HashSet::new(),
             adapter: None,
             ref_symbols: HashMap::new(),
-            scope_symbols: HashMap::new(),
+            subtree_symbols: HashMap::new(),
             ref_uses: Vec::new(),
-            scope_uses: Vec::new(),
+            subtree_uses: Vec::new(),
             ref_definitions: Vec::new(),
-            scope_definitions: Vec::new(),
+            subtree_definitions: Vec::new(),
             animation_symbols: HashMap::new(),
             animation_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
@@ -118,9 +118,9 @@ impl<'a> MacroExtractor<'a> {
                 call_end: call.span.end.0,
             });
         }
-        for definition in &self.scope_definitions {
+        for definition in &self.subtree_definitions {
             summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Scope, &definition.binding),
+                identity: self.identity(AssetKind::Subtree, &definition.binding),
                 metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
@@ -191,16 +191,16 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_symbols: HashSet<SymbolId>,
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
-    /// Symbols bound to a `style.scope()` scope, with their definitions.
-    pub(crate) scope_symbols: HashMap<SymbolId, ScopeDefinition>,
+    /// Symbols bound to a `style.subtree()` declaration, with their definitions.
+    pub(crate) subtree_symbols: HashMap<SymbolId, SubtreeDefinition>,
     /// Every ref use, in source order, used for ancestry validation.
     pub(crate) ref_uses: Vec<RefUse>,
-    /// Every scope use, in source order, used for provider validation.
-    pub(crate) scope_uses: Vec<ScopeUse>,
+    /// Every subtree use, in source order, used for provider validation.
+    pub(crate) subtree_uses: Vec<SubtreeUse>,
     /// Ref definitions in declaration order.
     pub(crate) ref_definitions: Vec<RefDefinition>,
     /// Scope definitions in declaration order.
-    pub(crate) scope_definitions: Vec<ScopeDefinition>,
+    pub(crate) subtree_definitions: Vec<SubtreeDefinition>,
     /// Symbols bound to an animation declaration, with their names.
     pub(crate) animation_symbols: HashMap<SymbolId, Spanned<String>>,
     /// Animation declarations in declaration order.

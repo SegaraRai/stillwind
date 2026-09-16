@@ -225,7 +225,7 @@ export interface HostRegion {
 /** Asset kinds as the host names them. */
 export type NativeAssetKind = /** A `style(...)` call's payload. */
 'style'|
-/** A `style.scope()` declaration. */
+/** A `style.subtree()` declaration; the host sees the kind `scope`. */
 'scope'|
 /** A `style.ref()` declaration. */
 'ref'|
@@ -404,7 +404,7 @@ export interface NativeExport {
 export type NativeExportedValue =
   | { kind: 'styles'; /** Reachable style identities. */
 value: NativeSymbolicValue }
-| { kind: 'scopes'; /** Reachable scope identities. */
+| { kind: 'scopes'; /** Reachable subtree identities. */
 value: NativeSymbolicValue }
 | { kind: 'refs'; /** The correlated alternatives. */
 value: Array<NativeRefAlternative> }
@@ -498,8 +498,8 @@ export interface NativeIdentifierNaming {
   utilityClass?: (arg0: NativeClassContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for a ref marker class. */
   refMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
-  /** `(context, hash) => string | undefined`, for a scope marker class. */
-  scopeMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for a subtree marker class. */
+  subtreeMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for an `anchor-name` custom-ident. */
   anchorName?: (arg0: NativeLocatorContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for a `container-name` custom-ident. */

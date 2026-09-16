@@ -48,7 +48,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 | `ref.anchor` / `.positionAnchor` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                             |
 | `ref()` / `ref("variant:")` / ref タグ                                 | `StyleVariant::Ref { refs, prefix }`                                                                          |
 | `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                                     |
-| `style.scope(name?)`                                                   | `ScopeDefinition { binding, label, … }`（label が書かれた文字列）                                             |
+| `style.subtree(name?)`                                                 | \x60SubtreeDefinition { binding, label, … }\x60（label が書かれた文字列）                                     |
 | `style.ref(scope?, name?)`                                             | `RefDefinition { binding, label, scope, … }`                                                                  |
 | `style.animation(definition)` の frame                                 | `AnimationFrame { selector, utilities }`（utility 列）。variant キーは `AnimationBranch`                      |
 | `animation(options)`                                                   | `ClassExpression::AnimationUse { animation, options }`（option 列）                                           |
@@ -88,7 +88,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
   それぞれ `runtime_assets` を丸ごと extend する。
 
 `motion_assets` が正しく見えるのはこの 2 回のコピーのおかげで、コピーを外すと動的 VT と
-動的 animation の定義 CSS が消える。ref/scope の identity も混ざる。集合の実体は
+動的 animation の定義 CSS が消える。ref/subtree の identity も混ざる。集合の実体は
 「定義 CSS を出す必要がある identity」であって motion ではない。
 
 ### 1.4 handles.rs に 3 つの責任が同居している
@@ -231,7 +231,7 @@ handle は ref に置き換える（型・フィールド・関数・診断種�
 | field `handles`（`StyleVariant` と動的 attachment / projection）          | `refs`                                                        |
 | field `handle`（`ClassExpression::RefProjection`）                        | `definition`                                                  |
 
-あわせて `ClassExpression::External` を `ClassValue` に、`RefDefinition` / `ScopeDefinition` /
+あわせて `ClassExpression::External` を `ClassValue` に、`RefDefinition` / `SubtreeDefinition` /
 `AnimationDefinition` / `ViewTransitionDefinition` の field `name`（レキシカル束縛）を `binding`
 にする。書かれた文字列は `label` のまま。
 

@@ -46,9 +46,9 @@ impl<'a> MacroExtractor<'a> {
         self.is_style_member(&call.callee, "ref")
     }
 
-    /// True for a `style.scope(...)` call.
-    pub(crate) fn is_style_scope_call(&self, call: &CallExpression<'a>) -> bool {
-        self.is_style_member(&call.callee, "scope")
+    /// True for a `style.subtree(...)` call.
+    pub(crate) fn is_style_subtree_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "subtree")
     }
 
     /// True for a `style.animation(...)` call.

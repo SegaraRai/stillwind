@@ -13,7 +13,7 @@ use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{ClassExpression, RefDefinition, RefProjection, ScopeDefinition, StyleInput};
+use stillwind_ir::{ClassExpression, RefDefinition, RefProjection, StyleInput, SubtreeDefinition};
 use stillwind_source::Span;
 
 use crate::state::MacroExtractor;
@@ -34,7 +34,7 @@ pub(crate) struct RefUse {
 
 /// One recorded scope use.
 #[derive(Clone, Debug)]
-pub(crate) struct ScopeUse {
+pub(crate) struct SubtreeUse {
     /// Marker name of the scope that was used.
     pub(crate) name: String,
     /// JSX ancestor path of the use, when it appeared inside JSX.
@@ -57,7 +57,7 @@ impl<'a> MacroExtractor<'a> {
                 let projection = match member.property.name.as_str() {
                     "anchor" => RefProjection::Anchor,
                     "positionAnchor" => RefProjection::PositionAnchor,
-                    "anchorScope" => RefProjection::Scope,
+                    "anchorScope" => RefProjection::AnchorScope,
                     _ => return None,
                 };
                 (&member.object, projection)
@@ -100,7 +100,7 @@ impl<'a> MacroExtractor<'a> {
         let projection_name = match &projection {
             RefProjection::Anchor => "anchor",
             RefProjection::PositionAnchor => "positionAnchor",
-            RefProjection::Scope => "scope",
+            RefProjection::AnchorScope => "anchorScope",
             RefProjection::Container(_) => "container",
         };
         for definition in &refs {
@@ -145,8 +145,8 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Records one scope use, which makes the scope a provider for its JSX path.
-    pub(crate) fn record_scope_use(&mut self, scope: &ScopeDefinition) {
-        self.scope_uses.push(ScopeUse {
+    pub(crate) fn record_subtree_use(&mut self, scope: &SubtreeDefinition) {
+        self.subtree_uses.push(SubtreeUse {
             name: scope.binding.value.clone(),
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });

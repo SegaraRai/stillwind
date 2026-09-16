@@ -11,10 +11,10 @@ import { TypeScriptFactsService } from "../src/type-facts.ts";
 void test("direct ref variants preserve imported conditional ref/scope pairs", () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const producer = `import {style} from 'stillwind/react';
-export const scopeA = style.scope('scopeA');
-export const scopeB = style.scope('scopeB');
-export const a = style.ref(scopeA, 'a');
-export const b = style.ref(scopeB, 'b');`;
+export const subtreeA = style.subtree('subtreeA');
+export const subtreeB = style.subtree('subtreeB');
+export const a = style.ref(subtreeA, 'a');
+export const b = style.ref(subtreeB, 'b');`;
   const service = new TypeScriptFactsService(root);
   try {
     const outputs = [];

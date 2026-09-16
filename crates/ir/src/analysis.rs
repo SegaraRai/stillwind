@@ -153,7 +153,7 @@ impl ModuleAnalysis {
             support.asset_support.clear();
             support.ir.style_calls.clear();
             support.ir.ref_definitions.clear();
-            support.ir.scope_definitions.clear();
+            support.ir.subtree_definitions.clear();
             support.ir.animation_declarations.retain(|declaration| {
                 identities.iter().any(|identity| {
                     identity.kind == AssetKind::Animation

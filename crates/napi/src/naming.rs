@@ -22,7 +22,7 @@ use napi_derive::napi;
 use stillwind_compiler::{
     AnchorName, ClassContext, ConditionContext, ContainerName, CustomPropertyName,
     DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash, KeyframesName,
-    LayerContext, LayerName, LocatorContext, RefMarker, ScopeMarker, UtilityClass,
+    LayerContext, LayerName, LocatorContext, RefMarker, SubtreeMarker, UtilityClass,
     ViewTransitionClass,
 };
 
@@ -103,8 +103,8 @@ pub struct NativeIdentifierNaming<'env> {
     /// `(context, hash) => string | undefined`, for a ref marker class.
     pub ref_marker:
         Option<Function<'env, FnArgs<(NativeDeclarationContext, Buffer)>, Option<String>>>,
-    /// `(context, hash) => string | undefined`, for a scope marker class.
-    pub scope_marker:
+    /// `(context, hash) => string | undefined`, for a subtree marker class.
+    pub subtree_marker:
         Option<Function<'env, FnArgs<(NativeDeclarationContext, Buffer)>, Option<String>>>,
     /// `(context, hash) => string | undefined`, for an `anchor-name` custom-ident.
     pub anchor_name: Option<Function<'env, FnArgs<(NativeLocatorContext, Buffer)>, Option<String>>>,
@@ -136,7 +136,7 @@ pub(crate) struct NativeNaming {
     env: Cell<Option<sys::napi_env>>,
     utility_class: Option<NamingReference<NativeClassContext>>,
     ref_marker: Option<NamingReference<NativeDeclarationContext>>,
-    scope_marker: Option<NamingReference<NativeDeclarationContext>>,
+    subtree_marker: Option<NamingReference<NativeDeclarationContext>>,
     anchor_name: Option<NamingReference<NativeLocatorContext>>,
     container_name: Option<NamingReference<NativeLocatorContext>>,
     keyframes_name: Option<NamingReference<NativeDeclarationContext>>,
@@ -158,7 +158,7 @@ impl NativeNaming {
             env: Cell::new(None),
             utility_class: reference(naming.utility_class)?,
             ref_marker: reference(naming.ref_marker)?,
-            scope_marker: reference(naming.scope_marker)?,
+            subtree_marker: reference(naming.subtree_marker)?,
             anchor_name: reference(naming.anchor_name)?,
             container_name: reference(naming.container_name)?,
             keyframes_name: reference(naming.keyframes_name)?,
@@ -178,7 +178,7 @@ impl NativeNaming {
     fn is_empty(&self) -> bool {
         self.utility_class.is_none()
             && self.ref_marker.is_none()
-            && self.scope_marker.is_none()
+            && self.subtree_marker.is_none()
             && self.anchor_name.is_none()
             && self.container_name.is_none()
             && self.keyframes_name.is_none()
@@ -304,20 +304,20 @@ impl IdentifierGenerator for NativeNaming {
         ))
     }
 
-    fn scope_marker(
+    fn subtree_marker(
         &self,
         context: &DeclarationContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ScopeMarker>, String> {
+    ) -> Result<GeneratedName<SubtreeMarker>, String> {
         let Some(name) = self.call(
-            &self.scope_marker,
+            &self.subtree_marker,
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
             return Ok(GeneratedName::Builtin);
         };
         Ok(GeneratedName::provided(
-            ScopeMarker::new(&name).map_err(|error| error.to_string())?,
+            SubtreeMarker::new(&name).map_err(|error| error.to_string())?,
         ))
     }
 

@@ -46,8 +46,8 @@ const props = style({ "--progress": value });
 
 | マクロ／入力                                      | 引数の契約                                                                                                                                                                         |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `style.scope(name?)`                              | 名前は省略または任意の文字列リテラル。空白は `_` にし、CSS 出力時に記号を escape                                                                                                   |
-| `style.ref(scope?, name?)`                        | scope は静的に一つの identity に特定できること。名前は scope と同じ制約                                                                                                            |
+| `style.subtree(name?)`                            | 名前は省略または任意の文字列リテラル。空白は `_` にし、CSS 出力時に記号を escape                                                                                                   |
+| `style.ref(subtree?, name?)`                      | subtree は静的に一つの identity に特定できること。名前は subtree と同じ制約                                                                                                        |
 | `style.animation(definition)`                     | 静的 object。frame は utility 文字列、variant key は完全置換の定義 object                                                                                                          |
 | `animation(options)`                              | options は文字列リテラル。receiver は有限の animation 候補                                                                                                                         |
 | `style.viewTransition(definition)`                | 静的 object。`group` は animation option、`old` / `new` / `imagePair` は utility 文字列リテラル。条件 variant は 4 bucket とも media / supports のみ可。値は `{v:"<class token>"}` |

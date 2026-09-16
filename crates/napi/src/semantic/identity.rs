@@ -12,7 +12,7 @@ use stillwind_semantic::{AssetKind, IdentityId};
 pub enum NativeAssetKind {
     /// A `style(...)` call's payload.
     Style,
-    /// A `style.scope()` declaration.
+    /// A `style.subtree()` declaration; the host sees the kind `scope`.
     Scope,
     /// A `style.ref()` declaration.
     Ref,
@@ -26,7 +26,7 @@ impl From<NativeAssetKind> for AssetKind {
     fn from(value: NativeAssetKind) -> Self {
         match value {
             NativeAssetKind::Style => Self::Style,
-            NativeAssetKind::Scope => Self::Scope,
+            NativeAssetKind::Scope => Self::Subtree,
             NativeAssetKind::Ref => Self::Ref,
             NativeAssetKind::Animation => Self::Animation,
             NativeAssetKind::ViewTransition => Self::ViewTransition,
@@ -38,7 +38,7 @@ impl From<AssetKind> for NativeAssetKind {
     fn from(value: AssetKind) -> Self {
         match value {
             AssetKind::Style => Self::Style,
-            AssetKind::Scope => Self::Scope,
+            AssetKind::Subtree => Self::Scope,
             AssetKind::Ref => Self::Ref,
             AssetKind::Animation => Self::Animation,
             AssetKind::ViewTransition => Self::ViewTransition,

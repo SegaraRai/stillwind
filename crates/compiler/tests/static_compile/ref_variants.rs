@@ -1,6 +1,6 @@
 //! Ref variants in selectors and templates.
 //!
-//! Pins that ref presence uses the existing scope or ancestor relation, that call and tag spellings
+//! Pins that ref presence uses the existing subtree or ancestor relation, that call and tag spellings
 //! normalize the same way, that direct interpolation matches ordered nested wrappers, that custom
 //! alternatives and media conditions survive lowering, and that an unusable ref variant reports a
 //! diagnostic instead of emitting an unscoped selector.
@@ -12,13 +12,13 @@ use super::*;
 
 fn compile(args: &str, scoped: bool) -> (String, String) {
     let ref_definition = if scoped {
-        "const scope = style.scope(\"menu\"); const trigger = style.ref(scope, \"trigger\");"
+        "const subtree = style.subtree(\"menu\"); const trigger = style.ref(subtree, \"trigger\");"
     } else {
         "const trigger = style.ref(\"trigger\");"
     };
     let use_site = if scoped {
         format!(
-            "const View = () => <section {{...style(scope)}}><button {{...style(trigger)}}/><span {{...style({args})}}/></section>;"
+            "const View = () => <section {{...style(subtree)}}><button {{...style(trigger)}}/><span {{...style({args})}}/></section>;"
         )
     } else {
         format!("const props = style({args});")
@@ -51,7 +51,7 @@ fn compile(args: &str, scoped: bool) -> (String, String) {
 }
 
 #[test]
-fn ref_presence_uses_the_existing_scope_or_ancestor_relation() {
+fn ref_presence_uses_the_existing_subtree_or_ancestor_relation() {
     for scoped in [false, true] {
         let (css, code) = compile(r#"{ [trigger()]: "text-accent" }"#, scoped);
         assert_eq!(
@@ -243,9 +243,9 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
 }
 
 #[test]
-fn an_inline_scoped_ref_keeps_the_scope_ancestry_check() {
+fn an_inline_scoped_ref_keeps_the_subtree_ancestry_check() {
     let source = SourceFile::new(FileId(1), "src/Scope.tsx", r#"import {style} from "stillwind/react";
-const menu = style.scope("menu");
+const menu = style.subtree("menu");
 const trigger = style.ref(menu, "trigger");
 export const View = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style(`${trigger`hover`}:text-accent`)} /></>;"#).unwrap();
     let theme =
@@ -256,7 +256,7 @@ export const View = () => <><section {...style(menu)}><button {...style(trigger)
         result
             .lint_findings
             .iter()
-            .any(|finding| matches!(finding.kind, LintKind::SelectorOutsideScope { .. })),
+            .any(|finding| matches!(finding.kind, LintKind::SelectorOutsideSubtree { .. })),
         "{:?}",
         result.lint_findings
     );

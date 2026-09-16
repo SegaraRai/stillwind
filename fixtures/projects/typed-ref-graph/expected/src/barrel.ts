@@ -1,1 +1,1 @@
-export { selectedRef, selectedScope } from "./chooser";
+export { selectedRef, selectedSubtree } from "./chooser";

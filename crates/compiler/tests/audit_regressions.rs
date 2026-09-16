@@ -94,7 +94,7 @@ fn utility_precedence_is_independent_of_literal_and_array_order() {
 #[test]
 fn punctuation_labels_produce_valid_javascript_strings() {
     let (_, result) = compile(
-        r#"export const scope = style.scope('a"b/c'); export const ref = style.ref(scope, 'd"e/f'); export const child = style({[ref()]: 'a'});"#,
+        r#"export const subtree = style.subtree('a"b/c'); export const ref = style.ref(subtree, 'd"e/f'); export const child = style({[ref()]: 'a'});"#,
         "@utility a { color:red; }",
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");
@@ -131,8 +131,8 @@ fn punctuation_labels_produce_valid_javascript_strings() {
 #[test]
 fn labels_never_reach_generated_names_or_css() {
     let (_, result) = compile(
-        "const scope = style.scope('領域 :'); const ref = style.ref(scope, '項目 🧭'); \
-         export const root = style(scope); export const item = style(ref); \
+        "const subtree = style.subtree('領域 :'); const ref = style.ref(subtree, '項目 🧭'); \
+         export const root = style(subtree); export const item = style(ref); \
          export const child = style({[ref()]: 'a'});",
         "@utility a { color:red; }",
     );

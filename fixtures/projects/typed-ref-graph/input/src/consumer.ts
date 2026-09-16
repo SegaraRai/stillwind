@@ -1,7 +1,7 @@
 import { style } from "stillwind/react";
 
-import { selectedRef, selectedScope } from "./barrel";
+import { selectedRef, selectedSubtree } from "./barrel";
 
 export const attachedRef = style(selectedRef);
 export const anchorProvider = style(selectedRef.anchor);
-export const attachedScope = style(selectedScope);
+export const attachedSubtree = style(selectedSubtree);

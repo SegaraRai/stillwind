@@ -46,33 +46,35 @@ pub enum LintKind {
     },
     /// A scoped ref's provider has no known JSX attachment.
     #[error(
-        "ref `{name}` is bound to scope `{scope}`, but that scope is not attached to a JSX element"
+        "ref `{name}` is bound to subtree `{subtree}`, but that subtree is not attached to a JSX element"
     )]
-    UnattachedScope {
+    UnattachedSubtree {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
-        /// Authored name of the required scope.
-        scope: String,
+        /// Authored name of the required subtree.
+        subtree: String,
     },
     /// A scoped ref is attached outside its provider's ancestry.
-    #[error("scope `{scope}` must be attached to an ancestor of ref `{name}`")]
-    MissingScopeAncestor {
-        /// Authored name of the required scope.
-        scope: String,
+    #[error("subtree `{subtree}` must be attached to an ancestor of ref `{name}`")]
+    MissingSubtreeAncestor {
+        /// Authored name of the required subtree.
+        subtree: String,
         /// Authored or inferred ref binding name used for reporting.
         name: String,
     },
-    /// A scoped selector targets an element outside its provider's ancestry.
-    #[error("a selector using scoped ref `{name}` must target an element inside scope `{scope}`")]
-    SelectorOutsideScope {
+    /// A subtree-bound selector targets an element outside its provider's ancestry.
+    #[error(
+        "a selector using a subtree-bound ref `{name}` must target an element inside subtree `{subtree}`"
+    )]
+    SelectorOutsideSubtree {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
-        /// Authored name of the required scope.
-        scope: String,
+        /// Authored name of the required subtree.
+        subtree: String,
     },
     /// A Tailwind relationship utility violates the active typed-relationship policy.
     #[error(
-        "Tailwind relationship utility `{utility}` is forbidden; use style.ref() or style.scope()"
+        "Tailwind relationship utility `{utility}` is forbidden; use style.ref() or style.subtree()"
     )]
     PreferTypedRelationships {
         /// Utility text as authored, including variants.
@@ -147,9 +149,9 @@ impl LintKind {
             Self::MissingAnchor { .. } => "require-anchor-provider",
             Self::MissingContainer { .. } => "require-container-provider",
             Self::MissingRefAncestor { .. } => "valid-ref-ancestry",
-            Self::UnattachedScope { .. } => "require-scope-provider",
-            Self::MissingScopeAncestor { .. } => "valid-scope-ancestry",
-            Self::SelectorOutsideScope { .. } => "scoped-selector-in-scope",
+            Self::UnattachedSubtree { .. } => "require-scope-provider",
+            Self::MissingSubtreeAncestor { .. } => "valid-scope-ancestry",
+            Self::SelectorOutsideSubtree { .. } => "scoped-selector-in-scope",
             Self::PreferTypedRelationships { .. } => "prefer-typed-relationships",
             Self::DocumentScopedSelector { .. } => "require-element-scope",
             Self::MissingViewTransitionName => "require-view-transition-name",

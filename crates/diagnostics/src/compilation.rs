@@ -115,29 +115,29 @@ pub enum CompileErrorKind {
     /// No valid phase remains after validating a transition declaration.
     #[error("style.viewTransition() requires at least one of group, old, new, or imagePair")]
     EmptyViewTransition,
-    /// A scope's optional name is not a literal string.
-    #[error("style.scope() accepts an optional literal name")]
-    InvalidScopeNameArgument,
-    /// A scope declaration supplies more than its optional name.
-    #[error("style.scope() accepts at most one literal name")]
-    TooManyScopeArguments,
+    /// A subtree declaration's optional name is not a literal string.
+    #[error("style.subtree() accepts an optional literal name")]
+    InvalidSubtreeNameArgument,
+    /// A subtree declaration supplies more than its optional name.
+    #[error("style.subtree() accepts at most one literal name")]
+    TooManySubtreeArguments,
     /// A single ref argument is neither a literal name nor an expression that resolves
-    /// to exactly one scope identity.
+    /// to exactly one subtree identity.
     #[error(
         "style.ref() accepts an optional literal name or exactly one statically resolved scope identity"
     )]
     InvalidRefArgument,
     /// The first argument of a two-argument ref declaration does not resolve to exactly
-    /// one scope identity.
+    /// one subtree identity.
     #[error(
-        "the first style.ref() argument must resolve statically to exactly one style.scope() identity"
+        "the first style.ref() argument must resolve statically to exactly one style.subtree() identity"
     )]
-    InvalidRefScope,
+    InvalidRefSubtree,
     /// The second ref argument is not a literal name.
     #[error("the second style.ref() argument must be a literal name")]
     InvalidRefNameArgument,
     /// A ref declaration uses an unsupported argument count.
-    #[error("style.ref() accepts (), (name), (scope), or (scope, name)")]
+    #[error("style.ref() accepts (), (name), (subtree), or (subtree, name)")]
     InvalidRefArguments,
     /// A ref variant's selector cannot be determined from literal text.
     #[error("ref variants require a static variant string")]
@@ -621,9 +621,9 @@ impl CompileErrorKind {
             | Self::InvalidViewTransitionKey
             | Self::InvalidViewTransitionValue
             | Self::EmptyViewTransition => "SHVIEW001",
-            Self::InvalidScopeNameArgument | Self::TooManyScopeArguments => "SHSCOPE001",
+            Self::InvalidSubtreeNameArgument | Self::TooManySubtreeArguments => "SHSCOPE001",
             Self::InvalidRefArgument
-            | Self::InvalidRefScope
+            | Self::InvalidRefSubtree
             | Self::InvalidRefNameArgument
             | Self::InvalidRefArguments
             | Self::InvalidRefProjection => "SHREF001",

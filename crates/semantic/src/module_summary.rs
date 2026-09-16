@@ -120,15 +120,15 @@ impl ModuleSummary {
                 ExportedValue::Refs(alternatives) => {
                     for alternative in alternatives {
                         identities.insert(alternative.reference.clone());
-                        if let Some(scopes) = &alternative.permitted_scopes
-                            && let Candidates::Finite(scopes) = &scopes.candidates
+                        if let Some(subtrees) = &alternative.permitted_subtrees
+                            && let Candidates::Finite(subtrees) = &subtrees.candidates
                         {
-                            identities.extend(scopes.iter().cloned());
+                            identities.extend(subtrees.iter().cloned());
                         }
                     }
                 }
                 ExportedValue::Styles(value)
-                | ExportedValue::Scopes(value)
+                | ExportedValue::Subtrees(value)
                 | ExportedValue::Animations(value)
                 | ExportedValue::ViewTransitions(value)
                 | ExportedValue::ViewTransitionKeys(value) => {

@@ -1,7 +1,7 @@
-//! Validation and extraction of `style.ref()`, `style.scope()` and ref variants.
+//! Validation and extraction of `style.ref()`, `style.subtree()` and ref variants.
 //!
 //! Both producers accept an optional literal marker name, and a ref may instead bind to
-//! a scope identity. Labels retain their decoded text for marker generation; the
+//! a subtree identity. Labels retain their decoded text for marker generation; the
 //! compiler handles whitespace normalization and CSS/JavaScript serialization.
 //!
 //! Ref variants accept the tagged-template, no-argument call and single-literal call
@@ -12,21 +12,21 @@ use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{RefDefinition, ScopeDefinition, StyleInput, StyleVariant};
+use stillwind_ir::{RefDefinition, StyleInput, StyleVariant, SubtreeDefinition};
 use stillwind_source::{Span, Spanned, normalized_module_path};
 
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    /// Validates one `style.scope()` declaration.
+    /// Validates one `style.subtree()` declaration.
     ///
     /// Accepts no argument or one literal name; the returned definition keeps the call
     /// span so diagnostics and identity creation can point at it.
-    pub(crate) fn collect_scope_definition(
+    pub(crate) fn collect_subtree_definition(
         &mut self,
         binding: Spanned<String>,
         call: &CallExpression<'a>,
-    ) -> Option<ScopeDefinition> {
+    ) -> Option<SubtreeDefinition> {
         let label = match call.arguments.as_slice() {
             [] => None,
             [argument] => {
@@ -34,7 +34,7 @@ impl<'a> MacroExtractor<'a> {
                     Some(self.string_literal(label))
                 } else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidScopeNameArgument,
+                        CompileErrorKind::InvalidSubtreeNameArgument,
                         self.source_span(argument.span()),
                     ));
                     return None;
@@ -42,13 +42,13 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::TooManyScopeArguments,
+                    CompileErrorKind::TooManySubtreeArguments,
                     self.source_span(call.span),
                 ));
                 return None;
             }
         };
-        Some(ScopeDefinition {
+        Some(SubtreeDefinition {
             module_path: normalized_module_path(self.source.path()),
             binding,
             label,
@@ -58,23 +58,23 @@ impl<'a> MacroExtractor<'a> {
 
     /// Validates one `style.ref()` declaration.
     ///
-    /// Accepts `()`, `(name)`, `(scope)` and `(scope, name)`. The scope argument must
-    /// resolve to exactly one `style.scope()` identity, so a ref can never be bound to
+    /// Accepts `()`, `(name)`, `(subtree)` and `(subtree, name)`. The subtree argument must
+    /// resolve to exactly one `style.subtree()` identity, so a ref can never be bound to
     /// an arbitrary value.
     pub(crate) fn collect_ref_definition(
         &mut self,
         binding: Spanned<String>,
         call: &CallExpression<'a>,
     ) -> Option<RefDefinition> {
-        let (scope, label) = match call.arguments.as_slice() {
+        let (subtree, label) = match call.arguments.as_slice() {
             [] => (None, None),
             [argument] => match argument.as_expression() {
                 Some(Expression::StringLiteral(label)) => (None, Some(self.string_literal(label))),
                 expression => {
-                    if let Some(scope) =
-                        expression.and_then(|expression| self.scope_reference(expression))
+                    if let Some(subtree) =
+                        expression.and_then(|expression| self.subtree_reference(expression))
                     {
-                        (Some(scope), None)
+                        (Some(subtree), None)
                     } else {
                         self.diagnostics.push(CompileError::new(
                             CompileErrorKind::InvalidRefArgument,
@@ -84,14 +84,14 @@ impl<'a> MacroExtractor<'a> {
                     }
                 }
             },
-            [scope, label] => {
-                let Some(scope) = scope
+            [subtree, label] => {
+                let Some(subtree) = subtree
                     .as_expression()
-                    .and_then(|scope| self.scope_reference(scope))
+                    .and_then(|subtree| self.subtree_reference(subtree))
                 else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidRefScope,
-                        self.source_span(scope.span()),
+                        CompileErrorKind::InvalidRefSubtree,
+                        self.source_span(subtree.span()),
                     ));
                     return None;
                 };
@@ -102,7 +102,7 @@ impl<'a> MacroExtractor<'a> {
                     ));
                     return None;
                 };
-                (Some(scope), Some(self.string_literal(label)))
+                (Some(subtree), Some(self.string_literal(label)))
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
@@ -116,7 +116,7 @@ impl<'a> MacroExtractor<'a> {
             module_path: normalized_module_path(self.source.path()),
             binding,
             label,
-            scope,
+            subtree,
             call_span: self.source_span(call.span),
         })
     }
@@ -207,7 +207,7 @@ impl<'a> MacroExtractor<'a> {
         Some(StyleVariant::Ref { refs, prefix })
     }
 
-    /// Recognizes a scope or ref used as a `style()` argument.
+    /// Recognizes a subtree or ref used as a `style()` argument.
     ///
     /// Returns true when the expression was consumed as an attachment; a set of several
     /// candidates becomes an explicitly dynamic attachment rather than one of them
@@ -217,16 +217,16 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) -> bool {
-        if let Some(scopes) = self.scope_references(expression) {
-            for scope in &scopes {
-                self.record_scope_use(scope);
+        if let Some(subtrees) = self.subtree_references(expression) {
+            for subtree in &subtrees {
+                self.record_subtree_use(subtree);
             }
-            if scopes.len() == 1 {
-                inputs.push(StyleInput::ScopeAttachment(scopes[0].clone()));
+            if subtrees.len() == 1 {
+                inputs.push(StyleInput::SubtreeAttachment(subtrees[0].clone()));
             } else {
-                inputs.push(StyleInput::DynamicScopeAttachment {
+                inputs.push(StyleInput::DynamicSubtreeAttachment {
                     value: self.source_span(expression.span()),
-                    scopes,
+                    subtrees,
                 });
             }
             return true;

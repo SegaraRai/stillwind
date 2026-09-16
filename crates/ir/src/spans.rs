@@ -17,7 +17,7 @@ use stillwind_source::{Span, Spanned};
 
 use crate::{
     AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry, ModuleIr,
-    RefDefinition, RefProjection, ScopeDefinition, StyleGuard, StyleInput, StyleVariant,
+    RefDefinition, RefProjection, StyleGuard, StyleInput, StyleVariant, SubtreeDefinition,
     ViewTransitionKey, ViewTransitionName,
 };
 
@@ -58,8 +58,8 @@ impl ModuleIr {
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }
-        for scope in &mut result.scope_definitions {
-            map_scope(scope, &mut map)?;
+        for scope in &mut result.subtree_definitions {
+            map_subtree(scope, &mut map)?;
         }
         for animation in &mut result.animation_declarations {
             map_animation(animation, &mut map)?;
@@ -90,8 +90,8 @@ fn map_value<E>(
     Ok(())
 }
 
-fn map_scope<E>(
-    scope: &mut ScopeDefinition,
+fn map_subtree<E>(
+    scope: &mut SubtreeDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     map_value(&mut scope.binding, map)?;
@@ -110,8 +110,8 @@ fn map_ref<E>(
     if let Some(label) = &mut definition.label {
         map_value(label, map)?;
     }
-    if let Some(scope) = &mut definition.scope {
-        map_scope(scope, map)?;
+    if let Some(subtree) = &mut definition.subtree {
+        map_subtree(subtree, map)?;
     }
     definition.call_span = map(definition.call_span)?;
     Ok(())
@@ -172,16 +172,16 @@ fn map_input<E>(
 ) -> Result<(), E> {
     match input {
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
-        StyleInput::ScopeAttachment(scope) => {
-            map_scope(scope, map)?;
+        StyleInput::SubtreeAttachment(scope) => {
+            map_subtree(scope, map)?;
         }
         StyleInput::RefAttachment(definition) => {
             map_ref(definition, map)?;
         }
-        StyleInput::DynamicScopeAttachment { value, scopes } => {
+        StyleInput::DynamicSubtreeAttachment { value, subtrees } => {
             *value = map(*value)?;
-            for scope in scopes {
-                map_scope(scope, map)?;
+            for subtree in subtrees {
+                map_subtree(subtree, map)?;
             }
         }
         StyleInput::DynamicRefAttachment { value, refs } => {

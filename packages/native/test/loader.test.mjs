@@ -30,7 +30,7 @@ void test("native object transport returns typed values and rejects the former J
     ["🧭.tsx"],
   );
   const summary = summarizeReact(
-    "import {style} from 'stillwind/react'; export const scope=style.scope();",
+    "import {style} from 'stillwind/react'; export const scope=style.subtree();",
     "🧭.tsx",
   );
   const scope = summary.exports.find((entry) => entry.name === "scope").value;
@@ -38,7 +38,7 @@ void test("native object transport returns typed values and rejects the former J
   assert.equal(scope.value.candidates.kind, "finite");
   assert.equal(scope.value.candidates.values[0].module_path, "🧭.tsx");
   const reserved = summarizeReact(
-    "import {style} from 'stillwind/react'; export const __proto__=style.scope();",
+    "import {style} from 'stillwind/react'; export const __proto__=style.subtree();",
     "reserved.ts",
   );
   assert.equal(reserved.exports[0].name, "__proto__");

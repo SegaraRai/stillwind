@@ -4,7 +4,7 @@
 //! kind, and either a finite, duplicate-free set of declaration-site identities or the
 //! whole universe of that kind. [`ExportedValue`] is the same idea per asset kind,
 //! except that refs are exported as a table of [`RefAlternative`] entries, because a
-//! ref and its permitted scopes must stay paired.
+//! ref and its permitted subtrees must stay paired.
 //!
 //! The algebra is sound, not complete. [`Candidates::Universe`] means "any asset of
 //! this kind", so consumers must fall back to the runtime path instead of choosing
@@ -20,7 +20,7 @@ use super::identity::{AssetKind, IdentityId};
 /// Failure to build a symbolic value or alternative.
 #[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
 pub enum SymbolicError {
-    /// An identity or scope value of the wrong asset kind was supplied.
+    /// An identity or subtree value of the wrong asset kind was supplied.
     #[error("symbolic asset kind mismatch: expected {expected:?}, got {actual:?}")]
     KindMismatch {
         /// Kind the value was declared with.
@@ -132,34 +132,35 @@ impl SymbolicValue {
     }
 }
 
-/// One correlated ref alternative. Keeping the scope value beside its ref prevents an
-/// invalid scope/ref Cartesian product during selector factoring.
+/// One correlated ref alternative. Keeping the subtree value beside its ref prevents an
+/// invalid subtree/ref Cartesian product during selector factoring.
 ///
 /// Each alternative is an independent case. Combining the refs of one alternative with
-/// the scopes of another would describe DOM relationships the source never denoted, so
+/// the subtrees of another would describe DOM relationships the source never denoted, so
 /// alternatives are never merged.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefAlternative {
     /// The ref identity; always [`AssetKind::Ref`].
     pub reference: IdentityId,
-    /// `None` is the descendant-only, unscoped ref relation.
+    /// `None` is the descendant-only ref relation, without a subtree boundary.
     ///
-    /// A finite scope value is a candidate set of this ref's permitted scopes; a
+    /// A finite subtree value is a candidate set of this ref's permitted subtrees; a
     /// universe value means the frontend could not narrow them.
-    pub permitted_scopes: Option<SymbolicValue>,
+    #[serde(rename = "permitted_scopes")]
+    pub permitted_subtrees: Option<SymbolicValue>,
 }
 
 impl RefAlternative {
     /// Builds one correlated alternative, rejecting mismatched kinds.
     ///
-    /// Checks the reference, scope value and every finite scope candidate.
+    /// Checks the reference, subtree value and every finite subtree candidate.
     ///
     /// # Errors
     ///
-    /// Returns an error for a non-ref identity or non-scope relationship value.
+    /// Returns an error for a non-ref identity or non-subtree relationship value.
     pub fn new(
         reference: IdentityId,
-        permitted_scopes: Option<SymbolicValue>,
+        permitted_subtrees: Option<SymbolicValue>,
     ) -> Result<Self, SymbolicError> {
         if reference.kind != AssetKind::Ref {
             return Err(SymbolicError::KindMismatch {
@@ -167,20 +168,20 @@ impl RefAlternative {
                 actual: reference.kind,
             });
         }
-        if let Some(scopes) = &permitted_scopes
-            && scopes.kind != AssetKind::Scope
+        if let Some(subtrees) = &permitted_subtrees
+            && subtrees.kind != AssetKind::Subtree
         {
             return Err(SymbolicError::KindMismatch {
-                expected: AssetKind::Scope,
-                actual: scopes.kind,
+                expected: AssetKind::Subtree,
+                actual: subtrees.kind,
             });
         }
-        if let Some(scopes) = &permitted_scopes {
-            scopes.validate()?;
+        if let Some(subtrees) = &permitted_subtrees {
+            subtrees.validate()?;
         }
         Ok(Self {
             reference,
-            permitted_scopes,
+            permitted_subtrees,
         })
     }
 }
@@ -194,13 +195,16 @@ impl RefAlternative {
 pub enum ExportedValue {
     /// Candidate set of `style()` call sites.
     Styles(SymbolicValue),
-    /// Candidate set of scope identities.
-    Scopes(SymbolicValue),
+    /// Candidate set of subtree identities.
+    ///
+    /// Serialized as `scopes`, the spelling the host protocol uses.
+    #[serde(rename = "scopes")]
+    Subtrees(SymbolicValue),
     /// Correlated ref alternatives, in the order they were derived.
     ///
     /// This is the one variant that is a table rather than a single value: flattening
-    /// it into a ref set plus a scope set would lose the correlation between a ref and
-    /// the scopes it may appear under.
+    /// it into a ref set plus a subtree set would lose the correlation between a ref and
+    /// the subtrees it may appear under.
     Refs(Vec<RefAlternative>),
     /// Candidate set of animation identities.
     Animations(SymbolicValue),
@@ -214,7 +218,7 @@ pub enum ExportedValue {
 }
 
 impl ExportedValue {
-    /// Validates the tagged kind and all nested candidates, including correlated scopes.
+    /// Validates the tagged kind and all nested candidates, including correlated subtrees.
     ///
     /// # Errors
     ///
@@ -225,13 +229,13 @@ impl ExportedValue {
                 for alternative in alternatives {
                     RefAlternative::new(
                         alternative.reference.clone(),
-                        alternative.permitted_scopes.clone(),
+                        alternative.permitted_subtrees.clone(),
                     )?;
                 }
                 Ok(())
             }
             Self::Styles(value)
-            | Self::Scopes(value)
+            | Self::Subtrees(value)
             | Self::Animations(value)
             | Self::ViewTransitions(value)
             | Self::ViewTransitionKeys(value) => {
@@ -253,7 +257,7 @@ impl ExportedValue {
     pub const fn kind(&self) -> AssetKind {
         match self {
             Self::Styles(_) => AssetKind::Style,
-            Self::Scopes(_) => AssetKind::Scope,
+            Self::Subtrees(_) => AssetKind::Subtree,
             Self::Refs(_) => AssetKind::Ref,
             Self::Animations(_) => AssetKind::Animation,
             Self::ViewTransitions(_) | Self::ViewTransitionKeys(_) => AssetKind::ViewTransition,
@@ -270,30 +274,30 @@ mod tests {
     }
 
     #[test]
-    fn ref_alternatives_retain_scope_correlation() {
-        let scope_a = SymbolicValue::exact(identity(AssetKind::Scope, 1));
-        let scope_b = SymbolicValue::exact(identity(AssetKind::Scope, 2));
+    fn ref_alternatives_retain_subtree_correlation() {
+        let subtree_a = SymbolicValue::exact(identity(AssetKind::Subtree, 1));
+        let subtree_b = SymbolicValue::exact(identity(AssetKind::Subtree, 2));
         let alternatives = [
-            RefAlternative::new(identity(AssetKind::Ref, 3), Some(scope_a)).unwrap(),
-            RefAlternative::new(identity(AssetKind::Ref, 4), Some(scope_b)).unwrap(),
+            RefAlternative::new(identity(AssetKind::Ref, 3), Some(subtree_a)).unwrap(),
+            RefAlternative::new(identity(AssetKind::Ref, 4), Some(subtree_b)).unwrap(),
         ];
 
         assert_ne!(
-            alternatives[0].permitted_scopes,
-            alternatives[1].permitted_scopes
+            alternatives[0].permitted_subtrees,
+            alternatives[1].permitted_subtrees
         );
     }
 
     #[test]
-    fn validates_nested_scope_candidates_and_export_tags() {
+    fn validates_nested_subtree_candidates_and_export_tags() {
         let malformed = SymbolicValue {
-            kind: AssetKind::Scope,
+            kind: AssetKind::Subtree,
             candidates: Candidates::Finite(BTreeSet::from([identity(AssetKind::Animation, 0)])),
         };
         assert!(RefAlternative::new(identity(AssetKind::Ref, 1), Some(malformed.clone())).is_err());
-        assert!(ExportedValue::Scopes(malformed).validate().is_err());
+        assert!(ExportedValue::Subtrees(malformed).validate().is_err());
         assert!(
-            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Scope))
+            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Subtree))
                 .validate()
                 .is_err()
         );
@@ -306,11 +310,11 @@ mod boundary_tests {
 
     #[test]
     fn finite_values_deduplicate_and_reject_mixed_asset_kinds() {
-        let id = IdentityId::new(AssetKind::Scope, "x", 0, 1, "scope");
-        let value = SymbolicValue::finite(AssetKind::Scope, [id.clone(), id]).unwrap();
+        let id = IdentityId::new(AssetKind::Subtree, "x", 0, 1, "scope");
+        let value = SymbolicValue::finite(AssetKind::Subtree, [id.clone(), id]).unwrap();
         assert_eq!(value.finite_candidates().unwrap().len(), 1);
         let wrong = IdentityId::new(AssetKind::Animation, "x", 0, 1, "animation");
-        assert!(SymbolicValue::finite(AssetKind::Scope, [wrong.clone()]).is_err());
+        assert!(SymbolicValue::finite(AssetKind::Subtree, [wrong.clone()]).is_err());
         assert!(RefAlternative::new(wrong, None).is_err());
         let reference = IdentityId::new(AssetKind::Ref, "x", 0, 1, "ref");
         assert!(

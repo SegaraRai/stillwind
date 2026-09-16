@@ -191,7 +191,7 @@ const props = style(menu.anchor);"#,
 fn serializes_cross_module_handle_summaries() {
     let output = summarize_react_input(
         r#"import { style } from "stillwind/react";
-export const menu = style.scope("menu");
+export const menu = style.subtree("menu");
 export const trigger = style.ref("trigger");"#,
         r"src\Parent.tsx",
     )

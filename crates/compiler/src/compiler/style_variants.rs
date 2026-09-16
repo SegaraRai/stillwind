@@ -25,7 +25,7 @@ use stillwind_ir::{RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::symbols::{anchor_name, ref_marker_name, scope_marker_name};
+use super::symbols::{anchor_name, ref_marker_name, subtree_marker_name};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 use crate::identifiers::{IdentifierContext, RefMarker};
@@ -62,7 +62,8 @@ impl StyleVariantPlan {
     /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
     ///
     /// A ref wrapper with no known ref identity is an error rather than a fallthrough
-    /// to an unscoped selector, because that would silently target the wrong element.
+    /// to a selector without a subtree boundary, because that would silently target the
+    /// wrong element.
     ///
     /// Returns `None` after pushing a diagnostic; the caller must abandon the
     /// contribution. A runtime condition inside a ref wrapper also rejects, since
@@ -163,19 +164,19 @@ impl StyleVariantPlan {
                     return None;
                 }
             };
-            let scope = match definition.scope.as_ref() {
-                Some(scope) => match scope_marker_name(context, scope) {
+            let subtree = match definition.subtree.as_ref() {
+                Some(subtree) => match subtree_marker_name(context, subtree) {
                     Ok(name) => Some(name.selector()),
                     Err(failure) => {
-                        diagnostics.push(CompileError::new(failure, scope.call_span));
+                        diagnostics.push(CompileError::new(failure, subtree.call_span));
                         return None;
                     }
                 },
                 None => None,
             };
-            identities.push((marker.as_str().to_owned(), scope.clone()));
+            identities.push((marker.as_str().to_owned(), subtree.clone()));
             for path in &paths {
-                alternatives.push(reference_path(&marker, scope.as_deref(), path));
+                alternatives.push(reference_path(&marker, subtree.as_deref(), path));
             }
         }
         // Names and scopes are generated identifiers; prefix length makes
@@ -340,9 +341,9 @@ pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
 /// The reference element's own variants are folded into one `:where()`-guarded
 /// reference, and the target keeps the combinator relative to it. Wrapping in
 /// `:where()` keeps the specificity of the target's own selector, so a ref variant does
-/// not outrank an ordinary variant by accident. A scoped ref requires the scope marker
+/// not outrank an ordinary variant by accident. A subtree-bound ref requires the marker
 /// to contain the reference, which is how an unrelated element with a matching marker
-/// outside the scope is excluded.
+/// outside the subtree is excluded.
 fn reference_path(
     marker: &RefMarker,
     scope: Option<&str>,

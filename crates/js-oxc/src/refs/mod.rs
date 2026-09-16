@@ -1,8 +1,8 @@
-//! Ref and scope extraction: definitions, references, projections, validation.
+//! Ref and subtree extraction: definitions, references, projections, validation.
 //!
-//! [`definitions`] validates `style.ref()` / `style.scope()` calls and the ref variant
+//! [`definitions`] validates `style.ref()` / `style.subtree()` calls and the ref variant
 //! forms, [`references`] resolves uses back to declarations or checker facts,
-//! [`projections`] lowers `anchor` / `position` / `scope` / `container` / `at`
+//! [`projections`] lowers `anchor` / `position` / `subtree` / `container` / `at`
 //! projections, and [`validation`] checks the JSX ancestry rules that can be decided
 //! within one file.
 //!

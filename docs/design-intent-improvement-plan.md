@@ -20,7 +20,7 @@
 | F2              | 静的 spread・配列の穴の一律拒否を見直す                                                           | 構文正規化                                   |
 | F3              | 固定 computed key の一律拒否を見直す                                                              | 構文正規化                                   |
 | F4              | `ref.at()` の variant 化と有限候補の扱いを整理する                                                | variant 設計・実装                           |
-| F5              | ref/scope label の ASCII 限定を見直す                                                             | 識別子の検証・直列化                         |
+| F5              | ref/subtree label の ASCII 限定を見直す                                                           | 識別子の検証・直列化                         |
 | F6              | React 固有規約を除去し、変換可能な契約違反を default error の lint にする                         | 診断と host policy                           |
 | L1              | projected source の checker facts 未対応を TODO で明示する                                        | TODO 追加                                    |
 | L2              | per-module CSS 間の import による順序保証を別途調査し、未対応を TODO で明示する                   | TODO 追加・別途実験                          |
@@ -181,7 +181,7 @@ decoded 値、raw 文字列の span、属性値の span が元ファイルへ対
 
 ### 3. F5: label と CSS 識別子の扱い
 
-- [x] `style.ref('項目')` / `style.scope('領域')` のような有効な非 ASCII label を検討対象とする。
+- [x] `style.ref('項目')` / `style.subtree('領域')` のような有効な非 ASCII label を検討対象とする。
 - [x] label、DOM class token、CSS selector、生成 identifier の表現を確認し、必要な escape を
       直列化境界で行う。validation の単純削除による不正な class/selector の生成を避ける。
 - [x] Unicode・escape 対象文字・不正入力の区分を明文化し、命名の安定性と衝突検出を検証する。
@@ -193,7 +193,7 @@ label は開発者向けの可読な名前であり、round-trip や一意性を
 空文字を含む任意の literal string を受け付け、空白だけを `_` に置き換える。
 記号・既存の `_`・Unicode は保持する。CSS で表現できない NUL は置換文字にする。
 CSS selector と生成 JavaScript の文字列はそれぞれの直列化境界で escape する。
-identity のハッシュ計算は不変。Unicode・空白・記号付き ref/scope の DOM/CSS 対応を検証する。
+identity のハッシュ計算は不変。Unicode・空白・記号付き ref/subtree の DOM/CSS 対応を検証する。
 
 ### 4. F6: 契約診断の移行
 
@@ -282,7 +282,7 @@ Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
 
 `style.ref(scope)` / `style.ref(scope, name)` は、scope が静的に一つの identity に
 特定できる場合に限り受け付ける。alias や条件式でも候補が同一 identity に収束すればよい。
-異なる scope の有限集合は compile error とする。この契約を未実装項目として扱わない。
+異なる subtree の有限集合は compile error とする。この契約を未実装項目として扱わない。
 利用側で有限候補の ref や scope を選択する既存の機能は維持する。
 
 ### 7. D1 の拒否理由を固定する

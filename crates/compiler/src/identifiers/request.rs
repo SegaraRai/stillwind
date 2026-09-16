@@ -14,7 +14,7 @@ use super::generator::{GeneratedName, IdentifierGenerator, builtin_text};
 use super::kind::{IdentifierKind, builtin_prefix};
 use super::name::{
     AnchorName, ContainerName, CustomPropertyName, KeyframesName, Label, LayerName, RefMarker,
-    ScopeMarker, Token, UtilityClass, ViewTransitionClass,
+    SubtreeMarker, Token, UtilityClass, ViewTransitionClass,
 };
 
 /// The canonical hash of one request, which is what identifies what was asked for.
@@ -386,7 +386,7 @@ name_requests! {
         call = context.call,
     ), asks(utility_class);
     RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker);
-    ScopeMarkerName(DeclarationContext): ScopeMarker as ScopeMarker = |context: &DeclarationContext| declaration_identity(context, "scope"), asks(scope_marker);
+    SubtreeMarkerName(DeclarationContext): SubtreeMarker as SubtreeMarker = |context: &DeclarationContext| declaration_identity(context, "scope"), asks(subtree_marker);
     AnchorNameRequest(LocatorContext): AnchorName as AnchorName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(anchor_name);
     ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "scope"), asks(container_name);
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "animation"), asks(keyframes_name);

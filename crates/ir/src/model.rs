@@ -35,8 +35,8 @@ pub struct ModuleIr {
     pub style_calls: Vec<StyleCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
     pub ref_definitions: Vec<RefDefinition>,
-    /// In source order. Each entry is a `style.scope()` declaration.
-    pub scope_definitions: Vec<ScopeDefinition>,
+    /// In source order. Each entry is a `style.subtree()` declaration.
+    pub subtree_definitions: Vec<SubtreeDefinition>,
     /// In source order. Each entry is a `style.animation()` declaration.
     pub animation_declarations: Vec<AnimationDefinition>,
     /// In source order. Each entry is a `style.viewTransition()` declaration.
@@ -74,7 +74,7 @@ impl ModuleIr {
             },
             style_calls: Vec::new(),
             ref_definitions: Vec::new(),
-            scope_definitions: Vec::new(),
+            subtree_definitions: Vec::new(),
             animation_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
             view_transition_key_applications: Vec::new(),
@@ -146,20 +146,20 @@ pub struct RefDefinition {
     pub binding: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
-    /// The single scope identity passed to `style.ref()`, resolved statically; `None`
+    /// The single subtree identity passed to `style.ref()`, resolved statically; `None`
     /// for `style.ref()` and `style.ref(name)`.
-    pub scope: Option<ScopeDefinition>,
+    pub subtree: Option<SubtreeDefinition>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
 }
 
-/// A `style.scope()` declaration. Scopes are pure identities: they produce CSS
+/// A `style.subtree()` declaration. Subtrees are pure identities: they produce CSS
 /// selectors and class-bearing runtime fragments rather than arbitrary attribute props.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ScopeDefinition {
+pub struct SubtreeDefinition {
     /// Normalized module path of the declaring module.
     pub module_path: String,
-    /// Lexical binding of the scope; its span seeds the declaration identity.
+    /// Lexical binding of the subtree; its span seeds the declaration identity.
     pub binding: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
@@ -243,7 +243,7 @@ pub enum RefProjection {
     /// `ref.positionAnchor`: the element is positioned against an anchor, writing `position-anchor`.
     PositionAnchor,
     /// `ref.anchorScope`: limits anchor-name visibility with `anchor-scope`.
-    Scope,
+    AnchorScope,
     /// `container()`: the element is a query container of the named type.
     Container(Spanned<String>),
 }
@@ -260,7 +260,7 @@ pub enum StyleVariant {
         /// Literal CSS query condition, without the generated container name.
         query: Spanned<String>,
     },
-    /// Correlated ref/scope alternatives, written as `ref()`, `ref("variant:")`, or a
+    /// Correlated ref/subtree alternatives, written as `ref()`, `ref("variant:")`, or a
     /// ref tag, with a normalized variant prefix.
     Ref {
         /// The refs this variant may refer to at this use site.
@@ -285,17 +285,17 @@ pub enum StyleInput {
     },
     /// Class contributions that keep the source expression structure.
     Class(ClassExpression),
-    /// `style(scope)`: mark the element as a member of a scope.
-    ScopeAttachment(ScopeDefinition),
+    /// `style(subtree)`: mark the element as a member of a subtree.
+    SubtreeAttachment(SubtreeDefinition),
     /// `style(ref)`: attach a ref's props and marker class to the element.
     RefAttachment(RefDefinition),
-    /// A scope value that is only known at runtime, with every statically reachable
+    /// A subtree value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.
-    DynamicScopeAttachment {
-        /// The runtime scope value.
+    DynamicSubtreeAttachment {
+        /// The runtime subtree value.
         value: Span,
         /// Every statically reachable alternative, used for CSS planning.
-        scopes: Vec<ScopeDefinition>,
+        subtrees: Vec<SubtreeDefinition>,
     },
     /// A ref value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.

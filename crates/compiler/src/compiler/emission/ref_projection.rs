@@ -244,7 +244,7 @@ fn render_ref_projection(
         RefProjection::PositionAnchor => {
             (format!("position-anchor:{};", name.custom_ident()), None)
         }
-        RefProjection::Scope => (format!("anchor-scope:{};", name.custom_ident()), None),
+        RefProjection::AnchorScope => (format!("anchor-scope:{};", name.custom_ident()), None),
         RefProjection::Container(kind) => {
             let container = context.container_name(&ref_context(definition, Some("container")))?;
             (
@@ -268,21 +268,21 @@ fn render_ref_projection(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_ir::ScopeDefinition;
+    use stillwind_ir::SubtreeDefinition;
     use stillwind_source::{FileId, Span, Spanned};
 
     use super::*;
-    use crate::compiler::symbols::{ref_marker_name, scope_marker_name};
+    use crate::compiler::symbols::{ref_marker_name, subtree_marker_name};
     use crate::identifiers::{IdentifierContext, IdentifierPool};
 
     #[test]
-    fn projections_share_identity_and_scoped_selectors_bind_the_parent() {
+    fn projections_share_identity_and_subtree_bound_selectors_bind_the_parent() {
         let binding = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         let mut definition = RefDefinition {
             module_path: "x".into(),
             binding: binding.clone(),
             label: None,
-            scope: None,
+            subtree: None,
             call_span: binding.span,
         };
         let identifiers = IdentifierContext::builtin();
@@ -305,7 +305,8 @@ mod tests {
         .unwrap();
         assert_eq!(position, format!("position-anchor:{reference}"));
         let (scope_projection, _) =
-            render_ref_projection(&identifiers, &definition, &RefProjection::Scope, "x").unwrap();
+            render_ref_projection(&identifiers, &definition, &RefProjection::AnchorScope, "x")
+                .unwrap();
         assert_eq!(scope_projection, format!("anchor-scope:{reference}"));
         let (container, container_symbol) = render_ref_projection(
             &identifiers,
@@ -327,14 +328,15 @@ mod tests {
             container_symbol.identity,
             identity_input_parts(&ref_context(&definition, None))
         );
-        definition.scope = Some(ScopeDefinition {
+        definition.subtree = Some(SubtreeDefinition {
             module_path: "x".into(),
             binding: binding.clone(),
             label: Some(binding.clone()),
             call_span: binding.span,
         });
-        let scope = scope_marker_name(&identifiers, definition.scope.as_ref().unwrap()).unwrap();
-        assert!(scope.as_str().starts_with("s_"), "{scope}");
+        let subtree =
+            subtree_marker_name(&identifiers, definition.subtree.as_ref().unwrap()).unwrap();
+        assert!(subtree.as_str().starts_with("s_"), "{subtree}");
         definition.label = Some(binding);
         // The built-in name hashes the declaration alone, so a label cannot move it:
         // every position the marker is written to resolves the same declaration.

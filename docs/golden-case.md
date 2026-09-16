@@ -13,7 +13,7 @@ implementation limitation, not a source-language restriction.
 
 ### Declaration values are JavaScript values
 
-Objects created by `style.ref()`, `style.scope()`, `style.animation()`, and
+Objects created by `style.ref()`, `style.subtree()`, `style.animation()`, and
 `style.viewTransition()` are ordinary JavaScript values. They may be exported,
 imported, re-exported, passed to and returned from functions, stored in data
 structures, and conditionally selected across module boundaries. Stillwind must
@@ -34,8 +34,8 @@ reason to reject otherwise meaningful JavaScript. The compiler reasons about a
 finite symbolic candidate set, not necessarily one exact local value:
 
 ```ts
-const group = condition ? groupScope1 : groupScope2;
-// group ∈ { groupScope1, groupScope2 }
+const group = condition ? groupSubtree1 : groupSubtree2;
+// group ∈ { groupSubtree1, groupSubtree2 }
 ```
 
 Where safe, CSS retains the set symbolically instead of expanding a Cartesian
@@ -48,7 +48,7 @@ product:
 ```
 
 Correlated choices must remain correlated. For example, a ref whose permitted
-scope differs by alternative must not be lowered to a scope/ref cross-product
+subtree differs by alternative must not be lowered to a subtree/ref cross-product
 that could match a DOM relationship the source never denoted. The compiler
 factors only proven-independent candidate sets.
 
@@ -183,10 +183,10 @@ style("rounded-md bg-accent", {
 Plain strings passed directly to `style()` remain Stillwind utility strings and
 are rejected if they are not in the configured utility vocabulary.
 
-## DOM refs and scopes
+## DOM refs and subtrees
 
 `style.ref()` is an opaque compile-time identity for a DOM element. Without a
-scope it is the named, local equivalent of Tailwind's `group`: a selector rooted
+subtree it is the named, local equivalent of Tailwind's `group`: a selector rooted
 at the ref can target its descendants.
 
 ```tsx
@@ -213,8 +213,8 @@ style({ [trigger()]: "text-accent" });
 style(`${trigger()}:text-accent`);
 ```
 
-For a scoped ref, this requires a matching element within that scope
-(`.scope:has(.ref) .target`). For an unscoped ref, the matching element must be
+For a subtree-bound ref, this requires a matching element within that subtree
+(`.subtree:has(.ref) .target`). For an unbound ref, the matching element must be
 an ancestor (`.ref .target`).
 
 The variants inside `trigger(...)` test the referenced element. Variants outside
@@ -247,12 +247,12 @@ const classes = `${trigger`hover:`}:text-accent`;
 style(classes); // Not supported: write the template directly inside style(...).
 ```
 
-`style.scope()` creates a DOM boundary. Binding a ref to that scope permits the
+`style.subtree()` creates a DOM boundary. Binding a ref to that subtree permits the
 ref and selector target to be siblings or otherwise independently nested within
 the boundary.
 
 ```tsx
-const menu = style.scope("menu");
+const menu = style.subtree("menu");
 const trigger = style.ref(menu, "trigger");
 
 <section {...style(menu, "relative")}>
@@ -261,7 +261,7 @@ const trigger = style.ref(menu, "trigger");
 </section>;
 ```
 
-The scope must be attached to a strict ancestor of its bound ref. When JSX is
+The subtree must be attached to a strict ancestor of its bound ref. When JSX is
 visible in one file the linter verifies that invariant. The generated selector
 for the sibling example has the form:
 
@@ -269,8 +269,8 @@ for the sibling example has the form:
 .s_menu_<hash>:has(.s_trigger_<hash>:where(:hover)) .s_<target-hash> { ... }
 ```
 
-Names are optional. `style.scope()` and `style.ref()` emit `.s_<hash>`;
-`style.scope("menu")` and `style.ref(menu, "trigger")` emit
+Names are optional. `style.subtree()` and `style.ref()` emit `.s_<hash>`;
+`style.subtree("menu")` and `style.ref(menu, "trigger")` emit
 `.s_menu_<hash>` and `.s_trigger_<hash>`. The hash keeps these local identities
 deterministic and collision-checked.
 
@@ -286,8 +286,8 @@ const popover = style.ref();
 </div>;
 ```
 
-`anchorScope` is deliberately distinct from `style.scope()`: it emits CSS
-`anchor-scope`, while `style.scope()` creates the structural boundary used for
+`anchorScope` is deliberately distinct from `style.subtree()`: it emits CSS
+`anchor-scope`, while `style.subtree()` creates the structural boundary used for
 ref selectors. The linter also checks missing anchor/container providers; it
 does not infer relationships across component boundaries, portals, or arbitrary
 `children`.

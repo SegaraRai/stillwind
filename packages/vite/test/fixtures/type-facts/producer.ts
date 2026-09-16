@@ -2,10 +2,10 @@ import { style } from "stillwind/react";
 
 // Non-ASCII text ensures Oxc byte offsets map back from TypeScript UTF-16 positions.
 const _label = "🧭";
-export const firstScope = style.scope("first");
-export const first = style.ref(firstScope, "first");
-export const secondScope = style.scope("second");
-export const second = style.ref(secondScope, "second");
+export const firstSubtree = style.subtree("first");
+export const first = style.ref(firstSubtree, "first");
+export const secondSubtree = style.subtree("second");
+export const second = style.ref(secondSubtree, "second");
 export const fadeIn = style.animation({
   from: "opacity-0 bg-[url(./support.svg)]",
   to: "opacity-100",

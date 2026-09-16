@@ -44,7 +44,7 @@ export type StillwindClassValue =
   | Readonly<Record<string, unknown>>;
 
 declare const refProjection: unique symbol;
-declare const scopeIdentity: unique symbol;
+declare const subtreeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
 declare const animationIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
@@ -58,34 +58,34 @@ export type StillwindDeclarationIdentity<Id extends string> = {
   readonly __stillwindDeclarationIdentity: Id;
 };
 
-export type StyleRefProjection<RefId extends string = string, ScopeId extends string = never> = {
+export type StyleRefProjection<RefId extends string = string, SubtreeId extends string = never> = {
   readonly [refProjection]: true;
-  readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
+  readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
 };
 
-export type StyleScope<Id extends string = string> = {
-  readonly [scopeIdentity]: Id;
+export type StyleSubtree<Id extends string = string> = {
+  readonly [subtreeIdentity]: Id;
 };
 
-export type StyleRef<RefId extends string = string, ScopeId extends string = never> = {
-  readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
-  readonly anchor: StyleRefProjection<RefId, ScopeId>;
-  readonly positionAnchor: StyleRefProjection<RefId, ScopeId>;
-  readonly anchorScope: StyleRefProjection<RefId, ScopeId>;
-  container(type: "size" | "inline-size"): StyleRefProjection<RefId, ScopeId>;
-  at(query: string): StyleRefVariant<RefId, ScopeId>;
-  at(strings: TemplateStringsArray): StyleRefVariant<RefId, ScopeId>;
-  (strings: TemplateStringsArray): StyleRefVariant<RefId, ScopeId>;
-  (): StyleRefVariant<RefId, ScopeId>;
-  (variants: string): StyleRefVariant<RefId, ScopeId>;
+export type StyleRef<RefId extends string = string, SubtreeId extends string = never> = {
+  readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
+  readonly anchor: StyleRefProjection<RefId, SubtreeId>;
+  readonly positionAnchor: StyleRefProjection<RefId, SubtreeId>;
+  readonly anchorScope: StyleRefProjection<RefId, SubtreeId>;
+  container(type: "size" | "inline-size"): StyleRefProjection<RefId, SubtreeId>;
+  at(query: string): StyleRefVariant<RefId, SubtreeId>;
+  at(strings: TemplateStringsArray): StyleRefVariant<RefId, SubtreeId>;
+  (strings: TemplateStringsArray): StyleRefVariant<RefId, SubtreeId>;
+  (): StyleRefVariant<RefId, SubtreeId>;
+  (variants: string): StyleRefVariant<RefId, SubtreeId>;
 };
 
 export type StyleRefVariant<
   RefId extends string = string,
-  ScopeId extends string = never,
+  SubtreeId extends string = never,
 > = string & {
   readonly [refProjection]: true;
-  readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
+  readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
 };
 
 export type StyleAnimationUse<Id extends string = string> = {
@@ -158,7 +158,7 @@ export type StyleArgument =
   | undefined
   | readonly StyleArgument[]
   | StyleObject
-  | StyleScope
+  | StyleSubtree
   | StyleRef
   | StyleRefProjection
   | StyleRefVariant
@@ -190,33 +190,33 @@ export type StyleMacro<Props = StyleProps> = {
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, Props>;
   (...inputs: readonly StyleArgument[]): StyleResult<string, Props>;
-  scope(): StyleScope;
-  scope(name: string): StyleScope;
-  scope<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleScope<Id>;
-  scope<const Id extends string>(
+  subtree(): StyleSubtree;
+  subtree(name: string): StyleSubtree;
+  subtree<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleSubtree<Id>;
+  subtree<const Id extends string>(
     name: string,
     identity: StillwindDeclarationIdentity<Id>,
-  ): StyleScope<Id>;
+  ): StyleSubtree<Id>;
   ref(): StyleRef;
   ref(name: string): StyleRef;
-  /** The compiler requires scope to resolve to exactly one identity. */
-  ref(scope: StyleScope): StyleRef;
-  /** The compiler requires scope to resolve to exactly one identity. */
-  ref(scope: StyleScope, name: string): StyleRef;
+  /** The compiler requires subtree to resolve to exactly one identity. */
+  ref(subtree: StyleSubtree): StyleRef;
+  /** The compiler requires subtree to resolve to exactly one identity. */
+  ref(subtree: StyleSubtree, name: string): StyleRef;
   ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
   ref<const Id extends string>(
     name: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id>;
-  ref<const ScopeId extends string, const Id extends string>(
-    scope: StyleScope<ScopeId>,
+  ref<const SubtreeId extends string, const Id extends string>(
+    subtree: StyleSubtree<SubtreeId>,
     identity: StillwindDeclarationIdentity<Id>,
-  ): StyleRef<Id, ScopeId>;
-  ref<const ScopeId extends string, const Id extends string>(
-    scope: StyleScope<ScopeId>,
+  ): StyleRef<Id, SubtreeId>;
+  ref<const SubtreeId extends string, const Id extends string>(
+    subtree: StyleSubtree<SubtreeId>,
     name: string,
     identity: StillwindDeclarationIdentity<Id>,
-  ): StyleRef<Id, ScopeId>;
+  ): StyleRef<Id, SubtreeId>;
   animation(definition: StyleAnimationDefinition): StyleAnimation;
   animation<const Id extends string>(
     definition: StyleAnimationDefinition,
@@ -236,10 +236,10 @@ export const style = Object.assign(
     );
   },
   {
-    scope(_name?: string): StyleScope {
-      throw new Error("stillwind/react style.scope() is a compile-time macro.");
+    subtree(_name?: string): StyleSubtree {
+      throw new Error("stillwind/react style.subtree() is a compile-time macro.");
     },
-    ref(_scopeOrName?: StyleScope | string, _name?: string): StyleRef {
+    ref(_scopeOrName?: StyleSubtree | string, _name?: string): StyleRef {
       throw new Error("stillwind/react style.ref() is a compile-time macro.");
     },
     animation(_definition: StyleAnimationDefinition): StyleAnimation {

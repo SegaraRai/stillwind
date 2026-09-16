@@ -106,10 +106,10 @@ brand! {
     ///
     /// Generated code keys a ref's projection lookup by this token.
     RefMarker, object_key_class_token;
-    /// A scope marker class, written where a scope is attached.
+    /// A subtree marker class, written where a subtree is attached.
     ///
-    /// Generated code keys a scope's projection lookup by this token.
-    ScopeMarker, object_key_class_token;
+    /// Generated code keys a subtree's projection lookup by this token.
+    SubtreeMarker, object_key_class_token;
     /// An `anchor-name` custom-ident, which names the element a ref anchors to.
     AnchorName, custom_ident;
     /// A `container-name` custom-ident, which `@container` queries select.
@@ -143,7 +143,7 @@ impl RefMarker {
     }
 }
 
-impl ScopeMarker {
+impl SubtreeMarker {
     /// This name as a class selector, including its leading dot.
     pub fn selector(&self) -> String {
         class_selector(self.as_str())

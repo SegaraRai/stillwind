@@ -327,7 +327,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     );
     for name in ["a.tsx", "b.tsx"] {
         let source = Arc::new(SourceFile::new(FileId(1), name,
-            "import {style} from 'stillwind/react'; const scope=style.scope(); const props=style('hover:bg-brand ring-2');"
+            "import {style} from 'stillwind/react'; const subtree=style.subtree(); const props=style('hover:bg-brand ring-2');"
         ).unwrap());
         let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
         assert!(session.update_module(analysis).diagnostics.is_empty());

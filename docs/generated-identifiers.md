@@ -76,7 +76,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 
 ## 1. lower の原則
 
-すべてのマクロ呼び出し（`style()`、`style.ref()`、`style.scope()`、`style.animation()`、
+すべてのマクロ呼び出し（`style()`、`style.ref()`、`style.subtree()`、`style.animation()`、
 `style.viewTransition()`、`ref.anchor` などの射影）は、呼び出し単位で「何らかの値」へ lower される。
 置換はマクロ呼び出しのスパン単位で行われ、lower に付随して CSS が生成される。
 
@@ -88,7 +88,7 @@ lower された値はコンパイル成果物であって、維持すべき外�
 コンパイル単位で一貫していればよい。ただし同一コンパイラバージョン間の一貫性は要る
 （ビルド済みライブラリを扱う場合に効く。第 8 節）。
 
-## 2. ref / scope の値
+## 2. ref / subtree の値
 
 宣言は次の形に lower する。
 
@@ -96,7 +96,7 @@ lower された値はコンパイル成果物であって、維持すべき外�
 const primary = { c: "s_primary_047d522c" };
 ```
 
-キーは 1 文字の `c`。値はその宣言のカノニカル識別子で、既定では ref / scope の
+キーは 1 文字の `c`。値はその宣言のカノニカル識別子で、既定では ref / subtree の
 マーカークラスになる。将来、値が 1 つしかないことを活かして単なる文字列へ縮めてもよい。
 
 - 添付: `style(selectedRef)` → `selectedRef.c`
@@ -104,7 +104,7 @@ const primary = { c: "s_primary_047d522c" };
 - animation / view transition も同じ形（`c` が identity 文字列）
 
 この形にすると、投影用の第 2 識別子（`_swp_<marker>_<suffix>`）とその実行時組み立て、
-宣言ヘルパ（ref / scope / animation / view transition）の出力、prod の表引きヘルパが
+宣言ヘルパ（ref / subtree / animation / view transition）の出力、prod の表引きヘルパが
 すべて不要になる。
 
 既定の生成では、ref マーカーを anchor 名・container 名・`@container` 名にも流用する。
@@ -177,7 +177,7 @@ CSS 構文上どうしても外に出せない部分（custom property の `--`�
 | -------------------------------- | ----------------------------------------------------------------------- | ------------------------- |
 | ユーティリティクラス             | canonical 入力のハッシュ（namespace、module、呼び出し位置、分岐、内容） | `_s_<8hex>`               |
 | ref マーカー                     | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
-| scope マーカー                   | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
+| subtree マーカー                 | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
 | anchor / container 名            | identity のハッシュ（既定は ref マーカー生成器へ委譲）                  | ref マーカーと同一        |
 | animation 名                     | identity のハッシュ                                                     | `--sw-a-<8hex>`           |
 | view transition クラス           | identity のハッシュ                                                     | `--sw-v-<8hex>`           |
@@ -231,7 +231,7 @@ body はそのまま書き出し、prefix を足さない。prefix はコンパ�
 クラストークンは CSS に書かれるだけでなく、生成される JavaScript のオブジェクトキーにもなる
 （射影の表引きが `{ "<marker>": "<projection class>" }` の形を取るため）。キーはカノニカルな
 クラストークンそのもので、lower された値にはクラス名しか残らない。したがってキーのために別の
-エスケープを当てることはできず、キーになる種別（ref マーカー、scope マーカー）のコンストラクタ
+エスケープを当てることはできず、キーになる種別（ref マーカー、subtree マーカー）のコンストラクタ
 で、継承メンバーと衝突する名前（`constructor`、`toString`、`valueOf`、`__proto__` など）に `_` を
 1 つ前置する。キーにならない種別にはこの前置をしない。ビルトイン生成の名前は prefix を持つので
 この規則に触れないが、規則は生成元で分岐しない。ホストが返す body も同じコンストラクタを通る。
@@ -251,7 +251,7 @@ NUL は置換する。置換と正規化は生の名前に対して 1 回だけ�
 
 | プール                   | 名前空間                                                     | 含む生成物                                                  | 重複したときの干渉                                     |
 | ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
-| A クラストークン         | class 属性とクラスセレクタ                                   | ユーティリティクラス、ref / scope マーカー、射影クラス      | 同じクラスリストに照合され、規則が融合する             |
+| A クラストークン         | class 属性とクラスセレクタ                                   | ユーティリティクラス、ref / subtree マーカー、射影クラス    | 同じクラスリストに照合され、規則が融合する             |
 | B anchor 名              | `anchor-name` / `position-anchor` / `anchor-scope`           | ref マーカー（流用時）、anchor 名                           | 解決先が曖昧になり、別の要素を anchor として参照し得る |
 | C container 名           | `container-name` / `@container` 名                           | ref マーカー（流用時）、container 名                        | 別の宣言の `@container` 規則が同じ名前の容器に一致する |
 | D keyframes 名           | `@keyframes` 名と `animation-name`                           | animation 名                                                | 別の宣言の keyframes を参照する                        |

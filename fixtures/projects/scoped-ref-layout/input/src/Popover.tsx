@@ -1,6 +1,6 @@
 import { style } from "stillwind/react";
 
-const menu = style.scope("menu");
+const menu = style.subtree("menu");
 const trigger = style.ref(menu, "trigger");
 
 export function Popover() {

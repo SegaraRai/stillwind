@@ -164,7 +164,7 @@ function typeFactValue(
 ): NativeExportedValue | null {
   const constituents = type.isUnionType() ? type.getTypes() : [type];
   const refs = [];
-  const scopes: IdentityId[] = [];
+  const subtrees: IdentityId[] = [];
   const animations: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
   let viewTransitionKeyed = false;
@@ -179,24 +179,24 @@ function typeFactValue(
       styles.push(...candidates);
       continue;
     }
-    if (symbol?.name === "StyleScope") {
+    if (symbol?.name === "StyleSubtree") {
       const candidates = knownIdentities(args[0], identities, "scope");
       if (!candidates) return null;
-      scopes.push(...candidates);
+      subtrees.push(...candidates);
       continue;
     }
     if (symbol?.name === "StyleRef") {
       const references = knownIdentities(args[0], identities, "ref");
       if (!references) return null;
       const scopeText = args[1] ? checker.typeToString(args[1]) : "never";
-      const permittedScopes =
+      const permittedSubtrees =
         scopeText === "never" ? [] : knownIdentities(args[1], identities, "scope");
-      if (!permittedScopes) return null;
+      if (!permittedSubtrees) return null;
       for (const reference of references) {
         refs.push({
           reference,
           permitted_scopes:
-            permittedScopes.length === 0 ? null : symbolic("scope", permittedScopes),
+            permittedSubtrees.length === 0 ? null : symbolic("scope", permittedSubtrees),
         });
       }
       continue;
@@ -217,13 +217,13 @@ function typeFactValue(
     return null;
   }
 
-  const populated = [refs, scopes, animations, viewTransitions, styles].filter(
+  const populated = [refs, subtrees, animations, viewTransitions, styles].filter(
     (values) => values.length > 0,
   );
   if (populated.length !== 1) return null;
   if (styles.length > 0) return { kind: "styles", value: symbolic("style", styles) };
   if (refs.length > 0) return { kind: "refs", value: refs };
-  if (scopes.length > 0) return { kind: "scopes", value: symbolic("scope", scopes) };
+  if (subtrees.length > 0) return { kind: "scopes", value: symbolic("scope", subtrees) };
   if (animations.length > 0)
     return { kind: "animations", value: symbolic("animation", animations) };
   if (viewTransitions.length > 0)

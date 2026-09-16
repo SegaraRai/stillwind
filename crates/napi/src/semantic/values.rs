@@ -76,7 +76,7 @@ pub struct NativeRefAlternative {
     pub reference: NativeIdentity,
     /// Scopes this ref may be bound to, or `None` when unconstrained.
     #[napi(js_name = "permitted_scopes")]
-    pub permitted_scopes: Option<NativeSymbolicValue>,
+    pub permitted_subtrees: Option<NativeSymbolicValue>,
 }
 
 /// A value an analyzed module can export.
@@ -89,9 +89,9 @@ pub enum NativeExportedValue {
         /// Reachable style identities.
         value: NativeSymbolicValue,
     },
-    /// Exported scope.
+    /// Exported subtree, tagged `scopes` for the host.
     Scopes {
-        /// Reachable scope identities.
+        /// Reachable subtree identities.
         value: NativeSymbolicValue,
     },
     /// Exported ref, kept as alternatives so correlation is preserved.
@@ -125,7 +125,7 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
                 (Self::Styles(value.try_into()?), AssetKind::Style)
             }
             NativeExportedValue::Scopes { value } => {
-                (Self::Scopes(value.try_into()?), AssetKind::Scope)
+                (Self::Subtrees(value.try_into()?), AssetKind::Subtree)
             }
             NativeExportedValue::Animations { value } => {
                 (Self::Animations(value.try_into()?), AssetKind::Animation)
@@ -145,7 +145,7 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
                         .map(|item| {
                             RefAlternative::new(
                                 item.reference.into(),
-                                item.permitted_scopes.map(TryInto::try_into).transpose()?,
+                                item.permitted_subtrees.map(TryInto::try_into).transpose()?,
                             )
                             .map_err(|error| Error::from_reason(error.to_string()))
                         })
@@ -155,7 +155,7 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
         };
         let actual = match &value {
             Self::Styles(value)
-            | Self::Scopes(value)
+            | Self::Subtrees(value)
             | Self::Animations(value)
             | Self::ViewTransitions(value)
             | Self::ViewTransitionKeys(value) => value.kind,
@@ -176,7 +176,7 @@ impl From<ExportedValue> for NativeExportedValue {
             ExportedValue::Styles(value) => Self::Styles {
                 value: value.into(),
             },
-            ExportedValue::Scopes(value) => Self::Scopes {
+            ExportedValue::Subtrees(value) => Self::Scopes {
                 value: value.into(),
             },
             ExportedValue::Animations(value) => Self::Animations {
@@ -193,7 +193,7 @@ impl From<ExportedValue> for NativeExportedValue {
                     .into_iter()
                     .map(|item| NativeRefAlternative {
                         reference: item.reference.into(),
-                        permitted_scopes: item.permitted_scopes.map(Into::into),
+                        permitted_subtrees: item.permitted_subtrees.map(Into::into),
                     })
                     .collect(),
             },

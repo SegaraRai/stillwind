@@ -15,16 +15,19 @@ use stillwind_source::normalized_module_path;
 
 /// Which kind of Stillwind asset an identity denotes.
 ///
-/// The kind is part of the identity, so a ref and a scope declared at the same span
+/// The kind is part of the identity, so a ref and a subtree declared at the same span
 /// stay distinct. Serialized in kebab-case; that spelling is part of the host protocol.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AssetKind {
     /// A `style()` call site; its span is the call itself.
     Style,
-    /// A `style.scope()` boundary.
-    Scope,
-    /// A `style.ref()` declaration, optionally bound to a scope.
+    /// A `style.subtree()` boundary.
+    ///
+    /// Serialized as `scope`, the spelling the host protocol and identity strings use.
+    #[serde(rename = "scope")]
+    Subtree,
+    /// A `style.ref()` declaration, optionally bound to a subtree.
     Ref,
     /// A `style.animation()` keyframe asset.
     Animation,

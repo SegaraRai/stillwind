@@ -24,12 +24,12 @@ use stillwind_diagnostics::CompileErrorKind;
 use super::kind::{IdentifierKind, IdentifierMode, builtin_digest_digits, builtin_prefix};
 use super::name::{
     AnchorName, ContainerName, CustomPropertyName, KeyframesName, LayerName, RefMarker,
-    ScopeMarker, Token, UtilityClass, ViewTransitionClass,
+    SubtreeMarker, Token, UtilityClass, ViewTransitionClass,
 };
 use super::request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest, LayerContext,
-    LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ScopeMarkerName,
+    LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, SubtreeMarkerName,
     ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
 
@@ -135,16 +135,16 @@ pub trait IdentifierGenerator: fmt::Debug {
         Ok(GeneratedName::Builtin)
     }
 
-    /// A scope marker class, on its way into a class attribute and a class selector.
+    /// A subtree marker class, on its way into a class attribute and a class selector.
     ///
     /// # Errors
     ///
     /// Returns a failure the compilation reports for this declaration.
-    fn scope_marker(
+    fn subtree_marker(
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ScopeMarker>, String> {
+    ) -> Result<GeneratedName<SubtreeMarker>, String> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -470,16 +470,16 @@ impl IdentifierContext {
         self.resolve_name(&RefMarkerName(context.clone()))
     }
 
-    /// A scope marker class token, without a leading dot.
+    /// A subtree marker class token, without a leading dot.
     ///
     /// # Errors
     ///
     /// Returns the host generator's failure in release mode.
-    pub(crate) fn scope_marker_name(
+    pub(crate) fn subtree_marker_name(
         &self,
         context: &DeclarationContext,
-    ) -> Result<ScopeMarker, CompileErrorKind> {
-        self.resolve_name(&ScopeMarkerName(context.clone()))
+    ) -> Result<SubtreeMarker, CompileErrorKind> {
+        self.resolve_name(&SubtreeMarkerName(context.clone()))
     }
 
     /// An anchor name for one ref projection.

@@ -60,7 +60,7 @@ pub use identifiers::{
     IdentifierHash, IdentifierKind, IdentifierMode, IdentifierNameError, IdentifierPool,
     Identifiers, KeyframesName, KeyframesNameRequest, Label, LayerContext, LayerName,
     LayerNameRequest, LocatorContext, NameRequest, RefMarker, RefMarkerName, RejectedIdentifier,
-    RejectedNames, ScopeMarker, ScopeMarkerName, Token, UtilityClass, ViewTransitionClass,
+    RejectedNames, SubtreeMarker, SubtreeMarkerName, Token, UtilityClass, ViewTransitionClass,
     ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
 pub use imports::plan_macro_import_removals;
