@@ -366,4 +366,6 @@ const productCard = style.viewTransition({
 Uses of one declaration share its class, and several transitions in one call
 list their classes in one declaration. Lint warns when a call marks
 participants without any name (`require-view-transition-name`) and when it
-states more than one (`single-view-transition-name`).
+states more than one (`single-view-transition-name`). A call that composes a base
+declaring its own transitions replaces them, because `view-transition-class` is one
+declaration, so `single-view-transition-class` warns about that replacement.
