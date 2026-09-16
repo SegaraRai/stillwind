@@ -5,10 +5,11 @@ import {
   stillwindAnimation,
   stillwindAssetClass,
   stillwindClassKey,
+  stillwindEscapedIdentifier,
   stillwindToFragment,
   stillwindMerge,
-  stillwindViewTransition,
-  stillwindViewTransitionStyle,
+  stillwindViewTransitionKey,
+  stillwindViewTransitionName,
 } from "../src/runtime/react.ts";
 
 void test("composition joins base classes, preserves delta props, and leaves inputs untouched", () => {
@@ -26,34 +27,34 @@ void test("composition joins base classes, preserves delta props, and leaves inp
   assert.deepEqual(Object.getOwnPropertySymbols(stillwindMerge(stillwindToFragment(first))), []);
 });
 
-void test("view-transition styles share properties and encode keyed instance names", () => {
-  const card = stillwindViewTransition("--sw-v-card");
-  const candidates = ["--sw-v-card"];
-  assert.deepEqual(
-    stillwindViewTransitionStyle(card, undefined, candidates, "--sw-vt-name", "--sw-vt-class"),
-    { "--sw-vt-name": "--sw-v-card", "--sw-vt-class": "--sw-v-card" },
-  );
-  assert.deepEqual(
-    stillwindViewTransitionStyle(card, "item 1", candidates, "--sw-vt-name", "--sw-vt-class"),
-    { "--sw-vt-name": "--sw-v-card-k-69-74-65-6d-20-31", "--sw-vt-class": "--sw-v-card" },
-  );
-  assert.deepEqual(
-    stillwindViewTransitionStyle(
-      card.for("item 1"),
-      undefined,
-      candidates,
-      "--sw-vt-name",
-      "--sw-vt-class",
-    ),
-    { "--sw-vt-name": "--sw-v-card-k-69-74-65-6d-20-31", "--sw-vt-class": "--sw-v-card" },
-  );
+void test("view transition names pair a class token with a key", () => {
+  assert.equal(stillwindViewTransitionName("--sw-v-card"), "");
+  assert.equal(stillwindViewTransitionName("--sw-v-card", "hero"), "--sw-v-card-hero");
+  assert.equal(stillwindViewTransitionName("--sw-v-card", "item 1"), "--sw-v-card-item\\ 1");
+  assert.equal(stillwindViewTransitionName({ v: "--sw-v-card", k: 7 }), "--sw-v-card-7");
+  assert.equal(stillwindViewTransitionName({ v: "--sw-v-card", k: 7 }, "hero"), "--sw-v-card-hero");
+  assert.deepEqual(stillwindViewTransitionKey({ v: "--sw-v-card" }, "hero"), {
+    v: "--sw-v-card",
+    k: "hero",
+  });
+  assert.throws(() => stillwindViewTransitionName({}), TypeError);
+});
+
+void test("escapes identifiers the way the compiler does", () => {
+  assert.equal(stillwindEscapedIdentifier("hero"), "hero");
+  assert.equal(stillwindEscapedIdentifier("1hero"), "\\31 hero");
+  assert.equal(stillwindEscapedIdentifier("-1hero"), "-\\31 hero");
+  assert.equal(stillwindEscapedIdentifier("a b"), "a\\ b");
+  assert.equal(stillwindEscapedIdentifier(""), "");
 });
 
 void test("selects classes carried by dynamic animation and view transition values", () => {
   const fade = stillwindAnimation("--sw-a-fade");
-  const title = stillwindViewTransition("--sw-v-title");
 
   assert.equal(stillwindAssetClass(fade("infinite"), { "--sw-a-fade": "a_fade" }), "a_fade");
-  assert.equal(stillwindAssetClass(title, { "--sw-v-title": "v_title" }), "v_title");
+  assert.equal(
+    stillwindAssetClass({ v: "--sw-v-title" }, { "--sw-v-title": "v_title" }),
+    "v_title",
+  );
   assert.throws(() => stillwindAssetClass({ identity: "user-owned" }, {}), TypeError);
 });

@@ -109,6 +109,11 @@ pub enum NativeExportedValue {
         /// Reachable transition identities.
         value: NativeSymbolicValue,
     },
+    /// Exported view transition that already carries its own key.
+    ViewTransitionKeys {
+        /// Reachable transition identities.
+        value: NativeSymbolicValue,
+    },
 }
 
 impl TryFrom<NativeExportedValue> for ExportedValue {
@@ -127,6 +132,10 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
             }
             NativeExportedValue::ViewTransitions { value } => (
                 Self::ViewTransitions(value.try_into()?),
+                AssetKind::ViewTransition,
+            ),
+            NativeExportedValue::ViewTransitionKeys { value } => (
+                Self::ViewTransitionKeys(value.try_into()?),
                 AssetKind::ViewTransition,
             ),
             NativeExportedValue::Refs { value } => {
@@ -148,7 +157,8 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
             Self::Styles(value)
             | Self::Scopes(value)
             | Self::Animations(value)
-            | Self::ViewTransitions(value) => value.kind,
+            | Self::ViewTransitions(value)
+            | Self::ViewTransitionKeys(value) => value.kind,
             Self::Refs(_) => AssetKind::Ref,
         };
         if actual != expected {
@@ -173,6 +183,9 @@ impl From<ExportedValue> for NativeExportedValue {
                 value: value.into(),
             },
             ExportedValue::ViewTransitions(value) => Self::ViewTransitions {
+                value: value.into(),
+            },
+            ExportedValue::ViewTransitionKeys(value) => Self::ViewTransitionKeys {
                 value: value.into(),
             },
             ExportedValue::Refs(value) => Self::Refs {

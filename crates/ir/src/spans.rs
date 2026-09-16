@@ -18,6 +18,7 @@ use stillwind_source::{Span, Spanned};
 use crate::{
     AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry,
     HandleDefinition, HandleProjection, ModuleIr, ScopeDefinition, StyleInput, StyleVariant,
+    ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -197,25 +198,32 @@ fn map_input<E>(
             }
             *value = map(*value)?;
         }
-        StyleInput::ViewTransitionUse { transition, key } => {
+        StyleInput::ViewTransitionUse { transition, name } => {
             map_asset(transition, map)?;
-            if let Some(key) = key {
-                *key = map(*key)?;
-            }
+            map_view_transition_name(name, map)?;
         }
         StyleInput::DynamicViewTransitionUse {
             value,
             transitions,
-            key,
+            name,
         } => {
             *value = map(*value)?;
             for transition in transitions {
                 map_asset(transition, map)?;
             }
-            if let Some(key) = key {
-                *key = map(*key)?;
-            }
+            map_view_transition_name(name, map)?;
         }
+    }
+    Ok(())
+}
+
+/// Projects the source spans a view-transition use names itself with.
+fn map_view_transition_name<E>(
+    name: &mut ViewTransitionName,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    if let ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) = name {
+        *key = map(*key)?;
     }
     Ok(())
 }

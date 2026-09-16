@@ -412,6 +412,8 @@ value: Array<NativeRefAlternative> }
 value: NativeSymbolicValue }
 | { kind: 'view-transitions'; /** Reachable transition identities. */
 value: NativeSymbolicValue }
+| { kind: 'view-transition-keys'; /** Reachable transition identities. */
+value: NativeSymbolicValue }
 
 /** Imports reachable from one export of a module. */
 export interface NativeExportImports {

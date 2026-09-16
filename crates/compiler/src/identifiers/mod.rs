@@ -24,6 +24,7 @@ pub use name::{
     AnchorName, ContainerName, CustomPropertyName, IdentifierNameError, KeyframesName, Label,
     LayerName, RefMarker, ScopeMarker, Token, UtilityClass, ViewTransitionClass,
 };
+pub(crate) use name::{escaped_identifier, view_transition_name};
 pub use request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ConditionRole, ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest,

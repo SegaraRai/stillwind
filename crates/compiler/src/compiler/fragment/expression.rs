@@ -10,7 +10,7 @@ use stillwind_source::Span;
 
 use super::super::expression_render::is_plain;
 use super::super::props::{StyleEmission, StyleEmissionPart};
-use crate::generated::{Code, code};
+use crate::generated::{Code, code, js_string};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
 /// A source expression or a runtime call whose binding is allocated only on output.
@@ -42,6 +42,16 @@ pub(crate) enum ValueExpr {
         key: String,
         /// Table literal mapping every canonical token to its projected class.
         table: Code,
+    },
+    /// A one-entry style payload whose value a deferred expression produces.
+    ///
+    /// A view-transition name is written as a style property rather than through a helper
+    /// that builds the whole payload, so the entry keeps the deferred call in one place.
+    Entry {
+        /// Property name, written as a JavaScript string key.
+        property: String,
+        /// Property value expression.
+        value: Box<Self>,
     },
 }
 
@@ -76,6 +86,9 @@ impl ValueExpr {
                     },
                     "]"
                 ]
+            }
+            Self::Entry { property, value } => {
+                code!["{", js_string(property), ":", value.render(runtime), "}"]
             }
         }
     }

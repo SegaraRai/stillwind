@@ -167,6 +167,7 @@ function typeFactValue(
   const scopes: IdentityId[] = [];
   const animations: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
+  let viewTransitionKeyed = false;
   const styles: IdentityId[] = [];
 
   for (const constituent of constituents) {
@@ -210,6 +211,7 @@ function typeFactValue(
       const candidates = knownIdentities(args[0], identities, "view-transition");
       if (!candidates) return null;
       viewTransitions.push(...candidates);
+      viewTransitionKeyed ||= symbol.name === "StyleViewTransitionUse";
       continue;
     }
     return null;
@@ -225,10 +227,15 @@ function typeFactValue(
   if (animations.length > 0)
     return { kind: "animations", value: symbolic("animation", animations) };
   if (viewTransitions.length > 0)
-    return {
-      kind: "view-transitions",
-      value: symbolic("view-transition", viewTransitions),
-    };
+    return viewTransitionKeyed
+      ? {
+          kind: "view-transition-keys",
+          value: symbolic("view-transition", viewTransitions),
+        }
+      : {
+          kind: "view-transitions",
+          value: symbolic("view-transition", viewTransitions),
+        };
   return null;
 }
 

@@ -13,31 +13,38 @@ use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{AssetReference, StyleInput, ViewTransitionDefinition};
+use stillwind_ir::{
+    AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+};
 use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::Spanned;
 
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    /// Resolves an expression to the view transitions it may denote.
+    /// Resolves an expression to the view transitions it may denote, and whether the value
+    /// already carries the key its participants are paired under.
     ///
     /// Facts win over local bindings, exactly as for animations; `None` means the
     /// expression is not a view-transition value.
     pub(crate) fn view_transition_references(
         &self,
         expression: &Expression<'a>,
-    ) -> Option<Vec<AssetReference>> {
+    ) -> Option<(Vec<AssetReference>, bool)> {
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(ExportedValue::ViewTransitions(value)) =
-            self.type_facts.get(&(span.start, span.end))
-        {
-            return value
+        if let Some(fact) = self.type_facts.get(&(span.start, span.end)) {
+            let (value, keyed) = match fact {
+                ExportedValue::ViewTransitions(value) => (value, false),
+                ExportedValue::ViewTransitionKeys(value) => (value, true),
+                _ => return None,
+            };
+            let references = value
                 .finite_candidates()?
                 .iter()
                 .map(|identity| Some(self.asset_reference(identity, span)))
-                .collect();
+                .collect::<Option<Vec<AssetReference>>>()?;
+            return Some((references, keyed));
         }
         let Expression::Identifier(identifier) = expression else {
             return None;
@@ -45,19 +52,22 @@ impl<'a> MacroExtractor<'a> {
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         let transition = self.view_transition_symbols.get(&symbol_id)?;
-        Some(vec![AssetReference {
-            identity: self.identity(AssetKind::ViewTransition, transition),
-            span: self.source_span(span),
-            local_declaration: Some(transition.span),
-        }])
+        Some((
+            vec![AssetReference {
+                identity: self.identity(AssetKind::ViewTransition, transition),
+                span: self.source_span(span),
+                local_declaration: Some(transition.span),
+            }],
+            false,
+        ))
     }
 
     /// Recognizes `<transition>` and `<transition>.for(key)` uses.
     ///
-    /// A `.for(...)` argument is kept as a user span, never evaluated. A use that the
-    /// checker already described through a type fact becomes dynamic even when only one
-    /// candidate remains. A singleton fact does not prove runtime variation; this is
-    /// the lowering policy for fact-backed uses.
+    /// A literal key folds here and any other key expression is kept as a user span, never
+    /// evaluated. A use that the checker already described through a type fact becomes
+    /// dynamic even when only one candidate remains, and a value that carries a key of its
+    /// own is named from the value at runtime.
     pub(crate) fn view_transition_use(
         &mut self,
         expression: &Expression<'a>,
@@ -65,52 +75,81 @@ impl<'a> MacroExtractor<'a> {
         let expression_has_type_fact = self
             .type_facts
             .contains_key(&(expression.span().start, expression.span().end));
-        let (value, transitions, key) = match expression {
-            Expression::CallExpression(call) => {
-                let Expression::StaticMemberExpression(member) = &call.callee else {
-                    return None;
-                };
-                if member.property.name.as_str() != "for" {
-                    return None;
-                }
-                let transitions = self.view_transition_references(&member.object)?;
-                if call.arguments.len() != 1 {
-                    self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidViewTransitionKeyExpression,
-                        self.source_span(call.span),
-                    ));
-                    return None;
-                }
-                (
-                    self.source_span(member.object.span()),
-                    transitions,
-                    Some(self.source_span(call.arguments[0].span())),
-                )
+        let (value, transitions, name) = if let Expression::CallExpression(call) = expression {
+            let Expression::StaticMemberExpression(member) = &call.callee else {
+                return None;
+            };
+            if member.property.name.as_str() != "for" {
+                return None;
             }
-            _ => (
-                self.source_span(expression.span()),
-                self.view_transition_references(expression)?,
-                None,
-            ),
+            let (transitions, _) = self.view_transition_references(&member.object)?;
+            let key = self.view_transition_key(call)?;
+            (
+                self.source_span(member.object.span()),
+                transitions,
+                ViewTransitionName::Key(key),
+            )
+        } else {
+            let (transitions, keyed) = self.view_transition_references(expression)?;
+            let name = if keyed {
+                ViewTransitionName::Value
+            } else {
+                ViewTransitionName::None
+            };
+            (self.source_span(expression.span()), transitions, name)
         };
-        if expression_has_type_fact && key.is_none() {
+        if expression_has_type_fact && matches!(name, ViewTransitionName::None) {
             return (!transitions.is_empty()).then_some(StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
-                key: None,
+                name,
             });
         }
         match transitions.as_slice() {
             [transition] => Some(StyleInput::ViewTransitionUse {
                 transition: transition.clone(),
-                key,
+                name,
             }),
             [] => None,
             _ => Some(StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
-                key,
+                name,
             }),
+        }
+    }
+
+    /// Reads the key one `.for(...)` call states.
+    ///
+    /// A literal key folds at compile time and any other expression is read by the runtime.
+    /// More than one argument is reported and contributes nothing.
+    fn view_transition_key(&mut self, call: &CallExpression<'a>) -> Option<ViewTransitionKey> {
+        let argument = match call.arguments.len() {
+            0 => return Some(ViewTransitionKey::Literal(String::new())),
+            1 => call.arguments[0].as_expression()?,
+            _ => {
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidViewTransitionKeyExpression,
+                    self.source_span(call.span),
+                ));
+                return None;
+            }
+        };
+        match argument {
+            Expression::StringLiteral(value) => {
+                Some(ViewTransitionKey::Literal(self.string_literal(value).value))
+            }
+            Expression::NumericLiteral(value) => {
+                let raw = self.source.slice(self.source_span(value.span())).ok()?;
+                Some(ViewTransitionKey::Literal(raw.to_owned()))
+            }
+            Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
+                let cooked = template.quasis[0].value.cooked.as_ref()?;
+                Some(ViewTransitionKey::Literal(cooked.to_string()))
+            }
+            argument => Some(ViewTransitionKey::Dynamic(
+                self.source_span(argument.span()),
+            )),
         }
     }
 

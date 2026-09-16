@@ -107,9 +107,15 @@ export type StyleViewTransitionUse<Id extends string = string> = {
   readonly [viewTransitionIdentity]: Id;
 };
 
-export type StyleViewTransition<Id extends string = string> = StyleViewTransitionUse<Id> & {
-  /** Instance key evaluated under the pure value-expression contract of {@link StyleMacro}. */
-  for(key: string | number): StyleViewTransitionUse<Id>;
+/** A declared view transition: participants share its class, and only `.for` names them. */
+export type StyleViewTransition<Id extends string = string> = {
+  readonly [refProjection]: true;
+  readonly [viewTransitionIdentity]: Id;
+  /**
+   * Names the participants this use marks, under a pure value key.
+   * A literal key folds into the stylesheet; an expression is read at runtime.
+   */
+  for(key?: string | number): StyleViewTransitionUse<Id>;
 };
 
 export type StyleViewTransitionDefinition = {
@@ -157,6 +163,7 @@ export type StyleArgument =
   | StyleRefProjection
   | StyleRefVariant
   | StyleAnimationUse
+  | StyleViewTransition
   | StyleViewTransitionUse;
 
 /**

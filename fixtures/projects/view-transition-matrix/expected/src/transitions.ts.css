@@ -18,27 +18,21 @@
 ::view-transition-image-pair(.--sw-v-5ce18560) {
   isolation: auto;
 }
-._s_be6f85cc {
-  --sw-vt-name: none;
-  --sw-vt-class: none;
-  view-transition-name: var(--sw-vt-name);
-  view-transition-class: var(--sw-vt-class);
+._s_98b0e44c {
+  view-transition-class: --sw-v-7e58d129;
 }
-._s_6c9e3039 {
-  --sw-vt-name: none;
-  --sw-vt-class: none;
-  view-transition-name: var(--sw-vt-name);
-  view-transition-class: var(--sw-vt-class);
+._s_a088be8a {
+  view-transition-class: --sw-v-7e58d129;
 }
-._s_062cacfe {
-  --sw-vt-name: none;
-  --sw-vt-class: none;
-  view-transition-name: var(--sw-vt-name);
-  view-transition-class: var(--sw-vt-class);
+._s_f6cdbfb9 {
+  view-transition-class: --sw-v-7e58d129;
 }
-._s_83d5525c {
-  --sw-vt-name: none;
-  --sw-vt-class: none;
-  view-transition-name: var(--sw-vt-name);
-  view-transition-class: var(--sw-vt-class);
+._s_e84d886d {
+  view-transition-class: --sw-v-5ce18560;
+}
+._s_418ebbc0 {
+  view-transition-class: --sw-v-7e58d129;
+}
+._s_eff5c445 {
+  view-transition-class: --sw-v-5ce18560;
 }

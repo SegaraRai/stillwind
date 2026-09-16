@@ -14,24 +14,6 @@ use stillwind_syntax::{Variant, parse_candidate};
 
 use crate::candidate::CandidateResolver;
 
-/// The rule that carries a view transition's name and class custom properties.
-//
-// Both properties start as `none` and are then referenced, which is what allows a static call to
-// leave them alone while a runtime use overwrites them through the style payload.
-pub(in crate::compiler) fn view_transition_utility() -> CompiledUtility {
-    CompiledUtility {
-        required_properties: Vec::new(),
-        variants: Vec::new(),
-        variant_applications: Vec::new(),
-        declaration: "--sw-vt-name:none;--sw-vt-class:none;view-transition-name:var(--sw-vt-name);view-transition-class:var(--sw-vt-class);".to_owned(),
-        selector: None,
-        container: None,
-        nested: Vec::new(),
-        order: UtilityOrder::Authored(None),
-        candidate: String::new(),
-    }
-}
-
 /// One resolved utility rule, ready to be ordered and rendered.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledUtility {

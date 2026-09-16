@@ -315,11 +315,7 @@ impl Compiler {
                     match identifiers
                         .view_transition_class(&named_declaration(source.path(), &transition.name))
                     {
-                        Ok(name) => format!(
-                            "{}({})",
-                            runtime.require(RuntimeHelper::ViewTransition, transition.call_span),
-                            name.javascript_string()
-                        ),
+                        Ok(name) => format!("{{v:{}}}", name.javascript_string()),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, transition.call_span));
                             "undefined".to_owned()

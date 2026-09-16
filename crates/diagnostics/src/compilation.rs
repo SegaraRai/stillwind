@@ -94,8 +94,8 @@ pub enum CompileErrorKind {
     /// No valid frame remains after validating an animation declaration.
     #[error("style.animation() requires at least one valid keyframe")]
     EmptyAnimation,
-    /// A keyed transition use does not supply exactly one key expression.
-    #[error("viewTransition.for() requires one stable key expression")]
+    /// A keyed transition use supplies more than one key expression.
+    #[error("viewTransition.for() accepts at most one key expression")]
     InvalidViewTransitionKeyExpression,
     /// A transition declaration does not supply one static definition object.
     #[error("style.viewTransition() requires one object of static utility strings")]
@@ -172,9 +172,6 @@ pub enum CompileErrorKind {
     /// A composition base uses a different framework class property.
     #[error("style bases must use the same framework class property")]
     StyleBaseFrameworkMismatch,
-    /// A style call attempts to attach more than one view transition.
-    #[error("style() accepts at most one view transition")]
-    MultipleViewTransitions,
     /// A keyframe utility contains a variant forbidden in animation frames.
     #[error("animation keyframes cannot contain variants")]
     AnimationFrameVariants,
@@ -638,7 +635,6 @@ impl CompileErrorKind {
             Self::UnavailableStyleBase => "SHCOMP005",
             Self::StyleBaseWithProps => "SHCOMP006",
             Self::StyleBaseFrameworkMismatch => "SHCOMP007",
-            Self::MultipleViewTransitions => "SHVIEW004",
             Self::AnimationFrameVariants => "SHANIMATION003",
             Self::InvalidAnimationVariant => "SHANIMATION004",
             Self::InvalidViewTransitionVariant => "SHMOTION001",

@@ -6,7 +6,6 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::CompileErrorKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -76,33 +75,36 @@ const detail = style(title);"#,
     assert!(result.css.contains("::view-transition-group(.--sw-v-"));
     assert!(result.css.contains("::view-transition-old(.--sw-v-"));
     assert!(result.css.contains("::view-transition-new(.--sw-v-"));
-    assert!(
-        result
-            .css
-            .contains_css("view-transition-name:var(--sw-vt-name);")
-    );
-    assert!(
-        result
-            .css
-            .contains_css("view-transition-class:var(--sw-vt-class);")
-    );
-    let repeated_class = result.classes[result.classes.len() - 1].class_name.as_str();
+    // The token is the class itself; no custom-property indirection remains.
+    assert!(result.css.contains("view-transition-class:--sw-v-"));
+    assert!(!result.css.contains("--sw-vt-name"));
+    assert!(!result.css.contains("--sw-vt-class"));
+    let repeated_class = result.classes.last().expect("a class").class_name.as_str();
     assert_eq!(
         result
             .module_css
             .matches(&format!(".{repeated_class}"))
             .count(),
         1,
-        "an identical view-transition utility class should only be emitted once"
+        "an identical view-transition class should only be emitted once"
     );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.viewTransition"));
-    assert_eq!(
-        transformed.matches("stillwindViewTransitionStyle(").count(),
-        4
+    // A declaration is a plain value, and only a runtime key writes a name inline.
+    assert!(
+        transformed.contains("const title = {v:\"--sw-v-"),
+        "{transformed}"
     );
+    assert!(
+        transformed.contains("{[stillwindStyleKey]:{\"view-transition-name\":"),
+        "{transformed}"
+    );
+    assert_eq!(
+        transformed.matches("stillwindViewTransitionName(").count(),
+        1
+    );
+    assert!(!transformed.contains("stillwindViewTransitionStyle"));
     assert_eq!(transformed.matches("product.id").count(), 1);
-    assert!(transformed.contains("const title = undefined;"));
 }
 
 #[test]
@@ -168,17 +170,18 @@ export const item = style("translate-x-1", card);"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("::view-transition-old(.--app-v-"));
-    assert!(result.css.contains("var(--app-vt-name)"));
+    assert!(result.css.contains("view-transition-class:--app-v-"));
     assert!(result.css.contains("--compat-translate-x"));
     assert!(!result.css.contains("--sw-"));
     assert!(!result.css.contains("--tw-"));
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("\"--app-vt-name\""));
     assert!(!transformed.contains("--sw-"));
 }
 
+/// Several transitions in one call are one class list: `view-transition-class` is a single
+/// property, so the unit names every token rather than adding a second class of its own.
 #[test]
-fn rejects_multiple_view_transitions_on_one_element() {
+fn unions_view_transition_classes_in_one_call() {
     let component = SourceFile::new(
         FileId(1),
         "src/MultipleTransitions.tsx",
@@ -192,10 +195,22 @@ export const item = style(card, image);"#,
 
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
-    assert!(
-        result
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == CompileErrorKind::MultipleViewTransitions)
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(
+        result.css.matches("view-transition-class:").count(),
+        1,
+        "{}",
+        result.css
     );
+    let declaration = result
+        .css
+        .split("view-transition-class:")
+        .nth(1)
+        .and_then(|rest| rest.split('}').next())
+        .expect("a class list");
+    let tokens = declaration
+        .split_whitespace()
+        .filter(|token| token.starts_with("--sw-v-"))
+        .count();
+    assert_eq!(tokens, 2, "{}", result.css);
 }

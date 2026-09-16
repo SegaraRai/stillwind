@@ -15,7 +15,7 @@ use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
-    StyleInput, StyleVariant,
+    StyleInput, StyleVariant, ViewTransitionKey, ViewTransitionName,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span};
@@ -31,10 +31,10 @@ use super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::symbols::{
     anchor_name, handle_projection_name, motion_name_symbol, ref_marker_name, scope_marker_name,
 };
-use super::utilities::resolve::{CompiledUtility, view_transition_utility};
+use super::utilities::resolve::CompiledUtility;
 use super::variants::document_scoped_selector;
 use crate::generated::{Code, code, js_string};
-use crate::identifiers::IdentifierContext;
+use crate::identifiers::{IdentifierContext, view_transition_name};
 use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
 
@@ -69,8 +69,6 @@ pub(super) struct CallEmitter<'a> {
     parts: Vec<StyleEmissionPart>,
     /// Owns class allocation and base-before-conditional CSS publication.
     units: ClassUnits<'a>,
-    /// Set once the call contributed a view transition, so a second one is reported.
-    view_transition_seen: bool,
     /// Anchor and container names this call wrote, reported with the class symbols.
     written_name_symbols: Vec<GeneratedSymbol>,
 }
@@ -105,7 +103,6 @@ impl<'a> CallEmitter<'a> {
                 inputs.symbols,
                 inputs.emitted_utility_classes,
             ),
-            view_transition_seen: false,
             written_name_symbols: Vec::new(),
         };
         emitter.emit()
@@ -221,91 +218,74 @@ impl<'a> CallEmitter<'a> {
                 let expression = handle_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
-            StyleInput::ViewTransitionUse { transition, key } => {
+            StyleInput::ViewTransitionUse { transition, name } => {
                 self.motion_assets.insert(transition.identity.clone());
-                if !self.begin_view_transition() {
-                    return Some(());
-                }
-                let name = match self.record_motion_name(
+                self.runtime_assets.insert(transition.identity.clone());
+                let token = match self.record_motion_name(
                     &transition.identity,
                     AssetKind::ViewTransition,
                     transition.span,
                 ) {
-                    Ok(name) => name,
+                    Ok(token) => token,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
                         return None;
                     }
                 };
-                self.emit_view_transition_class();
-                let key = match key {
-                    Some(key) => self.source_expression(*key)?,
-                    None => "undefined".into(),
-                };
-                let expression = ValueExpr::Call {
-                    helper: RuntimeHelper::ViewTransitionStyle,
-                    arguments: vec![
-                        format!("\"{name}\"").into(),
-                        key,
-                        format!("[\"{name}\"]").into(),
-                        "\"--sw-vt-name\"".into(),
-                        "\"--sw-vt-class\"".into(),
-                    ],
-                    span: self.call.span,
-                };
-                self.parts.push(StyleEmissionPart::Style {
-                    expression,
-                    position: self.call.span.start.0,
+                let names = static_view_transition_names(name, &token);
+                self.units.fold(LiteralContribution {
+                    canonical: format!("view-transition:{token}\u{0}"),
+                    utilities: Vec::new(),
+                    markers: Vec::new(),
+                    external: Vec::new(),
+                    plain: Vec::new(),
+                    view_transition_tokens: vec![token.clone()],
+                    view_transition_names: names,
                 });
+                self.emit_view_transition_name(name, Some(&token), transition.span);
             }
             StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
-                key,
+                name,
             } => {
-                if !self.begin_view_transition() {
-                    return Some(());
-                }
-                let mut candidates = Vec::new();
+                let mut table = Vec::new();
                 for transition in transitions {
                     self.runtime_assets.insert(transition.identity.clone());
-                    match self.record_motion_name(
+                    let token = match self.record_motion_name(
                         &transition.identity,
                         AssetKind::ViewTransition,
                         transition.span,
                     ) {
-                        Ok(name) => candidates.push(name),
+                        Ok(token) => token,
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);
                             return None;
                         }
-                    }
+                    };
+                    let names = static_view_transition_names(name, &token);
+                    let class = match self
+                        .units
+                        .view_transition_unit(std::slice::from_ref(&token), &names)
+                    {
+                        Ok(class) => class,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
+                    table.push(format!("{}:{}", js_string(&token), js_string(&class)));
                 }
-                self.emit_view_transition_class();
-                let key = match key {
-                    Some(key) => self.source_expression(*key)?,
-                    None => "undefined".into(),
+                let expression = ValueExpr::Lookup {
+                    value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
+                    key: "v".to_owned(),
+                    table: format!("{{{}}}", table.join(",")).into(),
                 };
-                let candidates = candidates
-                    .iter()
-                    .map(|candidate| format!("\"{candidate}\""))
-                    .collect::<Vec<_>>()
-                    .join(",");
-                let expression = ValueExpr::Call {
-                    helper: RuntimeHelper::ViewTransitionStyle,
-                    arguments: vec![
-                        self.source_expression(*value)?,
-                        key,
-                        format!("[{candidates}]").into(),
-                        "\"--sw-vt-name\"".into(),
-                        "\"--sw-vt-class\"".into(),
-                    ],
-                    span: self.call.span,
-                };
-                self.parts.push(StyleEmissionPart::Style {
-                    expression,
+                self.parts.push(StyleEmissionPart::Class {
+                    emitted: Emitted::Expression(expression),
                     position: value.start.0,
                 });
+                self.emit_view_transition_name(name, None, *value);
             }
         }
         Some(())
@@ -365,23 +345,6 @@ impl<'a> CallEmitter<'a> {
                 prefix.span,
             ));
         }
-    }
-
-    /// Reserves the call's view-transition attachment, returning whether it is available.
-    /// A repeated attachment appends a fatal error and returns `false`.
-    ///
-    /// A call can contribute only one view-transition pair, because the pair shares one generated
-    /// name and a second use would overwrite the first.
-    fn begin_view_transition(&mut self) -> bool {
-        if self.view_transition_seen {
-            self.diagnostics.push(CompileError::new(
-                CompileErrorKind::MultipleViewTransitions,
-                self.call.span,
-            ));
-            return false;
-        }
-        self.view_transition_seen = true;
-        true
     }
 
     /// Appends a deferred class value at an original-source UTF-8 ordering position.
@@ -618,6 +581,8 @@ impl<'a> CallEmitter<'a> {
                     markers: Vec::new(),
                     external: Vec::new(),
                     plain: Vec::new(),
+                    view_transition_tokens: Vec::new(),
+                    view_transition_names: Vec::new(),
                 };
                 // The projection is read through the declaration's canonical token, so
                 // the element keeps its marker class and the caller needs no helper.
@@ -701,6 +666,8 @@ impl<'a> CallEmitter<'a> {
                         markers: Vec::new(),
                         external: Vec::new(),
                         plain: Vec::new(),
+                        view_transition_tokens: Vec::new(),
+                        view_transition_names: Vec::new(),
                     };
                     let class = match self.units.leaf(contribution, guard) {
                         Ok(class) => class,
@@ -749,6 +716,8 @@ impl<'a> CallEmitter<'a> {
                     markers: Vec::new(),
                     external: Vec::new(),
                     plain: Vec::new(),
+                    view_transition_tokens: Vec::new(),
+                    view_transition_names: Vec::new(),
                 };
                 if fold && guard.is_empty() {
                     self.units.fold(contribution);
@@ -809,6 +778,8 @@ impl<'a> CallEmitter<'a> {
                         markers: Vec::new(),
                         external: Vec::new(),
                         plain: Vec::new(),
+                        view_transition_tokens: Vec::new(),
+                        view_transition_names: Vec::new(),
                     };
                     let class = match self.units.leaf(contribution, guard) {
                         Ok(class) => class,
@@ -882,11 +853,49 @@ impl<'a> CallEmitter<'a> {
         })
     }
 
-    /// Contributes the class that carries a view transition's name and class properties.
-    fn emit_view_transition_class(&mut self) {
-        self.units.base.canonical.push_str("view-transition");
-        self.units.base.canonical.push('\u{0}');
-        self.units.base.utilities.push(view_transition_utility());
+    /// Adds the inline name a use writes when its key is not a literal.
+    ///
+    /// A name the use site states statically becomes a declaration in the class; one built
+    /// from an expression, or read from the value the transition travelled in, becomes a
+    /// style property instead.
+    fn emit_view_transition_name(
+        &mut self,
+        name: &ViewTransitionName,
+        token: Option<&str>,
+        value: Span,
+    ) {
+        let key = match name {
+            ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) => Some(*key),
+            ViewTransitionName::Value => None,
+            ViewTransitionName::None | ViewTransitionName::Key(ViewTransitionKey::Literal(_)) => {
+                return;
+            }
+        };
+        let receiver = match token {
+            Some(token) => format!("\"{token}\"").into(),
+            None => match self.source_expression(value) {
+                Some(source) => source,
+                None => return,
+            },
+        };
+        let mut arguments = vec![receiver];
+        if let Some(key) = key {
+            match self.source_expression(key) {
+                Some(key) => arguments.push(key),
+                None => return,
+            }
+        }
+        self.parts.push(StyleEmissionPart::Style {
+            expression: ValueExpr::Entry {
+                property: "view-transition-name".to_owned(),
+                value: Box::new(ValueExpr::Call {
+                    helper: RuntimeHelper::ViewTransitionName,
+                    arguments,
+                    span: value,
+                }),
+            },
+            position: value.start.0,
+        });
     }
 
     /// Copies one original expression with an exact occurrence mapping. Returns `None`
@@ -930,6 +939,21 @@ pub(super) struct CallEmitterInputs<'a> {
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
     /// Motion definitions reached by static or dynamic uses.
     pub motion_assets: &'a mut BTreeSet<IdentityId>,
+}
+
+/// The static names one view-transition use declares for `token`.
+///
+/// A literal key is folded here; an expression key and a key carried by the value are
+/// written as a style property instead.
+fn static_view_transition_names(name: &ViewTransitionName, token: &str) -> Vec<String> {
+    match name {
+        ViewTransitionName::Key(ViewTransitionKey::Literal(key)) => {
+            vec![view_transition_name(token, key)]
+        }
+        ViewTransitionName::None
+        | ViewTransitionName::Key(ViewTransitionKey::Dynamic(_))
+        | ViewTransitionName::Value => Vec::new(),
+    }
 }
 
 /// Reads the canonical class token off a compiled ref or scope value.

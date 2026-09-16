@@ -51,65 +51,87 @@ export function stillwindAnimation(identity: string) {
   );
 }
 
-/** Creates a view-transition identity for TypeScript-selected runtime branches. */
-export function stillwindViewTransition(identity: string): StillwindRuntimeAsset & {
-  for(key: string | number): StillwindRuntimeAsset & { readonly key: string | number };
-} {
-  return {
-    kind: "view-transition",
-    identity,
-    for: (key) => ({ kind: "view-transition", identity, key }),
-  };
+/**
+ * Serializes one CSS identifier, matching `CSS.escape` and CSS Syntax "serialize an
+ * identifier". A value that is already an identifier is returned unchanged, so the
+ * compiled names and the names this function composes agree byte for byte.
+ */
+export function stillwindEscapedIdentifier(value: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  const characters = Array.from(value);
+  let escaped = "";
+  for (const [index, character] of characters.entries()) {
+    const code = character.codePointAt(0)!;
+    const isDigit = code >= 48 && code <= 57;
+    const isControl = (code >= 1 && code <= 31) || code === 127;
+    if (code === 0) escaped += "\uFFFD";
+    else if (isControl) escaped += `\\${code.toString(16)} `;
+    else if (index === 0 && isDigit) escaped += `\\${code.toString(16)} `;
+    else if (index === 0 && character === "-" && characters.length === 1) escaped += "\\-";
+    else if (index === 1 && isDigit && characters[0] === "-") escaped += `\\${code.toString(16)} `;
+    else if (
+      isDigit ||
+      (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122) ||
+      code === 45 ||
+      code === 95 ||
+      code >= 128
+    )
+      escaped += character;
+    else escaped += `\\${character}`;
+  }
+  return escaped;
 }
 
 /**
- * Returns name/class custom properties for an identity in candidates. value may
- * be the identity string or a view-transition record. An explicit key takes
- * precedence over the record key; String(key) is encoded as hyphen-separated
- * hexadecimal Unicode code points after the identity and `-k-` suffix.
- * The caller supplies distinct CSS custom-property names. Throws TypeError for
- * an unsupported value or identity outside candidates.
+ * Returns the `view-transition-name` a participant is paired under: its class token and
+ * key, joined with `-`, escaped for a CSS value position.
+ *
+ * The value may be the token itself or one of the records the compiler emits, whose key
+ * an explicit argument overrides. A record without a key names nothing, and the empty
+ * string leaves the property to whatever the element's class already declares.
+ * Throws TypeError for a value that carries no token at all.
  */
-export function stillwindViewTransitionStyle(
-  value: unknown,
-  key: string | number | undefined,
-  candidates: readonly string[],
-  nameProperty: string,
-  classProperty: string,
-): Record<string, string> {
-  const runtimeValue =
-    typeof value === "string"
-      ? undefined
-      : value &&
-          typeof value === "object" &&
-          "kind" in value &&
-          value.kind === "view-transition" &&
-          "identity" in value &&
-          typeof value.identity === "string"
-        ? value
-        : undefined;
-  const identity = typeof value === "string" ? value : runtimeValue?.identity;
-  if (typeof identity !== "string" || !candidates.includes(identity)) {
-    throw new TypeError("Stillwind received an unknown view transition identity.");
+export function stillwindViewTransitionName(value: unknown, key?: string | number): string {
+  const record =
+    value && typeof value === "object" && "v" in value
+      ? (value as { v?: unknown; k?: unknown })
+      : undefined;
+  const token = typeof value === "string" ? value : record?.v;
+  if (typeof token !== "string" || token.length === 0) {
+    throw new TypeError("Stillwind received a view transition without a class token.");
   }
-  const runtimeKey =
-    key ??
-    (runtimeValue &&
-    "key" in runtimeValue &&
-    (typeof runtimeValue.key === "string" || typeof runtimeValue.key === "number")
-      ? runtimeValue.key
-      : undefined);
-  const name =
-    runtimeKey === undefined
-      ? identity
-      : `${identity}-k-${Array.from(String(runtimeKey), (character) =>
-          character.codePointAt(0)!.toString(16),
-        ).join("-")}`;
-  return { [nameProperty]: name, [classProperty]: identity };
+  const resolved =
+    key ?? (typeof record?.k === "string" || typeof record?.k === "number" ? record.k : undefined);
+  if (resolved === undefined) return "";
+  return stillwindEscapedIdentifier(`${token}-${String(resolved)}`);
+}
+
+/**
+ * Returns the value a keyed view transition carries, so a key applied where the transition
+ * was declared travels with it. Throws TypeError for a value without a class token.
+ */
+export function stillwindViewTransitionKey(
+  value: unknown,
+  key: string | number,
+): { readonly v: string; readonly k: string | number } {
+  const token =
+    typeof value === "string"
+      ? value
+      : value && typeof value === "object" && "v" in value && typeof value.v === "string"
+        ? value.v
+        : undefined;
+  if (typeof token !== "string" || token.length === 0) {
+    throw new TypeError("Stillwind received a view transition without a class token.");
+  }
+  return { v: token, k: key };
 }
 
 /**
  * Looks up an object or function's string identity in the own entries of classes.
+ * A view transition carries its class token under `v`, an animation under `identity`.
  * This validates table membership, not the asset kind or its provenance.
  * Throws TypeError for an unsupported value or an identity absent from the table.
  */
@@ -120,7 +142,7 @@ export function stillwindAssetClass(
   if (!value || (typeof value !== "object" && typeof value !== "function")) {
     throw new TypeError("Stillwind expected a compiled animation or view transition value.");
   }
-  const identity = "identity" in value ? value.identity : undefined;
+  const identity = "v" in value ? value.v : "identity" in value ? value.identity : undefined;
   if (typeof identity !== "string" || !Object.hasOwn(classes, identity)) {
     throw new TypeError("Stillwind received an unknown animation or view transition identity.");
   }

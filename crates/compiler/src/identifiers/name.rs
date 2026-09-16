@@ -343,9 +343,18 @@ fn class_selector(name: &str) -> String {
 }
 
 /// Escapes one canonical name as a CSS identifier.
-fn escaped_identifier(name: &str) -> String {
+pub(crate) fn escaped_identifier(name: &str) -> String {
     let mut escaped = String::new();
     // Writing through `fmt::Write` into a `String` cannot fail.
     let _ = serialize_identifier(name, &mut escaped);
     escaped
+}
+
+/// Composes the `view-transition-name` one token and key are paired under.
+///
+/// A view-transition-name is a pairing key rather than an allocated name: it is derived
+/// from the participant's class token and the key as written, escaped for a value
+/// position, and two different transitions may compose the same value on purpose.
+pub(crate) fn view_transition_name(token: &str, key: &str) -> String {
+    escaped_identifier(&format!("{token}-{key}"))
 }

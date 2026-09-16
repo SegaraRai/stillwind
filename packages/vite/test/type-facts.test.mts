@@ -127,15 +127,15 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.deepEqual(consumer.diagnostics, []);
   assert.match(consumer.code, /\(\(selected\)\.c\)/);
   assert.match(consumer.code, /stillwindAssetClass\(selectedAnimation\("infinite"\)/);
-  assert.match(consumer.code, /stillwindViewTransitionStyle\(selectedTransition,undefined/);
-  assert.match(consumer.code, /stillwindViewTransitionStyle\("--sw-v-[^"]+",transitionKey/);
-  assert.match(consumer.code, /stillwindViewTransitionStyle\(selectedTransition,transitionKey/);
-  assert.match(consumer.code, /stillwindViewTransitionStyle\(keyedTransitionAlias,undefined/);
+  // A transition the value selects at runtime carries one class per token, chosen by v.
+  assert.match(consumer.code, /"--sw-v-[^"]+":"_s_[^"]+"[\s\S]{0,120}?\)\[selectedTransition\.v\]/);
+  assert.match(consumer.code, /stillwindViewTransitionName\("--sw-v-[^"]+",transitionKey\)/);
+  assert.match(consumer.code, /stillwindViewTransitionName\(selectedTransition,transitionKey\)/);
+  assert.match(consumer.code, /stillwindViewTransitionName\(keyedTransitionAlias\)/);
   assert.equal(consumer.code.match(/transitionKey/g)?.length, 4);
   assert.equal(consumer.css.match(/anchor-name:--sw-r-/g)?.length, 2);
   assert.equal(consumer.css.match(/animation-name:--sw-a-/g)?.length, 2);
-  assert.match(consumer.css, /view-transition-name:var\(--sw-vt-name\)/);
-  assert.match(consumer.css, /view-transition-class:var\(--sw-vt-class\)/);
+  assert.match(consumer.css, /view-transition-class:--sw-v-/);
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "fixture.css", resolveFixtureCss('@import "stillwind";'));
   const session = new NativeProjectSession(loader, true);
@@ -207,7 +207,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);
   assert.match(
     runnable,
-    /^import \{ stillwindAssetClass, stillwindClassKey, stillwindMerge, stillwindStyleKey, stillwindViewTransitionStyle \} from "stillwind\/react\/runtime";/,
+    /^import \{ stillwindAssetClass, stillwindClassKey, stillwindMerge, stillwindStyleKey, stillwindViewTransitionName \} from "stillwind\/react\/runtime";/,
   );
   for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
     assert.match(runnable, new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));

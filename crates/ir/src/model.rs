@@ -289,8 +289,8 @@ pub enum StyleInput {
     ViewTransitionUse {
         /// The declared transition being used.
         transition: AssetReference,
-        /// Optional user key expression, evaluated by the runtime.
-        key: Option<Span>,
+        /// How the use names its participants.
+        name: ViewTransitionName,
     },
     /// A transition value that is only known at runtime.
     DynamicViewTransitionUse {
@@ -298,9 +298,33 @@ pub enum StyleInput {
         value: Span,
         /// Every statically reachable alternative.
         transitions: Vec<AssetReference>,
-        /// Optional user key expression, evaluated by the runtime.
-        key: Option<Span>,
+        /// How the use names its participants.
+        name: ViewTransitionName,
     },
+}
+
+/// How one view-transition use names the participants it marks.
+///
+/// A view-transition-name is a pairing key rather than an allocated name: different
+/// transitions may compose the same value on purpose, so the compiler derives it from the
+/// class token and the key instead of checking it against a namespace.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ViewTransitionName {
+    /// No name: the use marks its participants with a class only.
+    None,
+    /// A key the use site states.
+    Key(ViewTransitionKey),
+    /// The value carries the key that was applied where the transition was declared.
+    Value,
+}
+
+/// One key a view-transition use pairs its participants under.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ViewTransitionKey {
+    /// A literal key: the name becomes a static declaration.
+    Literal(String),
+    /// An expression only the runtime knows: the name becomes an inline style value.
+    Dynamic(Span),
 }
 
 /// Which operator produced a conditional branch.
