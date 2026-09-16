@@ -167,6 +167,7 @@ pub(super) fn binding_output(
         mappings: mappings.into_iter().map(Into::into).collect(),
         classes: result.classes.into_iter().map(Into::into).collect(),
         symbols: result.symbols.into_iter().map(Into::into).collect(),
+        rejected_names: result.rejected_names.into_iter().map(Into::into).collect(),
         diagnostics,
         lint_findings,
         lint_policy: result.lint_policy,

@@ -16,7 +16,7 @@ use serde::Serialize;
 
 use stillwind_compiler::{
     ExpressionTransformMapping, GeneratedClass, GeneratedSymbol, GuardStep,
-    ModuleResourceReference, TransformMapping,
+    ModuleResourceReference, RejectedIdentifier, TransformMapping,
 };
 use stillwind_ir::StyleDependency;
 use stillwind_source::Span;
@@ -43,6 +43,13 @@ pub struct BindingOutput {
     pub symbols: Vec<NativeGeneratedSymbol>,
     /// Errors. Non-empty means nothing was published for this module.
     pub diagnostics: Vec<BindingDiagnostic>,
+    /// Names a host-generated identifier was rejected for, which the host may warn about.
+    ///
+    /// These are not lint findings: a rejected name comes from the generator rather than
+    /// from the source, so the entry carries the family, the request hash, and the reason
+    /// instead of a source span.
+    #[napi(js_name = "rejected_names")]
+    pub rejected_names: Vec<BindingRejectedIdentifier>,
     /// Non-fatal findings.
     #[napi(js_name = "lint_findings")]
     pub lint_findings: Vec<BindingLintFinding>,
@@ -320,6 +327,31 @@ impl From<GeneratedSymbol> for NativeGeneratedSymbol {
     }
 }
 
+/// One rejected generated name, reported for a host that supplies its own generators.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct BindingRejectedIdentifier {
+    /// Identifier family the generator was asked for.
+    pub kind: String,
+    /// Canonical hash of the request, which identifies the rejected input.
+    pub hash: String,
+    /// Why the name was rejected.
+    pub reason: String,
+    /// Whether the built-in name was substituted for it.
+    pub substituted: bool,
+}
+
+impl From<RejectedIdentifier> for BindingRejectedIdentifier {
+    fn from(value: RejectedIdentifier) -> Self {
+        Self {
+            kind: value.kind.as_str().to_owned(),
+            hash: value.hash,
+            reason: value.reason,
+            substituted: value.substituted,
+        }
+    }
+}
+
 /// Output of a whole-graph compile, one entry per requested module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
@@ -350,6 +382,9 @@ pub struct ProjectModuleOutput {
     pub symbols: Vec<NativeGeneratedSymbol>,
     /// Errors. Non-empty means nothing was published for this module.
     pub diagnostics: Vec<BindingDiagnostic>,
+    /// Names a host-generated identifier was rejected for, which the host may warn about.
+    #[napi(js_name = "rejected_names")]
+    pub rejected_names: Vec<BindingRejectedIdentifier>,
     /// Non-fatal findings.
     #[napi(js_name = "lint_findings")]
     pub lint_findings: Vec<BindingLintFinding>,
@@ -372,6 +407,7 @@ impl ProjectModuleOutput {
             classes,
             symbols,
             diagnostics,
+            rejected_names,
             lint_findings,
             lint_policy,
         } = output;
@@ -385,6 +421,7 @@ impl ProjectModuleOutput {
             classes,
             symbols,
             diagnostics,
+            rejected_names,
             lint_findings,
             lint_policy,
         }

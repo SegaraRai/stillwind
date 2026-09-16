@@ -127,10 +127,33 @@ export interface BindingOutput {
   symbols: Array<NativeGeneratedSymbol>
   /** Errors. Non-empty means nothing was published for this module. */
   diagnostics: Array<BindingDiagnostic>
+  /**
+   * Names a host-generated identifier was rejected for, which the host may warn about.
+   *
+   * These are not lint findings: a rejected name comes from the generator rather than
+   * from the source, so the entry carries the family, the request hash, and the reason
+   * instead of a source span.
+   */
+  rejected_names: Array<BindingRejectedIdentifier>
   /** Non-fatal findings. */
   lint_findings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
   lint_policy: Record<string, 'warn' | 'deny' | 'off'>
+}
+
+/**
+ * Output of a whole-graph compile, one entry per requested module.
+ * One rejected generated name, reported for a host that supplies its own generators.
+ */
+export interface BindingRejectedIdentifier {
+  /** Identifier family the generator was asked for. */
+  kind: string
+  /** Canonical hash of the request, which identifies the rejected input. */
+  hash: string
+  /** Why the name was rejected. */
+  reason: string
+  /** Whether the built-in name was substituted for it. */
+  substituted: boolean
 }
 
 /**
@@ -747,7 +770,6 @@ export interface NativeVolarMapping {
   generatedLengths?: Array<number>
 }
 
-/** Output of a whole-graph compile, one entry per requested module. */
 export interface ProjectBindingOutput {
   /** Per-module results. Rules shared between modules appear once. */
   modules: Array<ProjectModuleOutput>
@@ -773,6 +795,8 @@ export interface ProjectModuleOutput {
   symbols: Array<NativeGeneratedSymbol>
   /** Errors. Non-empty means nothing was published for this module. */
   diagnostics: Array<BindingDiagnostic>
+  /** Names a host-generated identifier was rejected for, which the host may warn about. */
+  rejected_names: Array<BindingRejectedIdentifier>
   /** Non-fatal findings. */
   lint_findings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
