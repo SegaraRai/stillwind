@@ -323,13 +323,13 @@ cost diagnostic rather than becoming unsound.
 
 ### Producer audit
 
-| Producer / derivative | Identity and candidate rule                                                           | Runtime/CSS consequence                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `scope()`             | declaration-site scope identity                                                       | the value carries its `.s_*` token under `c`; dynamic attachments read that key           |
-| `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                              | selector planner preserves relation pairs; attachments read the declaration's `c`         |
-| ref projections       | derived from the ref candidate set                                                    | exact uses select a prebuilt projection class by token; dynamic uses select per candidate |
-| `animation()`         | declaration-site keyframe asset                                                       | candidate use selects prebuilt `animation-name` declarations                              |
-| `viewTransition()`    | declaration-site transition asset; `.for(key)` keeps its existing user key expression | every use shares one class; runtime identity/key populate the name and family properties  |
+| Producer / derivative | Identity and candidate rule                                                                | Runtime/CSS consequence                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `scope()`             | declaration-site scope identity                                                            | the value carries its `.s_*` token under `c`; dynamic attachments read that key           |
+| `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                                   | selector planner preserves relation pairs; attachments read the declaration's `c`         |
+| ref projections       | derived from the ref candidate set                                                         | exact uses select a prebuilt projection class by token; dynamic uses select per candidate |
+| `animation()`         | declaration-site keyframe asset                                                            | candidate use selects prebuilt `animation-name` declarations                              |
+| `viewTransition()`    | declaration-site transition class; `.for(key)` folds a literal key and reads an expression | every use contributes the declaration's class token; a name composes the token and key    |
 
 The audit is part of adding any future named CSS API: it must specify its
 identity source, exported summary form, candidate algebra, correlation needs,
@@ -566,7 +566,8 @@ Names are deterministic and private:
 - handle names derive from normalized module identity plus lexical binding
   identity;
 - keyframe names derive from canonical keyframe content and lexical identity;
-- static view-transition names derive from their declaration identity.
+- view-transition class tokens derive from their declaration identity, and a name composes
+  that token with a key.
 
 The naming module is the sole owner of hashes, identifier escaping, collision
 handling, and CSS namespace prefixes.
@@ -641,9 +642,10 @@ pure and testable without Vite.
 
 Conditional animations lower to candidate CSS classes plus a runtime identity
 lookup. Static and conditional view transitions, whether keyed or unkeyed, share
-one generated class. Their identity and optional key are evaluated once by the
-runtime style helper, which populates the configured view-transition name and
-family custom properties.
+the generated class of the declaration they use. The class token is the
+transition's identity and its `view-transition-class` value; a key becomes either a
+static `view-transition-name` in the stylesheet or an inline value the
+`stillwindViewTransitionName` helper composes at runtime.
 
 Every phase retains the invariants that CSS is fully generated before runtime,
 source locations remain exact, generated identities are collision-checked, and

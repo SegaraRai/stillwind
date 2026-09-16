@@ -35,7 +35,7 @@ export function stillwindClsxChecked(...values: readonly unknown[]): string {
 }
 
 interface StillwindRuntimeAsset {
-  readonly kind: "animation" | "view-transition" | "animation-use";
+  readonly kind: "animation" | "animation-use";
   readonly identity: string;
 }
 
