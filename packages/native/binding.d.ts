@@ -141,10 +141,7 @@ export interface BindingOutput {
   lint_policy: Record<string, 'warn' | 'deny' | 'off'>
 }
 
-/**
- * Output of a whole-graph compile, one entry per requested module.
- * One rejected generated name, reported for a host that supplies its own generators.
- */
+/** One rejected generated name, reported for a host that supplies its own generators. */
 export interface BindingRejectedIdentifier {
   /** Identifier family the generator was asked for. */
   kind: string
@@ -770,6 +767,7 @@ export interface NativeVolarMapping {
   generatedLengths?: Array<number>
 }
 
+/** Output of a whole-graph compile, one entry per requested module. */
 export interface ProjectBindingOutput {
   /** Per-module results. Rules shared between modules appear once. */
   modules: Array<ProjectModuleOutput>
