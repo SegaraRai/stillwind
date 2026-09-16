@@ -320,8 +320,8 @@ style("hover:[--x:var(--y)]", { "--y": value });
   `imagePair` は utility 文字列で、media / supports 条件 variant のみ付けられる。
 - `vt.old` 等の use 側 variant 受信 API は保留。採用する場合も `&` 依存とは別の identity 依存
   フラグが要る。name/class の著者指定は未決定で、グローバル CSS と接続する唯一の経路になる。
-- `group` の option 条件は `docs/view-transition-redesign.md` §3.9 で option 単位の条件付き
-  規則に決定（animation の定義 branch とは別形。未実装）。残りは繰り返しレンダリング /
+- `group` の option 条件は `docs/view-transition-redesign.md` §3.9 の option 単位の条件付き
+  規則として実装済み（animation の定義 branch とは別形）。残りは繰り返しレンダリング /
   unstable key の lint。
 
 後続設計（`docs/view-transition-redesign.md`）で実装済み。
@@ -333,7 +333,7 @@ style("hover:[--x:var(--y)]", { "--y": value });
   - 動的 identity はトークンごとのクラス表になる。条件付き use は自分のクラスに専用の
     カスタムプロパティ（`--sw-vtc-*`）を書き、要素のクラスリスト側は `var(--slot,)` を並べる。
     解決後のリストは要素が宣言した slot の union になり、同時に成立した条件が互いを消さない。
-- `group` の option 条件は option 単位の条件付き規則に決定（§3.9。未実装）。
+- `group` の option 条件は option 単位の条件付き規則（§3.9。実装済み）。
 - lint は `require-view-transition-name` / `single-view-transition-name`（既定 warn）。
   - 残り: 繰り返しレンダリング / unstable key の lint。
 

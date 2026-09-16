@@ -243,9 +243,9 @@ style("rounded", cond && vtSub, vtMain.for("bar"));
 
 ### 3.9 `group` の option 条件
 
-決定（未実装）。`group` の option にも media / supports 条件を書けるようにする。条件は option
-文字列の中に variant の形で書き、条件付きの option は同じ選択子の規則として、無条件の option の
-規則より後ろに出力する（候補A: option 単位）。
+`group` の option にも media / supports 条件を書ける。条件は option 文字列の中に variant の形で
+書き、条件付きの option は同じ選択子の規則として、無条件の option の規則より後ろに出力する
+（候補A: option 単位）。
 
 ```tsx
 style.viewTransition({
@@ -307,6 +307,8 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
   投影した宣言を同じ wrapper に置く（投影が対象外プロパティを落とす規則は変えない）。
 - 実装箇所は `crates/compiler/src/compiler/motion.rs` の `emit_view_transition_definition` と
   `resolve_motion_options`（option ごとに条件と宣言を分け、bucket 側と同じ wrapper を組む）。
+  `animation(options)` は条件を受け付けないため、variant を持つ option は従来どおり
+  `UnknownAnimationOption` のままとする。
 
 ## 4. 実装計画
 
@@ -382,7 +384,6 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
   実際の勝敗は cascade 依存であることをドキュメントに書く。
 - レイヤによる優先順位制御（生成側の添付宣言を低レイヤに置く案）は**未採用**。
   明示名を同一 call に書く運用で足りるため。
-- `group` の option 条件（§3.9）は決定済み・未実装。
 
 ## 7. 却下した案（再検討しない）
 
