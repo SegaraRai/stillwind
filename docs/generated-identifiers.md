@@ -152,8 +152,9 @@ JS は同じ呼び出しと同じ specifier を持ち、解決先の実装を消
 成果物キャッシュをモード間で共有しないことは統合側の要件とする。バンドラの永続キャッシュを
 含み、キャッシュ済み成果物が他方のモードの形を配らないようにする。
 
-`-k-<hex>` のキー付き view transition 名はランタイムが生成するままで、ユーザー生成関数の
-対象外とする。
+`view-transition-name` は生成名ではない。クラストークンと key から成る pairing key で、
+コンパイル時に確定できる場合は宣言に、実行時にしか分からない場合は inline の値になる。
+名前の値は検証しない（別 call・stylesheet・ユーザーの inline style と共有されうるため）。
 
 ## 4. 識別子生成のパイプライン
 
@@ -179,8 +180,9 @@ CSS 構文上どうしても外に出せない部分（custom property の `--`�
 | scope マーカー                   | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
 | anchor / container 名            | identity のハッシュ（既定は ref マーカー生成器へ委譲）                  | ref マーカーと同一        |
 | animation 名                     | identity のハッシュ                                                     | `--sw-a-<8hex>`           |
-| view transition 名               | identity のハッシュ                                                     | `--sw-v-<8hex>`           |
+| view transition クラス           | identity のハッシュ                                                     | `--sw-v-<8hex>`           |
 | 条件ヘルパ / ゲート / ルール分離 | 役割と CSS 断片のハッシュ、および断片だけのハッシュ                     | `--sw-if-<16hex>` ほか    |
+| view transition slot             | ガード付き use の class context のハッシュ                              | `--sw-vtc-<16hex>`        |
 | 匿名レイヤ                       | テンプレート identity と class namespace                                | `sw-anon-<16hex>-<index>` |
 
 提供方法は、種別ごとにメソッドを持つ `IdentifierGenerator` trait を実装として渡す形にする。

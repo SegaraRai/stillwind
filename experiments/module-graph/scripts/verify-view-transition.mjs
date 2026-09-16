@@ -16,6 +16,12 @@ export const staticallyKeyed = style("block", item.for("hero"));
 export const dynamicallyKeyed = style("block", item.for(key));
 export const unioned = style("block", item.for("one"), aside.for("two"));
 export const guarded = style("block", cond && item.for("guarded"));
+export const guardedTogether = style(
+  "block",
+  cond && item.for("guarded"),
+  other && aside.for("other"),
+  item.for("base"),
+);
 export const unnamed = style("block", item);`;
 const coreRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../../packages/core");
 
@@ -44,7 +50,7 @@ const theme = `${expand(readFileSync(resolve(coreRoot, "index.css"), "utf8"))}
 // The compiler emits the module; the runtime key and the test come from outside it.
 const output = compileReact(source, "view-transition.tsx", theme);
 assert.deepEqual(output.diagnostics, []);
-const sandbox = { ...runtime, key: "item 1", cond: true };
+const sandbox = { ...runtime, key: "item 1", cond: true, other: true };
 const moduleCode = output.code
   .replace(/^import .*?;$/m, "")
   .replaceAll("export const ", "globalThis.");
@@ -64,6 +70,7 @@ try {
         ["dynamic", props.dynamicallyKeyed],
         ["unioned", props.unioned],
         ["guarded", props.guarded],
+        ["guardedTogether", props.guardedTogether],
         ["unnamed", props.unnamed],
       ]
         .map(([id, value]) => `<div id="${id}" class="${value.className}"></div>`)
@@ -83,6 +90,9 @@ try {
       dynamic: read("dynamic"),
       unioned: read("unioned"),
       guarded: read("guarded"),
+      guardedTogetherClass: getComputedStyle(
+        document.querySelector("#guardedTogether"),
+      ).getPropertyValue("view-transition-class"),
       unnamed: read("unnamed"),
     };
   });
@@ -95,6 +105,8 @@ try {
   assert.match(names.unioned, /-two$/, JSON.stringify(names));
   // A guarded use marks its element while its test holds.
   assert.match(names.guarded, /-guarded$/, JSON.stringify(names));
+  // Two conditions that hold together contribute both tokens to the resolved class list.
+  assert.equal(names.guardedTogetherClass.split(/\s+/).length, 3, JSON.stringify(names));
   // An unkeyed use marks a class only, so it does not participate.
   assert.equal(names.unnamed, "none", JSON.stringify(names));
   assert.notEqual(names.static, names.dynamic);

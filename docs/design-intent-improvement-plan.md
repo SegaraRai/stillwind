@@ -329,11 +329,11 @@ style("hover:[--x:var(--y)]", { "--y": value });
   予約も一意性検査も行わない。同名を別の宣言が使うのは正当な pairing 手段である。
 - `.for(key?)` はコンパイル時マクロ。リテラル key は宣言に、式 key と値が持つ key は inline の名前に
   なる。宣言の外の `.for` は `{v,k}` か `stillwindViewTransitionKey` 呼び出しになる。
-- 動的 identity はトークンごとのクラス表になり、条件付き use は「その条件での完全な
-  クラスリスト」を書く。
+  - 動的 identity はトークンごとのクラス表になる。条件付き use は自分のクラスに専用の
+    カスタムプロパティ（`--sw-vtc-*`）を書き、要素のクラスリスト側は `var(--slot,)` を並べる。
+    解決後のリストは要素が宣言した slot の union になり、同時に成立した条件が互いを消さない。
 - lint は `require-view-transition-name` / `single-view-transition-name`（既定 warn）。
-- 残り: `group` の option に条件を付ける方法、繰り返しレンダリング / unstable key の lint、
-  条件ユニットが入れ子になる場合（条件の中の三項など）の完全リスト。
+  - 残り: `group` の option に条件を付ける方法、繰り返しレンダリング / unstable key の lint。
 
 ## 実装順と完了判定
 
