@@ -5,6 +5,15 @@ The CSS entry resolves normal package exports, for example `@import 'stillwind';
 Generated module CSS uses self-contained query imports. The adapter owns separate
 design systems and semantic state for each Vite environment.
 
+## Host naming
+
+`naming` supplies the host's own generators, one optional function per identifier
+family; `namingRevision` hashes them so cached artifacts are not reused across a
+change. A generator receives its family's context and the whole request hash, and
+returns the name to write or `undefined` to keep the compiler's name. Generators
+must be pure. A name a generator writes is checked against the document's authored
+names, including the stylesheets a producer imports.
+
 The underlying CSS resources have physical file identities so framework CSS
 discovery can include them in server-rendered HTML. Module carriers preserve the
 entry's layer ordering even when a framework emits the route CSS before shared
