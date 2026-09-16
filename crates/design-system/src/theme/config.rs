@@ -65,14 +65,19 @@ impl Default for StillwindConfig {
             prefix: None,
             tailwind_prefix: None,
             lint_rules: [
-                LintKind::MacroArgumentMutation,
-                LintKind::MacroExecutionBoundary,
-                LintKind::DocumentScopedSelector {
-                    selector: String::new(),
-                },
+                (LintKind::MacroArgumentMutation, "deny"),
+                (LintKind::MacroExecutionBoundary, "deny"),
+                (
+                    LintKind::DocumentScopedSelector {
+                        selector: String::new(),
+                    },
+                    "deny",
+                ),
+                (LintKind::MissingViewTransitionName, "warn"),
+                (LintKind::DuplicateViewTransitionName { count: 0 }, "warn"),
             ]
             .into_iter()
-            .map(|kind| (kind.code().to_owned(), "deny".to_owned()))
+            .map(|(kind, level)| (kind.code().to_owned(), level.to_owned()))
             .collect(),
         }
     }

@@ -86,6 +86,19 @@ pub enum LintKind {
         /// Resolved selector that references neither the element nor a declaration identity.
         selector: String,
     },
+    /// A style call marks participants with a transition class but names none.
+    #[error(
+        "a view transition class without a name does not participate; add .for(key) or declare view-transition-name"
+    )]
+    MissingViewTransitionName,
+    /// A style call supplies more than one view-transition-name for one element.
+    #[error(
+        "{count} view-transition-name sources in one style() call; only one element value applies, and a runtime name wins"
+    )]
+    DuplicateViewTransitionName {
+        /// How many sources the call supplied.
+        count: usize,
+    },
     /// A host generator failed or returned a body its write positions cannot hold.
     #[error("identifier generator for {kind} was rejected: {detail}")]
     RejectedIdentifier {
@@ -134,6 +147,8 @@ impl LintKind {
             Self::SelectorOutsideScope { .. } => "scoped-selector-in-scope",
             Self::PreferTypedRelationships { .. } => "prefer-typed-relationships",
             Self::DocumentScopedSelector { .. } => "require-element-scope",
+            Self::MissingViewTransitionName => "require-view-transition-name",
+            Self::DuplicateViewTransitionName { .. } => "single-view-transition-name",
             Self::RejectedIdentifier { .. } => "rejected-identifier",
             Self::UnresolvedUtility { classification, .. }
             | Self::UnresolvedCandidate { classification, .. }

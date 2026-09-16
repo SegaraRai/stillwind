@@ -61,6 +61,7 @@ impl LiteralContribution {
         theme: &ThemeIndex,
         diagnostics: &mut Vec<CompileError>,
         lint_findings: &mut Vec<LintFinding>,
+        name_supplies: &mut usize,
     ) -> LiteralContribution {
         let mut contribution = LiteralContribution::default();
         for utility in lex_utilities(value, diagnostics) {
@@ -102,6 +103,10 @@ impl LiteralContribution {
             contribution.canonical.push('\u{0}');
             let resolved_input = raw.strip_prefix("tw:").unwrap_or(&raw);
             if let Some(mut resolved) = resolve_utility_targets(resolved_input, theme) {
+                *name_supplies += resolved
+                    .iter()
+                    .filter(|utility| utility.declaration.contains("view-transition-name"))
+                    .count();
                 if theme.config.lint_enabled("require-element-scope")
                     && let Some(candidate) = parse_candidate(&utility.value.raw)
                     && let Some(selector) = candidate

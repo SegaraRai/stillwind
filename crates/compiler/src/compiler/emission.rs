@@ -71,6 +71,10 @@ pub(super) struct CallEmitter<'a> {
     units: ClassUnits<'a>,
     /// Anchor and container names this call wrote, reported with the class symbols.
     written_name_symbols: Vec<GeneratedSymbol>,
+    /// Whether the call marks participants with a view-transition class.
+    view_transition_classes: bool,
+    /// How many sources of a view-transition-name the call states.
+    view_transition_names: usize,
 }
 
 impl<'a> CallEmitter<'a> {
@@ -104,6 +108,8 @@ impl<'a> CallEmitter<'a> {
                 inputs.emitted_utility_classes,
             ),
             written_name_symbols: Vec::new(),
+            view_transition_classes: false,
+            view_transition_names: 0,
         };
         emitter.emit()
     }
@@ -114,6 +120,7 @@ impl<'a> CallEmitter<'a> {
         for input in self.call.inputs.clone() {
             self.emit_input(&input)?;
         }
+        self.report_view_transition_names();
         let parts = std::mem::take(&mut self.parts);
         let call_span = self.call.span;
         match self.units.finish() {
@@ -221,6 +228,10 @@ impl<'a> CallEmitter<'a> {
             StyleInput::ViewTransitionUse { transition, name } => {
                 self.motion_assets.insert(transition.identity.clone());
                 self.runtime_assets.insert(transition.identity.clone());
+                self.view_transition_classes = true;
+                if !matches!(name, ViewTransitionName::None) {
+                    self.view_transition_names += 1;
+                }
                 let token = match self.record_motion_name(
                     &transition.identity,
                     AssetKind::ViewTransition,
@@ -249,6 +260,10 @@ impl<'a> CallEmitter<'a> {
                 transitions,
                 name,
             } => {
+                self.view_transition_classes = true;
+                if !matches!(name, ViewTransitionName::None) {
+                    self.view_transition_names += 1;
+                }
                 let mut table = Vec::new();
                 for transition in transitions {
                     self.runtime_assets.insert(transition.identity.clone());
@@ -318,6 +333,24 @@ impl<'a> CallEmitter<'a> {
     /// generated code.
     fn reject_name(&mut self, failure: CompileErrorKind, span: Span) {
         self.diagnostics.push(CompileError::new(failure, span));
+    }
+
+    /// Reports a call whose view-transition name supply is missing or duplicated.
+    ///
+    /// Participation needs exactly one name per element, and the compiler sees only the
+    /// supplies the call itself states: a name another call, a stylesheet, or a user inline
+    /// style supplies stays invisible, so the finding is advisory rather than fatal.
+    fn report_view_transition_names(&mut self) {
+        if !self.view_transition_classes {
+            return;
+        }
+        let kind = match self.view_transition_names {
+            0 => LintKind::MissingViewTransitionName,
+            1 => return,
+            count => LintKind::DuplicateViewTransitionName { count },
+        };
+        self.lint_findings
+            .push(LintFinding::new(kind, self.call.span));
     }
 
     /// Reports a wrapper prefix whose variants would apply to the document instead of to the
@@ -414,6 +447,7 @@ impl<'a> CallEmitter<'a> {
                     self.theme,
                     self.diagnostics,
                     self.lint_findings,
+                    &mut self.view_transition_names,
                 );
                 if fold && guard.is_empty() {
                     self.units.fold(contribution);
