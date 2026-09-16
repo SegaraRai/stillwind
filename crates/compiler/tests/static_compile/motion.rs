@@ -143,6 +143,88 @@ export const photo = style(item);"#,
     assert!(base < conditional, "{}", result.css);
 }
 
+/// A group option may carry a media or supports condition: the unconditional options share one
+/// rule and each conditioned option follows as its own rule with the same selector, so the
+/// condition changes only the properties that option states.
+#[test]
+fn conditions_group_options_on_their_own_rules() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Reduced.tsx",
+        r#"import { style } from "stillwind/react";
+const item = style.viewTransition({ group: "duration-180 ease-linear both motion-reduce:duration-0", old: "opacity-0", new: "opacity-100" });
+export const photo = style(item);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("::view-transition-group(.--sw-v-"),
+        "{}",
+        result.css
+    );
+    assert_eq!(
+        result.css.matches("::view-transition-group(").count(),
+        2,
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains(
+            "{ animation-duration:calc(180 * 1ms);animation-timing-function:linear;animation-fill-mode:both;}"
+        ),
+        "{}",
+        result.css
+    );
+    assert!(
+        result
+            .css
+            .contains("@media (prefers-reduced-motion: reduce){::view-transition-group(.--sw-v-"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("{ animation-duration:calc(0 * 1ms);}"),
+        "{}",
+        result.css
+    );
+}
+
+/// A projected property rides the same path: the condition is stripped before resolution and the
+/// projected declaration lands in the conditioned rule, while a property no mapping names still
+/// fails the option.
+#[test]
+fn conditions_projected_group_options() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Projected.tsx",
+        r#"import { style } from "stillwind/react";
+const item = style.viewTransition({ group: "motion-reduce:[transition-duration:75ms]", old: "opacity-0" });
+export const photo = style(item);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains("@media (prefers-reduced-motion: reduce){::view-transition-group(.--sw-v-"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("{ animation-duration:75ms;}"),
+        "{}",
+        result.css
+    );
+}
+
 #[test]
 fn configures_stillwind_and_tailwind_compatibility_prefixes_independently() {
     let component = SourceFile::new(
