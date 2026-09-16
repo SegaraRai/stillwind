@@ -7,7 +7,7 @@ view-transition-name を独立に与える設計。設計・実装エージェ�
 
 - 宣言 bucket は `group`（animation option 文字列）/ `old` / `new` / `imagePair`（utility 文字列）。
   utility bucket は **media / supports 条件 variant のみ**を受け付け、それ以外は
-  `InvalidViewTransitionVariant`（SHMOTION001）で拒否する。無条件 utility は1つの規則にまとめ、
+  `InvalidViewTransitionVariant`（SHVIEW003）で拒否する。無条件 utility は1つの規則にまとめ、
   条件付き utility は base 規則の後に1規則ずつ出力する。
 - `require-element-scope`（`LintKind::DocumentScopedSelector`、既定 deny）。
   要素にも宣言 identity にも紐づかない選択子（`[:host]:`、`[::view-transition-old(*)]:` など）を lint する。
@@ -305,11 +305,11 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 制約:
 
 - 条件は media / supports のみ。要素依存の選択子、`@container`、任意 at-rule を option に
-  書いた場合は `InvalidViewTransitionVariant`（SHMOTION001）で拒否する（他の3 bucket と揃える）。
+  書いた場合は `InvalidViewTransitionVariant`（SHVIEW003）で拒否する（他の3 bucket と揃える）。
 - 負値と `!important` は拒否したまま（option は値の記述で、修飾付き utility ではない）。
   option 自体の文法の誤り（未知の名前、負値、`!important`）は現行どおり
   `UnknownAnimationOption`（SHANIMATION002）、variant の位置の誤りは bucket 側の
-  `InvalidViewTransitionVariant`（SHMOTION001）と使い分ける。
+  `InvalidViewTransitionVariant`（SHVIEW003）と使い分ける。
 - `[transition-duration:75ms]` のようなプロパティ投影も同じ経路に載せる。条件を剥がして解決し、
   投影した宣言を同じ wrapper に置く（投影が対象外プロパティを落とす規則は変えない）。
 - 実装箇所は `crates/compiler/src/compiler/motion.rs` の `emit_view_transition_definition` と

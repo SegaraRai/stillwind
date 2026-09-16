@@ -637,7 +637,7 @@ impl CompileErrorKind {
             Self::StyleBaseFrameworkMismatch => "SHCOMP007",
             Self::AnimationFrameVariants => "SHANIMATION003",
             Self::InvalidAnimationVariant => "SHANIMATION004",
-            Self::InvalidViewTransitionVariant => "SHMOTION001",
+            Self::InvalidViewTransitionVariant => "SHVIEW003",
             Self::InvalidVariantPrefix | Self::UnavailableVariantPrefix | Self::UnidentifiedRef => {
                 "SHREF003"
             }
