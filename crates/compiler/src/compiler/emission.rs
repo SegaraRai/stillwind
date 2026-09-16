@@ -364,6 +364,9 @@ impl<'a> CallEmitter<'a> {
     /// supplies the call itself states: a name another call, a stylesheet, or a user inline
     /// style supplies stays invisible, so the finding is advisory rather than fatal.
     fn report_view_transition_names(&mut self) {
+        // TODO: report a repeated render or an unstable key. The call alone cannot show it: a
+        // literal name inside `items.map((item) => …)` marks every element identically, so the
+        // finding needs the loop or callback the frontend sees, which the IR does not carry.
         if !self.view_transition_classes {
             return;
         }
