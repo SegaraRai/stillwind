@@ -177,9 +177,9 @@ impl<'a> ClassUnits<'a> {
 
     /// Generates one class unit and returns its rules without publishing them.
     ///
-    /// `canonical` is the full identity input the name is generated from. Only the first
-    /// caller for a name records its symbol, so an identical call that reuses a name
-    /// from an earlier call carries no rules of its own.
+    /// `canonical` is the full identity input the name is generated from. Only the
+    /// first caller for a name records its symbol, so an identical call that reuses a
+    /// name from an earlier call carries no rules of its own.
     ///
     /// # Errors
     ///
@@ -198,12 +198,17 @@ impl<'a> ClassUnits<'a> {
             branch: branch.to_owned(),
         };
         let name = self.identifiers.class_name(&context)?;
-        let mut contribution = Vec::new();
+        let mut contributions = Vec::new();
         if self
             .emitted_utility_classes
             .insert((name.as_str().to_owned(), identity.to_owned()))
         {
-            emit_utility_rules(&mut contribution, name.as_str(), definitions, self.theme);
+            emit_utility_rules(
+                &mut contributions,
+                &name.selector(),
+                definitions,
+                self.theme,
+            );
             self.symbols.push(generated_class_symbol(
                 self.source,
                 name.as_str(),
@@ -211,7 +216,7 @@ impl<'a> ClassUnits<'a> {
                 self.call_span,
             ));
         }
-        Ok((name.as_str().to_owned(), contribution))
+        Ok((name.as_str().to_owned(), contributions))
     }
 
     /// Publishes one conditional unit's rules, in traversal order.

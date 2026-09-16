@@ -614,3 +614,52 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         .expect("class symbol");
     assert!(utility.name.starts_with("_s_"), "{}", utility.name);
 }
+
+/// Names the utility class family with a body a selector cannot carry unescaped.
+#[derive(Debug)]
+struct PunctuationClassGenerator;
+
+impl IdentifierGenerator for PunctuationClassGenerator {
+    fn utility_class(
+        &self,
+        _context: &ClassContext,
+        _hash: &str,
+    ) -> Result<GeneratedName<UtilityClass>, String> {
+        Ok(GeneratedName::provided(
+            UtilityClass::new("a:b").expect("canonical test body"),
+        ))
+    }
+}
+
+#[test]
+fn a_host_class_token_keeps_its_spelling_in_the_class_attribute() {
+    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+            .unwrap();
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "button.tsx",
+            "import { style } from 'stillwind/react'; const x = style('flex');",
+        )
+        .unwrap(),
+    );
+    let identifiers = Identifiers::with(Arc::new(PunctuationClassGenerator));
+    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile_with(
+        &OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None),
+        &identifiers,
+    );
+    assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
+    // The class attribute carries the token itself, and the rule escapes it for the
+    // selector grammar, so both name the same class.
+    let class = compiled
+        .classes
+        .first()
+        .expect("generated class")
+        .class_name
+        .clone();
+    assert_eq!(class, "a:b", "{class}");
+    let css = compiled.css.to_css();
+    assert!(css.contains(r".a\:b{"), "{css}");
+}

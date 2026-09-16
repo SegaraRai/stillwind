@@ -1,10 +1,11 @@
 //! Rule rendering for one resolved utility.
 //!
-//! A utility renders to one rule per variant path: the selector starts as the utility's own
-//! selector or as the class name, and each step rewrites it. The at-rules a step contributes wrap
-//! the finished rule in a fixed order - `@supports`, `@media`, `@container`, then
-//! `@starting-style` - so output is deterministic and conditions combine by containment instead of
-//! being merged into one query. Resolved values are emitted without minification.
+//! A utility renders to one rule per variant path: the selector starts as the utility's
+//! own selector or as the unit's class selector, and each step rewrites it. The at
+//! rules a step contributes wrap the finished rule in a fixed order - `@supports`,
+//! `@media`, `@container`, then `@starting-style` - so output is deterministic and
+//! conditions combine by containment instead of being merged into one query. Resolved
+//! values are emitted without minification.
 
 use stillwind_css::instantiate_selector;
 use stillwind_design_system::{
@@ -26,7 +27,7 @@ use super::resolve::CompiledUtility;
 /// Their rules receive distinct support groups; callers must subsequently run the
 /// conditional-lowering pass with compiler options before publishing CSS.
 pub(in crate::compiler) fn render_utility_rule(
-    class_name: &str,
+    class_selector: &str,
     utility: &CompiledUtility,
     theme: &ThemeIndex,
     declaration: &str,
@@ -38,7 +39,7 @@ pub(in crate::compiler) fn render_utility_rule(
             .iter()
             .map(|applications| {
                 render_utility_rule_path(
-                    class_name,
+                    class_selector,
                     utility,
                     declaration,
                     nested_rule,
@@ -70,16 +71,23 @@ pub(in crate::compiler) fn render_utility_rule(
     paths
         .iter()
         .map(|applications| {
-            render_utility_rule_path(class_name, utility, declaration, nested_rule, applications)
+            render_utility_rule_path(
+                class_selector,
+                utility,
+                declaration,
+                nested_rule,
+                applications,
+            )
         })
         .collect()
 }
 
 /// Renders all alternatives of an already-resolved variant path.
+///
 /// Runtime guards remain unresolved and use separate support groups, as in
 /// [`render_utility_rule`]; no registry lookup or output-strategy choice occurs here.
 pub(in crate::compiler) fn render_utility_rule_path(
-    class_name: &str,
+    class_selector: &str,
     utility: &CompiledUtility,
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
@@ -87,24 +95,25 @@ pub(in crate::compiler) fn render_utility_rule_path(
 ) -> String {
     variant_paths(applications)
         .iter()
-        .map(|path| render_utility_steps(class_name, utility, declaration, nested_rule, path))
+        .map(|path| render_utility_steps(class_selector, utility, declaration, nested_rule, path))
         .collect()
 }
 
 /// Applies the steps of one path to the selector and declaration body.
-//
-// Selector steps rewrite the selector in place, so the reference element's variants stay attached to
-// the reference and the surrounding variants to the target. Declarations a variant contributes are
-// only prepended when the body does not already set that property.
+///
+/// Selector steps rewrite the selector in place, so the reference element's variants
+/// stay attached to the reference and the surrounding variants to the target.
+/// Declarations a variant contributes are only prepended when the body does not already
+/// set that property.
 fn render_utility_steps(
-    class_name: &str,
+    class_selector: &str,
     utility: &CompiledUtility,
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantStep<'_>],
 ) -> String {
     let mut declaration = declaration.to_owned();
-    let class_selector = format!(".{class_name}");
+    let class_selector = class_selector.to_owned();
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
         |selector| instantiate_selector(selector, &class_selector),

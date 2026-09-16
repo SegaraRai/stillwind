@@ -144,16 +144,16 @@ impl DesignSystemQuery {
             0,
             u32::try_from(candidate.len()).unwrap_or(u32::MAX),
         );
-        // The built-in generator cannot reject an input, so the fallback name is
+        // The built-in generator cannot reject an input, so the fallback selector is
         // unreachable; previews keep the empty string rather than panicking a host.
-        let name = IdentifierContext::builtin()
+        let selector = IdentifierContext::builtin()
             .class_name(&ClassContext {
                 module: String::new(),
                 namespace: String::new(),
                 call: 0,
                 branch: format!("{candidate}\0"),
             })
-            .map(|name| name.as_str().to_owned())
+            .map(|name| name.selector())
             .unwrap_or_default();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
@@ -167,7 +167,7 @@ impl DesignSystemQuery {
         });
         let mut contributions = Vec::new();
         let mut diagnostics = if let Some(targets) = targets {
-            emit_utility_rules(&mut contributions, &name, &targets, theme);
+            emit_utility_rules(&mut contributions, &selector, &targets, theme);
             Vec::new()
         } else {
             vec![LintFinding::new(

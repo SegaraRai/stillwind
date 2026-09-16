@@ -1,11 +1,12 @@
 //! Emission of one class unit.
 //!
-//! A class unit's blocks are ordered before they are serialized: the plain block first, then the
-//! variant blocks in the canonical variant order, then the rules that exist only inside an at-rule
-//! from a CSS-defined utility. A plain utility that carries a nested rule stays where it appears in
-//! the plain run, because splitting there would move declarations relative to each other. Nested
-//! declarations that live inside the same rule are inserted after the property they override, so a
-//! nested at-rule cannot win by appearing before the value it is meant to replace.
+//! A class unit's blocks are ordered before they are serialized: the plain block first,
+//! then the variant blocks in the canonical variant order, then the rules that exist
+//! only inside an at-rule from a CSS-defined utility. A plain utility that carries a
+//! nested rule stays where it appears in the plain run, because splitting there would
+//! move declarations relative to each other. Nested declarations that live inside the
+//! same rule are inserted after the property they override, so a nested at-rule cannot
+//! win by appearing before the value it is meant to replace.
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
@@ -17,18 +18,20 @@ use super::declaration_order::{combine_declarations_for_theme, order_utilities};
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
 
-/// Writes the blocks of one class unit for `class_name`.
+/// Writes the blocks of one class unit for `class_selector`.
 ///
-/// The class name is generated from the unit's canonical content, so this function never has to
-/// deduplicate: two equal units were already merged by the caller.
+/// The unit's class selector is rendered by the family that owns the class token, so
+/// this function never escapes a name. The class is generated from the unit's canonical
+/// content, so this function never has to deduplicate: two equal units were already
+/// merged by the caller.
 pub(crate) fn emit_utility_rules(
     contributions: &mut Vec<CssContribution>,
-    class_name: &str,
+    class_selector: &str,
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
 ) {
     let mut css = String::new();
-    emit_utility_css(&mut css, class_name, utilities, theme);
+    emit_utility_css(&mut css, class_selector, utilities, theme);
     contributions.push(CssContribution {
         css,
         required_properties: utilities
@@ -41,7 +44,7 @@ pub(crate) fn emit_utility_rules(
 
 fn emit_utility_css(
     output: &mut String,
-    class_name: &str,
+    class_selector: &str,
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
 ) {
@@ -59,14 +62,14 @@ fn emit_utility_css(
     let mut plain = Vec::new();
     for utility in base {
         if utility.nested.iter().any(|nested| nested.inside) {
-            emit_base_utility_group(output, class_name, &plain, theme);
+            emit_base_utility_group(output, class_selector, &plain, theme);
             plain.clear();
-            emit_base_utility_group(output, class_name, &[utility], theme);
+            emit_base_utility_group(output, class_selector, &[utility], theme);
         } else {
             plain.push(utility);
         }
     }
-    emit_base_utility_group(output, class_name, &plain, theme);
+    emit_base_utility_group(output, class_selector, &plain, theme);
     let mut variant_utilities = utilities
         .iter()
         .copied()
@@ -93,7 +96,7 @@ fn emit_utility_css(
                 .collect::<Vec<_>>(),
         );
         output.push_str(&render_utility_rule(
-            class_name,
+            class_selector,
             utility,
             theme,
             &declaration,
@@ -107,7 +110,7 @@ fn emit_utility_css(
                 continue;
             }
             output.push_str(&render_utility_rule(
-                class_name,
+                class_selector,
                 utility,
                 theme,
                 &nested.declaration,
@@ -117,14 +120,14 @@ fn emit_utility_css(
     }
 }
 
-/// Writes one `.class{...}` block for a run of plain utilities.
+/// Writes one `<class selector>{...}` block for a run of plain utilities.
 ///
 /// Nested rules whose property is present in the combined declarations are inlined right after that
 /// property; the rest follow the declarations in their own order. Utilities with no declarations at
 /// all produce no block, which is why a marker-only unit still costs nothing in the CSS.
 pub(in crate::compiler) fn emit_base_utility_group(
     output: &mut String,
-    class_name: &str,
+    class_selector: &str,
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
 ) {
@@ -135,8 +138,7 @@ pub(in crate::compiler) fn emit_base_utility_group(
         .filter(|nested| nested.inside)
         .collect::<Vec<_>>();
     if !base.is_empty() || !nested.is_empty() {
-        output.push('.');
-        output.push_str(class_name);
+        output.push_str(class_selector);
         output.push('{');
         output.push_str(&assemble_nested_declarations(&base, &nested));
         output.push('}');
