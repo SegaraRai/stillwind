@@ -26,25 +26,25 @@ use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 /// responsible for at that point rather than adding tokens to an earlier unit's list. Two
 /// units declaring the same class therefore resolve to the later, complete list.
 #[derive(Clone, Default)]
-pub(super) struct ViewTransitionUnit {
+pub(super) struct ViewTransitionClassUnit {
     /// Escaped class tokens the unit declares, in first-seen order.
-    tokens: Vec<String>,
+    classes: Vec<String>,
     /// Escaped names the unit declares statically, in order.
     names: Vec<String>,
 }
 
-impl ViewTransitionUnit {
+impl ViewTransitionClassUnit {
     /// Whether the unit declares no view-transition data.
     pub(super) fn is_empty(&self) -> bool {
-        self.tokens.is_empty() && self.names.is_empty()
+        self.classes.is_empty() && self.names.is_empty()
     }
 
     /// Records one use's tokens and static names.
     fn attach(&mut self, tokens: &[String], names: &[String]) {
         for token in tokens {
             let token = escaped_identifier(token);
-            if !self.tokens.contains(&token) {
-                self.tokens.push(token);
+            if !self.classes.contains(&token) {
+                self.classes.push(token);
             }
         }
         self.names.extend(names.iter().cloned());
@@ -53,10 +53,10 @@ impl ViewTransitionUnit {
     /// The rules this unit writes for `selector`.
     fn rules(&self, selector: &str) -> String {
         let mut css = String::new();
-        if !self.tokens.is_empty() {
+        if !self.classes.is_empty() {
             css.push_str(selector);
             css.push_str("{view-transition-class:");
-            css.push_str(&self.tokens.join(" "));
+            css.push_str(&self.classes.join(" "));
             css.push_str(";}");
         }
         for name in &self.names {
@@ -102,7 +102,7 @@ pub(super) struct ClassUnits<'a> {
     /// Unconditional contributions accumulated across all argument positions.
     pub(super) base: BaseUnit,
     /// View-transition declarations per class unit; slot zero is the base unit.
-    view_transitions: Vec<ViewTransitionUnit>,
+    view_transition_classes: Vec<ViewTransitionClassUnit>,
     /// Class selector of each view-transition slot, index-aligned with `view_transitions`.
     class_selectors: Vec<String>,
     /// Conditional rules retained until the base has been emitted, each tagged with the
@@ -137,7 +137,7 @@ impl<'a> ClassUnits<'a> {
             symbols,
             emitted_utility_classes,
             base: BaseUnit::default(),
-            view_transitions: vec![ViewTransitionUnit::default()],
+            view_transition_classes: vec![ViewTransitionClassUnit::default()],
             class_selectors: vec![String::new()],
             runtime_css: Vec::new(),
             classes: Vec::new(),
@@ -149,7 +149,7 @@ impl<'a> ClassUnits<'a> {
     pub(super) fn fold(&mut self, contribution: LiteralContribution) {
         self.base.canonical.push_str(&contribution.canonical);
         self.base.utilities.extend(contribution.utilities);
-        self.view_transitions[0].attach(
+        self.view_transition_classes[0].attach(
             &contribution.view_transition_tokens,
             &contribution.view_transition_names,
         );
@@ -186,10 +186,11 @@ impl<'a> ClassUnits<'a> {
                 &contribution.utilities,
             )?;
             names.push(name.clone());
-            self.view_transitions.push(ViewTransitionUnit::default());
-            let slot = self.view_transitions.len() - 1;
+            self.view_transition_classes
+                .push(ViewTransitionClassUnit::default());
+            let slot = self.view_transition_classes.len() - 1;
             self.class_selectors.push(format!(".{name}"));
-            self.view_transitions[slot].attach(
+            self.view_transition_classes[slot].attach(
                 &contribution.view_transition_tokens,
                 &contribution.view_transition_names,
             );
@@ -216,7 +217,7 @@ impl<'a> ClassUnits<'a> {
     pub(super) fn finish(mut self) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileErrorKind> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
-        let base_declares = !self.view_transitions[0].is_empty();
+        let base_declares = !self.view_transition_classes[0].is_empty();
         if !self.base.utilities.is_empty() || base_declares {
             let branch = format!("0:{}", self.base.canonical);
             let canonical =
@@ -228,7 +229,7 @@ impl<'a> ClassUnits<'a> {
             // The base unit must precede every conditional unit in the stylesheet.
             deferred.extend(rules);
             self.class_selectors[0] = format!(".{name}");
-            let declarations = self.view_transitions[0].rules(&format!(".{name}"));
+            let declarations = self.view_transition_classes[0].rules(&format!(".{name}"));
             if !declarations.is_empty() {
                 deferred.push(CssContribution {
                     css: declarations,
@@ -249,7 +250,7 @@ impl<'a> ClassUnits<'a> {
         names.extend(std::mem::take(&mut self.base.names));
         for (slot, contribution) in std::mem::take(&mut self.runtime_css) {
             deferred.push(contribution);
-            if let Some(unit) = self.view_transitions.get(slot) {
+            if let Some(unit) = self.view_transition_classes.get(slot) {
                 let declarations = unit.rules(&self.class_selectors[slot]);
                 if !declarations.is_empty() {
                     deferred.push(CssContribution {
@@ -326,7 +327,7 @@ impl<'a> ClassUnits<'a> {
     /// # Errors
     ///
     /// Returns the host generator's failure for the utility class family.
-    pub(super) fn view_transition_unit(
+    pub(super) fn view_transition_class_unit(
         &mut self,
         tokens: &[String],
         names: &[String],

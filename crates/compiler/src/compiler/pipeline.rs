@@ -315,7 +315,7 @@ impl Compiler {
                     match identifiers
                         .view_transition_class(&named_declaration(source.path(), &transition.name))
                     {
-                        Ok(name) => format!("{{v:{}}}", name.javascript_string()),
+                        Ok(class) => format!("{{v:{}}}", class.javascript_string()),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, transition.call_span));
                             "undefined".to_owned()

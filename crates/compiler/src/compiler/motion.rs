@@ -104,19 +104,19 @@ pub(super) fn emit_view_transition_definition(
     diagnostics: &mut Vec<CompileError>,
 ) {
     let output = &mut contribution.css;
-    let name = match identifiers
+    let class = match identifiers
         .view_transition_class(&named_declaration(source.path(), &transition.name))
     {
-        Ok(name) => name,
+        Ok(class) => class,
         Err(failure) => {
             diagnostics.push(CompileError::new(failure, transition.call_span));
             return;
         }
     };
-    let name = name.selector();
+    let class = class.selector();
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
-        output.push_str(&name);
+        output.push_str(&class);
         output.push_str("){ ");
         output.push_str(&resolve_motion_options(group, theme, diagnostics));
         output.push('}');
@@ -131,7 +131,7 @@ pub(super) fn emit_view_transition_definition(
         };
         emit_view_transition_utilities(
             output,
-            &format!("::view-transition-{pseudo}({name})"),
+            &format!("::view-transition-{pseudo}({class})"),
             utilities,
             theme,
             diagnostics,

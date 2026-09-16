@@ -281,7 +281,7 @@ impl<'a> CallEmitter<'a> {
                     let names = static_view_transition_names(name, &token);
                     let class = match self
                         .units
-                        .view_transition_unit(std::slice::from_ref(&token), &names)
+                        .view_transition_class_unit(std::slice::from_ref(&token), &names)
                     {
                         Ok(class) => class,
                         Err(failure) => {
