@@ -29,8 +29,8 @@ const panel = style(popover.position, "absolute");"#,
     assert!(result.css.contains("anchor-name:--sw-r-"));
     assert!(result.css.contains("position-anchor:--sw-r-"));
     assert!(result.css.contains("anchor-scope:--sw-r-"));
-    // The anchor and container names are separate families of the same identity, so
-    // the ref marker reaches both through one declaration without sharing a spelling.
+    // The anchor and container names are separate families: both are written for the
+    // ref's identity, and each keeps its own namespace.
     assert!(result.css.contains("container-name:--sw-s-"));
     let hash_of = |prefix: &str| {
         let start = result.css.find(prefix).expect("declaration") + prefix.len();
@@ -38,9 +38,19 @@ const panel = style(popover.position, "absolute");"#,
         let end = rest.find([';', ':']).unwrap_or(rest.len());
         rest[..end].to_owned()
     };
+    let anchor = hash_of("anchor-name:--sw-r-");
+    let container = hash_of("container-name:--sw-s-");
+    assert!(!anchor.is_empty() && !container.is_empty());
+    // One declaration owns both names, so the marker reaches each of them.
     assert_eq!(
-        hash_of("anchor-name:--sw-r-"),
-        hash_of("container-name:--sw-s-")
+        result
+            .symbols
+            .iter()
+            .filter(|symbol| symbol.kind == "ref" || symbol.kind == "container")
+            .count(),
+        2,
+        "{:?}",
+        result.symbols
     );
     assert!(result.css.contains_css("container-type:inline-size;"));
     let transformed = result.apply_to_source(&component).unwrap();
@@ -172,22 +182,39 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("s_menu_"));
-    assert!(transformed.contains("s_trigger_"));
-    assert!(result.css.contains(".s_menu_"));
-    assert!(result.css.contains(":has(.s_trigger_"));
-    assert!(result.css.contains(":where(:hover)) ._s_"));
-    assert!(
+    // A label names a declaration for its author; the generated marker is the
+    // declaration's identity, so it carries no authored text.
+    let marker_of = |kind: &str| {
         result
             .symbols
             .iter()
-            .any(|symbol| symbol.kind == "scope-marker" && symbol.name.starts_with("s_menu_"))
+            .find(|symbol| symbol.kind == kind)
+            .unwrap_or_else(|| panic!("missing {kind}: {:?}", result.symbols))
+            .name
+            .clone()
+    };
+    let scope = marker_of("scope-marker");
+    let trigger = marker_of("ref-marker");
+    assert!(
+        scope.starts_with("s_") && !scope.contains("menu"),
+        "{scope}"
     );
     assert!(
-        result
-            .symbols
-            .iter()
-            .any(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with("s_trigger_"))
+        trigger.starts_with("s_") && !trigger.contains("trigger"),
+        "{trigger}"
+    );
+    assert!(transformed.contains(&scope), "{transformed}");
+    assert!(transformed.contains(&trigger), "{transformed}");
+    assert!(result.css.contains(&format!(".{scope}")), "{}", result.css);
+    assert!(
+        result.css.contains(&format!(":has(.{trigger}")),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains(":where(:hover)) ._s_"),
+        "{}",
+        result.css
     );
 }
 

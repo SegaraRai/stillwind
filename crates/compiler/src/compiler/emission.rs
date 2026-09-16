@@ -539,7 +539,7 @@ impl<'a> CallEmitter<'a> {
                 // The projection reads the declaration's canonical token, so the
                 // declaration has to keep its runtime value.
                 self.runtime_assets.insert(ref_identity(handle));
-                let anchor = match anchor_name(self.identifiers, handle) {
+                let anchor = match anchor_name(self.identifiers, handle, Some(name)) {
                     Ok(anchor) => anchor,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
@@ -621,7 +621,7 @@ impl<'a> CallEmitter<'a> {
                             return None;
                         }
                     };
-                    let anchor = match anchor_name(self.identifiers, handle) {
+                    let anchor = match anchor_name(self.identifiers, handle, Some("dynamic")) {
                         Ok(anchor) => anchor,
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);

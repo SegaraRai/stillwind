@@ -181,7 +181,6 @@ pub(crate) fn extract_theme_tokens(
         declaration_formats: BTreeMap::new(),
         relationship_patterns: BTreeSet::new(),
         authored_properties: BTreeSet::new(),
-
         config: StillwindConfig::default(),
     })
 }

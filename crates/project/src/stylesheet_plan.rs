@@ -235,7 +235,7 @@ fn rule_identifiers(css: &str) -> BTreeSet<String> {
 mod tests {
     use std::sync::Arc;
 
-    use stillwind_compiler::CompilerOptions;
+    use stillwind_compiler::{CompilerOptions, Identifiers};
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_ir::SourceAnalyzer;
     use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -257,8 +257,12 @@ mod tests {
             DesignSystemOptions::default(),
         )
         .unwrap();
-        let mut session =
-            ProjectSession::new(snapshot, SessionMode::Watch, CompilerOptions::default());
+        let mut session = ProjectSession::new(
+            snapshot,
+            SessionMode::Watch,
+            CompilerOptions::default(),
+            Identifiers::builtin(),
+        );
         for utility in ["'red'", "unknown"] {
             let source = SourceFile::new(
                 FileId(1),
@@ -283,8 +287,12 @@ mod tests {
             &SourceFile::new(FileId(0), "design.css", "body{margin:0}@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;").unwrap(),
             DesignSystemOptions::default(),
         ).unwrap();
-        let mut session =
-            ProjectSession::new(snapshot, SessionMode::Build, CompilerOptions::default());
+        let mut session = ProjectSession::new(
+            snapshot,
+            SessionMode::Build,
+            CompilerOptions::default(),
+            Identifiers::builtin(),
+        );
         for (index, name) in ["red", "blue"].iter().enumerate() {
             let source = SourceFile::new(
                 FileId(u32::try_from(index).unwrap() + 1),

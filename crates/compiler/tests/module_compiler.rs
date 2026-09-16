@@ -9,8 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompileResult, Compiler, CompilerOptions, GeneratedBody, GeneratorSet, IdentifierGenerator,
-    IdentifierKind, IdentifierMode, ModuleCompiler, SourceTransform, StylesheetRenderer,
+    ClassContext, CompileResult, Compiler, CompilerOptions, DeclarationContext, GeneratedName,
+    IdentifierGenerator, IdentifierKind, IdentifierMode, Identifiers, ModuleCompiler,
+    SourceTransform, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
@@ -399,8 +400,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
     let compile = |mode: IdentifierMode| {
         ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
-            .with_identifier_mode(mode)
-            .compile(&analysis)
+            .compile_with(&analysis, &Identifiers::builtin().in_mode(mode))
     };
     let development = compile(IdentifierMode::Development);
     assert!(development.is_success(), "{:?}", development.diagnostics);
@@ -427,21 +427,12 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
     );
 }
 
-/// Fails for every handled family and rejects bodies that are not canonical.
+/// Fails the utility class family.
 #[derive(Debug)]
 struct FailingGenerator;
 
 impl IdentifierGenerator for FailingGenerator {
-    fn handles(&self, _kind: IdentifierKind) -> bool {
-        true
-    }
-
-    fn generate(
-        &self,
-        _kind: IdentifierKind,
-        _input: &str,
-        _label: Option<&str>,
-    ) -> Result<GeneratedBody, String> {
+    fn utility_class(&self, _context: &ClassContext, _hash: &str) -> Result<GeneratedName, String> {
         Err("no name for this declaration".to_owned())
     }
 }
@@ -462,20 +453,19 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
     );
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
     let compile = |mode: IdentifierMode| {
+        let identifiers = Identifiers::with(Arc::new(FailingGenerator)).in_mode(mode);
         ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
-            .with_generators(GeneratorSet::new(Arc::new(FailingGenerator)))
-            .with_identifier_mode(mode)
-            .compile(&analysis)
+            .compile_with(&analysis, &identifiers)
     };
     let development = compile(IdentifierMode::Development);
     assert!(development.is_success(), "{:?}", development.diagnostics);
     assert!(
         development
-            .lint_findings
+            .rejected_names
             .iter()
-            .any(|finding| finding.code() == "rejected-identifier"),
+            .any(|rejected| rejected.kind == IdentifierKind::UtilityClass),
         "{:?}",
-        development.lint_findings
+        development.rejected_names
     );
     let class = development
         .symbols
@@ -488,24 +478,20 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
     assert!(release.symbols.is_empty());
 }
 
-/// Names every handled family with a fixed, readable body.
+/// Names the ref marker family with a fixed, readable body.
 #[derive(Debug)]
-struct FixedGenerator {
-    kinds: Vec<IdentifierKind>,
-}
+struct FixedGenerator;
 
 impl IdentifierGenerator for FixedGenerator {
-    fn handles(&self, kind: IdentifierKind) -> bool {
-        self.kinds.contains(&kind)
-    }
-
-    fn generate(
+    fn ref_marker(
         &self,
-        _kind: IdentifierKind,
-        input: &str,
-        _label: Option<&str>,
-    ) -> Result<GeneratedBody, String> {
-        Ok(GeneratedBody::new(format!("fixed{}", input.len())))
+        context: &DeclarationContext,
+        _hash: &str,
+    ) -> Result<GeneratedName, String> {
+        Ok(GeneratedName::body(format!(
+            "fixed{}",
+            context.binding.len()
+        )))
     }
 }
 
@@ -523,9 +509,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         )
         .unwrap(),
     );
-    let generators = GeneratorSet::new(Arc::new(FixedGenerator {
-        kinds: vec![IdentifierKind::RefMarker],
-    }));
+    let identifiers = Identifiers::with(Arc::new(FixedGenerator));
     let scan = OxcSourceAnalyzer.scan(Arc::clone(&source));
     let facts = TypeFacts {
         schema: TypeFacts::SCHEMA,
@@ -537,22 +521,25 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
     let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default())
-        .with_generators(generators)
-        .compile(&analysis);
+        .compile_with(&analysis, &identifiers);
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
     let marker = compiled
         .symbols
         .iter()
         .find(|symbol| symbol.kind == "ref-marker")
         .unwrap_or_else(|| panic!("{:?} {:?}", compiled.symbols, compiled.diagnostics));
-    assert!(marker.name.starts_with("s_fixed"), "{}", marker.name);
+    // A host body is written as returned, with no built-in marker prefix.
+    assert_eq!(marker.name, "fixed4", "{}", marker.name);
+    let replacement = compiled
+        .code_transforms
+        .iter()
+        .map(|transform| transform.replacement.as_str())
+        .find(|replacement| replacement.starts_with("{c:"))
+        .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
     assert!(
-        compiled
-            .code_transforms
-            .iter()
-            .any(|transform| transform.replacement.contains("{c:\"s_fixed36\"}")),
-        "{:?}",
-        compiled.code_transforms
+        replacement.contains(&marker.name),
+        "{replacement} does not name {}",
+        marker.name
     );
     let utility = compiled
         .symbols

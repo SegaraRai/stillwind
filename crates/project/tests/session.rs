@@ -9,8 +9,9 @@
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompilerOptions, GeneratedBody, GeneratedRule, GeneratorSet, IdentifierGenerator,
-    IdentifierKind, ModuleCssArtifact, RuleKey, StylesheetPlacement, StylesheetRenderer,
+    ClassContext, CompilerOptions, DeclarationContext, GeneratedName, GeneratedRule,
+    IdentifierGenerator, Identifiers, LocatorContext, ModuleCssArtifact, RuleKey,
+    StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -79,7 +80,12 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
         class_namespace: "first".into(),
         ..CompilerOptions::default()
     };
-    let mut session = ProjectSession::new(snapshot.clone(), SessionMode::Watch, options.clone());
+    let mut session = ProjectSession::new(
+        snapshot.clone(),
+        SessionMode::Watch,
+        options.clone(),
+        Identifiers::builtin(),
+    );
     session.update_module(module("button.tsx", "flex"));
     let before = session.artifacts()["button.tsx"].clone();
     let next = CompilerOptions {
@@ -121,6 +127,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         snapshot.clone(),
         SessionMode::Build,
         CompilerOptions::default(),
+        Identifiers::builtin(),
     );
     session.update_module(module("a.tsx", "bg-brand animate-spin ring-2"));
     let artifact = session.artifacts()["a.tsx"].clone();
@@ -163,7 +170,12 @@ fn call_identity_is_stable_and_module_and_namespace_specific() {
             options.design_system(),
         )
         .unwrap();
-        let mut session = ProjectSession::new(snapshot, SessionMode::Build, options);
+        let mut session = ProjectSession::new(
+            snapshot,
+            SessionMode::Build,
+            options,
+            Identifiers::builtin(),
+        );
         let analysis = module(path, "flex");
         let id = analysis.module_id.clone();
         session.update_module(analysis);
@@ -182,6 +194,7 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
         snapshot("red"),
         SessionMode::Watch,
         CompilerOptions::default(),
+        Identifiers::builtin(),
     );
     let pinned = session.snapshot();
     let base_css = session.css().unwrap();
@@ -235,7 +248,12 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
 #[test]
 fn failed_source_update_preserves_watch_artifact_but_not_build_artifact() {
     for mode in [SessionMode::Watch, SessionMode::Build] {
-        let mut session = ProjectSession::new(snapshot("red"), mode, CompilerOptions::default());
+        let mut session = ProjectSession::new(
+            snapshot("red"),
+            mode,
+            CompilerOptions::default(),
+            Identifiers::builtin(),
+        );
         session.update_module(module("a.tsx", "flex"));
         let dependencies = session.dependencies().clone();
         let mut invalid = module("a.tsx", "block");
@@ -264,6 +282,7 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
         snapshot("red"),
         SessionMode::Watch,
         CompilerOptions::default(),
+        Identifiers::builtin(),
     );
     session.update_module(module("a.tsx", "bg-brand"));
     let rules = session.artifacts()["a.tsx"].css.rules.as_ptr();
@@ -287,6 +306,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
         snapshot.clone(),
         SessionMode::Watch,
         CompilerOptions::default(),
+        Identifiers::builtin(),
     );
     for name in ["a.tsx", "b.tsx"] {
         let source = Arc::new(SourceFile::new(FileId(1), name,
@@ -319,7 +339,12 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
         session.dependencies().candidates["flex"],
         ["a.tsx".into()].into()
     );
-    let mut rebuilt = ProjectSession::new(snapshot, SessionMode::Watch, CompilerOptions::default());
+    let mut rebuilt = ProjectSession::new(
+        snapshot,
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::builtin(),
+    );
     for analysis in session.analyses().values() {
         rebuilt.update_module(analysis.clone());
     }
@@ -347,17 +372,12 @@ mod css_fixture;
 struct FixedKeyframesGenerator;
 
 impl IdentifierGenerator for FixedKeyframesGenerator {
-    fn handles(&self, kind: IdentifierKind) -> bool {
-        kind == IdentifierKind::KeyframesName
-    }
-
-    fn generate(
+    fn keyframes_name(
         &self,
-        _kind: IdentifierKind,
-        _input: &str,
-        _label: Option<&str>,
-    ) -> Result<GeneratedBody, String> {
-        Ok(GeneratedBody::new("authored"))
+        _context: &DeclarationContext,
+        _hash: &str,
+    ) -> Result<GeneratedName, String> {
+        Ok(GeneratedName::body("authored"))
     }
 }
 
@@ -371,8 +391,12 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
     .unwrap();
     let snapshot =
         DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
-    let mut session = ProjectSession::new(snapshot, SessionMode::Watch, CompilerOptions::default())
-        .with_generators(GeneratorSet::new(Arc::new(FixedKeyframesGenerator)));
+    let mut session = ProjectSession::new(
+        snapshot,
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::with(Arc::new(FixedKeyframesGenerator)),
+    );
     assert!(
         session
             .reserved_names()
@@ -401,38 +425,33 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
     );
 }
 
-/// Names every handled family with one fixed, readable body.
+/// Names the ref marker and anchor families with one fixed body.
 #[derive(Debug)]
-struct FixedBodyGenerator {
-    kinds: Vec<IdentifierKind>,
-}
+struct FixedBodyGenerator;
 
 impl IdentifierGenerator for FixedBodyGenerator {
-    fn handles(&self, kind: IdentifierKind) -> bool {
-        self.kinds.contains(&kind)
+    fn ref_marker(
+        &self,
+        _context: &DeclarationContext,
+        _hash: &str,
+    ) -> Result<GeneratedName, String> {
+        Ok(GeneratedName::body("shared"))
     }
 
-    fn generate(
-        &self,
-        _kind: IdentifierKind,
-        _input: &str,
-        _label: Option<&str>,
-    ) -> Result<GeneratedBody, String> {
-        Ok(GeneratedBody::new("shared"))
+    fn anchor_name(&self, _context: &LocatorContext, _hash: &str) -> Result<GeneratedName, String> {
+        Ok(GeneratedName::body("shared"))
     }
 }
 
 #[test]
 fn distinct_pools_may_publish_the_same_spelling() {
-    let generators = GeneratorSet::new(Arc::new(FixedBodyGenerator {
-        kinds: vec![IdentifierKind::AnchorName, IdentifierKind::RefMarker],
-    }));
+    let generators = Identifiers::with(Arc::new(FixedBodyGenerator));
     let mut session = ProjectSession::new(
         snapshot("red"),
         SessionMode::Watch,
         CompilerOptions::default(),
-    )
-    .with_generators(generators);
+        generators,
+    );
     let refs = OxcSourceAnalyzer.finalize(
         OxcSourceAnalyzer.scan(Arc::new(
             SourceFile::new(
@@ -467,17 +486,11 @@ fn distinct_pools_may_publish_the_same_spelling() {
 struct FixedClassGenerator;
 
 impl IdentifierGenerator for FixedClassGenerator {
-    fn handles(&self, kind: IdentifierKind) -> bool {
-        kind == IdentifierKind::UtilityClass
-    }
-
-    fn generate(
-        &self,
-        _kind: IdentifierKind,
-        input: &str,
-        _label: Option<&str>,
-    ) -> Result<GeneratedBody, String> {
-        Ok(GeneratedBody::new(format!("fixed{}", input.len())))
+    fn utility_class(&self, context: &ClassContext, _hash: &str) -> Result<GeneratedName, String> {
+        Ok(GeneratedName::body(format!(
+            "fixed{}",
+            context.branch.len()
+        )))
     }
 }
 
@@ -487,8 +500,8 @@ fn session_generators_name_generated_classes() {
         snapshot("red"),
         SessionMode::Watch,
         CompilerOptions::default(),
-    )
-    .with_generators(GeneratorSet::new(Arc::new(FixedClassGenerator)));
+        Identifiers::with(Arc::new(FixedClassGenerator)),
+    );
     assert!(
         session
             .update_module(module("button.tsx", "flex"))

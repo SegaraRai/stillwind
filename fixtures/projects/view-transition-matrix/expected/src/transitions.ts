@@ -7,7 +7,7 @@ export const compact = Date.now() % 2 === 0;
 export const transitionKey = "fixture-product";
 export const selectedTransition = compact ? pageTitle : pageCard;
 
-export const staticTransition = stillwindMerge({[stillwindClassKey]:"_s_dd456996"},{[stillwindStyleKey]:stillwindViewTransitionStyle(pageTitle,undefined,["--sw-v-7e58d129"],"--sw-vt-name","--sw-vt-class")});
-export const staticKeyedTransition = stillwindMerge({[stillwindClassKey]:"_s_4de531c3"},{[stillwindStyleKey]:stillwindViewTransitionStyle("--sw-v-7e58d129",transitionKey,["--sw-v-7e58d129"],"--sw-vt-name","--sw-vt-class")});
-export const conditionalTransition = stillwindMerge({[stillwindClassKey]:"_s_3977cd6f"},{[stillwindStyleKey]:stillwindViewTransitionStyle(selectedTransition,undefined,["--sw-v-7e58d129","--sw-v-5ce18560"],"--sw-vt-name","--sw-vt-class")});
-export const conditionalKeyedTransition = stillwindMerge({[stillwindClassKey]:"_s_bca849c5"},{[stillwindStyleKey]:stillwindViewTransitionStyle(selectedTransition,transitionKey,["--sw-v-7e58d129","--sw-v-5ce18560"],"--sw-vt-name","--sw-vt-class")});
+export const staticTransition = stillwindMerge({[stillwindClassKey]:"_s_c29d534e"},{[stillwindStyleKey]:stillwindViewTransitionStyle(pageTitle,undefined,["--sw-v-7e58d129"],"--sw-vt-name","--sw-vt-class")});
+export const staticKeyedTransition = stillwindMerge({[stillwindClassKey]:"_s_fb17aede"},{[stillwindStyleKey]:stillwindViewTransitionStyle("--sw-v-7e58d129",transitionKey,["--sw-v-7e58d129"],"--sw-vt-name","--sw-vt-class")});
+export const conditionalTransition = stillwindMerge({[stillwindClassKey]:"_s_46394631"},{[stillwindStyleKey]:stillwindViewTransitionStyle(selectedTransition,undefined,["--sw-v-7e58d129","--sw-v-5ce18560"],"--sw-vt-name","--sw-vt-class")});
+export const conditionalKeyedTransition = stillwindMerge({[stillwindClassKey]:"_s_b0348860"},{[stillwindStyleKey]:stillwindViewTransitionStyle(selectedTransition,transitionKey,["--sw-v-7e58d129","--sw-v-5ce18560"],"--sw-vt-name","--sw-vt-class")});

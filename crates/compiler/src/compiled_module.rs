@@ -17,7 +17,7 @@ use stillwind_source::{Fingerprint, SourceFile};
 use crate::transforms::apply_transforms;
 use crate::{
     CompileResult, CssContribution, GeneratedClass, GeneratedSymbol, ModuleCssArtifact,
-    SourceTransform, TransformError,
+    RejectedIdentifier, SourceTransform, TransformError,
 };
 
 /// A source-transform failure as reported by [`CompiledModule::apply_to_source`].
@@ -120,6 +120,8 @@ pub struct CompiledModule {
     pub classes: Vec<GeneratedClass>,
     /// Generated CSS identifiers with the identities they were allocated from.
     pub symbols: Vec<GeneratedSymbol>,
+    /// Names a host generator rejected, which the host may warn about.
+    pub rejected_names: Vec<RejectedIdentifier>,
     /// Errors that failed the compilation, if any.
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
@@ -176,6 +178,7 @@ impl CompiledModule {
             module_css,
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
+            rejected_names: Vec::new(),
             transforms: self.code_transforms.clone(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),

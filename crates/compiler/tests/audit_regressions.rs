@@ -110,14 +110,24 @@ fn punctuation_labels_produce_valid_javascript_strings() {
         .unwrap();
         assert!(parse(&source).diagnostics.is_empty(), "{}", source.text());
     }
-    // The label stays in the marker token, and the token is escaped where the selector
-    // and the anchor-name value are written.
-    assert!(result.css.contains(r#"s_d\"e\/f_"#), "{}", result.css);
-    assert!(result.css.contains(r#".s_d\"e\/f_"#), "{}", result.css);
+    // A label is an authoring hint: the built-in marker hashes the declaration, so the
+    // generated names stay free of authored punctuation.
+    assert!(!result.css.contains("d\"e"), "{}", result.css);
+    let marker = result
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == "ref-marker")
+        .expect("ref marker symbol");
+    assert!(marker.name.starts_with("s_"), "{}", marker.name);
+    assert!(
+        result.css.contains(&format!(".{}", marker.name)),
+        "{}",
+        result.css
+    );
 }
 
 #[test]
-fn unicode_and_punctuation_labels_share_dom_and_selector_names() {
+fn labels_never_reach_generated_names_or_css() {
     let (_, result) = compile(
         "const scope = style.scope('領域 :'); const ref = style.ref(scope, '項目 🧭'); \
          export const root = style(scope); export const item = style(ref); \
@@ -130,9 +140,13 @@ fn unicode_and_punctuation_labels_share_dom_and_selector_names() {
         .iter()
         .map(|edit| edit.replacement.as_str())
         .collect::<String>();
-    for (dom, css) in [("s_領域_:_", r"s_領域_\:_"), ("s_項目_🧭_", "s_項目_🧭_")] {
-        assert!(code.contains(dom), "{code}");
-        assert!(result.css.contains(css), "{}", result.css);
+    // A label names a declaration for its author; the compiler writes identities.
+    for authored in ["領域", "項目", "🧭"] {
+        assert!(!code.contains(authored), "{code}");
+        assert!(!result.css.contains(authored), "{}", result.css);
+    }
+    for symbol in &result.symbols {
+        assert!(symbol.name.is_ascii(), "{}", symbol.name);
     }
 }
 

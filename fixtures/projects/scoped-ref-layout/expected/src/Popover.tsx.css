@@ -1,30 +1,30 @@
-._s_07a47159 {
+._s_e50eb796 {
   anchor-scope: --sw-r-5c7d76f9;
 }
-._s_62f9b27b {
-  container-name: --sw-s-5c7d76f9;
+._s_8460dab9 {
+  container-name: --sw-s-5a6ad4de;
   container-type: inline-size;
 }
-._s_6afa1e8f {
+._s_2620a527 {
   position: relative;
   display: inline-flex;
 }
-._s_576a26bf {
+._s_acd7427c {
   anchor-name: --sw-r-5c7d76f9;
 }
-._s_0277c3bb {
+._s_bcee0b29 {
   position: absolute;
 }
 @container --sw-r-5c7d76f9 (width >= 40rem) {
-  ._s_0277c3bb {
+  ._s_bcee0b29 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (hover: hover) {
-  .s_menu_3523e441:has(.s_trigger_5c7d76f9:where(:hover)) ._s_0277c3bb {
+  .s_3523e441:has(.s_5c7d76f9:where(:hover)) ._s_bcee0b29 {
     color: var(--color-accent);
   }
 }
-._s_a4d34624 {
+._s_b31bddd5 {
   position-anchor: --sw-r-5c7d76f9;
 }

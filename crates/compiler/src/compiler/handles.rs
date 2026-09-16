@@ -19,7 +19,8 @@ use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, Modul
 use stillwind_source::{SourceFile, Spanned};
 
 use super::symbols::anchor_name;
-use super::symbols::{GeneratedSymbol, projection_symbol, ref_name_input};
+use super::symbols::{GeneratedSymbol, projection_symbol};
+use super::symbols::{identity_input_parts, ref_context};
 use crate::identifier::IdentifierPool;
 use crate::identifier::{IdentifierContext, custom_ident};
 
@@ -40,11 +41,11 @@ pub(super) fn render_handle_projection(
     projection: &HandleProjection,
     source_path: &str,
 ) -> Result<(String, Option<GeneratedSymbol>), stillwind_diagnostics::CompileErrorKind> {
-    let name = anchor_name(context, handle)?;
+    let name = anchor_name(context, handle, Some(projection_name(projection)))?;
     let symbol = |name: &str, pool: IdentifierPool, kind: &str| {
         Some(projection_symbol(
             name,
-            ref_name_input(handle),
+            identity_input_parts(&ref_context(handle, None)),
             pool,
             kind,
             source_path,
@@ -60,7 +61,7 @@ pub(super) fn render_handle_projection(
         HandleProjection::Position => (format!("position-anchor:{name};"), None),
         HandleProjection::Scope => (format!("anchor-scope:{name};"), None),
         HandleProjection::Container(kind) => {
-            let container = context.container_name(&ref_name_input(handle))?;
+            let container = context.container_name(&ref_context(handle, Some("container")))?;
             (
                 format!(
                     "container-name:{};container-type:{};",
@@ -69,7 +70,7 @@ pub(super) fn render_handle_projection(
                 ),
                 Some(projection_symbol(
                     &container,
-                    ref_name_input(handle),
+                    identity_input_parts(&ref_context(handle, None)),
                     IdentifierPool::ContainerName,
                     "container",
                     source_path,
@@ -80,7 +81,19 @@ pub(super) fn render_handle_projection(
     })
 }
 
-/// Identity of a ref declaration, spanning its name token.
+/// The projection name one written anchor or container name belongs to.
+///
+/// A ref can be projected into several roles, and the projection is part of the context
+/// a generator may use; it is not part of the identity.
+fn projection_name(projection: &HandleProjection) -> &'static str {
+    match projection {
+        HandleProjection::Anchor => "anchor",
+        HandleProjection::Position => "position",
+        HandleProjection::Scope => "scope",
+        HandleProjection::Container(_) => "container",
+    }
+}
+
 pub(super) fn ref_identity(handle: &HandleDefinition) -> IdentityId {
     IdentityId::new(
         AssetKind::Ref,
@@ -212,7 +225,10 @@ mod tests {
         let reference = anchor.strip_prefix("anchor-name:").unwrap();
         let anchor_symbol = anchor_symbol.expect("anchor name symbol");
         assert_eq!(anchor_symbol.pool, IdentifierPool::AnchorName);
-        assert_eq!(anchor_symbol.identity, ref_name_input(&handle));
+        assert_eq!(
+            anchor_symbol.identity,
+            identity_input_parts(&ref_context(&handle, None))
+        );
         let (position, _) =
             render_handle_projection(&identifiers, &handle, &HandleProjection::Position, "x")
                 .unwrap();
@@ -232,10 +248,14 @@ mod tests {
             .strip_prefix("container-name:")
             .and_then(|rest| rest.strip_suffix("container-type:size;"))
             .expect("container declaration");
-        assert_eq!(container_name, format!("--sw-s-{}", &reference[7..]));
+        assert!(container_name.starts_with("--sw-s-"), "{container_name}");
+        assert_ne!(container_name, reference);
         let container_symbol = container_symbol.expect("container name symbol");
         assert_eq!(container_symbol.pool, IdentifierPool::ContainerName);
-        assert_eq!(container_symbol.identity, ref_name_input(&handle));
+        assert_eq!(
+            container_symbol.identity,
+            identity_input_parts(&ref_context(&handle, None))
+        );
         handle.scope = Some(ScopeDefinition {
             module_path: "x".into(),
             name: name.clone(),
@@ -243,11 +263,10 @@ mod tests {
             call_span: name.span,
         });
         let scope = scope_marker_name(&identifiers, handle.scope.as_ref().unwrap()).unwrap();
-        assert!(scope.starts_with("s_ref_"));
+        assert!(scope.starts_with("s_"), "{scope}");
         handle.label = Some(name);
-        assert_eq!(
-            ref_marker_name(&identifiers, &handle).unwrap(),
-            marker.replacen("s_", "s_ref_", 1)
-        );
+        // The built-in name hashes the declaration alone, so a label cannot move it:
+        // every position the marker is written to resolves the same declaration.
+        assert_eq!(ref_marker_name(&identifiers, &handle).unwrap(), marker);
     }
 }

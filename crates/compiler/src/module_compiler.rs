@@ -22,8 +22,7 @@ use stillwind_source::Fingerprint;
 
 use crate::{
     CompilationDependencies, CompileResult, CompiledModule, Compiler, CompilerOptions,
-    GeneratorSet, IdentifierContext, IdentifierMode, ModuleArtifactKey, ModuleCssArtifact,
-    ModuleResourceReference,
+    IdentifierContext, Identifiers, ModuleArtifactKey, ModuleCssArtifact, ModuleResourceReference,
 };
 
 /// Compiles module analyses against one immutable design system.
@@ -33,8 +32,6 @@ pub struct ModuleCompiler {
     design_system: DesignSystemSnapshot,
     /// Compiler configuration included in artifact identity.
     options: CompilerOptions,
-    /// Name allocation shared by every module this compiler compiles.
-    identifiers: IdentifierContext,
 }
 
 impl ModuleCompiler {
@@ -47,31 +44,7 @@ impl ModuleCompiler {
         Self {
             design_system,
             options,
-            identifiers: IdentifierContext::builtin(),
         }
-    }
-
-    /// Returns the same compiler with `generators` supplying the generated names.
-    ///
-    /// Generators are not part of [`CompilerOptions`], because options must stay a
-    /// plain serializable configuration; a host that supplies generators pairs them
-    /// with a matching [`CompilerOptions::naming_revision`] so cached artifacts are
-    /// not reused across naming changes.
-    #[must_use]
-    pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
-        self.identifiers = IdentifierContext::in_mode(generators, self.identifiers.mode());
-        self
-    }
-
-    /// Returns the same compiler with `mode` deciding how rejected names are handled.
-    ///
-    /// The mode is a compilation input, not a configuration value, so it is not part of
-    /// [`CompilerOptions`] or of an artifact key. A host must keep artifacts and its own
-    /// persistent caches for one mode separate from the other.
-    #[must_use]
-    pub fn with_identifier_mode(mut self, mode: IdentifierMode) -> Self {
-        self.identifiers = IdentifierContext::in_mode(self.identifiers.generators().clone(), mode);
-        self
     }
 
     /// The snapshot this compiler was created with.
@@ -130,13 +103,17 @@ impl ModuleCompiler {
     ///
     /// Support modules contribute declaration CSS and symbols, with resources owned by
     /// their own source paths. Their source transforms are not returned here.
-    fn compile_support_closure(&self, module: &ModuleAnalysis) -> CompileResult {
+    fn compile_support_closure(
+        &self,
+        module: &ModuleAnalysis,
+        identifiers: &IdentifierContext,
+    ) -> CompileResult {
         let mut result = Compiler::compile_with_snapshot(
             &module.source,
             module,
             &self.design_system,
             &self.options,
-            &self.identifiers,
+            identifiers,
         );
         self.capture_resources(&mut result, module.source.path());
         for support in &module.asset_support {
@@ -145,15 +122,19 @@ impl ModuleCompiler {
                 support,
                 &self.design_system,
                 &self.options,
-                &self.identifiers,
+                identifiers,
             );
             self.capture_resources(&mut compiled, support.source.path());
             result.module_css.push_str(&compiled.module_css);
             result.contributions.extend(compiled.contributions);
             result.resources.extend(compiled.resources);
             result.symbols.extend(compiled.symbols);
+            result.rejected_names.extend(compiled.rejected_names);
             result.diagnostics.extend(compiled.diagnostics);
         }
+        result
+            .rejected_names
+            .extend(identifiers.drain_rejected().into_entries());
         result
     }
 
@@ -213,8 +194,21 @@ impl ModuleCompiler {
     /// errors before any CSS is split, and the CSS artifact is empty as long as any
     /// diagnostic remains: a failed module must not hand half an artifact to the
     /// project layer.
+    /// Compiles one module with the built-in names.
+    ///
+    /// A host that supplies generators uses [`Self::compile_with`].
     pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
-        let result = self.compile_support_closure(module);
+        self.compile_with(module, &Identifiers::builtin())
+    }
+
+    /// Compiles one module with explicit naming inputs.
+    pub fn compile_with(
+        &self,
+        module: &ModuleAnalysis,
+        identifiers: &Identifiers,
+    ) -> CompiledModule {
+        let identifiers = identifiers.context();
+        let result = self.compile_support_closure(module, &identifiers);
         let mut diagnostics = result.diagnostics;
         diagnostics.extend(
             module
@@ -287,6 +281,7 @@ impl ModuleCompiler {
             css,
             classes: if success { result.classes } else { Vec::new() },
             symbols: if success { result.symbols } else { Vec::new() },
+            rejected_names: result.rejected_names,
             diagnostics,
             lint_findings: result.lint_findings,
             dependencies,

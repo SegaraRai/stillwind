@@ -217,7 +217,8 @@ impl StyleVariantPlan {
         let conditions = handles
             .iter()
             .map(|handle| {
-                anchor_name(context, handle).map(|name| format!("{name} ({})", query.value))
+                anchor_name(context, handle, Some("container"))
+                    .map(|name| format!("{name} ({})", query.value))
             })
             .collect::<Result<Vec<_>, _>>();
         let conditions = match conditions {

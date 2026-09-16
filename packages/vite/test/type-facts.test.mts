@@ -125,7 +125,7 @@ void test("TypeScript is required for cross-module conditional handle propagatio
   const consumer = withFacts.modules.find((module) => module.path === "src/consumer.ts");
   assert(consumer);
   assert.deepEqual(consumer.diagnostics, []);
-  assert.match(consumer.code, /}\)\[selected\.c\]/);
+  assert.match(consumer.code, /\(\(selected\)\.c\)/);
   assert.match(consumer.code, /stillwindAssetClass\(selectedAnimation\("infinite"\)/);
   assert.match(consumer.code, /stillwindViewTransitionStyle\(selectedTransition,undefined/);
   assert.match(consumer.code, /stillwindViewTransitionStyle\("--sw-v-[^"]+",transitionKey/);

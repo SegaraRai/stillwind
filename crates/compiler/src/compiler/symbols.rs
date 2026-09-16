@@ -16,6 +16,8 @@ use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
+use super::handles::{ref_identity, scope_identity};
+use crate::identifier::{ClassContext, DeclarationContext, LocatorContext, marker_label};
 use crate::identifier::{IdentifierContext, IdentifierPool};
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
@@ -53,9 +55,46 @@ pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static 
     }
 }
 
-/// Canonical identity input of a ref declaration's generated names.
-pub(super) fn ref_name_input(definition: &HandleDefinition) -> String {
-    asset_identity(&definition.module_path, "ref", &definition.name)
+/// The declaration fields a ref's generated names are built from.
+pub(super) fn ref_context(
+    definition: &HandleDefinition,
+    projection: Option<&str>,
+) -> LocatorContext {
+    LocatorContext {
+        module: normalized_module_path(&definition.module_path),
+        start: definition.name.span.start.0,
+        end: definition.name.span.end.0,
+        binding: definition.name.value.clone(),
+        projection: projection.map(str::to_owned),
+    }
+}
+
+/// The declaration fields a ref marker is built from, including its label.
+pub(super) fn ref_declaration_context(definition: &HandleDefinition) -> DeclarationContext {
+    DeclarationContext {
+        module: normalized_module_path(&definition.module_path),
+        start: definition.name.span.start.0,
+        end: definition.name.span.end.0,
+        binding: definition.name.value.clone(),
+        label: definition
+            .label
+            .as_ref()
+            .map(|label| marker_label(&label.value)),
+    }
+}
+
+/// The declaration fields a scope marker or container name is built from.
+pub(super) fn scope_declaration_context(definition: &ScopeDefinition) -> DeclarationContext {
+    DeclarationContext {
+        module: normalized_module_path(&definition.module_path),
+        start: definition.name.span.start.0,
+        end: definition.name.span.end.0,
+        binding: definition.name.value.clone(),
+        label: definition
+            .label
+            .as_ref()
+            .map(|label| marker_label(&label.value)),
+    }
 }
 
 /// Generated ref marker class token for one declaration.
@@ -67,15 +106,21 @@ pub(crate) fn ref_marker_name(
     context: &IdentifierContext,
     definition: &HandleDefinition,
 ) -> Result<String, CompileErrorKind> {
-    context.ref_marker_name(
-        &ref_name_input(definition),
-        definition.label.as_ref().map(|label| label.value.as_str()),
-    )
+    context.ref_marker_name(&ref_declaration_context(definition))
 }
 
-/// Canonical identity input of a scope declaration's generated names.
-pub(super) fn scope_name_input(definition: &ScopeDefinition) -> String {
-    asset_identity(&definition.module_path, "scope", &definition.name)
+/// The declaration fields a scope's generated names are built from.
+pub(super) fn scope_context(
+    definition: &ScopeDefinition,
+    projection: Option<&str>,
+) -> LocatorContext {
+    LocatorContext {
+        module: normalized_module_path(&definition.module_path),
+        start: definition.name.span.start.0,
+        end: definition.name.span.end.0,
+        binding: definition.name.value.clone(),
+        projection: projection.map(str::to_owned),
+    }
 }
 
 /// Generated scope marker class token for one declaration, without a leading dot.
@@ -87,10 +132,7 @@ pub(crate) fn scope_marker_name(
     context: &IdentifierContext,
     definition: &ScopeDefinition,
 ) -> Result<String, CompileErrorKind> {
-    context.scope_marker_name(
-        &scope_name_input(definition),
-        definition.label.as_ref().map(|label| label.value.as_str()),
-    )
+    context.scope_marker_name(&scope_declaration_context(definition))
 }
 
 /// Generated `anchor-name` for a ref declaration's identity.
@@ -101,8 +143,9 @@ pub(crate) fn scope_marker_name(
 pub(crate) fn anchor_name(
     context: &IdentifierContext,
     definition: &HandleDefinition,
+    projection: Option<&str>,
 ) -> Result<String, CompileErrorKind> {
-    context.anchor_name(&ref_name_input(definition))
+    context.anchor_name(&ref_context(definition, projection))
 }
 
 /// Generated `container-name` for a scope declaration's identity.
@@ -114,7 +157,7 @@ pub(super) fn container_name(
     context: &IdentifierContext,
     definition: &ScopeDefinition,
 ) -> Result<String, CompileErrorKind> {
-    context.container_name(&scope_name_input(definition))
+    context.container_name(&scope_context(definition, None))
 }
 
 /// Identity string for a declaration inside one source file.
@@ -183,13 +226,36 @@ pub(super) fn motion_name(
     kind: AssetKind,
     definition: &Spanned<String>,
 ) -> Result<String, CompileErrorKind> {
-    let identity = asset_identity(module_path, kind_name(kind), definition);
+    let declaration = DeclarationContext {
+        module: normalized_module_path(module_path),
+        start: definition.span.start.0,
+        end: definition.span.end.0,
+        binding: definition.value.clone(),
+        label: None,
+    };
     match kind {
-        AssetKind::Animation => context.animation_name(&identity),
-        AssetKind::ViewTransition => context.view_transition_name(&identity),
-        AssetKind::Style => context.class_name(&identity),
-        AssetKind::Ref => context.anchor_name(&identity),
-        AssetKind::Scope => context.container_name(&identity),
+        AssetKind::Animation => context.animation_name(&declaration),
+        AssetKind::ViewTransition => context.view_transition_name(&declaration),
+        AssetKind::Style => context.class_name(&ClassContext {
+            module: declaration.module.clone(),
+            namespace: String::new(),
+            call: declaration.start,
+            branch: declaration.binding.clone(),
+        }),
+        AssetKind::Ref => context.anchor_name(&LocatorContext {
+            module: declaration.module.clone(),
+            start: declaration.start,
+            end: declaration.end,
+            binding: declaration.binding.clone(),
+            projection: None,
+        }),
+        AssetKind::Scope => context.container_name(&LocatorContext {
+            module: declaration.module.clone(),
+            start: declaration.start,
+            end: declaration.end,
+            binding: declaration.binding.clone(),
+            projection: None,
+        }),
     }
 }
 
@@ -227,9 +293,9 @@ pub(super) fn generated_ref_symbol(
     context: &IdentifierContext,
     definition: &HandleDefinition,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
-    let identity = ref_name_input(definition);
+    let identity = identity_input(&ref_identity(definition));
     Ok(GeneratedSymbol {
-        name: anchor_name(context, definition)?,
+        name: anchor_name(context, definition, None)?,
         kind: "ref".to_owned(),
         pool: IdentifierPool::AnchorName,
         identity,
@@ -248,7 +314,7 @@ pub(super) fn generated_scope_symbol(
     context: &IdentifierContext,
     definition: &ScopeDefinition,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
-    let identity = scope_name_input(definition);
+    let identity = identity_input(&scope_identity(definition));
     Ok(GeneratedSymbol {
         name: container_name(context, definition)?,
         kind: "scope".to_owned(),
@@ -359,18 +425,16 @@ pub(super) fn motion_symbol_name(
     identity: &IdentityId,
     kind: AssetKind,
 ) -> Result<String, CompileErrorKind> {
-    let identity_input = identity_input(identity);
-    match kind {
-        AssetKind::Animation => context.animation_name(&identity_input),
-        AssetKind::ViewTransition => context.view_transition_name(&identity_input),
-        AssetKind::Style => context.class_name(&identity_input),
-        AssetKind::Ref => context.anchor_name(&identity_input),
-        AssetKind::Scope => context.container_name(&identity_input),
-    }
+    let name = identity.binding_name.clone();
+    let span = Spanned::new(
+        name,
+        Span::new(stillwind_source::FileId(0), identity.start, identity.end),
+    );
+    motion_name(context, &identity.module_path, kind, &span)
 }
 
 /// Canonical identity input for a declaration's generated names.
-fn identity_input(identity: &IdentityId) -> String {
+pub(super) fn identity_input(identity: &IdentityId) -> String {
     format!(
         "stillwind/v1\0{}\0{}\0{}:{}:{}",
         normalized_module_path(&identity.module_path),
@@ -381,7 +445,17 @@ fn identity_input(identity: &IdentityId) -> String {
     )
 }
 
-/// Builds the reportable symbol for a written anchor or container name.
+/// Canonical identity text for one declaration's fields, in the versioned spelling.
+///
+/// The identity is what a symbol report compares, so it must not depend on the family
+/// it was written for.
+pub(super) fn identity_input_parts(context: &LocatorContext) -> String {
+    format!(
+        "stillwind/v1\0{}\0ref\0{}:{}:{}",
+        context.module, context.start, context.end, context.binding,
+    )
+}
+
 ///
 /// Both `anchor_name` and `container_name` are written for one declaration's identity,
 /// and the same declaration may be written many times, so the pipeline drops repeated
@@ -415,6 +489,12 @@ mod tests {
     #[test]
     fn identities_normalize_paths_and_class_names_are_content_stable() {
         let identifiers = IdentifierContext::builtin();
+        let class = |branch: &str| ClassContext {
+            module: "src/x.tsx".to_owned(),
+            namespace: String::new(),
+            call: 0,
+            branch: branch.to_owned(),
+        };
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 2, 5));
         assert_eq!(
             asset_identity(r"src\x.tsx", "ref", &name),
@@ -425,14 +505,19 @@ mod tests {
             asset_identity("src/y.tsx", "ref", &name)
         );
         assert_eq!(
-            identifiers.class_name("flex"),
-            identifiers.class_name("flex")
+            identifiers.class_name(&class("flex")),
+            identifiers.class_name(&class("flex"))
         );
         assert_ne!(
-            identifiers.class_name("flex"),
-            identifiers.class_name("grid")
+            identifiers.class_name(&class("flex")),
+            identifiers.class_name(&class("grid"))
         );
-        assert!(identifiers.class_name("flex").unwrap().starts_with("_s_"));
+        assert!(
+            identifiers
+                .class_name(&class("flex"))
+                .unwrap()
+                .starts_with("_s_")
+        );
     }
 
     #[test]

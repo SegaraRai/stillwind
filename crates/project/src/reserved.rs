@@ -3,12 +3,14 @@
 //! [`ReservedNames`] collects what a stylesheet already declares in the namespaces the
 //! compiler allocates names in. Generated identifiers are checked against these, so a
 //! generated name can never silently change the meaning of an authored declaration or
-//! reference. Names are stored in the canonical spelling the pools compare: CSS escapes
-//! are decoded, so `--a\:b` and an unescaped `--a:b` are one reservation.
+//! reference. Names are stored in the canonical spelling the pools compare, which is the
+//! decoded one the CSS tokenizer already produces.
 //!
-//! The scan is deliberately lexical and conservative: it reads declarations, `var()`
-//! references, `@layer` statements and blocks, and `@keyframes` names. It does not
-//! resolve imports, which the caller does before scanning, and it does not attempt to
+//! The scan is a token walk, not a text search: `cssparser` splits the stylesheet into
+//! tokens, so a comment or a string can never be mistaken for a declaration, and escapes
+//! are decoded for free. It reads custom property declarations, `var()` references,
+//! `@property` registrations, `@layer` statements and blocks, and `@keyframes` names.
+//! It does not resolve imports, which the caller does before scanning, and it does not
 //! interpret values.
 //!
 //! TODO: CSS a module authors rather than imports is not scanned here. The compiler
@@ -17,10 +19,12 @@
 
 use std::collections::BTreeSet;
 
+use cssparser::{ParseError, Parser, Token};
+
 /// Names one document already uses, by CSS namespace.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ReservedNames {
-    /// Custom property names, including the leading `--`, from declarations,
+    /// Custom property names, including the leading double hyphen, from declarations,
     /// `var()` references, and `@property` registrations.
     pub custom_properties: BTreeSet<String>,
     /// `@layer` names, both statement and block forms.
@@ -37,189 +41,118 @@ impl ReservedNames {
 
     /// Reserves every name `css` uses.
     ///
-    /// Repeated scans accumulate; a name already reserved is kept once.
+    /// Repeated scans accumulate; a name already reserved is kept once. An unparsable
+    /// region ends the walk instead of guessing, because a wrong reservation is worse
+    /// than a missing one: it would rename a name the host chose.
     pub fn collect(&mut self, css: &str) {
-        let bytes = css.as_bytes();
-        let mut cursor = 0;
-        while cursor < bytes.len() {
-            let rest = &css[cursor..];
-            if rest.starts_with("/*") {
-                cursor += rest.find("*/").map_or(rest.len(), |end| end + 2);
-                continue;
+        let mut parser = Parser::new(css);
+        walk(self, &mut parser, true);
+    }
+}
+
+/// Walks one stylesheet, rule body, or declaration body.
+///
+/// `at_declaration` is true where a custom property name may appear: at the start of a
+/// rule body and after every semicolon. Anywhere else a leading double hyphen is part of
+/// a value, such as the subtraction in `calc(1px - -2px)`, and is ignored.
+fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaration: bool) {
+    loop {
+        let Ok(token) = parser.next() else {
+            return;
+        };
+        match token {
+            Token::Ident(name) => {
+                if at_declaration && is_custom_property(name) {
+                    reserved.custom_properties.insert(name.to_string());
+                }
+                at_declaration = false;
             }
-            if bytes[cursor] == b'\'' || bytes[cursor] == b'"' {
-                cursor = skip_string(css, cursor);
-                continue;
+            Token::Semicolon => at_declaration = true,
+            Token::CurlyBracketBlock => {
+                let _ = parser.parse_nested_block(|body| {
+                    walk(reserved, body, true);
+                    Ok::<(), ParseError<()>>(())
+                });
             }
-            if rest.starts_with("--") {
-                let (name, next) = read_custom_property(css, cursor);
-                self.custom_properties.insert(name);
-                cursor = next;
-                continue;
+            Token::ParenthesisBlock | Token::SquareBracketBlock => {
+                let _ = parser.parse_nested_block(|body| {
+                    walk(reserved, body, false);
+                    Ok::<(), ParseError<()>>(())
+                });
             }
-            if let Some((keyword, next)) = at_keyword(css, cursor) {
-                match keyword.as_str() {
-                    "layer" => {
-                        let (names, next) = read_layer_names(css, next);
-                        self.layers.extend(names);
-                        cursor = next;
-                    }
+            Token::AtKeyword(name) => {
+                let name = name.to_ascii_lowercase();
+                match name.as_ref() {
+                    "layer" => collect_layer(reserved, parser),
                     "keyframes" => {
-                        let (name, next) = read_ident(css, next);
-                        if !name.is_empty() {
-                            self.keyframes.insert(name);
+                        if let Ok(name) = parser.expect_ident_cloned() {
+                            reserved.keyframes.insert(name.to_string());
                         }
-                        cursor = next;
                     }
                     "property" => {
-                        // A registration names the property it describes.
-                        let (name, next) = read_custom_property(css, next);
-                        if name.starts_with("--") {
-                            self.custom_properties.insert(name);
+                        if let Ok(Token::Ident(name)) = parser.next()
+                            && is_custom_property(name)
+                        {
+                            reserved.custom_properties.insert(name.to_string());
                         }
-                        cursor = next;
                     }
-                    _ => cursor = next,
+                    _ => {}
                 }
-                continue;
+                at_declaration = true;
             }
-            cursor += next_char_len(css, cursor);
+            Token::Function(name) if name.eq_ignore_ascii_case("var") => {
+                let _ = parser.parse_nested_block(|arguments| {
+                    if let Ok(Token::Ident(name)) = arguments.next()
+                        && is_custom_property(name)
+                    {
+                        reserved.custom_properties.insert(name.to_string());
+                    }
+                    walk(reserved, arguments, false);
+                    Ok::<(), ParseError<()>>(())
+                });
+                at_declaration = false;
+            }
+            Token::Function(_) => {
+                let _ = parser.parse_nested_block(|arguments| {
+                    walk(reserved, arguments, false);
+                    Ok::<(), ParseError<()>>(())
+                });
+                at_declaration = false;
+            }
+            _ => at_declaration = false,
         }
     }
 }
 
-/// Reads the `@name` at `cursor`, returning the lowercase keyword and the next offset.
-fn at_keyword(css: &str, cursor: usize) -> Option<(String, usize)> {
-    let rest = &css[cursor..];
-    if !rest.starts_with('@') {
-        return None;
-    }
-    let (name, next) = read_ident(css, cursor + 1);
-    let start = css[cursor..next].len() + cursor;
-    let mut end = next;
-    while end < css.len() && css.as_bytes()[end].is_ascii_whitespace() {
-        end += 1;
-    }
-    let _ = start;
-    Some((name.to_ascii_lowercase(), end))
-}
-
-/// Reads one identifier, decoding escapes, and returns it with the next offset.
-fn read_ident(css: &str, cursor: usize) -> (String, usize) {
-    let mut name = String::new();
-    let mut offset = cursor;
-    let bytes = css.as_bytes();
-    while offset < bytes.len() {
-        let Some(character) = css[offset..].chars().next() else {
-            break;
-        };
-        if character == '\\' {
-            let (decoded, next) = decode_escape(css, offset);
-            name.push_str(&decoded);
-            offset = next;
-            continue;
-        }
-        if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
-            name.push(character);
-            offset += character.len_utf8();
-            continue;
-        }
-        if !name.is_empty() && character as u32 > 0x7f && !character.is_whitespace() {
-            // Non-ASCII identifier characters stay verbatim; CSS does not require
-            // escaping them, so they compare equal to an authored spelling.
-            name.push(character);
-            offset += character.len_utf8();
-            continue;
-        }
-        break;
-    }
-    (name, offset)
-}
-
-/// Reads a custom property name including its `--`, or an empty string.
-fn read_custom_property(css: &str, cursor: usize) -> (String, usize) {
-    let (name, next) = read_ident(css, cursor);
-    if name.starts_with("--") && name.len() > 2 {
-        (name, next)
-    } else {
-        (String::new(), next)
-    }
-}
-
-/// Reads the comma-separated layer names of a statement or block.
-fn read_layer_names(css: &str, cursor: usize) -> (Vec<String>, usize) {
-    let mut names = Vec::new();
-    let mut offset = cursor;
+/// Reads the names of a `@layer` statement or block and walks its body.
+///
+/// A statement carries a comma-separated list and ends at its semicolon; a block carries
+/// names followed by rules.
+fn collect_layer(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
+    let mut next = true;
     loop {
-        while offset < css.len() && css.as_bytes()[offset].is_ascii_whitespace() {
-            offset += 1;
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {}
+            Ok(Token::Ident(name)) if next => {
+                reserved.layers.insert(name.to_string());
+                next = false;
+            }
+            Ok(Token::Comma) if !next => next = true,
+            Ok(Token::CurlyBracketBlock) => {
+                let _ = parser.parse_nested_block(|body| {
+                    walk(reserved, body, true);
+                    Ok::<(), ParseError<()>>(())
+                });
+                return;
+            }
+            _ => return,
         }
-        if offset < css.len() && css[offset..].starts_with("/*") {
-            let rest = &css[offset..];
-            offset += rest.find("*/").map_or(rest.len(), |end| end + 2);
-            continue;
-        }
-        let (name, next) = read_ident(css, offset);
-        if name.is_empty() {
-            break;
-        }
-        names.push(name);
-        offset = next;
-        while offset < css.len() && css.as_bytes()[offset].is_ascii_whitespace() {
-            offset += 1;
-        }
-        if offset < css.len() && css.as_bytes()[offset] == b',' {
-            offset += 1;
-            continue;
-        }
-        break;
-    }
-    (names, offset)
-}
-
-/// Decodes one CSS escape, returning the text it stands for and the next offset.
-fn decode_escape(css: &str, cursor: usize) -> (String, usize) {
-    let bytes = css.as_bytes();
-    let mut offset = cursor + 1;
-    if offset >= bytes.len() {
-        return (String::new(), offset);
-    }
-    if bytes[offset].is_ascii_hexdigit() {
-        let start = offset;
-        while offset < bytes.len() && offset - start < 6 && bytes[offset].is_ascii_hexdigit() {
-            offset += 1;
-        }
-        let value = u32::from_str_radix(&css[start..offset], 16).unwrap_or(0xfffd);
-        while offset < bytes.len() && bytes[offset].is_ascii_whitespace() {
-            offset += 1;
-        }
-        let character = char::from_u32(value).unwrap_or('\u{fffd}');
-        return (character.to_string(), offset);
-    }
-    match css[offset..].chars().next() {
-        Some(character) => (character.to_string(), offset + character.len_utf8()),
-        None => (String::new(), offset),
     }
 }
 
-/// Skips a quoted string, returning the offset just past its closing quote.
-fn skip_string(css: &str, cursor: usize) -> usize {
-    let bytes = css.as_bytes();
-    let quote = bytes[cursor];
-    let mut offset = cursor + 1;
-    while offset < bytes.len() {
-        match bytes[offset] {
-            b'\\' => offset += 2,
-            character if character == quote => return offset + 1,
-            _ => offset += 1,
-        }
-    }
-    offset
-}
-
-/// Byte length of the character at `cursor`.
-fn next_char_len(css: &str, cursor: usize) -> usize {
-    css[cursor..].chars().next().map_or(1, char::len_utf8)
+/// Whether a token names a custom property, which always starts with two hyphens.
+fn is_custom_property(name: &str) -> bool {
+    name.starts_with("--") && name.len() > 2
 }
 
 #[cfg(test)]
@@ -293,6 +226,20 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec!["--sw-registered".to_owned()]
+        );
+    }
+
+    #[test]
+    fn keeps_the_declaration_position_after_nested_rules() {
+        let mut reserved = ReservedNames::default();
+        reserved.collect(".x{ @media print { --sw-print: 1; } --sw-after: 2; }");
+        assert_eq!(
+            reserved
+                .custom_properties
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec!["--sw-after".to_owned(), "--sw-print".to_owned()]
         );
     }
 }

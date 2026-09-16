@@ -10,38 +10,38 @@ reach descendants. Keep this declaration slot inside the selector rule.
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }
-._s_465c1769 {
+._s_9ee3cee6 {
   display: grid;
   height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);
   width: if(style(--enabled): 120px;else: 60px);
   opacity: calc(100 * 1%);
 }
-@supports (color: revert-rule) and (--sw-if-rule-01668d4f8ca15da8: 0) {
-  ._s_465c1769 {
+@supports (color: revert-rule) and (--sw-if-rule-b9a390760cd1c1fa: 0) {
+  ._s_9ee3cee6 {
     display: if(style(--enabled): flex;else: revert-rule);
   }
 }
-@supports (color: revert-rule) and (--sw-if-rule-aa4653a592b32dff: 0) {
-  ._s_465c1769 {
+@supports (color: revert-rule) and (--sw-if-rule-09b13ebcd4ec0d08: 0) {
+  ._s_9ee3cee6 {
     --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);
     opacity: if(style(--sw-if-gate-b43b4071a90424a4): calc(50 * 1%) ;else: revert-rule) !important;
   }
 }
-._s_f8c0af1e {
+._s_8fde1294 {
   display: grid;
   width: if(style(--enabled): 80px;else: 40px);
 }
-@supports (color: revert-rule) and (--sw-if-rule-028379a5a2688ff5: 0) {
-  ._s_f8c0af1e {
+@supports (color: revert-rule) and (--sw-if-rule-5ddf70cc940522b3: 0) {
+  ._s_8fde1294 {
     display: if(style(--enabled): revert-rule;else: flex);
   }
 }
-._s_5a7841d0 {
+._s_6752b06a {
   display: grid;
   width: if(style(--mode: compact): 40px;else: 80px);
 }
-@supports (color: revert-rule) and (--sw-if-rule-f9c11b4ddf25f20e: 0) {
-  ._s_5a7841d0 {
+@supports (color: revert-rule) and (--sw-if-rule-a593532971ae8dfa: 0) {
+  ._s_6752b06a {
     display: if(style(--mode: compact): flex;else: revert-rule);
   }
 }

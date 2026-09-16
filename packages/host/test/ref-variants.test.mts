@@ -58,10 +58,27 @@ export const props = style(${expression});`;
         assert.match(output.css, /\(width > 40rem\)/);
         assert.doesNotMatch(output.css, /:has\(/);
       } else {
-        assert.match(output.css, /\.s_scopeA_\w+:has\(\.s_a_\w+:where\(:hover\)\)/);
-        assert.match(output.css, /\.s_scopeB_\w+:has\(\.s_b_\w+:where\(:hover\)\)/);
-        assert.doesNotMatch(output.css, /\.s_scopeA_\w+:has\(\.s_b_/);
-        assert.doesNotMatch(output.css, /\.s_scopeB_\w+:has\(\.s_a_/);
+        // Labels do not reach the generated markers, so the pairs are read from the
+        // compiled selectors: each scope must bind to exactly one ref of the pair.
+        const pairs = [
+          ...output.css.matchAll(
+            /@media \(hover:hover\)\{\.(s_\w+):has\(\.(s_\w+):where\(:hover\)\)/g,
+          ),
+        ].map((match) => ({ scope: match[1], ref: match[2] }));
+        assert.equal(pairs.length, 2, output.css);
+        const [first, second] = pairs;
+        assert.notEqual(first.scope, second.scope);
+        assert.notEqual(first.ref, second.ref);
+        assert.ok(
+          output.css.includes(`.${first.scope}:has(.${first.ref}:where(:hover))`),
+          output.css,
+        );
+        assert.ok(
+          output.css.includes(`.${second.scope}:has(.${second.ref}:where(:hover))`),
+          output.css,
+        );
+        assert.ok(!output.css.includes(`.${first.scope}:has(.${second.ref}:`), output.css);
+        assert.ok(!output.css.includes(`.${second.scope}:has(.${first.ref}:`), output.css);
       }
       assert.match(output.css, /:active\{color:red;/);
       assert.doesNotMatch(output.code, /selected\(|selected`|selected\.at/);

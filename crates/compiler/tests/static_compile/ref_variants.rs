@@ -66,9 +66,9 @@ fn ref_presence_uses_the_existing_scope_or_ancestor_relation() {
         assert!(!utilities.contains(":where("), "{utilities}");
         assert!(!code.contains("trigger()"), "{code}");
         if scoped {
-            assert!(css.contains(":has(.s_trigger_"), "{css}");
+            assert!(css.contains(":has(.s_"), "{css}");
         } else {
-            assert!(css.contains(".s_trigger_"), "{css}");
+            assert!(css.contains(".s_"), "{css}");
             assert!(!css.contains(":has("), "{css}");
         }
         assert_eq!(
@@ -162,11 +162,11 @@ fn ref_variants_preserve_custom_alternatives_and_arbitrary_selectors() {
         true,
     )
     .0;
-    assert!(css.contains(":has(.s_trigger_"), "{css}");
+    assert!(css.contains(":has(.s_"), "{css}");
     assert!(css.contains(":where(:where(.mod))"), "{css}");
     assert!(css.contains(":active{color:"), "{css}");
     let css = compile(r#"`${trigger("[.mod>&]")}:text-accent`"#, false).0;
-    assert!(css.contains(":where(.mod>.s_trigger_"), "{css}");
+    assert!(css.contains(":where(.mod>.s_"), "{css}");
 }
 
 #[test]

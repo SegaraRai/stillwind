@@ -16,7 +16,7 @@ use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompilerOptions, IdentifierMode, StylesheetPlacement, StylesheetRenderer,
+    CompilerOptions, IdentifierMode, Identifiers, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
@@ -274,8 +274,8 @@ impl NativeProjectSession {
                     SessionMode::Build
                 },
                 loader.options.clone(),
-            )
-            .with_identifier_mode(identifier_mode),
+                Identifiers::builtin().in_mode(identifier_mode),
+            ),
         })
     }
 

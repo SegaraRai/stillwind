@@ -54,8 +54,11 @@ pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
 pub use identifier::{
-    GeneratedBody, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierKind,
-    IdentifierMode, IdentifierPool,
+    AnchorName, ClassContext, ClassName, ContainerName, CustomPropertyName, DeclarationContext,
+    GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierKind,
+    IdentifierMode, IdentifierPool, Identifiers, KeyframesName, LayerContext, LayerName,
+    LocatorContext, NamePosition, NameRequest, RefMarkerName, RejectedIdentifier, RejectedNames,
+    ScopeMarkerName, ViewTransitionClassName, ViewTransitionName,
 };
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;

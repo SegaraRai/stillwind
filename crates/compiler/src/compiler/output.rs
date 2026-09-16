@@ -21,7 +21,7 @@ use stillwind_source::SourceFile;
 use super::props::GeneratedClass;
 use super::symbols::GeneratedSymbol;
 use crate::{
-    ModuleResourceReference,
+    ModuleResourceReference, RejectedIdentifier,
     transforms::{SourceTransform, TransformError, apply_transforms},
 };
 
@@ -51,6 +51,14 @@ pub struct CompileResult {
     pub classes: Vec<GeneratedClass>,
     /// Generated CSS identifiers with the identities they were allocated from.
     pub symbols: Vec<GeneratedSymbol>,
+    /// Names a host generator rejected, which the host may warn about.
+    ///
+    /// These are not lint findings: a rejected name comes from the generator rather than
+    /// from the source, so it carries no source location. A development compilation
+    /// substitutes the built-in name and records the rejection here; a release
+    /// compilation fails with a diagnostic instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rejected_names: Vec<RejectedIdentifier>,
     /// Replacements to apply to the original source.
     pub transforms: Vec<SourceTransform>,
     /// Errors that failed the compilation.

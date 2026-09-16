@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::{
-    CompiledModule, CompilerOptions, GeneratorSet, IdentifierMode, IdentifierPool, ModuleCompiler,
+    CompiledModule, CompilerOptions, IdentifierPool, Identifiers, ModuleCompiler,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -79,10 +79,8 @@ pub struct ProjectSession {
     current: DesignSystemSnapshot,
     /// Compiler configuration shared by all artifacts in this session.
     options: CompilerOptions,
-    /// Identifier generators shared by all artifacts in this session.
-    generators: GeneratorSet,
-    /// Whether rejected generated names are reported instead of failing the compile.
-    identifier_mode: IdentifierMode,
+    /// Naming inputs shared by all artifacts in this session.
+    identifiers: Identifiers,
     /// Names the design system's authored CSS already uses, per CSS namespace.
     reserved: ReservedNames,
     /// Whether a failed reload invalidates output or retains the last successful revision.
@@ -100,11 +98,18 @@ pub struct ProjectSession {
 }
 
 impl ProjectSession {
-    /// Starts a session from a completed snapshot and its generation options.
+    /// Starts a session from a completed snapshot, its generation options, and its
+    /// naming inputs.
+    ///
+    /// The naming inputs are fixed for the session's lifetime: a host that changes
+    /// generators starts a new session and pairs the change with a new
+    /// [`CompilerOptions::naming_revision`], so cached artifacts are not reused across
+    /// naming changes.
     pub fn new(
         snapshot: DesignSystemSnapshot,
         mode: SessionMode,
         options: CompilerOptions,
+        identifiers: Identifiers,
     ) -> Self {
         let mut reserved = ReservedNames::default();
         reserved.collect(&snapshot.theme().custom_css);
@@ -123,8 +128,7 @@ impl ProjectSession {
         Self {
             current: snapshot,
             options,
-            generators: GeneratorSet::builtin(),
-            identifier_mode: IdentifierMode::Release,
+            identifiers,
             reserved,
             mode,
             analyses: BTreeMap::new(),
@@ -140,33 +144,9 @@ impl ProjectSession {
         &self.options
     }
 
-    /// Identifier generators used by every compilation in this session.
-    ///
-    /// Generators are not part of [`CompilerOptions`], because options must stay a
-    /// plain serializable configuration whose `Debug` output is the artifact key. A
-    /// host that changes generators must also change
-    /// [`CompilerOptions::naming_revision`], or cached artifacts keep the old names.
-    pub fn generators(&self) -> &GeneratorSet {
-        &self.generators
-    }
-
-    /// Returns the same session with `generators` supplying the generated names.
-    #[must_use]
-    pub fn with_generators(mut self, generators: GeneratorSet) -> Self {
-        self.generators = generators;
-        self
-    }
-
-    /// Returns the same session compiled in `mode`.
-    ///
-    /// A development session keeps producing usable names when a host generator is
-    /// rejected and reports the rejection as a lint finding; a release session fails
-    /// instead. The mode is a compilation input, so a host that caches artifacts must
-    /// keep the two modes apart.
-    #[must_use]
-    pub fn with_identifier_mode(mut self, mode: IdentifierMode) -> Self {
-        self.identifier_mode = mode;
-        self
+    /// Naming inputs used by every compilation in this session.
+    pub fn identifiers(&self) -> &Identifiers {
+        &self.identifiers
     }
 
     /// Names the design system's authored CSS already uses.
@@ -237,9 +217,7 @@ impl ProjectSession {
     /// On failure the behaviour follows [`SessionMode`]: watch keeps the last good
     /// artifact, build removes it.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
-        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone())
-            .with_generators(self.generators.clone())
-            .with_identifier_mode(self.identifier_mode);
+        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         if analysis.diagnostics.is_empty()
             && analysis.integration_diagnostics.is_empty()
             && self
@@ -251,7 +229,7 @@ impl ProjectSession {
             return ModuleUpdate::default();
         }
         let module_id = analysis.module_id.clone();
-        let mut compiled = backend.compile(&analysis);
+        let mut compiled = backend.compile_with(&analysis, &self.identifiers);
         let mut symbols: BTreeMap<_, _> = self
             .artifacts
             .iter()
@@ -364,9 +342,7 @@ impl ProjectSession {
             }
         };
         let old_css = self.css();
-        let mut next = Self::new(snapshot, self.mode, options)
-            .with_generators(self.generators.clone())
-            .with_identifier_mode(self.identifier_mode);
+        let mut next = Self::new(snapshot, self.mode, options, self.identifiers.clone());
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
             let changed = next.update_module(analysis.clone());
@@ -425,6 +401,7 @@ mod tests {
             reload_snapshot("@utility brand { color:red; }"),
             SessionMode::Watch,
             CompilerOptions::default(),
+            Identifiers::builtin(),
         );
         assert!(
             session
@@ -484,6 +461,7 @@ mod tests {
             reload_snapshot("@utility brand { color:red; }"),
             SessionMode::Build,
             CompilerOptions::default(),
+            Identifiers::builtin(),
         );
         assert!(
             session

@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::{SourceFile, Span};
+use stillwind_source::{SourceFile, Span, normalized_module_path};
 
 use super::fragment::Emitted;
 use super::literal::LiteralContribution;
@@ -17,7 +17,7 @@ use super::props::{GeneratedClass, GuardStep};
 use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;
-use crate::identifier::IdentifierContext;
+use crate::identifier::{ClassContext, IdentifierContext};
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
 /// Unconditional class contributions, accumulated in source order before publication.
@@ -115,13 +115,16 @@ impl<'a> ClassUnits<'a> {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() {
             self.class_index += 1;
-            let canonical = format!("{}:{}", self.class_index, contribution.canonical);
-            let canonical = self.options.style_class_input(
-                self.source.path(),
+            let branch = format!("{}:{}", self.class_index, contribution.canonical);
+            let canonical =
+                self.options
+                    .style_class_input(self.source.path(), self.call_span.start.0, &branch);
+            let (name, rules) = self.name_unit(
                 self.call_span.start.0,
+                &branch,
                 &canonical,
-            );
-            let (name, rules) = self.name_unit(&canonical, &contribution.utilities)?;
+                &contribution.utilities,
+            )?;
             names.push(name.clone());
             self.classes.push(GeneratedClass {
                 class_name: name,
@@ -147,14 +150,13 @@ impl<'a> ClassUnits<'a> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
         if !self.base.utilities.is_empty() {
-            let canonical = format!("0:{}", self.base.canonical);
-            let canonical = self.options.style_class_input(
-                self.source.path(),
-                self.call_span.start.0,
-                &canonical,
-            );
+            let branch = format!("0:{}", self.base.canonical);
+            let canonical =
+                self.options
+                    .style_class_input(self.source.path(), self.call_span.start.0, &branch);
             let definitions = std::mem::take(&mut self.base.utilities);
-            let (name, rules) = self.name_unit(&canonical, &definitions)?;
+            let (name, rules) =
+                self.name_unit(self.call_span.start.0, &branch, &canonical, &definitions)?;
             // The base unit must precede every conditional unit in the stylesheet.
             deferred.extend(rules);
             self.classes.insert(
@@ -184,20 +186,28 @@ impl<'a> ClassUnits<'a> {
     /// Returns the host generator's failure for the utility class family.
     fn name_unit(
         &mut self,
-        canonical: &str,
+        call: u32,
+        branch: &str,
+        identity: &str,
         definitions: &[CompiledUtility],
     ) -> Result<(String, Vec<CssContribution>), CompileErrorKind> {
-        let name = self.identifiers.class_name(canonical)?;
+        let context = ClassContext {
+            module: normalized_module_path(self.source.path()),
+            namespace: self.options.class_namespace.clone(),
+            call,
+            branch: branch.to_owned(),
+        };
+        let name = self.identifiers.class_name(&context)?;
         let mut contribution = Vec::new();
         if self
             .emitted_utility_classes
-            .insert((name.clone(), canonical.to_owned()))
+            .insert((name.clone(), identity.to_owned()))
         {
             emit_utility_rules(&mut contribution, &name, definitions, self.theme);
             self.symbols.push(generated_class_symbol(
                 self.source,
                 &name,
-                canonical,
+                identity,
                 self.call_span,
             ));
         }

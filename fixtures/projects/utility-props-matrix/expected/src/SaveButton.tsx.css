@@ -1,4 +1,4 @@
-._s_4b7bffee {
+._s_cf52bb6a {
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-md);
@@ -7,19 +7,19 @@
   --button-progress: 0.5;
 }
 @media (hover: hover) {
-  ._s_4b7bffee:hover {
+  ._s_cf52bb6a:hover {
     background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);
     }
   }
 }
-._s_d7909e1f {
+._s_e2c8d13d {
   opacity: calc(60 * 1%);
 }
-._s_a87e225d {
+._s_4d6c84ca {
   background-color: var(--color-accent);
 }
-._s_7bafcdd5 {
+._s_32623023 {
   background-color: var(--color-muted);
 }

@@ -21,7 +21,7 @@ use stillwind_syntax::{Candidate, parse_candidate};
 
 use crate::candidate::CandidateResolver;
 use crate::compiler::{emit_utility_rules, resolve_utility_targets, unresolved_utility_kind};
-use crate::identifier::IdentifierContext;
+use crate::identifier::{ClassContext, IdentifierContext};
 use crate::{CompilerOptions, GeneratedRule, ModuleCssArtifact};
 
 /// Everything one candidate produces for an editor.
@@ -147,7 +147,12 @@ impl DesignSystemQuery {
         // The built-in generator cannot reject an input, so the fallback name is
         // unreachable; previews keep the empty string rather than panicking a host.
         let name = IdentifierContext::builtin()
-            .class_name(&format!("{candidate}\0"))
+            .class_name(&ClassContext {
+                module: String::new(),
+                namespace: String::new(),
+                call: 0,
+                branch: format!("{candidate}\0"),
+            })
             .unwrap_or_default();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
