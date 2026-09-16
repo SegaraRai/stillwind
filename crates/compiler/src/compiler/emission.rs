@@ -930,8 +930,10 @@ impl<'a> CallEmitter<'a> {
             }
         };
         let receiver = match token {
-            Some(token) => format!("\"{token}\"").into(),
-            None => match self.source_expression(value) {
+            Some(token) if !matches!(name, ViewTransitionName::Value) => {
+                format!("\"{token}\"").into()
+            }
+            _ => match self.source_expression(value) {
                 Some(source) => source,
                 None => return,
             },

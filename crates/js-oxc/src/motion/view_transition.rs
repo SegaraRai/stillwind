@@ -14,7 +14,8 @@ use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+    AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey,
+    ViewTransitionKeyApplication, ViewTransitionName,
 };
 use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::Spanned;
@@ -51,14 +52,29 @@ impl<'a> MacroExtractor<'a> {
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        let transition = self.view_transition_symbols.get(&symbol_id)?;
+        if let Some(transition) = self.view_transition_symbols.get(&symbol_id) {
+            return Some((
+                vec![AssetReference {
+                    identity: self.identity(AssetKind::ViewTransition, transition),
+                    span: self.source_span(span),
+                    local_declaration: Some(transition.span),
+                }],
+                false,
+            ));
+        }
+        // A binding whose `.for(...)` was applied where the transition was declared carries
+        // its key, so the use names itself from the value.
+        let keyed = self.view_transition_key_symbols.get(&symbol_id)?;
         Some((
-            vec![AssetReference {
-                identity: self.identity(AssetKind::ViewTransition, transition),
-                span: self.source_span(span),
-                local_declaration: Some(transition.span),
-            }],
-            false,
+            keyed
+                .iter()
+                .map(|identity| AssetReference {
+                    identity: identity.clone(),
+                    span: self.source_span(span),
+                    local_declaration: None,
+                })
+                .collect(),
+            true,
         ))
     }
 
@@ -123,6 +139,30 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Reads the key one `.for(...)` call states.
+    /// Collects one `transition.for(key)` application written outside a `style()` call.
+    ///
+    /// A style-call argument consumes its own `.for`, so only a binding initializer reaches
+    /// here; the value it builds carries the key to the uses that follow.
+    pub(crate) fn collect_view_transition_key_application(
+        &mut self,
+        call: &CallExpression<'a>,
+    ) -> Option<ViewTransitionKeyApplication> {
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return None;
+        };
+        if member.property.name.as_str() != "for" {
+            return None;
+        }
+        let (transitions, _) = self.view_transition_references(&member.object)?;
+        let key = self.view_transition_key(call)?;
+        Some(ViewTransitionKeyApplication {
+            call_span: self.source_span(call.span),
+            value: self.source_span(member.object.span()),
+            key,
+            transitions,
+        })
+    }
+
     ///
     /// A literal key folds at compile time and any other expression is read by the runtime.
     /// More than one argument is reported and contributes nothing.

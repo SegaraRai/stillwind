@@ -136,6 +136,7 @@ pub fn parse_with_language(
         scope_definitions: extractor.scope_definitions,
         animation_declarations: extractor.animation_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
+        view_transition_key_applications: extractor.view_transition_key_applications,
     };
     lint_findings.extend(validate(&result.program, &module, source.id()));
     ParsedJavaScript {

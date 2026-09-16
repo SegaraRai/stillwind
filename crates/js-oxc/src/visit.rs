@@ -243,6 +243,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     ///
     /// Each producer records its definition, its symbol, and the symbolic value the
     /// binding denotes, so later uses resolve without re-checking the call.
+    #[allow(clippy::too_many_lines)] // One declarator has several declaration forms.
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
         if let (
             BindingPattern::BindingIdentifier(identifier),
@@ -335,6 +336,36 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 );
                 self.view_transition_declarations.push(definition);
             }
+        }
+        if let (
+            BindingPattern::BindingIdentifier(identifier),
+            Some(Expression::CallExpression(call)),
+        ) = (&declarator.id, &declarator.init)
+            && let Some(application) = self.collect_view_transition_key_application(call)
+        {
+            // The binding denotes a transition that already carries its key, so a later use
+            // reads the name from the value instead of deriving it from a use-site key.
+            if let Some(symbol_id) = identifier.symbol_id.get()
+                && let Ok(value) = SymbolicValue::finite(
+                    AssetKind::ViewTransition,
+                    application
+                        .transitions
+                        .iter()
+                        .map(|transition| transition.identity.clone()),
+                )
+            {
+                self.view_transition_key_symbols.insert(
+                    symbol_id,
+                    application
+                        .transitions
+                        .iter()
+                        .map(|transition| transition.identity.clone())
+                        .collect(),
+                );
+                self.local_values
+                    .insert(symbol_id, ExportedValue::ViewTransitionKeys(value));
+            }
+            self.view_transition_key_applications.push(application);
         }
         walk::walk_variable_declarator(self, declarator);
     }

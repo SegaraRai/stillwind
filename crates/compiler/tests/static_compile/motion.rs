@@ -222,6 +222,42 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
     assert!(transformed.contains("(compact) &&"), "{transformed}");
 }
 
+/// A `.for(...)` outside a call builds a value: a literal key folds into a record, and a
+/// key only the runtime knows stays a call the runtime resolves.
+#[test]
+fn lowers_view_transition_key_applications_outside_calls() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Keyed.tsx",
+        r#"import { style } from "stillwind/react";
+declare const product: { id: string };
+const card = style.viewTransition({ old: "opacity-0" });
+export const literal = card.for("hero");
+export const dynamic = card.for(product.id);
+export const useLiteral = style("block", literal);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(
+        transformed.contains("const literal = {v:\"--sw-v-"),
+        "{transformed}"
+    );
+    assert!(transformed.contains(",k:\"hero\"}"), "{transformed}");
+    assert!(
+        transformed.contains("stillwindViewTransitionKey(card,product.id)"),
+        "{transformed}"
+    );
+    assert!(
+        transformed.contains("stillwindViewTransitionName(literal)"),
+        "{transformed}"
+    );
+}
+
 #[test]
 fn unions_view_transition_classes_in_one_call() {
     let component = SourceFile::new(

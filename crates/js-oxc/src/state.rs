@@ -18,7 +18,7 @@ use oxc::semantic::{Scoping, SymbolId};
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     AdapterKind, AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall,
-    ViewTransitionDefinition,
+    ViewTransitionDefinition, ViewTransitionKeyApplication,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
@@ -54,6 +54,8 @@ impl<'a> MacroExtractor<'a> {
             animation_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
+            view_transition_key_applications: Vec::new(),
+            view_transition_key_symbols: HashMap::new(),
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
@@ -207,6 +209,9 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
     /// View-transition declarations in declaration order.
     pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    pub(crate) view_transition_key_applications: Vec<ViewTransitionKeyApplication>,
+    /// Bindings whose value is a transition that already carries its key, by symbol.
+    pub(crate) view_transition_key_symbols: HashMap<SymbolId, Vec<IdentityId>>,
     /// Symbolic value of each local binding the pass could resolve.
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
     /// Style call sites in source order.
