@@ -49,7 +49,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
   プール F は名前空間として残る。
 - 予約名の走査対象はデザインシステムが受理した CSS と、ホストが供給した producer 自身の CSS で
   ある。後者はコンパイラの入力に無いため、`ProjectSession::reserve_authored_css` で渡す。
-  バンドラプラグインからの供給は未実装である。
+  バンドラプラグインは、producer が import したスタイルシートをこの経路で渡す。
 
 関連: [compiler-design.md](compiler-design.md)（identity と producer のモデル）、
 [macro-contract.md](macro-contract.md)（マクロ引数の純粋性契約）、

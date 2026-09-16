@@ -98,6 +98,17 @@ function cssEntrypoint(options: StillwindOptions): string {
   return path;
 }
 
+/// Whether one module id is a stylesheet the host authored, rather than one Stillwind generated.
+///
+/// The design system's own sources are reserved already, so reserving them again changes nothing;
+/// the carriers the plugin serves are generated CSS and must never be read as authored names.
+function isAuthoredStylesheet(id: string): boolean {
+  if (!cleanModuleId(id).endsWith(".css")) return false;
+  if (id.startsWith("virtual:") || id.includes("?")) return false;
+  const path = cleanModuleId(id).replaceAll("\\", "/");
+  return path !== resolvedVirtualCssId && path !== resolvedModuleCssId;
+}
+
 function compilerOptions(options: StillwindOptions) {
   return {
     prefix: options.prefix ?? "--sw-",
@@ -611,12 +622,31 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (change.event === "delete") {
         state.session?.remove(compilerModulePath(projectRoot, id));
         state.producers.delete(id);
+        if (isAuthoredStylesheet(id)) {
+          state.session?.reserveAuthoredCss(compilerModulePath(projectRoot, cleanModuleId(id)));
+        }
       }
     },
     transform: {
       order: "pre",
       async handler(code, id) {
         const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
+        if (isAuthoredStylesheet(id)) {
+          // A stylesheet a producer authors is not part of the design system, so its names are
+          // reserved here; a generated name equal to one of them would change what it means.
+          const state = environmentState(this.environment?.name);
+          await ensureSession(state, this);
+          try {
+            state.session!.reserveAuthoredCss(
+              compilerModulePath(projectRoot, cleanModuleId(id)),
+              code,
+            );
+          } catch (error) {
+            // A generated name and an authored one would mean two different things.
+            this.error(`Stillwind: ${String(error)}`);
+          }
+          return undefined;
+        }
         if (
           (!sfc && !/\.[cm]?[jt]sx?$/.test(cleanModuleId(id))) ||
           (sfc && id !== cleanModuleId(id)) ||

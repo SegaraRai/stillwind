@@ -51,6 +51,12 @@ pub enum NativeSessionError {
         /// Failures per module, keyed by module path.
         diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
     },
+    /// Reserving a producer's own stylesheet gave a generated name an authored meaning.
+    #[error("CSS a producer authors collides with generated names: {}", format_reload_diagnostics(.diagnostics))]
+    AuthoredCssCollision {
+        /// Failures per module, keyed by module path.
+        diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
+    },
 }
 
 impl From<NativeSessionError> for Error {
@@ -451,6 +457,30 @@ impl NativeProjectSession {
     #[napi]
     pub fn remove(&mut self, module: String) -> bool {
         self.session.remove_module(&module)
+    }
+
+    /// Reserves the names one producer's own stylesheet uses, or forgets it when `css` is absent.
+    ///
+    /// The design system's CSS is already reserved; a stylesheet a producer authors itself is not
+    /// part of it, so the host supplies its text here. Returns the producers whose published
+    /// artifacts now collide with an authored name, which the host recompiles or drops.
+    #[napi]
+    pub fn reserve_authored_css(
+        &mut self,
+        module: String,
+        css: Option<String>,
+    ) -> napi::Result<()> {
+        let reported = match css {
+            Some(css) => self.session.reserve_authored_css(&module, &css),
+            None => self.session.forget_authored_css(&module),
+        };
+        if reported.is_empty() {
+            return Ok(());
+        }
+        Err(NativeSessionError::AuthoredCssCollision {
+            diagnostics: reported,
+        }
+        .into())
     }
 
     /// Scans, finalizes, and publishes the given modules.

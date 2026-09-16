@@ -48,3 +48,38 @@ void test("a configured generator names the classes the plugin emits", async () 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+void test("a stylesheet the producer authors owns the names it writes", async () => {
+  const root = mkdtempSync(path.join(path.dirname(fileURLToPath(import.meta.url)), ".authored-"));
+  const put = (name: string, text: string) => writeFileSync(path.join(root, name), text);
+  put("index.html", '<script type="module" src="/entry.ts"></script>');
+  put("root.css", '@import "stillwind"; @utility flex {display:flex} @stillwind-slot utilities;');
+  put("app.css", ".app-class{color:red}");
+  put(
+    "entry.ts",
+    'import "./app.css"; import {style} from "stillwind/react"; console.log(style("flex"));',
+  );
+  try {
+    // The generated class and the authored selector would name two different things.
+    await assert.rejects(
+      build({
+        configFile: false,
+        root,
+        base: "./",
+        logLevel: "silent",
+        plugins: [
+          stillwind({
+            css: path.join(root, "root.css"),
+            types: false,
+            naming: { utilityClass: () => "app-class" },
+            namingRevision: "test-naming",
+          }),
+        ],
+        build: { write: false, minify: false, cssMinify: false },
+      }),
+      /app-class/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

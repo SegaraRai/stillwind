@@ -63,6 +63,14 @@ export declare class NativeProjectSession {
   /** Removes a producer, returning whether it was registered. */
   remove(module: string): boolean
   /**
+   * Reserves the names one producer's own stylesheet uses, or forgets it when `css` is absent.
+   *
+   * The design system's CSS is already reserved; a stylesheet a producer authors itself is not
+   * part of it, so the host supplies its text here. Returns the producers whose published
+   * artifacts now collide with an authored name, which the host recompiles or drops.
+   */
+  reserveAuthoredCss(module: string, css?: string | undefined | null): void
+  /**
    * Scans, finalizes, and publishes the given modules.
    *
    * `producer` narrows the returned output to one module, but every supplied module
