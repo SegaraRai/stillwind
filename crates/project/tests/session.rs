@@ -386,7 +386,9 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
     let theme = css_fixture::source(
         FileId(2),
         "theme",
-        "@theme {} @keyframes --sw-a-authored { to { opacity: 0; } }",
+        // The host body carries no built-in prefix, so the authored name it collides
+        // with is the bare one.
+        "@theme {} @keyframes authored { to { opacity: 0; } }",
     )
     .unwrap();
     let snapshot =
@@ -397,12 +399,7 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
         CompilerOptions::default(),
         Identifiers::with(Arc::new(FixedKeyframesGenerator)),
     );
-    assert!(
-        session
-            .reserved_names()
-            .keyframes
-            .contains("--sw-a-authored")
-    );
+    assert!(session.reserved_names().keyframes.contains("authored"));
     let module = OxcSourceAnalyzer.finalize(
         OxcSourceAnalyzer.scan(Arc::new(
             SourceFile::new(
@@ -420,8 +417,9 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
             error.kind,
             CompileErrorKind::GeneratedIdentifierCollision { .. }
         )),
-        "{:?}",
-        update.diagnostics
+        "{:?} {:?}",
+        update.diagnostics,
+        session.artifacts()["dialog.tsx"].symbols
     );
 }
 
@@ -514,6 +512,7 @@ fn session_generators_name_generated_classes() {
         .iter()
         .find(|symbol| symbol.kind == "class")
         .expect("class symbol");
-    assert!(class.name.starts_with("_s_fixed"), "{}", class.name);
+    // The host body is written as returned, with no built-in class prefix.
+    assert_eq!(class.name, "fixed7", "{}", class.name);
     assert!(session.css().unwrap().contains(&class.name));
 }

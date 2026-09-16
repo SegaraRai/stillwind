@@ -73,6 +73,9 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                     walk(reserved, body, true);
                     Ok::<(), ParseError<()>>(())
                 });
+                // A nested rule ends where the next declaration may begin, so the
+                // position survives it.
+                at_declaration = true;
             }
             Token::ParenthesisBlock | Token::SquareBracketBlock => {
                 let _ = parser.parse_nested_block(|body| {
