@@ -26,7 +26,9 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
    `anchor-scope`、`container-name` と `@container` 名、`view-transition-name` /
    `view-transition-class` の値が予約として先に登録される。予約名の走査は `cssparser` の
    トークン走査である。宣言を持たない種別（条件ヘルパと匿名レイヤ）も報告に載り、
-   文書単位の検査がそれらの綴りも見る。
+   文書単位の検査がそれらの綴りも見る。producer 自身が authored した CSS は
+   `ProjectSession::reserve_authored_css` で供給され、同じ検査に入る。バンドラプラグインは
+   producer が import したスタイルシートをこの経路で渡す。
 5. 第 2 節（値の形）: 宣言は `{ c: <canonical> }`、添付は `.c` の読み、射影は
    `({...})[value.c]` の表引きになる。`stillwindRef` / `stillwindScope` /
    `stillwindHandleClass` と `_swp_` 射影クラスは削除された。
@@ -47,9 +49,6 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
   検査版だけが実装済みである。以降に増える検査も同じ規則に従う。
 - `view-transition-class` の値はランタイムが遷移名から設定するため、生成関数を持たない。
   プール F は名前空間として残る。
-- 予約名の走査対象はデザインシステムが受理した CSS と、ホストが供給した producer 自身の CSS で
-  ある。後者はコンパイラの入力に無いため、`ProjectSession::reserve_authored_css` で渡す。
-  バンドラプラグインは、producer が import したスタイルシートをこの経路で渡す。
 
 関連: [compiler-design.md](compiler-design.md)（identity と producer のモデル）、
 [macro-contract.md](macro-contract.md)（マクロ引数の純粋性契約）、
