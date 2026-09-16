@@ -425,11 +425,11 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ._s_6dcedcf3 {
-    anchor-name: --sw-r-047d522c;
+  ._s_0fcfb31f {
+    anchor-name: --sw-r-8a6155b9;
   }
-  ._s_91806bde {
-    anchor-name: --sw-r-994d70ad;
+  ._s_bfee00d7 {
+    anchor-name: --sw-r-1920670d;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

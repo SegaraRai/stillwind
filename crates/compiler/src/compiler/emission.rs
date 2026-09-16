@@ -642,7 +642,7 @@ impl<'a> CallEmitter<'a> {
                     candidate: String::new(),
                 };
                 let contribution = LiteralContribution {
-                    canonical: format!("handle:{}:{name}\u{0}", anchor.as_str()),
+                    canonical: format!("ref:{}:{name}\u{0}", anchor.as_str()),
                     utilities: vec![utility],
                     markers: Vec::new(),
                     external: Vec::new(),
@@ -697,7 +697,7 @@ impl<'a> CallEmitter<'a> {
                         }
                     };
                     let canonical = format!(
-                        "dynamic-handle:{}:{}",
+                        "dynamic-ref:{}:{}",
                         anchor.as_str(),
                         ref_projection_name(projection)
                     );
