@@ -38,8 +38,11 @@ pub(crate) const DEFAULT_CONTAINER_PREFIX: &str = "--sw-s-";
 /// The custom-property prefix of a built-in keyframes name.
 pub(crate) const DEFAULT_ANIMATION_PREFIX: &str = "--sw-a-";
 
-/// The custom-property prefix of a built-in view-transition name.
-pub(crate) const DEFAULT_VIEW_TRANSITION_PREFIX: &str = "--sw-v-";
+/// The custom-property prefix of a built-in view-transition class token.
+///
+/// The token is the transition's identity and its `view-transition-class` value, so it
+/// carries the prefix a custom property uses even though it is written as a custom-ident.
+pub(crate) const DEFAULT_VIEW_TRANSITION_CLASS_PREFIX: &str = "--sw-v-";
 
 /// The prefix of a built-in conditional helper.
 ///
@@ -87,9 +90,7 @@ pub enum IdentifierKind {
     ContainerName,
     /// A `@keyframes` name, referenced by `animation-name`.
     KeyframesName,
-    /// A `view-transition-name` custom-ident.
-    ViewTransitionName,
-    /// A `view-transition-class` custom-ident.
+    /// A `view-transition-class` custom-ident, which is also the transition's identity.
     ViewTransitionClass,
     /// A custom property name, without its leading `--`.
     CustomProperty,
@@ -107,7 +108,6 @@ impl IdentifierKind {
             Self::AnchorName => "anchor",
             Self::ContainerName => "container",
             Self::KeyframesName => "keyframes",
-            Self::ViewTransitionName => "view-transition",
             Self::ViewTransitionClass => "view-transition-class",
             Self::CustomProperty => "custom-property",
             Self::LayerName => "layer",
@@ -121,7 +121,6 @@ impl IdentifierKind {
             Self::AnchorName => IdentifierPool::AnchorName,
             Self::ContainerName => IdentifierPool::ContainerName,
             Self::KeyframesName => IdentifierPool::KeyframesName,
-            Self::ViewTransitionName => IdentifierPool::ViewTransitionName,
             Self::ViewTransitionClass => IdentifierPool::ViewTransitionClass,
             Self::CustomProperty => IdentifierPool::CustomProperty,
             Self::LayerName => IdentifierPool::LayerName,
@@ -144,9 +143,10 @@ pub enum IdentifierPool {
     ContainerName,
     /// `@keyframes` names and `animation-name` values.
     KeyframesName,
-    /// `view-transition-name` values. Runtime-derived keyed names are not allocated here.
-    ViewTransitionName,
-    /// `view-transition-class` values.
+    /// `view-transition-class` values, which are the transitions' identities.
+    ///
+    /// A `view-transition-name` is a pairing key rather than an allocated name: it is
+    /// composed from a token and a key, and different identities may share one value.
     ViewTransitionClass,
     /// Everything in the custom-property namespace.
     CustomProperty,
@@ -162,7 +162,6 @@ impl IdentifierPool {
             Self::AnchorName => "anchor",
             Self::ContainerName => "container",
             Self::KeyframesName => "keyframes",
-            Self::ViewTransitionName => "view-transition",
             Self::ViewTransitionClass => "view-transition-class",
             Self::CustomProperty => "custom-property",
             Self::LayerName => "layer",
@@ -182,10 +181,9 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
         IdentifierKind::AnchorName => DEFAULT_ANCHOR_PREFIX,
         IdentifierKind::ContainerName => DEFAULT_CONTAINER_PREFIX,
         IdentifierKind::KeyframesName => DEFAULT_ANIMATION_PREFIX,
-        IdentifierKind::ViewTransitionName => DEFAULT_VIEW_TRANSITION_PREFIX,
+        IdentifierKind::ViewTransitionClass => DEFAULT_VIEW_TRANSITION_CLASS_PREFIX,
         IdentifierKind::CustomProperty => DEFAULT_CONDITION_PREFIX,
         IdentifierKind::LayerName => DEFAULT_LAYER_PREFIX,
-        IdentifierKind::ViewTransitionClass => "",
     }
 }
 
@@ -234,7 +232,6 @@ mod tests {
             IdentifierKind::AnchorName,
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
-            IdentifierKind::ViewTransitionName,
             IdentifierKind::ViewTransitionClass,
             IdentifierKind::CustomProperty,
             IdentifierKind::LayerName,
@@ -254,13 +251,11 @@ mod tests {
             IdentifierKind::AnchorName,
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
-            IdentifierKind::ViewTransitionName,
+            IdentifierKind::ViewTransitionClass,
             IdentifierKind::CustomProperty,
             IdentifierKind::LayerName,
         ] {
             assert!(!builtin_prefix(kind).is_empty(), "{kind:?}");
         }
-        // No view-transition class name is generated, so the family owns no prefix.
-        assert_eq!(builtin_prefix(IdentifierKind::ViewTransitionClass), "");
     }
 }

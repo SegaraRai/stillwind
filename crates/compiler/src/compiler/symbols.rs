@@ -238,7 +238,7 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
         AssetKind::Ref => IdentifierPool::AnchorName,
         AssetKind::Scope => IdentifierPool::ContainerName,
         AssetKind::Animation => IdentifierPool::KeyframesName,
-        AssetKind::ViewTransition => IdentifierPool::ViewTransitionName,
+        AssetKind::ViewTransition => IdentifierPool::ViewTransitionClass,
     }
 }
 
@@ -283,7 +283,7 @@ fn declared_name(
     let name = match kind {
         AssetKind::Animation => context.animation_name(declaration)?.as_str().to_owned(),
         AssetKind::ViewTransition => context
-            .view_transition_name(declaration)?
+            .view_transition_class(declaration)?
             .as_str()
             .to_owned(),
         AssetKind::Style => context

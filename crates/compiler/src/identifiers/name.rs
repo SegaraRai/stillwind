@@ -116,8 +116,8 @@ brand! {
     ContainerName, custom_ident;
     /// A `@keyframes` name, referenced by `animation-name`.
     KeyframesName, custom_ident;
-    /// A `view-transition-name` custom-ident.
-    ViewTransitionName, custom_ident;
+    /// A `view-transition-class` custom-ident, which is also the transition's identity.
+    ViewTransitionClass, custom_ident;
     /// A custom property name, without its leading double hyphen.
     CustomPropertyName, custom_ident;
     /// A `@layer` name.
@@ -181,16 +181,21 @@ impl KeyframesName {
     }
 }
 
-impl ViewTransitionName {
-    /// This name as the class selector a view-transition pseudo-element selects it by.
+impl ViewTransitionClass {
+    /// This token as a `view-transition-class` value, in a declaration or a property value.
+    pub fn custom_ident(&self) -> String {
+        escaped_identifier(self.as_str())
+    }
+
+    /// This token as the class selector a view-transition pseudo-element selects it by.
     ///
     /// `::view-transition-group()`, `::view-transition-old()`, and `::view-transition-new()`
-    /// select the name as a class selector, so those rules write the selector spelling.
+    /// select participants by their class, so those rules write the selector spelling.
     pub fn selector(&self) -> String {
         class_selector(self.as_str())
     }
 
-    /// This name as the value of a JavaScript string literal.
+    /// This token as the value of a JavaScript string literal.
     pub fn javascript_string(&self) -> String {
         js_string(self.as_str())
     }

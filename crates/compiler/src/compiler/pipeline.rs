@@ -313,7 +313,7 @@ impl Compiler {
                     &transition.name,
                 )) {
                     match identifiers
-                        .view_transition_name(&named_declaration(source.path(), &transition.name))
+                        .view_transition_class(&named_declaration(source.path(), &transition.name))
                     {
                         Ok(name) => format!(
                             "{}({})",

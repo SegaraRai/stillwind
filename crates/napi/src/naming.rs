@@ -23,7 +23,7 @@ use stillwind_compiler::{
     AnchorName, ClassContext, ConditionContext, ContainerName, CustomPropertyName,
     DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash, KeyframesName,
     LayerContext, LayerName, LocatorContext, RefMarker, ScopeMarker, UtilityClass,
-    ViewTransitionName,
+    ViewTransitionClass,
 };
 
 /// The fields of a utility class request.
@@ -114,8 +114,9 @@ pub struct NativeIdentifierNaming<'env> {
     /// `(context, hash) => string | undefined`, for a `@keyframes` name.
     pub keyframes_name:
         Option<Function<'env, FnArgs<(NativeDeclarationContext, Buffer)>, Option<String>>>,
-    /// `(context, hash) => string | undefined`, for a `view-transition-name` custom-ident.
-    pub view_transition_name:
+    /// `(context, hash) => string | undefined`, for a `view-transition-class` custom-ident,
+    /// which is also the transition's identity.
+    pub view_transition_class:
         Option<Function<'env, FnArgs<(NativeDeclarationContext, Buffer)>, Option<String>>>,
     /// `(context, hash, text_hash) => string | undefined`, for a conditional helper custom
     /// property. `hash` covers the role and the text, `text_hash` the text alone.
@@ -135,7 +136,7 @@ pub(crate) struct NativeNaming {
     anchor_name: Option<NamingReference<NativeLocatorContext>>,
     container_name: Option<NamingReference<NativeLocatorContext>>,
     keyframes_name: Option<NamingReference<NativeDeclarationContext>>,
-    view_transition_name: Option<NamingReference<NativeDeclarationContext>>,
+    view_transition_class: Option<NamingReference<NativeDeclarationContext>>,
     condition_helper: Option<HelperReference>,
     layer_name: Option<NamingReference<NativeLayerContext>>,
 }
@@ -156,7 +157,7 @@ impl NativeNaming {
             anchor_name: reference(naming.anchor_name)?,
             container_name: reference(naming.container_name)?,
             keyframes_name: reference(naming.keyframes_name)?,
-            view_transition_name: reference(naming.view_transition_name)?,
+            view_transition_class: reference(naming.view_transition_class)?,
             condition_helper: reference(naming.condition_helper)?,
             layer_name: reference(naming.layer_name)?,
         };
@@ -175,7 +176,7 @@ impl NativeNaming {
             && self.anchor_name.is_none()
             && self.container_name.is_none()
             && self.keyframes_name.is_none()
-            && self.view_transition_name.is_none()
+            && self.view_transition_class.is_none()
             && self.condition_helper.is_none()
             && self.layer_name.is_none()
     }
@@ -364,20 +365,20 @@ impl IdentifierGenerator for NativeNaming {
         ))
     }
 
-    fn view_transition_name(
+    fn view_transition_class(
         &self,
         context: &DeclarationContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionClass>, String> {
         let Some(name) = self.call(
-            &self.view_transition_name,
+            &self.view_transition_class,
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
             return Ok(GeneratedName::Builtin);
         };
         Ok(GeneratedName::provided(
-            ViewTransitionName::new(&name).map_err(|error| error.to_string())?,
+            ViewTransitionClass::new(&name).map_err(|error| error.to_string())?,
         ))
     }
 

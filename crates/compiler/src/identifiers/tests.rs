@@ -140,7 +140,7 @@ fn every_builtin_family_keeps_its_own_prefix() {
     );
     assert!(
         context
-            .view_transition_name(&declaration)
+            .view_transition_class(&declaration)
             .unwrap()
             .as_str()
             .starts_with("--sw-v-")
@@ -345,7 +345,6 @@ fn report_spellings_are_distinct_per_family() {
         IdentifierKind::AnchorName,
         IdentifierKind::ContainerName,
         IdentifierKind::KeyframesName,
-        IdentifierKind::ViewTransitionName,
         IdentifierKind::ViewTransitionClass,
         IdentifierKind::CustomProperty,
         IdentifierKind::LayerName,

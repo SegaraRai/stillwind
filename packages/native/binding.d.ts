@@ -504,8 +504,11 @@ export interface NativeIdentifierNaming {
   containerName?: (arg0: NativeLocatorContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for a `@keyframes` name. */
   keyframesName?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
-  /** `(context, hash) => string | undefined`, for a `view-transition-name` custom-ident. */
-  viewTransitionName?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
+  /**
+   * `(context, hash) => string | undefined`, for a `view-transition-class` custom-ident,
+   * which is also the transition's identity.
+   */
+  viewTransitionClass?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
   /**
    * `(context, hash, text_hash) => string | undefined`, for a conditional helper custom
    * property. `hash` covers the role and the text, `text_hash` the text alone.

@@ -457,10 +457,6 @@ fn insert_reserved<'a>(
         (IdentifierPool::AnchorName, &reserved.anchor_names),
         (IdentifierPool::ContainerName, &reserved.container_names),
         (
-            IdentifierPool::ViewTransitionName,
-            &reserved.view_transition_names,
-        ),
-        (
             IdentifierPool::ViewTransitionClass,
             &reserved.view_transition_classes,
         ),

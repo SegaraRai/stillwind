@@ -22,13 +22,13 @@ pub use generator::{
 pub use kind::{IdentifierKind, IdentifierMode, IdentifierPool};
 pub use name::{
     AnchorName, ContainerName, CustomPropertyName, IdentifierNameError, KeyframesName, Label,
-    LayerName, RefMarker, ScopeMarker, Token, UtilityClass, ViewTransitionName,
+    LayerName, RefMarker, ScopeMarker, Token, UtilityClass, ViewTransitionClass,
 };
 pub use request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ConditionRole, ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest,
     LayerContext, LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ScopeMarkerName,
-    ViewTransitionNameRequest,
+    ViewTransitionClassRequest,
 };
 
 #[cfg(test)]

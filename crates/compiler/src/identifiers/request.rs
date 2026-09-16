@@ -14,7 +14,7 @@ use super::generator::{GeneratedName, IdentifierGenerator, builtin_text};
 use super::kind::{IdentifierKind, builtin_prefix};
 use super::name::{
     AnchorName, ContainerName, CustomPropertyName, KeyframesName, Label, LayerName, RefMarker,
-    ScopeMarker, Token, UtilityClass, ViewTransitionName,
+    ScopeMarker, Token, UtilityClass, ViewTransitionClass,
 };
 
 /// The canonical hash of one request, which is what identifies what was asked for.
@@ -351,7 +351,7 @@ name_requests! {
     AnchorNameRequest(LocatorContext): AnchorName as AnchorName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(anchor_name);
     ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "scope"), asks(container_name);
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "animation"), asks(keyframes_name);
-    ViewTransitionNameRequest(DeclarationContext): ViewTransitionName as ViewTransitionName = |context: &DeclarationContext| declaration_identity(context, "view-transition"), asks(view_transition_name);
+    ViewTransitionClassRequest(DeclarationContext): ViewTransitionClass as ViewTransitionClass = |context: &DeclarationContext| declaration_identity(context, "view-transition"), asks(view_transition_class);
     LayerNameRequest(LayerContext): LayerName as LayerName = |context: &LayerContext| format!(
         "stillwind/layer/v1:{namespace_len}:{namespace}{template}",
         namespace_len = context.namespace.len(),

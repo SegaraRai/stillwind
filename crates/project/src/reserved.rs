@@ -41,9 +41,10 @@ pub struct ReservedNames {
     pub anchor_names: BTreeSet<String>,
     /// `container-name` values and `@container` prelude names.
     pub container_names: BTreeSet<String>,
-    /// `view-transition-name` values.
-    pub view_transition_names: BTreeSet<String>,
-    /// `view-transition-class` values.
+    /// `view-transition-class` values, the namespace generated transition tokens are written in.
+    ///
+    /// `view-transition-name` values are pairing keys rather than allocated names, so an
+    /// authored name is deliberately not reserved.
     pub view_transition_classes: BTreeSet<String>,
 }
 
@@ -56,7 +57,6 @@ impl ReservedNames {
             && self.classes.is_empty()
             && self.anchor_names.is_empty()
             && self.container_names.is_empty()
-            && self.view_transition_names.is_empty()
             && self.view_transition_classes.is_empty()
     }
 
@@ -171,7 +171,6 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
 enum NamePool {
     Anchor,
     Container,
-    ViewTransition,
     ViewTransitionClass,
 }
 
@@ -181,7 +180,6 @@ impl ReservedNames {
         let names = match pool {
             NamePool::Anchor => &mut self.anchor_names,
             NamePool::Container => &mut self.container_names,
-            NamePool::ViewTransition => &mut self.view_transition_names,
             NamePool::ViewTransitionClass => &mut self.view_transition_classes,
         };
         names.insert(name.to_string());
@@ -193,7 +191,6 @@ fn ident_names(property: &str) -> Option<NamePool> {
     match property.to_ascii_lowercase().as_str() {
         "anchor-name" | "position-anchor" | "anchor-scope" => Some(NamePool::Anchor),
         "container-name" => Some(NamePool::Container),
-        "view-transition-name" => Some(NamePool::ViewTransition),
         "view-transition-class" => Some(NamePool::ViewTransitionClass),
         _ => None,
     }
@@ -440,14 +437,6 @@ mod tests {
         );
         assert_eq!(
             reserved
-                .view_transition_names
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>(),
-            vec!["hero".to_owned()]
-        );
-        assert_eq!(
-            reserved
                 .view_transition_classes
                 .iter()
                 .cloned()
@@ -486,7 +475,6 @@ mod tests {
             reserved.anchor_names
         );
         assert!(reserved.container_names.is_empty());
-        assert!(reserved.view_transition_names.is_empty());
         assert!(reserved.view_transition_classes.is_empty());
     }
 }

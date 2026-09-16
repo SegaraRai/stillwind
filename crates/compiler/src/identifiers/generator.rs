@@ -24,13 +24,13 @@ use stillwind_diagnostics::CompileErrorKind;
 use super::kind::{IdentifierKind, IdentifierMode, builtin_digest_digits, builtin_prefix};
 use super::name::{
     AnchorName, ContainerName, CustomPropertyName, KeyframesName, LayerName, RefMarker,
-    ScopeMarker, Token, UtilityClass, ViewTransitionName,
+    ScopeMarker, Token, UtilityClass, ViewTransitionClass,
 };
 use super::request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest, LayerContext,
     LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ScopeMarkerName,
-    ViewTransitionNameRequest,
+    ViewTransitionClassRequest,
 };
 
 /// The naming inputs one compilation runs with.
@@ -187,16 +187,16 @@ pub trait IdentifierGenerator: fmt::Debug {
         Ok(GeneratedName::Builtin)
     }
 
-    /// A `view-transition-name` custom-ident.
+    /// A `view-transition-class` custom-ident, which is also the transition's identity.
     ///
     /// # Errors
     ///
     /// Returns a failure the compilation reports for this declaration.
-    fn view_transition_name(
+    fn view_transition_class(
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionClass>, String> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -509,16 +509,16 @@ impl IdentifierContext {
         self.resolve_name(&KeyframesNameRequest(context.clone()))
     }
 
-    /// A view-transition name.
+    /// A view-transition class token, which is also the transition's identity.
     ///
     /// # Errors
     ///
     /// Returns the host generator's failure in release mode.
-    pub(crate) fn view_transition_name(
+    pub(crate) fn view_transition_class(
         &self,
         context: &DeclarationContext,
-    ) -> Result<ViewTransitionName, CompileErrorKind> {
-        self.resolve_name(&ViewTransitionNameRequest(context.clone()))
+    ) -> Result<ViewTransitionClass, CompileErrorKind> {
+        self.resolve_name(&ViewTransitionClassRequest(context.clone()))
     }
 
     /// A conditional helper custom property, without its leading double hyphen.
