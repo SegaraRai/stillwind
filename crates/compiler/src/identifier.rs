@@ -53,7 +53,7 @@ pub enum IdentifierMode {
     #[default]
     Release,
     /// A development compilation. A rejected name falls back to the built-in name and is
-    /// recorded in [`RejectedNames`], so a running dev server stays usable while the
+    /// recorded in [`crate::identifiers::RejectedNames`], so a running dev server stays usable while the
     /// host can warn about the generator.
     Development,
 }
