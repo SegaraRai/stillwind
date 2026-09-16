@@ -18,7 +18,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
    名前もホスト生成の名前も同じコンストラクタを通る。
 3. 段 2（エスケープ）: brand type のレンダーメソッドが書き出し位置ごとにエスケープする。
    種別は自分が書かれる位置のメソッドだけを持つ（`UtilityClass::selector`、
-   `AnchorName::custom_ident`、`CustomPropertyName::property`、`RefMarker::javascript_string`
+   `AnchorName::dashed_ident`、`ConditionHelperName::property`、`RefMarker::javascript_string`
    など）。書き出し側はカノニカルな綴りを自分でエスケープしない。
 4. 段 3（プール）: 名前空間ごとに `名前 → identity` で衝突を検査する。anchor 名と container 名も
    シンボルとして報告される。デザインシステムの authored CSS にある custom property /
@@ -37,7 +37,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
    release では生成失敗が診断に、development ではビルトイン名へのフォールバックと
    `RejectedNames` への記録になる。
 
-生成関数が返す body には prefix（`_s_`、`s_`、`--sw-*`）を付けない。prefix はビルトイン生成だけが
+生成関数が返す body には prefix（`sw_`、`sw-a-`、`--sw-if` など）を付けない。prefix はビルトイン生成だけが
 付ける。
 
 生成失敗は lint ではない。lint は author が書いたコードに対する静的な検証であり、生成失敗には
@@ -51,7 +51,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 - `view-transition-class` の値はランタイムが遷移名から設定するため、生成関数を持たない。
   プール F は名前空間として残る。
 
-`style.viewTransition()` の宣言は `{v:"<class token>"}` になる。クラスファミリ（`--sw-v-`、digest 8）が
+`style.viewTransition()` の宣言は `{v:"<class token>"}` になる。クラスファミリ（`sw-vt-`、base36 5 桁）が
 このトークンを生成し、ホスト生成関数もこのファミリにだけある。`view-transition-name` は生成名では
 なく `token + "-" + String(key)` を CSS Syntax の identifier として escape した値なので、名前ファミリも
 名前プールも持たない。ホスト生成関数が返すトークンに `-` を含めないことはホストの責務である
@@ -93,14 +93,14 @@ lower された値はコンパイル成果物であって、維持すべき外�
 宣言は次の形に lower する。
 
 ```js
-const primary = { c: "s_primary_047d522c" };
+const primary = { c: "sw_primary_3k9xa" };
 ```
 
 キーは 1 文字の `c`。値はその宣言のカノニカル識別子で、既定では ref の
 マーカークラスになる。将来、値が 1 つしかないことを活かして単なる文字列へ縮めてもよい。
 
 - 添付: `style(selectedRef)` → `selectedRef.c`
-- 射影: `style(selectedRef.anchor)` → `({ "s_a…": "_s_x", "s_b…": "_s_y" })[selectedRef.c]`
+- 射影: `style(selectedRef.anchor)` → `({ "sw_a…": "sw_x", "sw_b…": "sw_y" })[selectedRef.c]`
 - animation / view transition も同じ形（`c` が identity 文字列）
 
 この形にすると、投影用の第 2 識別子（`_swp_<marker>_<suffix>`）とその実行時組み立て、
@@ -164,29 +164,37 @@ JS は同じ呼び出しと同じ specifier を持ち、解決先の実装を消
    エスケープをしない。
 3. 検証: 衝突してはならない識別子のまとまり（プール）ごとに一意性を検証する。
 
-現行実装との対応は、段 2 が `_s_` / `s_` の前置とラベル正規化、段 3 が `SHSYMBOL001` に
+現行実装との対応は、段 2 が `sw_` / `sw-a-` などの前置とラベル正規化、段 3 が `SHSYMBOL001` に
 あたる。新しいのは段 1 の注入点と、段 3 を名前空間ごとのプールへ拡張する部分。
 
 ### 4.1 段 1: 生成
 
-種別ごとに別の関数を指定できる。コンパイラはファミリトークン（`s_`、`_s_`、`--sw-r-` など）を
+種別ごとに別の関数を指定できる。コンパイラはファミリトークン（`sw_`、`sw-a-`、`--sw-if` など）を
 持たない。ファミリトークンを含め、名前の形は生成側の裁量にする。コンパイラが必ず付けるのは
-CSS 構文上どうしても外に出せない部分（custom property の `--`）だけとする。
+CSS 構文上どうしても外に出せない部分（custom property と `<dashed-ident>` の `--`）だけとする。
 
-| 種別                             | 与える情報                                                              | 既定の形                  |
-| -------------------------------- | ----------------------------------------------------------------------- | ------------------------- |
-| ユーティリティクラス             | canonical 入力のハッシュ（namespace、module、呼び出し位置、分岐、内容） | `_s_<8hex>`               |
-| ref マーカー                     | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
-| anchor / container 名            | identity のハッシュ（既定は ref マーカー生成器へ委譲）                  | ref マーカーと同一        |
-| keyframes 名                     | identity のハッシュ                                                     | `--sw-a-<8hex>`           |
-| view transition クラス           | identity のハッシュ                                                     | `--sw-v-<8hex>`           |
-| 条件ヘルパ / ゲート / ルール分離 | 役割と CSS 断片のハッシュ、および断片だけのハッシュ                     | `--sw-if-<16hex>` ほか    |
-| view transition slot             | ガード付き use の class context のハッシュ                              | `--sw-vtc-<16hex>`        |
-| 匿名レイヤ                       | テンプレート identity と class namespace                                | `sw-anon-<16hex>-<index>` |
+| 種別                             | 与える情報                                                              | 既定の形                          |
+| -------------------------------- | ----------------------------------------------------------------------- | --------------------------------- |
+| ユーティリティクラス             | canonical 入力のハッシュ（namespace、module、呼び出し位置、分岐、内容） | `sw_<5base36>`                    |
+| ref マーカー                     | identity のハッシュ、正規化済みラベル                                   | `sw_[label_]<5base36>`            |
+| anchor 名                        | identity のハッシュ、正規化済みラベル                                   | `sw-a-[label-]<5base36>`          |
+| container 名                     | identity のハッシュ、正規化済みラベル                                   | `sw-c-[label-]<5base36>`          |
+| keyframes 名                     | identity のハッシュ、正規化済みラベル                                   | `sw-kf-[label-]<5base36>`         |
+| view transition クラス           | identity のハッシュ、正規化済みラベル                                   | `sw-vt-[label-]<5base36>`         |
+| 条件ヘルパ / ゲート / ルール分離 | 役割と CSS 断片のハッシュ、および断片だけのハッシュ                     | `--sw-if[r/g/v/n]-<5base36>` ほか |
+| view transition slot             | ガード付き use の class context のハッシュ                              | `--sw-vtc-<5base36>`              |
+| 匿名レイヤ                       | テンプレート identity と class namespace                                | `sw-anon-<5base36>-<index>`       |
+
+ラベルは宣言ごとに 1 つで、その宣言が生成するすべての名前（ref マーカー、anchor 名、container
+名、keyframes 名、view transition クラス）に同じ綴りで入る。綴りの区切りは prefix 自身の流儀に
+合わせ、アンダースコア系（`sw_`）は `_`、ダッシュ系は `-` を使う。`anchor-name` などの
+`<dashed-ident>` を取る位置では、値の文法が要求する `--` を書き出し側が前置する。
 
 提供方法は、種別ごとにメソッドを持つ `IdentifierGenerator` trait を実装として渡す形にする。
 メソッドは種別ごとに異なる引数を取り、いずれの種別にも識別子のハッシュが渡される。ハッシュは
-切り詰めない 32 バイトのダイジェストで渡し、ビルトイン名の綴りに使う桁数は種別ごとに決める。
+切り詰めない 32 バイトのダイジェストで渡し、ビルトイン名の綴りに使う桁数は
+`CompilerOptions::hash_length`（既定 5、`hashLength`）が全種別で決める。桁は base36 で、
+ダイジェストを 1 つの整数と見たときの下位桁から取る。
 `GeneratedName::Builtin` を返した種別はビルトイン生成を使う。種別ごとに独立しているので、
 一部の種別だけを差し替える使い方が自然に成立する。
 
@@ -195,7 +203,7 @@ CSS 構文上どうしても外に出せない部分（custom property の `--`�
 前者だけを使えば役割ごとに異なる名前になり、後者と役割の綴りを組み合わせれば同じ断片の
 2 つの役割が同じ接尾辞を共有できる。
 
-コンパイラは prefix（`_s_`、`s_`、`--sw-r-` など）をビルトイン生成にだけ付ける。ホストが返した
+コンパイラは prefix（`sw_`、`sw-a-`、`--sw-if` など）をビルトイン生成にだけ付ける。ホストが返した
 body はそのまま書き出し、prefix を足さない。prefix はコンパイラが生成した名前と authored CSS を
 分けるためのものであり、自前で名前を決めるホストはその分離も自分で持つ。
 

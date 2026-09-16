@@ -144,10 +144,10 @@ pub struct RefDefinition {
     pub module_path: String,
     /// Lexical binding of the ref; its span seeds the declaration identity.
     pub binding: Spanned<String>,
-    /// Optional user label that participates in the generated class name.
+    /// Optional user label that participates in the declaration's generated names.
     pub label: Option<Spanned<String>>,
-    /// The single boundary passed to `style.ref()`, resolved statically; `None`
-    /// for `style.ref()` and `style.ref(name)`.
+    /// The single boundary passed to `style.ref()`, resolved statically; `None` for
+    /// `style.ref()` and `style.ref(label)`.
     pub boundary: Option<BoundaryRef>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
@@ -165,7 +165,7 @@ pub struct BoundaryRef {
     pub module_path: String,
     /// Lexical binding of the boundary ref; its span seeds the declaration identity.
     pub binding: Spanned<String>,
-    /// Optional user label that participates in the generated class name.
+    /// Optional user label that participates in the declaration's generated names.
     pub label: Option<Spanned<String>>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
@@ -178,6 +178,9 @@ pub struct KeyframesDefinition {
     pub binding: Spanned<String>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
+    /// Authored label, which the built-in generator spells into the keyframes name.
+    #[serde(default)]
+    pub label: Option<Spanned<String>>,
     /// Default frames and complete conditional replacements.
     pub body: KeyframesBody,
 }
@@ -217,6 +220,9 @@ pub struct ViewTransitionDefinition {
     pub binding: Spanned<String>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
+    /// Authored label, which the built-in generator spells into the class token.
+    #[serde(default)]
+    pub label: Option<Spanned<String>>,
     /// Option list for the `::view-transition-group` pseudo-element.
     pub group: Option<Spanned<String>>,
     /// Utility list for the `::view-transition-old` pseudo-element.
@@ -237,6 +243,12 @@ pub struct AssetReference {
     /// A local declaration's range, which must follow source projection alongside its
     /// identity. External declarations have no span in the current source buffer.
     pub local_declaration: Option<Span>,
+    /// Authored label of the referenced declaration, when the frontend could read it.
+    ///
+    /// A label participates in the declaration's generated name, so a use site in
+    /// another module needs it to spell the same name the declaring module writes.
+    #[serde(default)]
+    pub label: Option<Spanned<String>>,
 }
 
 /// The CSS role a ref plays at a use site.

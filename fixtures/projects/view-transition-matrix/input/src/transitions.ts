@@ -1,6 +1,7 @@
 import { style } from "stillwind/react";
 
 export const pageTitle = style.viewTransition({
+  label: "page-title",
   old: "opacity-0",
   new: "opacity-100",
 });

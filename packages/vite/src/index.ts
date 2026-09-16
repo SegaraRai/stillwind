@@ -62,6 +62,11 @@ export interface StillwindOptions {
   naming?: NativeIdentifierNaming;
   /** Hash of `naming`, used to invalidate cached artifacts when it changes. */
   namingRevision?: string;
+  /**
+   * Base-36 digits a built-in generated name keeps from its request hash. Defaults to 5;
+   * values from 1 to 50 are accepted. Raising it lowers the chance of a collision.
+   */
+  hashLength?: number;
 }
 
 const virtualCssId = "virtual:stillwind.css";
@@ -117,6 +122,7 @@ function compilerOptions(options: StillwindOptions) {
     classNamespace: options.classNamespace ?? "",
     useCssIf: options.useCssIf ?? false,
     namingRevision: options.namingRevision ?? "",
+    hashLength: options.hashLength,
   };
 }
 

@@ -238,13 +238,13 @@ fn render_ref_projection(
     };
     Ok(match projection {
         RefProjection::Anchor => (
-            format!("anchor-name:{};", name.custom_ident()),
+            format!("anchor-name:{};", name.dashed_ident()),
             symbol(name.as_str(), IdentifierPool::AnchorName, "anchor"),
         ),
         RefProjection::PositionAnchor => {
-            (format!("position-anchor:{};", name.custom_ident()), None)
+            (format!("position-anchor:{};", name.dashed_ident()), None)
         }
-        RefProjection::AnchorScope => (format!("anchor-scope:{};", name.custom_ident()), None),
+        RefProjection::AnchorScope => (format!("anchor-scope:{};", name.dashed_ident()), None),
         RefProjection::Container(kind) => {
             let container = ref_container_name(context, definition)?;
             (
@@ -320,7 +320,7 @@ mod tests {
             .strip_prefix("container-name:")
             .and_then(|rest| rest.strip_suffix("container-type:size;"))
             .expect("container declaration");
-        assert!(container_name.starts_with("--sw-s-"), "{container_name}");
+        assert!(container_name.starts_with("sw-c-"), "{container_name}");
         assert_ne!(container_name, reference);
         let container_symbol = container_symbol.expect("container name symbol");
         assert_eq!(container_symbol.pool, IdentifierPool::ContainerName);
@@ -354,8 +354,8 @@ mod tests {
             .as_str()
         );
         definition.label = Some(binding);
-        // The built-in name hashes the declaration alone, so a label cannot move it:
-        // every position the marker is written to resolves the same declaration.
-        assert_eq!(ref_marker_name(&identifiers, &definition).unwrap(), marker);
+        // A label is spelled into the name, so the same declaration wears a different
+        // marker once it has one; the identity the name hashes does not move.
+        assert_ne!(ref_marker_name(&identifiers, &definition).unwrap(), marker);
     }
 }

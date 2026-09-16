@@ -3,7 +3,7 @@
 Status: implemented. This document is the single source of truth for how
 generated Stillwind CSS is ordered; the other documents link here instead of
 restating the rules. Examples use short, illustrative class names (`._a`,
-`._s_x`); compiled output carries hashed names.
+`.sw_x`); compiled output carries hashed names.
 
 ## Principles
 
@@ -110,7 +110,7 @@ style("m-2 p-4");
 ```
 
 ```css
-._s_x {
+.sw_x {
   margin: calc(var(--spacing) * 2);
   padding: calc(var(--spacing) * 4);
 }
@@ -149,10 +149,10 @@ style("disabled:text-blue-500 hover:text-red-500");
 ```
 
 ```css
-._s_x:hover {
+.sw_x:hover {
   color: var(--color-red-500);
 }
-._s_x:disabled {
+.sw_x:disabled {
   color: var(--color-blue-500);
 }
 ```

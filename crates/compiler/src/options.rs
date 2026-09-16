@@ -16,6 +16,8 @@ use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::normalized_module_path;
 
+use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
+
 /// Knobs a host may set per compilation.
 ///
 /// Serialized in camel case with `#[serde(default)]`, so adding a field is compatible
@@ -25,7 +27,7 @@ use stillwind_source::normalized_module_path;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompilerOptions {
-    /// Prefix for Stillwind-owned custom properties, for example `--sw-r-<hash>`.
+    /// Prefix for Stillwind-owned custom properties, for example `--sw-if-<hash>`.
     pub prefix: String,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
     pub tailwind_prefix: String,
@@ -47,6 +49,12 @@ pub struct CompilerOptions {
     /// generators, and carries no meaning for the compiler beyond its effect on the
     /// artifact key.
     pub naming_revision: String,
+    /// Number of base-36 digits a built-in generated name keeps from its request hash.
+    ///
+    /// Every family shares the length. A shorter spelling is easier to read in
+    /// generated markup, while a longer one leaves more room before two declarations
+    /// can collide, so a host that generates many names raises it.
+    pub hash_length: usize,
 }
 
 impl Default for CompilerOptions {
@@ -58,6 +66,7 @@ impl Default for CompilerOptions {
             class_namespace: String::new(),
             use_css_if: false,
             naming_revision: String::new(),
+            hash_length: DEFAULT_HASH_LENGTH,
         }
     }
 }
@@ -90,14 +99,23 @@ impl CompilerOptions {
         }
     }
 
-    /// Checks that the two prefixes are valid and do not conflict.
+    /// Checks that the two prefixes are valid and do not conflict, and that the
+    /// generated-name hash length can spell a request digest.
     ///
     /// # Errors
     ///
     /// Returns the typed prefix-shape or namespace-conflict failures from
-    /// [`DesignSystemOptions::validate`], retaining the rejected configuration values.
+    /// [`DesignSystemOptions::validate`], retaining the rejected configuration values,
+    /// or the rejected hash length when it is outside the range a digest can fill.
     pub fn validate(&self) -> Result<(), CompileErrorKind> {
-        self.design_system().validate()
+        self.design_system().validate()?;
+        if !(1..=MAXIMUM_HASH_LENGTH).contains(&self.hash_length) {
+            return Err(CompileErrorKind::InvalidHashLength {
+                length: self.hash_length,
+                maximum: MAXIMUM_HASH_LENGTH,
+            });
+        }
+        Ok(())
     }
 
     /// Returns the same options with both prefixes taken from `snapshot`.

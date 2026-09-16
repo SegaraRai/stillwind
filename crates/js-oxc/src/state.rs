@@ -24,7 +24,7 @@ use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
     ModuleSpecifier, ModuleSummary, ReExport, TypeFact,
 };
-use stillwind_source::{SourceFile, Spanned};
+use stillwind_source::{SourceFile, Span, Spanned};
 
 use crate::refs::RefUse;
 
@@ -116,30 +116,31 @@ impl<'a> MacroExtractor<'a> {
             });
         }
         for definition in &self.ref_definitions {
-            summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Ref, &definition.binding),
-                metadata: AssetMetadata {
-                    label: definition.label.as_ref().map(|label| label.value.clone()),
-                },
-                call_start: definition.call_span.start.0,
-                call_end: definition.call_span.end.0,
-            });
+            self.push_asset(
+                &mut summary,
+                AssetKind::Ref,
+                &definition.binding,
+                definition.label.as_ref(),
+                definition.call_span,
+            );
         }
         for definition in &self.keyframes_declarations {
-            summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Keyframes, &definition.binding),
-                metadata: AssetMetadata { label: None },
-                call_start: definition.call_span.start.0,
-                call_end: definition.call_span.end.0,
-            });
+            self.push_asset(
+                &mut summary,
+                AssetKind::Keyframes,
+                &definition.binding,
+                definition.label.as_ref(),
+                definition.call_span,
+            );
         }
         for definition in &self.view_transition_declarations {
-            summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::ViewTransition, &definition.binding),
-                metadata: AssetMetadata { label: None },
-                call_start: definition.call_span.start.0,
-                call_end: definition.call_span.end.0,
-            });
+            self.push_asset(
+                &mut summary,
+                AssetKind::ViewTransition,
+                &definition.binding,
+                definition.label.as_ref(),
+                definition.call_span,
+            );
         }
 
         for (symbol, exported) in &self.export_symbols {
@@ -148,6 +149,29 @@ impl<'a> MacroExtractor<'a> {
             }
         }
         summary
+    }
+
+    /// Appends one declaration's asset record, carrying the label the producer
+    /// published.
+    ///
+    /// The label is part of the declaration's generated name, so it travels with the
+    /// record to the modules that reference the declaration.
+    fn push_asset(
+        &self,
+        summary: &mut ModuleSummary,
+        kind: AssetKind,
+        binding: &Spanned<String>,
+        label: Option<&Spanned<String>>,
+        call_span: Span,
+    ) {
+        summary.assets.push(AssetRecord {
+            identity: self.identity(kind, binding),
+            metadata: AssetMetadata {
+                label: label.map(|label| label.value.clone()),
+            },
+            call_start: call_span.start.0,
+            call_end: call_span.end.0,
+        });
     }
 
     /// Returns the exported name of a module export name node.

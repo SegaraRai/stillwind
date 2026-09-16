@@ -21,16 +21,18 @@ pub use generator::{
 };
 pub use kind::{IdentifierKind, IdentifierMode, IdentifierPool};
 pub use name::{
-    AnchorName, ContainerName, CustomPropertyName, IdentifierNameError, KeyframesName, Label,
-    LayerName, RefMarker, Token, UtilityClass, ViewTransitionClass,
+    AnchorName, ConditionHelperName, ContainerName, IdentifierNameError, KeyframesName, Label,
+    LayerName, RefMarker, Token, UtilityClass, ViewTransitionClass, ViewTransitionSlotName,
 };
-pub(crate) use name::{escaped_identifier, view_transition_name};
 pub use request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ConditionRole, ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest,
     LayerContext, LayerNameRequest, LocatorContext, NameRequest, RefMarkerName,
     ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
+
+pub(crate) use kind::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH, builtin_prefix};
+pub(crate) use name::{escaped_identifier, view_transition_name};
 
 #[cfg(test)]
 mod tests;

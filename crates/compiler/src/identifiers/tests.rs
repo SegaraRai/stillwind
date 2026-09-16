@@ -83,20 +83,23 @@ fn locator_context(declaration: &DeclarationContext) -> LocatorContext {
         start: declaration.start,
         end: declaration.end,
         binding: declaration.binding.clone(),
+        label: declaration.label.clone(),
         projection: None,
     }
 }
 
 #[test]
 fn a_host_name_is_written_without_the_builtin_prefix() {
-    let context =
-        IdentifierContext::new(GeneratorSet::new(Arc::new(RecordingGenerator::default())));
+    let context = IdentifierContext::new(
+        GeneratorSet::new(Arc::new(RecordingGenerator::default())),
+        DEFAULT_HASH_LENGTH,
+    );
     let name = context.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(name.as_str(), "fixed-class");
     let builtin = IdentifierContext::builtin()
         .class_name(&class_context("0:flex"))
         .unwrap();
-    assert!(builtin.as_str().starts_with("_s_"), "{builtin:?}");
+    assert!(builtin.as_str().starts_with("sw_"), "{builtin:?}");
 }
 
 #[test]
@@ -108,42 +111,143 @@ fn every_builtin_family_keeps_its_own_prefix() {
             .ref_marker_name(&declaration)
             .unwrap()
             .as_str()
-            .starts_with("s_")
+            .starts_with("sw_")
     );
     assert!(
         context
             .anchor_name(&locator_context(&declaration))
             .unwrap()
             .as_str()
-            .starts_with("--sw-r-")
+            .starts_with("sw-a-")
     );
     assert!(
         context
             .container_name(&locator_context(&declaration))
             .unwrap()
             .as_str()
-            .starts_with("--sw-s-")
+            .starts_with("sw-c-")
     );
     assert!(
         context
             .keyframes_name(&declaration)
             .unwrap()
             .as_str()
-            .starts_with("--sw-a-")
+            .starts_with("sw-kf-")
     );
     assert!(
         context
             .view_transition_class(&declaration)
             .unwrap()
             .as_str()
-            .starts_with("--sw-v-")
+            .starts_with("sw-vt-")
+    );
+    // The anchor properties take a `<dashed-ident>`, so the two hyphens belong to the write
+    // site rather than to the name.
+    assert!(
+        context
+            .anchor_name(&locator_context(&declaration))
+            .unwrap()
+            .dashed_ident()
+            .starts_with("--sw-a-")
+    );
+}
+
+#[test]
+fn a_label_is_spelled_between_the_prefix_and_the_digest() {
+    let context = IdentifierContext::builtin();
+    let labelled = declaration_context(Some("primary"));
+    assert!(
+        context
+            .ref_marker_name(&labelled)
+            .unwrap()
+            .as_str()
+            .starts_with("sw_primary_")
+    );
+    assert!(
+        context
+            .anchor_name(&locator_context(&labelled))
+            .unwrap()
+            .as_str()
+            .starts_with("sw-a-primary-")
+    );
+    assert!(
+        context
+            .container_name(&locator_context(&labelled))
+            .unwrap()
+            .as_str()
+            .starts_with("sw-c-primary-")
+    );
+    assert!(
+        context
+            .keyframes_name(&labelled)
+            .unwrap()
+            .as_str()
+            .starts_with("sw-kf-primary-")
+    );
+    assert!(
+        context
+            .view_transition_class(&labelled)
+            .unwrap()
+            .as_str()
+            .starts_with("sw-vt-primary-")
+    );
+    // A label that cleans to nothing is no label, so the name falls back to the digest alone.
+    assert_eq!(
+        context
+            .ref_marker_name(&declaration_context(Some("")))
+            .unwrap(),
+        context.ref_marker_name(&declaration_context(None)).unwrap()
+    );
+}
+
+#[test]
+fn a_digest_is_spelled_in_base_36_and_the_length_extends_its_suffix() {
+    let hash = KeyframesNameRequest(declaration_context(None)).hash();
+    let short = hash.short_base36(5);
+    let long = hash.short_base36(24);
+    assert_eq!(short.len(), 5);
+    assert_eq!(long.len(), 24);
+    assert!(long.ends_with(&short), "{long} does not end with {short}");
+    assert!(
+        long.chars()
+            .all(|character| character.is_ascii_digit() || character.is_ascii_lowercase()),
+        "{long}"
+    );
+}
+
+#[test]
+fn the_compilation_hash_length_decides_the_builtin_spelling() {
+    let declaration = declaration_context(None);
+    let long = IdentifierContext::new(GeneratorSet::builtin(), 12)
+        .keyframes_name(&declaration)
+        .unwrap();
+    assert_eq!(long.as_str().len(), "sw-kf-".len() + 12, "{long}");
+    let short = IdentifierContext::builtin()
+        .keyframes_name(&declaration)
+        .unwrap();
+    assert_eq!(short.as_str().len(), "sw-kf-".len() + 5, "{short}");
+    assert!(long.as_str().ends_with(&short.as_str()["sw-kf-".len()..]));
+}
+
+#[test]
+fn a_labelled_request_is_not_answered_from_the_unlabelled_memo() {
+    let context = IdentifierContext::builtin();
+    let unlabelled = context.ref_marker_name(&declaration_context(None)).unwrap();
+    let labelled = context
+        .ref_marker_name(&declaration_context(Some("primary")))
+        .unwrap();
+    assert_ne!(unlabelled, labelled);
+    assert!(labelled.as_str().starts_with("sw_primary_"), "{labelled}");
+    assert_eq!(
+        context.ref_marker_name(&declaration_context(None)).unwrap(),
+        unlabelled
     );
 }
 
 #[test]
 fn repeated_requests_use_one_generator_call() {
     let generator = Arc::new(RecordingGenerator::default());
-    let context = IdentifierContext::new(GeneratorSet::new(generator.clone()));
+    let context = IdentifierContext::new(GeneratorSet::new(generator.clone()), DEFAULT_HASH_LENGTH);
     let first = context.class_name(&class_context("0:flex")).unwrap();
     let second = context.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(first, second);
@@ -155,9 +259,10 @@ fn development_mode_substitutes_and_records_a_rejected_name() {
     let context = IdentifierContext::in_mode(
         GeneratorSet::new(Arc::new(FailingGenerator)),
         IdentifierMode::Development,
+        DEFAULT_HASH_LENGTH,
     );
     let name = context.class_name(&class_context("0:flex")).unwrap();
-    assert!(name.as_str().starts_with("_s_"), "{name:?}");
+    assert!(name.as_str().starts_with("sw_"), "{name:?}");
     let rejected = context.drain_rejected();
     assert_eq!(rejected.entries().len(), 1);
     let entry = &rejected.entries()[0];
@@ -169,7 +274,10 @@ fn development_mode_substitutes_and_records_a_rejected_name() {
 
 #[test]
 fn release_mode_fails_on_a_rejected_name() {
-    let context = IdentifierContext::new(GeneratorSet::new(Arc::new(FailingGenerator)));
+    let context = IdentifierContext::new(
+        GeneratorSet::new(Arc::new(FailingGenerator)),
+        DEFAULT_HASH_LENGTH,
+    );
     let failure = context.class_name(&class_context("0:flex")).unwrap_err();
     assert!(matches!(
         failure,
@@ -252,18 +360,38 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
         role: ConditionRole::Rule,
         text: ".a{color:red}".to_owned(),
     });
-    let name = request.builtin(&request.hash());
+    let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
     let suffix = name
-        .strip_prefix("sw-if-rule-")
+        .strip_prefix("sw-ifr-")
         .unwrap_or_else(|| panic!("{name}"));
-    assert_eq!(suffix.len(), 16, "{name}");
-    assert_eq!(name, request.builtin(&request.hash()), "{name}");
+    assert_eq!(suffix.len(), DEFAULT_HASH_LENGTH, "{name}");
+    assert_eq!(
+        name,
+        request.builtin(&request.hash(), DEFAULT_HASH_LENGTH),
+        "{name}"
+    );
     // The name carries no leading hyphens: the custom-property family's render method adds them.
     assert_eq!(
-        CustomPropertyName::new(&name).unwrap().property(),
+        ConditionHelperName::new(&name).unwrap().property(),
         format!("--{name}"),
         "{name}"
     );
+    // Every role letter is its own spelling of one text hash.
+    for (role, expected) in [
+        (ConditionRole::Fallback, "sw-if-"),
+        (ConditionRole::Rule, "sw-ifr-"),
+        (ConditionRole::Gate, "sw-ifg-"),
+        (ConditionRole::GateValue, "sw-ifv-"),
+        (ConditionRole::GateNot, "sw-ifn-"),
+    ] {
+        let spelled = ConditionHelperRequest(ConditionContext {
+            role,
+            text: ".a{color:red}".to_owned(),
+        })
+        .builtin(&request.hash(), DEFAULT_HASH_LENGTH);
+        assert!(spelled.starts_with(expected), "{spelled}");
+        assert!(spelled.ends_with(suffix), "{spelled}");
+    }
 }
 
 #[test]
@@ -272,11 +400,11 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
         template: "entry".to_owned(),
         namespace: String::new(),
     });
-    let name = request.builtin(&request.hash());
+    let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
     let suffix = name
         .strip_prefix("sw-anon-")
         .unwrap_or_else(|| panic!("{name}"));
-    assert_eq!(suffix.len(), 16, "{name}");
+    assert_eq!(suffix.len(), DEFAULT_HASH_LENGTH, "{name}");
     // Two layers of one template are distinguished by the index the compiler appends, and a
     // different namespace separates applications that share a template.
     assert_ne!(
@@ -299,7 +427,10 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
 
 #[test]
 fn a_generator_receives_the_whole_digest() {
-    let host = IdentifierContext::new(GeneratorSet::new(Arc::new(DigestGenerator)));
+    let host = IdentifierContext::new(
+        GeneratorSet::new(Arc::new(DigestGenerator)),
+        DEFAULT_HASH_LENGTH,
+    );
     let name = host.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(name.as_str(), "a-full-digest");
 }
@@ -334,7 +465,8 @@ fn report_spellings_are_distinct_per_family() {
         IdentifierKind::ContainerName,
         IdentifierKind::KeyframesName,
         IdentifierKind::ViewTransitionClass,
-        IdentifierKind::CustomProperty,
+        IdentifierKind::ConditionHelper,
+        IdentifierKind::ViewTransitionSlot,
         IdentifierKind::LayerName,
     ];
     let mut spellings = kinds.map(IdentifierKind::as_str).to_vec();

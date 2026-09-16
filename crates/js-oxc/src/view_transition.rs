@@ -1,9 +1,10 @@
 //! `style.viewTransition()` declarations and their uses.
 //!
-//! A declaration is an object with any of `group`, `old`, `new`, `imagePair`, each a
-//! literal utility string; the generated `view-transition-name` and its pseudo-element
-//! rules come from that declaration identity. A use may add a stable key through
-//! `.for(key)`, which stays a user expression rather than being evaluated here.
+//! A declaration is an object with an optional literal `label` and any of `group`,
+//! `old`, `new`, `imagePair`, each a literal utility string; the generated
+//! `view-transition-name`, its class token, and its pseudo-element rules come from that
+//! declaration identity. A use may add a stable key through `.for(key)`, which stays a
+//! user expression rather than being evaluated here.
 //!
 //! Keyed uses are always dynamic in the IR even when only one transition is possible,
 //! because the key expression must be evaluated at runtime for every instance that
@@ -53,10 +54,13 @@ impl<'a> MacroExtractor<'a> {
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         if let Some(transition) = self.view_transition_symbols.get(&symbol_id) {
+            let span = self.source_span(span);
+            let identity = self.identity(AssetKind::ViewTransition, transition);
             return Some((
                 vec![AssetReference {
-                    identity: self.identity(AssetKind::ViewTransition, transition),
-                    span: self.source_span(span),
+                    label: self.declaration_label(&identity, span),
+                    identity,
+                    span,
                     local_declaration: Some(transition.span),
                 }],
                 false,
@@ -65,12 +69,14 @@ impl<'a> MacroExtractor<'a> {
         // A binding whose `.for(...)` was applied where the transition was declared carries
         // its key, so the use names itself from the value.
         let keyed = self.view_transition_key_symbols.get(&symbol_id)?;
+        let span = self.source_span(span);
         Some((
             keyed
                 .iter()
                 .map(|identity| AssetReference {
+                    label: self.declaration_label(identity, span),
                     identity: identity.clone(),
-                    span: self.source_span(span),
+                    span,
                     local_declaration: None,
                 })
                 .collect(),
@@ -198,9 +204,9 @@ impl<'a> MacroExtractor<'a> {
 
     /// Validates and records one `style.viewTransition({...})` declaration.
     ///
-    /// Only `group`, `old`, `new` and `imagePair` are accepted, each with a literal
-    /// utility string. Unknown or non-literal keys are reported and skipped; the result
-    /// needs at least one of the four to be usable.
+    /// Only `label`, `group`, `old`, `new` and `imagePair` are accepted, each with a
+    /// literal string. Unknown or non-literal keys are reported and skipped; the result
+    /// needs at least one of the four phases to be usable.
     pub(crate) fn collect_view_transition_definition(
         &mut self,
         binding: Spanned<String>,
@@ -220,6 +226,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
+        let mut label = None;
         let mut group = None;
         let mut old = None;
         let mut new = None;
@@ -247,14 +254,20 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             };
             let Expression::StringLiteral(value) = &property.value else {
+                let kind = if property_name.value == "label" {
+                    CompileErrorKind::InvalidViewTransitionLabel
+                } else {
+                    CompileErrorKind::InvalidViewTransitionValue
+                };
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidViewTransitionValue,
+                    kind,
                     self.source_span(property.value.span()),
                 ));
                 continue;
             };
             let value = self.string_literal(value);
             match property_name.value.as_str() {
+                "label" => label = Some(value),
                 "group" => group = Some(value),
                 "old" => old = Some(value),
                 "new" => new = Some(value),
@@ -275,6 +288,7 @@ impl<'a> MacroExtractor<'a> {
         Some(ViewTransitionDefinition {
             binding,
             call_span: self.source_span(call.span),
+            label,
             group,
             old,
             new,

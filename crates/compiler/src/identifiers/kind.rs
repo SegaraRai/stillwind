@@ -21,34 +21,50 @@
 use serde::{Deserialize, Serialize};
 
 /// The prefix of a built-in utility class token.
-pub(crate) const DEFAULT_CLASS_PREFIX: &str = "_s_";
+pub(crate) const DEFAULT_CLASS_PREFIX: &str = "sw_";
 
 /// The prefix that marks a built-in ref marker class token as compiler-owned.
-pub(crate) const DEFAULT_REF_MARKER_PREFIX: &str = "s_";
+pub(crate) const DEFAULT_REF_MARKER_PREFIX: &str = "sw_";
 
-/// The custom-property prefix of a built-in ref anchor name.
-pub(crate) const DEFAULT_ANCHOR_PREFIX: &str = "--sw-r-";
-
-/// The custom-property prefix of a built-in container name.
-pub(crate) const DEFAULT_CONTAINER_PREFIX: &str = "--sw-s-";
-
-/// The custom-property prefix of a built-in keyframes name.
-pub(crate) const DEFAULT_ANIMATION_PREFIX: &str = "--sw-a-";
-
-/// The custom-property prefix of a built-in view-transition class token.
+/// The prefix of a built-in ref anchor name, without the value's own leading hyphens.
 ///
-/// The token is the transition's identity and its `view-transition-class` value, so it
-/// carries the prefix a custom property uses even though it is written as a custom-ident.
-pub(crate) const DEFAULT_VIEW_TRANSITION_CLASS_PREFIX: &str = "--sw-v-";
+/// The anchor properties take a `<dashed-ident>`, so the two hyphens belong to the
+/// value grammar and are added by the family's write methods rather than carried by the
+/// name.
+pub(crate) const DEFAULT_ANCHOR_PREFIX: &str = "sw-a-";
 
-/// The prefix of a built-in conditional helper.
+/// The prefix of a built-in container name.
+pub(crate) const DEFAULT_CONTAINER_PREFIX: &str = "sw-c-";
+
+/// The prefix of a built-in keyframes name.
+pub(crate) const DEFAULT_KEYFRAMES_PREFIX: &str = "sw-kf-";
+
+/// The prefix of a built-in view-transition class token, which is also the transition's
+/// identity.
+pub(crate) const DEFAULT_VIEW_TRANSITION_CLASS_PREFIX: &str = "sw-vt-";
+
+/// The prefix of a built-in conditional helper, before the role letter and separator.
 ///
-/// A helper is a custom property, and that family's render method adds the leading hyphens, so the
-/// canonical spelling this prefix starts carries none.
-pub(crate) const DEFAULT_CONDITION_PREFIX: &str = "sw-if-";
+/// A helper is a custom property, and that family's render method adds the leading
+/// hyphens, so the canonical spelling this prefix starts carries none.
+pub(crate) const DEFAULT_CONDITION_PREFIX: &str = "sw-if";
+
+/// The prefix of the custom property one guarded view-transition use writes into,
+/// without its leading hyphens.
+pub(crate) const DEFAULT_VIEW_TRANSITION_SLOT_PREFIX: &str = "sw-vtc-";
 
 /// The prefix of a built-in anonymous layer name.
 pub(crate) const DEFAULT_LAYER_PREFIX: &str = "sw-anon-";
+
+/// How many base-36 digits of the request hash a built-in name keeps when a compilation
+/// does not configure [`crate::CompilerOptions::hash_length`].
+pub(crate) const DEFAULT_HASH_LENGTH: usize = 5;
+
+/// The longest base-36 spelling of one 256-bit digest.
+///
+/// `36^50` exceeds `2^256` while `36^49` does not, so no digest needs a 51st digit and
+/// a longer spelling could only repeat leading zeros.
+pub(crate) const MAXIMUM_HASH_LENGTH: usize = 50;
 
 /// When the compilation runs, which decides how a rejected name is handled.
 ///
@@ -87,8 +103,11 @@ pub enum IdentifierKind {
     KeyframesName,
     /// A `view-transition-class` custom-ident, which is also the transition's identity.
     ViewTransitionClass,
-    /// A custom property name, without its leading `--`.
-    CustomProperty,
+    /// A conditional helper custom property, without its leading `--`.
+    ConditionHelper,
+    /// The custom property one guarded view-transition use writes its class token into,
+    /// without its leading `--`.
+    ViewTransitionSlot,
     /// A generated `@layer` name.
     LayerName,
 }
@@ -103,7 +122,8 @@ impl IdentifierKind {
             Self::ContainerName => "container",
             Self::KeyframesName => "keyframes",
             Self::ViewTransitionClass => "view-transition-class",
-            Self::CustomProperty => "custom-property",
+            Self::ConditionHelper => "condition-helper",
+            Self::ViewTransitionSlot => "view-transition-slot",
             Self::LayerName => "layer",
         }
     }
@@ -116,7 +136,7 @@ impl IdentifierKind {
             Self::ContainerName => IdentifierPool::ContainerName,
             Self::KeyframesName => IdentifierPool::KeyframesName,
             Self::ViewTransitionClass => IdentifierPool::ViewTransitionClass,
-            Self::CustomProperty => IdentifierPool::CustomProperty,
+            Self::ConditionHelper | Self::ViewTransitionSlot => IdentifierPool::CustomProperty,
             Self::LayerName => IdentifierPool::LayerName,
         }
     }
@@ -173,24 +193,25 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
         IdentifierKind::RefMarker => DEFAULT_REF_MARKER_PREFIX,
         IdentifierKind::AnchorName => DEFAULT_ANCHOR_PREFIX,
         IdentifierKind::ContainerName => DEFAULT_CONTAINER_PREFIX,
-        IdentifierKind::KeyframesName => DEFAULT_ANIMATION_PREFIX,
+        IdentifierKind::KeyframesName => DEFAULT_KEYFRAMES_PREFIX,
         IdentifierKind::ViewTransitionClass => DEFAULT_VIEW_TRANSITION_CLASS_PREFIX,
-        IdentifierKind::CustomProperty => DEFAULT_CONDITION_PREFIX,
+        IdentifierKind::ConditionHelper => DEFAULT_CONDITION_PREFIX,
+        IdentifierKind::ViewTransitionSlot => DEFAULT_VIEW_TRANSITION_SLOT_PREFIX,
         IdentifierKind::LayerName => DEFAULT_LAYER_PREFIX,
     }
 }
 
-/// How many hexadecimal digits of the request hash a built-in name keeps.
+/// The character a built-in name puts between an authored label and the digest.
 ///
-/// A class token stays short because it is written to the class attribute of every element it
-/// styles. A helper or a layer name is a custom property or an at-rule prelude, where the extra
-/// digits cost nothing and a longer prefix leaves more room for a host's own authored names.
-pub(crate) const fn builtin_digest_digits(kind: IdentifierKind) -> usize {
+/// A name separates the parts of its own prefix: the class tokens whose prefix ends in an
+/// underscore keep `_`, and every dash-separated family keeps `-`.
+pub(crate) const fn builtin_label_separator(kind: IdentifierKind) -> char {
     match kind {
-        IdentifierKind::CustomProperty | IdentifierKind::LayerName => 16,
-        _ => 8,
+        IdentifierKind::UtilityClass | IdentifierKind::RefMarker => '_',
+        _ => '-',
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,6 +235,14 @@ mod tests {
             IdentifierKind::KeyframesName.pool(),
             IdentifierPool::KeyframesName
         );
+        assert_eq!(
+            IdentifierKind::ConditionHelper.pool(),
+            IdentifierPool::CustomProperty
+        );
+        assert_eq!(
+            IdentifierKind::ViewTransitionSlot.pool(),
+            IdentifierPool::CustomProperty
+        );
     }
 
     #[test]
@@ -225,7 +254,8 @@ mod tests {
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
             IdentifierKind::ViewTransitionClass,
-            IdentifierKind::CustomProperty,
+            IdentifierKind::ConditionHelper,
+            IdentifierKind::ViewTransitionSlot,
             IdentifierKind::LayerName,
         ];
         let mut spellings = kinds.map(IdentifierKind::as_str).to_vec();
@@ -243,7 +273,8 @@ mod tests {
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
             IdentifierKind::ViewTransitionClass,
-            IdentifierKind::CustomProperty,
+            IdentifierKind::ConditionHelper,
+            IdentifierKind::ViewTransitionSlot,
             IdentifierKind::LayerName,
         ] {
             assert!(!builtin_prefix(kind).is_empty(), "{kind:?}");

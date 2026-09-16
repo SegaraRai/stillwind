@@ -1,20 +1,20 @@
-._s_09430877 {
+.sw_t9sxx {
   border-radius: var(--radius-md);
 }
-._s_09430877[data-state="closed"] {
-  animation-name: --sw-a-29446666;
+.sw_t9sxx[data-state="closed"] {
+  animation-name: sw-kf-tym79;
   animation-duration: var(--duration-fast);
   animation-timing-function: var(--ease-standard);
   animation-fill-mode: both;
 }
-._s_e5866475 {
-  animation-name: --sw-a-59fbe1ad;
+.sw_s674c {
+  animation-name: sw-kf-enter-7nc28;
   animation-duration: var(--duration-normal);
   animation-timing-function: var(--ease-standard);
   animation-fill-mode: both;
 }
-._s_2e7a7f27 {
-  animation-name: --sw-a-29446666;
+.sw_35jbw {
+  animation-name: sw-kf-tym79;
   animation-duration: var(--duration-normal);
   animation-timing-function: var(--ease-standard);
   animation-fill-mode: both;

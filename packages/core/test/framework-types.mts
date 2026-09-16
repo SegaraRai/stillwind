@@ -45,6 +45,22 @@ function refVariantTypes(active: boolean) {
 }
 void refVariantTypes;
 
+// Declarations accept an optional literal label beside their own entries, and a ref accepts one
+// where it accepts a name.
+function declarationLabelTypes(active: boolean) {
+  react.ref("trigger");
+  react.ref(react.ref("boundary"), "bounded");
+  react.keyframes({ label: "fade", from: "opacity-0", to: "opacity-100" });
+  react.viewTransition({ label: "card", old: "opacity-0", new: "opacity-100" });
+  // @ts-expect-error A ref label is a literal string.
+  react.ref(123);
+  // @ts-expect-error A keyframes label is a literal string.
+  react.keyframes({ label: active, from: "opacity-0" });
+  // @ts-expect-error A view-transition label is a literal string.
+  react.viewTransition({ label: active, old: "opacity-0" });
+}
+void declarationLabelTypes;
+
 function customPropertyTypes(image: URL, progress: number) {
   react("w-[calc(var(--progress)*100%)]", {
     "--progress": progress,

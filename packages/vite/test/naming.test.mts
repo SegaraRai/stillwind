@@ -43,7 +43,7 @@ void test("a configured generator names the classes the plugin emits", async () 
     // The class the host named is the one the markup carries and the stylesheet selects.
     assert.match(code, /app-class/);
     assert.match(css, /\.app-class\{/);
-    assert.doesNotMatch(code, /_s_/);
+    assert.doesNotMatch(code, /sw_/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -94,9 +94,13 @@ export type StyleKeyframes<Id extends string = string> = {
   readonly [keyframesIdentity]: Id;
 };
 
-export interface StyleKeyframesDefinition {
-  readonly [frameOrVariant: string]: string | StyleKeyframesDefinition;
+/** One frames object: `from`, `to`, or percentage keys, each a utility string or a conditional body. */
+export interface StyleKeyframesFrames {
+  readonly [frameOrVariant: string]: string | StyleKeyframesFrames;
 }
+
+/** A keyframes declaration: one frames object and the optional label its generated name spells out. */
+export type StyleKeyframesDefinition = { readonly label?: string } & StyleKeyframesFrames;
 
 export type StyleViewTransitionUse<Id extends string = string> = {
   readonly [refProjection]: true;
@@ -115,6 +119,8 @@ export type StyleViewTransition<Id extends string = string> = {
 };
 
 export type StyleViewTransitionDefinition = {
+  /** Optional label the generated class token spells out; a literal string only. */
+  label?: string;
   group?: string;
   old?: string;
   new?: string;
@@ -186,14 +192,14 @@ export type StyleMacro<Props = StyleProps> = {
   ): StyleResult<Id, Props>;
   (...inputs: readonly StyleArgument[]): StyleResult<string, Props>;
   ref(): StyleRef;
-  ref(name: string): StyleRef;
+  ref(label: string): StyleRef;
   /** The compiler requires the boundary to resolve to exactly one ref identity. */
   ref(boundary: StyleRef): StyleRef;
   /** The compiler requires the boundary to resolve to exactly one ref identity. */
-  ref(boundary: StyleRef, name: string): StyleRef;
+  ref(boundary: StyleRef, label: string): StyleRef;
   ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
   ref<const Id extends string>(
-    name: string,
+    label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id>;
   ref<const BoundaryId extends string, const Id extends string>(
@@ -202,7 +208,7 @@ export type StyleMacro<Props = StyleProps> = {
   ): StyleRef<Id, BoundaryId>;
   ref<const BoundaryId extends string, const Id extends string>(
     boundary: StyleRef<BoundaryId>,
-    name: string,
+    label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, BoundaryId>;
   keyframes(definition: StyleKeyframesDefinition): StyleKeyframes;
@@ -224,7 +230,7 @@ export const style = Object.assign(
     );
   },
   {
-    ref(_boundaryOrName?: StyleRef | string, _name?: string): StyleRef {
+    ref(_boundaryOrLabel?: StyleRef | string, _label?: string): StyleRef {
       throw new Error("stillwind/react style.ref() is a compile-time macro.");
     },
     keyframes(_definition: StyleKeyframesDefinition): StyleKeyframes {

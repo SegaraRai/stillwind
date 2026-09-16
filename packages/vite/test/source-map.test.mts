@@ -70,7 +70,7 @@ void test("Vite development composes carrier CSS maps through framework preproce
     assert.ok(css);
     assert.ok(css.map, css.code);
     const map = new TraceMap(JSON.stringify(css.map));
-    const offset = css.code.indexOf("._s_");
+    const offset = css.code.indexOf(".sw_");
     const prefix = css.code.slice(0, offset);
     const origin = originalPositionFor(map, {
       line: prefix.split("\n").length,

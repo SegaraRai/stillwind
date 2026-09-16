@@ -67,9 +67,9 @@ fn ref_presence_uses_the_existing_boundary_or_ancestor_relation() {
         assert!(!utilities.contains(":where("), "{utilities}");
         assert!(!code.contains("trigger()"), "{code}");
         if bounded {
-            assert!(css.contains(":has(.s_"), "{css}");
+            assert!(css.contains(":has(.sw_"), "{css}");
         } else {
-            assert!(css.contains(".s_"), "{css}");
+            assert!(css.contains(".sw_"), "{css}");
             assert!(!css.contains(":has("), "{css}");
         }
         assert_eq!(
@@ -148,7 +148,7 @@ fn direct_ref_interpolation_matches_ordered_nested_wrappers() {
         }
     }
     let css = compile(r"`${trigger`hover:`}:active:text-accent`", false).0;
-    assert!(css.contains(":where(:hover) ._s_"), "{css}");
+    assert!(css.contains(":where(:hover) .sw_"), "{css}");
     assert!(css.contains(":active{color:"), "{css}");
     assert!(!css.contains(":where(:hover:active)"), "{css}");
 }
@@ -156,18 +156,18 @@ fn direct_ref_interpolation_matches_ordered_nested_wrappers() {
 #[test]
 fn ref_variants_preserve_custom_alternatives_and_arbitrary_selectors() {
     let css = compile(r#"`${trigger("hocus")}:text-accent`"#, false).0;
-    assert!(css.contains(":where(:hover) ._s_"), "{css}");
-    assert!(css.contains(":where(:focus) ._s_"), "{css}");
+    assert!(css.contains(":where(:hover) .sw_"), "{css}");
+    assert!(css.contains(":where(:focus) .sw_"), "{css}");
     let css = compile(
         r#"`${trigger("[&:where(.mod)]")}:active:text-accent`"#,
         true,
     )
     .0;
-    assert!(css.contains(":has(.s_"), "{css}");
+    assert!(css.contains(":has(.sw_"), "{css}");
     assert!(css.contains(":where(:where(.mod))"), "{css}");
     assert!(css.contains(":active{color:"), "{css}");
     let css = compile(r#"`${trigger("[.mod>&]")}:text-accent`"#, false).0;
-    assert!(css.contains(":where(.mod>.s_"), "{css}");
+    assert!(css.contains(":where(.mod>.sw_"), "{css}");
 }
 
 #[test]
@@ -230,7 +230,7 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
         "{}",
         result.css
     );
-    assert!(result.css.contains(":where(:hover) ._s_"), "{}", result.css);
+    assert!(result.css.contains(":where(:hover) .sw_"), "{}", result.css);
     assert!(
         result.css.contains(":active{animation-name:"),
         "{}",

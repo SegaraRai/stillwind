@@ -297,8 +297,8 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
             !css.contains("--if(") && !css.contains("@variant") && !css.contains("@apply"),
             "{css}"
         );
-        assert!(css.contains("--test-if-rule-"), "{css}");
-        assert!(!css.contains("--sw-if-"), "{css}");
+        assert!(css.contains("--test-ifr-"), "{css}");
+        assert!(!css.contains("--sw-if"), "{css}");
         assert!(
             css.contains("--sw-user:1") && css.contains("var(--sw-user)"),
             "{css}"

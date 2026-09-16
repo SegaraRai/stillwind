@@ -7,7 +7,7 @@
 use oxc::ast::ast::{Expression, PropertyKey, StringLiteral};
 
 use stillwind_ir::AssetReference;
-use stillwind_semantic::IdentityId;
+use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
@@ -39,11 +39,49 @@ impl<'a> MacroExtractor<'a> {
         identity: &IdentityId,
         span: oxc::span::Span,
     ) -> AssetReference {
+        let span = self.source_span(span);
         AssetReference {
             identity: identity.clone(),
-            span: self.source_span(span),
+            span,
             local_declaration: None,
+            label: self.declaration_label(identity, span),
         }
+    }
+
+    /// The authored label of one declaration identity, as this module can read it.
+    ///
+    /// A declaration in this module carries its own label; a declaration in another
+    /// module carries the label the host published in that producer's asset metadata.
+    /// Only keyframes and view transitions spell a label into a generated name, so
+    /// other kinds yield none.
+    pub(crate) fn declaration_label(
+        &self,
+        identity: &IdentityId,
+        span: Span,
+    ) -> Option<Spanned<String>> {
+        let declared = match identity.kind {
+            AssetKind::Keyframes => self
+                .keyframes_declarations
+                .iter()
+                .find(|declaration| {
+                    self.identity(AssetKind::Keyframes, &declaration.binding) == *identity
+                })
+                .and_then(|declaration| declaration.label.clone()),
+            AssetKind::ViewTransition => self
+                .view_transition_declarations
+                .iter()
+                .find(|declaration| {
+                    self.identity(AssetKind::ViewTransition, &declaration.binding) == *identity
+                })
+                .and_then(|declaration| declaration.label.clone()),
+            _ => None,
+        };
+        declared.or_else(|| {
+            self.imported_assets
+                .get(identity)
+                .and_then(|metadata| metadata.label.clone())
+                .map(|label| Spanned::new(label, span))
+        })
     }
 
     /// Returns a property key as name plus span, for identifier and string keys.

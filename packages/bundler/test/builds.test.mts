@@ -130,8 +130,8 @@ for (const backend of ["webpack", "rspack"] as const) {
         assert.ok(files.some((file) => file.endsWith(".js.map")));
         const className = css.match(
           sfc
-            ? /\.(_s_[a-f0-9]+)\s*\{\s*color:\s*rgb\(201,\s*22,\s*33\)/
-            : /\.(_s_[a-f0-9]+)\s*\{\s*color:\s*blue/,
+            ? /\.(sw_[0-9a-z]+)\s*\{\s*color:\s*rgb\(201,\s*22,\s*33\)/
+            : /\.(sw_[0-9a-z]+)\s*\{\s*color:\s*blue/,
         )?.[1];
         assert.ok(className, "expected an automatic CSS class");
         const offset = code.indexOf(className);

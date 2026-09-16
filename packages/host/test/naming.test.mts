@@ -71,7 +71,7 @@ void test("a generator that fails only warns while the session is in development
   // A development session keeps compiling with the built-in name and reports the rejection.
   assert.ok(output?.code);
   const class_name = output.symbols.find((symbol) => symbol.kind === "class")!.name;
-  assert.match(class_name, /^_s_[0-9a-f]{8}$/);
+  assert.match(class_name, /^sw_[0-9a-z]{5}$/);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0]!, /class name/);
   assert.match(warnings[0]!, /no name for this call/);

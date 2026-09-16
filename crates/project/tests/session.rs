@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    AnchorName, ClassContext, CompilerOptions, ConditionContext, CustomPropertyName,
+    AnchorName, ClassContext, CompilerOptions, ConditionContext, ConditionHelperName,
     DeclarationContext, GeneratedName, GeneratedRule, IdentifierGenerator, IdentifierHash,
     Identifiers, KeyframesName, LayerContext, LayerName, LocatorContext, ModuleCssArtifact,
     RefMarker, RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
@@ -558,9 +558,9 @@ impl IdentifierGenerator for FixedHelperGenerator {
         _context: &ConditionContext,
         _hash: &IdentifierHash,
         _text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, String> {
         Ok(GeneratedName::provided(
-            CustomPropertyName::new("shared-if").expect("canonical test name"),
+            ConditionHelperName::new("shared-if").expect("canonical test name"),
         ))
     }
 }

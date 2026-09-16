@@ -65,7 +65,7 @@ void test("explicit module CSS exports scoped values without adding document CSS
     assert.match(global.result.css, /assets\/icon-[\w-]+\.svg/);
     assert.doesNotMatch(global.result.css, /@fs|__stillwind_resource/);
     assert.match(global.result.props.className, /external/);
-    assert.match(global.result.props.className, /_s_/);
+    assert.match(global.result.props.className, /sw_/);
     assert.equal(
       result.output.filter((asset) => asset.type === "asset" && asset.fileName.endsWith(".svg"))
         .length,
@@ -108,7 +108,7 @@ void test("relative JS resources preserve distinct producer origins", async () =
       .join("\n");
     const urls = [...css.matchAll(/url\([^)]*icon-([\w-]+)\.svg[^)]*\)/g)];
     assert.equal(new Set(urls.map((match) => match[1])).size, 2, css);
-    const classes = [...css.matchAll(/\.(_s_[a-f0-9]+)\s*\{/g)];
+    const classes = [...css.matchAll(/\.(sw_[0-9a-z]+)\s*\{/g)];
     assert.equal(new Set(classes.map((match) => match[1])).size, 2, css);
     assert.doesNotMatch(css, /__stillwind_|@fs|\.\/icon\.svg/);
   } finally {
@@ -175,7 +175,7 @@ void test("build retains late and lazy producer CSS without collecting transform
       (asset) => asset.type === "chunk" && asset.fileName.includes("lazy"),
     );
     assert.ok(lazy?.type === "chunk" && lazy.map);
-    const classOffset = lazy.code.indexOf("_s_");
+    const classOffset = lazy.code.indexOf("sw_");
     assert.ok(classOffset >= 0);
     const beforeClass = lazy.code.slice(0, classOffset);
     const position = originalPositionFor(new TraceMap(lazy.map.toString()), {

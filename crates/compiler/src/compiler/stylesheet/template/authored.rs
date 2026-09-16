@@ -12,7 +12,7 @@ use stillwind_diagnostics::CompileErrorKind;
 use super::super::authored_directives::expand_authored_directives;
 use crate::CompilerOptions;
 use crate::compiler::conditionals::lower;
-use crate::identifiers::IdentifierContext;
+use crate::identifiers::{IdentifierContext, IdentifierKind, builtin_prefix};
 
 /// Returns expanded authored CSS and appends its explicit registration dependencies.
 ///
@@ -20,10 +20,10 @@ use crate::identifiers::IdentifierContext;
 /// Requirements written in the input precede those collected from `@apply` expansion.
 ///
 /// `options` selects runtime-conditional lowering and the generated conditional-helper
-/// prefix. The final rewrite replaces every `--sw-if-` substring in the resulting
-/// text, including authored occurrences; it is not restricted to generated names.
-/// `css` and `theme` are unchanged. Unexpandable directives may remain in the output,
-/// so successful rendering does not imply complete CSS validation.
+/// prefix. The final rewrite replaces every `--sw-if` substring in the resulting text,
+/// including authored occurrences; it is not restricted to generated names. `css` and
+/// `theme` are unchanged. Unexpandable directives may remain in the output, so
+/// successful rendering does not imply complete CSS validation.
 ///
 /// # Errors
 ///
@@ -49,5 +49,10 @@ pub(super) fn render_authored(
         )?)
         .ok_or(CompileErrorKind::UnresolvedThemeReference)
         .and_then(|css| lower(&css, options.use_css_if, identifiers))
-        .map(|css| css.replace("--sw-if-", &format!("{}if-", options.prefix)))
+        // The helper prefix is the built-in marker plus the role letter, so replacing the
+        // marker puts every role's spelling under the configured custom-property prefix.
+        .map(|css| {
+            let marker = format!("--{}", builtin_prefix(IdentifierKind::ConditionHelper));
+            css.replace(&marker, &format!("{}if", options.prefix))
+        })
 }

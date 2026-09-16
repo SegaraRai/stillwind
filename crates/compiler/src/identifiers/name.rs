@@ -107,7 +107,7 @@ brand! {
     /// Generated code keys a ref's projection lookup by this token, and a bounded ref
     /// writes its boundary's token as the `:has()` root of its selectors.
     RefMarker, object_key_class_token;
-    /// An `anchor-name` custom-ident, which names the element a ref anchors to.
+    /// An `anchor-name` value, which names the element a ref anchors to.
     AnchorName, custom_ident;
     /// A `container-name` custom-ident, which `@container` queries select.
     ContainerName, custom_ident;
@@ -115,8 +115,11 @@ brand! {
     KeyframesName, custom_ident;
     /// A `view-transition-class` custom-ident, which is also the transition's identity.
     ViewTransitionClass, custom_ident;
-    /// A custom property name, without its leading double hyphen.
-    CustomPropertyName, custom_ident;
+    /// A conditional helper custom property name, without its leading double hyphen.
+    ConditionHelperName, custom_ident;
+    /// The custom property name one guarded view-transition use writes its class token
+    /// into, without its leading double hyphen.
+    ViewTransitionSlotName, custom_ident;
     /// A `@layer` name.
     LayerName, layer_name;
 }
@@ -141,9 +144,12 @@ impl RefMarker {
 }
 
 impl AnchorName {
-    /// This name as a custom-ident value in a property or at-rule prelude.
-    pub fn custom_ident(&self) -> String {
-        escaped_identifier(self.as_str())
+    /// This name as the value `anchor-name`, `position-anchor`, and `anchor-scope` take.
+    ///
+    /// Those properties accept a `<dashed-ident>`, so the leading double hyphen belongs
+    /// to the value rather than to the name.
+    pub fn dashed_ident(&self) -> String {
+        dashed_ident(self.as_str())
     }
 }
 
@@ -186,13 +192,23 @@ impl ViewTransitionClass {
     }
 }
 
-impl CustomPropertyName {
+impl ConditionHelperName {
     /// This name as a custom property, including its leading double hyphen.
     ///
     /// The two hyphens belong to the property grammar rather than to the name, so the
     /// compiler adds them here.
     pub fn property(&self) -> String {
-        format!("--{}", escaped_identifier(self.as_str()))
+        dashed_ident(self.as_str())
+    }
+}
+
+impl ViewTransitionSlotName {
+    /// This name as a custom property, including its leading double hyphen.
+    ///
+    /// The two hyphens belong to the property grammar rather than to the name, so the
+    /// compiler adds them here.
+    pub fn property(&self) -> String {
+        dashed_ident(self.as_str())
     }
 }
 
@@ -206,8 +222,8 @@ impl LayerName {
 /// An authored label, cleaned for use inside a generated name.
 ///
 /// A label reaches a generator as part of a declaration context. The built-in generator
-/// spells it into the marker families' names, which reach the DOM, so it is cleaned
-/// like a class token.
+/// spells it into every name the declaration generates, and those names reach the DOM, so
+/// it is cleaned like a class token.
 ///
 /// An empty label is no label: a declaration whose authored label cleans to nothing passes
 /// `None` in its context and is named without one, rather than failing.
@@ -325,6 +341,14 @@ fn is_inherited_member(name: &str) -> bool {
 /// Escapes one canonical name as a class selector.
 fn class_selector(name: &str) -> String {
     format!(".{}", escaped_identifier(name))
+}
+
+/// Escapes one canonical name as a `--`-prefixed identifier.
+///
+/// A custom property name and a `<dashed-ident>` value share this spelling: the two
+/// hyphens belong to the property or value grammar, not to the name.
+fn dashed_ident(name: &str) -> String {
+    format!("--{}", escaped_identifier(name))
 }
 
 /// Escapes one canonical name as a CSS identifier.

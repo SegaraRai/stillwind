@@ -162,7 +162,7 @@ const props = style("bg-accent hover:bg-accent/90");"#;
         value["symbols"][0]["name"]
             .as_str()
             .unwrap()
-            .starts_with("_s_")
+            .starts_with("sw_")
     );
 }
 
@@ -183,7 +183,7 @@ const props = style(menu.anchor);"#,
         value["symbols"][0]["name"]
             .as_str()
             .unwrap()
-            .starts_with("--sw-r-")
+            .starts_with("sw-a-")
     );
 }
 

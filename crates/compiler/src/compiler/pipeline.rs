@@ -159,6 +159,7 @@ impl Compiler {
                         source,
                         AssetKind::Keyframes,
                         &definition.binding,
+                        definition.label.as_ref(),
                     )
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
@@ -173,6 +174,7 @@ impl Compiler {
                         source,
                         AssetKind::ViewTransition,
                         &definition.binding,
+                        definition.label.as_ref(),
                     )
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
@@ -281,18 +283,18 @@ impl Compiler {
                 }
             };
             let replacement = match (&application.key, application.transitions.as_slice()) {
-                (ViewTransitionKey::Literal(_), [transition]) => match identifiers
-                    .view_transition_class(&identity_declaration(&transition.identity))
-                {
-                    Ok(class) => format!(
-                        "{{{VIEW_TRANSITION_CLASS_KEY}:{class},{VIEW_TRANSITION_KEY}:{key}}}",
-                        class = class.javascript_string()
-                    ),
-                    Err(failure) => {
-                        diagnostics.push(CompileError::new(failure, application.call_span));
-                        "undefined".to_owned()
+                (ViewTransitionKey::Literal(_), [transition]) => {
+                    match identifiers.view_transition_class(&identity_declaration(transition)) {
+                        Ok(class) => format!(
+                            "{{{VIEW_TRANSITION_CLASS_KEY}:{class},{VIEW_TRANSITION_KEY}:{key}}}",
+                            class = class.javascript_string()
+                        ),
+                        Err(failure) => {
+                            diagnostics.push(CompileError::new(failure, application.call_span));
+                            "undefined".to_owned()
+                        }
                     }
-                },
+                }
                 _ => {
                     if let Ok(receiver) = source.slice(application.value) {
                         format!(
@@ -323,9 +325,11 @@ impl Compiler {
                     AssetKind::Keyframes,
                     &animation.binding,
                 )) {
-                    match identifiers
-                        .keyframes_name(&named_declaration(source.path(), &animation.binding))
-                    {
+                    match identifiers.keyframes_name(&named_declaration(
+                        source.path(),
+                        &animation.binding,
+                        animation.label.as_ref(),
+                    )) {
                         Ok(name) => format!(
                             "{}({})",
                             runtime.require(RuntimeHelper::Keyframes, animation.call_span),
@@ -353,6 +357,7 @@ impl Compiler {
                     match identifiers.view_transition_class(&named_declaration(
                         source.path(),
                         &transition.binding,
+                        transition.label.as_ref(),
                     )) {
                         Ok(class) => format!(
                             "{{{VIEW_TRANSITION_CLASS_KEY}:{class}}}",

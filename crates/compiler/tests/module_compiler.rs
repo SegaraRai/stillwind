@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    ClassContext, CompileResult, Compiler, CompilerOptions, ConditionContext, CustomPropertyName,
+    ClassContext, CompileResult, Compiler, CompilerOptions, ConditionContext, ConditionHelperName,
     DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierKind,
     IdentifierMode, Identifiers, ModuleCompiler, RefMarker, SourceTransform, StylesheetRenderer,
     UtilityClass,
@@ -543,7 +543,7 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
         .iter()
         .find(|symbol| symbol.kind == "class")
         .expect("class symbol");
-    assert!(class.name.starts_with("_s_"), "{}", class.name);
+    assert!(class.name.starts_with("sw_"), "{}", class.name);
     let release = compile(IdentifierMode::Release);
     assert!(!release.is_success());
     assert!(release.symbols.is_empty());
@@ -617,7 +617,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         .iter()
         .find(|symbol| symbol.kind == "class")
         .expect("class symbol");
-    assert!(utility.name.starts_with("_s_"), "{}", utility.name);
+    assert!(utility.name.starts_with("sw_"), "{}", utility.name);
 }
 
 /// Names the utility class family with a body a selector cannot carry unescaped.
@@ -679,11 +679,11 @@ impl IdentifierGenerator for RoleSpellingHelperGenerator {
         context: &ConditionContext,
         _hash: &IdentifierHash,
         text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, String> {
         // The role is spelled by the generator and the text is named by its own hash, which is
         // the shape a host picks when it wants two roles to share one suffix.
         Ok(GeneratedName::provided(
-            CustomPropertyName::new(&format!(
+            ConditionHelperName::new(&format!(
                 "app-if-{}-{}",
                 context.role.as_str(),
                 &text_hash.to_hex()[..8],

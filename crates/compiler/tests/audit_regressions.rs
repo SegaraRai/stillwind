@@ -118,14 +118,14 @@ fn punctuation_labels_produce_valid_javascript_strings() {
     let marker = result
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with("s_d\"e/f_"))
+        .find(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with("sw_d\"e/f_"))
         .expect("ref marker symbol");
     let escaped = marker.name.replace('"', "\\\"").replace('/', "\\/");
     assert!(result.css.contains(&escaped), "{}", result.css);
 }
 
 #[test]
-fn normalized_labels_reach_only_the_marker_names() {
+fn a_label_reaches_every_name_its_own_declaration_generates() {
     let (_, result) = compile(
         "const boundary = style.ref('領域 :'); const ref = style.ref(boundary, '項目 🧭'); \
          export const root = style(boundary); export const item = style(ref); \
@@ -133,26 +133,29 @@ fn normalized_labels_reach_only_the_marker_names() {
         "@utility a { color:red; }",
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");
-    // A marker spells its declaration's normalized label, which is what makes it readable
-    // in generated markup; every other family hashes the declaration.
-    let markers = result
-        .symbols
-        .iter()
-        .filter(|symbol| symbol.kind.ends_with("marker"))
-        .map(|symbol| symbol.name.as_str())
-        .collect::<Vec<_>>();
-    assert!(
-        markers.iter().any(|name| name.contains("領域")),
-        "{markers:?}"
-    );
-    assert!(
-        markers.iter().any(|name| name.contains("項目")),
-        "{markers:?}"
-    );
+    // A declaration's label is spelled into every name generated for that declaration,
+    // which is what makes the names readable in generated markup.
+    for kind in ["ref-marker", "ref"] {
+        let names = result
+            .symbols
+            .iter()
+            .filter(|symbol| symbol.kind == kind)
+            .map(|symbol| symbol.name.as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            names.iter().any(|name| name.contains("領域")),
+            "{kind}: {names:?}"
+        );
+        assert!(
+            names.iter().any(|name| name.contains("項目")),
+            "{kind}: {names:?}"
+        );
+    }
+    // A utility class is named for one call, not for a declaration, so it never carries a label.
     for symbol in result
         .symbols
         .iter()
-        .filter(|symbol| !symbol.kind.ends_with("marker"))
+        .filter(|symbol| symbol.kind == "class")
     {
         for authored in ["領域", "項目", "🧭"] {
             assert!(!symbol.name.contains(authored), "{}", symbol.name);

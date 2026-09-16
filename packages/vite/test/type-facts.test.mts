@@ -131,14 +131,14 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.match(consumer.code, /\[selected\.c\]/);
   assert.match(consumer.code, /stillwindAssetClass\(selectedKeyframes\("infinite"\)/);
   // A transition the value selects at runtime carries one class per token, chosen by v.
-  assert.match(consumer.code, /"--sw-v-[^"]+":"_s_[^"]+"[\s\S]{0,120}?\)\[selectedTransition\.v\]/);
-  assert.match(consumer.code, /stillwindViewTransitionName\("--sw-v-[^"]+",transitionKey\)/);
+  assert.match(consumer.code, /"sw-vt-[^"]+":"sw_[^"]+"[\s\S]{0,120}?\)\[selectedTransition\.v\]/);
+  assert.match(consumer.code, /stillwindViewTransitionName\("sw-vt-[^"]+",transitionKey\)/);
   assert.match(consumer.code, /stillwindViewTransitionName\(selectedTransition,transitionKey\)/);
   assert.match(consumer.code, /stillwindViewTransitionName\(keyedTransitionAlias\)/);
   assert.equal(consumer.code.match(/transitionKey/g)?.length, 4);
-  assert.equal(consumer.css.match(/anchor-name:--sw-r-/g)?.length, 2);
-  assert.equal(consumer.css.match(/animation-name:--sw-a-/g)?.length, 2);
-  assert.match(consumer.css, /view-transition-class:--sw-v-/);
+  assert.equal(consumer.css.match(/anchor-name:--sw-a-/g)?.length, 2);
+  assert.equal(consumer.css.match(/animation-name:sw-kf-/g)?.length, 2);
+  assert.match(consumer.css, /view-transition-class:sw-vt-/);
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "fixture.css", resolveFixtureCss('@import "stillwind";'));
   const session = new NativeProjectSession(loader, true);
@@ -154,7 +154,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
     ["src/consumer.ts"],
   );
   assert.deepEqual(selected.modules[0].diagnostics, []);
-  assert.match(session.moduleCss("src/consumer.ts"), /animation-name:--sw-a-/);
+  assert.match(session.moduleCss("src/consumer.ts"), /animation-name:sw-kf-/);
   const selection: import("@stillwind/native").NativeStylesheetSelection = {
     modules: ["src/consumer.ts"],
     coverage: { kind: "complete", target: "consumer-route", revision: "graph-1" },
@@ -167,7 +167,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
     producers: { module: string; sourceRevision: string; semanticRevision: string }[];
   };
   assert.equal(plan.css, session.moduleCss("src/consumer.ts"));
-  assert.match(plan.css, /@keyframes --sw-a-/);
+  assert.match(plan.css, /@keyframes sw-kf-/);
   assert.equal(plan.css.match(/@keyframes /g)?.length, 2);
   assert.doesNotMatch(plan.css, /display:flex/);
   assert.deepEqual(

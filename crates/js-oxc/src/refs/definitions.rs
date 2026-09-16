@@ -1,6 +1,6 @@
 //! Validation and extraction of `style.ref()` declarations and ref variants.
 //!
-//! A ref accepts an optional literal marker name, and may instead be bounded by another
+//! A ref accepts an optional literal label, and may instead be bounded by another
 //! ref. Labels retain their decoded text for marker generation; the compiler handles
 //! whitespace normalization and CSS/JavaScript serialization.
 //!
@@ -20,7 +20,7 @@ use crate::state::MacroExtractor;
 impl<'a> MacroExtractor<'a> {
     /// Validates one `style.ref()` declaration.
     ///
-    /// Accepts `()`, `(name)`, `(boundary)` and `(boundary, name)`. The boundary
+    /// Accepts `()`, `(label)`, `(boundary)` and `(boundary, label)`. The boundary
     /// argument must resolve to exactly one ref identity, so a ref can never be bounded
     /// by an arbitrary value.
     pub(crate) fn collect_ref_definition(
@@ -59,7 +59,7 @@ impl<'a> MacroExtractor<'a> {
                 };
                 let Some(Expression::StringLiteral(label)) = label.as_expression() else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidRefNameArgument,
+                        CompileErrorKind::InvalidRefLabelArgument,
                         self.source_span(label.span()),
                     ));
                     return None;

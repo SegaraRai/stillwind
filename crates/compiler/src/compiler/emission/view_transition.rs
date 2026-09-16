@@ -35,7 +35,7 @@ impl CallEmitter<'_> {
             self.view_transition_names += 1;
         }
         let token = match self.record_definition_name(
-            &transition.identity,
+            transition,
             AssetKind::ViewTransition,
             transition.span,
         ) {
@@ -97,7 +97,7 @@ impl CallEmitter<'_> {
             self.required_definitions
                 .insert(transition.identity.clone());
             let token = match self.record_definition_name(
-                &transition.identity,
+                transition,
                 AssetKind::ViewTransition,
                 transition.span,
             ) {

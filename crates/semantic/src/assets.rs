@@ -17,9 +17,9 @@ use super::identity::IdentityId;
 /// Author-visible metadata for one asset.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetMetadata {
-    /// Optional literal name the author passed to the producer, such as
-    /// `style.ref("trigger")`. Display and marker-naming input only: identity
-    /// never depends on it, so equal labels stay distinct assets.
+    /// Optional literal label the author gave the declaration, such as
+    /// `style.ref("trigger")`. Naming input only: identity never depends on it,
+    /// so equal labels stay distinct assets.
     pub label: Option<String>,
 }
 

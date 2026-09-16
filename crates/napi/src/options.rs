@@ -9,8 +9,9 @@ use napi_derive::napi;
 
 use stillwind_compiler::CompilerOptions;
 
-/// Optional host overrides for prefixes, lint policy, class identity, and conditional CSS.
-/// Conversion validates prefixes; omitted fields retain `CompilerOptions` defaults.
+/// Optional host overrides for prefixes, lint policy, class identity, and conditional
+/// CSS. Conversion validates prefixes; omitted fields retain [`CompilerOptions`]
+/// defaults.
 #[napi(object)]
 #[derive(Default)]
 pub struct NativeCompilerOptions {
@@ -18,15 +19,20 @@ pub struct NativeCompilerOptions {
     pub prefix: Option<String>,
     /// Prefix for the retained Tailwind-compatibility namespace.
     pub tailwind_prefix: Option<String>,
-    /// Whether Tailwind relationship candidates produce the nonfatal typed-relationship lint.
+    /// Whether Tailwind relationship candidates produce the nonfatal typed-relationship
+    /// lint.
     pub forbid_tailwind_relationships: Option<bool>,
     /// Identifier namespace for generated class names.
     pub class_namespace: Option<String>,
     /// Emit native CSS `if()` for experimental conditional values and variants.
-    /// Defaults to false; comparisons, negated variants, and CSS-wide helper branches require true.
+    /// Defaults to false; comparisons, negated variants, and CSS-wide helper branches
+    /// require true.
     pub use_css_if: Option<bool>,
     /// Hash of the host's identifier generators, used to invalidate cached artifacts.
     pub naming_revision: Option<String>,
+    /// Number of base-36 digits a built-in generated name keeps from its request hash.
+    /// Defaults to 5. Values from 1 to 50 are accepted.
+    pub hash_length: Option<u32>,
 }
 
 impl TryFrom<NativeCompilerOptions> for CompilerOptions {
@@ -43,6 +49,10 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
             class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),
             use_css_if: input.use_css_if.unwrap_or(defaults.use_css_if),
             naming_revision: input.naming_revision.unwrap_or(defaults.naming_revision),
+            hash_length: input
+                .hash_length
+                .map(|length| usize::try_from(length).unwrap_or(usize::MAX))
+                .unwrap_or(defaults.hash_length),
         };
         options
             .validate()

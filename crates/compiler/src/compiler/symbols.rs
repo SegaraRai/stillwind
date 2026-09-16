@@ -1,10 +1,10 @@
 //! Deterministic generated identifiers.
 //!
-//! Every name is the first eight hex digits of a hash over an identity string of the
-//! form `stillwind/v1\0<module>\0<kind>\0<start>:<end>:<text>`, with normalized module
-//! paths so the same declaration yields the same name on Windows and on POSIX. Class
-//! names additionally mix in the callsite offset and a per-call branch index, which is
-//! what keeps two callsites with identical utility sets in different class units. The
+//! Every name is spelled from a hash over an identity string of the form
+//! `stillwind/v1\0<module>\0<kind>\0<start>:<end>:<text>`, with normalized module paths
+//! so the same declaration yields the same name on Windows and on POSIX. Class names
+//! additionally mix in the callsite offset and a per-call branch index, which is what
+//! keeps two callsites with identical utility sets in different class units. The
 //! truncation makes a collision conceivable, so [`GeneratedSymbol`] reports the full
 //! identity next to the name and a consumer that must be certain compares identities
 //! instead of names.
@@ -12,7 +12,7 @@
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{BoundaryRef, RefDefinition, RefProjection};
+use stillwind_ir::{AssetReference, BoundaryRef, RefDefinition, RefProjection};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
@@ -34,7 +34,7 @@ pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
     pub name: String,
     /// Symbol family: `ref`, `ref-marker`, `keyframes`, `view-transition`, `class`,
-    /// `custom-property`, or `layer`.
+    /// `condition-helper`, `view-transition-slot`, or `layer`.
     pub kind: String,
     /// CSS namespace the name is written into. Names in different pools never interact,
     /// so only equal spellings from different identities within one pool collide.
@@ -80,6 +80,7 @@ pub(super) fn ref_context(definition: &RefDefinition, projection: Option<&str>) 
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
         binding: definition.binding.value.clone(),
+        label: declared_label(definition.label.as_ref()),
         projection: projection.map(str::to_owned),
     }
 }
@@ -91,14 +92,7 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
         binding: definition.binding.value.clone(),
-        // An empty label is no label; the declaration is named without one.
-        label: definition
-            .label
-            .as_ref()
-            .map(|label| Label::new(&label.value))
-            .transpose()
-            .ok()
-            .flatten(),
+        label: declared_label(definition.label.as_ref()),
     }
 }
 
@@ -109,15 +103,16 @@ pub(super) fn boundary_declaration_context(boundary: &BoundaryRef) -> Declaratio
         start: boundary.binding.span.start.0,
         end: boundary.binding.span.end.0,
         binding: boundary.binding.value.clone(),
-        // An empty label is no label; the declaration is named without one.
-        label: boundary
-            .label
-            .as_ref()
-            .map(|label| Label::new(&label.value))
-            .transpose()
-            .ok()
-            .flatten(),
+        label: declared_label(boundary.label.as_ref()),
     }
+}
+
+/// The authored label of one declaration, normalized for name use.
+///
+/// An empty label is no label: a declaration whose label cleans to nothing is named
+/// without one rather than failing.
+fn declared_label(label: Option<&Spanned<String>>) -> Option<Label> {
+    label.and_then(|label| Label::new(&label.value).ok())
 }
 
 /// Generated ref marker class token for one declaration.
@@ -227,30 +222,35 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
 }
 
 /// The declaration a named asset's generated name is built from.
+///
+/// `label` is the declaration's authored label, which the built-in generator spells
+/// into the name.
 pub(super) fn named_declaration(
     module_path: &str,
     definition: &Spanned<String>,
+    label: Option<&Spanned<String>>,
 ) -> DeclarationContext {
     DeclarationContext {
         module: normalized_module_path(module_path),
         start: definition.span.start.0,
         end: definition.span.end.0,
         binding: definition.value.clone(),
-        label: None,
+        label: declared_label(label),
     }
 }
 
 /// The declaration an identity reported by another module describes.
 ///
 /// A use site in another module has the identity rather than the source buffer, so the
-/// declaration is rebuilt from the identity's own fields.
-pub(super) fn identity_declaration(identity: &IdentityId) -> DeclarationContext {
+/// declaration is rebuilt from the identity's own fields and the label the reference
+/// carries.
+pub(super) fn identity_declaration(reference: &AssetReference) -> DeclarationContext {
     DeclarationContext {
-        module: normalized_module_path(&identity.module_path),
-        start: identity.start,
-        end: identity.end,
-        binding: identity.binding_name.clone(),
-        label: None,
+        module: normalized_module_path(&reference.identity.module_path),
+        start: reference.identity.start,
+        end: reference.identity.end,
+        binding: reference.identity.binding_name.clone(),
+        label: declared_label(reference.label.as_ref()),
     }
 }
 
@@ -294,6 +294,7 @@ fn locator(declaration: &DeclarationContext) -> LocatorContext {
         start: declaration.start,
         end: declaration.end,
         binding: declaration.binding.clone(),
+        label: declaration.label.clone(),
         projection: None,
     }
 }
@@ -311,9 +312,14 @@ pub(super) fn generated_symbol(
     source: &SourceFile,
     kind: AssetKind,
     definition: &Spanned<String>,
+    label: Option<&Spanned<String>>,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
     Ok(GeneratedSymbol {
-        name: declared_name(context, kind, &named_declaration(source.path(), definition))?,
+        name: declared_name(
+            context,
+            kind,
+            &named_declaration(source.path(), definition, label),
+        )?,
         kind: kind_name(kind).to_owned(),
         pool: kind_pool(kind),
         identity: symbol_identity(source, kind_name(kind), definition),
@@ -397,17 +403,17 @@ pub(super) fn generated_class_symbol(
 /// Returns the host generator's failure for the asset's family.
 pub(super) fn definition_name_symbol(
     context: &IdentifierContext,
-    identity: &IdentityId,
+    reference: &AssetReference,
     kind: AssetKind,
     span: Span,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
-    let name = declared_name(context, kind, &identity_declaration(identity))?;
+    let name = declared_name(context, kind, &identity_declaration(reference))?;
     Ok(GeneratedSymbol {
         name,
         kind: kind_name(kind).to_owned(),
         pool: kind_pool(kind),
-        identity: identity_input(identity),
-        source_path: normalized_module_path(&identity.module_path),
+        identity: identity_input(&reference.identity),
+        source_path: normalized_module_path(&reference.identity.module_path),
         start: Some(span.start.0),
         end: Some(span.end.0),
     })
@@ -523,7 +529,7 @@ mod tests {
                 .class_name(&class("flex"))
                 .unwrap()
                 .as_str()
-                .starts_with("_s_")
+                .starts_with("sw_")
         );
     }
 
@@ -533,11 +539,11 @@ mod tests {
         let source = SourceFile::new(FileId(1), r"src\x.tsx", "ref").unwrap();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
-            (AssetKind::Ref, "--sw-r-"),
-            (AssetKind::Keyframes, "--sw-a-"),
-            (AssetKind::ViewTransition, "--sw-v-"),
+            (AssetKind::Ref, "sw-a-"),
+            (AssetKind::Keyframes, "sw-kf-"),
+            (AssetKind::ViewTransition, "sw-vt-"),
         ] {
-            let symbol = generated_symbol(&identifiers, &source, kind, &name).unwrap();
+            let symbol = generated_symbol(&identifiers, &source, kind, &name, None).unwrap();
             assert!(symbol.name.starts_with(prefix));
             assert_eq!(symbol.source_path, "src/x.tsx");
             assert_eq!((symbol.start, symbol.end), (Some(0), Some(3)));
@@ -549,7 +555,7 @@ mod tests {
             let shifted_name = declared_name(
                 &identifiers,
                 kind,
-                &named_declaration(source.path(), &shifted),
+                &named_declaration(source.path(), &shifted, None),
             )
             .unwrap();
             assert_ne!(symbol.name, shifted_name);

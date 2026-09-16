@@ -1,6 +1,6 @@
 
 
-export const primary = {c:"s_primary_8a6155b9"};
-export const secondary = {c:"s_secondary_1920670d"};
-export const compactBoundary = {c:"s_compact_aec2a336"};
-export const spaciousBoundary = {c:"s_spacious_2e457f71"};
+export const primary = {c:"sw_primary_bphz3"};
+export const secondary = {c:"sw_secondary_fmhru"};
+export const compactBoundary = {c:"sw_compact_a4y4y"};
+export const spaciousBoundary = {c:"sw_spacious_n3zt3"};

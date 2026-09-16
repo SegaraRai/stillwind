@@ -64,10 +64,14 @@ impl ModuleIr {
         for transition in &mut result.view_transition_declarations {
             map_value(&mut transition.binding, &mut map)?;
             transition.call_span = map(transition.call_span)?;
+            if let Some(label) = &mut transition.label {
+                map_value(label, &mut map)?;
+            }
             for value in [
                 &mut transition.group,
                 &mut transition.old,
                 &mut transition.new,
+                &mut transition.image_pair,
             ]
             .into_iter()
             .flatten()
@@ -120,6 +124,9 @@ fn map_animation<E>(
 ) -> Result<(), E> {
     map_value(&mut keyframes.binding, map)?;
     keyframes.call_span = map(keyframes.call_span)?;
+    if let Some(label) = &mut keyframes.label {
+        map_value(label, map)?;
+    }
     map_keyframes_body(&mut keyframes.body, map)
 }
 
@@ -143,6 +150,9 @@ fn map_asset<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     asset.span = map(asset.span)?;
+    if let Some(label) = &mut asset.label {
+        map_value(label, map)?;
+    }
     if let Some(declaration) = asset.local_declaration {
         let declaration = map(declaration)?;
         asset.identity.start = declaration.start.0;

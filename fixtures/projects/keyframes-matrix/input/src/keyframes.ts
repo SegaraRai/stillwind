@@ -1,6 +1,7 @@
 import { style } from "stillwind/react";
 
 export const enter = style.keyframes({
+  label: "enter",
   from: "opacity-0 translate-y-2 scale-98",
   to: "opacity-100 translate-y-0 scale-100",
 });

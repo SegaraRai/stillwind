@@ -29,13 +29,13 @@ void test("composition joins base classes, preserves delta props, and leaves inp
 });
 
 void test("view transition names pair a class token with a key", () => {
-  assert.equal(stillwindViewTransitionName("--sw-v-card"), "");
-  assert.equal(stillwindViewTransitionName("--sw-v-card", "hero"), "--sw-v-card-hero");
-  assert.equal(stillwindViewTransitionName("--sw-v-card", "item 1"), "--sw-v-card-item\\ 1");
-  assert.equal(stillwindViewTransitionName({ v: "--sw-v-card", k: 7 }), "--sw-v-card-7");
-  assert.equal(stillwindViewTransitionName({ v: "--sw-v-card", k: 7 }, "hero"), "--sw-v-card-hero");
-  assert.deepEqual(stillwindViewTransitionKey({ v: "--sw-v-card" }, "hero"), {
-    v: "--sw-v-card",
+  assert.equal(stillwindViewTransitionName("sw-vt-card"), "");
+  assert.equal(stillwindViewTransitionName("sw-vt-card", "hero"), "sw-vt-card-hero");
+  assert.equal(stillwindViewTransitionName("sw-vt-card", "item 1"), "sw-vt-card-item\\ 1");
+  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", k: 7 }), "sw-vt-card-7");
+  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", k: 7 }, "hero"), "sw-vt-card-hero");
+  assert.deepEqual(stillwindViewTransitionKey({ v: "sw-vt-card" }, "hero"), {
+    v: "sw-vt-card",
     k: "hero",
   });
   assert.throws(() => stillwindViewTransitionName({}), TypeError);
@@ -67,12 +67,9 @@ void test("composes names matching the shared escape vectors", () => {
 });
 
 void test("selects classes carried by dynamic animation and view transition values", () => {
-  const fade = stillwindKeyframes("--sw-a-fade");
+  const fade = stillwindKeyframes("sw-kf-fade");
 
-  assert.equal(stillwindAssetClass(fade("infinite"), { "--sw-a-fade": "a_fade" }), "a_fade");
-  assert.equal(
-    stillwindAssetClass({ v: "--sw-v-title" }, { "--sw-v-title": "v_title" }),
-    "v_title",
-  );
+  assert.equal(stillwindAssetClass(fade("infinite"), { "sw-kf-fade": "a_fade" }), "a_fade");
+  assert.equal(stillwindAssetClass({ v: "sw-vt-title" }, { "sw-vt-title": "v_title" }), "v_title");
   assert.throws(() => stillwindAssetClass({ identity: "user-owned" }, {}), TypeError);
 });

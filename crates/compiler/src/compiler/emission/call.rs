@@ -5,8 +5,10 @@
 //! custom-property captures. Class expressions and per-kind arms live in the sibling files.
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{AttributeEntry, ClassExpression, CustomPropertyEntry, GroupEntry, StyleInput};
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_ir::{
+    AssetReference, AttributeEntry, ClassExpression, CustomPropertyEntry, GroupEntry, StyleInput,
+};
+use stillwind_semantic::AssetKind;
 use stillwind_source::Span;
 
 use super::super::class_units::ClassUnits;
@@ -177,11 +179,11 @@ impl<'a> CallEmitter<'a> {
     /// Returns the host generator's failure for the asset's family.
     pub(super) fn record_definition_name(
         &mut self,
-        identity: &IdentityId,
+        reference: &AssetReference,
         kind: AssetKind,
         span: Span,
     ) -> Result<String, CompileErrorKind> {
-        let symbol = definition_name_symbol(self.identifiers, identity, kind, span)?;
+        let symbol = definition_name_symbol(self.identifiers, reference, kind, span)?;
         let name = symbol.name.clone();
         self.written_name_symbols.push(symbol);
         Ok(name)

@@ -34,14 +34,17 @@ pub(in crate::compiler) fn emit_keyframes_definition(
         &mut definitions,
     );
     definitions.sort_by(|(left, _, _), (right, _, _)| left.compare_order(right, theme));
-    let name =
-        match identifiers.keyframes_name(&named_declaration(source.path(), &keyframes.binding)) {
-            Ok(name) => name,
-            Err(failure) => {
-                diagnostics.push(CompileError::new(failure, keyframes.call_span));
-                return;
-            }
-        };
+    let name = match identifiers.keyframes_name(&named_declaration(
+        source.path(),
+        &keyframes.binding,
+        keyframes.label.as_ref(),
+    )) {
+        Ok(name) => name,
+        Err(failure) => {
+            diagnostics.push(CompileError::new(failure, keyframes.call_span));
+            return;
+        }
+    };
     contribution.keyframes = true;
     for (_, paths, frames) in definitions {
         let mut frame_contribution = CssContribution::default();

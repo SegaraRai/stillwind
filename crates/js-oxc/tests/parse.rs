@@ -404,7 +404,7 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
         ),
         (
             "const s=style.ref(); const x=style.ref(s,...args);",
-            CompileErrorKind::InvalidRefNameArgument,
+            CompileErrorKind::InvalidRefLabelArgument,
         ),
         (
             "const x=style.keyframes(...args);",

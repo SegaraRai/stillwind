@@ -20,9 +20,10 @@ use napi::sys;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    AnchorName, ClassContext, ConditionContext, ContainerName, CustomPropertyName,
+    AnchorName, ClassContext, ConditionContext, ConditionHelperName, ContainerName,
     DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash, KeyframesName,
     LayerContext, LayerName, LocatorContext, RefMarker, UtilityClass, ViewTransitionClass,
+    ViewTransitionSlotName,
 };
 
 /// The fields of a utility class request.
@@ -369,7 +370,7 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &ClassContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionSlotName>, String> {
         let Some(name) = self.call(
             &self.view_transition_slot,
             FnArgs::from((
@@ -386,7 +387,7 @@ impl IdentifierGenerator for NativeNaming {
             return Ok(GeneratedName::Builtin);
         };
         Ok(GeneratedName::provided(
-            CustomPropertyName::new(&name).map_err(|error| error.to_string())?,
+            ViewTransitionSlotName::new(&name).map_err(|error| error.to_string())?,
         ))
     }
 
@@ -395,7 +396,7 @@ impl IdentifierGenerator for NativeNaming {
         context: &ConditionContext,
         hash: &IdentifierHash,
         text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, String> {
         let Some(name) = self.call(
             &self.condition_helper,
             FnArgs::from((
@@ -411,7 +412,7 @@ impl IdentifierGenerator for NativeNaming {
             return Ok(GeneratedName::Builtin);
         };
         Ok(GeneratedName::provided(
-            CustomPropertyName::new(&name).map_err(|error| error.to_string())?,
+            ConditionHelperName::new(&name).map_err(|error| error.to_string())?,
         ))
     }
 

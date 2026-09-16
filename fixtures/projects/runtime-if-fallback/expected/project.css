@@ -10,41 +10,41 @@ reach descendants. Keep this declaration slot inside the selector rule.
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }
-._s_9ee3cee6 {
+.sw_j49u5 {
   display: grid;
-  --sw-if-7781566dbeb6214f: var(--second) 30px;
-  --sw-if-508d317e87e9da0d: var(--enabled) var(--sw-if-7781566dbeb6214f, 20px);
-  height: var(--sw-if-508d317e87e9da0d, 10px);
-  --sw-if-66300b5d0a73b3f2: var(--enabled) 120px;
-  width: var(--sw-if-66300b5d0a73b3f2, 60px);
+  --sw-if-o06ec: var(--second) 30px;
+  --sw-if-xy63z: var(--enabled) var(--sw-if-o06ec, 20px);
+  height: var(--sw-if-xy63z, 10px);
+  --sw-if-jg1gu: var(--enabled) 120px;
+  width: var(--sw-if-jg1gu, 60px);
   opacity: calc(100 * 1%);
 }
-@supports (color: revert-rule) and (--sw-if-rule-b9a390760cd1c1fa: 0) {
-  ._s_9ee3cee6 {
-    --sw-if-b8c10c629159230c: var(--enabled) flex;
-    display: var(--sw-if-b8c10c629159230c, revert-rule);
+@supports (color: revert-rule) and (--sw-ifr-cb7fn: 0) {
+  .sw_j49u5 {
+    --sw-if-s6okf: var(--enabled) flex;
+    display: var(--sw-if-s6okf, revert-rule);
   }
 }
-@supports (color: revert-rule) and (--sw-if-rule-09b13ebcd4ec0d08: 0) {
-  ._s_9ee3cee6 {
-    --sw-if-gate-b43b4071a90424a4: var(--second) var(--enabled);
-    --sw-if-1306116a384ec93c: var(--sw-if-gate-b43b4071a90424a4) calc(50 * 1%);
-    opacity: var(--sw-if-1306116a384ec93c, revert-rule) !important;
+@supports (color: revert-rule) and (--sw-ifr-gd0nw: 0) {
+  .sw_j49u5 {
+    --sw-ifg-siwzs: var(--second) var(--enabled);
+    --sw-if-v3fwi: var(--sw-ifg-siwzs) calc(50 * 1%);
+    opacity: var(--sw-if-v3fwi, revert-rule) !important;
   }
 }
-._s_d7b08172 {
-  --sw-if-5ff6cbf0f7f75516: var(--enabled) 80px;
-  width: var(--sw-if-5ff6cbf0f7f75516, 40px);
+.sw_mdfmd {
+  --sw-if-n9v1g: var(--enabled) 80px;
+  width: var(--sw-if-n9v1g, 40px);
 }
 
 .authored {
   display: grid;
-  @supports (color: revert-rule) and (--sw-if-rule-6d3404ae8194f4cb: 0) {
+  @supports (color: revert-rule) and (--sw-ifr-6xte4: 0) {
     & {
-      --sw-if-b8c10c629159230c: var(--enabled) flex;
-      display: var(--sw-if-b8c10c629159230c, revert-rule);
+      --sw-if-s6okf: var(--enabled) flex;
+      display: var(--sw-if-s6okf, revert-rule);
     }
   }
-  --sw-if-b0fcfdfae6cfa075: var(--enabled) 120px;
-  width: var(--sw-if-b0fcfdfae6cfa075, 60px);
+  --sw-if-wdgy6: var(--enabled) 120px;
+  width: var(--sw-if-wdgy6, 60px);
 }

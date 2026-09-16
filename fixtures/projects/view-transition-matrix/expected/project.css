@@ -425,83 +425,83 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ::view-transition-old(.--sw-v-7e58d129) {
+  ::view-transition-old(.sw-vt-page-title-vtl83) {
     opacity: calc(0 * 1%);
   }
-  ::view-transition-new(.--sw-v-7e58d129) {
+  ::view-transition-new(.sw-vt-page-title-vtl83) {
     opacity: calc(100 * 1%);
   }
-  ::view-transition-old(.--sw-v-5ce18560) {
+  ::view-transition-old(.sw-vt-woqm1) {
     opacity: calc(100 * 1%);
   }
   @media (prefers-reduced-motion: reduce) {
-    ::view-transition-old(.--sw-v-5ce18560) {
+    ::view-transition-old(.sw-vt-woqm1) {
       opacity: calc(75 * 1%);
     }
   }
-  ::view-transition-new(.--sw-v-5ce18560) {
+  ::view-transition-new(.sw-vt-woqm1) {
     opacity: calc(0 * 1%);
   }
-  ::view-transition-image-pair(.--sw-v-5ce18560) {
+  ::view-transition-image-pair(.sw-vt-woqm1) {
     isolation: auto;
   }
-  ._s_ba3304a0 {
-    view-transition-class: --sw-v-7e58d129;
+  .sw_rylqx {
+    view-transition-class: sw-vt-page-title-vtl83;
   }
-  ._s_27fd0933 {
+  .sw_2qlao {
     display: block;
   }
-  ._s_27fd0933 {
-    view-transition-class: --sw-v-7e58d129;
+  .sw_2qlao {
+    view-transition-class: sw-vt-page-title-vtl83;
   }
-  ._s_27fd0933 {
-    view-transition-name: --sw-v-7e58d129-hero;
+  .sw_2qlao {
+    view-transition-name: sw-vt-page-title-vtl83-hero;
   }
-  ._s_ff2da744 {
+  .sw_43hgg {
     display: block;
   }
-  ._s_62030c47 {
-    view-transition-name: --sw-v-7e58d129-hero;
+  .sw_3oyfk {
+    view-transition-name: sw-vt-page-title-vtl83-hero;
   }
-  ._s_24aea93b {
-    view-transition-name: --sw-v-5ce18560-hero;
+  .sw_556g5 {
+    view-transition-name: sw-vt-woqm1-hero;
   }
-  ._s_03bd2150 {
+  .sw_8pa1h {
     display: block;
   }
-  ._s_03bd2150 {
-    view-transition-class: --sw-v-7e58d129;
+  .sw_8pa1h {
+    view-transition-class: sw-vt-page-title-vtl83;
   }
-  ._s_c5134c6d {
+  .sw_0j70v {
     display: block;
     view-transition-name: hero;
   }
-  ._s_b9926253 {
+  .sw_j0jnc {
     display: block;
   }
-  ._s_b9926253 {
-    view-transition-class: --sw-v-7e58d129 --sw-v-5ce18560;
+  .sw_j0jnc {
+    view-transition-class: sw-vt-page-title-vtl83 sw-vt-woqm1;
   }
-  ._s_b9926253 {
-    view-transition-name: --sw-v-7e58d129-one;
+  .sw_j0jnc {
+    view-transition-name: sw-vt-page-title-vtl83-one;
   }
-  ._s_b9926253 {
-    view-transition-name: --sw-v-5ce18560-two;
+  .sw_j0jnc {
+    view-transition-name: sw-vt-woqm1-two;
   }
-  ._s_c8add1c2 {
+  .sw_mo7p2 {
     display: block;
   }
-  ._s_c8add1c2 {
-    view-transition-class: --sw-v-7e58d129 var(--sw-vtc-4fa0a75bafca756b,);
+  .sw_mo7p2 {
+    view-transition-class: sw-vt-page-title-vtl83 var(--sw-vtc-sgapg,);
   }
-  ._s_c8add1c2 {
-    view-transition-name: --sw-v-7e58d129-base;
+  .sw_mo7p2 {
+    view-transition-name: sw-vt-page-title-vtl83-base;
   }
-  ._s_a37e7f43 {
-    --sw-vtc-4fa0a75bafca756b: --sw-v-5ce18560;
+  .sw_wiq0e {
+    --sw-vtc-sgapg: sw-vt-woqm1;
   }
-  ._s_a37e7f43 {
-    view-transition-name: --sw-v-5ce18560-guarded;
+  .sw_wiq0e {
+    view-transition-name: sw-vt-woqm1-guarded;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

@@ -87,7 +87,7 @@ The conceptual React output is:
 
 ```tsx
 {
-  className: stillwindClsx("_s_a1", loading && "_s_b2"),
+  className: stillwindClsx("sw_a1", loading && "sw_b2"),
   "aria-busy": loading || undefined,
 }
 ```
@@ -266,12 +266,13 @@ JSX is visible in one file the linter verifies that invariant. The generated sel
 for the sibling example has the form:
 
 ```css
-.s_menu_<hash>:has(.s_trigger_<hash>:where(:hover)) .s_<target-hash> { ... }
+.sw_menu_<hash>:has(.sw_trigger_<hash>:where(:hover)) .sw_<target-hash> { ... }
 ```
 
-Names are optional. `style.ref()` emits `.s_<hash>`; `style.ref("menu")` and
-`style.ref(menu, "trigger")` emit `.s_menu_<hash>` and `.s_trigger_<hash>`. The
-hash keeps these local identities deterministic and collision-checked.
+Labels are optional. `style.ref()` emits `.sw_<hash>`; `style.ref("menu")` and
+`style.ref(menu, "trigger")` emit `.sw_menu_<hash>` and `.sw_trigger_<hash>`. The
+hash keeps these local identities deterministic and collision-checked, and every other
+generated name of one declaration spells the same label.
 
 Refs also own anchor positioning and container-query projections:
 
@@ -336,7 +337,7 @@ const pageTitle = style.viewTransition({
 ```
 
 The declaration lowers to a value whose class token is the transition's
-identity (`{v:"--sw-v-..."}`), and it styles the generated
+identity (`{v:"sw-vt-..."}`), and it styles the generated
 `::view-transition-group`, `::view-transition-old`, and
 `::view-transition-new` rules for that class. `imagePair` styles
 `::view-transition-image-pair` for the same participants, and a phase utility

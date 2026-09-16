@@ -43,8 +43,8 @@ impl<'a> StylesheetRenderer<'a> {
     /// Creates a renderer for `snapshot`.
     ///
     /// The options' prefixes are resolved against the snapshot, so rendered text always
-    /// agrees with the theme being rendered. `identifiers` names every generated helper and
-    /// anonymous layer this renderer writes.
+    /// agrees with the theme being rendered. `identifiers` names every generated helper
+    /// and anonymous layer this renderer writes.
     pub fn new(
         snapshot: &'a DesignSystemSnapshot,
         options: &CompilerOptions,
@@ -53,7 +53,7 @@ impl<'a> StylesheetRenderer<'a> {
         Self {
             snapshot,
             options: options.clone().resolved(snapshot),
-            identifiers: identifiers.context(),
+            identifiers: identifiers.context(options.hash_length),
         }
     }
 
@@ -67,8 +67,9 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// On success `css` holds the assembled document stylesheet and `module_css`
     /// retains the unwrapped module rules. Assembly failure clears both output rules
-    /// and source edits and records a diagnostic at `diagnostic_span`. That span must be
-    /// valid in the caller's reporting source; it is used without coordinate validation.
+    /// and source edits and records a diagnostic at `diagnostic_span`. That span must
+    /// be valid in the caller's reporting source; it is used without coordinate
+    /// validation.
     pub fn render_compilation(
         &self,
         module: &CompiledModule,
@@ -92,23 +93,23 @@ impl<'a> StylesheetRenderer<'a> {
                 }
             }
         }
-        // TODO: this is the only entry point that drains the rejections. A host that renders a
-        // carrier or a project stylesheet with its own generator never learns which of its names
-        // were rejected; return them from those entry points too.
+        // TODO: this is the only entry point that drains the rejections. A host that
+        // renders a carrier or a project stylesheet with its own generator never learns
+        // which of its names were rejected; return them from those entry points too.
         result.rejected_names = self.identifiers.drain_rejected().into_entries();
-        // Helpers written for authored CSS and anonymous layers belong to no declaration, so they
-        // are reported under the stylesheet that named them.
+        // Helpers written for authored CSS and anonymous layers belong to no
+        // declaration, so they are reported under the stylesheet that named them.
         result.symbols.extend(self.take_detached_symbols());
         result
     }
 
     /// Takes the names this renderer produced that belong to no declaration.
     ///
-    /// A renderer holds one compilation's name allocation, so this drains what its renders since
-    /// the last call produced: conditional helpers written for authored CSS or theme fragments, and
-    /// anonymous layers. They are reported under the stylesheet that named them and carry no
-    /// declaration position, so a document-wide pool check can compare them against every other
-    /// name the document uses.
+    /// A renderer holds one compilation's name allocation, so this drains what its
+    /// renders since the last call produced: conditional helpers written for authored
+    /// CSS or theme fragments, and anonymous layers. They are reported under the
+    /// stylesheet that named them and carry no declaration position, so a document-wide
+    /// pool check can compare them against every other name the document uses.
     pub fn take_detached_symbols(&self) -> Vec<GeneratedSymbol> {
         let stylesheet = self
             .snapshot

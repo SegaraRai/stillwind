@@ -71,7 +71,7 @@ fn cli_compiles_a_react_module_to_layered_css_and_macro_free_code() {
     let code = value["code"].as_str().unwrap();
 
     assert!(css.contains("@layer properties, theme, base, components, utilities;"));
-    assert!(css.contains("._s_"));
+    assert!(css.contains(".sw_"));
     assert!(css.contains(":hover{"));
     assert!(code.contains("{className:"));
     assert!(!code.contains("style(\"bg-accent"));

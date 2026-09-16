@@ -1,30 +1,30 @@
-._s_26351d29 {
-  anchor-scope: --sw-r-c134e6f8;
+.sw_j56sq {
+  anchor-scope: --sw-a-trigger-3s561;
 }
-._s_358e5414 {
-  container-name: --sw-s-c134e6f8;
+.sw_bn36f {
+  container-name: sw-c-trigger-3s561;
   container-type: inline-size;
 }
-._s_8c17e379 {
+.sw_na86c {
   position: relative;
   display: inline-flex;
 }
-._s_246794cb {
-  anchor-name: --sw-r-c134e6f8;
+.sw_a26st {
+  anchor-name: --sw-a-trigger-3s561;
 }
-._s_84e4e074 {
+.sw_fh7co {
   position: absolute;
 }
-@container --sw-s-c134e6f8 (width >= 40rem) {
-  ._s_84e4e074 {
+@container sw-c-trigger-3s561 (width >= 40rem) {
+  .sw_fh7co {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (hover: hover) {
-  .s_menu_71ba03e2:has(.s_trigger_c134e6f8:where(:hover)) ._s_84e4e074 {
+  .sw_menu_fwm3k:has(.sw_trigger_3s561:where(:hover)) .sw_fh7co {
     color: var(--color-accent);
   }
 }
-._s_8076fe32 {
-  position-anchor: --sw-r-c134e6f8;
+.sw_0beuo {
+  position-anchor: --sw-a-trigger-3s561;
 }

@@ -54,15 +54,15 @@ export const props = style(${expression});`;
       assert.ok(output);
       assert.deepEqual(output.diagnostics, []);
       if (expression.includes(".at")) {
-        assert.equal(new Set(output.css.match(/@container --sw-s-[\w-]+/g)).size, 2);
+        assert.equal(new Set(output.css.match(/@container sw-c-[\w-]+/g)).size, 2);
         assert.match(output.css, /\(width > 40rem\)/);
         assert.doesNotMatch(output.css, /:has\(/);
       } else {
-        // Labels do not reach the generated markers, so the pairs are read from the
-        // compiled selectors: each boundary must bind to exactly one ref of the pair.
+        // The pairs are read from the compiled selectors: each boundary must bind to
+        // exactly one ref of the pair.
         const pairs = [
           ...output.css.matchAll(
-            /@media \(hover:hover\)\{\.(s_\w+):has\(\.(s_\w+):where\(:hover\)\)/g,
+            /@media \(hover:hover\)\{\.(sw_\w+):has\(\.(sw_\w+):where\(:hover\)\)/g,
           ),
         ].map((match) => ({ boundary: match[1], ref: match[2] }));
         assert.equal(pairs.length, 2, output.css);

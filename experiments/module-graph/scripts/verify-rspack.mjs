@@ -120,7 +120,7 @@ try {
       const cssMap = new TraceMap(
         JSON.parse(await fs.readFile(path.join(dir, "dist", cssFile + ".map"), "utf8")),
       );
-      const offset = cssText.indexOf("._s_");
+      const offset = cssText.indexOf(".sw_");
       assert(offset >= 0, cssText);
       const prefix = cssText.slice(0, offset);
       const origin = originalPositionFor(cssMap, {

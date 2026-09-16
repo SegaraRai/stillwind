@@ -28,9 +28,11 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     diagnostics: &mut Vec<CompileError>,
 ) {
     let output = &mut contribution.css;
-    let class = match identifiers
-        .view_transition_class(&named_declaration(source.path(), &transition.binding))
-    {
+    let class = match identifiers.view_transition_class(&named_declaration(
+        source.path(),
+        &transition.binding,
+        transition.label.as_ref(),
+    )) {
         Ok(class) => class,
         Err(failure) => {
             diagnostics.push(CompileError::new(failure, transition.call_span));

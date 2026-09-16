@@ -19,8 +19,8 @@ A general representation of this call is:
 
 ```js
 stillwindMerge(
-  { [stillwindClassKey]: "_s_base" },
-  a && (b ? { [stillwindClassKey]: "_s_p2" } : { [stillwindClassKey]: "_s_p1" }),
+  { [stillwindClassKey]: "sw_base" },
+  a && (b ? { [stillwindClassKey]: "sw_p2" } : { [stillwindClassKey]: "sw_p1" }),
   { "aria-busy": computeBusy() },
 );
 ```

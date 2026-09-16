@@ -361,7 +361,7 @@ const props = style("starting:opacity-0");"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("@starting-style{._s_"));
+    assert!(result.css.contains("@starting-style{.sw_"));
     assert!(
         fold_calc_expressions(&result.css).contains("{opacity:0%;}"),
         "{}",
@@ -422,7 +422,7 @@ fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
         let classes = |code: &str| {
             let mut names = code
                 .split('"')
-                .filter(|part| part.starts_with("_s_"))
+                .filter(|part| part.starts_with("sw_"))
                 .map(str::to_owned)
                 .collect::<Vec<_>>();
             names.sort();

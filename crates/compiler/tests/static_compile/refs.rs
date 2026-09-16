@@ -27,20 +27,20 @@ const panel = style(popover.positionAnchor, "absolute");"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("anchor-name:--sw-r-"));
-    assert!(result.css.contains("position-anchor:--sw-r-"));
-    assert!(result.css.contains("anchor-scope:--sw-r-"));
+    assert!(result.css.contains("anchor-name:--sw-a-"));
+    assert!(result.css.contains("position-anchor:--sw-a-"));
+    assert!(result.css.contains("anchor-scope:--sw-a-"));
     // The anchor and container names are separate families: both are written for the
     // ref's identity, and each keeps its own namespace.
-    assert!(result.css.contains("container-name:--sw-s-"));
+    assert!(result.css.contains("container-name:sw-c-"));
     let hash_of = |prefix: &str| {
         let start = result.css.find(prefix).expect("declaration") + prefix.len();
         let rest = &result.css[start..];
         let end = rest.find([';', ':']).unwrap_or(rest.len());
         rest[..end].to_owned()
     };
-    let anchor = hash_of("anchor-name:--sw-r-");
-    let container = hash_of("container-name:--sw-s-");
+    let anchor = hash_of("anchor-name:--sw-a-");
+    let container = hash_of("container-name:sw-c-");
     assert!(!anchor.is_empty() && !container.is_empty());
     // One declaration owns both names, so the marker reaches each of them.
     assert_eq!(
@@ -59,11 +59,11 @@ const panel = style(popover.positionAnchor, "absolute");"#,
     // The projection reads the declaration's canonical token, so the declaration stays a
     // value instead of being erased as unused.
     assert!(
-        transformed.contains("const popover = {c:\"s_"),
+        transformed.contains("const popover = {c:\"sw_"),
         "{transformed}"
     );
     assert!(
-        transformed.contains("({\"s_") && transformed.contains("})[popover.c]"),
+        transformed.contains("({\"sw_") && transformed.contains("})[popover.c]"),
         "{transformed}"
     );
 }
@@ -115,7 +115,7 @@ const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
         .nth(1)
         .and_then(|rest| rest.split(';').next())
         .expect("container declaration");
-    assert!(name.starts_with("--sw-s-"), "{name}");
+    assert!(name.starts_with("sw-c-"), "{name}");
     assert!(
         result
             .css
@@ -144,7 +144,7 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
         let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
         assert!(result.diagnostics.is_empty(), "{result:#?}");
         assert!(result.lint_findings.is_empty(), "{result:#?}");
-        assert!(result.css.contains("@container --sw-s-"), "{}", result.css);
+        assert!(result.css.contains("@container sw-c-"), "{}", result.css);
         assert!(result.css.contains(":hover"), "{}", result.css);
     }
 }
@@ -170,10 +170,10 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    let marker = "s_";
+    let marker = "sw_";
     assert!(result.transforms[0].replacement.contains(marker));
     assert!(result.css.contains(&format!(".{marker}")));
-    assert!(result.css.contains(":where(:hover) ._s_"));
+    assert!(result.css.contains(":where(:hover) .sw_"));
 }
 
 #[test]
@@ -208,9 +208,9 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
             .name
             .clone()
     };
-    let boundary = marker_of("s_menu_");
-    let trigger = marker_of("s_trigger_");
-    assert!(trigger.starts_with("s_trigger_"), "{trigger}");
+    let boundary = marker_of("sw_menu_");
+    let trigger = marker_of("sw_trigger_");
+    assert!(trigger.starts_with("sw_trigger_"), "{trigger}");
     assert!(transformed.contains(&boundary), "{transformed}");
     assert!(transformed.contains(&trigger), "{transformed}");
     assert!(
@@ -224,7 +224,7 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
         result.css
     );
     assert!(
-        result.css.contains(":where(:hover)) ._s_"),
+        result.css.contains(":where(:hover)) .sw_"),
         "{}",
         result.css
     );
@@ -314,12 +314,12 @@ export const Menu = () => (
     // The boundary element keeps the unbounded relation for its own ref: a target inside
     // the boundary element matches by ancestry.
     assert!(
-        result.css.contains(":where(:focus-within) ._s_"),
+        result.css.contains(":where(:focus-within) .sw_"),
         "{}",
         result.css
     );
     // The bounded ref reads the boundary instead, so its target may be a sibling.
-    assert!(result.css.contains(":has(.s_trigger_"), "{}", result.css);
+    assert!(result.css.contains(":has(.sw_trigger_"), "{}", result.css);
 }
 
 #[test]
@@ -353,6 +353,6 @@ export const View = () => (
     );
     // The leaf is bounded by the inner ref, so its selector reads the inner marker as the
     // boundary even though that marker is itself bounded by the outer ref.
-    assert!(result.css.contains(".s_inner_"), "{}", result.css);
-    assert!(result.css.contains(":has(.s_leaf_"), "{}", result.css);
+    assert!(result.css.contains(".sw_inner_"), "{}", result.css);
+    assert!(result.css.contains(":has(.sw_leaf_"), "{}", result.css);
 }

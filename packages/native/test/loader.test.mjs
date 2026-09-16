@@ -433,6 +433,6 @@ void test("native sessions join supplied type facts with another module's asset 
     withFacts.modules.every((module) => module.diagnostics.length === 0),
     JSON.stringify(withFacts),
   );
-  assert.match(withFacts.modules[0].code, /s_shared_/);
+  assert.match(withFacts.modules[0].code, /sw_shared_/);
   assert.doesNotMatch(withFacts.modules[0].code, /style\(marker\)/);
 });

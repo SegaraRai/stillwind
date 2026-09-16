@@ -56,7 +56,7 @@ const moduleCode = output.code
   .replaceAll("export const ", "globalThis.");
 runInNewContext(moduleCode, sandbox);
 const props = sandbox;
-assert.match(props.staticallyKeyed.className, /_s_/);
+assert.match(props.staticallyKeyed.className, /sw_/);
 assert.ok(props.dynamicallyKeyed.style["view-transition-name"]);
 assert.equal(props.unnamed.style, undefined);
 
@@ -98,7 +98,7 @@ try {
   });
 
   // A literal key becomes a declaration, and the name is the class token plus the key.
-  assert.match(names.static, /^--sw-v-[0-9a-f]{8}-hero$/, JSON.stringify(names));
+  assert.match(names.static, /^sw-vt-[0-9a-z]{5}-hero$/, JSON.stringify(names));
   // A runtime key is escaped for a value position, so the space keeps its escape.
   assert.equal(names.dynamic, `${names.static.replace(/-hero$/, "")}-item\\ 1`);
   // Two names in one call leave the last declaration as the element value.

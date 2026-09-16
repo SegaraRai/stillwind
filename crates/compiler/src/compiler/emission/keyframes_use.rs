@@ -87,7 +87,7 @@ impl CallEmitter<'_> {
             self.runtime_assets.insert(keyframes.identity.clone());
             self.required_definitions.insert(keyframes.identity.clone());
             let identity = match self.record_definition_name(
-                &keyframes.identity,
+                keyframes,
                 AssetKind::Keyframes,
                 keyframes.span,
             ) {
@@ -161,7 +161,7 @@ fn resolve_keyframes_use(
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        match identifiers.keyframes_name(&identity_declaration(&keyframes.identity)) {
+        match identifiers.keyframes_name(&identity_declaration(keyframes)) {
             Ok(name) => name.custom_ident(),
             Err(failure) => {
                 diagnostics.push(CompileError::new(failure, options.span));

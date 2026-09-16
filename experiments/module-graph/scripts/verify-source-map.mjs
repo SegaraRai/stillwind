@@ -45,7 +45,7 @@ export async function verifyMacroSourceMap(
       if (error.code === "ENOENT") continue;
       throw error;
     }
-    for (const match of code.matchAll(/_s_[a-f0-9]+/g)) {
+    for (const match of code.matchAll(/sw_[0-9a-z]+/g)) {
       const before = code.slice(0, match.index);
       const mapped = originalPositionFor(map, {
         line: before.split("\n").length,

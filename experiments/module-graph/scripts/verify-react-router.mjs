@@ -220,7 +220,7 @@ try {
       /^home-.*\.js$/.test(name),
     );
     const homeCode = await fs.readFile(path.join(dir, "build/client/assets", homeAsset), "utf8");
-    const generated = homeCode.indexOf("_s_");
+    const generated = homeCode.indexOf("sw_");
     assert.ok(generated >= 0);
     const before = homeCode.slice(0, generated);
     const mapped = originalPositionFor(

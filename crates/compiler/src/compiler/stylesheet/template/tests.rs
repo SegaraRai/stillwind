@@ -14,8 +14,8 @@ use stillwind_css::CssOutputTemplate;
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
 
 use crate::identifiers::{
-    GeneratedName, IdentifierContext, IdentifierGenerator, IdentifierHash, Identifiers,
-    LayerContext, LayerName,
+    DEFAULT_HASH_LENGTH, GeneratedName, IdentifierContext, IdentifierGenerator, IdentifierHash,
+    Identifiers, LayerContext, LayerName,
 };
 use crate::{CompilerOptions, MappedStylesheet};
 
@@ -98,7 +98,7 @@ fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
     )
     .unwrap();
     let theme = parse_theme(&source).unwrap();
-    let identifiers = Identifiers::with(Arc::new(FixedLayerGenerator)).context();
+    let identifiers = Identifiers::with(Arc::new(FixedLayerGenerator)).context(DEFAULT_HASH_LENGTH);
     let css = super::render(
         &theme.output_template,
         &theme,

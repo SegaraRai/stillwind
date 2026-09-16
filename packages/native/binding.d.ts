@@ -275,25 +275,35 @@ export interface NativeClassContext {
 }
 
 /**
- * Optional host overrides for prefixes, lint policy, class identity, and conditional CSS.
- * Conversion validates prefixes; omitted fields retain `CompilerOptions` defaults.
+ * Optional host overrides for prefixes, lint policy, class identity, and conditional
+ * CSS. Conversion validates prefixes; omitted fields retain [`CompilerOptions`]
+ * defaults.
  */
 export interface NativeCompilerOptions {
   /** Prefix for Stillwind-owned identifiers. Must start with `--` and end with `-`. */
   prefix?: string
   /** Prefix for the retained Tailwind-compatibility namespace. */
   tailwindPrefix?: string
-  /** Whether Tailwind relationship candidates produce the nonfatal typed-relationship lint. */
+  /**
+   * Whether Tailwind relationship candidates produce the nonfatal typed-relationship
+   * lint.
+   */
   forbidTailwindRelationships?: boolean
   /** Identifier namespace for generated class names. */
   classNamespace?: string
   /**
    * Emit native CSS `if()` for experimental conditional values and variants.
-   * Defaults to false; comparisons, negated variants, and CSS-wide helper branches require true.
+   * Defaults to false; comparisons, negated variants, and CSS-wide helper branches
+   * require true.
    */
   useCssIf?: boolean
   /** Hash of the host's identifier generators, used to invalidate cached artifacts. */
   namingRevision?: string
+  /**
+   * Number of base-36 digits a built-in generated name keeps from its request hash.
+   * Defaults to 5. Values from 1 to 50 are accepted.
+   */
+  hashLength?: number
 }
 
 /** The fields of a conditional helper request. */

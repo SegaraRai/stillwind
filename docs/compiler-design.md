@@ -529,7 +529,7 @@ conditional classes, React's adapter may use a tiny `stillwindClsx` helper:
 
 ```tsx
 {
-  className: stillwindClsx("_s_a1", loading && "_s_b2"),
+  className: stillwindClsx("sw_a1", loading && "sw_b2"),
   "aria-busy": loading || undefined,
 }
 ```
@@ -570,9 +570,10 @@ Names are deterministic and private:
 The naming module is the sole owner of hashes, identifier escaping, collision
 handling, and CSS namespace prefixes.
 
-Stillwind-owned identifiers use the configurable `--sw-` prefix. Internal
-custom properties retained for Tailwind compatibility use the separately
-configurable `--tw-` prefix; the two namespaces must remain distinct.
+Stillwind-owned identifiers are rooted at `sw`; the ones written as custom
+properties or `<dashed-ident>` values carry the configurable `--sw-` prefix.
+Internal custom properties retained for Tailwind compatibility use the
+separately configurable `--tw-` prefix; the two namespaces must remain distinct.
 
 Typed registrations in the CSS registry use `@stillwind-property`. The
 stylesheet emitter resolves these definitions after theme CSS, authored CSS,

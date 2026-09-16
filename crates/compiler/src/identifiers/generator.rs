@@ -8,7 +8,7 @@
 //! returns [`GeneratedName::Builtin`] keeps the compiler's own name.
 //!
 //! [`IdentifierContext`] is one compilation's allocation: the host generator first, the compiler's
-//! own name second, memoized per family and identity. A helper asked twice therefore cannot
+//! own name second, memoized per family, identity, and label. A helper asked twice therefore cannot
 //! observe two calls of an impure generator and cannot produce two names for one declaration, and
 //! a rejection is memoized as a rejection, so one compilation reports it once.
 
@@ -21,10 +21,10 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileErrorKind;
 
-use super::kind::{IdentifierKind, IdentifierMode, builtin_digest_digits, builtin_prefix};
+use super::kind::{DEFAULT_HASH_LENGTH, IdentifierKind, IdentifierMode};
 use super::name::{
-    AnchorName, ContainerName, CustomPropertyName, KeyframesName, LayerName, RefMarker, Token,
-    UtilityClass, ViewTransitionClass,
+    AnchorName, ConditionHelperName, ContainerName, KeyframesName, Label, LayerName, RefMarker,
+    Token, UtilityClass, ViewTransitionClass, ViewTransitionSlotName,
 };
 use super::request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
@@ -73,8 +73,11 @@ impl Identifiers {
     }
 
     /// One compilation's memoized name allocation for these inputs.
-    pub(crate) fn context(&self) -> IdentifierContext {
-        IdentifierContext::in_mode(self.generators.clone(), self.mode)
+    ///
+    /// `hash_length` is the number of base-36 digits the compilation's built-in names
+    /// keep, which comes from [`crate::CompilerOptions::hash_length`].
+    pub(crate) fn context(&self, hash_length: usize) -> IdentifierContext {
+        IdentifierContext::in_mode(self.generators.clone(), self.mode, hash_length)
     }
 }
 
@@ -201,7 +204,7 @@ pub trait IdentifierGenerator: fmt::Debug {
         _context: &ConditionContext,
         _hash: &IdentifierHash,
         _text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, String> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -214,7 +217,7 @@ pub trait IdentifierGenerator: fmt::Debug {
         &self,
         _context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionSlotName>, String> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -345,24 +348,33 @@ pub struct DetachedName {
     pub identity: String,
 }
 
-/// Whether a family's names are collected as detached names rather than reported per declaration.
+/// Whether a family's names are collected as detached names rather than reported per
+/// declaration.
 ///
-/// Only the helper family is collected here: an anonymous layer's spelling carries a traversal
-/// index the writer appends, so the writer records that spelling itself.
+/// The helper and slot families are collected here, because neither is written for a
+/// declaration. An anonymous layer is not: its spelling carries a traversal index the
+/// writer appends, so the writer records that spelling itself.
 fn is_detached(kind: IdentifierKind) -> bool {
-    matches!(kind, IdentifierKind::CustomProperty)
+    matches!(
+        kind,
+        IdentifierKind::ConditionHelper | IdentifierKind::ViewTransitionSlot
+    )
 }
 
-/// One compilation's name allocation: host generator first, built-in fallback, memoized.
+/// One compilation's name allocation: host generator first, built-in fallback,
+/// memoized.
 ///
 /// A request always yields one result within a compilation, so a helper asked twice
-/// cannot observe two calls of an impure generator and cannot produce two names for one
-/// declaration. A rejection is memoized as a rejection, so one compilation reports it once.
+/// cannot observe two calls of an impure generator and cannot produce two names for
+/// one declaration. A rejection is memoized as a rejection, so one compilation reports
+/// it once.
 #[derive(Clone, Debug)]
 pub struct IdentifierContext {
     generators: GeneratorSet,
     /// Compilation mode deciding whether a rejection falls back or fails.
     mode: IdentifierMode,
+    /// How many base-36 digits of a request hash a built-in name keeps.
+    hash_length: usize,
     memo: RefCell<BTreeMap<MemoKey, Result<String, String>>>,
     /// Rejections collected in development mode.
     rejected: RefCell<RejectedNames>,
@@ -370,15 +382,24 @@ pub struct IdentifierContext {
     detached: RefCell<Vec<DetachedName>>,
 }
 
-/// Memo key: the family and the canonical hash of the request.
-type MemoKey = (IdentifierKind, IdentifierHash);
+/// Memo key: the family, the canonical hash of the request, and the label it spells.
+///
+/// The label is not part of the hash, because the identity of a declaration does not depend on
+/// it, but it does decide the name, so two requests for one identity that differ in their label
+/// are two spellings and must not share a memo entry.
+type MemoKey = (IdentifierKind, IdentifierHash, Option<Label>);
 
 impl IdentifierContext {
     /// Starts a context for `generators` in release mode.
-    pub fn new(generators: GeneratorSet) -> Self {
+    ///
+    /// `hash_length` is the number of base-36 digits a built-in name keeps. It is the
+    /// compilation's own spelling choice and never reaches a host generator, which is
+    /// given the whole digest.
+    pub fn new(generators: GeneratorSet, hash_length: usize) -> Self {
         Self {
             generators,
             mode: IdentifierMode::Release,
+            hash_length,
             memo: RefCell::new(BTreeMap::new()),
             rejected: RefCell::new(RejectedNames::default()),
             detached: RefCell::new(Vec::new()),
@@ -386,16 +407,17 @@ impl IdentifierContext {
     }
 
     /// Starts a context that substitutes the built-in name when a generator is rejected.
-    pub fn in_mode(generators: GeneratorSet, mode: IdentifierMode) -> Self {
+    pub fn in_mode(generators: GeneratorSet, mode: IdentifierMode, hash_length: usize) -> Self {
         Self {
             mode,
-            ..Self::new(generators)
+            ..Self::new(generators, hash_length)
         }
     }
 
-    /// Starts a context that uses the built-in generator for every family.
+    /// Starts a context that uses the built-in generator for every family and the
+    /// default hash length.
     pub fn builtin() -> Self {
-        Self::new(GeneratorSet::builtin())
+        Self::new(GeneratorSet::builtin(), DEFAULT_HASH_LENGTH)
     }
 
     /// The mode this context was built for.
@@ -459,10 +481,6 @@ impl IdentifierContext {
 
     /// An anchor name for one ref projection.
     ///
-    /// The built-in name is the identity hash alone, whether or not the declaration has a
-    /// label: an anchor name is a custom-ident every position-anchor resolves through, so a
-    /// label would make renaming it change which elements anchor to which.
-    ///
     /// # Errors
     ///
     /// Returns the host generator's failure in release mode.
@@ -517,7 +535,7 @@ impl IdentifierContext {
     pub(crate) fn condition_helper(
         &self,
         context: &ConditionContext,
-    ) -> Result<CustomPropertyName, CompileErrorKind> {
+    ) -> Result<ConditionHelperName, CompileErrorKind> {
         self.resolve_name(&ConditionHelperRequest(context.clone()))
     }
 
@@ -529,7 +547,7 @@ impl IdentifierContext {
     pub(crate) fn view_transition_slot(
         &self,
         context: &ClassContext,
-    ) -> Result<CustomPropertyName, CompileErrorKind> {
+    ) -> Result<ViewTransitionSlotName, CompileErrorKind> {
         self.resolve_name(&ViewTransitionSlotRequest(context.clone()))
     }
 
@@ -558,7 +576,7 @@ impl IdentifierContext {
     ) -> Result<T, CompileErrorKind> {
         let kind = request.kind();
         let hash = request.hash();
-        let key = (kind, hash);
+        let key = (kind, hash, request.label().cloned());
         if let Some(cached) = self.memo.borrow().get(&key) {
             return self.settle(request, &hash, cached.clone());
         }
@@ -588,7 +606,7 @@ impl IdentifierContext {
             None => Ok(GeneratedName::Builtin),
         };
         match name {
-            Ok(GeneratedName::Builtin) => Ok(request.builtin(hash)),
+            Ok(GeneratedName::Builtin) => Ok(request.builtin(hash, self.hash_length)),
             Ok(GeneratedName::Provided(name)) => Ok(name.as_str().to_owned()),
             Err(message) => Err(message),
         }
@@ -637,19 +655,6 @@ impl IdentifierContext {
             reason,
             substituted: true,
         });
-        T::new(&request.builtin(hash)).map_err(|error| failure(error.to_string()))
+        T::new(&request.builtin(hash, self.hash_length)).map_err(|error| failure(error.to_string()))
     }
-}
-
-/// The built-in name for one request, given the request's canonical hash.
-///
-/// Every family the built-in generator owns carries its prefix here, and no host name passes
-/// through this function. The digest is truncated: the pool check compares identities, so a name
-/// only has to be short enough to read.
-pub(super) fn builtin_text(kind: IdentifierKind, hash: &IdentifierHash) -> String {
-    format!(
-        "{}{}",
-        builtin_prefix(kind),
-        hash.short_hex(builtin_digest_digits(kind)),
-    )
 }

@@ -185,7 +185,7 @@ export { props };"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     let transformed = result.apply_to_source(&component).unwrap();
 
-    assert!(transformed.starts_with("\nconst props = {className:\"_s_"));
+    assert!(transformed.starts_with("\nconst props = {className:\"sw_"));
     assert!(transformed.ends_with("};\nexport { props };"));
 }
 

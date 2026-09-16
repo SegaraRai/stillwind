@@ -23,7 +23,7 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         let code = result.apply_to_source(&component).unwrap();
         assert!(code.contains(&format!("import {{ stillwindClsx as stillwindClsx_2 }} from \"stillwind/{framework}/runtime\";")), "{code}");
-        assert!(code.contains("stillwindClsx_2(\"_s_"), "{code}");
+        assert!(code.contains("stillwindClsx_2(\"sw_"), "{code}");
         assert!(code.contains(",stillwindClsx_1)"), "{code}");
         assert!(code.contains("type Theme"), "{code}");
         assert!(

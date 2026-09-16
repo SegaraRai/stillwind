@@ -207,7 +207,7 @@ impl ModuleCompiler {
         module: &ModuleAnalysis,
         identifiers: &Identifiers,
     ) -> CompiledModule {
-        let identifiers = identifiers.context();
+        let identifiers = identifiers.context(self.options.hash_length);
         let result = self.compile_support_closure(module, &identifiers);
         let mut diagnostics = result.diagnostics;
         diagnostics.extend(

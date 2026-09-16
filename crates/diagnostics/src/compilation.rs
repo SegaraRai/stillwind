@@ -94,6 +94,9 @@ pub enum CompileErrorKind {
     /// No valid frame remains after validating a keyframes declaration.
     #[error("style.keyframes() requires at least one valid keyframe")]
     EmptyKeyframes,
+    /// A keyframes label is not the declaration's own literal string.
+    #[error("a keyframes label must be a literal string on the declaration itself")]
+    InvalidKeyframesLabel,
     /// A keyed transition use supplies more than one key expression.
     #[error("viewTransition.for() accepts at most one key expression")]
     InvalidViewTransitionKeyExpression,
@@ -115,10 +118,13 @@ pub enum CompileErrorKind {
     /// No valid phase remains after validating a transition declaration.
     #[error("style.viewTransition() requires at least one of group, old, new, or imagePair")]
     EmptyViewTransition,
-    /// A single ref argument is neither a literal name nor an expression that resolves
+    /// A view-transition label is not a literal string.
+    #[error("a view transition label must be a literal string")]
+    InvalidViewTransitionLabel,
+    /// A single ref argument is neither a literal label nor an expression that resolves
     /// to exactly one ref identity.
     #[error(
-        "style.ref() accepts an optional literal name or exactly one statically resolved ref identity"
+        "style.ref() accepts an optional literal label or exactly one statically resolved ref identity"
     )]
     InvalidRefArgument,
     /// The first argument of a two-argument ref declaration does not resolve to exactly
@@ -127,11 +133,11 @@ pub enum CompileErrorKind {
         "the boundary argument of style.ref() must resolve statically to exactly one ref identity"
     )]
     InvalidRefBoundary,
-    /// The second ref argument is not a literal name.
-    #[error("the second style.ref() argument must be a literal name")]
-    InvalidRefNameArgument,
+    /// The second ref argument is not a literal label.
+    #[error("the second style.ref() argument must be a literal label")]
+    InvalidRefLabelArgument,
     /// A ref declaration uses an unsupported argument count.
-    #[error("style.ref() accepts (), (name), (boundary), or (boundary, name)")]
+    #[error("style.ref() accepts (), (label), (boundary), or (boundary, label)")]
     InvalidRefArguments,
     /// A ref variant's selector cannot be determined from literal text.
     #[error("ref variants require a static variant string")]
@@ -461,6 +467,14 @@ pub enum CompileErrorKind {
         /// Rejected prefix supplied by the host or CSS configuration.
         value: String,
     },
+    /// A configured generated-name hash length cannot spell one request digest.
+    #[error("hashLength must be between 1 and {maximum} base-36 digits, not {length}")]
+    InvalidHashLength {
+        /// Rejected length supplied by the host or configuration.
+        length: usize,
+        /// Longest base-36 spelling of one request digest.
+        maximum: usize,
+    },
     /// The generated-property namespaces use the same prefix.
     #[error("prefix and tailwindPrefix must be different")]
     ConflictingPropertyPrefixes {
@@ -607,17 +621,19 @@ impl CompileErrorKind {
             | Self::InvalidKeyframesFrameKey
             | Self::InvalidKeyframesFrameSelector
             | Self::InvalidKeyframesFrameValue
-            | Self::EmptyKeyframes => "SHANIMATION001",
+            | Self::EmptyKeyframes
+            | Self::InvalidKeyframesLabel => "SHANIMATION001",
             Self::InvalidViewTransitionKeyExpression => "SHVIEW002",
             Self::InvalidViewTransitionDefinition
             | Self::ViewTransitionSpread
             | Self::InvalidViewTransitionProperty
             | Self::InvalidViewTransitionKey
             | Self::InvalidViewTransitionValue
-            | Self::EmptyViewTransition => "SHVIEW001",
+            | Self::EmptyViewTransition
+            | Self::InvalidViewTransitionLabel => "SHVIEW001",
             Self::InvalidRefArgument
             | Self::InvalidRefBoundary
-            | Self::InvalidRefNameArgument
+            | Self::InvalidRefLabelArgument
             | Self::InvalidRefArguments
             | Self::InvalidRefProjection => "SHREF001",
             Self::NonStaticRefVariant => "SHREF005",
@@ -656,6 +672,7 @@ impl CompileErrorKind {
             | Self::CssImportCycle { .. }
             | Self::UnresolvedCssImports { .. }
             | Self::InvalidPropertyPrefix { .. }
+            | Self::InvalidHashLength { .. }
             | Self::ConflictingPropertyPrefixes { .. }
             | Self::ConditionalDefinition { .. }
             | Self::UnsupportedOutputSlot { .. }

@@ -54,13 +54,13 @@ pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
 pub use identifiers::{
-    AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext,
-    ConditionHelperRequest, ConditionRole, ContainerName, ContainerNameRequest, CustomPropertyName,
-    DeclarationContext, GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator,
-    IdentifierHash, IdentifierKind, IdentifierMode, IdentifierNameError, IdentifierPool,
-    Identifiers, KeyframesName, KeyframesNameRequest, Label, LayerContext, LayerName,
-    LayerNameRequest, LocatorContext, NameRequest, RefMarker, RefMarkerName, RejectedIdentifier,
-    RejectedNames, Token, UtilityClass, ViewTransitionClass, ViewTransitionClassRequest,
+    AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperName,
+    ConditionHelperRequest, ConditionRole, ContainerName, ContainerNameRequest, DeclarationContext,
+    GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierHash,
+    IdentifierKind, IdentifierMode, IdentifierNameError, IdentifierPool, Identifiers,
+    KeyframesName, KeyframesNameRequest, Label, LayerContext, LayerName, LayerNameRequest,
+    LocatorContext, NameRequest, RefMarker, RefMarkerName, RejectedIdentifier, RejectedNames,
+    Token, UtilityClass, ViewTransitionClass, ViewTransitionClassRequest, ViewTransitionSlotName,
     ViewTransitionSlotRequest,
 };
 pub use imports::plan_macro_import_removals;

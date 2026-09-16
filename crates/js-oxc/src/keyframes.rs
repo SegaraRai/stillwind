@@ -1,9 +1,9 @@
 //! `style.keyframes()` declarations and their uses.
 //!
-//! A declaration is one object of static keyframe utility strings keyed by `from`,
-//! `to`, or percentage steps. A use is a call on the declared binding with exactly one
-//! literal options string. Both are validated here so the declaration-site identity and
-//! its frames are known before the compiler runs.
+//! A declaration is one object with an optional literal `label` beside static keyframe
+//! utility strings keyed by `from`, `to`, or percentage steps. A use is a call on the
+//! declared binding with exactly one literal options string. Both are validated here so
+//! the declaration-site identity and its frames are known before the compiler runs.
 
 use oxc::ast::ast::{
     CallExpression, Expression, ObjectExpression, ObjectPropertyKind, PropertyKind,
@@ -90,9 +90,12 @@ impl<'a> MacroExtractor<'a> {
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
         let keyframes = self.keyframes_symbols.get(&symbol_id)?;
+        let span = self.source_span(span);
+        let identity = self.identity(AssetKind::Keyframes, keyframes);
         Some(vec![AssetReference {
-            identity: self.identity(AssetKind::Keyframes, keyframes),
-            span: self.source_span(span),
+            label: self.declaration_label(&identity, span),
+            identity,
+            span,
             local_declaration: Some(keyframes.span),
         }])
     }
@@ -142,8 +145,9 @@ impl<'a> MacroExtractor<'a> {
     /// Validates and records one `style.keyframes({...})` declaration.
     ///
     /// Every frame must be a plain property with a static key and a literal utility
-    /// string; invalid frames are reported and skipped, and a declaration with no valid
-    /// frame is rejected so no identity is created for it.
+    /// string, and the declaration may state one literal `label` beside them; invalid
+    /// entries are reported and skipped, and a declaration with no valid frame is
+    /// rejected so no identity is created for it.
     pub(crate) fn collect_keyframes_definition(
         &mut self,
         binding: Spanned<String>,
@@ -163,15 +167,26 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
-        let body = self.keyframes_body(object)?;
+        let mut label = None;
+        let body = self.keyframes_body(object, Some(&mut label))?;
         Some(KeyframesDefinition {
             binding,
             call_span: self.source_span(call.span),
+            label,
             body,
         })
     }
 
-    fn keyframes_body(&mut self, object: &ObjectExpression<'a>) -> Option<KeyframesBody> {
+    /// Reads one frames object.
+    ///
+    /// `label` receives the declaration's own label, so it is `Some` for the
+    /// declaration's body only: a conditional replacement frames one condition and
+    /// cannot name the declaration.
+    fn keyframes_body(
+        &mut self,
+        object: &ObjectExpression<'a>,
+        mut label: Option<&mut Option<Spanned<String>>>,
+    ) -> Option<KeyframesBody> {
         let mut branches = Vec::new();
         let mut frames = Vec::new();
         for property in &object.properties {
@@ -203,7 +218,7 @@ impl<'a> MacroExtractor<'a> {
             if let Some(variant) = variant {
                 if let Expression::ObjectExpression(nested) = property.value.get_inner_expression()
                 {
-                    if let Some(body) = self.keyframes_body(nested) {
+                    if let Some(body) = self.keyframes_body(nested, None) {
                         branches.push(KeyframesBranch { variant, body });
                     }
                 } else {
@@ -221,6 +236,24 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 continue;
             };
+            if selector.value == "label" {
+                match label.as_deref_mut() {
+                    Some(label) => match &property.value {
+                        Expression::StringLiteral(value) => {
+                            *label = Some(self.string_literal(value));
+                        }
+                        _ => self.diagnostics.push(CompileError::new(
+                            CompileErrorKind::InvalidKeyframesLabel,
+                            self.source_span(property.value.span()),
+                        )),
+                    },
+                    None => self.diagnostics.push(CompileError::new(
+                        CompileErrorKind::InvalidKeyframesLabel,
+                        self.source_span(property.key.span()),
+                    )),
+                }
+                continue;
+            }
             if !is_keyframes_frame(&selector.value) {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidKeyframesFrameSelector,

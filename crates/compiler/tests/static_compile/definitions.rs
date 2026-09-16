@@ -31,23 +31,67 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("@keyframes --sw-a-"));
+    assert!(result.css.contains("@keyframes sw-kf-"));
     assert!(
         fold_calc_expressions(&result.css)
             .contains("from{--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);opacity:0%;}"),
         "{}",
         result.css
     );
-    assert!(result.css.contains("animation-name:--sw-a-"));
+    assert!(result.css.contains("animation-name:sw-kf-"));
     assert!(result.css.contains("animation-duration:"));
     assert!(
         result
             .css
-            .contains("[data-state=closed]{animation-name:--sw-a-")
+            .contains("[data-state=closed]{animation-name:sw-kf-")
     );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.keyframes"));
     assert!(transformed.contains("const enter = undefined;"));
+}
+
+/// A declaration's label is spelled into every name the declaration generates, in the family's
+/// own separator, and the rendering positions write it the way their grammar requires.
+#[test]
+fn spells_declaration_labels_into_the_generated_names() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Labelled.tsx",
+        r#"import { style } from "stillwind/react";
+const enter = style.keyframes({ label: "fade", from: "opacity-0", to: "opacity-100" });
+const panel = style.viewTransition({ label: "panel", old: "opacity-0" });
+export const item = style(panel, enter("duration-180"));"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("@keyframes sw-kf-fade-"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("animation-name:sw-kf-fade-"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("::view-transition-old(.sw-vt-panel-"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("view-transition-class:sw-vt-panel-"),
+        "{}",
+        result.css
+    );
+    // The declaration value carries the same token the rules select.
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("{v:\"sw-vt-panel-"), "{transformed}");
+    assert!(!transformed.contains("style.keyframes"), "{transformed}");
 }
 
 #[test]
@@ -73,11 +117,11 @@ const detail = style(title);"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("::view-transition-group(.--sw-v-"));
-    assert!(result.css.contains("::view-transition-old(.--sw-v-"));
-    assert!(result.css.contains("::view-transition-new(.--sw-v-"));
+    assert!(result.css.contains("::view-transition-group(.sw-vt-"));
+    assert!(result.css.contains("::view-transition-old(.sw-vt-"));
+    assert!(result.css.contains("::view-transition-new(.sw-vt-"));
     // The token is the class itself; no custom-property indirection remains.
-    assert!(result.css.contains("view-transition-class:--sw-v-"));
+    assert!(result.css.contains("view-transition-class:sw-vt-"));
     assert!(!result.css.contains("--sw-vt-name"));
     assert!(!result.css.contains("--sw-vt-class"));
     let repeated_class = result.classes.last().expect("a class").class_name.as_str();
@@ -93,7 +137,7 @@ const detail = style(title);"#,
     assert!(!transformed.contains("style.viewTransition"));
     // A declaration is a plain value, and only a runtime key writes a name inline.
     assert!(
-        transformed.contains("const title = {v:\"--sw-v-"),
+        transformed.contains("const title = {v:\"sw-vt-"),
         "{transformed}"
     );
     assert!(
@@ -124,7 +168,7 @@ export const photo = style(item);"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
-        result.css.contains("::view-transition-image-pair(.--sw-v-"),
+        result.css.contains("::view-transition-image-pair(.sw-vt-"),
         "{}",
         result.css
     );
@@ -135,11 +179,11 @@ export const photo = style(item);"#,
     );
     let base = result
         .css
-        .find("::view-transition-old(.--sw-v-")
+        .find("::view-transition-old(.sw-vt-")
         .expect("base old rule");
     let conditional = result
         .css
-        .find("@media (prefers-reduced-motion: reduce){::view-transition-old(.--sw-v-")
+        .find("@media (prefers-reduced-motion: reduce){::view-transition-old(.sw-vt-")
         .expect("conditional old rule");
     assert!(base < conditional, "{}", result.css);
 }
@@ -163,7 +207,7 @@ export const photo = style(item);"#,
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
-        result.css.contains("::view-transition-group(.--sw-v-"),
+        result.css.contains("::view-transition-group(.sw-vt-"),
         "{}",
         result.css
     );
@@ -183,7 +227,7 @@ export const photo = style(item);"#,
     assert!(
         result
             .css
-            .contains("@media (prefers-reduced-motion: reduce){::view-transition-group(.--sw-v-"),
+            .contains("@media (prefers-reduced-motion: reduce){::view-transition-group(.sw-vt-"),
         "{}",
         result.css
     );
@@ -215,7 +259,7 @@ export const photo = style(item);"#,
     assert!(
         result
             .css
-            .contains("@media (prefers-reduced-motion: reduce){::view-transition-group(.--sw-v-"),
+            .contains("@media (prefers-reduced-motion: reduce){::view-transition-group(.sw-vt-"),
         "{}",
         result.css
     );
@@ -314,8 +358,10 @@ export const item = style("translate-x-1", card);"#,
         Compiler::compile_source_with_options(&OxcSourceAnalyzer, &component, &theme, &options);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("::view-transition-old(.--app-v-"));
-    assert!(result.css.contains("view-transition-class:--app-v-"));
+    // The class token is not a custom property, so the custom-property prefix does not
+    // namespace it; the compatibility prefix still reaches the Tailwind properties.
+    assert!(result.css.contains("::view-transition-old(.sw-vt-"));
+    assert!(result.css.contains("view-transition-class:sw-vt-"));
     assert!(result.css.contains("--compat-translate-x"));
     assert!(!result.css.contains("--sw-"));
     assert!(!result.css.contains("--tw-"));
@@ -358,7 +404,7 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
     // One slot reference in the class list and one assignment in the guarded unit.
     assert_eq!(result.css.matches("--sw-vtc-").count(), 2, "{}", result.css);
     assert!(
-        result.css.contains("view-transition-name:--sw-v-"),
+        result.css.contains("view-transition-name:sw-vt-"),
         "{}",
         result.css
     );
@@ -426,7 +472,7 @@ export const useLiteral = style("block", literal);"#,
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(
-        transformed.contains("const literal = {v:\"--sw-v-"),
+        transformed.contains("const literal = {v:\"sw-vt-"),
         "{transformed}"
     );
     assert!(transformed.contains(",k:\"hero\"}"), "{transformed}");
@@ -470,7 +516,7 @@ export const item = style(card, image);"#,
         .expect("a class list");
     let tokens = declaration
         .split_whitespace()
-        .filter(|token| token.starts_with("--sw-v-"))
+        .filter(|token| token.starts_with("sw-vt-"))
         .count();
     assert_eq!(tokens, 2, "{}", result.css);
 }

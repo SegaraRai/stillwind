@@ -464,6 +464,25 @@ mod tests {
             }))
             .is_err()
         );
+        assert_eq!(
+            compiler_options(Some(NativeCompilerOptions {
+                hash_length: Some(12),
+                ..Default::default()
+            }))
+            .unwrap()
+            .hash_length,
+            12
+        );
+        for rejected in [0, 51] {
+            assert!(
+                compiler_options(Some(NativeCompilerOptions {
+                    hash_length: Some(rejected),
+                    ..Default::default()
+                }))
+                .is_err(),
+                "{rejected}"
+            );
+        }
     }
 
     #[test]

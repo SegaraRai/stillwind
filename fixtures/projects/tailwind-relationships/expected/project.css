@@ -428,11 +428,11 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ._s_4a1324a5 {
+  .sw_y0pyp {
     container-name: sidebar;
     container-type: inline-size;
   }
-  ._s_4a1324a5 {
+  .sw_y0pyp {
     width: 100%;
     @media (width >= 40rem) {
       max-width: 40rem;
@@ -450,25 +450,25 @@ Keep both selectors so the same theme values are available in either scope.
       max-width: 96rem;
     }
   }
-  ._s_4a1324a5 {
+  .sw_y0pyp {
     border-radius: var(--radius-lg);
     padding: calc(var(--spacing) * 4);
   }
   @media (hover: hover) {
-    ._s_0afb7210:is(:where(.group\/menu):hover *) {
+    .sw_xmfe5:is(:where(.group\/menu):hover *) {
       color: var(--color-brand);
     }
   }
-  ._s_0afb7210:is(:where(.peer\/field):checked ~ *) {
+  .sw_xmfe5:is(:where(.peer\/field):checked ~ *) {
     text-decoration-line: underline;
   }
   @container (width < 28rem) {
-    ._s_0afb7210 {
+    .sw_xmfe5 {
       display: none;
     }
   }
   @container (width >= 24rem) {
-    ._s_0afb7210 {
+    .sw_xmfe5 {
       display: grid;
     }
   }
