@@ -119,8 +119,9 @@ media / supports の入れ子を作る同じ形が、`motion/animation.rs`（ani
 - **P1 契約で切る。** ファイルは「どの契約の出力を所有するか」で切る。資産の分類では切らない。
 - **P2 機構のあるディレクトリだけ。** ディレクトリは共有する機構があるときだけ作る。分類だけの
   共有ならフラットに置く。
-- **P3 状態は 1 ファイル。** 状態を持つ型の実装は 1 ファイルに置き、状態を持たない関数は契約の
-  側へ出す。可視性を広げて分割しない。
+- **P3 状態は 1 バンド。** 状態を持つ型の宣言は mod.rs に置き、impl は同じディレクトリに限る。
+  フィールドは private のままにする（Rust の可視性は宣言モジュールとその子孫なので、バンド内の
+  分割は可視性を広げない）。状態を持たない関数は契約の側へ出す。
 - **P4 決定ごとに集合 1 つ。** 集合を写しで作らない。挿入は決定した場所で全部行う。
 - **P5 契約は 1 箇所に。** 契約は docs にだけ書き、モジュールの doc はそれを参照して再掲しない。
 - **P6 移動と意味変更を混ぜない。** 移動のコミットは出力を変えない。
@@ -138,7 +139,13 @@ crates/compiler/src/compiler/
     view_transition.rs                   4 bucket と group の option 条件
   animation_options.rs                 option 列の解決（animation use と VT group が共有）
   variants.rs                          variant 適用 → 条件 wrapper と conditions_only
-  emission.rs                          call の walk（CallEmitter 状態の所有者）+ animation use の宣言化
+  emission/                            call の walk（CallEmitter の宣言は mod.rs、フィールドは private）
+    mod.rs                               CallEmitter / CallEmitterInputs の宣言と再エクスポート
+    call.rs                              入口と骨格（run / StyleInput の dispatch / attachment / 診断と lint）
+    class_value.rs                       ClassExpression の walk（utility・配列・条件・variant・object）
+    ref_projection.rs                    ref projection（静的・動的）と projection の宣言生成
+    animation_use.rs                     animation use（静的・動的）の宣言化
+    view_transition.rs                   VT use（静的・動的）、view-transition-name、guard 付き class
   class_units.rs                       L3 の unit 順序、class identity、VT の要素側（slot）
   utilities/                           L1 / L2
   stylesheet/                          L4 の組み立て
@@ -152,25 +159,43 @@ crates/compiler/src/compiler/
 | 現在                                        | 移動後                                               | 理由                                       |
 | ------------------------------------------- | ---------------------------------------------------- | ------------------------------------------ |
 | `motion.rs` の VT 定義 3 関数と option 条件 | `definitions/view_transition.rs`                     | L3 band 1                                  |
-| `motion.rs` の `resolve_animation_use`      | `emission.rs`                                        | use が寄与する宣言は call バンド           |
+| `motion.rs` の `resolve_animation_use`      | `emission/animation_use.rs`                          | use が寄与する宣言は call バンド           |
 | `motion.rs` の `resolve_motion_options` 系  | `animation_options.rs`                               | animation use と VT group が共有する解決器 |
 | `motion.rs` のテスト                        | `definitions/*.rs` と `animation_options.rs`         | 種別ごとに分ける                           |
 | `motion/animation.rs`                       | `definitions/animation.rs`                           | L3 band 1                                  |
 | `variants.rs`                               | `variants.rs` + 条件 wrapper                         | 列挙の解釈を 1 箇所へ                      |
-| `handles.rs` の projection 生成             | `emission.rs`                                        | call バンド。利用者は walker のみ          |
+| `handles.rs` の projection 生成             | `emission/ref_projection.rs`                         | call バンド。利用者は walker のみ          |
 | `handles.rs` の identity 3 関数             | `symbols.rs`                                         | identity バンド。依存の逆転を解消          |
 | `handles.rs` の `summary_runtime_assets`    | summary の問い `export_reachable_identities`（§5.2） | summary だけを読む関数                     |
 
-呼び出し側は `pipeline.rs` の `use super::motion::{...}` と `emission.rs` の
-`use super::motion::resolve_animation_use` が移動先を指すようになるだけで、処理の順序と
-引数は変えない。`handles.rs` は消える。
+呼び出し側は `pipeline.rs`、`definitions/view_transition.rs`、`emission/animation_use.rs` の
+import が移動先を指すようになるだけで、処理の順序と引数は変えない。`handles.rs` は消える。
 
-### 3.1 なぜ call バンドは 1 ファイルのままか
+### 3.1 なぜ call バンドは 1 ディレクトリか
 
-`emission.rs` の walker は `CallEmitter` の状態を所有する。per-asset のハンドラを別ファイルへ
-出すと、フィールドを `pub(super)` にして compiler 全体へ見せることになる（P3）。状態を持つ
-walker は 1 ファイル、状態を持たない純関数（option 解決、名前生成、定義 emission、
-projection の宣言生成）は契約の側へ、という切り分けを取る。
+`emission` の walker は `CallEmitter` の状態を所有し、いま 1098 行ある（`emit_expression_inner`
+425 行、`emit_input` 194 行）。per-asset の処理を受け入れる前に分ける。
+
+分割は可視性を広げずにできる。`CallEmitter` の宣言（フィールド込み）を `emission/mod.rs` に
+置くと、private フィールドは宣言モジュールとその子孫から見えるので、`emission/*.rs` の impl は
+状態に触れられる。`compiler` の他のモジュールからは見えない。per-asset のハンドラを `emission/`
+の外へ出す案は、フィールドを `pub(super)` にして compiler 全体へ見せることになるため取らない。
+
+割り当て:
+
+- `mod.rs`: バンドの契約、`CallEmitter` / `CallEmitterInputs` の宣言、再エクスポート。
+- `call.rs`: `run` / `emit` / `emit_input`（StyleInput の dispatch、attachment、composition、
+  診断と lint の記録、部品の push、`render_attribute` / `render_custom_property`）。
+- `class_value.rs`: `emit_item` / `emit_expression` / `emit_expression_inner` / `emit_sequence`、
+  `expression_position`、variant の document-scope lint。
+- `ref_projection.rs`: `RefProjection` / `DynamicRefProjection` の腕、`handles.rs` から受け入れる
+  `render_ref_projection`、`ref_class_read`。
+- `animation_use.rs`: `AnimationUse` / `DynamicAnimationUse` の腕、`motion.rs` から受け入れる
+  `resolve_animation_use`。
+- `view_transition.rs`: `ViewTransitionUse` / `DynamicViewTransitionUse` の腕、
+  `emit_view_transition_name` / `push_guarded_class` / `static_view_transition_name` /
+  `report_view_transition_names`。
+- `guard_steps` は `props.rs`（`GuardStep` の宣言元）へ。
 
 ### 3.2 命名
 
@@ -181,7 +206,7 @@ motion を外す移動と語彙の整理として、次の改名を適用済み�
 | `resolve_motion_options`                         | `animation_options.rs` の `resolve_options`           |
 | `ResolvedMotionOptions`                          | `animation_options.rs` の `ResolvedOptions`           |
 | `motion_name_symbol`                             | `symbols.rs` の `definition_name_symbol`              |
-| `record_motion_name`                             | `emission.rs` の `record_definition_name`             |
+| `record_motion_name`                             | `emission/call.rs` の `record_definition_name`        |
 | `motion_css`（pipeline のローカル）              | `definition_css`                                      |
 | `motion_assets`                                  | `required_definitions`（§5.1）                        |
 | `summary_runtime_assets`                         | `ModuleSummary::export_reachable_identities`（§5.2）  |
@@ -301,14 +326,15 @@ aliased import と member 受信の回帰テストを追加する。実装後は
 ## 6. コミット分割案
 
 1. `refactor: flatten the JavaScript motion extraction`（js-oxc、移動のみ）
-2. `refactor: split motion into the definition band and shared resolvers`（compiler、移動のみ）
-3. `refactor: dissolve handle helpers into symbols and call emission`（移動のみ）
-4. `refactor: wrap conditions through one helper`（P4 の前段。挙動不変）
-5. `refactor: name the definition reachability set`（§5.1）
-6. `refactor: make export reachability a module summary query`（§5.2）
-7. `chore: move the transition variant diagnostic into the view family`（§5.4）
-8. `fix: read static ref projections from the use-site expression`（§5.6。生成コードが変わる）
-9. `docs: record the compiler module layout`（§5.5）
+2. `refactor: split the call band into an emission directory`（移動のみ）
+3. `refactor: split motion into the definition band and shared resolvers`（compiler、移動のみ）
+4. `refactor: dissolve handle helpers into symbols and call emission`（移動のみ）
+5. `refactor: wrap conditions through one helper`（P4 の前段。挙動不変）
+6. `refactor: name the definition reachability set`（§5.1）
+7. `refactor: make export reachability a module summary query`（§5.2）
+8. `chore: move the transition variant diagnostic into the view family`（§5.4）
+9. `fix: read static ref projections from the use-site expression`（§5.6。生成コードが変わる）
+10. `docs: record the compiler module layout`（§5.5）
 
 この前に、§3.2 の改名を 1 コミット（`refactor: rename handle to ref and name to binding`）として置く。
 
