@@ -3,7 +3,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_compiler::{CompilerOptions, DesignSystemQuery, ModuleCompiler, StylesheetRenderer};
+use stillwind_compiler::{
+    CompilerOptions, DesignSystemQuery, Identifiers, ModuleCompiler, StylesheetRenderer,
+};
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::{
     DesignSystemOptions, DesignSystemSnapshot, parse_theme, resolve_utility,
@@ -203,7 +205,7 @@ fn document_rendering_keeps_the_module_fragment() {
     let options = CompilerOptions::default();
     let compiled = ModuleCompiler::new(design.clone(), options.clone()).compile(&analysis);
     assert!(compiled.is_success());
-    let output = StylesheetRenderer::new(&design, &options)
+    let output = StylesheetRenderer::new(&design, &options, &Identifiers::builtin())
         .render_compilation(&compiled, source.full_span());
     assert!(output.diagnostics.is_empty());
     assert!(!output.module_css.is_empty());

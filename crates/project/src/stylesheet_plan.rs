@@ -185,7 +185,7 @@ impl ProjectSession {
             let span = Span::new(source.id(), symbol.start, symbol.end);
             Some((source, span))
         })?;
-        let mapped = StylesheetRenderer::new(&snapshot, self.options())
+        let mapped = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers())
             .render_mapped_stylesheet(&utility_css, placement)?;
         Ok(StylesheetPlan {
             mappings: mapped.mappings,

@@ -4,7 +4,7 @@
 //! layer, supports, and media conditions, stays independent of the order in which the host
 //! answers file requests, and renders identically from a cloned snapshot.
 
-use stillwind_compiler::{CompilerOptions, StylesheetRenderer};
+use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetRenderer};
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
     DesignSystemSnapshot,
@@ -42,10 +42,14 @@ fn renders_repeated_imports_in_authored_order() {
         DesignSystemOptions::default()
     ).unwrap();
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_stylesheet("")
-            .unwrap(),
-        StylesheetRenderer::new(&flat, &CompilerOptions::default())
+        StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_stylesheet("")
+        .unwrap(),
+        StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::builtin())
             .render_stylesheet("")
             .unwrap()
     );
@@ -67,9 +71,13 @@ fn imported_styles_retain_layer_supports_and_media_conditions() {
     let DesignSystemLoadStep::Complete(Ok(snapshot)) = step else {
         panic!("{step:?}")
     };
-    let css = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-        .render_stylesheet("")
-        .unwrap();
+    let css = StylesheetRenderer::new(
+        &snapshot,
+        &CompilerOptions::default(),
+        &Identifiers::builtin(),
+    )
+    .render_stylesheet("")
+    .unwrap();
     assert!(css.contains("@layer components"), "{css}");
     assert!(css.contains("@supports (display: grid)"), "{css}");
     assert!(css.contains("@media screen and (width > 40rem)"), "{css}");
@@ -115,13 +123,13 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
 
     let first = load();
     assert!(
-        StylesheetRenderer::new(&first, &CompilerOptions::default())
+        StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::builtin())
             .render_base_stylesheet()
             .unwrap()
             .contains("box-sizing")
     );
     assert!(
-        !StylesheetRenderer::new(&first, &CompilerOptions::default())
+        !StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::builtin())
             .render_base_stylesheet()
             .unwrap()
             .contains("--theme(")
@@ -132,7 +140,7 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
     )
     .unwrap();
     assert!(
-        !StylesheetRenderer::new(&bare, &CompilerOptions::default())
+        !StylesheetRenderer::new(&bare, &CompilerOptions::default(), &Identifiers::builtin())
             .render_stylesheet("")
             .unwrap()
             .contains("box-sizing")
@@ -157,20 +165,32 @@ fn rendering_is_independent_of_import_response_order() {
     let batch_snapshot = complete(batched.provide_many([input(3, "c", c)]));
     let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")).unwrap(), DesignSystemOptions::default()).unwrap();
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_stylesheet("")
-            .unwrap(),
-        StylesheetRenderer::new(&flat, &CompilerOptions::default())
+        StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_stylesheet("")
+        .unwrap(),
+        StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::builtin())
             .render_stylesheet("")
             .unwrap()
     );
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_stylesheet("")
-            .unwrap(),
-        StylesheetRenderer::new(&batch_snapshot, &CompilerOptions::default())
-            .render_stylesheet("")
-            .unwrap()
+        StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_stylesheet("")
+        .unwrap(),
+        StylesheetRenderer::new(
+            &batch_snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_stylesheet("")
+        .unwrap()
     );
 }
 
@@ -183,9 +203,13 @@ fn renders_each_diamond_import_occurrence() {
         input(1, "shared", "@import 'leaf'; .shared { color: red; }"),
     ]);
     let snapshot = complete(loader.provide(3, "leaf".into(), ".leaf { color: blue; }".into()));
-    let css = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-        .render_stylesheet("")
-        .unwrap();
+    let css = StylesheetRenderer::new(
+        &snapshot,
+        &CompilerOptions::default(),
+        &Identifiers::builtin(),
+    )
+    .render_stylesheet("")
+    .unwrap();
     assert_eq!(css.matches(".leaf").count(), 2);
     assert_eq!(css.matches(".shared").count(), 2);
 }
@@ -200,10 +224,10 @@ fn cloned_snapshots_render_identically() {
     let pinned = snapshot.clone();
     let options = CompilerOptions::default();
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &options)
+        StylesheetRenderer::new(&snapshot, &options, &Identifiers::builtin())
             .render_stylesheet("")
             .unwrap(),
-        StylesheetRenderer::new(&pinned, &options)
+        StylesheetRenderer::new(&pinned, &options, &Identifiers::builtin())
             .render_stylesheet("")
             .unwrap()
     );

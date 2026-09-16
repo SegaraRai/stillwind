@@ -1,0 +1,257 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+
+use stillwind_diagnostics::CompileErrorKind;
+
+use super::*;
+
+/// Answers with a fixed name and records every request.
+#[derive(Debug, Default)]
+struct RecordingGenerator {
+    calls: Mutex<Vec<(&'static str, String)>>,
+}
+
+impl RecordingGenerator {
+    /// Records one request and answers with the family's fixed body.
+    fn record(&self, family: &'static str, hash: &IdentifierHash) -> String {
+        self.calls
+            .lock()
+            .expect("test generator lock")
+            .push((family, hash.to_hex()));
+        format!("fixed-{family}")
+    }
+}
+
+impl IdentifierGenerator for RecordingGenerator {
+    fn utility_class(
+        &self,
+        _context: &ClassContext,
+        hash: &IdentifierHash,
+    ) -> Result<GeneratedName<UtilityClass>, String> {
+        Ok(GeneratedName::provided(
+            UtilityClass::new(&self.record("class", hash)).expect("canonical test body"),
+        ))
+    }
+
+    fn ref_marker(
+        &self,
+        _context: &DeclarationContext,
+        hash: &IdentifierHash,
+    ) -> Result<GeneratedName<RefMarker>, String> {
+        Ok(GeneratedName::provided(
+            RefMarker::new(&self.record("ref-marker", hash)).expect("canonical test body"),
+        ))
+    }
+}
+
+/// Fails the utility class family.
+#[derive(Debug)]
+struct FailingGenerator;
+
+impl IdentifierGenerator for FailingGenerator {
+    fn utility_class(
+        &self,
+        _context: &ClassContext,
+        _hash: &IdentifierHash,
+    ) -> Result<GeneratedName<UtilityClass>, String> {
+        Err("no name for this call".to_owned())
+    }
+}
+
+fn class_context(branch: &str) -> ClassContext {
+    ClassContext {
+        module: "src/a.tsx".to_owned(),
+        namespace: String::new(),
+        call: 12,
+        branch: branch.to_owned(),
+    }
+}
+
+fn declaration_context(label: Option<&str>) -> DeclarationContext {
+    DeclarationContext {
+        module: "src/a.tsx".to_owned(),
+        start: 20,
+        end: 24,
+        binding: "menu".to_owned(),
+        label: label.and_then(|label| Label::new(label).ok()),
+    }
+}
+
+fn locator_context(declaration: &DeclarationContext) -> LocatorContext {
+    LocatorContext {
+        module: declaration.module.clone(),
+        start: declaration.start,
+        end: declaration.end,
+        binding: declaration.binding.clone(),
+        projection: None,
+    }
+}
+
+#[test]
+fn a_host_name_is_written_without_the_builtin_prefix() {
+    let context =
+        IdentifierContext::new(GeneratorSet::new(Arc::new(RecordingGenerator::default())));
+    let name = context.class_name(&class_context("0:flex")).unwrap();
+    assert_eq!(name.as_str(), "fixed-class");
+    let builtin = IdentifierContext::builtin()
+        .class_name(&class_context("0:flex"))
+        .unwrap();
+    assert!(builtin.as_str().starts_with("_s_"), "{builtin:?}");
+}
+
+#[test]
+fn every_builtin_family_keeps_its_own_prefix() {
+    let context = IdentifierContext::builtin();
+    let declaration = declaration_context(Some("primary"));
+    assert!(
+        context
+            .ref_marker_name(&declaration)
+            .unwrap()
+            .as_str()
+            .starts_with("s_")
+    );
+    assert!(
+        context
+            .scope_marker_name(&declaration_context(None))
+            .unwrap()
+            .as_str()
+            .starts_with("s_")
+    );
+    assert!(
+        context
+            .anchor_name(&locator_context(&declaration))
+            .unwrap()
+            .as_str()
+            .starts_with("--sw-r-")
+    );
+    assert!(
+        context
+            .container_name(&locator_context(&declaration))
+            .unwrap()
+            .as_str()
+            .starts_with("--sw-s-")
+    );
+    assert!(
+        context
+            .animation_name(&declaration)
+            .unwrap()
+            .as_str()
+            .starts_with("--sw-a-")
+    );
+    assert!(
+        context
+            .view_transition_name(&declaration)
+            .unwrap()
+            .as_str()
+            .starts_with("--sw-v-")
+    );
+}
+
+#[test]
+fn repeated_requests_use_one_generator_call() {
+    let generator = Arc::new(RecordingGenerator::default());
+    let context = IdentifierContext::new(GeneratorSet::new(generator.clone()));
+    let first = context.class_name(&class_context("0:flex")).unwrap();
+    let second = context.class_name(&class_context("0:flex")).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(generator.calls.lock().expect("lock").len(), 1);
+}
+
+#[test]
+fn development_mode_substitutes_and_records_a_rejected_name() {
+    let context = IdentifierContext::in_mode(
+        GeneratorSet::new(Arc::new(FailingGenerator)),
+        IdentifierMode::Development,
+    );
+    let name = context.class_name(&class_context("0:flex")).unwrap();
+    assert!(name.as_str().starts_with("_s_"), "{name:?}");
+    let rejected = context.drain_rejected();
+    assert_eq!(rejected.entries().len(), 1);
+    let entry = &rejected.entries()[0];
+    assert_eq!(entry.kind, IdentifierKind::UtilityClass);
+    assert_eq!(entry.reason, "no name for this call");
+    assert!(entry.substituted);
+    assert!(context.drain_rejected().is_empty());
+}
+
+#[test]
+fn release_mode_fails_on_a_rejected_name() {
+    let context = IdentifierContext::new(GeneratorSet::new(Arc::new(FailingGenerator)));
+    let failure = context.class_name(&class_context("0:flex")).unwrap_err();
+    assert!(matches!(
+        failure,
+        CompileErrorKind::IdentifierGenerationFailed(..)
+    ));
+    assert!(context.drain_rejected().is_empty());
+}
+
+#[test]
+fn the_hash_is_stable_for_equal_requests_and_specific_to_the_family() {
+    assert_eq!(
+        ClassName(class_context("0:flex")).hash(),
+        ClassName(class_context("0:flex")).hash()
+    );
+    assert_ne!(
+        ClassName(class_context("0:flex")).hash(),
+        ClassName(class_context("0:grid")).hash()
+    );
+    let declaration = declaration_context(None);
+    assert_ne!(
+        RefMarkerName(declaration.clone()).hash(),
+        KeyframesNameRequest(declaration.clone()).hash()
+    );
+    assert_eq!(
+        AnchorNameRequest(locator_context(&declaration)).hash(),
+        RefMarkerName(declaration).hash(),
+        "a ref's anchor name and marker share the declaration's identity"
+    );
+}
+
+#[test]
+fn a_class_token_an_object_already_holds_gains_a_prefix_when_it_is_built() {
+    let marker = RefMarker::new("__proto__").unwrap();
+    assert_eq!(marker.as_str(), "___proto__");
+    assert_eq!(marker.selector(), ".___proto__");
+    assert_eq!(marker.javascript_string(), "\"___proto__\"");
+    assert_eq!(
+        ScopeMarker::new("hasOwnProperty").unwrap().as_str(),
+        "_hasOwnProperty"
+    );
+    // The prefix is applied once, however many times a name is rebuilt.
+    assert_eq!(
+        RefMarker::new(marker.as_str()).unwrap().as_str(),
+        "___proto__"
+    );
+}
+
+#[test]
+fn a_class_token_no_object_holds_keeps_its_spelling() {
+    assert_eq!(
+        UtilityClass::new("__proto__").unwrap().as_str(),
+        "__proto__"
+    );
+    assert_eq!(
+        KeyframesName::new("__proto__").unwrap().as_str(),
+        "__proto__"
+    );
+}
+
+#[test]
+fn report_spellings_are_distinct_per_family() {
+    let kinds = [
+        IdentifierKind::UtilityClass,
+        IdentifierKind::RefMarker,
+        IdentifierKind::ScopeMarker,
+        IdentifierKind::AnchorName,
+        IdentifierKind::ContainerName,
+        IdentifierKind::KeyframesName,
+        IdentifierKind::ViewTransitionName,
+        IdentifierKind::ViewTransitionClass,
+        IdentifierKind::CustomProperty,
+        IdentifierKind::LayerName,
+    ];
+    let mut spellings = kinds.map(IdentifierKind::as_str).to_vec();
+    spellings.sort_unstable();
+    spellings.dedup();
+    assert_eq!(spellings.len(), kinds.len());
+}

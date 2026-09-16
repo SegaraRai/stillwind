@@ -146,6 +146,13 @@ mod tests {
     use super::super::utilities::render::render_utility_rule_path;
     use super::super::utilities::resolve::CompiledUtility;
     use super::*;
+    use crate::identifiers::IdentifierContext;
+
+    /// Renders one authored variant path with the compiler's own helper names.
+    fn render_variant_path(body: &str, applications: &[VariantApplication]) -> String {
+        render_authored_variant_path(body, applications, &IdentifierContext::builtin())
+            .expect("the built-in generator cannot reject a name")
+    }
 
     #[test]
     fn sequential_wrappers_retain_every_condition_and_alternative() {
@@ -157,7 +164,7 @@ mod tests {
                 VariantApplication::SelectorTemplate("&:focus".into()),
             ]),
         ])];
-        let css = render_authored_variant_path("color:red;", &applications);
+        let css = render_variant_path("color:red;", &applications);
         assert_eq!(
             css.matches("@container panel (width > 1px)").count(),
             2,
@@ -177,7 +184,7 @@ mod tests {
             VariantApplication::Media("print".into()),
         ];
         assert_eq!(
-            render_authored_variant_path("color:red;", &applications),
+            render_variant_path("color:red;", &applications),
             "@media print{&:hover{color:red;}}@media print{&:focus{color:red;}}"
         );
         let utility = CompiledUtility {
@@ -192,11 +199,19 @@ mod tests {
             candidate: String::new(),
         };
         assert_eq!(
-            render_utility_rule_path(".x", &utility, "color:red;", None, &applications),
+            render_utility_rule_path(
+                ".x",
+                &utility,
+                "color:red;",
+                None,
+                &applications,
+                &IdentifierContext::builtin(),
+            )
+            .expect("the built-in generator cannot reject a name"),
             "@media print{.x:hover{color:red;}}@media print{.x:focus{color:red;}}"
         );
         assert_eq!(
-            render_authored_variant_path("color:red;", &[VariantApplication::Compound(Vec::new())]),
+            render_variant_path("color:red;", &[VariantApplication::Compound(Vec::new())]),
             ""
         );
     }

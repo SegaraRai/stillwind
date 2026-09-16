@@ -12,6 +12,7 @@ use stillwind_diagnostics::CompileErrorKind;
 use super::super::authored_directives::expand_authored_directives;
 use crate::CompilerOptions;
 use crate::compiler::conditionals::lower;
+use crate::identifiers::IdentifierContext;
 
 /// Returns expanded authored CSS and appends its explicit registration dependencies.
 ///
@@ -34,6 +35,7 @@ pub(super) fn render_authored(
     theme: &ThemeIndex,
     required_properties: &mut Vec<String>,
     options: &CompilerOptions,
+    identifiers: &IdentifierContext,
 ) -> Result<String, CompileErrorKind> {
     let (css, requirements) =
         take_property_requirements(css).ok_or(CompileErrorKind::InvalidPropertyRequirement)?;
@@ -43,8 +45,9 @@ pub(super) fn render_authored(
             &css,
             theme,
             required_properties,
-        ))
+            identifiers,
+        )?)
         .ok_or(CompileErrorKind::UnresolvedThemeReference)
-        .and_then(|css| lower(&css, options.use_css_if))
+        .and_then(|css| lower(&css, options.use_css_if, identifiers))
         .map(|css| css.replace("--sw-if-", &format!("{}if-", options.prefix)))
 }

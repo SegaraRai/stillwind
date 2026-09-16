@@ -184,7 +184,10 @@ impl NativeDesignSystemLoader {
     /// Generates the TypeScript augmentation for the completed snapshot.
     #[napi]
     pub fn generate_react_types(&self) -> napi::Result<String> {
-        Ok(StylesheetRenderer::new(&self.completed()?, &self.options).generate_react_types())
+        Ok(
+            StylesheetRenderer::new(&self.completed()?, &self.options, &Identifiers::builtin())
+                .generate_react_types(),
+        )
     }
 }
 
@@ -371,17 +374,25 @@ impl NativeProjectSession {
     /// Stable document CSS without a source map, independent of visited JS modules.
     #[napi]
     pub fn base_css(&self) -> napi::Result<String> {
-        StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
-            .render_base_stylesheet()
-            .map_err(|error| Error::from_reason(error.to_string()))
+        StylesheetRenderer::new(
+            &self.session.snapshot(),
+            self.session.options(),
+            self.session.identifiers(),
+        )
+        .render_base_stylesheet()
+        .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     /// Base document CSS with a source map, for review tooling.
     #[napi]
     pub fn base_css_with_map(&self) -> napi::Result<NativeStylesheetOutput> {
-        let output = StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
-            .render_base_stylesheet_with_map()
-            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let output = StylesheetRenderer::new(
+            &self.session.snapshot(),
+            self.session.options(),
+            self.session.identifiers(),
+        )
+        .render_base_stylesheet_with_map()
+        .map_err(|error| Error::from_reason(error.to_string()))?;
         Ok(NativeStylesheetOutput {
             css: output.css,
             source_map: stylesheet_locations(&output.mappings)?,
@@ -396,10 +407,14 @@ impl NativeProjectSession {
             .artifacts()
             .get(module.as_str())
             .ok_or_else(|| Error::from_reason(format!("Unknown Stillwind module: {module}")))?;
-        StylesheetRenderer::new(&self.session.snapshot(), self.session.options())
-            .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
-            .map(|output| output.css)
-            .map_err(|error| Error::from_reason(error.to_string()))
+        StylesheetRenderer::new(
+            &self.session.snapshot(),
+            self.session.options(),
+            self.session.identifiers(),
+        )
+        .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
+        .map(|output| output.css)
+        .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     /// Removes a producer, returning whether it was registered.

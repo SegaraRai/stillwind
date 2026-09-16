@@ -19,11 +19,10 @@ use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Spanned};
 
-use super::symbols::anchor_name;
-use super::symbols::{GeneratedSymbol, projection_symbol};
-use super::symbols::{identity_input_parts, ref_context};
-use crate::identifier::IdentifierPool;
-use crate::identifiers::IdentifierContext;
+use super::symbols::{
+    GeneratedSymbol, anchor_name, identity_input_parts, projection_symbol, ref_context,
+};
+use crate::identifiers::{IdentifierContext, IdentifierPool};
 
 /// The declaration that makes a projection usable on the element itself, and the
 /// reportable symbol for the name it writes.
@@ -177,8 +176,7 @@ mod tests {
 
     use super::*;
     use crate::compiler::symbols::{ref_marker_name, scope_marker_name};
-    use crate::identifier::IdentifierPool;
-    use crate::identifiers::{IdentifierContext, Label, RefMarker};
+    use crate::identifiers::{IdentifierContext, IdentifierPool, Label, RefMarker};
 
     #[test]
     fn labels_preserve_punctuation_and_replace_whitespace() {

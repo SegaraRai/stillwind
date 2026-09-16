@@ -11,11 +11,13 @@ use stillwind_css::instantiate_selector;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
 };
+use stillwind_diagnostics::CompileErrorKind;
 
 use super::super::conditionals::{guard, isolate_rule};
 use super::super::variants::{VariantStep, variant_paths};
 use super::declaration_order::prepend_missing_declarations;
 use super::resolve::CompiledUtility;
+use crate::identifiers::IdentifierContext;
 
 /// Renders one utility as one or more complete rules.
 ///
@@ -32,7 +34,8 @@ pub(in crate::compiler) fn render_utility_rule(
     theme: &ThemeIndex,
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
-) -> String {
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
     if !utility.variant_applications.is_empty() {
         return utility
             .variant_applications
@@ -44,6 +47,7 @@ pub(in crate::compiler) fn render_utility_rule(
                     declaration,
                     nested_rule,
                     applications,
+                    identifiers,
                 )
             })
             .collect();
@@ -77,6 +81,7 @@ pub(in crate::compiler) fn render_utility_rule(
                 declaration,
                 nested_rule,
                 applications,
+                identifiers,
             )
         })
         .collect()
@@ -92,10 +97,20 @@ pub(in crate::compiler) fn render_utility_rule_path(
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantApplication],
-) -> String {
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
     variant_paths(applications)
         .iter()
-        .map(|path| render_utility_steps(class_selector, utility, declaration, nested_rule, path))
+        .map(|path| {
+            render_utility_steps(
+                class_selector,
+                utility,
+                declaration,
+                nested_rule,
+                path,
+                identifiers,
+            )
+        })
         .collect()
 }
 
@@ -111,7 +126,8 @@ fn render_utility_steps(
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantStep<'_>],
-) -> String {
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
     let mut declaration = declaration.to_owned();
     let class_selector = class_selector.to_owned();
     let mut selector = utility.selector.as_deref().map_or_else(
@@ -170,8 +186,11 @@ fn render_utility_steps(
         }
     }
     let conditional = !conditions.is_empty();
+    let mut gates = Vec::new();
     for condition in conditions {
-        declaration = guard(&declaration, condition);
+        let guarded = guard(&declaration, condition, identifiers, &gates)?;
+        declaration = guarded.css;
+        gates.extend(guarded.gates);
     }
     let mut rule = format!("{selector}{{{declaration}}}");
     if let Some(nested) = nested_rule {
@@ -200,8 +219,8 @@ fn render_utility_steps(
         rule = format!("@container {container}{{{rule}}}");
     }
     if conditional {
-        isolate_rule(&rule)
+        isolate_rule(&rule, identifiers)
     } else {
-        rule
+        Ok(rule)
     }
 }

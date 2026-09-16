@@ -4,7 +4,7 @@
 //! mapping, that the same CSS renders identically with and without mappings, and that import
 //! conditions survive into the output.
 
-use stillwind_compiler::{CompilerOptions, StylesheetRenderer};
+use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetRenderer};
 use stillwind_design_system::{
     CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
 };
@@ -27,14 +27,22 @@ fn imported_authored_css_and_theme_tokens_keep_their_physical_sources() {
     ) else {
         panic!("complete")
     };
-    let output = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-        .render_base_stylesheet_with_map()
-        .unwrap();
+    let output = StylesheetRenderer::new(
+        &snapshot,
+        &CompilerOptions::default(),
+        &Identifiers::builtin(),
+    )
+    .render_base_stylesheet_with_map()
+    .unwrap();
     assert_eq!(
         output.css,
-        StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_base_stylesheet()
-            .unwrap()
+        StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_base_stylesheet()
+        .unwrap()
     );
     let authored = output
         .mappings

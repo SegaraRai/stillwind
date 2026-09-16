@@ -17,11 +17,9 @@ use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use super::handles::{ref_identity, scope_identity};
-use crate::identifier::IdentifierPool;
-use crate::identifiers::IdentifierContext;
 use crate::identifiers::{
-    AnchorName, ClassContext, ContainerName, DeclarationContext, Label, LocatorContext, RefMarker,
-    ScopeMarker,
+    AnchorName, ClassContext, ContainerName, DeclarationContext, IdentifierContext, IdentifierPool,
+    Label, LocatorContext, RefMarker, ScopeMarker,
 };
 
 /// A generated CSS identifier with the canonical identity used to allocate it.

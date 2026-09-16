@@ -12,11 +12,13 @@ use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
+use stillwind_diagnostics::CompileErrorKind;
 
 use super::super::CssContribution;
 use super::declaration_order::{combine_declarations_for_theme, order_utilities};
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
+use crate::identifiers::IdentifierContext;
 
 /// Writes the blocks of one class unit for `class_selector`.
 ///
@@ -29,9 +31,10 @@ pub(crate) fn emit_utility_rules(
     class_selector: &str,
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
-) {
+    identifiers: &IdentifierContext,
+) -> Result<(), CompileErrorKind> {
     let mut css = String::new();
-    emit_utility_css(&mut css, class_selector, utilities, theme);
+    emit_utility_css(&mut css, class_selector, utilities, theme, identifiers)?;
     contributions.push(CssContribution {
         css,
         required_properties: utilities
@@ -40,6 +43,7 @@ pub(crate) fn emit_utility_rules(
             .collect(),
         keyframes: false,
     });
+    Ok(())
 }
 
 fn emit_utility_css(
@@ -47,7 +51,8 @@ fn emit_utility_css(
     class_selector: &str,
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
-) {
+    identifiers: &IdentifierContext,
+) -> Result<(), CompileErrorKind> {
     let utilities = order_utilities(utilities.iter().collect());
     let base = utilities
         .iter()
@@ -101,7 +106,8 @@ fn emit_utility_css(
             theme,
             &declaration,
             None,
-        ));
+            identifiers,
+        )?);
     }
     for utility in utilities {
         for nested in &utility.nested {
@@ -115,9 +121,11 @@ fn emit_utility_css(
                 theme,
                 &nested.declaration,
                 Some(nested),
-            ));
+                identifiers,
+            )?);
         }
     }
+    Ok(())
 }
 
 /// Writes one `<class selector>{...}` block for a run of plain utilities.

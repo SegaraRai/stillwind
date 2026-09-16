@@ -10,9 +10,110 @@ use stillwind_design_system::parse_theme;
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{FileId, SourceFile};
 
-use super::emit::anonymous_layer_prefix;
-use super::{render, render_mapped};
+use stillwind_css::CssOutputTemplate;
+use stillwind_design_system::{CssSourceGraph, ThemeIndex};
+
+use crate::identifiers::{
+    GeneratedName, IdentifierContext, IdentifierGenerator, IdentifierHash, Identifiers,
+    LayerContext, LayerName,
+};
 use crate::{CompilerOptions, MappedStylesheet};
+
+/// One test's generated names, which the built-in generator always produces.
+fn identifiers() -> IdentifierContext {
+    IdentifierContext::builtin()
+}
+
+/// The name one anonymous layer of `template` carries, without its traversal index.
+fn layer_name(template: &CssOutputTemplate, options: &CompilerOptions) -> String {
+    identifiers()
+        .layer_name(&LayerContext {
+            template: template.source_identity.clone(),
+            namespace: options.class_namespace.clone(),
+        })
+        .expect("the built-in generator cannot reject a name")
+        .custom_ident()
+}
+
+/// Renders raw CSS with the compiler's own names.
+fn render(
+    template: &CssOutputTemplate,
+    theme: &ThemeIndex,
+    utility_css: &str,
+    options: &CompilerOptions,
+    document: bool,
+) -> Result<String, CompileErrorKind> {
+    super::render(
+        template,
+        theme,
+        utility_css,
+        options,
+        document,
+        &identifiers(),
+    )
+}
+
+/// Renders a mapped stylesheet with the compiler's own names.
+fn render_mapped(
+    template: &CssOutputTemplate,
+    theme: &ThemeIndex,
+    utility_css: &MappedStylesheet,
+    options: &CompilerOptions,
+    document: bool,
+    sources: Option<&CssSourceGraph>,
+) -> Result<MappedStylesheet, CompileErrorKind> {
+    super::render_mapped(
+        template,
+        theme,
+        utility_css,
+        options,
+        document,
+        sources,
+        &identifiers(),
+    )
+}
+
+/// Names every anonymous layer with one fixed body.
+#[derive(Debug)]
+struct FixedLayerGenerator;
+
+impl IdentifierGenerator for FixedLayerGenerator {
+    fn layer_name(
+        &self,
+        _context: &LayerContext,
+        _hash: &IdentifierHash,
+    ) -> Result<GeneratedName<LayerName>, String> {
+        Ok(GeneratedName::provided(
+            LayerName::new("app-layer").expect("canonical test body"),
+        ))
+    }
+}
+
+#[test]
+fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
+    let source = SourceFile::new(
+        FileId(1),
+        "styles/entry.css",
+        "@layer { .base{color:red} } @layer { @layer { @stillwind-slot utilities; } }",
+    )
+    .unwrap();
+    let theme = parse_theme(&source).unwrap();
+    let identifiers = Identifiers::with(Arc::new(FixedLayerGenerator)).context();
+    let css = super::render(
+        &theme.output_template,
+        &theme,
+        "",
+        &CompilerOptions::default(),
+        true,
+        &identifiers,
+    )
+    .unwrap();
+    // The generator names the layers of one template, and the compiler keeps them distinct by
+    // appending the traversal index.
+    assert!(css.contains("@layer app-layer-0{"), "{css}");
+    assert!(css.contains("@layer app-layer-1{"), "{css}");
+    assert!(!css.contains("sw-anon-"), "{css}");
+}
 
 #[test]
 fn declaration_slots_keep_css_owned_selectors_conditions_and_order() {
@@ -104,7 +205,7 @@ fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
     let theme = parse_theme(&source).unwrap();
     let template = &theme.output_template;
     let options = CompilerOptions::default();
-    let prefix = anonymous_layer_prefix(template, &options);
+    let prefix = layer_name(template, &options);
     let document = render(template, &theme, "", &options, true).unwrap();
     let module = render(template, &theme, ".x{color:green}", &options, false).unwrap();
     assert!(
@@ -123,12 +224,12 @@ fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
         class_namespace: "other-app".into(),
         ..options
     };
-    assert_ne!(prefix, anonymous_layer_prefix(template, &isolated));
+    assert_ne!(prefix, layer_name(template, &isolated));
     let other_source = SourceFile::new(FileId(2), "other/entry.css", source.text()).unwrap();
     let other_theme = parse_theme(&other_source).unwrap();
     assert_ne!(
         prefix,
-        anonymous_layer_prefix(&other_theme.output_template, &CompilerOptions::default())
+        layer_name(&other_theme.output_template, &CompilerOptions::default())
     );
 }
 

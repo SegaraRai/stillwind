@@ -23,6 +23,7 @@ use super::super::properties::{PropertyOutput, render_used_properties};
 use super::authored::render_authored;
 use super::emit::resolve_origin;
 use crate::compiler::conditionals::lower;
+use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, MappedStylesheet};
 
 /// Dependencies selected for one contribution, before theme fragment lowering.
@@ -34,6 +35,8 @@ pub(super) struct SupportSelection<'a> {
     theme: &'a ThemeIndex,
     /// Generated names and conditional-lowering strategy.
     options: &'a CompilerOptions,
+    /// Name allocation shared with the rest of this compilation.
+    identifiers: &'a IdentifierContext,
     /// Selected indices in `theme.tokens`, deduplicated and sorted numerically.
     /// Theme definitions determine the order in which these indices are emitted.
     tokens: BTreeSet<usize>,
@@ -73,10 +76,17 @@ impl<'a> SupportSelection<'a> {
         options: &'a CompilerOptions,
         document: bool,
         sources: Option<&'a CssSourceGraph>,
+        identifiers: &'a IdentifierContext,
     ) -> Result<Self, CompileErrorKind> {
         let mut explicit = utility_css.required_properties.clone();
         let authored = if document {
-            render_authored(theme.custom_css(), theme, &mut explicit, options)?
+            render_authored(
+                theme.custom_css(),
+                theme,
+                &mut explicit,
+                options,
+                identifiers,
+            )?
         } else {
             String::new()
         };
@@ -156,6 +166,7 @@ impl<'a> SupportSelection<'a> {
         Ok(Self {
             theme,
             options,
+            identifiers,
             tokens,
             animations,
             definitions,
@@ -239,7 +250,7 @@ impl<'a> SupportSelection<'a> {
             {
                 if value.contains("--if(") {
                     let declaration = format!("{}:{value};", token.name.value);
-                    let lowered = lower(&declaration, self.options.use_css_if)?;
+                    let lowered = lower(&declaration, self.options.use_css_if, self.identifiers)?;
                     declarations.text(
                         &self.options.rewrite_generated(&lowered),
                         resolve_origin(self.sources, Some(token.value.span)),
@@ -263,6 +274,7 @@ impl<'a> SupportSelection<'a> {
                 &self.options.rewrite_generated(&lower(
                     &extract_authored_keyframes(keyframes, &self.animations),
                     self.options.use_css_if,
+                    self.identifiers,
                 )?),
                 resolve_origin(self.sources, origin),
             );

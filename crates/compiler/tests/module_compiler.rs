@@ -9,9 +9,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    ClassContext, CompileResult, Compiler, CompilerOptions, DeclarationContext, GeneratedName,
-    IdentifierGenerator, IdentifierKind, IdentifierMode, Identifiers, ModuleCompiler, RefMarker,
-    SourceTransform, StylesheetRenderer, UtilityClass,
+    ClassContext, CompileResult, Compiler, CompilerOptions, ConditionContext, CustomPropertyName,
+    DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierKind,
+    IdentifierMode, Identifiers, ModuleCompiler, RefMarker, SourceTransform, StylesheetRenderer,
+    UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
@@ -118,8 +119,12 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
         assert_eq!(fragment.css, output.module_css);
         assert_eq!(fragment.transforms, output.transforms);
         assert_eq!(
-            StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-                .render_compilation(&compiled, source.full_span()),
+            StylesheetRenderer::new(
+                &snapshot,
+                &CompilerOptions::default(),
+                &Identifiers::builtin()
+            )
+            .render_compilation(&compiled, source.full_span()),
             output,
             "{candidates}"
         );
@@ -160,7 +165,7 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
         assert!(fragment.diagnostics.is_empty());
         assert!(fragment.css.contains("display:flex"));
         assert!(fragment.apply_to_source(&source).is_ok());
-        let renderer = StylesheetRenderer::new(&snapshot, &options);
+        let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::builtin());
         assert_eq!(
             renderer.render_stylesheet(&fragment.css).unwrap_err(),
             expected
@@ -393,7 +398,7 @@ fn a_host_body_that_an_object_cannot_hold_is_prefixed_in_generated_code() {
         fn ref_marker(
             &self,
             _context: &DeclarationContext,
-            _hash: &str,
+            _hash: &IdentifierHash,
         ) -> Result<GeneratedName<RefMarker>, String> {
             Ok(GeneratedName::provided(
                 RefMarker::new("__proto__").expect("canonical test body"),
@@ -497,7 +502,7 @@ impl IdentifierGenerator for FailingGenerator {
     fn utility_class(
         &self,
         _context: &ClassContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<UtilityClass>, String> {
         Err("no name for this declaration".to_owned())
     }
@@ -552,7 +557,7 @@ impl IdentifierGenerator for FixedGenerator {
     fn ref_marker(
         &self,
         context: &DeclarationContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<RefMarker>, String> {
         Ok(GeneratedName::provided(
             RefMarker::new(&format!("fixed{}", context.binding.len()))
@@ -623,7 +628,7 @@ impl IdentifierGenerator for PunctuationClassGenerator {
     fn utility_class(
         &self,
         _context: &ClassContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<UtilityClass>, String> {
         Ok(GeneratedName::provided(
             UtilityClass::new("a:b").expect("canonical test body"),
@@ -662,4 +667,56 @@ fn a_host_class_token_keeps_its_spelling_in_the_class_attribute() {
     assert_eq!(class, "a:b", "{class}");
     let css = compiled.css.to_css();
     assert!(css.contains(r".a\:b{"), "{css}");
+}
+
+/// Names every conditional helper the compiler asks for.
+#[derive(Debug)]
+struct RoleSpellingHelperGenerator;
+
+impl IdentifierGenerator for RoleSpellingHelperGenerator {
+    fn condition_helper(
+        &self,
+        context: &ConditionContext,
+        _hash: &IdentifierHash,
+        text_hash: &IdentifierHash,
+    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+        // The role is spelled by the generator and the text is named by its own hash, which is
+        // the shape a host picks when it wants two roles to share one suffix.
+        Ok(GeneratedName::provided(
+            CustomPropertyName::new(&format!(
+                "app-if-{}-{}",
+                context.role.as_str(),
+                &text_hash.to_hex()[..8],
+            ))
+            .expect("canonical test body"),
+        ))
+    }
+}
+
+#[test]
+fn a_host_names_every_conditional_helper_it_is_asked_for() {
+    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+            .unwrap();
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "if.tsx",
+            "import { style } from 'stillwind/react'; export const x = style('w-[--if(!--c,20px,10px)]');",
+        )
+        .unwrap(),
+    );
+    let identifiers = Identifiers::with(Arc::new(RoleSpellingHelperGenerator));
+    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile_with(
+        &OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None),
+        &identifiers,
+    );
+    assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
+    // The declaration that defines the helper and the declaration that reads it agree, and both
+    // carry the role the host was asked for.
+    let css = compiled.css.to_css();
+    assert!(css.contains("--app-if-fallback-"), "{css}");
+    assert!(css.contains("var(--app-if-fallback-"), "{css}");
+    assert!(!css.contains("--sw-if-"), "{css}");
 }

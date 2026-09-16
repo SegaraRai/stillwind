@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     AnchorName, ClassContext, CompilerOptions, DeclarationContext, GeneratedName, GeneratedRule,
-    IdentifierGenerator, Identifiers, KeyframesName, LocatorContext, ModuleCssArtifact, RefMarker,
-    RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
+    IdentifierGenerator, IdentifierHash, Identifiers, KeyframesName, LocatorContext,
+    ModuleCssArtifact, RefMarker, RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -119,9 +119,13 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         DesignSystemOptions::default(),
     )
     .unwrap();
-    let base = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-        .render_base_stylesheet()
-        .unwrap();
+    let base = StylesheetRenderer::new(
+        &snapshot,
+        &CompilerOptions::default(),
+        &Identifiers::builtin(),
+    )
+    .render_base_stylesheet()
+    .unwrap();
     assert!(base.starts_with("@layer properties, theme, base, components, utilities;"));
     let mut session = ProjectSession::new(
         snapshot.clone(),
@@ -131,10 +135,14 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     );
     session.update_module(module("a.tsx", "bg-brand animate-spin ring-2"));
     let artifact = session.artifacts()["a.tsx"].clone();
-    let css = StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-        .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
-        .map(|output| output.css)
-        .unwrap();
+    let css = StylesheetRenderer::new(
+        &snapshot,
+        &CompilerOptions::default(),
+        &Identifiers::builtin(),
+    )
+    .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
+    .map(|output| output.css)
+    .unwrap();
     assert!(css.contains("--color-brand:red"));
     assert!(css.contains("@keyframes spin"));
     assert!(css.contains("@property --tw-ring"));
@@ -144,16 +152,24 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     assert!(base.contains(".document-only"));
     session.update_module(module("late.tsx", "flex"));
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_base_stylesheet()
-            .unwrap(),
+        StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_base_stylesheet()
+        .unwrap(),
         base
     );
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &CompilerOptions::default())
-            .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
-            .map(|output| output.css)
-            .unwrap(),
+        StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin()
+        )
+        .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
+        .map(|output| output.css)
+        .unwrap(),
         css
     );
 }
@@ -375,7 +391,7 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
     fn keyframes_name(
         &self,
         _context: &DeclarationContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<KeyframesName>, String> {
         Ok(GeneratedName::provided(
             KeyframesName::new("authored").expect("canonical test name"),
@@ -433,7 +449,7 @@ impl IdentifierGenerator for FixedBodyGenerator {
     fn ref_marker(
         &self,
         _context: &DeclarationContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<RefMarker>, String> {
         Ok(GeneratedName::provided(
             RefMarker::new("shared").expect("canonical test name"),
@@ -443,7 +459,7 @@ impl IdentifierGenerator for FixedBodyGenerator {
     fn anchor_name(
         &self,
         _context: &LocatorContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<AnchorName>, String> {
         Ok(GeneratedName::provided(
             AnchorName::new("shared").expect("canonical test name"),
@@ -497,7 +513,7 @@ impl IdentifierGenerator for FixedClassGenerator {
     fn utility_class(
         &self,
         context: &ClassContext,
-        _hash: &str,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<UtilityClass>, String> {
         Ok(GeneratedName::provided(
             UtilityClass::new(&format!("fixed{}", context.branch.len()))

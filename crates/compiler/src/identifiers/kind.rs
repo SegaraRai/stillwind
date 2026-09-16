@@ -19,6 +19,7 @@
 //! [`crate::identifiers`].
 
 use serde::{Deserialize, Serialize};
+
 /// The prefix of a built-in utility class token.
 pub(crate) const DEFAULT_CLASS_PREFIX: &str = "_s_";
 
@@ -39,6 +40,15 @@ pub(crate) const DEFAULT_ANIMATION_PREFIX: &str = "--sw-a-";
 
 /// The custom-property prefix of a built-in view-transition name.
 pub(crate) const DEFAULT_VIEW_TRANSITION_PREFIX: &str = "--sw-v-";
+
+/// The prefix of a built-in conditional helper.
+///
+/// A helper is a custom property, and that family's render method adds the leading hyphens, so the
+/// canonical spelling this prefix starts carries none.
+pub(crate) const DEFAULT_CONDITION_PREFIX: &str = "sw-if-";
+
+/// The prefix of a built-in anonymous layer name.
+pub(crate) const DEFAULT_LAYER_PREFIX: &str = "sw-anon-";
 
 /// When the compilation runs, which decides how a rejected name is handled.
 ///
@@ -173,9 +183,21 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
         IdentifierKind::ContainerName => DEFAULT_CONTAINER_PREFIX,
         IdentifierKind::KeyframesName => DEFAULT_ANIMATION_PREFIX,
         IdentifierKind::ViewTransitionName => DEFAULT_VIEW_TRANSITION_PREFIX,
-        IdentifierKind::ViewTransitionClass
-        | IdentifierKind::CustomProperty
-        | IdentifierKind::LayerName => "",
+        IdentifierKind::CustomProperty => DEFAULT_CONDITION_PREFIX,
+        IdentifierKind::LayerName => DEFAULT_LAYER_PREFIX,
+        IdentifierKind::ViewTransitionClass => "",
+    }
+}
+
+/// How many hexadecimal digits of the request hash a built-in name keeps.
+///
+/// A class token stays short because it is written to the class attribute of every element it
+/// styles. A helper or a layer name is a custom property or an at-rule prelude, where the extra
+/// digits cost nothing and a longer prefix leaves more room for a host's own authored names.
+pub(crate) const fn builtin_digest_digits(kind: IdentifierKind) -> usize {
+    match kind {
+        IdentifierKind::CustomProperty | IdentifierKind::LayerName => 16,
+        _ => 8,
     }
 }
 #[cfg(test)]
@@ -233,15 +255,12 @@ mod tests {
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
             IdentifierKind::ViewTransitionName,
-        ] {
-            assert!(!builtin_prefix(kind).is_empty(), "{kind:?}");
-        }
-        for kind in [
-            IdentifierKind::ViewTransitionClass,
             IdentifierKind::CustomProperty,
             IdentifierKind::LayerName,
         ] {
-            assert_eq!(builtin_prefix(kind), "", "{kind:?}");
+            assert!(!builtin_prefix(kind).is_empty(), "{kind:?}");
         }
+        // No view-transition class name is generated, so the family owns no prefix.
+        assert_eq!(builtin_prefix(IdentifierKind::ViewTransitionClass), "");
     }
 }

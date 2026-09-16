@@ -16,6 +16,7 @@ use stillwind_source::Span;
 use crate::compiler::{
     render_mapped, render_module_stylesheet, render_react_types, render_stylesheet,
 };
+use crate::identifiers::{IdentifierContext, Identifiers};
 use crate::{CompileResult, CompiledModule, CompilerOptions, MappedStylesheet};
 
 /// Where a rendered stylesheet is going to be used.
@@ -33,17 +34,26 @@ pub struct StylesheetRenderer<'a> {
     snapshot: &'a DesignSystemSnapshot,
     /// Compiler configuration controlling generated names in rendered output.
     options: CompilerOptions,
+    /// One compilation's name allocation, shared by every stylesheet this renderer
+    /// produces so a document and its carriers agree on the names they share.
+    identifiers: IdentifierContext,
 }
 
 impl<'a> StylesheetRenderer<'a> {
     /// Creates a renderer for `snapshot`.
     ///
     /// The options' prefixes are resolved against the snapshot, so rendered text always
-    /// agrees with the theme being rendered.
-    pub fn new(snapshot: &'a DesignSystemSnapshot, options: &CompilerOptions) -> Self {
+    /// agrees with the theme being rendered. `identifiers` names every generated helper and
+    /// anonymous layer this renderer writes.
+    pub fn new(
+        snapshot: &'a DesignSystemSnapshot,
+        options: &CompilerOptions,
+        identifiers: &Identifiers,
+    ) -> Self {
         Self {
             snapshot,
             options: options.clone().resolved(snapshot),
+            identifiers: identifiers.context(),
         }
     }
 
@@ -82,6 +92,7 @@ impl<'a> StylesheetRenderer<'a> {
                 }
             }
         }
+        result.rejected_names = self.identifiers.drain_rejected().into_entries();
         result
     }
 
@@ -94,7 +105,12 @@ impl<'a> StylesheetRenderer<'a> {
     /// Returns missing-slot, malformed property requirement or usage, and unresolved
     /// authored theme-reference errors. No partial stylesheet is returned.
     pub fn render_stylesheet(&self, module_css: &str) -> Result<String, CompileErrorKind> {
-        render_stylesheet(self.snapshot.theme(), module_css, &self.options)
+        render_stylesheet(
+            self.snapshot.theme(),
+            module_css,
+            &self.options,
+            &self.identifiers,
+        )
     }
 
     /// Document CSS with the layer reservations authored by the entry stylesheet.
@@ -119,7 +135,12 @@ impl<'a> StylesheetRenderer<'a> {
     /// Returns missing-slot, malformed property requirement or usage, and unresolved
     /// theme-reference errors in retained carrier CSS.
     pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, CompileErrorKind> {
-        render_module_stylesheet(self.snapshot.theme(), module_css, &self.options)
+        render_module_stylesheet(
+            self.snapshot.theme(),
+            module_css,
+            &self.options,
+            &self.identifiers,
+        )
     }
 
     /// Renders a producer's CSS with source provenance attached.
@@ -141,6 +162,7 @@ impl<'a> StylesheetRenderer<'a> {
             &self.options,
             placement == StylesheetPlacement::Document,
             Some(self.snapshot.sources()),
+            &self.identifiers,
         )
     }
 

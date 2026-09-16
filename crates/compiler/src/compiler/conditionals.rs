@@ -16,21 +16,46 @@ use stillwind_css::find_css_functions;
 use stillwind_design_system::{runtime_condition_value, runtime_if_arguments};
 use stillwind_diagnostics::CompileErrorKind;
 
+use crate::identifiers::{ConditionContext, ConditionRole, IdentifierContext};
+
+/// Writes one helper custom property, or reports why it could not be named.
+///
+/// Helpers are generated rather than authored, so a host that names them is asked here,
+/// where the CSS text they serve is still known.
+fn helper(
+    identifiers: &IdentifierContext,
+    role: ConditionRole,
+    text: &str,
+) -> Result<String, CompileErrorKind> {
+    Ok(identifiers
+        .condition_helper(&ConditionContext {
+            role,
+            text: text.to_owned(),
+        })?
+        .property())
+}
+
 /// Wraps a complete rule in a support group keyed by a hash of its CSS text.
 /// The group also requires `revert-rule` support. Merging a base rule with a guarded
 /// rule of the same selector would erase the declarations the false branch should use;
 /// the content-dependent group keeps those rules separate during minification.
-pub(super) fn isolate_rule(rule: &str) -> String {
-    let identity = blake3::hash(rule.as_bytes()).to_hex();
-    format!(
-        "@supports (color:revert-rule) and (--sw-if-rule-{}:0){{{rule}}}",
-        &identity[..16]
-    )
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the helper's name.
+pub(super) fn isolate_rule(
+    rule: &str,
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
+    let name = helper(identifiers, ConditionRole::Rule, rule)?;
+    Ok(format!(
+        "@supports (color:revert-rule) and ({name}:0){{{rule}}}"
+    ))
 }
 
 /// Lowers `--if(C,Y,N)` in declaration bodies; one leading `!` swaps the branches.
-/// `use_css_if` selects native CSS `if()`; false emits local fallback helpers with
-/// canonical `--sw-if-` names. Selectors, priorities, strings, and URLs are preserved.
+/// `use_css_if` selects native CSS `if()`; false emits local fallback helpers under the
+/// generated custom-property names. Selectors, priorities, strings, and URLs are preserved.
 ///
 /// # Errors
 ///
@@ -38,7 +63,12 @@ pub(super) fn isolate_rule(rule: &str) -> String {
 /// invocations per declaration, or a CSS-wide branch stored in a fallback helper.
 /// That branch is Y for a positive condition and N for a negated one. No partial
 /// output is returned. Negated variants and `--name:value` comparisons require native mode.
-pub(super) fn lower(css: &str, use_css_if: bool) -> Result<String, CompileErrorKind> {
+/// Returns the host generator's failure for a helper's name.
+pub(super) fn lower(
+    css: &str,
+    use_css_if: bool,
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
     if !css.contains("--if(") {
         return Ok(css.to_owned());
     }
@@ -93,8 +123,11 @@ pub(super) fn lower(css: &str, use_css_if: bool) -> Result<String, CompileErrorK
                         "CSS-wide branches stored in fallback helpers (including negated variants) require useCssIf: true",
                     ));
                 }
-                let identity = blake3::hash(&value.as_bytes()[function.start..end]).to_hex();
-                let name = format!("--sw-if-{}", &identity[..16]);
+                let name = helper(
+                    identifiers,
+                    ConditionRole::Fallback,
+                    &value[function.start..end],
+                )?;
                 let _ = write!(helpers, "{name}:var({condition}) {yes};");
                 format!("var({name},{no})")
             };
@@ -113,15 +146,34 @@ fn invalid(detail: &str) -> CompileErrorKind {
     }
 }
 
+/// One guarded declaration body and the gate declarations written into it.
+pub(super) struct Guarded {
+    /// The body, with the gates this pass wrote in front of the declarations they gate.
+    pub css: String,
+    /// Names of those gates, which a later pass must not guard again.
+    pub gates: Vec<String>,
+}
+
 /// Guards every declaration, including nested rules, with a validated condition.
 /// `condition` must satisfy `is_runtime_condition`. Emits unresolved `--if` values
 /// with `revert-rule` as the false branch; callers must run [`lower`] and retain a
 /// separate rule boundary. Existing guards combine as AND using local boolean gates.
-/// Priority stays outside the expression; generated gate declarations are not guarded
-/// again. Negated AND operands emit inversions that require native lowering.
-pub(super) fn guard(css: &str, condition: &str) -> String {
-    map_declarations::<std::convert::Infallible>(css, |property, value| {
-        if property.trim().starts_with("--sw-if-gate-") {
+/// Priority stays outside the expression; `known` names the gate declarations an
+/// earlier pass wrote, which are left alone, and the ones this pass writes are
+/// returned. Negated AND operands emit inversions that require native lowering.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for a gate's name.
+pub(super) fn guard(
+    css: &str,
+    condition: &str,
+    identifiers: &IdentifierContext,
+    known: &[String],
+) -> Result<Guarded, CompileErrorKind> {
+    let mut gates = Vec::new();
+    let css = map_declarations::<CompileErrorKind>(css, |property, value| {
+        if known.iter().any(|gate| gate == property.trim()) {
             return Ok(format!("{property}:{value}"));
         }
         let mut parser = Parser::new(value);
@@ -130,12 +182,16 @@ pub(super) fn guard(css: &str, condition: &str) -> String {
             let start = parser.position().byte_index();
             match parser.next() {
                 Ok(Token::Delim('!')) => {
-                    if matches!(parser.next(), Ok(Token::Ident(name)) if name.eq_ignore_ascii_case("important")) && parser.is_exhausted() {
+                    if matches!(parser.next(), Ok(Token::Ident(name)) if name.eq_ignore_ascii_case("important"))
+                        && parser.is_exhausted()
+                    {
                         priority = Some(start);
                         break;
                     }
                 }
-                Ok(token) if is_block(token) => { consume(&mut parser); }
+                Ok(token) if is_block(token) => {
+                    consume(&mut parser);
+                }
                 Ok(_) => {}
                 Err(_) => break,
             }
@@ -144,19 +200,29 @@ pub(super) fn guard(css: &str, condition: &str) -> String {
         let mut gate = String::new();
         let mut condition = condition.to_owned();
         let mut value = value;
-        if let Some(arguments) = value.trim().strip_prefix("--if(").and_then(|v| v.strip_suffix(')'))
+        if let Some(arguments) = value
+            .trim()
+            .strip_prefix("--if(")
+            .and_then(|v| v.strip_suffix(')'))
             && let Some((inner, yes, "revert-rule")) = runtime_if_arguments(arguments)
         {
-            let identity = blake3::hash(format!("{condition}/{inner}").as_bytes()).to_hex();
-            let name = format!("--sw-if-gate-{}", &identity[..16]);
-            let left = gate_condition(&condition, &mut gate);
-            let right = gate_condition(inner, &mut gate);
+            let name = helper(
+                identifiers,
+                ConditionRole::Gate,
+                &format!("{condition}/{inner}"),
+            )?;
+            let left = gate_condition(&condition, &mut gate, identifiers, &mut gates)?;
+            let right = gate_condition(inner, &mut gate, identifiers, &mut gates)?;
             let _ = write!(gate, "{name}:var({left}) var({right});");
+            gates.push(name.clone());
             condition = name;
             value = yes;
         }
-        Ok(format!("{gate}{property}:--if({condition},{{{value}}},revert-rule){priority}"))
-    }).unwrap_or_else(|never| match never {})
+        Ok(format!(
+            "{gate}{property}:--if({condition},{{{value}}},revert-rule){priority}"
+        ))
+    })?;
+    Ok(Guarded { css, gates })
 }
 
 /// Returns a custom-property name suitable for a fallback AND expression.
@@ -164,25 +230,34 @@ pub(super) fn guard(css: &str, condition: &str) -> String {
 /// their trimmed text without changing `declarations`; negations and comparisons
 /// append an unresolved helper with empty/initial branches and return its name.
 /// Callers must lower appended helpers in native mode before emitting them.
-fn gate_condition(condition: &str, declarations: &mut String) -> String {
+///
+/// # Errors
+///
+/// Returns the host generator's failure for the helper's name.
+fn gate_condition(
+    condition: &str,
+    declarations: &mut String,
+    identifiers: &IdentifierContext,
+    gates: &mut Vec<String>,
+) -> Result<String, CompileErrorKind> {
     let condition = condition.trim();
     if runtime_condition_value(condition).is_some() {
-        let identity = blake3::hash(condition.as_bytes()).to_hex();
-        let name = format!("--sw-if-gate-value-{}", &identity[..16]);
+        let name = helper(identifiers, ConditionRole::GateValue, condition)?;
         let _ = write!(declarations, "{name}:--if({condition},{{}},initial);");
-        return name;
+        gates.push(name.clone());
+        return Ok(name);
     }
     let Some(property) = condition.strip_prefix('!') else {
-        return condition.to_owned();
+        return Ok(condition.to_owned());
     };
-    let identity = blake3::hash(condition.as_bytes()).to_hex();
-    let name = format!("--sw-if-gate-not-{}", &identity[..16]);
+    let name = helper(identifiers, ConditionRole::GateNot, condition)?;
     let _ = write!(
         declarations,
         "{name}:--if({},initial,{{}});",
         property.trim()
     );
-    name
+    gates.push(name.clone());
+    Ok(name)
 }
 
 /// Identifies tokens whose nested contents can be consumed as one opaque value.
@@ -301,10 +376,25 @@ fn map_declarations<E>(
 mod tests {
     use super::*;
 
+    /// One test's names, which the built-in generator always produces.
+    fn identifiers() -> IdentifierContext {
+        IdentifierContext::builtin()
+    }
+
+    /// Lowers with the compiler's own helper names.
+    fn lower_builtin(css: &str, use_css_if: bool) -> Result<String, CompileErrorKind> {
+        lower(css, use_css_if, &identifiers())
+    }
+
+    /// Guards with the compiler's own gate names.
+    fn guard_builtin(css: &str, condition: &str) -> Result<Guarded, CompileErrorKind> {
+        guard(css, condition, &identifiers(), &[])
+    }
+
     #[test]
     fn runtime_if_preserves_lexical_boundaries_and_priority() {
         let css = r".a:hover{content:'--if(--x,a,b)';background:url('--if(--x,a,b)');/*x*/ width : --if(--x,calc(1px + 2px),3px) ! IMPORTANT /*keep*/;}";
-        let native = lower(css, true).unwrap();
+        let native = lower_builtin(css, true).unwrap();
         assert_eq!(
             native,
             css.replace(
@@ -313,13 +403,19 @@ mod tests {
             )
         );
         assert_eq!(
-            guard(
+            guard_builtin(
                 "font-family:a,b;content:'!important';color:red ! IMPORTANT /*keep*/;",
                 "--x"
-            ),
+            )
+            .unwrap()
+            .css,
             "font-family:--if(--x,{a,b},revert-rule);content:--if(--x,{'!important'},revert-rule);color:--if(--x,{red},revert-rule) ! IMPORTANT /*keep*/;"
         );
-        let comma = lower(&guard("font-family:a,b;", "--x"), false).unwrap();
+        let comma = lower_builtin(
+            &guard_builtin("font-family:a,b;", "--x").unwrap().css,
+            false,
+        )
+        .unwrap();
         assert!(comma.contains(":var(--x) a,b;"), "{comma}");
     }
 
@@ -327,14 +423,14 @@ mod tests {
     fn runtime_if_nested_and_sibling_functions_keep_offsets() {
         let css = "x:--if(--a,--if(--b,1,2),--if(--c,3,4)) --if(--d,5,6);";
         assert_eq!(
-            lower(css, true).unwrap(),
+            lower_builtin(css, true).unwrap(),
             "x:if(style(--a):if(style(--b):1;else:2);else:if(style(--c):3;else:4)) if(style(--d):5;else:6);"
         );
-        let fallback = lower(css, false).unwrap();
+        let fallback = lower_builtin(css, false).unwrap();
         assert_eq!(fallback.matches(":var(--").count(), 5);
         assert!(!fallback.contains("--if("));
         assert_eq!(
-            lower("x:--if(--a/*,*/,1,2);", true).unwrap(),
+            lower_builtin("x:--if(--a/*,*/,1,2);", true).unwrap(),
             "x:if(style(--a/*,*/):1;else:2);"
         );
     }
@@ -342,12 +438,12 @@ mod tests {
     #[test]
     fn runtime_if_guard_recurses_into_rules_but_not_custom_property_braces() {
         let css = ".a{--data:{x:y};@media print{&:hover{color:red;}}}";
-        let guarded = guard(css, "--enabled");
+        let guarded = guard_builtin(css, "--enabled").unwrap().css;
         assert!(
             guarded.contains("--data:--if(--enabled,{{x:y}},revert-rule)"),
             "{guarded}"
         );
         assert!(guarded.contains("color:--if(--enabled,{red},revert-rule)"));
-        assert!(!lower(&guarded, false).unwrap().contains("--if("));
+        assert!(!lower_builtin(&guarded, false).unwrap().contains("--if("));
     }
 }

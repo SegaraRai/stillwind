@@ -167,7 +167,11 @@ impl DesignSystemQuery {
         });
         let mut contributions = Vec::new();
         let mut diagnostics = if let Some(targets) = targets {
-            emit_utility_rules(&mut contributions, &selector, &targets, theme);
+            // The preview names its class with the built-in generator, so a rejected name is
+            // unreachable and a helper that cannot be named contributes nothing.
+            let identifiers = IdentifierContext::builtin();
+            let _ =
+                emit_utility_rules(&mut contributions, &selector, &targets, theme, &identifiers);
             Vec::new()
         } else {
             vec![LintFinding::new(

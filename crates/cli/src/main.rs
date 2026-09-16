@@ -28,7 +28,8 @@ use std::{env, fs};
 use serde::Serialize;
 
 use stillwind_compiler::{
-    CompilerOptions, GeneratedClass, ModuleCompiler, ModuleResourceReference, StylesheetRenderer,
+    CompilerOptions, GeneratedClass, Identifiers, ModuleCompiler, ModuleResourceReference,
+    StylesheetRenderer,
 };
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::CompileErrorKind;
@@ -205,7 +206,7 @@ fn run() -> Result<(), CommandError> {
     let analysis =
         OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source.clone())), None);
     let module = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(&analysis);
-    let result = StylesheetRenderer::new(&snapshot, &options)
+    let result = StylesheetRenderer::new(&snapshot, &options, &Identifiers::builtin())
         .render_compilation(&module, source.full_span());
     let diagnostics = result
         .diagnostics

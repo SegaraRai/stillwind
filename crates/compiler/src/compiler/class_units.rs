@@ -208,7 +208,8 @@ impl<'a> ClassUnits<'a> {
                 &name.selector(),
                 definitions,
                 self.theme,
-            );
+                self.identifiers,
+            )?;
             self.symbols.push(generated_class_symbol(
                 self.source,
                 name.as_str(),

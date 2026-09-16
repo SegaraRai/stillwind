@@ -11,6 +11,7 @@ use stillwind_diagnostics::CompileErrorKind;
 
 use super::emit::emit;
 use super::support::SupportSelection;
+use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, MappedStylesheet};
 
 /// Assembles raw CSS against `template` and returns the document or carrier text.
@@ -30,6 +31,7 @@ pub(in super::super) fn render(
     utility_css: &str,
     options: &CompilerOptions,
     document: bool,
+    identifiers: &IdentifierContext,
 ) -> Result<String, CompileErrorKind> {
     render_mapped(
         template,
@@ -41,6 +43,7 @@ pub(in super::super) fn render(
         options,
         document,
         None,
+        identifiers,
     )
     .map(|output| output.css)
 }
@@ -74,9 +77,17 @@ pub(crate) fn render_mapped(
     options: &CompilerOptions,
     document: bool,
     sources: Option<&CssSourceGraph>,
+    identifiers: &IdentifierContext,
 ) -> Result<MappedStylesheet, CompileErrorKind> {
-    let selection =
-        SupportSelection::select(template, theme, utility_css, options, document, sources)?;
+    let selection = SupportSelection::select(
+        template,
+        theme,
+        utility_css,
+        options,
+        document,
+        sources,
+        identifiers,
+    )?;
     let properties = &selection.properties;
     if !properties.registrations.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::Properties)
@@ -117,6 +128,7 @@ pub(crate) fn render_mapped(
         document,
         sources,
         &support,
+        identifiers,
     )?;
     if !utility_css.css.is_empty() && slots == 0 {
         return Err(CompileErrorKind::MissingUtilitiesSlot);

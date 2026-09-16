@@ -10,6 +10,7 @@
 //! its expansion loop, leaving that directive and later occurrences unchanged.
 
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_syntax::parse_candidate;
 
 use super::super::conditionals::{guard, isolate_rule};
@@ -17,6 +18,7 @@ use super::super::utilities::declaration_order::{order_utilities, prepend_missin
 use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
 use super::blocks::find_at_rule_block;
+use crate::identifiers::IdentifierContext;
 
 /// Rewrites every `@apply` and `@variant` in `css` that can be expanded.
 ///
@@ -32,7 +34,8 @@ pub(in crate::compiler) fn expand_authored_directives(
     css: &str,
     theme: &ThemeIndex,
     required_properties: &mut Vec<String>,
-) -> String {
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
         let Some(end_rel) = output[start..].find(';') else {
@@ -52,37 +55,40 @@ pub(in crate::compiler) fn expand_authored_directives(
                 )
             })
         });
-        let declarations = ordered
-            .into_iter()
-            .map(|utility| {
-                required_properties.extend(utility.required_properties.iter().cloned());
-                if utility.variants.iter().any(|variant| {
-                    matches!(
-                        resolve_variant(variant, theme),
-                        Some(VariantApplication::Conditional(_))
-                    )
-                }) {
-                    let applications = utility
-                        .variants
-                        .iter()
-                        .filter_map(|variant| resolve_variant(variant, theme))
-                        .collect::<Vec<_>>();
-                    render_authored_variant_path(&utility.declaration, &applications)
-                } else {
-                    utility.declaration.clone()
-                }
-            })
-            .collect::<String>();
+        let mut declarations = String::new();
+        for utility in ordered {
+            required_properties.extend(utility.required_properties.iter().cloned());
+            if utility.variants.iter().any(|variant| {
+                matches!(
+                    resolve_variant(variant, theme),
+                    Some(VariantApplication::Conditional(_))
+                )
+            }) {
+                let applications = utility
+                    .variants
+                    .iter()
+                    .filter_map(|variant| resolve_variant(variant, theme))
+                    .collect::<Vec<_>>();
+                declarations.push_str(&render_authored_variant_path(
+                    &utility.declaration,
+                    &applications,
+                    identifiers,
+                )?);
+            } else {
+                declarations.push_str(&utility.declaration);
+            }
+        }
         output.replace_range(start..=end, &declarations);
     }
     while let Some((start, prelude, open, close)) = find_at_rule_block(&output, "variant") {
-        let Some(replacement) = expand_authored_variant(&prelude, &output[open + 1..close], theme)
-        else {
+        let replacement =
+            expand_authored_variant(&prelude, &output[open + 1..close], theme, identifiers)?;
+        let Some(replacement) = replacement else {
             break;
         };
         output.replace_range(start..=close, &replacement);
     }
-    output
+    Ok(output)
 }
 
 /// Expands one `@variant <prelude> { body }` block.
@@ -90,20 +96,29 @@ pub(in crate::compiler) fn expand_authored_directives(
 /// The prelude is a comma-separated list of variant sequences, and each sequence expands to its
 /// own copy of the body. Returns `None` when a sequence is empty or an unknown variant appears, so
 /// the caller can leave the block unexpanded instead of emitting partial rules.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for a conditional helper's name.
 pub(in crate::compiler) fn expand_authored_variant(
     prelude: &str,
     body: &str,
     theme: &ThemeIndex,
-) -> Option<String> {
+    identifiers: &IdentifierContext,
+) -> Result<Option<String>, CompileErrorKind> {
     let mut output = String::new();
     for variant_sequence in split_css_top_level(prelude, ',') {
-        let candidate = parse_candidate(&format!("{}:flex", variant_sequence.trim()))?;
+        let Some(candidate) = parse_candidate(&format!("{}:flex", variant_sequence.trim())) else {
+            return Ok(None);
+        };
         if candidate.variants.is_empty() {
-            return None;
+            return Ok(None);
         }
         let mut paths = vec![Vec::new()];
         for variant in &candidate.variants {
-            let application = resolve_variant(variant, theme)?;
+            let Some(application) = resolve_variant(variant, theme) else {
+                return Ok(None);
+            };
             let alternatives = match application {
                 VariantApplication::Compound(applications) => applications,
                 application => vec![application],
@@ -120,10 +135,14 @@ pub(in crate::compiler) fn expand_authored_variant(
                 .collect();
         }
         for applications in &paths {
-            output.push_str(&render_authored_variant_path(body, applications));
+            output.push_str(&render_authored_variant_path(
+                body,
+                applications,
+                identifiers,
+            )?);
         }
     }
-    Some(output)
+    Ok(Some(output))
 }
 
 /// Splits `value` on `separator` at the top level only.
@@ -175,55 +194,63 @@ pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> 
 pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
-) -> String {
+    identifiers: &IdentifierContext,
+) -> Result<String, CompileErrorKind> {
     variant_paths(applications)
         .iter()
         .map(|path| {
             path.iter()
-                .fold(body.to_owned(), |body, application| match *application {
-                    VariantStep::SelectorSuffix(suffix) => {
-                        format!("&{suffix}{{{body}}}")
-                    }
-                    VariantStep::SelectorTemplate(selector) => {
-                        format!("{selector}{{{body}}}")
-                    }
-                    VariantStep::SelectorRule {
-                        selector,
-                        declarations,
-                    } => {
-                        let mut body = body;
-                        prepend_missing_declarations(&mut body, declarations);
-                        format!("{selector}{{{body}}}")
-                    }
-                    VariantStep::SelectorMedia {
-                        selector,
-                        condition,
-                    } => format!("{selector}{{@media {condition}{{{body}}}}}"),
-                    VariantStep::SelectorMediaRule {
-                        selector,
-                        declarations,
-                        condition,
-                    } => {
-                        let mut body = body;
-                        prepend_missing_declarations(&mut body, declarations);
-                        format!("{selector}{{@media {condition}{{{body}}}}}")
-                    }
-                    VariantStep::Media(condition) => {
-                        format!("@media {condition}{{{body}}}")
-                    }
-                    VariantStep::Container(condition) => {
-                        format!("@container {condition}{{{body}}}")
-                    }
-                    VariantStep::Supports(condition) => {
-                        format!("@supports ({condition}){{{body}}}")
-                    }
-                    VariantStep::Conditional(condition) => {
-                        isolate_rule(&format!("&{{{}}}", guard(&body, condition)))
-                    }
-                    VariantStep::StartingStyle => {
-                        format!("@starting-style{{{body}}}")
-                    }
-                })
+                .try_fold(
+                    (body.to_owned(), Vec::new()),
+                    |(body, mut gates), application| match *application {
+                        VariantStep::SelectorSuffix(suffix) => {
+                            Ok((format!("&{suffix}{{{body}}}"), gates))
+                        }
+                        VariantStep::SelectorTemplate(selector) => {
+                            Ok((format!("{selector}{{{body}}}"), gates))
+                        }
+                        VariantStep::SelectorRule {
+                            selector,
+                            declarations,
+                        } => {
+                            let mut body = body;
+                            prepend_missing_declarations(&mut body, declarations);
+                            Ok((format!("{selector}{{{body}}}"), gates))
+                        }
+                        VariantStep::SelectorMedia {
+                            selector,
+                            condition,
+                        } => Ok((format!("{selector}{{@media {condition}{{{body}}}}}"), gates)),
+                        VariantStep::SelectorMediaRule {
+                            selector,
+                            declarations,
+                            condition,
+                        } => {
+                            let mut body = body;
+                            prepend_missing_declarations(&mut body, declarations);
+                            Ok((format!("{selector}{{@media {condition}{{{body}}}}}"), gates))
+                        }
+                        VariantStep::Media(condition) => {
+                            Ok((format!("@media {condition}{{{body}}}"), gates))
+                        }
+                        VariantStep::Container(condition) => {
+                            Ok((format!("@container {condition}{{{body}}}"), gates))
+                        }
+                        VariantStep::Supports(condition) => {
+                            Ok((format!("@supports ({condition}){{{body}}}"), gates))
+                        }
+                        VariantStep::Conditional(condition) => {
+                            let guarded = guard(&body, condition, identifiers, &gates)?;
+                            gates.extend(guarded.gates);
+                            let rule = format!("&{{{}}}", guarded.css);
+                            Ok((isolate_rule(&rule, identifiers)?, gates))
+                        }
+                        VariantStep::StartingStyle => {
+                            Ok((format!("@starting-style{{{body}}}"), gates))
+                        }
+                    },
+                )
+                .map(|(body, _)| body)
         })
         .collect()
 }
@@ -234,6 +261,15 @@ mod tests {
 
     use super::*;
     use crate::Compiler;
+
+    /// Expands with the compiler's own helper names.
+    fn expand(
+        css: &str,
+        theme: &ThemeIndex,
+        required: &mut Vec<String>,
+    ) -> Result<String, CompileErrorKind> {
+        expand_authored_directives(css, theme, required, &IdentifierContext::builtin())
+    }
 
     #[test]
     fn expands_authored_variants_through_the_shared_registry() {
@@ -252,7 +288,7 @@ mod tests {
         )
         .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
-        let expanded = expand_authored_directives(theme.custom_css(), &theme, &mut Vec::new());
+        let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())
@@ -279,7 +315,7 @@ mod tests {
         )
         .unwrap();
         let theme = Compiler::read_theme(&source).unwrap();
-        let expanded = expand_authored_directives(theme.custom_css(), &theme, &mut Vec::new());
+        let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())

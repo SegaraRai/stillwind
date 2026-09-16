@@ -197,7 +197,8 @@ impl ProjectSession {
     ///
     /// Returns an error if stylesheet serialization fails.
     pub fn css(&self) -> Result<String, CompileErrorKind> {
-        self.stylesheet.serialize(&self.current, &self.options)
+        self.stylesheet
+            .serialize(&self.current, &self.options, &self.identifiers)
     }
 
     /// Updates one producer without rendering the project stylesheet.

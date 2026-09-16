@@ -10,6 +10,7 @@ use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::CompileErrorKind;
 
 use crate::CompilerOptions;
+use crate::identifiers::IdentifierContext;
 
 /// Assembles document CSS from the theme template and raw utility rules.
 ///
@@ -22,8 +23,9 @@ pub(crate) fn render_stylesheet(
     theme: &ThemeIndex,
     utility_css: &str,
     options: &CompilerOptions,
+    identifiers: &IdentifierContext,
 ) -> Result<String, CompileErrorKind> {
-    render(theme, utility_css, options, true)
+    render(theme, utility_css, options, true, identifiers)
 }
 
 /// Assembles a producer's rules and support closure without document-wide CSS.
@@ -35,8 +37,9 @@ pub(crate) fn render_module_stylesheet(
     theme: &ThemeIndex,
     utility_css: &str,
     options: &CompilerOptions,
+    identifiers: &IdentifierContext,
 ) -> Result<String, CompileErrorKind> {
-    render(theme, utility_css, options, false)
+    render(theme, utility_css, options, false, identifiers)
 }
 
 /// Renders raw rules through the theme template; `document` includes document-only CSS.
@@ -50,6 +53,7 @@ fn render(
     utility_css: &str,
     options: &CompilerOptions,
     document: bool,
+    identifiers: &IdentifierContext,
 ) -> Result<String, CompileErrorKind> {
     super::template::render(
         &theme.output_template,
@@ -57,5 +61,6 @@ fn render(
         utility_css,
         options,
         document,
+        identifiers,
     )
 }

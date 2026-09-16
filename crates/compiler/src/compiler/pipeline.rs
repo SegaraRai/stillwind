@@ -350,7 +350,7 @@ impl Compiler {
 
         if result.diagnostics.is_empty() {
             for contribution in &mut utility_css {
-                match lower(&contribution.css, options.use_css_if) {
+                match lower(&contribution.css, options.use_css_if, identifiers) {
                     Ok(css) => contribution.css = css,
                     Err(kind) => result
                         .diagnostics

@@ -17,6 +17,7 @@ use stillwind_source::{SourceFile, Span};
 
 use super::authored::render_authored;
 use super::support::SupportOutput;
+use crate::identifiers::{IdentifierContext, LayerContext};
 use crate::{CompilerOptions, MappedStylesheet};
 
 /// Walks the template and returns mapped CSS with the number of utilities slots visited.
@@ -35,6 +36,7 @@ use crate::{CompilerOptions, MappedStylesheet};
 ///
 /// Returns malformed authored registration requests, unresolved authored theme
 /// references, or conditional-lowering errors. No partial output is returned.
+#[allow(clippy::too_many_arguments)] // One borrow per compilation-wide input.
 pub(super) fn emit(
     template: &CssOutputTemplate,
     theme: &ThemeIndex,
@@ -43,6 +45,7 @@ pub(super) fn emit(
     document: bool,
     sources: Option<&CssSourceGraph>,
     support: &SupportOutput,
+    identifiers: &IdentifierContext,
 ) -> Result<(MappedStylesheet, usize), CompileErrorKind> {
     let mut context = Context {
         theme,
@@ -51,8 +54,12 @@ pub(super) fn emit(
         document,
         sources,
         support,
+        identifiers,
         slots: 0,
-        layer_prefix: anonymous_layer_prefix(template, options),
+        layer_identity: LayerContext {
+            template: template.source_identity.clone(),
+            namespace: options.class_namespace.clone(),
+        },
         anonymous_layers: 0,
     };
     let css = context.nodes(&template.nodes)?;
@@ -76,9 +83,11 @@ struct Context<'a> {
     slots: usize,
     /// Prepared support fragments inserted at their template slots.
     support: &'a SupportOutput,
-    /// `sw-anon-` plus 16 hexadecimal hash digits; shared by walks of the same template
-    /// and class namespace. The decimal layer index is appended during traversal.
-    layer_prefix: String,
+    /// Name allocation shared with the rest of this compilation.
+    identifiers: &'a IdentifierContext,
+    /// Context one anonymous layer name is generated from; shared by walks of the same
+    /// template and class namespace, so a document and its carriers agree on layer names.
+    layer_identity: LayerContext,
     /// Next zero-based anonymous-layer index in depth-first template order.
     /// Advances even for groups whose body a carrier omits.
     anonymous_layers: usize,
@@ -130,7 +139,13 @@ impl Context<'_> {
                     output.text(css, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Authored { css, origin } if self.document || declarations => {
-                    let authored = render_authored(css, self.theme, &mut Vec::new(), self.options)?;
+                    let authored = render_authored(
+                        css,
+                        self.theme,
+                        &mut Vec::new(),
+                        self.options,
+                        self.identifiers,
+                    )?;
                     output.text(&authored, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Authored { .. } | CssOutputNode::Theme { .. } => {}
@@ -173,7 +188,8 @@ impl Context<'_> {
                     let header = if is_anonymous_layer(header) {
                         let index = self.anonymous_layers;
                         self.anonymous_layers += 1;
-                        format!("@layer {}-{index}", self.layer_prefix)
+                        let name = self.identifiers.layer_name(&self.layer_identity)?;
+                        format!("@layer {}-{index}", name.custom_ident())
                     } else {
                         header.clone()
                     };
@@ -210,28 +226,6 @@ pub(super) fn resolve_origin(
         .iter()
         .find(|source| source.source.id() == span.file)?;
     Some((source.source.clone(), span))
-}
-
-/// Generated prefix for anonymous layers, stable for one template and class namespace.
-///
-/// The prefix hashes the template source identity and class namespace. Equal inputs
-/// produce equal prefixes across carriers; different namespaces separate applications
-/// sharing a template. The 16 hexadecimal hash digits reduce accidental collisions
-/// with authored names but do not reserve a collision-free CSS namespace.
-pub(super) fn anonymous_layer_prefix(
-    template: &CssOutputTemplate,
-    options: &CompilerOptions,
-) -> String {
-    let identity = format!(
-        "stillwind/layer/v1:{}:{}{}",
-        options.class_namespace.len(),
-        options.class_namespace,
-        template.source_identity
-    );
-    format!(
-        "sw-anon-{}",
-        &blake3::hash(identity.as_bytes()).to_hex()[..16]
-    )
 }
 
 /// Recognizes a case-insensitive `@layer` token with no following non-trivia tokens.

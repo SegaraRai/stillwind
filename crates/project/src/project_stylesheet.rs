@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompilerOptions, GeneratedRule, MappedStylesheet, ModuleCssArtifact, RuleKey,
+    CompilerOptions, GeneratedRule, Identifiers, MappedStylesheet, ModuleCssArtifact, RuleKey,
     StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::DesignSystemSnapshot;
@@ -133,8 +133,9 @@ impl ProjectStylesheet {
         &self,
         snapshot: &DesignSystemSnapshot,
         options: &CompilerOptions,
+        identifiers: &Identifiers,
     ) -> Result<String, CompileErrorKind> {
-        StylesheetRenderer::new(snapshot, options)
+        StylesheetRenderer::new(snapshot, options, identifiers)
             .render_mapped_stylesheet(
                 &self.module_css_with_origins(|_, _| None)?,
                 StylesheetPlacement::Document,

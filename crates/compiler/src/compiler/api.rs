@@ -21,7 +21,7 @@ use stillwind_source::{Fingerprint, SourceFile};
 
 use super::react::declarations::render_react_types;
 use super::{CompileResult, Compiler};
-use crate::{CompilerOptions, ModuleCompiler, StylesheetRenderer};
+use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
 
 impl Compiler {
     /// Parses a theme buffer into its index, without keeping the snapshot.
@@ -66,7 +66,7 @@ impl Compiler {
     ) -> Result<String, CompileError> {
         let snapshot = DesignSystemSnapshot::from_source(source, options.design_system())
             .map_err(|error| error.into_compile_error(source.full_span()))?;
-        StylesheetRenderer::new(&snapshot, options)
+        StylesheetRenderer::new(&snapshot, options, &Identifiers::builtin())
             .render_stylesheet(module_css)
             .map_err(|kind| CompileError::new(kind, source.full_span()))
     }
@@ -153,7 +153,7 @@ impl Compiler {
             }
         };
         let module = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(analysis);
-        StylesheetRenderer::new(&snapshot, options)
+        StylesheetRenderer::new(&snapshot, options, &Identifiers::builtin())
             .render_compilation(&module, analysis.source.full_span())
     }
 }
