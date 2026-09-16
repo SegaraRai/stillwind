@@ -9,3 +9,10 @@ mod view_transition;
 
 pub(super) use animation::emit_animation_definition;
 pub(super) use view_transition::emit_view_transition_definition;
+
+use stillwind_semantic::AssetKind;
+
+/// Whether the CSS of one asset kind belongs to this band.
+pub(super) fn is_definition_kind(kind: AssetKind) -> bool {
+    matches!(kind, AssetKind::Animation | AssetKind::ViewTransition)
+}

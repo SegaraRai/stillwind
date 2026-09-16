@@ -31,7 +31,7 @@ impl CallEmitter<'_> {
         wrappers: &[StyleVariant],
         fold: bool,
     ) -> Option<Emitted> {
-        self.motion_assets.insert(animation.identity.clone());
+        self.required_definitions.insert(animation.identity.clone());
         let plan =
             StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
         let mut utility = resolve_animation_use(
@@ -85,6 +85,7 @@ impl CallEmitter<'_> {
         let mut table = Vec::new();
         for animation in animations {
             self.runtime_assets.insert(animation.identity.clone());
+            self.required_definitions.insert(animation.identity.clone());
             let identity = match self.record_definition_name(
                 &animation.identity,
                 AssetKind::Animation,

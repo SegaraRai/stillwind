@@ -23,7 +23,9 @@ use stillwind_semantic::{Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
-use super::definitions::{emit_animation_definition, emit_view_transition_definition};
+use super::definitions::{
+    emit_animation_definition, emit_view_transition_definition, is_definition_kind,
+};
 use super::emission::{CLASS_KEY, CallEmitter, CallEmitterInputs};
 use super::fragment::render_style_call;
 use super::output::CompileResult;
@@ -100,7 +102,11 @@ impl Compiler {
         emit_source: bool,
     ) -> CompileResult {
         let mut runtime_assets = summary_runtime_assets(&parsed.summary);
-        let mut motion_assets = runtime_assets.clone();
+        let mut required_definitions = runtime_assets
+            .iter()
+            .filter(|identity| is_definition_kind(identity.kind))
+            .cloned()
+            .collect::<BTreeSet<_>>();
         let mut result = CompileResult {
             composition: composition_dependencies(parsed),
             diagnostics: parsed.diagnostics.clone(),
@@ -198,7 +204,7 @@ impl Compiler {
                 symbols: &mut symbols,
                 emitted_utility_classes: &mut emitted_utility_classes,
                 runtime_assets: &mut runtime_assets,
-                motion_assets: &mut motion_assets,
+                required_definitions: &mut required_definitions,
             }) else {
                 continue;
             };
@@ -211,13 +217,12 @@ impl Compiler {
                 expressions: replacement.mappings,
             });
         }
-        motion_assets.extend(runtime_assets.iter().cloned());
         for application in &module.view_transition_key_applications {
             for transition in &application.transitions {
                 runtime_assets.insert(transition.identity.clone());
+                required_definitions.insert(transition.identity.clone());
             }
         }
-        motion_assets.extend(runtime_assets.iter().cloned());
         let mut definition_css = Vec::new();
         for animation in &module.animation_declarations {
             let mut contribution = CssContribution::default();
@@ -229,7 +234,7 @@ impl Compiler {
                 theme,
                 &mut diagnostics,
             );
-            if motion_assets.contains(&named_identity(
+            if required_definitions.contains(&named_identity(
                 source,
                 AssetKind::Animation,
                 &animation.binding,
@@ -247,7 +252,7 @@ impl Compiler {
                 theme,
                 &mut diagnostics,
             );
-            if motion_assets.contains(&named_identity(
+            if required_definitions.contains(&named_identity(
                 source,
                 AssetKind::ViewTransition,
                 &transition.binding,

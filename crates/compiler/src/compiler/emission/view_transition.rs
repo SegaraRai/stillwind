@@ -27,7 +27,8 @@ impl CallEmitter<'_> {
         name: &ViewTransitionName,
         guard: &[StyleGuard],
     ) -> Option<()> {
-        self.motion_assets.insert(transition.identity.clone());
+        self.required_definitions
+            .insert(transition.identity.clone());
         self.runtime_assets.insert(transition.identity.clone());
         self.view_transition_classes = true;
         if !matches!(name, ViewTransitionName::None) {
@@ -93,6 +94,8 @@ impl CallEmitter<'_> {
         let steps = guard_steps(guard);
         for transition in transitions {
             self.runtime_assets.insert(transition.identity.clone());
+            self.required_definitions
+                .insert(transition.identity.clone());
             let token = match self.record_definition_name(
                 &transition.identity,
                 AssetKind::ViewTransition,

@@ -39,7 +39,7 @@ impl<'a> CallEmitter<'a> {
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,
             runtime_assets: inputs.runtime_assets,
-            motion_assets: inputs.motion_assets,
+            required_definitions: inputs.required_definitions,
             parts: Vec::new(),
             units: ClassUnits::new(
                 inputs.source,

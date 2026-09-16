@@ -61,8 +61,10 @@ pub(super) struct CallEmitter<'a> {
     /// Identities the module references at runtime; the pipeline uses this set to decide which
     /// declarations are replaced by a runtime call and which are erased.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Motion identities reached by static or dynamic uses.
-    motion_assets: &'a mut BTreeSet<IdentityId>,
+    /// Definition identities whose CSS this module must emit; every use, static or dynamic,
+    /// Definition identities whose CSS this module must emit; every use, static or dynamic,
+    /// and every `.for` application records here.
+    required_definitions: &'a mut BTreeSet<IdentityId>,
     /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
     /// Owns class allocation and base-before-conditional CSS publication.
@@ -101,6 +103,8 @@ pub(super) struct CallEmitterInputs<'a> {
     pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     /// Referenced runtime identities used to retain declarations that need runtime values.
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Motion definitions reached by static or dynamic uses.
-    pub motion_assets: &'a mut BTreeSet<IdentityId>,
+    /// Definition identities whose CSS the module must emit, recorded by every use and by
+    /// Definition identities whose CSS the module must emit, recorded by every use and by
+    /// `.for` applications.
+    pub required_definitions: &'a mut BTreeSet<IdentityId>,
 }
