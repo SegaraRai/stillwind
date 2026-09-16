@@ -25,11 +25,11 @@ reach descendants. Keep this declaration slot inside the selector rule.
     display: var(--sw-if-s6okf, revert-rule);
   }
 }
-@supports (color: revert-rule) and (--sw-ifr-gd0nw: 0) {
+@supports (color: revert-rule) and (--sw-ifr-7lwrw: 0) {
   .sw_j49u5 {
-    --sw-ifg-siwzs: var(--second) var(--enabled);
-    --sw-if-v3fwi: var(--sw-ifg-siwzs) calc(50 * 1%);
-    opacity: var(--sw-if-v3fwi, revert-rule) !important;
+    --sw-ifg-qhl3x: var(--second) var(--enabled);
+    --sw-if-kbo56: var(--sw-ifg-qhl3x) calc(50 * 1%);
+    opacity: var(--sw-if-kbo56, revert-rule) !important;
   }
 }
 .sw_mdfmd {

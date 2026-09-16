@@ -207,10 +207,13 @@ pub(super) fn guard(
             .and_then(|v| v.strip_suffix(')'))
             && let Some((inner, yes, "revert-rule")) = runtime_if_arguments(arguments)
         {
+            // A gate joins two conditions, and the join has to identify exactly one
+            // pair: a condition value may itself contain `/`, so the separator is a
+            // NUL, which no condition text carries.
             let name = helper(
                 identifiers,
                 ConditionRole::Gate,
-                &format!("{condition}/{inner}"),
+                &format!("{condition}\u{0}{inner}"),
             )?;
             let left = gate_condition(&condition, &mut gate, identifiers, &mut gates)?;
             let right = gate_condition(inner, &mut gate, identifiers, &mut gates)?;
@@ -436,6 +439,39 @@ mod tests {
         assert_eq!(
             lower_builtin("x:--if(--a/*,*/,1,2);", true).unwrap(),
             "x:if(style(--a/*,*/):1;else:2);"
+        );
+    }
+
+    /// The name one guarded body allocated for its gate.
+    fn gate_name(css: &str) -> String {
+        let start = css.find("--sw-ifg-").expect("a gate name");
+        let rest = &css[start..];
+        rest[..rest.find(':').expect("the gate declaration")].to_owned()
+    }
+
+    #[test]
+    fn a_gate_joins_two_conditions_without_ambiguity() {
+        let identifiers = identifiers();
+        let guard_gate = |condition: &str, inner: &str| {
+            guard(
+                &format!(".a{{width:--if({inner},{{1px}},revert-rule)}}"),
+                condition,
+                &identifiers,
+                &[],
+            )
+            .unwrap()
+            .css
+        };
+        // `--n:1/--m:2` with `--k:3` and `--n:1` with `--m:2/--k:3` are different pairs whose
+        // conditions join to the same characters, so each pair must still name its own gate.
+        let first = guard_gate("--n:1/--m:2", "--k:3");
+        let second = guard_gate("--n:1", "--m:2/--k:3");
+        assert!(first.contains("--if(--n:1/--m:2,{},initial)"), "{first}");
+        assert!(second.contains("--if(--m:2/--k:3,{},initial)"), "{second}");
+        assert_ne!(gate_name(&first), gate_name(&second));
+        assert_eq!(
+            gate_name(&first),
+            gate_name(&guard_gate("--n:1/--m:2", "--k:3"))
         );
     }
 

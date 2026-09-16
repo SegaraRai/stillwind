@@ -183,12 +183,12 @@ pub trait NameRequest<T: Token> {
 
     /// The canonical identity text this request is hashed from.
     ///
-    /// A report carries the text rather than the digest, so two requests that name the same
-    /// construct compare equal even when their truncated spellings collide.
+    /// A report carries the text rather than the digest, so two requests that name the
+    /// same construct compare equal even when their truncated spellings collide.
     fn identity(&self) -> String;
 
-    /// Canonical hash of this request's fields, which is what one compilation memoizes by
-    /// together with the label the request spells.
+    /// Canonical hash of this request's fields, which is what one compilation memoizes
+    /// by together with the label the request spells.
     fn hash(&self) -> IdentifierHash {
         hashed(&self.identity())
     }

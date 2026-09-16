@@ -9,10 +9,10 @@
     display: if(style(--enabled): flex;else: revert-rule);
   }
 }
-@supports (color: revert-rule) and (--sw-ifr-gd0nw: 0) {
+@supports (color: revert-rule) and (--sw-ifr-7lwrw: 0) {
   .sw_j49u5 {
-    --sw-ifg-siwzs: var(--second) var(--enabled);
-    opacity: if(style(--sw-ifg-siwzs): calc(50 * 1%) ;else: revert-rule) !important;
+    --sw-ifg-qhl3x: var(--second) var(--enabled);
+    opacity: if(style(--sw-ifg-qhl3x): calc(50 * 1%) ;else: revert-rule) !important;
   }
 }
 .sw_b4phk {
