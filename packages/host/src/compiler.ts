@@ -194,6 +194,14 @@ export async function compileModule(
     if (deniedFindings.length > 0 && options.diagnostics !== "collect") {
       fail(deniedFindings.join("\n"));
     }
+    // A rejected name comes from the host's own generator rather than from the source, so it
+    // carries no position: it is reported over the warning channel, and the compilation has
+    // already substituted the built-in name.
+    for (const rejected of output.rejected_names ?? []) {
+      host.warn(
+        `stillwind: the ${rejected.kind} name for ${rejected.hash} was rejected: ${rejected.reason}`,
+      );
+    }
   }
   const output = projectOutput.modules.find(
     (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
