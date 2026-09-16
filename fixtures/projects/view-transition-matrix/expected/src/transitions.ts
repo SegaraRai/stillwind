@@ -24,5 +24,5 @@ export const usesKeyedOutside = stillwindMerge({[stillwindClassKey]:"_s_03bd2150
 export const namedExplicitly = {className:stillwindClsx("_s_c5134c6d",({"--sw-v-7e58d129":"_s_814fc071"})[pageTitle.v])};
 export const unioned = {className:"_s_b9926253"};
 
-// A guarded use declares the complete class list for its condition.
-export const guarded = {className:stillwindClsx("_s_c0c71779",(compact) && ("_s_ccc9d63e"))};
+// A guarded use fills a slot its own class carries, beside the unconditional classes.
+export const guarded = {className:stillwindClsx("_s_c8add1c2",(compact) && ("_s_a37e7f43"))};

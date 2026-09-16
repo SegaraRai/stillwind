@@ -31,5 +31,5 @@ export const usesKeyedOutside = style("block", keyedOutside);
 export const namedExplicitly = style("block", pageTitle, "[view-transition-name:hero]");
 export const unioned = style("block", pageTitle.for("one"), pageCard.for("two"));
 
-// A guarded use declares the complete class list for its condition.
+// A guarded use fills a slot its own class carries, beside the unconditional classes.
 export const guarded = style("block", compact && pageCard.for("guarded"), pageTitle.for("base"));

@@ -196,8 +196,8 @@ style(vtMain.for("bar"), vtSub);
 
 ```tsx
 style("rounded", cond && vtSub, vtMain.for("bar"));
-// base unit:        view-transition-class: --sw-v-main;
-// conditional unit: view-transition-class: --sw-v-main --sw-v-sub;
+// base unit:        view-transition-class: --sw-v-main var(--sw-vtc-…,);
+// conditional unit: --sw-vtc-…: --sw-v-sub;
 ```
 
 ### 3.6 `.for` の仕様（マクロ）
