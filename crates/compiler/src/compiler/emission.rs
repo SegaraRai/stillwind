@@ -37,6 +37,8 @@ use crate::identifiers::IdentifierContext;
 use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
 
+pub(super) const CLASS_KEY: &str = "c";
+
 /// One `style()` call being lowered.
 ///
 /// The emitter accumulates state rather than building a tree in one pass, because the base unit
@@ -906,7 +908,7 @@ pub(super) struct CallEmitterInputs<'a> {
 /// Every handle value carries its token under `c`, so an attachment is a property read
 /// and needs no runtime helper.
 fn handle_class_read(value: Code) -> ValueExpr {
-    ValueExpr::Source(code!["(", value, ").c"])
+    ValueExpr::Source(code!["(", value, ").", CLASS_KEY])
 }
 
 /// Returns an original-source UTF-8 byte anchor for sorting a call's contributions.

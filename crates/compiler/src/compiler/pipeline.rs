@@ -21,7 +21,7 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
-use super::emission::{CallEmitter, CallEmitterInputs};
+use super::emission::{CLASS_KEY, CallEmitter, CallEmitterInputs};
 use super::fragment::render_style_call;
 use super::handles::{named_identity, ref_identity, scope_identity, summary_runtime_assets};
 use super::motion::{emit_animation_definition, emit_view_transition_definition};
@@ -422,7 +422,7 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
 /// `token` is the token written as a JavaScript string literal, because generated
 /// JavaScript reads the same token back as the projection table's key.
 fn handle_value(token: &str) -> String {
-    format!("{{c:{token}}}")
+    format!("{{{CLASS_KEY}:{token}}}")
 }
 
 /// Keeps a named symbol, or reports the generator's failure at `span`.
