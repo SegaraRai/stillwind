@@ -271,7 +271,7 @@ style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
       文字列化前に受け渡す。無関係な global selector へ frame declaration を漏出させない。
 
 対象: design-system の variant 解決、`crates/ir/src/model.rs`、`crates/js-oxc/src/refs`、
-compiler の `style_variants.rs` / `variants.rs` / `motion.rs`、公開 TypeScript API。
+compiler の `style_variants.rs` / `variants.rs` / `definitions/animation.rs`、公開 TypeScript API。
 
 検証: workspace 全テスト、rustdoc（warnings を error）、host 全54テスト、Chrome の実動作を確認。
 Chrome 検証は root で `vp run @stillwind/native#build` を実行後、

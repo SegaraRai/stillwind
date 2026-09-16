@@ -167,7 +167,7 @@ canonical variant order does not reach across them.
 
 Rule - a module emits in this order:
 
-1. The animation and view-transition definitions the module references. Inside one
+1. The definitions the module references (the compiler's `definitions` band). Inside one
    view-transition definition, the group rule carrying the unconditional options
    precedes the rule of each conditioned option, in written order.
 2. Style calls in composition order: every base's rules precede the derived

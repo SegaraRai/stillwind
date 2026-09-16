@@ -312,8 +312,9 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
   `InvalidViewTransitionVariant`（SHVIEW003）と使い分ける。
 - `[transition-duration:75ms]` のようなプロパティ投影も同じ経路に載せる。条件を剥がして解決し、
   投影した宣言を同じ wrapper に置く（投影が対象外プロパティを落とす規則は変えない）。
-- 実装箇所は `crates/compiler/src/compiler/motion.rs` の `emit_view_transition_definition` と
-  `resolve_motion_options`（option ごとに条件と宣言を分け、bucket 側と同じ wrapper を組む）。
+- 実装箇所は `crates/compiler/src/compiler/definitions/view_transition.rs` の
+  `emit_view_transition_definition` と `crates/compiler/src/compiler/animation_options.rs` の
+  `resolve_options`（option ごとに条件と宣言を分け、bucket 側と同じ wrapper を組む）。
   `animation(options)` は条件を受け付けないため、variant を持つ option は従来どおり
   `UnknownAnimationOption` のままとする。
 
@@ -330,10 +331,10 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 
 **Phase 2: 値の形と `.for` マクロ**
 
-- `crates/js-oxc/src/motion/view_transition.rs`（`.for` の 0/1 引数、式 vs リテラルの判定）
+- `crates/js-oxc/src/view_transition.rs`（`.for` の 0/1 引数、式 vs リテラルの判定）
 - `crates/ir/src/model.rs`（`StyleInput::ViewTransitionUse` の key を任意化、
   宣言値の形は emission 側の表現）
-- `crates/compiler/src/compiler/emission.rs`（`{v}` literal、静的 CSS、
+- `crates/compiler/src/compiler/emission/`（`{v}` literal、静的 CSS、
   `stillwindViewTransitionName` 呼び出し、`--sw-vt-*` と `stillwindViewTransitionStyle` の削除）
 - `crates/diagnostics/src/compilation.rs`（SHVIEW002 の緩和、SHVIEW004 の削除）
 - `packages/core/src/runtime/shared.ts`（helper の入れ替え）、`packages/core/src/index.ts`（`for(key?)`）
