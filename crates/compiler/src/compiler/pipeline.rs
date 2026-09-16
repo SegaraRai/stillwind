@@ -27,9 +27,9 @@ use super::handles::{named_identity, ref_identity, scope_identity, summary_runti
 use super::motion::{emit_animation_definition, emit_view_transition_definition};
 use super::output::CompileResult;
 use super::symbols::{
-    generated_ref_marker_symbol, generated_ref_symbol, generated_scope_marker_symbol,
-    generated_scope_symbol, generated_symbol, named_declaration, ref_marker_name,
-    scope_marker_name,
+    detached_symbol, generated_ref_marker_symbol, generated_ref_symbol,
+    generated_scope_marker_symbol, generated_scope_symbol, generated_symbol, named_declaration,
+    ref_marker_name, scope_marker_name,
 };
 use super::{Compiler, CssContribution};
 use crate::CompilerOptions;
@@ -374,6 +374,17 @@ impl Compiler {
             result.transforms.clear();
         }
 
+        // Names that belong to no declaration, such as conditional helpers, are reported after the
+        // declaration symbols so a consumer looking for a position finds one. A failed compilation
+        // reports nothing, like the cleared symbol list above.
+        if result.diagnostics.is_empty() {
+            result.symbols.extend(
+                identifiers
+                    .drain_detached()
+                    .iter()
+                    .map(|name| detached_symbol(name, source.path())),
+            );
+        }
         for transform in &mut result.transforms {
             transform.rewrite_generated(|text| options.rewrite_generated(text));
         }

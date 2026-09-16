@@ -177,16 +177,22 @@ impl ProjectSession {
                 .symbols
                 .iter()
                 .find(|symbol| identifiers.contains(&symbol.name))?;
+            // A name without a declaration, such as a conditional helper, has no position in the
+            // module to map the rule back to.
+            let (start, end) = symbol.start.zip(symbol.end)?;
             let source = std::iter::once(analysis)
                 .chain(analysis.asset_support.iter())
                 .find(|input| input.source.path() == symbol.source_path)?
                 .source
                 .clone();
-            let span = Span::new(source.id(), symbol.start, symbol.end);
+            let span = Span::new(source.id(), start, end);
             Some((source, span))
         })?;
-        let mapped = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers())
-            .render_mapped_stylesheet(&utility_css, placement)?;
+        let renderer = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers());
+        let mapped = renderer.render_mapped_stylesheet(&utility_css, placement)?;
+        // The selected producers were checked when they were published; the names this render
+        // generated belong to no declaration, so they are checked against the document here.
+        self.check_document_names(&renderer.take_detached_symbols())?;
         Ok(StylesheetPlan {
             mappings: mapped.mappings,
             resources,

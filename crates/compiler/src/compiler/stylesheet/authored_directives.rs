@@ -191,6 +191,10 @@ pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> 
 /// Runtime conditions guard declarations recursively and add distinct support groups
 /// to preserve `revert-rule` boundaries during minification. The result still contains
 /// `--if` expressions; callers must lower it using the selected compiler strategy.
+///
+/// One path's conditional steps share one list of gate names, so a later step leaves the gate
+/// declarations an earlier one wrote alone. Those declarations are already part of the returned
+/// text, and no caller guards that text again, so the list ends with the path.
 pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
@@ -250,6 +254,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
                         }
                     },
                 )
+                // The gates are already written into the body; see the function documentation.
                 .map(|(body, _)| body)
         })
         .collect()

@@ -139,6 +139,9 @@ impl Context<'_> {
                     output.text(css, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Authored { css, origin } if self.document || declarations => {
+                    // The selection pass already read the explicit requirements of these nodes:
+                    // `custom_css()` is exactly the template's authored text. A carrier keeps
+                    // style-node text without scanning it, so only the rendered text is used here.
                     let authored = render_authored(
                         css,
                         self.theme,
@@ -189,7 +192,10 @@ impl Context<'_> {
                         let index = self.anonymous_layers;
                         self.anonymous_layers += 1;
                         let name = self.identifiers.layer_name(&self.layer_identity)?;
-                        format!("@layer {}-{index}", name.custom_ident())
+                        let written = format!("{}-{index}", name.custom_ident());
+                        self.identifiers
+                            .record_layer(&self.layer_identity, &written);
+                        format!("@layer {written}")
                     } else {
                         header.clone()
                     };

@@ -12,7 +12,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::{
-    CompiledModule, CompilerOptions, IdentifierPool, Identifiers, ModuleCompiler,
+    CompiledModule, CompilerOptions, GeneratedSymbol, IdentifierPool, Identifiers, ModuleCompiler,
+    StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -195,10 +196,13 @@ impl ProjectSession {
     ///
     /// # Errors
     ///
-    /// Returns an error if stylesheet serialization fails.
+    /// Returns an error if stylesheet serialization fails, or when a name the render generated
+    /// collides with another name in its CSS namespace.
     pub fn css(&self) -> Result<String, CompileErrorKind> {
-        self.stylesheet
-            .serialize(&self.current, &self.options, &self.identifiers)
+        let renderer = StylesheetRenderer::new(&self.current, &self.options, &self.identifiers);
+        let css = self.stylesheet.serialize(&renderer)?;
+        self.check_document_names(&renderer.take_detached_symbols())?;
+        Ok(css)
     }
 
     /// Updates one producer without rendering the project stylesheet.
@@ -231,46 +235,12 @@ impl ProjectSession {
         }
         let module_id = analysis.module_id.clone();
         let mut compiled = backend.compile_with(&analysis, &self.identifiers);
-        let mut symbols: BTreeMap<_, _> = self
-            .artifacts
-            .iter()
-            .filter(|(id, _)| *id != &module_id)
-            .flat_map(|(_, artifact)| artifact.symbols.iter())
-            .map(|symbol| {
-                (
-                    (symbol.pool, symbol.name.as_str()),
-                    symbol.identity.as_str(),
-                )
-            })
-            .collect();
-        // An authored name already owns its namespace, so a generated name equal to
-        // one is reported even when no other module generated it.
-        for name in &self.reserved.custom_properties {
-            symbols.insert(
-                (IdentifierPool::CustomProperty, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.layers {
-            symbols.insert((IdentifierPool::LayerName, name.as_str()), "<authored CSS>");
-        }
-        for name in &self.reserved.keyframes {
-            symbols.insert(
-                (IdentifierPool::KeyframesName, name.as_str()),
-                "<authored CSS>",
-            );
-        }
+        let mut symbols = self.document_names(module_id.as_str());
         for symbol in &compiled.symbols {
-            if symbols
-                .insert((symbol.pool, symbol.name.as_str()), &symbol.identity)
-                .is_some_and(|identity| identity != symbol.identity)
-            {
-                compiled.diagnostics.push(CompileError::new(
-                    CompileErrorKind::GeneratedIdentifierCollision {
-                        name: symbol.name.clone().into(),
-                    },
-                    analysis.source.full_span(),
-                ));
+            if let Some(collision) = insert_document_name(&mut symbols, symbol) {
+                compiled
+                    .diagnostics
+                    .push(CompileError::new(collision, analysis.source.full_span()));
             }
         }
         self.analyses.insert(module_id.clone(), analysis);
@@ -367,6 +337,75 @@ impl ProjectSession {
         *self = next;
         Ok(update)
     }
+
+    /// The names the document already uses, by CSS namespace.
+    ///
+    /// `except` names one module whose symbols are left out, so it can be checked against the rest
+    /// of the document. An authored name already owns its namespace, so a generated name equal to
+    /// one is reported even when no producer generated it.
+    fn document_names(&self, except: &str) -> BTreeMap<(IdentifierPool, &str), &str> {
+        let mut names: BTreeMap<_, _> = self
+            .artifacts
+            .iter()
+            .filter(|(id, _)| id.as_str() != except)
+            .flat_map(|(_, artifact)| artifact.symbols.iter())
+            .map(|symbol| {
+                (
+                    (symbol.pool, symbol.name.as_str()),
+                    symbol.identity.as_str(),
+                )
+            })
+            .collect();
+        for name in &self.reserved.custom_properties {
+            names.insert(
+                (IdentifierPool::CustomProperty, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        for name in &self.reserved.layers {
+            names.insert((IdentifierPool::LayerName, name.as_str()), "<authored CSS>");
+        }
+        for name in &self.reserved.keyframes {
+            names.insert(
+                (IdentifierPool::KeyframesName, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        names
+    }
+
+    /// Reports the first collision among names a stylesheet render generated, if any.
+    ///
+    /// Module artifacts are checked when they are published; this covers the names no declaration
+    /// reports, such as conditional helpers and anonymous layers.
+    pub(crate) fn check_document_names(
+        &self,
+        symbols: &[GeneratedSymbol],
+    ) -> Result<(), CompileErrorKind> {
+        let mut names = self.document_names("");
+        for symbol in symbols {
+            if let Some(collision) = insert_document_name(&mut names, symbol) {
+                return Err(collision);
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Records one generated name, reporting it when the namespace already holds another identity.
+fn insert_document_name<'a>(
+    names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
+    symbol: &'a GeneratedSymbol,
+) -> Option<CompileErrorKind> {
+    names
+        .insert(
+            (symbol.pool, symbol.name.as_str()),
+            symbol.identity.as_str(),
+        )
+        .filter(|identity| *identity != symbol.identity)
+        .map(|_| CompileErrorKind::GeneratedIdentifierCollision {
+            name: symbol.name.clone().into(),
+        })
 }
 
 #[cfg(test)]

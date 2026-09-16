@@ -14,10 +14,10 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_source::Span;
 
 use crate::compiler::{
-    render_mapped, render_module_stylesheet, render_react_types, render_stylesheet,
+    detached_symbol, render_mapped, render_module_stylesheet, render_react_types, render_stylesheet,
 };
 use crate::identifiers::{IdentifierContext, Identifiers};
-use crate::{CompileResult, CompiledModule, CompilerOptions, MappedStylesheet};
+use crate::{CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet};
 
 /// Where a rendered stylesheet is going to be used.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -92,8 +92,35 @@ impl<'a> StylesheetRenderer<'a> {
                 }
             }
         }
+        // TODO: this is the only entry point that drains the rejections. A host that renders a
+        // carrier or a project stylesheet with its own generator never learns which of its names
+        // were rejected; return them from those entry points too.
         result.rejected_names = self.identifiers.drain_rejected().into_entries();
+        // Helpers written for authored CSS and anonymous layers belong to no declaration, so they
+        // are reported under the stylesheet that named them.
+        result.symbols.extend(self.take_detached_symbols());
         result
+    }
+
+    /// Takes the names this renderer produced that belong to no declaration.
+    ///
+    /// A renderer holds one compilation's name allocation, so this drains what its renders since
+    /// the last call produced: conditional helpers written for authored CSS or theme fragments, and
+    /// anonymous layers. They are reported under the stylesheet that named them and carry no
+    /// declaration position, so a document-wide pool check can compare them against every other
+    /// name the document uses.
+    pub fn take_detached_symbols(&self) -> Vec<GeneratedSymbol> {
+        let stylesheet = self
+            .snapshot
+            .theme()
+            .output_template
+            .source_identity
+            .clone();
+        self.identifiers
+            .drain_detached()
+            .iter()
+            .map(|name| detached_symbol(name, &stylesheet))
+            .collect()
     }
 
     /// Assembles document CSS for raw utility rules.

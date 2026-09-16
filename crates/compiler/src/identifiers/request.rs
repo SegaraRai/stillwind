@@ -156,8 +156,16 @@ pub trait NameRequest<T: Token> {
     /// The family this request belongs to.
     fn kind(&self) -> IdentifierKind;
 
+    /// The canonical identity text this request is hashed from.
+    ///
+    /// A report carries the text rather than the digest, so two requests that name the same
+    /// construct compare equal even when their truncated spellings collide.
+    fn identity(&self) -> String;
+
     /// Canonical hash of this request's fields, which is what one compilation memoizes by.
-    fn hash(&self) -> IdentifierHash;
+    fn hash(&self) -> IdentifierHash {
+        hashed(&self.identity())
+    }
 
     /// Asks the generator for this family, passing this request's own context.
     ///
@@ -203,8 +211,8 @@ macro_rules! name_requests {
                     IdentifierKind::$kind
                 }
 
-                fn hash(&self) -> IdentifierHash {
-                    hashed(&$identity(&self.0))
+                fn identity(&self) -> String {
+                    $identity(&self.0)
                 }
 
                 fn name(
@@ -301,12 +309,12 @@ impl NameRequest<CustomPropertyName> for ConditionHelperRequest {
         IdentifierKind::CustomProperty
     }
 
-    fn hash(&self) -> IdentifierHash {
-        hashed(&format!(
+    fn identity(&self) -> String {
+        format!(
             "stillwind/condition/v1\0{}\0{}",
             self.0.role.as_str(),
             self.0.text,
-        ))
+        )
     }
 
     fn name(

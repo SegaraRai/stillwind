@@ -9,9 +9,10 @@
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    AnchorName, ClassContext, CompilerOptions, DeclarationContext, GeneratedName, GeneratedRule,
-    IdentifierGenerator, IdentifierHash, Identifiers, KeyframesName, LocatorContext,
-    ModuleCssArtifact, RefMarker, RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
+    AnchorName, ClassContext, CompilerOptions, ConditionContext, CustomPropertyName,
+    DeclarationContext, GeneratedName, GeneratedRule, IdentifierGenerator, IdentifierHash,
+    Identifiers, KeyframesName, LayerContext, LayerName, LocatorContext, ModuleCssArtifact,
+    RefMarker, RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -545,4 +546,99 @@ fn session_generators_name_generated_classes() {
     // The host body is written as returned, with no built-in class prefix.
     assert_eq!(class.name, "fixed7", "{}", class.name);
     assert!(session.css().unwrap().contains(&class.name));
+}
+
+/// Names every conditional helper with one fixed body, so two of them collide.
+#[derive(Debug)]
+struct FixedHelperGenerator;
+
+impl IdentifierGenerator for FixedHelperGenerator {
+    fn condition_helper(
+        &self,
+        _context: &ConditionContext,
+        _hash: &IdentifierHash,
+        _text_hash: &IdentifierHash,
+    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+        Ok(GeneratedName::provided(
+            CustomPropertyName::new("shared-if").expect("canonical test name"),
+        ))
+    }
+}
+
+#[test]
+fn a_helper_name_is_checked_in_the_custom_property_pool() {
+    let mut session = ProjectSession::new(
+        snapshot("red"),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::with(Arc::new(FixedHelperGenerator)),
+    );
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "if.tsx",
+            "import { style } from 'stillwind/react'; export const x = style('w-[--if(!--c,20px,10px)]', 'h-[--if(!--d,1px,2px)]');",
+        )
+        .unwrap(),
+    );
+    let update =
+        session.update_module(OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None));
+    // Two helpers for different CSS may not share the one name the generator returned.
+    assert!(
+        update.diagnostics.iter().any(|error| matches!(
+            error.kind,
+            CompileErrorKind::GeneratedIdentifierCollision { .. }
+        )),
+        "{:?}",
+        update.diagnostics
+    );
+}
+
+/// Names every anonymous layer with one fixed body, so an authored layer can collide with it.
+#[derive(Debug)]
+struct FixedLayerGenerator;
+
+impl IdentifierGenerator for FixedLayerGenerator {
+    fn layer_name(
+        &self,
+        _context: &LayerContext,
+        _hash: &IdentifierHash,
+    ) -> Result<GeneratedName<LayerName>, String> {
+        Ok(GeneratedName::provided(
+            LayerName::new("app-layer").expect("canonical test name"),
+        ))
+    }
+}
+
+#[test]
+fn a_layer_name_is_checked_against_the_authored_document() {
+    let theme = css_fixture::source(
+        FileId(2),
+        "theme",
+        "@layer app-layer-0; @layer { @stillwind-slot utilities; }",
+    )
+    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+    let mut session = ProjectSession::new(
+        snapshot,
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::with(Arc::new(FixedLayerGenerator)),
+    );
+    assert!(
+        session
+            .update_module(module("button.tsx", "flex"))
+            .diagnostics
+            .is_empty()
+    );
+    // The render names the document's first anonymous layer, which the authored layer already owns.
+    let failure = session.css().unwrap_err();
+    assert!(
+        matches!(
+            failure,
+            CompileErrorKind::GeneratedIdentifierCollision { .. }
+        ),
+        "{failure:?}"
+    );
 }

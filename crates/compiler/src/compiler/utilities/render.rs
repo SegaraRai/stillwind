@@ -186,6 +186,8 @@ fn render_utility_steps(
         }
     }
     let conditional = !conditions.is_empty();
+    // Every conditional guards the body the previous one produced, and the gate declarations a
+    // pass writes are part of that body, so the names only have to survive this rule's own steps.
     let mut gates = Vec::new();
     for condition in conditions {
         let guarded = guard(&declaration, condition, identifiers, &gates)?;

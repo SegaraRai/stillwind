@@ -16,7 +16,7 @@ mod name;
 mod request;
 
 pub use generator::{
-    GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, Identifiers,
+    DetachedName, GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, Identifiers,
     RejectedIdentifier, RejectedNames,
 };
 pub use kind::{IdentifierKind, IdentifierMode, IdentifierPool};

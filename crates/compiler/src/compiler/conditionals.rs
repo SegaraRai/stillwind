@@ -128,6 +128,7 @@ pub(super) fn lower(
                     ConditionRole::Fallback,
                     &value[function.start..end],
                 )?;
+                // Writing through `fmt::Write` into a `String` cannot fail.
                 let _ = write!(helpers, "{name}:var({condition}) {yes};");
                 format!("var({name},{no})")
             };
@@ -213,6 +214,7 @@ pub(super) fn guard(
             )?;
             let left = gate_condition(&condition, &mut gate, identifiers, &mut gates)?;
             let right = gate_condition(inner, &mut gate, identifiers, &mut gates)?;
+            // Writing through `fmt::Write` into a `String` cannot fail.
             let _ = write!(gate, "{name}:var({left}) var({right});");
             gates.push(name.clone());
             condition = name;
@@ -243,6 +245,7 @@ fn gate_condition(
     let condition = condition.trim();
     if runtime_condition_value(condition).is_some() {
         let name = helper(identifiers, ConditionRole::GateValue, condition)?;
+        // Writing through `fmt::Write` into a `String` cannot fail.
         let _ = write!(declarations, "{name}:--if({condition},{{}},initial);");
         gates.push(name.clone());
         return Ok(name);
@@ -251,6 +254,7 @@ fn gate_condition(
         return Ok(condition.to_owned());
     };
     let name = helper(identifiers, ConditionRole::GateNot, condition)?;
+    // Writing through `fmt::Write` into a `String` cannot fail.
     let _ = write!(
         declarations,
         "{name}:--if({},initial,{{}});",

@@ -18,8 +18,8 @@ use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use super::handles::{ref_identity, scope_identity};
 use crate::identifiers::{
-    AnchorName, ClassContext, ContainerName, DeclarationContext, IdentifierContext, IdentifierPool,
-    Label, LocatorContext, RefMarker, ScopeMarker,
+    AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
+    IdentifierPool, Label, LocatorContext, RefMarker, ScopeMarker,
 };
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
@@ -27,24 +27,41 @@ use crate::identifiers::{
 /// Names are deterministic but use truncated hashes and can collide. Consumers that
 /// need to distinguish declarations across producers compare `identity`, not only
 /// `name`. This record reports both values; constructing it does not check collisions.
+///
+/// A conditional helper is named for the CSS it serves and an anonymous layer for its template, so
+/// neither has a declaration of its own: those records carry no position.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
     pub name: String,
     /// Symbol family: `ref`, `scope`, `ref-marker`, `scope-marker`, `animation`,
-    /// `view-transition`, or `class`.
+    /// `view-transition`, `class`, `custom-property`, or `layer`.
     pub kind: String,
     /// CSS namespace the name is written into. Names in different pools never interact,
     /// so only equal spellings from different identities within one pool collide.
     pub pool: IdentifierPool,
     /// Canonical identity the name hashes.
     pub identity: String,
-    /// Normalized source path of the module that declared the symbol.
+    /// Normalized source path of the module that declared the symbol, or of the stylesheet
+    /// that named it when the name has no declaration.
     pub source_path: String,
-    /// Byte offset of the declaration's first character.
-    pub start: u32,
-    /// Byte offset just past the declaration.
-    pub end: u32,
+    /// Byte offset of the declaration's first character, when it has one.
+    pub start: Option<u32>,
+    /// Byte offset just past the declaration, when it has one.
+    pub end: Option<u32>,
+}
+
+/// Builds the report record for one name that has no declaration position.
+pub(crate) fn detached_symbol(name: &DetachedName, source_path: &str) -> GeneratedSymbol {
+    GeneratedSymbol {
+        name: name.name.clone(),
+        kind: name.kind.as_str().to_owned(),
+        pool: name.kind.pool(),
+        identity: name.identity.clone(),
+        source_path: normalized_module_path(source_path),
+        start: None,
+        end: None,
+    }
 }
 
 /// Diagnostic-facing name of a handle projection.
@@ -78,6 +95,7 @@ pub(super) fn ref_declaration_context(definition: &HandleDefinition) -> Declarat
         start: definition.name.span.start.0,
         end: definition.name.span.end.0,
         binding: definition.name.value.clone(),
+        // An empty label is no label; the declaration is named without one.
         label: definition
             .label
             .as_ref()
@@ -95,6 +113,7 @@ pub(super) fn scope_declaration_context(definition: &ScopeDefinition) -> Declara
         start: definition.name.span.start.0,
         end: definition.name.span.end.0,
         binding: definition.name.value.clone(),
+        // An empty label is no label; the declaration is named without one.
         label: definition
             .label
             .as_ref()
@@ -319,8 +338,8 @@ pub(super) fn generated_symbol(
         pool: kind_pool(kind),
         identity: symbol_identity(source, kind_name(kind), definition),
         source_path: normalized_module_path(source.path()),
-        start: definition.span.start.0,
-        end: definition.span.end.0,
+        start: Some(definition.span.start.0),
+        end: Some(definition.span.end.0),
     })
 }
 
@@ -340,8 +359,8 @@ pub(super) fn generated_ref_symbol(
         pool: IdentifierPool::AnchorName,
         identity,
         source_path: definition.module_path.clone(),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
+        start: Some(definition.name.span.start.0),
+        end: Some(definition.name.span.end.0),
     })
 }
 
@@ -361,8 +380,8 @@ pub(super) fn generated_scope_symbol(
         pool: IdentifierPool::ContainerName,
         identity,
         source_path: definition.module_path.clone(),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
+        start: Some(definition.name.span.start.0),
+        end: Some(definition.name.span.end.0),
     })
 }
 
@@ -381,8 +400,8 @@ pub(super) fn generated_ref_marker_symbol(
         pool: IdentifierPool::ClassToken,
         identity: asset_identity(&definition.module_path, "ref-marker", &definition.name),
         source_path: definition.module_path.clone(),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
+        start: Some(definition.name.span.start.0),
+        end: Some(definition.name.span.end.0),
     })
 }
 
@@ -401,8 +420,8 @@ pub(super) fn generated_scope_marker_symbol(
         pool: IdentifierPool::ClassToken,
         identity: asset_identity(&definition.module_path, "scope-marker", &definition.name),
         source_path: definition.module_path.clone(),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
+        start: Some(definition.name.span.start.0),
+        end: Some(definition.name.span.end.0),
     })
 }
 
@@ -424,8 +443,8 @@ pub(super) fn generated_class_symbol(
         pool: IdentifierPool::ClassToken,
         identity: format!("stillwind/v1\0class\0{canonical_input}"),
         source_path: normalized_module_path(source.path()),
-        start: span.start.0,
-        end: span.end.0,
+        start: Some(span.start.0),
+        end: Some(span.end.0),
     }
 }
 
@@ -450,8 +469,8 @@ pub(super) fn motion_name_symbol(
         pool: kind_pool(kind),
         identity: identity_input(identity),
         source_path: normalized_module_path(&identity.module_path),
-        start: span.start.0,
-        end: span.end.0,
+        start: Some(span.start.0),
+        end: Some(span.end.0),
     })
 }
 
@@ -497,8 +516,8 @@ pub(crate) fn projection_symbol(
         pool,
         identity,
         source_path: normalized_module_path(source_path),
-        start: span.start.0,
-        end: span.end.0,
+        start: Some(span.start.0),
+        end: Some(span.end.0),
     }
 }
 #[cfg(test)]
@@ -557,7 +576,7 @@ mod tests {
             let symbol = generated_symbol(&identifiers, &source, kind, &name).unwrap();
             assert!(symbol.name.starts_with(prefix));
             assert_eq!(symbol.source_path, "src/x.tsx");
-            assert_eq!((symbol.start, symbol.end), (0, 3));
+            assert_eq!((symbol.start, symbol.end), (Some(0), Some(3)));
             assert_eq!(
                 symbol.identity,
                 asset_identity(source.path(), kind_name(kind), &name)

@@ -330,6 +330,29 @@ impl RejectedNames {
     }
 }
 
+/// One generated name that is not tied to a declaration in the source.
+///
+/// A conditional helper is named for the CSS it serves and an anonymous layer for its template, so
+/// neither has a source position of its own. A document-wide pool check still has to see their
+/// names, so one compilation collects them beside the names each declaration reports.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DetachedName {
+    /// Family the name belongs to.
+    pub kind: IdentifierKind,
+    /// Canonical spelling of the name.
+    pub name: String,
+    /// Canonical identity the name was allocated from.
+    pub identity: String,
+}
+
+/// Whether a family's names are collected as detached names rather than reported per declaration.
+///
+/// Only the helper family is collected here: an anonymous layer's spelling carries a traversal
+/// index the writer appends, so the writer records that spelling itself.
+fn is_detached(kind: IdentifierKind) -> bool {
+    matches!(kind, IdentifierKind::CustomProperty)
+}
+
 /// One compilation's name allocation: host generator first, built-in fallback, memoized.
 ///
 /// A request always yields one result within a compilation, so a helper asked twice
@@ -343,6 +366,8 @@ pub struct IdentifierContext {
     memo: RefCell<BTreeMap<MemoKey, Result<String, String>>>,
     /// Rejections collected in development mode.
     rejected: RefCell<RejectedNames>,
+    /// Names of the families that carry no declaration position.
+    detached: RefCell<Vec<DetachedName>>,
 }
 
 /// Memo key: the family and the canonical hash of the request.
@@ -356,6 +381,7 @@ impl IdentifierContext {
             mode: IdentifierMode::Release,
             memo: RefCell::new(BTreeMap::new()),
             rejected: RefCell::new(RejectedNames::default()),
+            detached: RefCell::new(Vec::new()),
         }
     }
 
@@ -385,6 +411,26 @@ impl IdentifierContext {
     /// Drains the rejections collected so far, leaving the context empty of records.
     pub(crate) fn drain_rejected(&self) -> RejectedNames {
         std::mem::take(&mut self.rejected.borrow_mut())
+    }
+
+    /// Drains the names collected so far for families that carry no declaration position.
+    ///
+    /// A memoized request is collected once, so a document-wide pool check sees each spelling once
+    /// however many rules use it.
+    pub(crate) fn drain_detached(&self) -> Vec<DetachedName> {
+        std::mem::take(&mut self.detached.borrow_mut())
+    }
+
+    /// Records one anonymous layer spelling, whose traversal index the writer appended.
+    ///
+    /// `context` must be the context the layer name was requested with, so the record carries the
+    /// identity the name was allocated from and the layer pool sees the spelling the document uses.
+    pub(crate) fn record_layer(&self, context: &LayerContext, written: &str) {
+        self.detached.borrow_mut().push(DetachedName {
+            kind: IdentifierKind::LayerName,
+            name: written.to_owned(),
+            identity: LayerNameRequest(context.clone()).identity(),
+        });
     }
 
     /// A utility class token for one call and branch.
@@ -518,7 +564,17 @@ impl IdentifierContext {
         }
         let generated = self.generate(request, &hash);
         self.memo.borrow_mut().insert(key, generated.clone());
-        self.settle(request, &hash, generated)
+        let settled = self.settle(request, &hash, generated);
+        if is_detached(kind)
+            && let Ok(name) = &settled
+        {
+            self.detached.borrow_mut().push(DetachedName {
+                kind,
+                name: name.as_str().to_owned(),
+                identity: request.identity(),
+            });
+        }
+        settled
     }
 
     /// Asks the host generator, or keeps the built-in name when it declines.

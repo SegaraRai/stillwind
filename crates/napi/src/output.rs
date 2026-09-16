@@ -305,13 +305,13 @@ pub struct NativeGeneratedSymbol {
     pub kind: String,
     /// Stable identity of the declaration site.
     pub identity: String,
-    /// Module the declaration lives in.
+    /// Module the declaration lives in, or the stylesheet that named a helper or layer.
     #[napi(js_name = "source_path")]
     pub source_path: String,
-    /// Byte start of the declaration.
-    pub start: u32,
-    /// Byte end of the declaration.
-    pub end: u32,
+    /// Byte start of the declaration, absent for a name that declares nothing itself.
+    pub start: Option<u32>,
+    /// Byte end of the declaration, absent for a name that declares nothing itself.
+    pub end: Option<u32>,
 }
 
 impl From<GeneratedSymbol> for NativeGeneratedSymbol {

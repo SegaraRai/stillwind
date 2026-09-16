@@ -423,12 +423,12 @@ export interface NativeGeneratedSymbol {
   kind: string
   /** Stable identity of the declaration site. */
   identity: string
-  /** Module the declaration lives in. */
+  /** Module the declaration lives in, or the stylesheet that named a helper or layer. */
   source_path: string
-  /** Byte start of the declaration. */
-  start: number
-  /** Byte end of the declaration. */
-  end: number
+  /** Byte start of the declaration, absent for a name that declares nothing itself. */
+  start?: number
+  /** Byte end of the declaration, absent for a name that declares nothing itself. */
+  end?: number
 }
 
 /** One conditional test on the path that selects a generated class. */

@@ -9,10 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    CompilerOptions, GeneratedRule, Identifiers, MappedStylesheet, ModuleCssArtifact, RuleKey,
-    StylesheetPlacement, StylesheetRenderer,
+    GeneratedRule, MappedStylesheet, ModuleCssArtifact, RuleKey, StylesheetPlacement,
+    StylesheetRenderer,
 };
-use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_semantic::ModuleId;
 use stillwind_source::{SourceFile, Span};
@@ -129,13 +128,8 @@ impl ProjectStylesheet {
     /// # Errors
     ///
     /// Returns an error for inconsistent contributions or invalid assembled CSS.
-    pub fn serialize(
-        &self,
-        snapshot: &DesignSystemSnapshot,
-        options: &CompilerOptions,
-        identifiers: &Identifiers,
-    ) -> Result<String, CompileErrorKind> {
-        StylesheetRenderer::new(snapshot, options, identifiers)
+    pub fn serialize(&self, renderer: &StylesheetRenderer<'_>) -> Result<String, CompileErrorKind> {
+        renderer
             .render_mapped_stylesheet(
                 &self.module_css_with_origins(|_, _| None)?,
                 StylesheetPlacement::Document,
