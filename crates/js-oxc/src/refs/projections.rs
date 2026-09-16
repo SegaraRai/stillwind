@@ -116,7 +116,7 @@ impl<'a> MacroExtractor<'a> {
             }))
         } else {
             Some(StyleInput::Class(ClassExpression::DynamicRefProjection {
-                value: self.source_span(expression.span()),
+                value: self.source_span(ref_expression.span()),
                 refs,
                 projection,
             }))

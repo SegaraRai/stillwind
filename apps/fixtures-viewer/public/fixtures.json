@@ -377,7 +377,7 @@
           "path": "src/consumer.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\nexport const anchorProvider = style(selectedRef.anchor);\nexport const attachedScope = style(selectedScope);\n",
-          "after": "import { stillwindClassKey, stillwindMerge } from \"stillwind/react/runtime\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = stillwindMerge({[stillwindClassKey]:((selectedRef).c)});\nexport const anchorProvider = stillwindMerge({[stillwindClassKey]:(({\"s_8a6155b9\":\"_s_0fcfb31f\",\"s_1920670d\":\"_s_bfee00d7\"})[selectedRef.anchor.c])});\nexport const attachedScope = stillwindMerge({[stillwindClassKey]:((selectedScope).c)});\n",
+          "after": "import { stillwindClassKey, stillwindMerge } from \"stillwind/react/runtime\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = stillwindMerge({[stillwindClassKey]:((selectedRef).c)});\nexport const anchorProvider = stillwindMerge({[stillwindClassKey]:(({\"s_8a6155b9\":\"_s_0fcfb31f\",\"s_1920670d\":\"_s_bfee00d7\"})[selectedRef.c])});\nexport const attachedScope = stillwindMerge({[stillwindClassKey]:((selectedScope).c)});\n",
           "css": "._s_0fcfb31f {\n  anchor-name: --sw-r-8a6155b9;\n}\n._s_bfee00d7 {\n  anchor-name: --sw-r-1920670d;\n}\n",
           "diff": [
             {
@@ -396,13 +396,13 @@
               "fromA": 175,
               "toA": 200,
               "fromB": 248,
-              "toB": 367
+              "toB": 360
             },
             {
               "fromA": 231,
               "toA": 251,
-              "fromB": 398,
-              "toB": 455
+              "fromB": 391,
+              "toB": 448
             }
           ]
         }

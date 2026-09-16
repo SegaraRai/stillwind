@@ -126,6 +126,9 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert(consumer);
   assert.deepEqual(consumer.diagnostics, []);
   assert.match(consumer.code, /\(\(selected\)\.c\)/);
+  // A projection reads the use-site ref value, never the member expression it was written on.
+  // The lowered ref value is a record under c, so `selected.anchor` must compile to `selected.c`.
+  assert.match(consumer.code, /\[selected\.c\]/);
   assert.match(consumer.code, /stillwindAssetClass\(selectedAnimation\("infinite"\)/);
   // A transition the value selects at runtime carries one class per token, chosen by v.
   assert.match(consumer.code, /"--sw-v-[^"]+":"_s_[^"]+"[\s\S]{0,120}?\)\[selectedTransition\.v\]/);
