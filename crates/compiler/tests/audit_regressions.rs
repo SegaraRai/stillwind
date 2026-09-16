@@ -112,24 +112,21 @@ fn punctuation_labels_produce_valid_javascript_strings() {
         .unwrap();
         assert!(parse(&source).diagnostics.is_empty(), "{}", source.text());
     }
-    // A label is an authoring hint: the built-in marker hashes the declaration, so the
-    // generated names stay free of authored punctuation.
+    // The marker spells the normalized label, and the stylesheet escapes the punctuation
+    // the label carries.
     assert!(!result.css.contains("d\"e"), "{}", result.css);
     let marker = result
         .symbols
         .iter()
         .find(|symbol| symbol.kind == "ref-marker")
         .expect("ref marker symbol");
-    assert!(marker.name.starts_with("s_"), "{}", marker.name);
-    assert!(
-        result.css.contains(&format!(".{}", marker.name)),
-        "{}",
-        result.css
-    );
+    assert!(marker.name.starts_with("s_d\"e/f_"), "{}", marker.name);
+    let escaped = marker.name.replace('"', "\\\"").replace('/', "\\/");
+    assert!(result.css.contains(&escaped), "{}", result.css);
 }
 
 #[test]
-fn labels_never_reach_generated_names_or_css() {
+fn normalized_labels_reach_only_the_marker_names() {
     let (_, result) = compile(
         "const subtree = style.subtree('領域 :'); const ref = style.ref(subtree, '項目 🧭'); \
          export const root = style(subtree); export const item = style(ref); \
@@ -137,18 +134,30 @@ fn labels_never_reach_generated_names_or_css() {
         "@utility a { color:red; }",
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");
-    let code = result
-        .transforms
+    // A marker spells its declaration's normalized label, which is what makes it readable
+    // in generated markup; every other family hashes the declaration.
+    let markers = result
+        .symbols
         .iter()
-        .map(|edit| edit.replacement.as_str())
-        .collect::<String>();
-    // A label names a declaration for its author; the compiler writes identities.
-    for authored in ["領域", "項目", "🧭"] {
-        assert!(!code.contains(authored), "{code}");
-        assert!(!result.css.contains(authored), "{}", result.css);
-    }
-    for symbol in &result.symbols {
-        assert!(symbol.name.is_ascii(), "{}", symbol.name);
+        .filter(|symbol| symbol.kind.ends_with("marker"))
+        .map(|symbol| symbol.name.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        markers.iter().any(|name| name.contains("領域")),
+        "{markers:?}"
+    );
+    assert!(
+        markers.iter().any(|name| name.contains("項目")),
+        "{markers:?}"
+    );
+    for symbol in result
+        .symbols
+        .iter()
+        .filter(|symbol| !symbol.kind.ends_with("marker"))
+    {
+        for authored in ["領域", "項目", "🧭"] {
+            assert!(!symbol.name.contains(authored), "{}", symbol.name);
+        }
     }
 }
 

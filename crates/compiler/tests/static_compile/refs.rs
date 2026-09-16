@@ -183,8 +183,8 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
-    // A label names a declaration for its author; the generated marker is the
-    // declaration's identity, so it carries no authored text.
+    // A marker spells its declaration's normalized label, which is what makes it
+    // readable in generated markup.
     let marker_of = |kind: &str| {
         result
             .symbols
@@ -196,14 +196,8 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
     };
     let subtree = marker_of("scope-marker");
     let trigger = marker_of("ref-marker");
-    assert!(
-        subtree.starts_with("s_") && !subtree.contains("menu"),
-        "{subtree}"
-    );
-    assert!(
-        trigger.starts_with("s_") && !trigger.contains("trigger"),
-        "{trigger}"
-    );
+    assert!(subtree.starts_with("s_menu_"), "{subtree}");
+    assert!(trigger.starts_with("s_trigger_"), "{trigger}");
     assert!(transformed.contains(&subtree), "{transformed}");
     assert!(transformed.contains(&trigger), "{transformed}");
     assert!(

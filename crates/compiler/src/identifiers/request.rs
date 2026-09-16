@@ -11,7 +11,7 @@
 //! digest declares that spelling here, next to its identity rule.
 
 use super::generator::{GeneratedName, IdentifierGenerator, builtin_text};
-use super::kind::{IdentifierKind, builtin_prefix};
+use super::kind::{IdentifierKind, builtin_digest_digits, builtin_prefix};
 use super::name::{
     AnchorName, ContainerName, CustomPropertyName, KeyframesName, Label, LayerName, RefMarker,
     SubtreeMarker, Token, UtilityClass, ViewTransitionClass,
@@ -180,9 +180,24 @@ pub trait NameRequest<T: Token> {
 
     /// The compiler's own name for this request.
     ///
-    /// A family whose spelling is not the prefix followed by the digest overrides this.
+    /// A family that spells an authored label writes it, normalized, between the prefix and
+    /// the digest; the label is what makes a marker readable in generated markup. A family
+    /// whose spelling is neither form overrides this.
     fn builtin(&self, hash: &IdentifierHash) -> String {
-        builtin_text(self.kind(), hash)
+        match self.label() {
+            Some(label) => format!(
+                "{}{}_{}",
+                builtin_prefix(self.kind()),
+                label.as_str(),
+                hash.short_hex(builtin_digest_digits(self.kind()))
+            ),
+            None => builtin_text(self.kind(), hash),
+        }
+    }
+
+    /// The authored label this family spells into its built-in name, when it has one.
+    fn label(&self) -> Option<&Label> {
+        None
     }
 }
 
@@ -199,7 +214,7 @@ fn hashed(identity: &str) -> IdentifierHash {
 /// one declaration.
 macro_rules! name_requests {
     ($(
-        $name:ident($context:ident) : $token:ident as $kind:ident = $identity:expr , asks($generator:ident) ;
+        $name:ident($context:ident) : $token:ident as $kind:ident = $identity:expr , asks($generator:ident) $(, labels($labels:ident))? ;
     )*) => {
         $(
             #[doc = concat!("A ", stringify!($kind), " request.")]
@@ -222,6 +237,12 @@ macro_rules! name_requests {
                 ) -> Result<GeneratedName<$token>, String> {
                     generator.$generator(&self.0, hash)
                 }
+
+                $(
+                    fn label(&self) -> Option<&Label> {
+                        self.0.$labels.as_ref()
+                    }
+                )?
             }
         )*
     };
@@ -385,8 +406,8 @@ name_requests! {
         branch = context.branch,
         call = context.call,
     ), asks(utility_class);
-    RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker);
-    SubtreeMarkerName(DeclarationContext): SubtreeMarker as SubtreeMarker = |context: &DeclarationContext| declaration_identity(context, "scope"), asks(subtree_marker);
+    RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker), labels(label);
+    SubtreeMarkerName(DeclarationContext): SubtreeMarker as SubtreeMarker = |context: &DeclarationContext| declaration_identity(context, "scope"), asks(subtree_marker), labels(label);
     AnchorNameRequest(LocatorContext): AnchorName as AnchorName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(anchor_name);
     ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "scope"), asks(container_name);
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "animation"), asks(keyframes_name);

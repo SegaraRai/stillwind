@@ -220,9 +220,9 @@ impl LayerName {
 
 /// An authored label, cleaned for use inside a generated name.
 ///
-/// A label reaches a generator as part of a declaration context. The built-in generator does
-/// not embed it, but a generator that does writes it into a name that reaches the DOM, so it
-/// is cleaned like a class token.
+/// A label reaches a generator as part of a declaration context. The built-in generator
+/// spells it into the marker families' names, which reach the DOM, so it is cleaned
+/// like a class token.
 ///
 /// An empty label is no label: a declaration whose authored label cleans to nothing passes
 /// `None` in its context and is named without one, rather than failing.
