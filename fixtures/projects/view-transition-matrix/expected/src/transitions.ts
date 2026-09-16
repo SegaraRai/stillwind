@@ -25,4 +25,4 @@ export const namedExplicitly = {className:stillwindClsx("_s_c5134c6d",({"--sw-v-
 export const unioned = {className:"_s_b9926253"};
 
 // A guarded use declares the complete class list for its condition.
-export const guarded = stillwindMerge({[stillwindClassKey]:"_s_c0c71779"},(compact) && ({[stillwindClassKey]:(_s_ccc9d63e)}));
+export const guarded = {className:stillwindClsx("_s_c0c71779",(compact) && ("_s_ccc9d63e"))};
