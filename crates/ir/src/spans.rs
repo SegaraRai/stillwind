@@ -16,9 +16,9 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry,
-    HandleDefinition, HandleProjection, ModuleIr, ScopeDefinition, StyleGuard, StyleInput,
-    StyleVariant, ViewTransitionKey, ViewTransitionName,
+    AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry, ModuleIr,
+    RefDefinition, RefProjection, ScopeDefinition, StyleGuard, StyleInput, StyleVariant,
+    ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -55,8 +55,8 @@ impl ModuleIr {
                 map_input(input, &mut map)?;
             }
         }
-        for handle in &mut result.handle_definitions {
-            map_handle(handle, &mut map)?;
+        for definition in &mut result.ref_definitions {
+            map_ref(definition, &mut map)?;
         }
         for scope in &mut result.scope_definitions {
             map_scope(scope, &mut map)?;
@@ -65,7 +65,7 @@ impl ModuleIr {
             map_animation(animation, &mut map)?;
         }
         for transition in &mut result.view_transition_declarations {
-            map_value(&mut transition.name, &mut map)?;
+            map_value(&mut transition.binding, &mut map)?;
             transition.call_span = map(transition.call_span)?;
             for value in [
                 &mut transition.group,
@@ -94,7 +94,7 @@ fn map_scope<E>(
     scope: &mut ScopeDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut scope.name, map)?;
+    map_value(&mut scope.binding, map)?;
     if let Some(label) = &mut scope.label {
         map_value(label, map)?;
     }
@@ -102,18 +102,18 @@ fn map_scope<E>(
     Ok(())
 }
 
-fn map_handle<E>(
-    handle: &mut HandleDefinition,
+fn map_ref<E>(
+    definition: &mut RefDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut handle.name, map)?;
-    if let Some(label) = &mut handle.label {
+    map_value(&mut definition.binding, map)?;
+    if let Some(label) = &mut definition.label {
         map_value(label, map)?;
     }
-    if let Some(scope) = &mut handle.scope {
+    if let Some(scope) = &mut definition.scope {
         map_scope(scope, map)?;
     }
-    handle.call_span = map(handle.call_span)?;
+    definition.call_span = map(definition.call_span)?;
     Ok(())
 }
 
@@ -121,7 +121,7 @@ fn map_animation<E>(
     animation: &mut AnimationDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut animation.name, map)?;
+    map_value(&mut animation.binding, map)?;
     animation.call_span = map(animation.call_span)?;
     map_animation_body(&mut animation.body, map)
 }
@@ -156,10 +156,10 @@ fn map_asset<E>(
 }
 
 fn map_projection<E>(
-    projection: &mut HandleProjection,
+    projection: &mut RefProjection,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    if let HandleProjection::Container(name) = projection {
+    if let RefProjection::Container(name) = projection {
         map_value(name, map)?;
     }
     Ok(())
@@ -175,8 +175,8 @@ fn map_input<E>(
         StyleInput::ScopeAttachment(scope) => {
             map_scope(scope, map)?;
         }
-        StyleInput::HandleAttachment(handle) => {
-            map_handle(handle, map)?;
+        StyleInput::RefAttachment(definition) => {
+            map_ref(definition, map)?;
         }
         StyleInput::DynamicScopeAttachment { value, scopes } => {
             *value = map(*value)?;
@@ -184,10 +184,10 @@ fn map_input<E>(
                 map_scope(scope, map)?;
             }
         }
-        StyleInput::DynamicHandleAttachment { value, handles } => {
+        StyleInput::DynamicRefAttachment { value, refs } => {
             *value = map(*value)?;
-            for handle in handles {
-                map_handle(handle, map)?;
+            for definition in refs {
+                map_ref(definition, map)?;
             }
         }
         StyleInput::Composition { value, candidates } => {
@@ -300,24 +300,27 @@ fn map_class_expression<E>(
                 map_group_entry(entry, map)?;
             }
         }
-        ClassExpression::External { span, arguments } => {
+        ClassExpression::ClassValue { span, arguments } => {
             *span = map(*span)?;
             for argument in arguments {
                 *argument = map(*argument)?;
             }
         }
-        ClassExpression::HandleProjection { handle, projection } => {
-            map_handle(handle, map)?;
+        ClassExpression::RefProjection {
+            definition,
+            projection,
+        } => {
+            map_ref(definition, map)?;
             map_projection(projection, map)?;
         }
-        ClassExpression::DynamicHandleProjection {
+        ClassExpression::DynamicRefProjection {
             value,
-            handles,
+            refs,
             projection,
         } => {
             *value = map(*value)?;
-            for handle in handles {
-                map_handle(handle, map)?;
+            for definition in refs {
+                map_ref(definition, map)?;
             }
             map_projection(projection, map)?;
         }
@@ -348,14 +351,14 @@ fn map_variant<E>(
         StyleVariant::Prefix(prefix) => {
             map_value(prefix, map)?;
         }
-        StyleVariant::Ref { handles, prefix }
+        StyleVariant::Ref { refs, prefix }
         | StyleVariant::Container {
-            handles,
+            refs,
             query: prefix,
         } => {
             map_value(prefix, map)?;
-            for handle in handles {
-                map_handle(handle, map)?;
+            for definition in refs {
+                map_ref(definition, map)?;
             }
         }
     }

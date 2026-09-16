@@ -304,24 +304,24 @@ export const Menu = () => <div {...style(menu)}><button {...style(scoped)} /></d
             .map(|label| label.value.as_str()),
         Some("menu")
     );
-    assert_eq!(parsed.module.handle_definitions.len(), 4);
-    assert_eq!(parsed.module.handle_definitions[0].scope, None);
+    assert_eq!(parsed.module.ref_definitions.len(), 4);
+    assert_eq!(parsed.module.ref_definitions[0].scope, None);
     assert_eq!(
-        parsed.module.handle_definitions[1]
+        parsed.module.ref_definitions[1]
             .label
             .as_ref()
             .map(|label| label.value.as_str()),
         Some("trigger")
     );
     assert_eq!(
-        parsed.module.handle_definitions[2]
+        parsed.module.ref_definitions[2]
             .scope
             .as_ref()
-            .map(|scope| scope.name.value.as_str()),
+            .map(|scope| scope.binding.value.as_str()),
         Some("menu")
     );
     assert_eq!(
-        parsed.module.handle_definitions[3]
+        parsed.module.ref_definitions[3]
             .label
             .as_ref()
             .map(|label| label.value.as_str()),
@@ -364,7 +364,7 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
     assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");
 }
 
-/// A conditional handle choice is left for the checker instead of being widened.
+/// A conditional ref choice is left for the checker instead of being widened.
 #[test]
 fn leaves_conditional_handle_propagation_to_typescript() {
     let source = SourceFile::new(
@@ -639,7 +639,7 @@ fn external_class_arrays_keep_leaf_occurrences_and_spread_boundaries() {
     let GroupEntry::Class(value) = &entries[0] else {
         panic!("class entry")
     };
-    let ClassExpression::External { span, arguments } = value.as_ref() else {
+    let ClassExpression::ClassValue { span, arguments } = value.as_ref() else {
         panic!("external class")
     };
     assert!(source.slice(*span).unwrap().starts_with("[first,"));

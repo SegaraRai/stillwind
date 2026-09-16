@@ -30,9 +30,9 @@ pub(crate) enum ValueExpr {
         /// Original-source UTF-8 span selecting the helper import realm.
         span: Span,
     },
-    /// A projection table keyed by the handle's canonical token.
+    /// A projection table keyed by the ref's canonical token.
     ///
-    /// The key is read from the handle value, so one declaration's projection is a
+    /// The key is read from the ref value, so one declaration's projection is a
     /// property read rather than a call, and no runtime helper is involved.
     Lookup {
         /// Value expression the projected class is read from.
@@ -97,7 +97,7 @@ impl ValueExpr {
             }
             Self::Lookup { value, key, table } => {
                 // The parenthesis keeps the object literal out of statement position and
-                // a runtime handle's dot read unambiguous.
+                // a runtime ref's dot read unambiguous.
                 code![
                     "(",
                     table.clone(),

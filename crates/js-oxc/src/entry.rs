@@ -116,7 +116,7 @@ pub fn parse_with_language(
     let mut extractor = MacroExtractor::new(source, semantic.scoping(), type_facts, assets);
     extractor.seed_style_bindings(&result.program);
     extractor.visit_program(&result.program);
-    extractor.validate_handles();
+    extractor.validate_refs();
     let mut summary = extractor.module_summary();
     crate::demand::collect(
         &result.program,
@@ -132,7 +132,7 @@ pub fn parse_with_language(
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
         imports: crate::imports::collect(&result.program, semantic.scoping(), source.id()),
         style_calls: extractor.style_calls,
-        handle_definitions: extractor.handle_definitions,
+        ref_definitions: extractor.ref_definitions,
         scope_definitions: extractor.scope_definitions,
         animation_declarations: extractor.animation_declarations,
         view_transition_declarations: extractor.view_transition_declarations,

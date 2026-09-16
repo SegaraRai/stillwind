@@ -178,7 +178,7 @@ pub(super) fn emit_view_transition_definition(
 ) {
     let output = &mut contribution.css;
     let class = match identifiers
-        .view_transition_class(&named_declaration(source.path(), &transition.name))
+        .view_transition_class(&named_declaration(source.path(), &transition.binding))
     {
         Ok(class) => class,
         Err(failure) => {

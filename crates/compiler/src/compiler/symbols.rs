@@ -12,7 +12,7 @@
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
+use stillwind_ir::{RefDefinition, RefProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
@@ -64,37 +64,34 @@ pub(crate) fn detached_symbol(name: &DetachedName, source_path: &str) -> Generat
     }
 }
 
-/// Diagnostic-facing name of a handle projection.
-pub(super) fn handle_projection_name(projection: &HandleProjection) -> &'static str {
+/// Diagnostic-facing name of a ref projection.
+pub(super) fn ref_projection_name(projection: &RefProjection) -> &'static str {
     match projection {
-        HandleProjection::Anchor => "anchor",
-        HandleProjection::Position => "position",
-        HandleProjection::Scope => "scope",
-        HandleProjection::Container(_) => "container",
+        RefProjection::Anchor => "anchor",
+        RefProjection::Position => "position",
+        RefProjection::Scope => "scope",
+        RefProjection::Container(_) => "container",
     }
 }
 
 /// The declaration fields a ref's generated names are built from.
-pub(super) fn ref_context(
-    definition: &HandleDefinition,
-    projection: Option<&str>,
-) -> LocatorContext {
+pub(super) fn ref_context(definition: &RefDefinition, projection: Option<&str>) -> LocatorContext {
     LocatorContext {
         module: normalized_module_path(&definition.module_path),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
-        binding: definition.name.value.clone(),
+        start: definition.binding.span.start.0,
+        end: definition.binding.span.end.0,
+        binding: definition.binding.value.clone(),
         projection: projection.map(str::to_owned),
     }
 }
 
 /// The declaration fields a ref marker is built from, including its label.
-pub(super) fn ref_declaration_context(definition: &HandleDefinition) -> DeclarationContext {
+pub(super) fn ref_declaration_context(definition: &RefDefinition) -> DeclarationContext {
     DeclarationContext {
         module: normalized_module_path(&definition.module_path),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
-        binding: definition.name.value.clone(),
+        start: definition.binding.span.start.0,
+        end: definition.binding.span.end.0,
+        binding: definition.binding.value.clone(),
         // An empty label is no label; the declaration is named without one.
         label: definition
             .label
@@ -110,9 +107,9 @@ pub(super) fn ref_declaration_context(definition: &HandleDefinition) -> Declarat
 pub(super) fn scope_declaration_context(definition: &ScopeDefinition) -> DeclarationContext {
     DeclarationContext {
         module: normalized_module_path(&definition.module_path),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
-        binding: definition.name.value.clone(),
+        start: definition.binding.span.start.0,
+        end: definition.binding.span.end.0,
+        binding: definition.binding.value.clone(),
         // An empty label is no label; the declaration is named without one.
         label: definition
             .label
@@ -131,7 +128,7 @@ pub(super) fn scope_declaration_context(definition: &ScopeDefinition) -> Declara
 /// Returns the host generator's failure for the ref marker family.
 pub(crate) fn ref_marker_name(
     context: &IdentifierContext,
-    definition: &HandleDefinition,
+    definition: &RefDefinition,
 ) -> Result<RefMarker, CompileErrorKind> {
     context.ref_marker_name(&ref_declaration_context(definition))
 }
@@ -143,9 +140,9 @@ pub(super) fn scope_context(
 ) -> LocatorContext {
     LocatorContext {
         module: normalized_module_path(&definition.module_path),
-        start: definition.name.span.start.0,
-        end: definition.name.span.end.0,
-        binding: definition.name.value.clone(),
+        start: definition.binding.span.start.0,
+        end: definition.binding.span.end.0,
+        binding: definition.binding.value.clone(),
         projection: projection.map(str::to_owned),
     }
 }
@@ -169,7 +166,7 @@ pub(crate) fn scope_marker_name(
 /// Returns the host generator's failure for the anchor family.
 pub(crate) fn anchor_name(
     context: &IdentifierContext,
-    definition: &HandleDefinition,
+    definition: &RefDefinition,
     projection: Option<&str>,
 ) -> Result<AnchorName, CompileErrorKind> {
     context.anchor_name(&ref_context(definition, projection))
@@ -350,7 +347,7 @@ pub(super) fn generated_symbol(
 /// Returns the host generator's failure for the anchor family.
 pub(super) fn generated_ref_symbol(
     context: &IdentifierContext,
-    definition: &HandleDefinition,
+    definition: &RefDefinition,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
     let identity = identity_input(&ref_identity(definition));
     Ok(GeneratedSymbol {
@@ -359,8 +356,8 @@ pub(super) fn generated_ref_symbol(
         pool: IdentifierPool::AnchorName,
         identity,
         source_path: definition.module_path.clone(),
-        start: Some(definition.name.span.start.0),
-        end: Some(definition.name.span.end.0),
+        start: Some(definition.binding.span.start.0),
+        end: Some(definition.binding.span.end.0),
     })
 }
 
@@ -380,8 +377,8 @@ pub(super) fn generated_scope_symbol(
         pool: IdentifierPool::ContainerName,
         identity,
         source_path: definition.module_path.clone(),
-        start: Some(definition.name.span.start.0),
-        end: Some(definition.name.span.end.0),
+        start: Some(definition.binding.span.start.0),
+        end: Some(definition.binding.span.end.0),
     })
 }
 
@@ -392,16 +389,16 @@ pub(super) fn generated_scope_symbol(
 /// Returns the host generator's failure for the ref marker family.
 pub(super) fn generated_ref_marker_symbol(
     context: &IdentifierContext,
-    definition: &HandleDefinition,
+    definition: &RefDefinition,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
     Ok(GeneratedSymbol {
         name: ref_marker_name(context, definition)?.as_str().to_owned(),
         kind: "ref-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
-        identity: asset_identity(&definition.module_path, "ref-marker", &definition.name),
+        identity: asset_identity(&definition.module_path, "ref-marker", &definition.binding),
         source_path: definition.module_path.clone(),
-        start: Some(definition.name.span.start.0),
-        end: Some(definition.name.span.end.0),
+        start: Some(definition.binding.span.start.0),
+        end: Some(definition.binding.span.end.0),
     })
 }
 
@@ -418,10 +415,10 @@ pub(super) fn generated_scope_marker_symbol(
         name: scope_marker_name(context, definition)?.as_str().to_owned(),
         kind: "scope-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
-        identity: asset_identity(&definition.module_path, "scope-marker", &definition.name),
+        identity: asset_identity(&definition.module_path, "scope-marker", &definition.binding),
         source_path: definition.module_path.clone(),
-        start: Some(definition.name.span.start.0),
-        end: Some(definition.name.span.end.0),
+        start: Some(definition.binding.span.start.0),
+        end: Some(definition.binding.span.end.0),
     })
 }
 

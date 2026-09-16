@@ -150,7 +150,7 @@ export const props = style(selected);"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
     assert_eq!(
         result.diagnostics[0].kind,
-        CompileErrorKind::HandleFactsRequired
+        CompileErrorKind::RefFactsRequired
     );
 }
 

@@ -21,7 +21,7 @@ use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{HandleDefinition, StyleVariant};
+use stillwind_ir::{RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
@@ -86,11 +86,11 @@ impl StyleVariantPlan {
                 StyleVariant::Prefix(prefix) => {
                     plan.add_prefix(theme, prefix, diagnostics)?;
                 }
-                StyleVariant::Ref { handles, prefix } => {
-                    plan.add_ref(context, theme, handles, prefix, diagnostics)?;
+                StyleVariant::Ref { refs, prefix } => {
+                    plan.add_ref(context, theme, refs, prefix, diagnostics)?;
                 }
-                StyleVariant::Container { handles, query } => {
-                    plan.add_container(context, handles, query, diagnostics)?;
+                StyleVariant::Container { refs, query } => {
+                    plan.add_container(context, refs, query, diagnostics)?;
                 }
             }
         }
@@ -125,13 +125,13 @@ impl StyleVariantPlan {
         &mut self,
         context: &IdentifierContext,
         theme: &ThemeIndex,
-        handles: &[HandleDefinition],
+        refs: &[RefDefinition],
         prefix: &Spanned<String>,
         diagnostics: &mut Vec<CompileError>,
     ) -> Option<()> {
         let (variants, applications) =
             collect_variant_and_applications(theme, prefix, diagnostics)?;
-        if handles.is_empty() {
+        if refs.is_empty() {
             diagnostics.push(CompileError::new(
                 CompileErrorKind::UnidentifiedRef,
                 prefix.span,
@@ -155,15 +155,15 @@ impl StyleVariantPlan {
         // The canonical spelling is hashed, so the pair keeps tokens as text: a branded
         // name would otherwise contribute its type name to the hash.
         let mut identities: Vec<(String, Option<String>)> = Vec::new();
-        for handle in handles {
-            let marker = match ref_marker_name(context, handle) {
+        for definition in refs {
+            let marker = match ref_marker_name(context, definition) {
                 Ok(marker) => marker,
                 Err(failure) => {
-                    diagnostics.push(CompileError::new(failure, handle.call_span));
+                    diagnostics.push(CompileError::new(failure, definition.call_span));
                     return None;
                 }
             };
-            let scope = match handle.scope.as_ref() {
+            let scope = match definition.scope.as_ref() {
                 Some(scope) => match scope_marker_name(context, scope) {
                     Ok(name) => Some(name.selector()),
                     Err(failure) => {
@@ -204,11 +204,11 @@ impl StyleVariantPlan {
     fn add_container(
         &mut self,
         context: &IdentifierContext,
-        handles: &[HandleDefinition],
+        refs: &[RefDefinition],
         query: &Spanned<String>,
         diagnostics: &mut Vec<CompileError>,
     ) -> Option<()> {
-        if handles.is_empty() {
+        if refs.is_empty() {
             diagnostics.push(CompileError::new(
                 CompileErrorKind::UnidentifiedRef,
                 query.span,
@@ -216,10 +216,10 @@ impl StyleVariantPlan {
             return None;
         }
         self.has_refs = true;
-        let conditions = handles
+        let conditions = refs
             .iter()
-            .map(|handle| {
-                anchor_name(context, handle, Some("container"))
+            .map(|definition| {
+                anchor_name(context, definition, Some("container"))
                     .map(|name| format!("{} ({})", name.as_str(), query.value))
             })
             .collect::<Result<Vec<_>, _>>();

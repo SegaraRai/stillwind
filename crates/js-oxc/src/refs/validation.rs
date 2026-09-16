@@ -24,61 +24,57 @@ impl MacroExtractor<'_> {
     /// a ref may be attached in one element and used in a nested one. A selector use is
     /// only reported when at least one anchor path is known and none of them is an
     /// ancestor.
-    pub(crate) fn validate_handles(&mut self) {
+    pub(crate) fn validate_refs(&mut self) {
         let names = self
-            .handle_uses
+            .ref_uses
             .iter()
-            .map(|handle_use| handle_use.name.clone())
+            .map(|ref_use| ref_use.name.clone())
             .collect::<HashSet<_>>();
         for name in names {
             let uses = self
-                .handle_uses
+                .ref_uses
                 .iter()
-                .filter(|handle_use| handle_use.name == name)
+                .filter(|ref_use| ref_use.name == name)
                 .collect::<Vec<_>>();
             let is_scoped = self
-                .handle_definitions
+                .ref_definitions
                 .iter()
-                .any(|definition| definition.name.value == name && definition.scope.is_some());
-            let has_anchor = uses
-                .iter()
-                .any(|handle_use| handle_use.projection == "anchor");
+                .any(|definition| definition.binding.value == name && definition.scope.is_some());
+            let has_anchor = uses.iter().any(|ref_use| ref_use.projection == "anchor");
             if !has_anchor {
-                for handle_use in uses
+                for ref_use in uses
                     .iter()
-                    .filter(|handle_use| handle_use.projection == "position")
+                    .filter(|ref_use| ref_use.projection == "position")
                 {
                     self.lint_findings.push(LintFinding::new(
                         LintKind::MissingAnchor { name: name.clone() },
-                        handle_use.span,
+                        ref_use.span,
                     ));
                 }
             }
-            let has_container = uses
+            let has_container = uses.iter().any(|ref_use| ref_use.projection == "container");
+            for ref_use in uses
                 .iter()
-                .any(|handle_use| handle_use.projection == "container");
-            for handle_use in uses
-                .iter()
-                .filter(|handle_use| handle_use.projection == "container-query" && !has_container)
+                .filter(|ref_use| ref_use.projection == "container-query" && !has_container)
             {
                 self.lint_findings.push(LintFinding::new(
                     LintKind::MissingContainer { name: name.clone() },
-                    handle_use.span,
+                    ref_use.span,
                 ));
             }
             let known_anchor_paths = uses
                 .iter()
-                .filter_map(|handle_use| {
-                    (handle_use.projection == "anchor" || handle_use.projection == "ref")
-                        .then_some(handle_use.jsx_path.as_ref())
+                .filter_map(|ref_use| {
+                    (ref_use.projection == "anchor" || ref_use.projection == "ref")
+                        .then_some(ref_use.jsx_path.as_ref())
                         .flatten()
                 })
                 .collect::<Vec<_>>();
-            for handle_use in uses
+            for ref_use in uses
                 .iter()
-                .filter(|handle_use| handle_use.projection == "selector")
+                .filter(|ref_use| ref_use.projection == "selector")
             {
-                let Some(path) = &handle_use.jsx_path else {
+                let Some(path) = &ref_use.jsx_path else {
                     continue;
                 };
                 if !is_scoped
@@ -89,7 +85,7 @@ impl MacroExtractor<'_> {
                 {
                     self.lint_findings.push(LintFinding::new(
                         LintKind::MissingRefAncestor { name: name.clone() },
-                        handle_use.span,
+                        ref_use.span,
                     ));
                 }
             }
@@ -105,27 +101,27 @@ impl MacroExtractor<'_> {
     /// uses because they target a different element.
     pub(crate) fn validate_scoped_refs(&mut self) {
         for (definition, scope) in self
-            .handle_definitions
+            .ref_definitions
             .iter()
             .filter_map(|definition| definition.scope.as_ref().map(|scope| (definition, scope)))
         {
             let providers = self
                 .scope_uses
                 .iter()
-                .filter(|use_| use_.name == scope.name.value)
+                .filter(|use_| use_.name == scope.binding.value)
                 .collect::<Vec<_>>();
             if providers.is_empty() {
                 self.lint_findings.push(LintFinding::new(
                     LintKind::UnattachedScope {
-                        name: definition.name.value.clone(),
-                        scope: scope.name.value.clone(),
+                        name: definition.binding.value.clone(),
+                        scope: scope.binding.value.clone(),
                     },
                     definition.call_span,
                 ));
                 continue;
             }
-            for reference_use in self.handle_uses.iter().filter(|use_| {
-                use_.name == definition.name.value
+            for reference_use in self.ref_uses.iter().filter(|use_| {
+                use_.name == definition.binding.value
                     && !matches!(use_.projection, "selector" | "container-query")
             }) {
                 let Some(reference_path) = &reference_use.jsx_path else {
@@ -139,18 +135,16 @@ impl MacroExtractor<'_> {
                 }) {
                     self.lint_findings.push(LintFinding::new(
                         LintKind::MissingScopeAncestor {
-                            scope: scope.name.value.clone(),
-                            name: definition.name.value.clone(),
+                            scope: scope.binding.value.clone(),
+                            name: definition.binding.value.clone(),
                         },
                         reference_use.span,
                     ));
                 }
             }
-            for selector_use in self
-                .handle_uses
-                .iter()
-                .filter(|use_| use_.name == definition.name.value && use_.projection == "selector")
-            {
+            for selector_use in self.ref_uses.iter().filter(|use_| {
+                use_.name == definition.binding.value && use_.projection == "selector"
+            }) {
                 let Some(target_path) = &selector_use.jsx_path else {
                     continue;
                 };
@@ -162,8 +156,8 @@ impl MacroExtractor<'_> {
                 }) {
                     self.lint_findings.push(LintFinding::new(
                         LintKind::SelectorOutsideScope {
-                            name: definition.name.value.clone(),
-                            scope: scope.name.value.clone(),
+                            name: definition.binding.value.clone(),
+                            scope: scope.binding.value.clone(),
                         },
                         selector_use.span,
                     ));

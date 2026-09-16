@@ -99,7 +99,7 @@ impl<'a> MacroExtractor<'a> {
     /// Lowers one `style()` argument into zero or more IR inputs.
     ///
     /// The order of the attempts is the precedence order of the accepted forms: nested
-    /// `style()` calls are reported, then style candidates, then handle and scope
+    /// `style()` calls are reported, then style candidates, then ref and scope
     /// attachments, projections, view transitions, utility templates and finally plain
     /// class expressions.
     pub(crate) fn collect_style_expression(
@@ -123,10 +123,10 @@ impl<'a> MacroExtractor<'a> {
             });
             return;
         }
-        if self.collect_dynamic_handle_attachment(expression, inputs) {
+        if self.collect_dynamic_ref_attachment(expression, inputs) {
             return;
         }
-        if let Some(projection) = self.collect_handle_projection(expression) {
+        if let Some(projection) = self.collect_ref_projection(expression) {
             inputs.push(projection);
             return;
         }
@@ -291,13 +291,13 @@ impl<'a> MacroExtractor<'a> {
             Expression::Identifier(value) if value.name == "undefined" => None,
             Expression::Identifier(_) => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::HandleFactsRequired,
+                    CompileErrorKind::RefFactsRequired,
                     self.source_span(expression.span()),
                 ));
                 None
             }
             _ => {
-                if let Some(StyleInput::Class(class)) = self.collect_handle_projection(expression) {
+                if let Some(StyleInput::Class(class)) = self.collect_ref_projection(expression) {
                     return Some(class);
                 }
                 if let Some(animation) = self.animation_use(expression) {
@@ -363,7 +363,7 @@ impl<'a> MacroExtractor<'a> {
             if name.as_ref().is_some_and(|name| name.value == "class") {
                 let mut arguments = Vec::new();
                 self.collect_class_arguments(&property.value, &mut arguments);
-                entries.push(GroupEntry::Class(Box::new(ClassExpression::External {
+                entries.push(GroupEntry::Class(Box::new(ClassExpression::ClassValue {
                     span: self.source_span(property.value.span()),
                     arguments,
                 })));
@@ -538,8 +538,8 @@ fn variant_compatible(expression: &ClassExpression) -> bool {
             GroupEntry::Class(expression) => variant_compatible(expression),
             GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => false,
         }),
-        ClassExpression::External { .. }
-        | ClassExpression::HandleProjection { .. }
-        | ClassExpression::DynamicHandleProjection { .. } => false,
+        ClassExpression::ClassValue { .. }
+        | ClassExpression::RefProjection { .. }
+        | ClassExpression::DynamicRefProjection { .. } => false,
     }
 }

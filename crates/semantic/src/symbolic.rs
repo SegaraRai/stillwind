@@ -1,6 +1,6 @@
-//! Sound symbolic values for handle flow between modules.
+//! Sound symbolic values for asset flow between modules.
 //!
-//! A [`SymbolicValue`] states what a handle expression may denote: exactly one asset
+//! A [`SymbolicValue`] states what an asset expression may denote: exactly one asset
 //! kind, and either a finite, duplicate-free set of declaration-site identities or the
 //! whole universe of that kind. [`ExportedValue`] is the same idea per asset kind,
 //! except that refs are exported as a table of [`RefAlternative`] entries, because a
@@ -21,7 +21,7 @@ use super::identity::{AssetKind, IdentityId};
 #[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
 pub enum SymbolicError {
     /// An identity or scope value of the wrong asset kind was supplied.
-    #[error("symbolic handle kind mismatch: expected {expected:?}, got {actual:?}")]
+    #[error("symbolic asset kind mismatch: expected {expected:?}, got {actual:?}")]
     KindMismatch {
         /// Kind the value was declared with.
         expected: AssetKind,

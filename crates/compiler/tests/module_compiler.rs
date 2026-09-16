@@ -17,7 +17,7 @@ use stillwind_compiler::{
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
-    ClassExpression, ConditionalKind, HandleDefinition, SourceAnalyzer, StyleInput, StyleVariant,
+    ClassExpression, ConditionalKind, RefDefinition, SourceAnalyzer, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
@@ -250,9 +250,9 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     );
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
     let span = source.full_span();
-    let handle = HandleDefinition {
+    let definition = RefDefinition {
         module_path: "x.tsx".into(),
-        name: Spanned::new("r".into(), span),
+        binding: Spanned::new("r".into(), span),
         label: None,
         scope: None,
         call_span: span,
@@ -260,7 +260,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     for (input, expected) in [
         StyleInput::Class(ClassExpression::Variant {
             variant: StyleVariant::Ref {
-                handles: vec![handle.clone()],
+                refs: vec![definition.clone()],
                 prefix: Spanned::new(":hover".into(), span),
             },
             inputs: vec![ClassExpression::Utilities(Spanned::new(
@@ -270,7 +270,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         }),
         StyleInput::Class(ClassExpression::Variant {
             variant: StyleVariant::Ref {
-                handles: vec![handle],
+                refs: vec![definition],
                 prefix: Spanned::new("hover::".into(), span),
             },
             inputs: vec![ClassExpression::Conditional {

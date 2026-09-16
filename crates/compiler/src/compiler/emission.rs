@@ -23,13 +23,13 @@ use stillwind_source::{SourceFile, Span};
 use super::CssContribution;
 use super::class_units::ClassUnits;
 use super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
-use super::handles::{ref_identity, render_handle_projection, scope_identity};
+use super::handles::{ref_identity, render_ref_projection, scope_identity};
 use super::literal::LiteralContribution;
 use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::symbols::{
-    anchor_name, handle_projection_name, motion_name_symbol, ref_marker_name, scope_marker_name,
+    anchor_name, motion_name_symbol, ref_marker_name, ref_projection_name, scope_marker_name,
 };
 use super::utilities::resolve::CompiledUtility;
 use super::variants::document_scoped_selector;
@@ -195,11 +195,11 @@ impl<'a> CallEmitter<'a> {
                     self.units.base.names.push(marker);
                 }
                 self.units.base.canonical.push_str("scope:");
-                self.units.base.canonical.push_str(&scope.name.value);
+                self.units.base.canonical.push_str(&scope.binding.value);
                 self.units.base.canonical.push('\u{0}');
             }
-            StyleInput::HandleAttachment(handle) => {
-                let marker = match ref_marker_name(self.identifiers, handle) {
+            StyleInput::RefAttachment(definition) => {
+                let marker = match ref_marker_name(self.identifiers, definition) {
                     Ok(marker) => marker,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
@@ -211,18 +211,21 @@ impl<'a> CallEmitter<'a> {
                     self.units.base.names.push(marker);
                 }
                 self.units.base.canonical.push_str("ref:");
-                self.units.base.canonical.push_str(&handle.name.value);
+                self.units
+                    .base
+                    .canonical
+                    .push_str(&definition.binding.value);
                 self.units.base.canonical.push('\u{0}');
             }
             StyleInput::DynamicScopeAttachment { value, scopes } => {
                 self.runtime_assets
                     .extend(scopes.iter().map(scope_identity));
-                let expression = handle_class_read(self.source_expression(*value)?);
+                let expression = ref_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
-            StyleInput::DynamicHandleAttachment { value, handles } => {
-                self.runtime_assets.extend(handles.iter().map(ref_identity));
-                let expression = handle_class_read(self.source_expression(*value)?);
+            StyleInput::DynamicRefAttachment { value, refs } => {
+                self.runtime_assets.extend(refs.iter().map(ref_identity));
+                let expression = ref_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
             StyleInput::ViewTransitionUse {
@@ -576,7 +579,7 @@ impl<'a> CallEmitter<'a> {
                 }
                 any.then_some(Emitted::Group(items))
             }
-            ClassExpression::External { span, arguments } => {
+            ClassExpression::ClassValue { span, arguments } => {
                 if arguments.is_empty() {
                     return None;
                 }
@@ -590,28 +593,31 @@ impl<'a> CallEmitter<'a> {
                 };
                 Some(Emitted::Expression(expression))
             }
-            ClassExpression::HandleProjection { handle, projection } => {
-                let name = handle_projection_name(projection);
+            ClassExpression::RefProjection {
+                definition,
+                projection,
+            } => {
+                let name = ref_projection_name(projection);
                 // The projection reads the declaration's canonical token, so the
                 // declaration has to keep its runtime value.
-                self.runtime_assets.insert(ref_identity(handle));
-                let anchor = match anchor_name(self.identifiers, handle, Some(name)) {
+                self.runtime_assets.insert(ref_identity(definition));
+                let anchor = match anchor_name(self.identifiers, definition, Some(name)) {
                     Ok(anchor) => anchor,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
                         return None;
                     }
                 };
-                let marker = match ref_marker_name(self.identifiers, handle) {
+                let marker = match ref_marker_name(self.identifiers, definition) {
                     Ok(marker) => marker,
                     Err(failure) => {
                         self.reject_name(failure, self.call.span);
                         return None;
                     }
                 };
-                let (declaration, name_symbol) = match render_handle_projection(
+                let (declaration, name_symbol) = match render_ref_projection(
                     self.identifiers,
-                    handle,
+                    definition,
                     projection,
                     self.source.path(),
                 ) {
@@ -663,27 +669,27 @@ impl<'a> CallEmitter<'a> {
                     js_string(&names.join(" "))
                 );
                 Some(Emitted::Expression(ValueExpr::Lookup {
-                    value: Box::new(ValueExpr::Source(handle.name.value.clone().into())),
+                    value: Box::new(ValueExpr::Source(definition.binding.value.clone().into())),
                     key: "c".to_owned(),
                     table: format!("{{{entry}}}").into(),
                 }))
             }
-            ClassExpression::DynamicHandleProjection {
+            ClassExpression::DynamicRefProjection {
                 value,
-                handles,
+                refs,
                 projection,
             } => {
                 let mut table = Vec::new();
-                for handle in handles {
-                    self.runtime_assets.insert(ref_identity(handle));
-                    let marker = match ref_marker_name(self.identifiers, handle) {
+                for definition in refs {
+                    self.runtime_assets.insert(ref_identity(definition));
+                    let marker = match ref_marker_name(self.identifiers, definition) {
                         Ok(marker) => marker,
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);
                             return None;
                         }
                     };
-                    let anchor = match anchor_name(self.identifiers, handle, Some("dynamic")) {
+                    let anchor = match anchor_name(self.identifiers, definition, Some("dynamic")) {
                         Ok(anchor) => anchor,
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);
@@ -693,11 +699,11 @@ impl<'a> CallEmitter<'a> {
                     let canonical = format!(
                         "dynamic-handle:{}:{}",
                         anchor.as_str(),
-                        handle_projection_name(projection)
+                        ref_projection_name(projection)
                     );
-                    let (declaration, name_symbol) = match render_handle_projection(
+                    let (declaration, name_symbol) = match render_ref_projection(
                         self.identifiers,
-                        handle,
+                        definition,
                         projection,
                         self.source.path(),
                     ) {
@@ -1090,9 +1096,9 @@ fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option
 
 /// Reads the canonical class token off a compiled ref or scope value.
 ///
-/// Every handle value carries its token under `c`, so an attachment is a property read
-/// and needs no runtime helper.
-fn handle_class_read(value: Code) -> ValueExpr {
+/// Every ref value carries its token under `c`, so an attachment is a property read and
+/// needs no runtime helper.
+fn ref_class_read(value: Code) -> ValueExpr {
     ValueExpr::Source(code!["(", value, ").", CLASS_KEY])
 }
 
@@ -1111,12 +1117,12 @@ fn expression_position(expression: &ClassExpression) -> u32 {
             | StyleVariant::Ref { prefix, .. }
             | StyleVariant::Container { query: prefix, .. } => prefix.span.start.0,
         },
-        ClassExpression::Group { span, .. } | ClassExpression::External { span, .. } => {
+        ClassExpression::Group { span, .. } | ClassExpression::ClassValue { span, .. } => {
             span.start.0
         }
-        ClassExpression::HandleProjection { handle, .. } => handle.call_span.start.0,
+        ClassExpression::RefProjection { definition, .. } => definition.call_span.start.0,
         ClassExpression::AnimationUse { animation, .. } => animation.span.start.0,
-        ClassExpression::DynamicHandleProjection { value, .. }
+        ClassExpression::DynamicRefProjection { value, .. }
         | ClassExpression::DynamicAnimationUse { value, .. } => value.start.0,
     }
 }

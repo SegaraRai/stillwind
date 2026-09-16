@@ -17,7 +17,7 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, AnimationDefinition, HandleDefinition, ScopeDefinition, StyleCall,
+    AdapterKind, AnimationDefinition, RefDefinition, ScopeDefinition, StyleCall,
     ViewTransitionDefinition, ViewTransitionKeyApplication,
 };
 use stillwind_semantic::{
@@ -26,7 +26,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{SourceFile, Spanned};
 
-use crate::refs::{HandleUse, ScopeUse};
+use crate::refs::{RefUse, ScopeUse};
 
 impl<'a> MacroExtractor<'a> {
     /// Builds an extractor for one parsed module.
@@ -44,11 +44,11 @@ impl<'a> MacroExtractor<'a> {
             scoping,
             style_symbols: HashSet::new(),
             adapter: None,
-            handle_symbols: HashMap::new(),
+            ref_symbols: HashMap::new(),
             scope_symbols: HashMap::new(),
-            handle_uses: Vec::new(),
+            ref_uses: Vec::new(),
             scope_uses: Vec::new(),
-            handle_definitions: Vec::new(),
+            ref_definitions: Vec::new(),
             scope_definitions: Vec::new(),
             animation_symbols: HashMap::new(),
             animation_declarations: Vec::new(),
@@ -120,7 +120,7 @@ impl<'a> MacroExtractor<'a> {
         }
         for definition in &self.scope_definitions {
             summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Scope, &definition.name),
+                identity: self.identity(AssetKind::Scope, &definition.binding),
                 metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
@@ -128,9 +128,9 @@ impl<'a> MacroExtractor<'a> {
                 call_end: definition.call_span.end.0,
             });
         }
-        for definition in &self.handle_definitions {
+        for definition in &self.ref_definitions {
             summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Ref, &definition.name),
+                identity: self.identity(AssetKind::Ref, &definition.binding),
                 metadata: AssetMetadata {
                     label: definition.label.as_ref().map(|label| label.value.clone()),
                 },
@@ -140,7 +140,7 @@ impl<'a> MacroExtractor<'a> {
         }
         for definition in &self.animation_declarations {
             summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Animation, &definition.name),
+                identity: self.identity(AssetKind::Animation, &definition.binding),
                 metadata: AssetMetadata { label: None },
                 call_start: definition.call_span.start.0,
                 call_end: definition.call_span.end.0,
@@ -148,7 +148,7 @@ impl<'a> MacroExtractor<'a> {
         }
         for definition in &self.view_transition_declarations {
             summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::ViewTransition, &definition.name),
+                identity: self.identity(AssetKind::ViewTransition, &definition.binding),
                 metadata: AssetMetadata { label: None },
                 call_start: definition.call_span.start.0,
                 call_end: definition.call_span.end.0,
@@ -189,16 +189,16 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) scoping: &'a Scoping,
     /// Symbols bound to the imported `style` macro.
     pub(crate) style_symbols: HashSet<SymbolId>,
-    /// Symbols bound to a `style.ref()` handle, with their definitions.
-    pub(crate) handle_symbols: HashMap<SymbolId, HandleDefinition>,
+    /// Symbols bound to a `style.ref()` declaration, with their definitions.
+    pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
     /// Symbols bound to a `style.scope()` scope, with their definitions.
     pub(crate) scope_symbols: HashMap<SymbolId, ScopeDefinition>,
-    /// Every handle use, in source order, used for ancestry validation.
-    pub(crate) handle_uses: Vec<HandleUse>,
+    /// Every ref use, in source order, used for ancestry validation.
+    pub(crate) ref_uses: Vec<RefUse>,
     /// Every scope use, in source order, used for provider validation.
     pub(crate) scope_uses: Vec<ScopeUse>,
-    /// Handle definitions in declaration order.
-    pub(crate) handle_definitions: Vec<HandleDefinition>,
+    /// Ref definitions in declaration order.
+    pub(crate) ref_definitions: Vec<RefDefinition>,
     /// Scope definitions in declaration order.
     pub(crate) scope_definitions: Vec<ScopeDefinition>,
     /// Symbols bound to an animation declaration, with their names.

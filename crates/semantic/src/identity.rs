@@ -24,7 +24,7 @@ pub enum AssetKind {
     Style,
     /// A `style.scope()` boundary.
     Scope,
-    /// A `style.ref()` element handle, optionally bound to a scope.
+    /// A `style.ref()` declaration, optionally bound to a scope.
     Ref,
     /// A `style.animation()` keyframe asset.
     Animation,

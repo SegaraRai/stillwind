@@ -130,14 +130,14 @@ impl Compiler {
         let mut symbols = std::mem::take(&mut result.symbols);
         symbols.extend(
             module
-                .handle_definitions
+                .ref_definitions
                 .iter()
                 .map(|definition| generated_ref_symbol(identifiers, definition))
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
         symbols.extend(
             module
-                .handle_definitions
+                .ref_definitions
                 .iter()
                 .map(|definition| generated_ref_marker_symbol(identifiers, definition))
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
@@ -161,7 +161,12 @@ impl Compiler {
                 .animation_declarations
                 .iter()
                 .map(|definition| {
-                    generated_symbol(identifiers, source, AssetKind::Animation, &definition.name)
+                    generated_symbol(
+                        identifiers,
+                        source,
+                        AssetKind::Animation,
+                        &definition.binding,
+                    )
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
@@ -174,7 +179,7 @@ impl Compiler {
                         identifiers,
                         source,
                         AssetKind::ViewTransition,
-                        &definition.name,
+                        &definition.binding,
                     )
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
@@ -226,7 +231,7 @@ impl Compiler {
             if motion_assets.contains(&named_identity(
                 source,
                 AssetKind::Animation,
-                &animation.name,
+                &animation.binding,
             )) {
                 motion_css.push(definition_css);
             }
@@ -244,22 +249,21 @@ impl Compiler {
             if motion_assets.contains(&named_identity(
                 source,
                 AssetKind::ViewTransition,
-                &transition.name,
+                &transition.binding,
             )) {
                 motion_css.push(definition_css);
             }
         }
         motion_css.append(&mut utility_css);
         utility_css = motion_css;
-        for handle_definition in module.handle_definitions {
+        for ref_definition in module.ref_definitions {
             result.transforms.push(SourceTransform {
-                call_span: handle_definition.call_span,
-                replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
-                    match ref_marker_name(identifiers, &handle_definition) {
-                        Ok(marker) => handle_value(&marker.javascript_string()),
+                call_span: ref_definition.call_span,
+                replacement: if runtime_assets.contains(&ref_identity(&ref_definition)) {
+                    match ref_marker_name(identifiers, &ref_definition) {
+                        Ok(marker) => ref_value(&marker.javascript_string()),
                         Err(failure) => {
-                            diagnostics
-                                .push(CompileError::new(failure, handle_definition.call_span));
+                            diagnostics.push(CompileError::new(failure, ref_definition.call_span));
                             "undefined".to_owned()
                         }
                     }
@@ -321,7 +325,7 @@ impl Compiler {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
                     match scope_marker_name(identifiers, &scope_definition) {
-                        Ok(marker) => handle_value(&marker.javascript_string()),
+                        Ok(marker) => ref_value(&marker.javascript_string()),
                         Err(failure) => {
                             diagnostics
                                 .push(CompileError::new(failure, scope_definition.call_span));
@@ -340,10 +344,10 @@ impl Compiler {
                 replacement: if runtime_assets.contains(&named_identity(
                     source,
                     AssetKind::Animation,
-                    &animation.name,
+                    &animation.binding,
                 )) {
                     match identifiers
-                        .animation_name(&named_declaration(source.path(), &animation.name))
+                        .animation_name(&named_declaration(source.path(), &animation.binding))
                     {
                         Ok(name) => format!(
                             "{}({})",
@@ -367,11 +371,12 @@ impl Compiler {
                 replacement: if runtime_assets.contains(&named_identity(
                     source,
                     AssetKind::ViewTransition,
-                    &transition.name,
+                    &transition.binding,
                 )) {
-                    match identifiers
-                        .view_transition_class(&named_declaration(source.path(), &transition.name))
-                    {
+                    match identifiers.view_transition_class(&named_declaration(
+                        source.path(),
+                        &transition.binding,
+                    )) {
                         Ok(class) => format!("{{v:{}}}", class.javascript_string()),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, transition.call_span));
@@ -479,13 +484,13 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
 
 /// One ref or scope declaration's runtime value: its canonical class token under `c`.
 ///
-/// A declaration is an identity, and every attachment reads that one key, so a handle
+/// A declaration is an identity, and every attachment reads that one key, so a ref
 /// needs no runtime helper and no projection helper functions. The key is a plain
 /// property read, which is what makes `style(ref)` and the projections static.
 ///
 /// `token` is the token written as a JavaScript string literal, because generated
 /// JavaScript reads the same token back as the projection table's key.
-fn handle_value(token: &str) -> String {
+fn ref_value(token: &str) -> String {
     format!("{{{CLASS_KEY}:{token}}}")
 }
 

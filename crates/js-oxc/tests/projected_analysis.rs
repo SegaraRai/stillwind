@@ -216,7 +216,7 @@ fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_mac
 
 /// Finalized projected analyses speak in original coordinates.
 ///
-/// The source handle is the original file, every summary span slices it, asset
+/// The source buffer is the original file, every summary span slices it, asset
 /// identities point at declarations in it, and checker probes are empty because their
 /// spans would describe the generated module.
 #[test]
@@ -247,7 +247,7 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
     );
     assert_eq!(
         asset.identity.start,
-        scan.local_ir.handle_definitions[0].name.span.start.0
+        scan.local_ir.ref_definitions[0].binding.span.start.0
     );
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
     assert_eq!(analysis.ir.adapter, AdapterKind::Svelte);
@@ -299,7 +299,7 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
         CompileErrorKind::ProjectionUnmapped { .. }
     ));
     assert!(scan.local_ir.style_calls.is_empty());
-    assert!(scan.local_ir.handle_definitions.is_empty());
+    assert!(scan.local_ir.ref_definitions.is_empty());
 }
 
 /// An upstream map without a projection does not change the analysed source.

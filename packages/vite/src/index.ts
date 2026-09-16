@@ -41,7 +41,7 @@ export interface StillwindOptions {
   prefix?: string;
   /** Namespace for Tailwind-compatible internal custom properties. */
   tailwindPrefix?: string;
-  /** Reject Tailwind group/peer/container relationships in favor of typed handles. */
+  /** Reject Tailwind group/peer/container relationships in favor of typed refs. */
   forbidTailwindRelationships?: boolean;
   /**
    * Stable namespace included in generated class identities. Use the same value for

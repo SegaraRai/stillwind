@@ -1,11 +1,11 @@
 //! Expression-level type facts, keyed by source span.
 //!
 //! A [`TypeFact`] says what one expression in a module denotes after type checking, so
-//! the frontend can treat an imported or conditionally selected handle value as a
-//! finite candidate set without solving TypeScript itself. Facts are keyed by the byte
-//! span of the expression in the module's original source; a fact whose span does not
-//! slice that source is invalid, and the whole payload is discarded rather than
-//! partially applied.
+//! the frontend can treat an imported or conditionally selected ref value as a finite
+//! candidate set without solving TypeScript itself. Facts are keyed by the byte span of
+//! the expression in the module's original source; a fact whose span does not slice
+//! that source is invalid, and the whole payload is discarded rather than partially
+//! applied.
 
 use serde::{Deserialize, Serialize};
 

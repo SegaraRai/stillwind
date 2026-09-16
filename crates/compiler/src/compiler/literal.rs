@@ -36,7 +36,7 @@ pub(super) struct LiteralContribution {
     pub(super) markers: Vec<String>,
     /// Class names Stillwind does not own, passed through unchanged.
     pub(super) external: Vec<String>,
-    /// Names with no rule of their own, such as handle markers.
+    /// Names with no rule of their own, such as asset markers.
     pub(super) plain: Vec<String>,
     /// View-transition class token this contribution declares, when it declares one.
     pub(super) view_transition_token: Option<String>,

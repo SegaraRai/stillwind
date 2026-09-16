@@ -12,7 +12,7 @@ use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{HandleDefinition, ScopeDefinition, StyleInput, StyleVariant};
+use stillwind_ir::{RefDefinition, ScopeDefinition, StyleInput, StyleVariant};
 use stillwind_source::{Span, Spanned, normalized_module_path};
 
 use crate::state::MacroExtractor;
@@ -24,7 +24,7 @@ impl<'a> MacroExtractor<'a> {
     /// span so diagnostics and identity creation can point at it.
     pub(crate) fn collect_scope_definition(
         &mut self,
-        name: Spanned<String>,
+        binding: Spanned<String>,
         call: &CallExpression<'a>,
     ) -> Option<ScopeDefinition> {
         let label = match call.arguments.as_slice() {
@@ -50,7 +50,7 @@ impl<'a> MacroExtractor<'a> {
         };
         Some(ScopeDefinition {
             module_path: normalized_module_path(self.source.path()),
-            name,
+            binding,
             label,
             call_span: self.source_span(call.span),
         })
@@ -63,9 +63,9 @@ impl<'a> MacroExtractor<'a> {
     /// an arbitrary value.
     pub(crate) fn collect_ref_definition(
         &mut self,
-        name: Spanned<String>,
+        binding: Spanned<String>,
         call: &CallExpression<'a>,
-    ) -> Option<HandleDefinition> {
+    ) -> Option<RefDefinition> {
         let (scope, label) = match call.arguments.as_slice() {
             [] => (None, None),
             [argument] => match argument.as_expression() {
@@ -112,9 +112,9 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
-        Some(HandleDefinition {
+        Some(RefDefinition {
             module_path: normalized_module_path(self.source.path()),
-            name,
+            binding,
             label,
             scope,
             call_span: self.source_span(call.span),
@@ -165,7 +165,7 @@ impl<'a> MacroExtractor<'a> {
         if let Expression::StaticMemberExpression(member) = reference
             && member.property.name == "at"
         {
-            let Some(handles) = self.handle_references(&member.object) else {
+            let Some(refs) = self.ref_references(&member.object) else {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::UnidentifiedRefVariant,
                     self.source_span(member.object.span()),
@@ -179,19 +179,19 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 return None;
             }
-            for handle in &handles {
-                self.record_handle_use(
-                    handle,
+            for definition in &refs {
+                self.record_ref_use(
+                    definition,
                     "container-query",
                     self.source_span(expression.span()),
                 );
             }
             return Some(StyleVariant::Container {
-                handles,
+                refs,
                 query: prefix,
             });
         }
-        let Some(handles) = self.handle_references(reference) else {
+        let Some(refs) = self.ref_references(reference) else {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::UnidentifiedRefVariant,
                 self.source_span(reference.span()),
@@ -201,10 +201,10 @@ impl<'a> MacroExtractor<'a> {
         if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
             prefix.value.push(':');
         }
-        for handle in &handles {
-            self.record_handle_use(handle, "selector", self.source_span(expression.span()));
+        for definition in &refs {
+            self.record_ref_use(definition, "selector", self.source_span(expression.span()));
         }
-        Some(StyleVariant::Ref { handles, prefix })
+        Some(StyleVariant::Ref { refs, prefix })
     }
 
     /// Recognizes a scope or ref used as a `style()` argument.
@@ -212,7 +212,7 @@ impl<'a> MacroExtractor<'a> {
     /// Returns true when the expression was consumed as an attachment; a set of several
     /// candidates becomes an explicitly dynamic attachment rather than one of them
     /// being chosen.
-    pub(crate) fn collect_dynamic_handle_attachment(
+    pub(crate) fn collect_dynamic_ref_attachment(
         &mut self,
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
@@ -231,16 +231,16 @@ impl<'a> MacroExtractor<'a> {
             }
             return true;
         }
-        if let Some(handles) = self.handle_references(expression) {
-            for handle in &handles {
-                self.record_handle_use(handle, "ref", self.source_span(expression.span()));
+        if let Some(refs) = self.ref_references(expression) {
+            for definition in &refs {
+                self.record_ref_use(definition, "ref", self.source_span(expression.span()));
             }
-            if handles.len() == 1 {
-                inputs.push(StyleInput::HandleAttachment(handles[0].clone()));
+            if refs.len() == 1 {
+                inputs.push(StyleInput::RefAttachment(refs[0].clone()));
             } else {
-                inputs.push(StyleInput::DynamicHandleAttachment {
+                inputs.push(StyleInput::DynamicRefAttachment {
                     value: self.source_span(expression.span()),
-                    handles,
+                    refs,
                 });
             }
             return true;

@@ -349,15 +349,15 @@ fn local_motion_declaration_identity_follows_projection() {
     };
     assert_eq!(
         animation.identity.start,
-        mapped.animation_declarations[0].name.span.start.0
+        mapped.animation_declarations[0].binding.span.start.0
     );
     assert_eq!(
         animation.identity.end,
-        mapped.animation_declarations[0].name.span.end.0
+        mapped.animation_declarations[0].binding.span.end.0
     );
     assert_eq!(
         animation.local_declaration,
-        Some(mapped.animation_declarations[0].name.span)
+        Some(mapped.animation_declarations[0].binding.span)
     );
 }
 

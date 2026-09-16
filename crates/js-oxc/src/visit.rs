@@ -257,18 +257,18 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 self.source_span(identifier.span),
             );
             if let Some(definition) = self.collect_ref_definition(name, call) {
-                self.handle_symbols.insert(symbol_id, definition.clone());
+                self.ref_symbols.insert(symbol_id, definition.clone());
                 let scopes = definition.scope.as_ref().map(|scope| {
-                    SymbolicValue::exact(self.identity(AssetKind::Scope, &scope.name))
+                    SymbolicValue::exact(self.identity(AssetKind::Scope, &scope.binding))
                 });
                 self.local_values.insert(
                     symbol_id,
                     ExportedValue::Refs(vec![RefAlternative {
-                        reference: self.identity(AssetKind::Ref, &definition.name),
+                        reference: self.identity(AssetKind::Ref, &definition.binding),
                         permitted_scopes: scopes,
                     }]),
                 );
-                self.handle_definitions.push(definition);
+                self.ref_definitions.push(definition);
             }
         }
         if let (
@@ -287,7 +287,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 self.local_values.insert(
                     symbol_id,
                     ExportedValue::Scopes(SymbolicValue::exact(
-                        self.identity(AssetKind::Scope, &definition.name),
+                        self.identity(AssetKind::Scope, &definition.binding),
                     )),
                 );
                 self.scope_definitions.push(definition);
@@ -309,7 +309,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 self.local_values.insert(
                     symbol_id,
                     ExportedValue::Animations(SymbolicValue::exact(
-                        self.identity(AssetKind::Animation, &definition.name),
+                        self.identity(AssetKind::Animation, &definition.binding),
                     )),
                 );
                 self.animation_declarations.push(definition);
@@ -331,7 +331,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 self.local_values.insert(
                     symbol_id,
                     ExportedValue::ViewTransitions(SymbolicValue::exact(
-                        self.identity(AssetKind::ViewTransition, &definition.name),
+                        self.identity(AssetKind::ViewTransition, &definition.binding),
                     )),
                 );
                 self.view_transition_declarations.push(definition);

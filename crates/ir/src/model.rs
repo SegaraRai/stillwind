@@ -6,10 +6,10 @@
 //! declarations.
 //!
 //! Ordering is semantic and must survive any consumer. [`ModuleIr::style_calls`],
-//! [`ModuleIr::handle_definitions`], and the input entries inside one call stay in
-//! source order to preserve CSS and contribution precedence. Value expressions must
-//! satisfy the macro purity contract. Folding may reorder their evaluation and omit
-//! unused values while retaining guards for selected contributions.
+//! [`ModuleIr::ref_definitions`], and the input entries inside one call stay in source
+//! order to preserve CSS and contribution precedence. Value expressions must satisfy
+//! the macro purity contract. Folding may reorder their evaluation and omit unused
+//! values while retaining guards for selected contributions.
 
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +34,7 @@ pub struct ModuleIr {
     /// In source order. A call can emit a base unit plus conditional units, or no CSS.
     pub style_calls: Vec<StyleCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
-    pub handle_definitions: Vec<HandleDefinition>,
+    pub ref_definitions: Vec<RefDefinition>,
     /// In source order. Each entry is a `style.scope()` declaration.
     pub scope_definitions: Vec<ScopeDefinition>,
     /// In source order. Each entry is a `style.animation()` declaration.
@@ -73,7 +73,7 @@ impl ModuleIr {
                 module_css: Vec::new(),
             },
             style_calls: Vec::new(),
-            handle_definitions: Vec::new(),
+            ref_definitions: Vec::new(),
             scope_definitions: Vec::new(),
             animation_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
@@ -139,17 +139,17 @@ pub struct AttributeEntry {
 
 /// A `style.ref()` declaration serving as an identity and a prop producer.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct HandleDefinition {
+pub struct RefDefinition {
     /// Normalized module path of the declaring module.
     pub module_path: String,
-    /// Lexical binding name of the ref.
-    pub name: Spanned<String>,
+    /// Lexical binding of the ref; its span seeds the declaration identity.
+    pub binding: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
     /// The single scope identity passed to `style.ref()`, resolved statically; `None`
     /// for `style.ref()` and `style.ref(name)`.
     pub scope: Option<ScopeDefinition>,
-    /// Span of the producing call, used for replacement; identity uses `name.span`.
+    /// Span of the producing call, used for replacement.
     pub call_span: Span,
 }
 
@@ -159,20 +159,20 @@ pub struct HandleDefinition {
 pub struct ScopeDefinition {
     /// Normalized module path of the declaring module.
     pub module_path: String,
-    /// Lexical binding name of the scope.
-    pub name: Spanned<String>,
+    /// Lexical binding of the scope; its span seeds the declaration identity.
+    pub binding: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
-    /// Span of the producing call, used for replacement; identity uses `name.span`.
+    /// Span of the producing call, used for replacement.
     pub call_span: Span,
 }
 
 /// A `style.animation()` declaration: named keyframes plus their identity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AnimationDefinition {
-    /// Local binding name and its declaration span, used for identity.
-    pub name: Spanned<String>,
-    /// Span of the producing call, used for replacement; identity uses `name.span`.
+    /// Local binding; its span seeds the declaration identity.
+    pub binding: Spanned<String>,
+    /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Default frames and complete conditional replacements.
     pub body: AnimationBody,
@@ -209,17 +209,17 @@ pub struct AnimationFrame {
 /// generated class; the optional key stays a user expression.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ViewTransitionDefinition {
-    /// Local binding name and its declaration span. Uses share the declaration identity.
-    pub name: Spanned<String>,
-    /// Span of the producing call, used for replacement; identity uses `name.span`.
+    /// Local binding; its span seeds the declaration identity. Every use shares it.
+    pub binding: Spanned<String>,
+    /// Span of the producing call, used for replacement.
     pub call_span: Span,
-    /// Utilities for the `::view-transition-group` pseudo-element.
+    /// Option list for the `::view-transition-group` pseudo-element.
     pub group: Option<Spanned<String>>,
-    /// Utilities for the `::view-transition-old` pseudo-element.
+    /// Utility list for the `::view-transition-old` pseudo-element.
     pub old: Option<Spanned<String>>,
-    /// Utilities for the `::view-transition-new` pseudo-element.
+    /// Utility list for the `::view-transition-new` pseudo-element.
     pub new: Option<Spanned<String>>,
-    /// Utilities for the `::view-transition-image-pair` pseudo-element.
+    /// Utility list for the `::view-transition-image-pair` pseudo-element.
     pub image_pair: Option<Spanned<String>>,
 }
 
@@ -237,7 +237,7 @@ pub struct AssetReference {
 
 /// The CSS role a ref plays at a use site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum HandleProjection {
+pub enum RefProjection {
     /// `ref.anchor`: the element is the anchor for positioning.
     Anchor,
     /// `ref.position`: the element is positioned against an anchor.
@@ -253,17 +253,18 @@ pub enum HandleProjection {
 pub enum StyleVariant {
     /// A normal variant prefix, including its final separator.
     Prefix(Spanned<String>),
-    /// A named-container query over finite ref candidates.
+    /// A named-container query over finite ref candidates, written as `ref.at(query)`.
     Container {
         /// Each candidate supplies a container identity, independently of the subject selector.
-        handles: Vec<HandleDefinition>,
+        refs: Vec<RefDefinition>,
         /// Literal CSS query condition, without the generated container name.
         query: Spanned<String>,
     },
-    /// Correlated ref/scope alternatives, with a normalized variant prefix.
+    /// Correlated ref/scope alternatives, written as `ref()`, `ref("variant:")`, or a
+    /// ref tag, with a normalized variant prefix.
     Ref {
         /// The refs this variant may refer to at this use site.
-        handles: Vec<HandleDefinition>,
+        refs: Vec<RefDefinition>,
         /// The variant prefix applied to the referenced element, ending in its
         /// separator; the surrounding variants apply to the target instead.
         prefix: Spanned<String>,
@@ -287,7 +288,7 @@ pub enum StyleInput {
     /// `style(scope)`: mark the element as a member of a scope.
     ScopeAttachment(ScopeDefinition),
     /// `style(ref)`: attach a ref's props and marker class to the element.
-    HandleAttachment(HandleDefinition),
+    RefAttachment(RefDefinition),
     /// A scope value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.
     DynamicScopeAttachment {
@@ -298,11 +299,11 @@ pub enum StyleInput {
     },
     /// A ref value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.
-    DynamicHandleAttachment {
+    DynamicRefAttachment {
         /// The runtime ref value.
         value: Span,
         /// Every statically reachable alternative, used for CSS planning.
-        handles: Vec<HandleDefinition>,
+        refs: Vec<RefDefinition>,
     },
     /// `style(transition)` with a statically known transition.
     ViewTransitionUse {
@@ -407,8 +408,8 @@ pub enum ClassExpression {
         /// Source order is preserved; attributes and classes may interleave.
         entries: Vec<GroupEntry>,
     },
-    /// External class values normalized into clsx arguments under the macro contract.
-    External {
+    /// The `class` key's value, normalized into clsx arguments under the macro contract.
+    ClassValue {
         /// Whole original value, retained as a contribution-order and helper-import anchor.
         span: Span,
         /// Original expression occurrences in class order. Array literals without
@@ -417,20 +418,20 @@ pub enum ClassExpression {
         arguments: Vec<Span>,
     },
     /// `ref.anchor` and the other ref projections.
-    HandleProjection {
+    RefProjection {
         /// The ref this projection applies to.
-        handle: HandleDefinition,
+        definition: RefDefinition,
         /// The CSS role the referenced element plays for this call.
-        projection: HandleProjection,
+        projection: RefProjection,
     },
     /// A ref projection whose ref is only known at runtime.
-    DynamicHandleProjection {
+    DynamicRefProjection {
         /// The runtime ref value.
         value: Span,
         /// Every statically reachable alternative, used for CSS planning.
-        handles: Vec<HandleDefinition>,
+        refs: Vec<RefDefinition>,
         /// The CSS role the projected element plays in each alternative.
-        projection: HandleProjection,
+        projection: RefProjection,
     },
     /// `style(animation("options"))` with a statically known animation.
     AnimationUse {

@@ -10,7 +10,7 @@
 //! nothing is not an error: the caller reports the unresolved candidate. Two
 //! compatibility helpers live here because they are decisions about Tailwind spellings
 //! rather than about evaluation: relational marker classes and the relationship-pattern
-//! query used by handle APIs.
+//! query used by ref APIs.
 
 use cssparser::{Parser, Token};
 
@@ -184,11 +184,11 @@ fn decode_variant_template(value: &str) -> String {
 }
 
 /// Whether a Tailwind candidate uses a relationship primitive for which projects may
-/// prefer Stillwind's typed handle API.
+/// prefer Stillwind's typed ref API.
 ///
 /// The answer is about the spelling, not about resolution: a candidate matches when its
 /// utility name or one of its variants matches an authored relationship pattern, or
-/// when it uses Stillwind's `@`-prefixed handle syntax. Projects use this to report a
+/// when it uses Stillwind's `@`-prefixed ref syntax. Projects use this to report a
 /// compatibility path rather than to change emitted CSS.
 #[must_use]
 pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool {

@@ -31,15 +31,15 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
             _ => panic!("class expression"),
         };
         let ClassExpression::Variant {
-            variant: StyleVariant::Ref { handles, prefix },
+            variant: StyleVariant::Ref { refs, prefix },
             ..
         } = wrapper
         else {
             panic!("ref variant")
         };
         assert!(prefix.value.is_empty());
-        assert_eq!(handles.len(), 1);
-        assert_eq!(handles[0].name.value, "trigger");
+        assert_eq!(refs.len(), 1);
+        assert_eq!(refs[0].binding.value, "trigger");
         assert_eq!(source.slice(prefix.span).unwrap(), "trigger()");
     }
 }
@@ -71,15 +71,15 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     };
     assert_eq!(source.slice(prefix.span).unwrap(), "md:");
     let ClassExpression::Variant {
-        variant: StyleVariant::Ref { handles, prefix },
+        variant: StyleVariant::Ref { refs, prefix },
         inputs: nested,
     } = &nested[0]
     else {
         panic!("ref variant")
     };
     assert_eq!(source.slice(prefix.span).unwrap(), "hover:");
-    assert_eq!(handles.len(), 1);
-    assert_eq!(handles[0].name.value, "trigger");
+    assert_eq!(refs.len(), 1);
+    assert_eq!(refs[0].binding.value, "trigger");
     let ClassExpression::Utilities(utility) = &nested[0] else {
         panic!("utility")
     };
@@ -101,7 +101,7 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     let ClassExpression::Variant {
         variant:
             StyleVariant::Ref {
-                handles: moved,
+                refs: moved,
                 prefix: moved_prefix,
             },
         ..
@@ -111,8 +111,8 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     };
     assert_eq!(moved_prefix.span.start.0, prefix.span.start.0 + 10);
     assert_eq!(
-        moved[0].name.span.start.0,
-        handles[0].name.span.start.0 + 10
+        moved[0].binding.span.start.0,
+        refs[0].binding.span.start.0 + 10
     );
 }
 

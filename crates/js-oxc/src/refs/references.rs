@@ -11,7 +11,7 @@
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
-use stillwind_ir::{HandleDefinition, ScopeDefinition};
+use stillwind_ir::{RefDefinition, ScopeDefinition};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, RefAlternative, SymbolicValue};
 use stillwind_source::{Span, Spanned};
 
@@ -22,55 +22,52 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// Records a type probe for non-literal expressions, so the host checker can answer
     /// on a later pass when local analysis cannot.
-    pub(crate) fn handle_references(
-        &self,
-        expression: &Expression<'a>,
-    ) -> Option<Vec<HandleDefinition>> {
+    pub(crate) fn ref_references(&self, expression: &Expression<'a>) -> Option<Vec<RefDefinition>> {
         let span = expression.span();
         self.record_type_probe(expression);
         if let Some(ExportedValue::Refs(alternatives)) =
             self.type_facts.get(&(span.start, span.end))
         {
-            return self.handles_from_alternatives(alternatives);
+            return self.refs_from_alternatives(alternatives);
         }
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        if let Some(handle) = self.handle_symbols.get(&symbol_id) {
-            return Some(vec![handle.clone()]);
+        if let Some(definition) = self.ref_symbols.get(&symbol_id) {
+            return Some(vec![definition.clone()]);
         }
         let ExportedValue::Refs(alternatives) = self.local_values.get(&symbol_id)? else {
             return None;
         };
-        self.handles_from_alternatives(alternatives)
+        self.refs_from_alternatives(alternatives)
     }
 
-    /// Expands correlated alternatives into the handle definitions they denote.
+    /// Expands correlated alternatives into the ref definitions they denote.
     ///
     /// Each alternative keeps its own permitted scope: an alternative with a finite
-    /// scope set expands to one handle per scope, while an alternative whose scope set
-    /// is a universe yields `None`, because no single scope could be chosen without
+    /// scope set expands to one definition per scope, while an alternative whose scope
+    /// set is a universe yields `None`, because no single scope could be chosen without
     /// changing the selector's meaning.
-    pub(crate) fn handles_from_alternatives(
+    pub(crate) fn refs_from_alternatives(
         &self,
         alternatives: &[RefAlternative],
-    ) -> Option<Vec<HandleDefinition>> {
-        let mut handles = Vec::new();
+    ) -> Option<Vec<RefDefinition>> {
+        let mut refs = Vec::new();
         for alternative in alternatives {
             match &alternative.permitted_scopes {
-                None => handles.push(self.imported_ref(alternative)?),
+                None => refs.push(self.imported_ref(alternative)?),
                 Some(scopes) => {
                     for scope in scopes.finite_candidates()? {
                         let mut alternative = alternative.clone();
                         alternative.permitted_scopes = Some(SymbolicValue::exact(scope.clone()));
-                        handles.push(self.imported_ref(&alternative)?);
+                        refs.push(self.imported_ref(&alternative)?);
                     }
                 }
             }
         }
-        Some(handles)
+        Some(refs)
     }
 
     /// Resolves an expression to exactly one scope, or `None`.
@@ -126,7 +123,7 @@ impl<'a> MacroExtractor<'a> {
         if let Some(scope) = self
             .scope_definitions
             .iter()
-            .find(|scope| self.identity(AssetKind::Scope, &scope.name) == *identity)
+            .find(|scope| self.identity(AssetKind::Scope, &scope.binding) == *identity)
         {
             return scope.clone();
         }
@@ -134,7 +131,7 @@ impl<'a> MacroExtractor<'a> {
         let metadata = self.imported_assets.get(identity);
         ScopeDefinition {
             module_path: identity.module_path.clone(),
-            name: Spanned::new(identity.binding_name.clone(), span),
+            binding: Spanned::new(identity.binding_name.clone(), span),
             label: metadata
                 .and_then(|metadata| metadata.label.clone())
                 .map(|label| Spanned::new(label, span)),
@@ -145,8 +142,8 @@ impl<'a> MacroExtractor<'a> {
     /// Rebuilds a ref definition from a correlated alternative.
     ///
     /// Returns `None` when the alternative's permitted scopes are not exactly one
-    /// finite candidate, because a handle definition carries at most one scope.
-    pub(crate) fn imported_ref(&self, alternative: &RefAlternative) -> Option<HandleDefinition> {
+    /// finite candidate, because a ref definition carries at most one scope.
+    pub(crate) fn imported_ref(&self, alternative: &RefAlternative) -> Option<RefDefinition> {
         let span = Span::new(
             self.source.id(),
             alternative.reference.start,
@@ -164,13 +161,15 @@ impl<'a> MacroExtractor<'a> {
             }
         };
         let mut definition = self
-            .handle_definitions
+            .ref_definitions
             .iter()
-            .find(|handle| self.identity(AssetKind::Ref, &handle.name) == alternative.reference)
+            .find(|definition| {
+                self.identity(AssetKind::Ref, &definition.binding) == alternative.reference
+            })
             .cloned()
-            .unwrap_or_else(|| HandleDefinition {
+            .unwrap_or_else(|| RefDefinition {
                 module_path: alternative.reference.module_path.clone(),
-                name: Spanned::new(alternative.reference.binding_name.clone(), span),
+                binding: Spanned::new(alternative.reference.binding_name.clone(), span),
                 label: metadata
                     .and_then(|metadata| metadata.label.clone())
                     .map(|label| Spanned::new(label, span)),

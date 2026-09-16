@@ -16,7 +16,7 @@ pub fn builtin_definitions(theme: &ThemeIndex) -> Arc<BuiltinDefinitions> {
     Arc::clone(&theme.registry)
 }
 
-/// Borrows the same definition set without cloning the handle.
+/// Borrows the same definition set without cloning the `Arc`.
 pub(crate) fn builtin_utilities(theme: &ThemeIndex) -> &BuiltinDefinitions {
     &theme.registry
 }

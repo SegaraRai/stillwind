@@ -13,16 +13,14 @@ use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{
-    ClassExpression, HandleDefinition, HandleProjection, ScopeDefinition, StyleInput,
-};
+use stillwind_ir::{ClassExpression, RefDefinition, RefProjection, ScopeDefinition, StyleInput};
 use stillwind_source::Span;
 
 use crate::state::MacroExtractor;
 
 /// One recorded ref use.
 #[derive(Clone, Debug)]
-pub(crate) struct HandleUse {
+pub(crate) struct RefUse {
     /// Marker name of the ref that was used, as written at its declaration.
     pub(crate) name: String,
     /// Use kind: `ref`, `selector`, `anchor`, `position`, `scope`, `container` or `container-query`.
@@ -49,16 +47,16 @@ impl<'a> MacroExtractor<'a> {
     /// `None` when the expression is not a projection so callers can try other forms.
     /// Arguments must be literal, because the projection becomes generated CSS rather
     /// than a runtime value.
-    pub(crate) fn collect_handle_projection(
+    pub(crate) fn collect_ref_projection(
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
-        let (handle_expression, projection) = match expression {
+        let (ref_expression, projection) = match expression {
             Expression::StaticMemberExpression(member) => {
                 let projection = match member.property.name.as_str() {
-                    "anchor" => HandleProjection::Anchor,
-                    "position" => HandleProjection::Position,
-                    "anchorScope" => HandleProjection::Scope,
+                    "anchor" => RefProjection::Anchor,
+                    "position" => RefProjection::Position,
+                    "anchorScope" => RefProjection::Scope,
                     _ => return None,
                 };
                 (&member.object, projection)
@@ -86,12 +84,12 @@ impl<'a> MacroExtractor<'a> {
                 };
                 (
                     &member.object,
-                    HandleProjection::Container(self.string_literal(value)),
+                    RefProjection::Container(self.string_literal(value)),
                 )
             }
             _ => return None,
         };
-        let Some(handles) = self.handle_references(handle_expression) else {
+        let Some(refs) = self.ref_references(ref_expression) else {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::RefProjectionFactsRequired,
                 self.source_span(expression.span()),
@@ -99,27 +97,29 @@ impl<'a> MacroExtractor<'a> {
             return None;
         };
         let projection_name = match &projection {
-            HandleProjection::Anchor => "anchor",
-            HandleProjection::Position => "position",
-            HandleProjection::Scope => "scope",
-            HandleProjection::Container(_) => "container",
+            RefProjection::Anchor => "anchor",
+            RefProjection::Position => "position",
+            RefProjection::Scope => "scope",
+            RefProjection::Container(_) => "container",
         };
-        for handle in &handles {
-            self.record_handle_use(handle, projection_name, self.source_span(expression.span()));
+        for definition in &refs {
+            self.record_ref_use(
+                definition,
+                projection_name,
+                self.source_span(expression.span()),
+            );
         }
-        if handles.len() == 1 {
-            Some(StyleInput::Class(ClassExpression::HandleProjection {
-                handle: handles[0].clone(),
+        if refs.len() == 1 {
+            Some(StyleInput::Class(ClassExpression::RefProjection {
+                definition: refs[0].clone(),
                 projection,
             }))
         } else {
-            Some(StyleInput::Class(
-                ClassExpression::DynamicHandleProjection {
-                    value: self.source_span(expression.span()),
-                    handles,
-                    projection,
-                },
-            ))
+            Some(StyleInput::Class(ClassExpression::DynamicRefProjection {
+                value: self.source_span(expression.span()),
+                refs,
+                projection,
+            }))
         }
     }
 
@@ -128,14 +128,14 @@ impl<'a> MacroExtractor<'a> {
     /// `projection` is the use kind that `validation` reads and `span` is the whole
     /// expression the user wrote. The JSX path is recorded only when the use is inside
     /// a JSX tree, because the ancestry rules cannot be checked otherwise.
-    pub(crate) fn record_handle_use(
+    pub(crate) fn record_ref_use(
         &mut self,
-        handle: &HandleDefinition,
+        definition: &RefDefinition,
         projection: &'static str,
         span: Span,
     ) {
-        self.handle_uses.push(HandleUse {
-            name: handle.name.value.clone(),
+        self.ref_uses.push(RefUse {
+            name: definition.binding.value.clone(),
             projection,
             span,
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
@@ -145,7 +145,7 @@ impl<'a> MacroExtractor<'a> {
     /// Records one scope use, which makes the scope a provider for its JSX path.
     pub(crate) fn record_scope_use(&mut self, scope: &ScopeDefinition) {
         self.scope_uses.push(ScopeUse {
-            name: scope.name.value.clone(),
+            name: scope.binding.value.clone(),
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
     }

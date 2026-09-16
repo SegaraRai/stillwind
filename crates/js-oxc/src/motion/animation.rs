@@ -146,7 +146,7 @@ impl<'a> MacroExtractor<'a> {
     /// frame is rejected so no identity is created for it.
     pub(crate) fn collect_animation_definition(
         &mut self,
-        name: Spanned<String>,
+        binding: Spanned<String>,
         call: &CallExpression<'a>,
     ) -> Option<AnimationDefinition> {
         if call.arguments.len() != 1 {
@@ -165,7 +165,7 @@ impl<'a> MacroExtractor<'a> {
         };
         let body = self.animation_body(object)?;
         Some(AnimationDefinition {
-            name,
+            binding,
             call_span: self.source_span(call.span),
             body,
         })

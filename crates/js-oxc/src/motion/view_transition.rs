@@ -203,7 +203,7 @@ impl<'a> MacroExtractor<'a> {
     /// needs at least one of the four to be usable.
     pub(crate) fn collect_view_transition_definition(
         &mut self,
-        name: Spanned<String>,
+        binding: Spanned<String>,
         call: &CallExpression<'a>,
     ) -> Option<ViewTransitionDefinition> {
         if call.arguments.len() != 1 {
@@ -273,7 +273,7 @@ impl<'a> MacroExtractor<'a> {
             return None;
         }
         Some(ViewTransitionDefinition {
-            name,
+            binding,
             call_span: self.source_span(call.span),
             group,
             old,

@@ -34,9 +34,9 @@ pub enum CompileErrorKind {
     /// A style input array contains an omitted element.
     #[error("style() arrays cannot contain empty slots")]
     StyleArrayHole,
-    /// A handle cannot be resolved locally without host checker facts.
-    #[error("non-local or conditional handles require TypeScript checker facts")]
-    HandleFactsRequired,
+    /// A ref cannot be resolved locally without host checker facts.
+    #[error("non-local or conditional refs require TypeScript checker facts")]
+    RefFactsRequired,
     /// An expression is outside the supported static style-input forms.
     #[error(
         "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers"
@@ -597,7 +597,7 @@ impl CompileErrorKind {
             | Self::StyleArrayHole
             | Self::InvalidStyleInput
             | Self::StyleArgumentSpread => "SHJS002",
-            Self::HandleFactsRequired
+            Self::RefFactsRequired
             | Self::UnidentifiedRefVariant
             | Self::RefProjectionFactsRequired => "SHTS001",
             Self::AttributeSpread

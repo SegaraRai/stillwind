@@ -34,14 +34,14 @@ pub(in crate::compiler) fn emit_animation_definition(
         &mut definitions,
     );
     definitions.sort_by(|(left, _), (right, _)| left.compare_order(right, theme));
-    let name = match identifiers.animation_name(&named_declaration(source.path(), &animation.name))
-    {
-        Ok(name) => name,
-        Err(failure) => {
-            diagnostics.push(CompileError::new(failure, animation.call_span));
-            return;
-        }
-    };
+    let name =
+        match identifiers.animation_name(&named_declaration(source.path(), &animation.binding)) {
+            Ok(name) => name,
+            Err(failure) => {
+                diagnostics.push(CompileError::new(failure, animation.call_span));
+                return;
+            }
+        };
     contribution.keyframes = true;
     for (plan, frames) in definitions {
         let mut frame_contribution = CssContribution::default();
