@@ -9,9 +9,9 @@
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    ClassContext, CompilerOptions, DeclarationContext, GeneratedName, GeneratedRule,
-    IdentifierGenerator, Identifiers, LocatorContext, ModuleCssArtifact, RuleKey,
-    StylesheetPlacement, StylesheetRenderer,
+    AnchorName, ClassContext, CompilerOptions, DeclarationContext, GeneratedName, GeneratedRule,
+    IdentifierGenerator, Identifiers, KeyframesName, LocatorContext, ModuleCssArtifact, RefMarker,
+    RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
@@ -376,8 +376,10 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
         &self,
         _context: &DeclarationContext,
         _hash: &str,
-    ) -> Result<GeneratedName, String> {
-        Ok(GeneratedName::body("authored"))
+    ) -> Result<GeneratedName<KeyframesName>, String> {
+        Ok(GeneratedName::provided(
+            KeyframesName::new("authored").expect("canonical test name"),
+        ))
     }
 }
 
@@ -432,12 +434,20 @@ impl IdentifierGenerator for FixedBodyGenerator {
         &self,
         _context: &DeclarationContext,
         _hash: &str,
-    ) -> Result<GeneratedName, String> {
-        Ok(GeneratedName::body("shared"))
+    ) -> Result<GeneratedName<RefMarker>, String> {
+        Ok(GeneratedName::provided(
+            RefMarker::new("shared").expect("canonical test name"),
+        ))
     }
 
-    fn anchor_name(&self, _context: &LocatorContext, _hash: &str) -> Result<GeneratedName, String> {
-        Ok(GeneratedName::body("shared"))
+    fn anchor_name(
+        &self,
+        _context: &LocatorContext,
+        _hash: &str,
+    ) -> Result<GeneratedName<AnchorName>, String> {
+        Ok(GeneratedName::provided(
+            AnchorName::new("shared").expect("canonical test name"),
+        ))
     }
 }
 
@@ -484,11 +494,15 @@ fn distinct_pools_may_publish_the_same_spelling() {
 struct FixedClassGenerator;
 
 impl IdentifierGenerator for FixedClassGenerator {
-    fn utility_class(&self, context: &ClassContext, _hash: &str) -> Result<GeneratedName, String> {
-        Ok(GeneratedName::body(format!(
-            "fixed{}",
-            context.branch.len()
-        )))
+    fn utility_class(
+        &self,
+        context: &ClassContext,
+        _hash: &str,
+    ) -> Result<GeneratedName<UtilityClass>, String> {
+        Ok(GeneratedName::provided(
+            UtilityClass::new(&format!("fixed{}", context.branch.len()))
+                .expect("canonical test name"),
+        ))
     }
 }
 

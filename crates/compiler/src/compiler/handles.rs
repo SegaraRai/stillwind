@@ -14,6 +14,7 @@
 
 use std::collections::BTreeSet;
 
+use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{HandleDefinition, HandleProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Spanned};
@@ -22,7 +23,7 @@ use super::symbols::anchor_name;
 use super::symbols::{GeneratedSymbol, projection_symbol};
 use super::symbols::{identity_input_parts, ref_context};
 use crate::identifier::IdentifierPool;
-use crate::identifier::{IdentifierContext, custom_ident};
+use crate::identifiers::IdentifierContext;
 
 /// The declaration that makes a projection usable on the element itself, and the
 /// reportable symbol for the name it writes.
@@ -40,7 +41,7 @@ pub(super) fn render_handle_projection(
     handle: &HandleDefinition,
     projection: &HandleProjection,
     source_path: &str,
-) -> Result<(String, Option<GeneratedSymbol>), stillwind_diagnostics::CompileErrorKind> {
+) -> Result<(String, Option<GeneratedSymbol>), CompileErrorKind> {
     let name = anchor_name(context, handle, Some(projection_name(projection)))?;
     let symbol = |name: &str, pool: IdentifierPool, kind: &str| {
         Some(projection_symbol(
@@ -52,24 +53,23 @@ pub(super) fn render_handle_projection(
             handle.call_span,
         ))
     };
-    let name = custom_ident(&name);
     Ok(match projection {
         HandleProjection::Anchor => (
-            format!("anchor-name:{name};"),
-            symbol(&name, IdentifierPool::AnchorName, "anchor"),
+            format!("anchor-name:{};", name.custom_ident()),
+            symbol(name.as_str(), IdentifierPool::AnchorName, "anchor"),
         ),
-        HandleProjection::Position => (format!("position-anchor:{name};"), None),
-        HandleProjection::Scope => (format!("anchor-scope:{name};"), None),
+        HandleProjection::Position => (format!("position-anchor:{};", name.custom_ident()), None),
+        HandleProjection::Scope => (format!("anchor-scope:{};", name.custom_ident()), None),
         HandleProjection::Container(kind) => {
             let container = context.container_name(&ref_context(handle, Some("container")))?;
             (
                 format!(
                     "container-name:{};container-type:{};",
-                    custom_ident(&container),
+                    container.custom_ident(),
                     kind.value
                 ),
                 Some(projection_symbol(
-                    &container,
+                    container.as_str(),
                     identity_input_parts(&ref_context(handle, None)),
                     IdentifierPool::ContainerName,
                     "container",
@@ -177,14 +177,15 @@ mod tests {
 
     use super::*;
     use crate::compiler::symbols::{ref_marker_name, scope_marker_name};
-    use crate::identifier::{IdentifierContext, IdentifierPool, marker_label, selector};
+    use crate::identifier::IdentifierPool;
+    use crate::identifiers::{IdentifierContext, Label, RefMarker};
 
     #[test]
     fn labels_preserve_punctuation_and_replace_whitespace() {
-        assert_eq!(marker_label("項目-🧭"), "項目-🧭");
-        assert_eq!(marker_label("a b:c/d_"), "a_b:c/d_");
-        assert_eq!(marker_label("a\t\nb"), "a__b");
-        assert_eq!(selector("a:b/c"), r".a\:b\/c");
+        assert_eq!(Label::new("項目-🧭").unwrap().as_str(), "項目-🧭");
+        assert_eq!(Label::new("a b:c/d_").unwrap().as_str(), "a_b:c/d_");
+        assert_eq!(Label::new("a\t\nb").unwrap().as_str(), "a__b");
+        assert_eq!(RefMarker::new("a:b/c").unwrap().selector(), r".a\:b\/c");
     }
 
     #[test]
@@ -263,7 +264,7 @@ mod tests {
             call_span: name.span,
         });
         let scope = scope_marker_name(&identifiers, handle.scope.as_ref().unwrap()).unwrap();
-        assert!(scope.starts_with("s_"), "{scope}");
+        assert!(scope.as_str().starts_with("s_"), "{scope}");
         handle.label = Some(name);
         // The built-in name hashes the declaration alone, so a label cannot move it:
         // every position the marker is written to resolves the same declaration.

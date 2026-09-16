@@ -36,6 +36,7 @@ mod compiled_module;
 mod compiler;
 mod generated;
 mod identifier;
+mod identifiers;
 mod imports;
 mod module_compiler;
 mod module_css;
@@ -53,12 +54,15 @@ pub use compiled_module::{
 pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
 };
-pub use identifier::{
-    AnchorName, ClassContext, ClassName, ContainerName, CustomPropertyName, DeclarationContext,
-    GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierKind,
-    IdentifierMode, IdentifierPool, Identifiers, KeyframesName, LayerContext, LayerName,
-    LocatorContext, NamePosition, NameRequest, RefMarkerName, RejectedIdentifier, RejectedNames,
-    ScopeMarkerName, ViewTransitionClassName, ViewTransitionName,
+pub use identifier::{IdentifierKind, IdentifierMode, IdentifierPool};
+pub use identifiers::{
+    AnchorName, ClassContext, ClassName, ContainerName, ContainerNameRequest, CustomPropertyName,
+    CustomPropertyNameRequest, DeclarationContext, GeneratedName, GeneratorSet, IdentifierContext,
+    IdentifierGenerator, IdentifierNameError, Identifiers, KeyframesName, KeyframesNameRequest,
+    Label, LayerContext, LayerName, LayerNameRequest, LocatorContext, NameRequest, RefMarker,
+    RefMarkerName, RejectedIdentifier, RejectedNames, ScopeMarker, ScopeMarkerName, Token,
+    UtilityClass, ViewTransitionClass, ViewTransitionClassRequest, ViewTransitionName,
+    ViewTransitionNameRequest,
 };
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;

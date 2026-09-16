@@ -21,7 +21,7 @@ use stillwind_syntax::{Candidate, parse_candidate};
 
 use crate::candidate::CandidateResolver;
 use crate::compiler::{emit_utility_rules, resolve_utility_targets, unresolved_utility_kind};
-use crate::identifier::{ClassContext, IdentifierContext};
+use crate::identifiers::{ClassContext, IdentifierContext};
 use crate::{CompilerOptions, GeneratedRule, ModuleCssArtifact};
 
 /// Everything one candidate produces for an editor.
@@ -153,6 +153,7 @@ impl DesignSystemQuery {
                 call: 0,
                 branch: format!("{candidate}\0"),
             })
+            .map(|name| name.as_str().to_owned())
             .unwrap_or_default();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();

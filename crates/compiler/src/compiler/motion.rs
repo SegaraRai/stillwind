@@ -12,15 +12,14 @@
 use stillwind_design_system::{ThemeIndex, UtilityOrder, resolve_animation_option};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AssetReference, ViewTransitionDefinition};
-use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Spanned};
 
 use super::CssContribution;
 use super::lexer::lex_utilities;
-use super::symbols::{motion_name, motion_symbol_name};
+use super::symbols::{identity_declaration, named_declaration};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
-use crate::identifier::{IdentifierContext, custom_ident, selector};
+use crate::identifiers::IdentifierContext;
 
 mod animation;
 
@@ -39,8 +38,8 @@ pub(super) fn resolve_animation_use(
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        match motion_symbol_name(identifiers, &animation.identity, AssetKind::Animation) {
-            Ok(name) => custom_ident(&name),
+        match identifiers.animation_name(&identity_declaration(&animation.identity)) {
+            Ok(name) => name.custom_ident(),
             Err(failure) => {
                 diagnostics.push(CompileError::new(failure, options.span));
                 String::new()
@@ -101,19 +100,16 @@ pub(super) fn emit_view_transition_definition(
     diagnostics: &mut Vec<CompileError>,
 ) {
     let output = &mut contribution.css;
-    let name = match motion_name(
-        identifiers,
-        source.path(),
-        AssetKind::ViewTransition,
-        &transition.name,
-    ) {
+    let name = match identifiers
+        .view_transition_name(&named_declaration(source.path(), &transition.name))
+    {
         Ok(name) => name,
         Err(failure) => {
             diagnostics.push(CompileError::new(failure, transition.call_span));
             return;
         }
     };
-    let name = selector(&name);
+    let name = name.selector();
     if let Some(group) = &transition.group {
         output.push_str("::view-transition-group(");
         output.push_str(&name);

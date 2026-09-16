@@ -17,7 +17,7 @@ use super::props::{GeneratedClass, GuardStep};
 use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;
-use crate::identifier::{ClassContext, IdentifierContext};
+use crate::identifiers::{ClassContext, IdentifierContext};
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
 /// Unconditional class contributions, accumulated in source order before publication.
@@ -201,17 +201,17 @@ impl<'a> ClassUnits<'a> {
         let mut contribution = Vec::new();
         if self
             .emitted_utility_classes
-            .insert((name.clone(), identity.to_owned()))
+            .insert((name.as_str().to_owned(), identity.to_owned()))
         {
-            emit_utility_rules(&mut contribution, &name, definitions, self.theme);
+            emit_utility_rules(&mut contribution, name.as_str(), definitions, self.theme);
             self.symbols.push(generated_class_symbol(
                 self.source,
-                &name,
+                name.as_str(),
                 identity,
                 self.call_span,
             ));
         }
-        Ok((name, contribution))
+        Ok((name.as_str().to_owned(), contribution))
     }
 
     /// Publishes one conditional unit's rules, in traversal order.

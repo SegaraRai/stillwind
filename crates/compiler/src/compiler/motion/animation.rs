@@ -3,17 +3,16 @@
 use stillwind_design_system::{ThemeIndex, VariantApplication};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AnimationBody, AnimationDefinition, AnimationFrame, StyleVariant};
-use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::super::CssContribution;
 use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
-use super::super::symbols::motion_name;
+use super::super::symbols::named_declaration;
 use super::super::utilities::declaration_order::combine_declarations_for_theme;
 use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
-use crate::identifier::{IdentifierContext, custom_ident};
+use crate::identifiers::IdentifierContext;
 
 /// Emits default keyframes first and complete replacements in canonical variant order.
 /// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
@@ -35,12 +34,8 @@ pub(in crate::compiler) fn emit_animation_definition(
         &mut definitions,
     );
     definitions.sort_by(|(left, _), (right, _)| left.compare_order(right, theme));
-    let name = match motion_name(
-        identifiers,
-        source.path(),
-        AssetKind::Animation,
-        &animation.name,
-    ) {
+    let name = match identifiers.animation_name(&named_declaration(source.path(), &animation.name))
+    {
         Ok(name) => name,
         Err(failure) => {
             diagnostics.push(CompileError::new(failure, animation.call_span));
@@ -53,7 +48,7 @@ pub(in crate::compiler) fn emit_animation_definition(
         emit_frames(&mut frame_contribution, frames, theme, diagnostics);
         let rule = format!(
             "@keyframes {}{{{}}}",
-            custom_ident(&name),
+            name.custom_ident(),
             frame_contribution.css
         );
         contribution

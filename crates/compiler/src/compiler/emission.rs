@@ -33,7 +33,7 @@ use super::symbols::{
 };
 use super::utilities::resolve::{CompiledUtility, view_transition_utility};
 use crate::generated::{Code, code, js_string};
-use crate::identifier::IdentifierContext;
+use crate::identifiers::IdentifierContext;
 use crate::runtime::RuntimeHelper;
 use crate::{CompilerOptions, GeneratedSymbol};
 
@@ -183,6 +183,7 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     }
                 };
+                let marker = marker.as_str().to_owned();
                 if !self.units.base.names.contains(&marker) {
                     self.units.base.names.push(marker);
                 }
@@ -198,6 +199,7 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     }
                 };
+                let marker = marker.as_str().to_owned();
                 if !self.units.base.names.contains(&marker) {
                     self.units.base.names.push(marker);
                 }
@@ -580,7 +582,7 @@ impl<'a> CallEmitter<'a> {
                     candidate: String::new(),
                 };
                 let contribution = LiteralContribution {
-                    canonical: format!("handle:{anchor}:{name}\u{0}"),
+                    canonical: format!("handle:{}:{name}\u{0}", anchor.as_str()),
                     utilities: vec![utility],
                     markers: Vec::new(),
                     external: Vec::new(),
@@ -598,8 +600,12 @@ impl<'a> CallEmitter<'a> {
                 let Emitted::Leaf { mut names } = class else {
                     return None;
                 };
-                names.push(marker.clone());
-                let entry = format!("{}:{}", js_string(&marker), js_string(&names.join(" ")));
+                names.push(marker.as_str().to_owned());
+                let entry = format!(
+                    "{}:{}",
+                    marker.javascript_string(),
+                    js_string(&names.join(" "))
+                );
                 Some(Emitted::Expression(ValueExpr::Lookup {
                     value: Box::new(ValueExpr::Source(handle.name.value.clone().into())),
                     key: "c".to_owned(),
@@ -629,7 +635,8 @@ impl<'a> CallEmitter<'a> {
                         }
                     };
                     let canonical = format!(
-                        "dynamic-handle:{anchor}:{}",
+                        "dynamic-handle:{}:{}",
+                        anchor.as_str(),
                         handle_projection_name(projection)
                     );
                     let (declaration, name_symbol) = match render_handle_projection(
@@ -675,7 +682,7 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     };
                     let class = js_string(&names.join(" "));
-                    table.push(format!("{}:{class}", js_string(&marker)));
+                    table.push(format!("{}:{class}", marker.javascript_string()));
                 }
                 let table = table.join(",");
                 let expression = ValueExpr::Lookup {

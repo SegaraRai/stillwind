@@ -13,12 +13,12 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileError, filter_lint_findings};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, filter_lint_findings};
 use stillwind_ir::{
     ModuleAnalysis, composition_dependencies, ordered_style_calls, validate_composition,
 };
 use stillwind_semantic::AssetKind;
-use stillwind_source::SourceFile;
+use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
 use super::emission::{CallEmitter, CallEmitterInputs};
@@ -28,13 +28,13 @@ use super::motion::{emit_animation_definition, emit_view_transition_definition};
 use super::output::CompileResult;
 use super::symbols::{
     generated_ref_marker_symbol, generated_ref_symbol, generated_scope_marker_symbol,
-    generated_scope_symbol, generated_symbol, motion_name, ref_marker_name, scope_marker_name,
+    generated_scope_symbol, generated_symbol, named_declaration, ref_marker_name,
+    scope_marker_name,
 };
 use super::{Compiler, CssContribution};
 use crate::CompilerOptions;
 use crate::GeneratedSymbol;
-use crate::generated::js_string;
-use crate::identifier::IdentifierContext;
+use crate::identifiers::IdentifierContext;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
 
@@ -246,7 +246,7 @@ impl Compiler {
                 call_span: handle_definition.call_span,
                 replacement: if runtime_assets.contains(&ref_identity(&handle_definition)) {
                     match ref_marker_name(identifiers, &handle_definition) {
-                        Ok(marker) => handle_value(&marker),
+                        Ok(marker) => handle_value(&marker.javascript_string()),
                         Err(failure) => {
                             diagnostics
                                 .push(CompileError::new(failure, handle_definition.call_span));
@@ -264,7 +264,7 @@ impl Compiler {
                 call_span: scope_definition.call_span,
                 replacement: if runtime_assets.contains(&scope_identity(&scope_definition)) {
                     match scope_marker_name(identifiers, &scope_definition) {
-                        Ok(marker) => handle_value(&marker),
+                        Ok(marker) => handle_value(&marker.javascript_string()),
                         Err(failure) => {
                             diagnostics
                                 .push(CompileError::new(failure, scope_definition.call_span));
@@ -285,15 +285,13 @@ impl Compiler {
                     AssetKind::Animation,
                     &animation.name,
                 )) {
-                    match motion_name(
-                        identifiers,
-                        source.path(),
-                        AssetKind::Animation,
-                        &animation.name,
-                    ) {
+                    match identifiers
+                        .animation_name(&named_declaration(source.path(), &animation.name))
+                    {
                         Ok(name) => format!(
-                            "{}(\"{name}\")",
-                            runtime.require(RuntimeHelper::Animation, animation.call_span)
+                            "{}({})",
+                            runtime.require(RuntimeHelper::Animation, animation.call_span),
+                            name.javascript_string()
                         ),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, animation.call_span));
@@ -314,15 +312,13 @@ impl Compiler {
                     AssetKind::ViewTransition,
                     &transition.name,
                 )) {
-                    match motion_name(
-                        identifiers,
-                        source.path(),
-                        AssetKind::ViewTransition,
-                        &transition.name,
-                    ) {
+                    match identifiers
+                        .view_transition_name(&named_declaration(source.path(), &transition.name))
+                    {
                         Ok(name) => format!(
-                            "{}(\"{name}\")",
-                            runtime.require(RuntimeHelper::ViewTransition, transition.call_span)
+                            "{}({})",
+                            runtime.require(RuntimeHelper::ViewTransition, transition.call_span),
+                            name.javascript_string()
                         ),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, transition.call_span));
@@ -417,14 +413,16 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
         .collect()
 }
 
-/// Keeps a named symbol, or reports the generator's failure at `span`.
 /// One ref or scope declaration's runtime value: its canonical class token under `c`.
 ///
 /// A declaration is an identity, and every attachment reads that one key, so a handle
 /// needs no runtime helper and no projection helper functions. The key is a plain
 /// property read, which is what makes `style(ref)` and the projections static.
-fn handle_value(marker: &str) -> String {
-    format!("{{c:{}}}", js_string(marker))
+///
+/// `token` is the token written as a JavaScript string literal, because generated
+/// JavaScript reads the same token back as the projection table's key.
+fn handle_value(token: &str) -> String {
+    format!("{{c:{token}}}")
 }
 
 /// Keeps a named symbol, or reports the generator's failure at `span`.
@@ -434,8 +432,8 @@ fn handle_value(marker: &str) -> String {
 /// sees a partially named module.
 fn push_or_report<T>(
     diagnostics: &mut Vec<CompileError>,
-    value: Result<T, stillwind_diagnostics::CompileErrorKind>,
-    span: stillwind_source::Span,
+    value: Result<T, CompileErrorKind>,
+    span: Span,
 ) -> Option<T> {
     match value {
         Ok(value) => Some(value),

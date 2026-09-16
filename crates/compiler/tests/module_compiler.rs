@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     ClassContext, CompileResult, Compiler, CompilerOptions, DeclarationContext, GeneratedName,
-    IdentifierGenerator, IdentifierKind, IdentifierMode, Identifiers, ModuleCompiler,
-    SourceTransform, StylesheetRenderer,
+    IdentifierGenerator, IdentifierKind, IdentifierMode, Identifiers, ModuleCompiler, RefMarker,
+    SourceTransform, StylesheetRenderer, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
@@ -394,8 +394,10 @@ fn a_host_body_that_an_object_cannot_hold_is_prefixed_in_generated_code() {
             &self,
             _context: &DeclarationContext,
             _hash: &str,
-        ) -> Result<GeneratedName, String> {
-            Ok(GeneratedName::body("__proto__"))
+        ) -> Result<GeneratedName<RefMarker>, String> {
+            Ok(GeneratedName::provided(
+                RefMarker::new("__proto__").expect("canonical test body"),
+            ))
         }
     }
 
@@ -492,7 +494,11 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
 struct FailingGenerator;
 
 impl IdentifierGenerator for FailingGenerator {
-    fn utility_class(&self, _context: &ClassContext, _hash: &str) -> Result<GeneratedName, String> {
+    fn utility_class(
+        &self,
+        _context: &ClassContext,
+        _hash: &str,
+    ) -> Result<GeneratedName<UtilityClass>, String> {
         Err("no name for this declaration".to_owned())
     }
 }
@@ -547,11 +553,11 @@ impl IdentifierGenerator for FixedGenerator {
         &self,
         context: &DeclarationContext,
         _hash: &str,
-    ) -> Result<GeneratedName, String> {
-        Ok(GeneratedName::body(format!(
-            "fixed{}",
-            context.binding.len()
-        )))
+    ) -> Result<GeneratedName<RefMarker>, String> {
+        Ok(GeneratedName::provided(
+            RefMarker::new(&format!("fixed{}", context.binding.len()))
+                .expect("canonical test body"),
+        ))
     }
 }
 

@@ -28,7 +28,7 @@ use stillwind_syntax::{Variant, parse_candidate};
 use super::symbols::{anchor_name, ref_marker_name, scope_marker_name};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
-use crate::identifier::{IdentifierContext, selector};
+use crate::identifiers::{IdentifierContext, RefMarker};
 
 /// The lowered form of the variant wrappers around one utility literal.
 pub(super) struct StyleVariantPlan {
@@ -163,7 +163,7 @@ impl StyleVariantPlan {
             };
             let scope = match handle.scope.as_ref() {
                 Some(scope) => match scope_marker_name(context, scope) {
-                    Ok(name) => Some(selector(&name)),
+                    Ok(name) => Some(name.selector()),
                     Err(failure) => {
                         diagnostics.push(CompileError::new(failure, scope.call_span));
                         return None;
@@ -218,7 +218,7 @@ impl StyleVariantPlan {
             .iter()
             .map(|handle| {
                 anchor_name(context, handle, Some("container"))
-                    .map(|name| format!("{name} ({})", query.value))
+                    .map(|name| format!("{} ({})", name.as_str(), query.value))
             })
             .collect::<Result<Vec<_>, _>>();
         let conditions = match conditions {
@@ -342,7 +342,7 @@ fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
 /// to contain the reference, which is how an unrelated element with a matching marker
 /// outside the scope is excluded.
 fn reference_path(
-    marker: &str,
+    marker: &RefMarker,
     scope: Option<&str>,
     path: &[VariantStep<'_>],
 ) -> Vec<VariantApplication> {
@@ -398,16 +398,16 @@ fn reference_path(
         }
     }
     let reference = match reference.strip_prefix('&') {
-        Some("") => selector(marker),
+        Some("") => marker.selector(),
         Some(suffix)
             if suffix.starts_with([':', '['])
                 && !suffix.contains(['&', ' ', '>', '+', '~', ',']) =>
         {
-            format!("{}:where({suffix})", selector(marker))
+            format!("{}:where({suffix})", marker.selector())
         }
         _ => format!(
             ":where({})",
-            instantiate_selector(&reference, &selector(marker))
+            instantiate_selector(&reference, &marker.selector())
         ),
     };
     let selector = match scope {

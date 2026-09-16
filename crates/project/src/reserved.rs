@@ -86,7 +86,9 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
             Token::AtKeyword(name) => {
                 let name = name.to_ascii_lowercase();
                 match name.as_ref() {
-                    "layer" => collect_layer(reserved, parser),
+                    "layer" => {
+                        collect_layer(reserved, parser);
+                    }
                     "keyframes" => {
                         if let Ok(name) = parser.expect_ident_cloned() {
                             reserved.keyframes.insert(name.to_string());
@@ -140,7 +142,9 @@ fn collect_layer(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
                 reserved.layers.insert(name.to_string());
                 next = false;
             }
-            Ok(Token::Comma) if !next => next = true,
+            Ok(Token::Comma) if !next => {
+                next = true;
+            }
             Ok(Token::CurlyBracketBlock) => {
                 let _ = parser.parse_nested_block(|body| {
                     walk(reserved, body, true);
