@@ -320,7 +320,7 @@ impl<'a> CallEmitter<'a> {
                     table: format!("{{{}}}", table.join(",")).into(),
                 };
                 self.parts.push(StyleEmissionPart::Class {
-                    emitted: self.guarded_class(guard, expression),
+                    emitted: self.guarded_class(guard, Emitted::Expression(expression)),
                     position: value.start.0,
                 });
                 self.emit_view_transition_name(name, None, *value, guard);
@@ -981,8 +981,8 @@ impl<'a> CallEmitter<'a> {
     }
 
     /// Wraps one class value in the tests that select it.
-    fn guarded_class(&self, guard: &[StyleGuard], value: ValueExpr) -> Emitted {
-        let mut emitted = Emitted::Expression(value);
+    fn guarded_class(&self, guard: &[StyleGuard], value: Emitted) -> Emitted {
+        let mut emitted = value;
         for step in guard.iter().rev() {
             let Some(code) = self.source_expression(step.test) else {
                 continue;
@@ -1011,7 +1011,7 @@ impl<'a> CallEmitter<'a> {
 
     /// Adds the conditional class a guarded view-transition use marks its element with.
     fn push_guarded_class(&mut self, guard: &[StyleGuard], class: String, position: u32) {
-        let emitted = self.guarded_class(guard, ValueExpr::Source(class.into()));
+        let emitted = self.guarded_class(guard, Emitted::Leaf { names: vec![class] });
         self.parts
             .push(StyleEmissionPart::Class { emitted, position });
     }
