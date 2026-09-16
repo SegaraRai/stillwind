@@ -61,8 +61,7 @@ pub use identifiers::{
     IdentifierGenerator, IdentifierNameError, Identifiers, KeyframesName, KeyframesNameRequest,
     Label, LayerContext, LayerName, LayerNameRequest, LocatorContext, NameRequest, RefMarker,
     RefMarkerName, RejectedIdentifier, RejectedNames, ScopeMarker, ScopeMarkerName, Token,
-    UtilityClass, ViewTransitionClass, ViewTransitionClassRequest, ViewTransitionName,
-    ViewTransitionNameRequest,
+    UtilityClass, ViewTransitionName, ViewTransitionNameRequest,
 };
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;

@@ -220,7 +220,7 @@ impl<'a> ClassUnits<'a> {
     }
 
     /// Publishes one conditional unit's rules, in traversal order.
-    fn publish_unit(&mut self, contribution: Vec<CssContribution>) {
-        self.runtime_css.extend(contribution);
+    fn publish_unit(&mut self, contributions: Vec<CssContribution>) {
+        self.runtime_css.extend(contributions);
     }
 }

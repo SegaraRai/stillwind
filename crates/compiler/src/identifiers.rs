@@ -136,8 +136,6 @@ brand! {
     KeyframesName, custom_ident;
     /// A `view-transition-name` custom-ident.
     ViewTransitionName, custom_ident;
-    /// A `view-transition-class` custom-ident.
-    ViewTransitionClass, custom_ident;
     /// A custom property name, without its leading double hyphen.
     CustomPropertyName, custom_ident;
     /// A `@layer` name.
@@ -202,11 +200,6 @@ impl KeyframesName {
 }
 
 impl ViewTransitionName {
-    /// This name as a custom-ident value in a property or at-rule prelude.
-    pub fn custom_ident(&self) -> String {
-        escaped_identifier(self.as_str())
-    }
-
     /// This name as the class selector a view-transition pseudo-element selects it by.
     ///
     /// `::view-transition-group()`, `::view-transition-old()`, and `::view-transition-new()`
@@ -218,13 +211,6 @@ impl ViewTransitionName {
     /// This name as the value of a JavaScript string literal.
     pub fn javascript_string(&self) -> String {
         js_string(self.as_str())
-    }
-}
-
-impl ViewTransitionClass {
-    /// This name as a custom-ident value in a property or at-rule prelude.
-    pub fn custom_ident(&self) -> String {
-        escaped_identifier(self.as_str())
     }
 }
 
@@ -589,19 +575,6 @@ pub trait IdentifierGenerator: fmt::Debug + Send + Sync {
         _context: &DeclarationContext,
         _hash: &str,
     ) -> Result<GeneratedName<ViewTransitionName>, String> {
-        Ok(GeneratedName::Builtin)
-    }
-
-    /// A `view-transition-class` custom-ident.
-    ///
-    /// # Errors
-    ///
-    /// Returns a failure the compilation reports for this declaration.
-    fn view_transition_class(
-        &self,
-        _context: &DeclarationContext,
-        _hash: &str,
-    ) -> Result<GeneratedName<ViewTransitionClass>, String> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -1101,7 +1074,6 @@ name_requests! {
     ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "scope"), asks(container_name);
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "animation"), asks(keyframes_name);
     ViewTransitionNameRequest(DeclarationContext): ViewTransitionName as ViewTransitionName = |context: &DeclarationContext| declaration_identity(context, "view-transition"), asks(view_transition_name);
-    ViewTransitionClassRequest(DeclarationContext): ViewTransitionClass as ViewTransitionClass = |context: &DeclarationContext| declaration_identity(context, "view-transition-class"), asks(view_transition_class);
     CustomPropertyNameRequest(DeclarationContext): CustomPropertyName as CustomProperty = |context: &DeclarationContext| declaration_identity(context, "custom-property"), asks(custom_property);
     LayerNameRequest(LayerContext): LayerName as LayerName = |context: &LayerContext| format!(
         "stillwind/layer/v1:{template}:{index}",
