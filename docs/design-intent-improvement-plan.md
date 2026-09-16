@@ -318,8 +318,12 @@ style("hover:[--x:var(--y)]", { "--y": value });
   `:active-view-transition-type()`）は stylesheet に書く。wildcard/global の第一級 variant は追加しない。
 - 個別の遷移の擬似要素スタイルは宣言が持つ。`group` は animation option、`old` / `new` /
   `imagePair` は utility 文字列で、media / supports 条件 variant のみ付けられる。
-- `vt.old` 等の use 側 variant 受信 API は保留。採用する場合も `&` 依存とは別の identity 依存
-  フラグが要る。name/class の著者指定は未決定で、グローバル CSS と接続する唯一の経路になる。
+- `vt.old` 等の use 側 variant 受信 API は**却下**。擬似要素は文書 root の下に生成されるため
+  書いた要素がスコープにならず、効果が宣言の全 participant に及ぶ。フェーズのスタイルは宣言が持つ。
+- name/class の著者指定は決定済み。name は `.for(key?)` と、解決済み宣言に
+  `view-transition-name` が現れる経路のみ（同名の共有がグローバル CSS と接続する経路になる）。
+  class は宣言 identity からの生成のみで著者向け API を持たない（任意プロパティ経路の扱いは
+  `docs/view-transition-redesign.md` §6 の注意点）。
 - `group` の option 条件は `docs/view-transition-redesign.md` §3.9 の option 単位の条件付き
   規則として実装済み（animation の定義 branch とは別形）。残りは繰り返しレンダリング /
   unstable key の lint。
