@@ -50,13 +50,27 @@ impl ViewTransitionClassUnit {
         self.names.extend(names.iter().cloned());
     }
 
-    /// The rules this unit writes for `selector`.
-    fn rules(&self, selector: &str) -> String {
+    /// The complete class list this unit declares, given the classes it inherits.
+    ///
+    /// The class property is one declaration, so a conditional unit repeats the classes the
+    /// unconditional unit declared; the later, complete list is the one that applies.
+    fn complete_classes(&self, inherited: &[String]) -> Vec<String> {
+        let mut classes = inherited.to_vec();
+        for class in &self.classes {
+            if !classes.contains(class) {
+                classes.push(class.clone());
+            }
+        }
+        classes
+    }
+
+    /// The rules this unit writes for `selector`, declaring `classes` and its own names.
+    fn rules(&self, selector: &str, classes: &[String]) -> String {
         let mut css = String::new();
-        if !self.classes.is_empty() {
+        if !classes.is_empty() {
             css.push_str(selector);
             css.push_str("{view-transition-class:");
-            css.push_str(&self.classes.join(" "));
+            css.push_str(&classes.join(" "));
             css.push_str(";}");
         }
         for name in &self.names {
@@ -229,7 +243,8 @@ impl<'a> ClassUnits<'a> {
             // The base unit must precede every conditional unit in the stylesheet.
             deferred.extend(rules);
             self.class_selectors[0] = format!(".{name}");
-            let declarations = self.view_transition_classes[0].rules(&format!(".{name}"));
+            let classes = self.view_transition_classes[0].complete_classes(&[]);
+            let declarations = self.view_transition_classes[0].rules(&format!(".{name}"), &classes);
             if !declarations.is_empty() {
                 deferred.push(CssContribution {
                     css: declarations,
@@ -251,7 +266,9 @@ impl<'a> ClassUnits<'a> {
         for (slot, contribution) in std::mem::take(&mut self.runtime_css) {
             deferred.push(contribution);
             if let Some(unit) = self.view_transition_classes.get(slot) {
-                let declarations = unit.rules(&self.class_selectors[slot]);
+                let inherited = self.view_transition_classes[0].complete_classes(&[]);
+                let classes = unit.complete_classes(&inherited);
+                let declarations = unit.rules(&self.class_selectors[slot], &classes);
                 if !declarations.is_empty() {
                     deferred.push(CssContribution {
                         css: declarations,
@@ -331,6 +348,7 @@ impl<'a> ClassUnits<'a> {
         &mut self,
         tokens: &[String],
         names: &[String],
+        guard: &[GuardStep],
     ) -> Result<String, CompileErrorKind> {
         let contribution = LiteralContribution {
             canonical: format!("view-transition:{}\u{0}", tokens.join(",")),
@@ -341,7 +359,7 @@ impl<'a> ClassUnits<'a> {
             view_transition_tokens: tokens.to_vec(),
             view_transition_names: names.to_vec(),
         };
-        let Emitted::Leaf { names } = self.leaf(contribution, &[])? else {
+        let Emitted::Leaf { names } = self.leaf(contribution, guard)? else {
             return Ok(String::new());
         };
         Ok(names.first().cloned().unwrap_or_default())

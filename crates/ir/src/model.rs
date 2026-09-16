@@ -291,6 +291,8 @@ pub enum StyleInput {
         transition: AssetReference,
         /// How the use names its participants.
         name: ViewTransitionName,
+        /// Conditional tests that select this use, outermost first.
+        guard: Vec<StyleGuard>,
     },
     /// A transition value that is only known at runtime.
     DynamicViewTransitionUse {
@@ -300,7 +302,21 @@ pub enum StyleInput {
         transitions: Vec<AssetReference>,
         /// How the use names its participants.
         name: ViewTransitionName,
+        /// Conditional tests that select this use, outermost first.
+        guard: Vec<StyleGuard>,
     },
+}
+
+/// One conditional test that selects a style input rather than a class literal.
+///
+/// A view-transition use is a top-level input, so the test that guards it cannot live in
+/// the class expression tree the way a guarded utility does.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct StyleGuard {
+    /// The guard expression, emitted verbatim.
+    pub test: Span,
+    /// Whether the input applies when the test is truthy.
+    pub when_true: bool,
 }
 
 /// How one view-transition use names the participants it marks.

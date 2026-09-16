@@ -15,7 +15,7 @@ use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
-    StyleInput, StyleVariant, ViewTransitionKey, ViewTransitionName,
+    StyleGuard, StyleInput, StyleVariant, ViewTransitionKey, ViewTransitionName,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span};
@@ -225,7 +225,11 @@ impl<'a> CallEmitter<'a> {
                 let expression = handle_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
-            StyleInput::ViewTransitionUse { transition, name } => {
+            StyleInput::ViewTransitionUse {
+                transition,
+                name,
+                guard,
+            } => {
                 self.motion_assets.insert(transition.identity.clone());
                 self.runtime_assets.insert(transition.identity.clone());
                 self.view_transition_classes = true;
@@ -244,27 +248,45 @@ impl<'a> CallEmitter<'a> {
                     }
                 };
                 let names = static_view_transition_names(name, &token);
-                self.units.fold(LiteralContribution {
-                    canonical: format!("view-transition:{token}\u{0}"),
-                    utilities: Vec::new(),
-                    markers: Vec::new(),
-                    external: Vec::new(),
-                    plain: Vec::new(),
-                    view_transition_tokens: vec![token.clone()],
-                    view_transition_names: names,
-                });
-                self.emit_view_transition_name(name, Some(&token), transition.span);
+                if guard.is_empty() {
+                    self.units.fold(LiteralContribution {
+                        canonical: format!("view-transition:{token}\u{0}"),
+                        utilities: Vec::new(),
+                        markers: Vec::new(),
+                        external: Vec::new(),
+                        plain: Vec::new(),
+                        view_transition_tokens: vec![token.clone()],
+                        view_transition_names: names,
+                    });
+                } else {
+                    let steps = guard_steps(guard);
+                    let class = match self.units.view_transition_class_unit(
+                        std::slice::from_ref(&token),
+                        &names,
+                        &steps,
+                    ) {
+                        Ok(class) => class,
+                        Err(failure) => {
+                            self.reject_name(failure, self.call.span);
+                            return None;
+                        }
+                    };
+                    self.push_guarded_class(guard, class, transition.span.start.0);
+                }
+                self.emit_view_transition_name(name, Some(&token), transition.span, guard);
             }
             StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
                 name,
+                guard,
             } => {
                 self.view_transition_classes = true;
                 if !matches!(name, ViewTransitionName::None) {
                     self.view_transition_names += 1;
                 }
                 let mut table = Vec::new();
+                let steps = guard_steps(guard);
                 for transition in transitions {
                     self.runtime_assets.insert(transition.identity.clone());
                     let token = match self.record_motion_name(
@@ -279,10 +301,11 @@ impl<'a> CallEmitter<'a> {
                         }
                     };
                     let names = static_view_transition_names(name, &token);
-                    let class = match self
-                        .units
-                        .view_transition_class_unit(std::slice::from_ref(&token), &names)
-                    {
+                    let class = match self.units.view_transition_class_unit(
+                        std::slice::from_ref(&token),
+                        &names,
+                        &steps,
+                    ) {
                         Ok(class) => class,
                         Err(failure) => {
                             self.reject_name(failure, self.call.span);
@@ -297,10 +320,10 @@ impl<'a> CallEmitter<'a> {
                     table: format!("{{{}}}", table.join(",")).into(),
                 };
                 self.parts.push(StyleEmissionPart::Class {
-                    emitted: Emitted::Expression(expression),
+                    emitted: self.guarded_class(guard, expression),
                     position: value.start.0,
                 });
-                self.emit_view_transition_name(name, None, *value);
+                self.emit_view_transition_name(name, None, *value, guard);
             }
         }
         Some(())
@@ -897,6 +920,7 @@ impl<'a> CallEmitter<'a> {
         name: &ViewTransitionName,
         token: Option<&str>,
         value: Span,
+        guard: &[StyleGuard],
     ) {
         let key = match name {
             ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) => Some(*key),
@@ -920,16 +944,74 @@ impl<'a> CallEmitter<'a> {
             }
         }
         self.parts.push(StyleEmissionPart::Style {
-            expression: ValueExpr::Entry {
-                property: "view-transition-name".to_owned(),
-                value: Box::new(ValueExpr::Call {
-                    helper: RuntimeHelper::ViewTransitionName,
-                    arguments,
-                    span: value,
-                }),
-            },
+            expression: self.guarded_value(
+                guard,
+                ValueExpr::Entry {
+                    property: "view-transition-name".to_owned(),
+                    value: Box::new(ValueExpr::Call {
+                        helper: RuntimeHelper::ViewTransitionName,
+                        arguments,
+                        span: value,
+                    }),
+                },
+            ),
             position: value.start.0,
         });
+    }
+
+    /// Wraps one inline value in the tests that select it, outermost test last.
+    ///
+    /// A guarded contribution still evaluates to nothing when its test fails, so the value
+    /// carries the test rather than the caller dropping the part.
+    fn guarded_value(&self, guard: &[StyleGuard], value: ValueExpr) -> ValueExpr {
+        let mut value = value;
+        for step in guard.iter().rev() {
+            let Some(code) = self.source_expression(step.test) else {
+                continue;
+            };
+            value = ValueExpr::Conditional {
+                code,
+                when_true: step.when_true,
+                value: Box::new(value),
+            };
+        }
+        value
+    }
+
+    /// Wraps one class value in the tests that select it.
+    fn guarded_class(&self, guard: &[StyleGuard], value: ValueExpr) -> Emitted {
+        let mut emitted = Emitted::Expression(value);
+        for step in guard.iter().rev() {
+            let Some(code) = self.source_expression(step.test) else {
+                continue;
+            };
+            emitted = Emitted::Conditional {
+                code,
+                kind: if step.when_true {
+                    ConditionalKind::LogicalAnd
+                } else {
+                    ConditionalKind::Ternary
+                },
+                consequent: if step.when_true {
+                    Some(Box::new(emitted.clone()))
+                } else {
+                    None
+                },
+                alternate: if step.when_true {
+                    None
+                } else {
+                    Some(Box::new(emitted))
+                },
+            };
+        }
+        emitted
+    }
+
+    /// Adds the conditional class a guarded view-transition use marks its element with.
+    fn push_guarded_class(&mut self, guard: &[StyleGuard], class: String, position: u32) {
+        let emitted = self.guarded_class(guard, ValueExpr::Source(class.into()));
+        self.parts
+            .push(StyleEmissionPart::Class { emitted, position });
     }
 
     /// Copies one original expression with an exact occurrence mapping. Returns `None`
@@ -979,6 +1061,17 @@ pub(super) struct CallEmitterInputs<'a> {
 ///
 /// A literal key is folded here; an expression key and a key carried by the value are
 /// written as a style property instead.
+fn guard_steps(guard: &[StyleGuard]) -> Vec<GuardStep> {
+    guard
+        .iter()
+        .map(|step| GuardStep {
+            test: step.test,
+            when_true: step.when_true,
+        })
+        .collect()
+}
+
+/// The static names one view-transition use declares for a class token.
 fn static_view_transition_names(name: &ViewTransitionName, token: &str) -> Vec<String> {
     match name {
         ViewTransitionName::Key(ViewTransitionKey::Literal(key)) => {

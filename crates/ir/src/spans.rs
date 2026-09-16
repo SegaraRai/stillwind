@@ -17,8 +17,8 @@ use stillwind_source::{Span, Spanned};
 
 use crate::{
     AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry,
-    HandleDefinition, HandleProjection, ModuleIr, ScopeDefinition, StyleInput, StyleVariant,
-    ViewTransitionKey, ViewTransitionName,
+    HandleDefinition, HandleProjection, ModuleIr, ScopeDefinition, StyleGuard, StyleInput,
+    StyleVariant, ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -198,20 +198,27 @@ fn map_input<E>(
             }
             *value = map(*value)?;
         }
-        StyleInput::ViewTransitionUse { transition, name } => {
+        StyleInput::ViewTransitionUse {
+            transition,
+            name,
+            guard,
+        } => {
             map_asset(transition, map)?;
             map_view_transition_name(name, map)?;
+            map_style_guard(guard, map)?;
         }
         StyleInput::DynamicViewTransitionUse {
             value,
             transitions,
             name,
+            guard,
         } => {
             *value = map(*value)?;
             for transition in transitions {
                 map_asset(transition, map)?;
             }
             map_view_transition_name(name, map)?;
+            map_style_guard(guard, map)?;
         }
     }
     Ok(())
@@ -224,6 +231,17 @@ fn map_view_transition_name<E>(
 ) -> Result<(), E> {
     if let ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) = name {
         *key = map(*key)?;
+    }
+    Ok(())
+}
+
+/// Projects the guard tests that select one style input.
+fn map_style_guard<E>(
+    guard: &mut [StyleGuard],
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    for step in guard {
+        step.test = map(step.test)?;
     }
     Ok(())
 }

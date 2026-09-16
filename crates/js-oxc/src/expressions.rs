@@ -19,8 +19,8 @@ use oxc::syntax::operator::LogicalOperator;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleInput,
-    StyleVariant,
+    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleGuard,
+    StyleInput, StyleVariant,
 };
 use stillwind_semantic::{ExportedValue, IdentityId};
 use stillwind_source::Span;
@@ -134,6 +134,10 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(transition);
             return;
         }
+        if let Some(guarded) = self.guarded_view_transition_uses(expression) {
+            inputs.extend(guarded);
+            return;
+        }
         // A utility template keeps one class expression per utility segment, so it
         // matches a whitespace-separated utility list.
         if let Expression::TemplateLiteral(template) = expression
@@ -145,6 +149,61 @@ impl<'a> MacroExtractor<'a> {
         if let Some(class) = self.class_expression(expression) {
             inputs.push(StyleInput::Class(class));
         }
+    }
+
+    /// Lowers `test && <transition>` chains, and a ternary whose arms are both transitions,
+    /// into guarded view-transition inputs.
+    ///
+    /// A transition use is a top-level input, so the test that selects it travels in the input
+    /// rather than in a class expression. `None` leaves the expression to the ordinary
+    /// class-expression path, which is also what a ternary with a non-transition arm gets.
+    fn guarded_view_transition_uses(
+        &mut self,
+        expression: &Expression<'a>,
+    ) -> Option<Vec<StyleInput>> {
+        let mut guard = Vec::new();
+        let mut current = expression;
+        loop {
+            match current {
+                Expression::LogicalExpression(logical)
+                    if logical.operator == LogicalOperator::And =>
+                {
+                    guard.push(StyleGuard {
+                        test: self.source_span(logical.left.span()),
+                        when_true: true,
+                    });
+                    current = &logical.right;
+                }
+                Expression::ConditionalExpression(conditional) => {
+                    let consequent = self.view_transition_use(&conditional.consequent)?;
+                    let alternate = self.view_transition_use(&conditional.alternate)?;
+                    let test = self.source_span(conditional.test.span());
+                    let mut inputs = Vec::new();
+                    for (input, when_true) in [(consequent, true), (alternate, false)] {
+                        let mut path = guard.clone();
+                        path.push(StyleGuard { test, when_true });
+                        inputs.push(Self::with_guard(input, path));
+                    }
+                    return Some(inputs);
+                }
+                _ => break,
+            }
+        }
+        if guard.is_empty() {
+            return None;
+        }
+        let input = self.view_transition_use(current)?;
+        Some(vec![Self::with_guard(input, guard)])
+    }
+
+    /// Records the tests that select one view-transition input.
+    fn with_guard(mut input: StyleInput, guard: Vec<StyleGuard>) -> StyleInput {
+        match &mut input {
+            StyleInput::ViewTransitionUse { guard: slot, .. }
+            | StyleInput::DynamicViewTransitionUse { guard: slot, .. } => *slot = guard,
+            _ => {}
+        }
+        input
     }
 
     /// Lowers one class-valued expression while mirroring the source structure.
