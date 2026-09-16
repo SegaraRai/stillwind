@@ -34,8 +34,14 @@ export declare class NativeProjectSession {
    * build; it decides whether a rejected host-supplied identifier name is reported
    * as a lint finding or fails the compilation. A development session is offered to
    * a dev server, where usable output matters more than a fatal diagnostic.
+   *
+   * `naming` supplies the host's own name generators, one optional function per
+   * family. A family whose function returns `undefined` keeps the compiler's name.
+   * Functions must be pure: the same request has to produce the same name. Pair them
+   * with a matching `naming_revision` so cached artifacts are not reused across a
+   * change to them.
    */
-  constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null)
+  constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null, naming?: NativeIdentifierNaming | undefined | null)
   /**
    * Publishes a reloaded design system and reports what changed.
    *
@@ -250,6 +256,18 @@ export type NativeCandidates =
   | { kind: 'finite'; /** The reachable identities. */
 values: Array<NativeIdentity> }
 
+/** The fields of a utility class request. */
+export interface NativeClassContext {
+  /** Normalized module path of the call site. */
+  module: string
+  /** The caller's class namespace. */
+  namespace: string
+  /** Byte offset of the call. */
+  call: number
+  /** Branch discriminator and canonical spelling of the contribution. */
+  branch: string
+}
+
 /**
  * Optional host overrides for prefixes, lint policy, class identity, and conditional CSS.
  * Conversion validates prefixes; omitted fields retain `CompilerOptions` defaults.
@@ -270,6 +288,17 @@ export interface NativeCompilerOptions {
   useCssIf?: boolean
   /** Hash of the host's identifier generators, used to invalidate cached artifacts. */
   namingRevision?: string
+}
+
+/** The fields of a conditional helper request. */
+export interface NativeConditionContext {
+  /**
+   * Which helper the name is written for: `rule`, `fallback`, `gate`, `gate-value`, or
+   * `gate-not`.
+   */
+  role: string
+  /** The CSS the helper serves. */
+  text: string
 }
 
 /** Converter that produced a projected input. */
@@ -336,6 +365,20 @@ export interface NativeCssResource {
   start: number
   /** Exclusive byte end of the complete authored resource expression. */
   end: number
+}
+
+/** The fields of a named declaration request. */
+export interface NativeDeclarationContext {
+  /** Normalized module path of the declaring module. */
+  module: string
+  /** Byte offset of the first character of the declaration's name. */
+  start: number
+  /** Byte offset just past the declaration's name. */
+  end: number
+  /** Binding name the declaration is assigned to. */
+  binding: string
+  /** Authored label, when the declaration has one. */
+  label?: string
 }
 
 /**
@@ -439,6 +482,31 @@ export interface NativeGuardStep {
   when_true: boolean
 }
 
+/** One host generator function per family, all optional. */
+export interface NativeIdentifierNaming {
+  /** `(context, hash) => string | undefined`, for a utility class. */
+  utilityClass?: (arg0: NativeClassContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for a ref marker class. */
+  refMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for a scope marker class. */
+  scopeMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for an `anchor-name` custom-ident. */
+  anchorName?: (arg0: NativeLocatorContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for a `container-name` custom-ident. */
+  containerName?: (arg0: NativeLocatorContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for a `@keyframes` name. */
+  keyframesName?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for a `view-transition-name` custom-ident. */
+  viewTransitionName?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
+  /**
+   * `(context, hash, text_hash) => string | undefined`, for a conditional helper custom
+   * property. `hash` covers the role and the text, `text_hash` the text alone.
+   */
+  conditionHelper?: (arg0: NativeConditionContext, arg1: Buffer, arg2: Buffer) => string | null
+  /** `(context, hash) => string | undefined`, for an anonymous layer name without its index. */
+  layerName?: (arg0: NativeLayerContext, arg1: Buffer) => string | null
+}
+
 /** Identity of a declaration site. */
 export interface NativeIdentity {
   /** Kind of declaration this identity names. */
@@ -464,6 +532,28 @@ export interface NativeImportBinding {
   source: string
   /** Name in the exporting module. */
   imported: string
+}
+
+/** The fields of an anonymous layer request. */
+export interface NativeLayerContext {
+  /** Identity of the template the layer belongs to. */
+  template: string
+  /** The caller's class namespace. */
+  namespace: string
+}
+
+/** The fields of a projection's custom-ident request. */
+export interface NativeLocatorContext {
+  /** Normalized module path of the declaration that owns the name. */
+  module: string
+  /** Byte offset of the first character of the declaration's name. */
+  start: number
+  /** Byte offset just past the declaration's name. */
+  end: number
+  /** Binding name of the declaration that owns the name. */
+  binding: string
+  /** Projection the name is written for, when the writer has one. */
+  projection?: string
 }
 
 /** One generated-to-original mapping in byte offsets. */

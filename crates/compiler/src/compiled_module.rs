@@ -178,7 +178,7 @@ impl CompiledModule {
             module_css,
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
-            rejected_names: Vec::new(),
+            rejected_names: self.rejected_names.clone(),
             transforms: self.code_transforms.clone(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),

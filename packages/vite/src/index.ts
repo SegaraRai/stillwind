@@ -18,6 +18,7 @@ import {
 } from "@stillwind/host";
 import type { CssLocations, CssUpstreamMap, PlayOutput } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
+import type { NativeIdentifierNaming } from "@stillwind/native";
 import { build } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
 
@@ -52,6 +53,15 @@ export interface StillwindOptions {
    * Defaults to false. Comparisons, negated variants, and CSS-wide helper branches require true.
    */
   useCssIf?: boolean;
+  /**
+   * Host name generators, one optional function per identifier family. A function
+   * returns the name to write, or `undefined` to keep the compiler's own name. A
+   * generator must be pure: the same request has to produce the same name. Keep the
+   * functions stable for the life of the session, and update `namingRevision` with them.
+   */
+  naming?: NativeIdentifierNaming;
+  /** Hash of `naming`, used to invalidate cached artifacts when it changes. */
+  namingRevision?: string;
 }
 
 const virtualCssId = "virtual:stillwind.css";
@@ -95,6 +105,7 @@ function compilerOptions(options: StillwindOptions) {
     forbidTailwindRelationships: options.forbidTailwindRelationships ?? false,
     classNamespace: options.classNamespace ?? "",
     useCssIf: options.useCssIf ?? false,
+    namingRevision: options.namingRevision ?? "",
   };
 }
 
@@ -341,7 +352,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           dependencies,
         );
         if (state.revision !== revision) return;
-        state.session = new NativeProjectSession(loader, watching, compilerMode);
+        state.session = new NativeProjectSession(loader, watching, compilerMode, options.naming);
         state.resources = loaderResources.get(loader) ?? new Map();
         state.cssFiles = dependencies;
         state.producers.clear();
@@ -737,7 +748,12 @@ export function stillwind(options: StillwindOptions): Plugin {
               theme,
               new Set(),
             );
-            const playSession = new NativeProjectSession(playLoader, false);
+            const playSession = new NativeProjectSession(
+              playLoader,
+              false,
+              undefined,
+              options.naming,
+            );
             // Preserve byte length for the Play shorthand's source positions.
             const playProject = playSession.compile([
               { path: "Play.tsx", source: source.replace(/\bexport App;/g, "export{App}") },

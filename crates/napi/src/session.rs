@@ -11,12 +11,15 @@
 //! checker of its own.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use napi::Error;
+use napi::bindgen_prelude::Env;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompilerOptions, IdentifierMode, Identifiers, StylesheetPlacement, StylesheetRenderer,
+    CompilerOptions, IdentifierGenerator, IdentifierMode, Identifiers, StylesheetPlacement,
+    StylesheetRenderer,
 };
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
@@ -29,6 +32,7 @@ use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
 use stillwind_source::{FileId, Fingerprint, SourceFile};
 
 use crate::api::binding_output;
+use crate::naming::{NativeIdentifierNaming, NativeNaming};
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::source_input::{NativeProjectSource, ProjectSource};
@@ -247,6 +251,8 @@ impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
 pub struct NativeProjectSession {
     /// Project session.
     session: ProjectSession,
+    /// Host name generators, which are callable only during a host call.
+    naming: Option<Arc<NativeNaming>>,
 }
 
 #[napi]
@@ -258,15 +264,27 @@ impl NativeProjectSession {
     /// build; it decides whether a rejected host-supplied identifier name is reported
     /// as a lint finding or fails the compilation. A development session is offered to
     /// a dev server, where usable output matters more than a fatal diagnostic.
+    ///
+    /// `naming` supplies the host's own name generators, one optional function per
+    /// family. A family whose function returns `undefined` keeps the compiler's name.
+    /// Functions must be pure: the same request has to produce the same name. Pair them
+    /// with a matching `naming_revision` so cached artifacts are not reused across a
+    /// change to them.
     #[napi(constructor)]
     pub fn new(
         loader: &NativeDesignSystemLoader,
         watch: bool,
         mode: Option<String>,
+        naming: Option<NativeIdentifierNaming>,
     ) -> napi::Result<Self> {
         let identifier_mode = match mode.as_deref() {
             Some("development") => IdentifierMode::Development,
             _ => IdentifierMode::Release,
+        };
+        let naming = NativeNaming::from_js(naming)?;
+        let identifiers = match &naming {
+            Some(naming) => Identifiers::with(naming.clone() as Arc<dyn IdentifierGenerator>),
+            None => Identifiers::builtin(),
         };
         Ok(Self {
             session: ProjectSession::new(
@@ -277,8 +295,9 @@ impl NativeProjectSession {
                     SessionMode::Build
                 },
                 loader.options.clone(),
-                Identifiers::builtin().in_mode(identifier_mode),
+                identifiers.in_mode(identifier_mode),
             ),
+            naming,
         })
     }
 
@@ -288,7 +307,12 @@ impl NativeProjectSession {
     /// Watch mode retains the previous revision. Build mode has already published the
     /// new revision with failed modules omitted when this error is returned.
     #[napi]
-    pub fn reload(&mut self, loader: &NativeDesignSystemLoader) -> napi::Result<NativeReload> {
+    pub fn reload(
+        &mut self,
+        env: Env,
+        loader: &NativeDesignSystemLoader,
+    ) -> napi::Result<NativeReload> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         let update = self
             .session
             .reload(Ok(loader.completed()?), loader.options.clone())
@@ -311,7 +335,8 @@ impl NativeProjectSession {
 
     /// Renders the complete stylesheet for the current revision.
     #[napi]
-    pub fn css(&self) -> napi::Result<String> {
+    pub fn css(&self, env: Env) -> napi::Result<String> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         self.session
             .css()
             .map_err(|error| Error::from_reason(error.to_string()))
@@ -321,8 +346,10 @@ impl NativeProjectSession {
     #[napi(strict)]
     pub fn plan_stylesheet(
         &self,
+        env: Env,
         input: NativeStylesheetSelection,
     ) -> napi::Result<NativeStylesheetPlan> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         let coverage = match input.coverage {
             NativeCoverage::Observed => StylesheetCoverage::Observed,
             NativeCoverage::Complete { target, revision } => {
@@ -373,7 +400,8 @@ impl NativeProjectSession {
 
     /// Stable document CSS without a source map, independent of visited JS modules.
     #[napi]
-    pub fn base_css(&self) -> napi::Result<String> {
+    pub fn base_css(&self, env: Env) -> napi::Result<String> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         StylesheetRenderer::new(
             &self.session.snapshot(),
             self.session.options(),
@@ -385,7 +413,8 @@ impl NativeProjectSession {
 
     /// Base document CSS with a source map, for review tooling.
     #[napi]
-    pub fn base_css_with_map(&self) -> napi::Result<NativeStylesheetOutput> {
+    pub fn base_css_with_map(&self, env: Env) -> napi::Result<NativeStylesheetOutput> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         let output = StylesheetRenderer::new(
             &self.session.snapshot(),
             self.session.options(),
@@ -401,7 +430,8 @@ impl NativeProjectSession {
 
     /// Complete CSS for one producer, safe to transport across loader workers.
     #[napi]
-    pub fn module_css(&self, module: String) -> napi::Result<String> {
+    pub fn module_css(&self, env: Env, module: String) -> napi::Result<String> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         let artifact = self
             .session
             .artifacts()
@@ -430,9 +460,11 @@ impl NativeProjectSession {
     #[napi(strict)]
     pub fn compile(
         &mut self,
+        env: Env,
         sources: Vec<NativeProjectSource>,
         producer: Option<String>,
     ) -> napi::Result<ProjectBindingOutput> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         let sources = sources
             .into_iter()
             .map(TryInto::try_into)

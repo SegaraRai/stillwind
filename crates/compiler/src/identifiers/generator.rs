@@ -108,7 +108,7 @@ impl<T> GeneratedName<T> {
 /// Sharing a generator across threads only forwards calls, because the purity contract
 /// already forbids state-dependent output. Generators are still used synchronously within
 /// one compilation.
-pub trait IdentifierGenerator: fmt::Debug + Send + Sync {
+pub trait IdentifierGenerator: fmt::Debug {
     /// A utility class, on its way into a class attribute and a class selector.
     ///
     /// # Errors
@@ -601,35 +601,43 @@ impl IdentifierContext {
         hash: &IdentifierHash,
         generated: Result<String, String>,
     ) -> Result<T, CompileErrorKind> {
-        let kind = request.kind();
         match generated {
+            // A host name arrives as a name its own family already built, so cleaning it again only
+            // proves the family's rule is idempotent.
             Ok(name) => T::new(&name).map_err(|error| {
                 CompileErrorKind::IdentifierGenerationFailed(
-                    kind.as_str().into(),
+                    request.kind().as_str().into(),
                     error.to_string().into(),
                 )
             }),
-            Err(reason) => match self.mode {
-                IdentifierMode::Development => {
-                    self.rejected.borrow_mut().push(RejectedIdentifier {
-                        kind,
-                        hash: hash.to_hex(),
-                        reason,
-                        substituted: true,
-                    });
-                    T::new(&request.builtin(hash)).map_err(|error| {
-                        CompileErrorKind::IdentifierGenerationFailed(
-                            kind.as_str().into(),
-                            error.to_string().into(),
-                        )
-                    })
-                }
-                IdentifierMode::Release => Err(CompileErrorKind::IdentifierGenerationFailed(
-                    kind.as_str().into(),
-                    reason.into(),
-                )),
-            },
+            Err(reason) => self.reject(request, hash, reason),
         }
+    }
+
+    /// Fails the compilation, or substitutes the compiler's own name in development mode.
+    ///
+    /// A substitution is recorded once per family and identity, so a host can warn about its own
+    /// generator without the same request being reported again and again.
+    fn reject<T: Token, R: NameRequest<T>>(
+        &self,
+        request: &R,
+        hash: &IdentifierHash,
+        reason: String,
+    ) -> Result<T, CompileErrorKind> {
+        let kind = request.kind();
+        let failure = |detail: String| {
+            CompileErrorKind::IdentifierGenerationFailed(kind.as_str().into(), detail.into())
+        };
+        if self.mode == IdentifierMode::Release {
+            return Err(failure(reason));
+        }
+        self.rejected.borrow_mut().push(RejectedIdentifier {
+            kind,
+            hash: hash.to_hex(),
+            reason,
+            substituted: true,
+        });
+        T::new(&request.builtin(hash)).map_err(|error| failure(error.to_string()))
     }
 }
 

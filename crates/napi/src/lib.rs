@@ -28,6 +28,7 @@
 )]
 
 mod api;
+mod naming;
 mod options;
 mod output;
 mod semantic;
