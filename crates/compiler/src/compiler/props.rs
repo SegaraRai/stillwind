@@ -6,6 +6,7 @@
 
 use serde::Serialize;
 
+use stillwind_ir::StyleGuard;
 use stillwind_source::Span;
 
 use super::fragment::{Emitted, Property, ValueExpr};
@@ -19,6 +20,17 @@ pub struct GuardStep {
     pub test: Span,
     /// Whether the contribution is selected when the test is truthy.
     pub when_true: bool,
+}
+
+/// The guards one view-transition use carries, in the shape class units record.
+pub(super) fn guard_steps(guard: &[StyleGuard]) -> Vec<GuardStep> {
+    guard
+        .iter()
+        .map(|step| GuardStep {
+            test: step.test,
+            when_true: step.when_true,
+        })
+        .collect()
 }
 
 /// One class a callsite can apply, with the tests that select it.
