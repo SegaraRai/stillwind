@@ -262,6 +262,44 @@ pub(crate) fn marker_label(label: &str) -> String {
     NamePosition::DomToken.canonical(label)
 }
 
+/// Lowers a class token that generated code also uses as a JavaScript object key.
+///
+/// A lookup table maps each carried class token to the class the projection selects,
+/// so every class-token family reaches generated JavaScript as a key. A name that an
+/// object cannot hold as an own entry would silently change that table's meaning, so it
+/// gains a leading underscore once, here, where the name is decided: every writer of the
+/// same declaration then sees one spelling.
+///
+/// The check covers the names every object inherits and the accessors some engines add,
+/// which is the whole set a generated key can collide with: `constructor`, `toString`,
+/// `valueOf`, `__proto__`, `toLocaleString`, and the `__defineGetter__` family.
+pub(crate) fn javascript_key(name: String) -> String {
+    let reserved = matches!(
+        name.as_str(),
+        "constructor"
+            | "toString"
+            | "toLocaleString"
+            | "valueOf"
+            | "hasOwnProperty"
+            | "isPrototypeOf"
+            | "propertyIsEnumerable"
+            | "__proto__"
+            | "__defineGetter__"
+            | "__defineSetter__"
+            | "__lookupGetter__"
+            | "__lookupSetter__"
+    );
+    if reserved { format!("_{name}") } else { name }
+}
+
+/// Whether a family's names are written to generated JavaScript as object keys.
+fn used_as_javascript_key(kind: IdentifierKind) -> bool {
+    matches!(
+        kind,
+        IdentifierKind::UtilityClass | IdentifierKind::RefMarker | IdentifierKind::ScopeMarker
+    )
+}
+
 /// The context one utility class is generated from.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassContext {
@@ -941,7 +979,10 @@ impl IdentifierContext {
         match generated {
             Ok(GeneratedName::Builtin) => Ok(Resolved::builtin()),
             Ok(GeneratedName::Body(body)) => {
-                let canonical = canonicalize(write_positions(request.kind()), &body);
+                let mut canonical = canonicalize(write_positions(request.kind()), &body);
+                if used_as_javascript_key(request.kind()) {
+                    canonical = javascript_key(canonical);
+                }
                 if canonical.is_empty() {
                     Err(format!("body {body} is empty once normalized"))
                 } else {
@@ -997,7 +1038,12 @@ impl Resolved {
     /// `hash` is the request hash the built-in name is built from.
     fn text(self, kind: IdentifierKind, hash: &str) -> String {
         if self.builtin {
-            builtin_text(kind, hash)
+            let name = builtin_text(kind, hash);
+            if used_as_javascript_key(kind) {
+                javascript_key(name)
+            } else {
+                name
+            }
         } else {
             self.body
         }
@@ -1281,6 +1327,59 @@ mod tests {
             RefMarkerName(declaration).hash(),
             "a ref's anchor name and marker share the declaration's identity"
         );
+    }
+
+    #[test]
+    fn a_class_token_that_an_object_cannot_hold_gains_a_prefix() {
+        #[derive(Debug)]
+        struct PrototypeGenerator;
+
+        impl IdentifierGenerator for PrototypeGenerator {
+            fn ref_marker(
+                &self,
+                _context: &DeclarationContext,
+                _hash: &str,
+            ) -> Result<GeneratedName, String> {
+                Ok(GeneratedName::body("__proto__"))
+            }
+
+            fn keyframes_name(
+                &self,
+                _context: &DeclarationContext,
+                _hash: &str,
+            ) -> Result<GeneratedName, String> {
+                Ok(GeneratedName::body("__proto__"))
+            }
+        }
+
+        let context = IdentifierContext::new(GeneratorSet::new(Arc::new(PrototypeGenerator)));
+        assert_eq!(
+            context.ref_marker_name(&declaration_context(None)).unwrap(),
+            "___proto__"
+        );
+        // A keyframes name is written to CSS only, so it keeps the body it was given.
+        assert_eq!(
+            context.animation_name(&declaration_context(None)).unwrap(),
+            "__proto__"
+        );
+    }
+
+    #[test]
+    fn the_builtin_prefix_already_separates_a_generated_name_from_object_members() {
+        let context = IdentifierContext::builtin();
+        for name in [
+            context.class_name(&class_context("0:flex")).unwrap(),
+            context.ref_marker_name(&declaration_context(None)).unwrap(),
+            context
+                .scope_marker_name(&declaration_context(None))
+                .unwrap(),
+        ] {
+            assert!(
+                !javascript_key(name.clone()).starts_with('_') || name.starts_with('_'),
+                "{name}"
+            );
+            assert!(name.starts_with("s_") || name.starts_with("_s_"), "{name}");
+        }
     }
 
     #[test]

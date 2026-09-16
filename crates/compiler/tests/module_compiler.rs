@@ -384,6 +384,66 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
 mod css_fixture;
 
 #[test]
+fn a_host_body_that_an_object_cannot_hold_is_prefixed_in_generated_code() {
+    #[derive(Debug)]
+    struct PrototypeGenerator;
+
+    impl IdentifierGenerator for PrototypeGenerator {
+        // The marker reaches generated JavaScript as the projection table's key.
+        fn ref_marker(
+            &self,
+            _context: &DeclarationContext,
+            _hash: &str,
+        ) -> Result<GeneratedName, String> {
+            Ok(GeneratedName::body("__proto__"))
+        }
+    }
+
+    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
+            .unwrap();
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "menu.tsx",
+            "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
+        )
+        .unwrap(),
+    );
+    let scan = OxcSourceAnalyzer.scan(Arc::clone(&source));
+    let facts = TypeFacts {
+        schema: TypeFacts::SCHEMA,
+        module_id: scan.module_id.clone(),
+        source_revision: scan.source_revision.clone(),
+        semantic_revision: Fingerprint::of("facts"),
+        facts: Vec::new(),
+        assets: BTreeMap::new(),
+    };
+    let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
+    let identifiers = Identifiers::with(Arc::new(PrototypeGenerator));
+    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default())
+        .compile_with(&analysis, &identifiers);
+    assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
+    // The marker is written to CSS and to the projection lookup, so both spell it the
+    // same way, and the lookup key is one an object literal can hold.
+    let replacement = compiled
+        .code_transforms
+        .iter()
+        .map(|transform| transform.replacement.as_str())
+        .find(|replacement| replacement.starts_with("{c:"))
+        .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
+    assert_eq!(replacement, "{c:\"___proto__\"}", "{replacement}");
+    let projection = compiled
+        .code_transforms
+        .iter()
+        .map(|transform| transform.replacement.as_str())
+        .find(|replacement| replacement.contains("___proto__\""))
+        .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
+    assert!(!projection.contains("\"__proto__\""), "{projection}");
+}
+
+#[test]
 fn development_mode_imports_the_checked_helper_from_the_dev_module() {
     let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
     let snapshot =
