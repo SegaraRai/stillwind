@@ -26,13 +26,10 @@ pub(crate) const DEFAULT_CLASS_PREFIX: &str = "_s_";
 /// The prefix that marks a built-in ref marker class token as compiler-owned.
 pub(crate) const DEFAULT_REF_MARKER_PREFIX: &str = "s_";
 
-/// The prefix that marks a built-in subtree marker class token as compiler-owned.
-pub(crate) const DEFAULT_SCOPE_MARKER_PREFIX: &str = "s_";
-
 /// The custom-property prefix of a built-in ref anchor name.
 pub(crate) const DEFAULT_ANCHOR_PREFIX: &str = "--sw-r-";
 
-/// The custom-property prefix of a built-in subtree container name.
+/// The custom-property prefix of a built-in container name.
 pub(crate) const DEFAULT_CONTAINER_PREFIX: &str = "--sw-s-";
 
 /// The custom-property prefix of a built-in keyframes name.
@@ -82,8 +79,6 @@ pub enum IdentifierKind {
     UtilityClass,
     /// A ref marker class, written where a ref is attached.
     RefMarker,
-    /// A subtree marker class, written where a subtree is attached.
-    SubtreeMarker,
     /// An `anchor-name` custom-ident, which the element being anchored is named by.
     AnchorName,
     /// A `container-name` custom-ident, used by `@container` queries.
@@ -104,7 +99,6 @@ impl IdentifierKind {
         match self {
             Self::UtilityClass => "class",
             Self::RefMarker => "ref-marker",
-            Self::SubtreeMarker => "subtree-marker",
             Self::AnchorName => "anchor",
             Self::ContainerName => "container",
             Self::KeyframesName => "keyframes",
@@ -117,9 +111,7 @@ impl IdentifierKind {
     /// The CSS namespace this family writes into.
     pub const fn pool(self) -> IdentifierPool {
         match self {
-            Self::UtilityClass | Self::RefMarker | Self::SubtreeMarker => {
-                IdentifierPool::ClassToken
-            }
+            Self::UtilityClass | Self::RefMarker => IdentifierPool::ClassToken,
             Self::AnchorName => IdentifierPool::AnchorName,
             Self::ContainerName => IdentifierPool::ContainerName,
             Self::KeyframesName => IdentifierPool::KeyframesName,
@@ -179,7 +171,6 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
     match kind {
         IdentifierKind::UtilityClass => DEFAULT_CLASS_PREFIX,
         IdentifierKind::RefMarker => DEFAULT_REF_MARKER_PREFIX,
-        IdentifierKind::SubtreeMarker => DEFAULT_SCOPE_MARKER_PREFIX,
         IdentifierKind::AnchorName => DEFAULT_ANCHOR_PREFIX,
         IdentifierKind::ContainerName => DEFAULT_CONTAINER_PREFIX,
         IdentifierKind::KeyframesName => DEFAULT_ANIMATION_PREFIX,
@@ -230,7 +221,6 @@ mod tests {
         let kinds = [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,
-            IdentifierKind::SubtreeMarker,
             IdentifierKind::AnchorName,
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,
@@ -249,7 +239,6 @@ mod tests {
         for kind in [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,
-            IdentifierKind::SubtreeMarker,
             IdentifierKind::AnchorName,
             IdentifierKind::ContainerName,
             IdentifierKind::KeyframesName,

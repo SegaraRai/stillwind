@@ -13,14 +13,14 @@ implementation limitation, not a source-language restriction.
 
 ### Declaration values are JavaScript values
 
-Objects created by `style.ref()`, `style.subtree()`, `style.keyframes()`, and
+Objects created by `style.ref()`, `style.keyframes()`, and
 `style.viewTransition()` are ordinary JavaScript values. They may be exported,
 imported, re-exported, passed to and returned from functions, stored in data
 structures, and conditionally selected across module boundaries. Stillwind must
 not narrow this valid composition merely because a compiler pass cannot yet
 resolve a value locally.
 
-The boundary is identity creation, not value flow. A declaration-producing call has
+The dividing line is identity creation, not value flow. A declaration-producing call has
 a declaration-site identity. Re-evaluating that call denotes the same
 Stillwind identity rather than allocating an unbounded sequence of CSS names.
 An API restriction is justified only by invalid CSS semantics, a genuine API
@@ -34,8 +34,8 @@ reason to reject otherwise meaningful JavaScript. The compiler reasons about a
 finite symbolic candidate set, not necessarily one exact local value:
 
 ```ts
-const group = condition ? groupSubtree1 : groupSubtree2;
-// group ∈ { groupSubtree1, groupSubtree2 }
+const group = condition ? groupBoundary1 : groupBoundary2;
+// group ∈ { groupBoundary1, groupBoundary2 }
 ```
 
 Where safe, CSS retains the set symbolically instead of expanding a Cartesian
@@ -47,9 +47,9 @@ product:
 }
 ```
 
-Correlated choices must remain correlated. For example, a ref whose permitted
-subtree differs by alternative must not be lowered to a subtree/ref cross-product
-that could match a DOM relationship the source never denoted. The compiler
+Correlated choices must remain correlated. For example, a ref whose boundary
+differs by alternative must not be lowered to a boundary/ref cross-product that
+could match a DOM relationship the source never denoted. The compiler
 factors only proven-independent candidate sets.
 
 Stillwind never generates CSS at runtime. Exact values may erase completely;
@@ -183,10 +183,10 @@ style("rounded-md bg-accent", {
 Plain strings passed directly to `style()` remain Stillwind utility strings and
 are rejected if they are not in the configured utility vocabulary.
 
-## DOM refs and subtrees
+## DOM refs and boundaries
 
 `style.ref()` is an opaque compile-time identity for a DOM element. Without a
-subtree it is the named, local equivalent of Tailwind's `group`: a selector rooted
+boundary it is the named, local equivalent of Tailwind's `group`: a selector rooted
 at the ref can target its descendants.
 
 ```tsx
@@ -213,9 +213,9 @@ style({ [trigger()]: "text-accent" });
 style(`${trigger()}:text-accent`);
 ```
 
-For a subtree-bound ref, this requires a matching element within that subtree
-(`.subtree:has(.ref) .target`). For an unbound ref, the matching element must be
-an ancestor (`.ref .target`).
+For a bounded ref, this requires a matching element within the boundary
+(`.boundary:has(.bounded) .target`). For an unbounded ref, the matching element
+must be an ancestor (`.ref .target`).
 
 The variants inside `trigger(...)` test the referenced element. Variants outside
 it apply to the styled target. Both forms below test a hovered trigger and an
@@ -247,12 +247,12 @@ const classes = `${trigger`hover:`}:text-accent`;
 style(classes); // Not supported: write the template directly inside style(...).
 ```
 
-`style.subtree()` creates a DOM boundary. Binding a ref to that subtree permits the
-ref and selector target to be siblings or otherwise independently nested within
-the boundary.
+A ref becomes a boundary when another ref names it. The bounded ref permits its
+reference and selector target to be siblings or otherwise independently nested within
+the boundary element.
 
 ```tsx
-const menu = style.subtree("menu");
+const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
 
 <section {...style(menu, "relative")}>
@@ -261,18 +261,17 @@ const trigger = style.ref(menu, "trigger");
 </section>;
 ```
 
-The subtree must be attached to a strict ancestor of its bound ref. When JSX is
-visible in one file the linter verifies that invariant. The generated selector
+The boundary element must be attached to a strict ancestor of its bounded ref. When
+JSX is visible in one file the linter verifies that invariant. The generated selector
 for the sibling example has the form:
 
 ```css
 .s_menu_<hash>:has(.s_trigger_<hash>:where(:hover)) .s_<target-hash> { ... }
 ```
 
-Names are optional. `style.subtree()` and `style.ref()` emit `.s_<hash>`;
-`style.subtree("menu")` and `style.ref(menu, "trigger")` emit
-`.s_menu_<hash>` and `.s_trigger_<hash>`. The hash keeps these local identities
-deterministic and collision-checked.
+Names are optional. `style.ref()` emits `.s_<hash>`; `style.ref("menu")` and
+`style.ref(menu, "trigger")` emit `.s_menu_<hash>` and `.s_trigger_<hash>`. The
+hash keeps these local identities deterministic and collision-checked.
 
 Refs also own anchor positioning and container-query projections:
 
@@ -286,11 +285,11 @@ const popover = style.ref();
 </div>;
 ```
 
-`anchorScope` is deliberately distinct from `style.subtree()`: it emits CSS
-`anchor-scope`, while `style.subtree()` creates the structural boundary used for
-ref selectors. The linter also checks missing anchor/container providers; it
-does not infer relationships across component boundaries, portals, or arbitrary
-`children`.
+`anchorScope` is a projection, not a boundary: it emits CSS `anchor-scope`, while
+naming a ref in another ref's declaration creates the structural boundary that ref
+selectors are read through. The linter also checks missing anchor/container
+providers; it does not infer relationships across component boundaries, portals, or
+arbitrary `children`.
 
 ## Local animation, written with utilities
 

@@ -1,0 +1,30 @@
+._s_26351d29 {
+  anchor-scope: --sw-r-c134e6f8;
+}
+._s_358e5414 {
+  container-name: --sw-s-c134e6f8;
+  container-type: inline-size;
+}
+._s_8c17e379 {
+  position: relative;
+  display: inline-flex;
+}
+._s_246794cb {
+  anchor-name: --sw-r-c134e6f8;
+}
+._s_84e4e074 {
+  position: absolute;
+}
+@container --sw-s-c134e6f8 (width >= 40rem) {
+  ._s_84e4e074 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (hover: hover) {
+  .s_menu_71ba03e2:has(.s_trigger_c134e6f8:where(:hover)) ._s_84e4e074 {
+    color: var(--color-accent);
+  }
+}
+._s_8076fe32 {
+  position-anchor: --sw-r-c134e6f8;
+}

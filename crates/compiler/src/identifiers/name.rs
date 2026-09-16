@@ -104,12 +104,9 @@ brand! {
     UtilityClass, class_token;
     /// A ref marker class, written where a ref is attached.
     ///
-    /// Generated code keys a ref's projection lookup by this token.
+    /// Generated code keys a ref's projection lookup by this token, and a bounded ref
+    /// writes its boundary's token as the `:has()` root of its selectors.
     RefMarker, object_key_class_token;
-    /// A subtree marker class, written where a subtree is attached.
-    ///
-    /// Generated code keys a subtree's projection lookup by this token.
-    SubtreeMarker, object_key_class_token;
     /// An `anchor-name` custom-ident, which names the element a ref anchors to.
     AnchorName, custom_ident;
     /// A `container-name` custom-ident, which `@container` queries select.
@@ -132,18 +129,6 @@ impl UtilityClass {
 }
 
 impl RefMarker {
-    /// This name as a class selector, including its leading dot.
-    pub fn selector(&self) -> String {
-        class_selector(self.as_str())
-    }
-
-    /// This name as the value of a JavaScript string literal.
-    pub fn javascript_string(&self) -> String {
-        js_string(self.as_str())
-    }
-}
-
-impl SubtreeMarker {
     /// This name as a class selector, including its leading dot.
     pub fn selector(&self) -> String {
         class_selector(self.as_str())

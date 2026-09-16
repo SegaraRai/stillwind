@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "bounded-ref-layout",
+  "title": "Bounded refs and layout projections",
+  "description": "Ref markers and the boundaries that bound them, lowered into anchor, position-anchor, anchor-scope, container, container-query, and tagged-selector CSS.",
+  "tags": ["boundary", "ref", "anchor", "container", "selector"],
+  "theme": "stillwind.css",
+  "sources": ["src/Popover.tsx"]
+}

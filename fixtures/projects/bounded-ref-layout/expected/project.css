@@ -426,35 +426,35 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ._s_f2870056 {
-    anchor-scope: --sw-r-af323949;
+  ._s_26351d29 {
+    anchor-scope: --sw-r-c134e6f8;
   }
-  ._s_9fe72c9c {
-    container-name: --sw-s-ec3bb7c0;
+  ._s_358e5414 {
+    container-name: --sw-s-c134e6f8;
     container-type: inline-size;
   }
-  ._s_4e51e893 {
+  ._s_8c17e379 {
     position: relative;
     display: inline-flex;
   }
-  ._s_c6b39c57 {
-    anchor-name: --sw-r-af323949;
+  ._s_246794cb {
+    anchor-name: --sw-r-c134e6f8;
   }
-  ._s_f7f6772c {
+  ._s_84e4e074 {
     position: absolute;
   }
-  @container --sw-r-af323949 (width >= 40rem) {
-    ._s_f7f6772c {
+  @container --sw-s-c134e6f8 (width >= 40rem) {
+    ._s_84e4e074 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (hover: hover) {
-    .s_menu_701cde9d:has(.s_trigger_af323949:where(:hover)) ._s_f7f6772c {
+    .s_menu_71ba03e2:has(.s_trigger_c134e6f8:where(:hover)) ._s_84e4e074 {
       color: var(--color-accent);
     }
   }
-  ._s_3675f491 {
-    position-anchor: --sw-r-af323949;
+  ._s_8076fe32 {
+    position-anchor: --sw-r-c134e6f8;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

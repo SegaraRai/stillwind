@@ -101,13 +101,12 @@ pub(crate) fn parse_projected(
             ExportedValue::Refs(alternatives) => {
                 for alternative in alternatives {
                     map_identity(&mut alternative.reference, &normalized)?;
-                    if let Some(scopes) = &mut alternative.permitted_subtrees {
-                        map_symbolic(scopes, &normalized)?;
+                    if let Some(boundaries) = &mut alternative.permitted_boundaries {
+                        map_symbolic(boundaries, &normalized)?;
                     }
                 }
             }
             ExportedValue::Styles(value)
-            | ExportedValue::Subtrees(value)
             | ExportedValue::Keyframes(value)
             | ExportedValue::ViewTransitions(value)
             | ExportedValue::ViewTransitionKeys(value) => {

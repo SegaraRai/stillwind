@@ -94,7 +94,7 @@ fn utility_precedence_is_independent_of_literal_and_array_order() {
 #[test]
 fn punctuation_labels_produce_valid_javascript_strings() {
     let (_, result) = compile(
-        r#"export const subtree = style.subtree('a"b/c'); export const ref = style.ref(subtree, 'd"e/f'); export const child = style({[ref()]: 'a'});"#,
+        r#"export const boundary = style.ref('a"b/c'); export const ref = style.ref(boundary, 'd"e/f'); export const child = style({[ref()]: 'a'});"#,
         "@utility a { color:red; }",
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");
@@ -118,9 +118,8 @@ fn punctuation_labels_produce_valid_javascript_strings() {
     let marker = result
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "ref-marker")
+        .find(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with("s_d\"e/f_"))
         .expect("ref marker symbol");
-    assert!(marker.name.starts_with("s_d\"e/f_"), "{}", marker.name);
     let escaped = marker.name.replace('"', "\\\"").replace('/', "\\/");
     assert!(result.css.contains(&escaped), "{}", result.css);
 }
@@ -128,8 +127,8 @@ fn punctuation_labels_produce_valid_javascript_strings() {
 #[test]
 fn normalized_labels_reach_only_the_marker_names() {
     let (_, result) = compile(
-        "const subtree = style.subtree('領域 :'); const ref = style.ref(subtree, '項目 🧭'); \
-         export const root = style(subtree); export const item = style(ref); \
+        "const boundary = style.ref('領域 :'); const ref = style.ref(boundary, '項目 🧭'); \
+         export const root = style(boundary); export const item = style(ref); \
          export const child = style({[ref()]: 'a'});",
         "@utility a { color:red; }",
     );

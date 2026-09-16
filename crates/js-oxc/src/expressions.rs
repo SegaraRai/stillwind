@@ -99,9 +99,9 @@ impl<'a> MacroExtractor<'a> {
     /// Lowers one `style()` argument into zero or more IR inputs.
     ///
     /// The order of the attempts is the precedence order of the accepted forms: nested
-    /// `style()` calls are reported, then style candidates, then ref and subtree
-    /// attachments, projections, view transitions, utility templates and finally plain
-    /// class expressions.
+    /// `style()` calls are reported, then style candidates, then ref attachments,
+    /// projections, view transitions, utility templates and finally plain class
+    /// expressions.
     pub(crate) fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
@@ -492,7 +492,7 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Wraps a value in one variant, rejecting values a variant cannot subtree.
+    /// Wraps a value in one variant, rejecting values a variant cannot apply to.
     fn variant_entry(
         &mut self,
         variant: StyleVariant,
@@ -516,9 +516,10 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
-/// Variant wrappers subtree stylesheet declarations. Custom-property object keys supply
-/// inline values even when literal; conditional variable changes use utility syntax.
-/// Attributes and external class values also have no stylesheet declaration to subtree.
+/// Variant wrappers apply to stylesheet declarations. Custom-property object keys
+/// supply inline values even when literal; conditional variable changes use utility
+/// syntax. Attributes and external class values also have no stylesheet declaration to
+/// apply to.
 fn variant_compatible(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Utilities(_)

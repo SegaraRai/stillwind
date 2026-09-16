@@ -31,11 +31,10 @@ use super::emission::{
 use super::fragment::render_style_call;
 use super::output::CompileResult;
 use super::symbols::{
-    detached_symbol, generated_ref_marker_symbol, generated_ref_symbol,
-    generated_subtree_marker_symbol, generated_subtree_symbol, generated_symbol,
-    identity_declaration, named_declaration, ref_marker_name, subtree_marker_name,
+    detached_symbol, generated_ref_marker_symbol, generated_ref_symbol, generated_symbol,
+    identity_declaration, named_declaration, ref_marker_name,
 };
-use super::symbols::{named_identity, ref_identity, subtree_identity};
+use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
 use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
@@ -148,20 +147,6 @@ impl Compiler {
                 .ref_definitions
                 .iter()
                 .map(|definition| generated_ref_marker_symbol(identifiers, definition))
-                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
-        );
-        symbols.extend(
-            module
-                .subtree_definitions
-                .iter()
-                .map(|definition| generated_subtree_symbol(identifiers, definition))
-                .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
-        );
-        symbols.extend(
-            module
-                .subtree_definitions
-                .iter()
-                .map(|definition| generated_subtree_marker_symbol(identifiers, definition))
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
         symbols.extend(
@@ -330,24 +315,6 @@ impl Compiler {
                 expressions: Vec::new(),
             });
         }
-        for subtree_definition in module.subtree_definitions {
-            result.transforms.push(SourceTransform {
-                call_span: subtree_definition.call_span,
-                replacement: if runtime_assets.contains(&subtree_identity(&subtree_definition)) {
-                    match subtree_marker_name(identifiers, &subtree_definition) {
-                        Ok(marker) => ref_value(&marker.javascript_string()),
-                        Err(failure) => {
-                            diagnostics
-                                .push(CompileError::new(failure, subtree_definition.call_span));
-                            "undefined".to_owned()
-                        }
-                    }
-                } else {
-                    "undefined".to_owned()
-                },
-                expressions: Vec::new(),
-            });
-        }
         for animation in module.keyframes_declarations {
             result.transforms.push(SourceTransform {
                 call_span: animation.call_span,
@@ -495,7 +462,7 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
         .collect()
 }
 
-/// One ref or subtree declaration's runtime value: its canonical class token under `c`.
+/// One ref declaration's runtime value: its canonical class token under `c`.
 ///
 /// A declaration is an identity, and every attachment reads that one key, so a ref
 /// needs no runtime helper and no projection helper functions. The key is a plain

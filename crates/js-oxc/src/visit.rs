@@ -3,9 +3,8 @@
 //!
 //! The visit records four kinds of fact: module structure (imports, re-exports,
 //! specifier literals, exported bindings), declarations of assets (`style.ref()`,
-//! `style.subtree()`, keyframes, view transitions), `style()` call sites, and the JSX
-//! ancestry of each visited element so ref/subtree validation can check containment
-//! later.
+//! keyframes, view transitions), `style()` call sites, and the JSX ancestry of each
+//! visited element so ref ancestry and boundary containment can be checked later.
 //!
 //! Recognition always goes through resolved symbols. The one place spelling is used is
 //! [`ImportBinding`], because an import declaration is the only construct that can
@@ -239,7 +238,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_call_expression(self, call);
     }
 
-    /// Recognizes the four asset producers in one `const x = style.<member>(...)`.
+    /// Recognizes the three asset producers in one `const x = style.<member>(...)`.
     ///
     /// Each producer records its definition, its symbol, and the symbolic value the
     /// binding denotes, so later uses resolve without re-checking the call.
@@ -258,39 +257,17 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_ref_definition(name, call) {
                 self.ref_symbols.insert(symbol_id, definition.clone());
-                let subtrees = definition.subtree.as_ref().map(|subtree| {
-                    SymbolicValue::exact(self.identity(AssetKind::Subtree, &subtree.binding))
+                let boundaries = definition.boundary.as_ref().map(|boundary| {
+                    SymbolicValue::exact(self.identity(AssetKind::Ref, &boundary.binding))
                 });
                 self.local_values.insert(
                     symbol_id,
                     ExportedValue::Refs(vec![RefAlternative {
                         reference: self.identity(AssetKind::Ref, &definition.binding),
-                        permitted_subtrees: subtrees,
+                        permitted_boundaries: boundaries,
                     }]),
                 );
                 self.ref_definitions.push(definition);
-            }
-        }
-        if let (
-            BindingPattern::BindingIdentifier(identifier),
-            Some(Expression::CallExpression(call)),
-        ) = (&declarator.id, &declarator.init)
-            && self.is_style_subtree_call(call)
-            && let Some(symbol_id) = identifier.symbol_id.get()
-        {
-            let name = Spanned::new(
-                identifier.name.to_string(),
-                self.source_span(identifier.span),
-            );
-            if let Some(definition) = self.collect_subtree_definition(name, call) {
-                self.subtree_symbols.insert(symbol_id, definition.clone());
-                self.local_values.insert(
-                    symbol_id,
-                    ExportedValue::Subtrees(SymbolicValue::exact(
-                        self.identity(AssetKind::Subtree, &definition.binding),
-                    )),
-                );
-                self.subtree_definitions.push(definition);
             }
         }
         if let (

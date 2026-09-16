@@ -16,8 +16,8 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AssetReference, ClassExpression, GroupEntry, KeyframesBody, KeyframesDefinition, ModuleIr,
-    RefDefinition, RefProjection, StyleGuard, StyleInput, StyleVariant, SubtreeDefinition,
+    AssetReference, BoundaryRef, ClassExpression, GroupEntry, KeyframesBody, KeyframesDefinition,
+    ModuleIr, RefDefinition, RefProjection, StyleGuard, StyleInput, StyleVariant,
     ViewTransitionKey, ViewTransitionName,
 };
 
@@ -58,9 +58,6 @@ impl ModuleIr {
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }
-        for subtree in &mut result.subtree_definitions {
-            map_subtree(subtree, &mut map)?;
-        }
         for keyframes in &mut result.keyframes_declarations {
             map_animation(keyframes, &mut map)?;
         }
@@ -90,15 +87,15 @@ fn map_value<E>(
     Ok(())
 }
 
-fn map_subtree<E>(
-    subtree: &mut SubtreeDefinition,
+fn map_boundary<E>(
+    boundary: &mut BoundaryRef,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut subtree.binding, map)?;
-    if let Some(label) = &mut subtree.label {
+    map_value(&mut boundary.binding, map)?;
+    if let Some(label) = &mut boundary.label {
         map_value(label, map)?;
     }
-    subtree.call_span = map(subtree.call_span)?;
+    boundary.call_span = map(boundary.call_span)?;
     Ok(())
 }
 
@@ -110,8 +107,8 @@ fn map_ref<E>(
     if let Some(label) = &mut definition.label {
         map_value(label, map)?;
     }
-    if let Some(subtree) = &mut definition.subtree {
-        map_subtree(subtree, map)?;
+    if let Some(boundary) = &mut definition.boundary {
+        map_boundary(boundary, map)?;
     }
     definition.call_span = map(definition.call_span)?;
     Ok(())
@@ -172,17 +169,8 @@ fn map_input<E>(
 ) -> Result<(), E> {
     match input {
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
-        StyleInput::SubtreeAttachment(subtree) => {
-            map_subtree(subtree, map)?;
-        }
         StyleInput::RefAttachment(definition) => {
             map_ref(definition, map)?;
-        }
-        StyleInput::DynamicSubtreeAttachment { value, subtrees } => {
-            *value = map(*value)?;
-            for subtree in subtrees {
-                map_subtree(subtree, map)?;
-            }
         }
         StyleInput::DynamicRefAttachment { value, refs } => {
             *value = map(*value)?;

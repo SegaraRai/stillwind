@@ -25,7 +25,6 @@ pub(crate) fn validate(program: &Program<'_>, module: &ModuleIr, file: FileId) -
         .iter()
         .map(|call| call.span)
         .chain(module.ref_definitions.iter().map(|item| item.call_span))
-        .chain(module.subtree_definitions.iter().map(|item| item.call_span))
         .chain(
             module
                 .keyframes_declarations

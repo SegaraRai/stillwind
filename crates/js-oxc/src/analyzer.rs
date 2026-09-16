@@ -17,7 +17,9 @@ use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind, collect_lint_directives};
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
-use stillwind_semantic::{ExportedValue, IntegrationDiagnostic, ModuleSummary, TypeFacts};
+use stillwind_semantic::{
+    ExportedValue, IntegrationDiagnostic, ModuleSummary, SymbolicValue, TypeFacts,
+};
 use stillwind_source::Fingerprint;
 
 use crate::projected_scan::parse_projected;
@@ -29,6 +31,46 @@ use crate::{ParsedJavaScript, parse_with_language};
 /// [`ModuleScan`] it returns.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct OxcSourceAnalyzer;
+
+impl OxcSourceAnalyzer {
+    /// The asset identities another module's accepted facts can reach.
+    ///
+    /// A bounded ref keeps its boundary reachable, so the boundary's CSS stays in the
+    /// stylesheet even when the declaration itself lives in another module.
+    ///
+    /// This is an associated function rather than a method: it reads facts alone, and
+    /// finalization is the only caller.
+    fn external_assets(facts: Option<&TypeFacts>) -> BTreeSet<stillwind_semantic::IdentityId> {
+        let Some(facts) = facts else {
+            return BTreeSet::new();
+        };
+        let mut assets = BTreeSet::new();
+        for fact in &facts.facts {
+            match &fact.value {
+                ExportedValue::Refs(alternatives) => {
+                    for alternative in alternatives {
+                        assets.insert(alternative.reference.clone());
+                        assets.extend(
+                            alternative
+                                .permitted_boundaries
+                                .iter()
+                                .filter_map(SymbolicValue::finite_candidates)
+                                .flatten()
+                                .cloned(),
+                        );
+                    }
+                }
+                ExportedValue::Styles(value)
+                | ExportedValue::Keyframes(value)
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::ViewTransitionKeys(value) => {
+                    assets.extend(value.finite_candidates().into_iter().flatten().cloned());
+                }
+            }
+        }
+        assets
+    }
+}
 
 impl SourceAnalyzer for OxcSourceAnalyzer {
     /// Parses the editable source and returns IR, diagnostics and a summary.
@@ -158,31 +200,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             input: scan.input,
             provenance: scan.provenance,
             asset_support: Vec::new(),
-            external_assets: facts.map_or_else(BTreeSet::new, |facts| {
-                let mut assets = BTreeSet::new();
-                for fact in &facts.facts {
-                    match &fact.value {
-                        ExportedValue::Refs(alternatives) => {
-                            for alternative in alternatives {
-                                assets.insert(alternative.reference.clone());
-                                if let Some(scopes) = &alternative.permitted_subtrees {
-                                    assets.extend(
-                                        scopes.finite_candidates().into_iter().flatten().cloned(),
-                                    );
-                                }
-                            }
-                        }
-                        ExportedValue::Styles(value)
-                        | ExportedValue::Subtrees(value)
-                        | ExportedValue::Keyframes(value)
-                        | ExportedValue::ViewTransitions(value)
-                        | ExportedValue::ViewTransitionKeys(value) => {
-                            assets.extend(value.finite_candidates().into_iter().flatten().cloned());
-                        }
-                    }
-                }
-                assets
-            }),
+            external_assets: Self::external_assets(facts),
             module_id: scan.module_id,
             source: scan.source,
             source_revision: scan.source_revision,

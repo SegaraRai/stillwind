@@ -6,7 +6,7 @@
 //! candidate written as one token. A ref wrapper cannot be spelled as a string: the
 //! selector depends on which element declares the ref and where it sits relative to the
 //! target, so the wrapper is lowered into [`VariantApplication`] alternatives that
-//! carry the generated marker and scope selectors.
+//! carry the generated marker and boundary selectors.
 //!
 //! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
 //! records the ref's generated identifiers and the authored prefix, independent of how
@@ -25,7 +25,7 @@ use stillwind_ir::{RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::symbols::{anchor_name, ref_marker_name, subtree_marker_name};
+use super::symbols::{boundary_marker_name, ref_container_name, ref_marker_name};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 use crate::identifiers::{IdentifierContext, RefMarker};
@@ -62,8 +62,8 @@ impl StyleVariantPlan {
     /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
     ///
     /// A ref wrapper with no known ref identity is an error rather than a fallthrough
-    /// to a selector without a subtree boundary, because that would silently target the
-    /// wrong element.
+    /// to a selector without a boundary, because that would silently target the wrong
+    /// element.
     ///
     /// Returns `None` after pushing a diagnostic; the caller must abandon the
     /// contribution. A runtime condition inside a ref wrapper also rejects, since
@@ -164,22 +164,22 @@ impl StyleVariantPlan {
                     return None;
                 }
             };
-            let subtree = match definition.subtree.as_ref() {
-                Some(subtree) => match subtree_marker_name(context, subtree) {
+            let boundary = match definition.boundary.as_ref() {
+                Some(boundary) => match boundary_marker_name(context, boundary) {
                     Ok(name) => Some(name.selector()),
                     Err(failure) => {
-                        diagnostics.push(CompileError::new(failure, subtree.call_span));
+                        diagnostics.push(CompileError::new(failure, boundary.call_span));
                         return None;
                     }
                 },
                 None => None,
             };
-            identities.push((marker.as_str().to_owned(), subtree.clone()));
+            identities.push((marker.as_str().to_owned(), boundary.clone()));
             for path in &paths {
-                alternatives.push(reference_path(&marker, subtree.as_deref(), path));
+                alternatives.push(reference_path(&marker, boundary.as_deref(), path));
             }
         }
-        // Names and scopes are generated identifiers; prefix length makes
+        // Names and boundaries are generated identifiers; prefix length makes
         // the variable-length authored portion unambiguous.
         let _ = write!(
             self.canonical,
@@ -220,7 +220,7 @@ impl StyleVariantPlan {
         let conditions = refs
             .iter()
             .map(|definition| {
-                anchor_name(context, definition, Some("container"))
+                ref_container_name(context, definition)
                     .map(|name| format!("{} ({})", name.as_str(), query.value))
             })
             .collect::<Result<Vec<_>, _>>();
@@ -341,12 +341,12 @@ pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
 /// The reference element's own variants are folded into one `:where()`-guarded
 /// reference, and the target keeps the combinator relative to it. Wrapping in
 /// `:where()` keeps the specificity of the target's own selector, so a ref variant does
-/// not outrank an ordinary variant by accident. A subtree-bound ref requires the marker
-/// to contain the reference, which is how an unrelated element with a matching marker
-/// outside the subtree is excluded.
+/// not outrank an ordinary variant by accident. A bounded ref requires the boundary to
+/// contain the reference, which is how an unrelated element with a matching marker
+/// outside the boundary is excluded.
 fn reference_path(
     marker: &RefMarker,
-    scope: Option<&str>,
+    boundary: Option<&str>,
     path: &[VariantStep<'_>],
 ) -> Vec<VariantApplication> {
     let mut reference = "&".to_owned();
@@ -413,8 +413,8 @@ fn reference_path(
             instantiate_selector(&reference, &marker.selector())
         ),
     };
-    let selector = match scope {
-        Some(scope) => format!("{scope}:has({reference}) &"),
+    let selector = match boundary {
+        Some(boundary) => format!("{boundary}:has({reference}) &"),
         None => format!("{reference} &"),
     };
     conditions.push(if declarations.is_empty() {

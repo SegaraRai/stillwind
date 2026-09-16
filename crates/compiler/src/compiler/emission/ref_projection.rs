@@ -9,8 +9,8 @@ use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::super::symbols::{
-    anchor_name, identity_input_parts, projection_symbol, ref_context, ref_identity,
-    ref_marker_name, ref_projection_name,
+    anchor_name, identity_input_parts, projection_symbol, ref_container_name, ref_context,
+    ref_identity, ref_marker_name, ref_projection_name,
 };
 use super::super::utilities::resolve::CompiledUtility;
 use super::{CLASS_KEY, CallEmitter};
@@ -212,9 +212,9 @@ pub(super) fn ref_class_read(value: Code) -> ValueExpr {
 /// reportable symbol for the name it writes.
 ///
 /// An anchor projection writes the declaration's `anchor-name`, and a container
-/// projection writes its `container-name`; both names are written for the ref's
-/// identity, so one declaration can legitimately appear in two CSS namespaces under
-/// the same spelling.
+/// projection writes its `container-name`, which is also the name `at()` queries; both
+/// are written for the ref's identity, so one declaration legitimately appears in two
+/// CSS namespaces.
 ///
 /// # Errors
 ///
@@ -246,7 +246,7 @@ fn render_ref_projection(
         }
         RefProjection::AnchorScope => (format!("anchor-scope:{};", name.custom_ident()), None),
         RefProjection::Container(kind) => {
-            let container = context.container_name(&ref_context(definition, Some("container")))?;
+            let container = ref_container_name(context, definition)?;
             (
                 format!(
                     "container-name:{};container-type:{};",
@@ -268,21 +268,21 @@ fn render_ref_projection(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_ir::SubtreeDefinition;
+    use stillwind_ir::BoundaryRef;
     use stillwind_source::{FileId, Span, Spanned};
 
     use super::*;
-    use crate::compiler::symbols::{ref_marker_name, subtree_marker_name};
+    use crate::compiler::symbols::{boundary_marker_name, ref_marker_name};
     use crate::identifiers::{IdentifierContext, IdentifierPool};
 
     #[test]
-    fn projections_share_identity_and_subtree_bound_selectors_bind_the_parent() {
+    fn projections_share_identity_and_boundaries_name_their_own_declaration() {
         let binding = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         let mut definition = RefDefinition {
             module_path: "x".into(),
             binding: binding.clone(),
             label: None,
-            subtree: None,
+            boundary: None,
             call_span: binding.span,
         };
         let identifiers = IdentifierContext::builtin();
@@ -328,15 +328,31 @@ mod tests {
             container_symbol.identity,
             identity_input_parts(&ref_context(&definition, None))
         );
-        definition.subtree = Some(SubtreeDefinition {
+        definition.boundary = Some(BoundaryRef {
             module_path: "x".into(),
             binding: binding.clone(),
             label: Some(binding.clone()),
             call_span: binding.span,
         });
-        let subtree =
-            subtree_marker_name(&identifiers, definition.subtree.as_ref().unwrap()).unwrap();
-        assert!(subtree.as_str().starts_with("s_"), "{subtree}");
+        let boundary =
+            boundary_marker_name(&identifiers, definition.boundary.as_ref().unwrap()).unwrap();
+        // A boundary is a ref declaration, so the element carrying it wears that
+        // declaration's own marker class.
+        assert_eq!(
+            boundary.as_str(),
+            ref_marker_name(
+                &identifiers,
+                &RefDefinition {
+                    module_path: "x".into(),
+                    binding: binding.clone(),
+                    label: Some(binding.clone()),
+                    boundary: None,
+                    call_span: binding.span,
+                }
+            )
+            .unwrap()
+            .as_str()
+        );
         definition.label = Some(binding);
         // The built-in name hashes the declaration alone, so a label cannot move it:
         // every position the marker is written to resolves the same declaration.

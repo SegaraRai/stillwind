@@ -52,9 +52,9 @@ fragment and the complete project stylesheet in `expected/project.css`.
 
 - `utility-props-matrix`: utilities, arrays, conditions, ternaries, attributes,
   local selectors, and external classes.
-- `scoped-ref-layout`: subtree/ref markers, anchor positioning, containers,
+- `bounded-ref-layout`: ref markers and their boundaries, anchor positioning, containers,
   container queries, and ref-tagged selectors.
-- `typed-ref-graph`: conditional refs/subtrees propagated through imports and
+- `typed-ref-graph`: conditional refs and boundaries propagated through imports and
   a barrel re-export by TypeScript.
 - `keyframes-matrix`: static and conditional animations across modules.
 - `view-transition-matrix`: static, keyed, and conditional view transitions

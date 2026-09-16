@@ -1,4 +1,4 @@
-//! In-file validation of ref and subtree usage rules.
+//! In-file validation of ref usage rules: ancestry and boundary containment.
 //!
 //! These checks run after the whole module is visited, because they compare uses with
 //! declarations and with each other. A rule is only decided when the relevant JSX is
@@ -7,9 +7,9 @@
 //! violation.
 //!
 //! Findings use the stable `require-anchor-provider`, `require-container-provider`,
-//! `valid-ref-ancestry`, `require-scope-provider`, `valid-scope-ancestry`, and
-//! `scoped-selector-in-scope` rule names. These checks produce lint findings directly;
-//! `swlint-*` suppression never applies to the compiler's fatal ref errors.
+//! `valid-ref-ancestry`, `require-boundary-provider`, `valid-boundary-ancestry`, and
+//! `bounded-selector-in-boundary` rule names. These checks produce lint findings
+//! directly; `swlint-*` suppression never applies to the compiler's fatal ref errors.
 
 use std::collections::HashSet;
 
@@ -36,10 +36,9 @@ impl MacroExtractor<'_> {
                 .iter()
                 .filter(|ref_use| ref_use.name == name)
                 .collect::<Vec<_>>();
-            let has_subtree = self
-                .ref_definitions
-                .iter()
-                .any(|definition| definition.binding.value == name && definition.subtree.is_some());
+            let has_boundary = self.ref_definitions.iter().any(|definition| {
+                definition.binding.value == name && definition.boundary.is_some()
+            });
             let has_anchor = uses.iter().any(|ref_use| ref_use.projection == "anchor");
             if !has_anchor {
                 for ref_use in uses
@@ -77,7 +76,7 @@ impl MacroExtractor<'_> {
                 let Some(path) = &ref_use.jsx_path else {
                     continue;
                 };
-                if !has_subtree
+                if !has_boundary
                     && !known_anchor_paths.is_empty()
                     && !known_anchor_paths
                         .iter()
@@ -91,31 +90,33 @@ impl MacroExtractor<'_> {
             }
         }
 
-        self.validate_subtree_refs();
+        self.validate_bounded_refs();
     }
 
-    /// Checks that every bound subtree is attached to a strict ancestor.
+    /// Checks that every bounded ref's boundary is attached to a strict ancestor.
     ///
-    /// Only subtree-bound refs take part: an unbound ref uses the descendant-only relation
-    /// and has no provider to look for. Selector uses are checked separately from other
-    /// uses because they target a different element.
-    pub(crate) fn validate_subtree_refs(&mut self) {
-        for (definition, subtree) in self.ref_definitions.iter().filter_map(|definition| {
+    /// Only bounded refs take part: an unbounded ref uses the descendant-only relation
+    /// and has no boundary to look for. A boundary is provided by an element that
+    /// attaches the boundary ref, so its attachments are the provider paths. Selector
+    /// uses are checked separately from other uses because they target a different
+    /// element.
+    pub(crate) fn validate_bounded_refs(&mut self) {
+        for (definition, boundary) in self.ref_definitions.iter().filter_map(|definition| {
             definition
-                .subtree
+                .boundary
                 .as_ref()
-                .map(|subtree| (definition, subtree))
+                .map(|boundary| (definition, boundary))
         }) {
             let providers = self
-                .subtree_uses
+                .ref_uses
                 .iter()
-                .filter(|use_| use_.name == subtree.binding.value)
+                .filter(|use_| use_.name == boundary.binding.value && use_.projection == "ref")
                 .collect::<Vec<_>>();
             if providers.is_empty() {
                 self.lint_findings.push(LintFinding::new(
-                    LintKind::UnattachedSubtree {
+                    LintKind::UnattachedBoundary {
                         name: definition.binding.value.clone(),
-                        subtree: subtree.binding.value.clone(),
+                        boundary: boundary.binding.value.clone(),
                     },
                     definition.call_span,
                 ));
@@ -135,8 +136,8 @@ impl MacroExtractor<'_> {
                         .is_some_and(|path| is_strict_ancestor(path, reference_path))
                 }) {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::MissingSubtreeAncestor {
-                            subtree: subtree.binding.value.clone(),
+                        LintKind::MissingBoundaryAncestor {
+                            boundary: boundary.binding.value.clone(),
                             name: definition.binding.value.clone(),
                         },
                         reference_use.span,
@@ -156,9 +157,9 @@ impl MacroExtractor<'_> {
                         .is_some_and(|path| is_strict_ancestor(path, target_path))
                 }) {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::SelectorOutsideSubtree {
+                        LintKind::SelectorOutsideBoundary {
                             name: definition.binding.value.clone(),
-                            subtree: subtree.binding.value.clone(),
+                            boundary: boundary.binding.value.clone(),
                         },
                         selector_use.span,
                     ));
@@ -170,7 +171,7 @@ impl MacroExtractor<'_> {
 
 /// True when `ancestor` is a strict prefix of `descendant`.
 ///
-/// Equality is not ancestry, and the whole path must match, so two sibling subtrees
+/// Equality is not ancestry, and the whole path must match, so two sibling boundaries
 /// never look nested.
 fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)

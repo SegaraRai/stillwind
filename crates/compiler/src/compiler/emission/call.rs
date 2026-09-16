@@ -12,9 +12,7 @@ use stillwind_source::Span;
 use super::super::class_units::ClassUnits;
 use super::super::fragment::{Emitted, Property, ValueExpr};
 use super::super::props::{StyleEmission, StyleEmissionPart};
-use super::super::symbols::{
-    definition_name_symbol, ref_identity, ref_marker_name, subtree_identity, subtree_marker_name,
-};
+use super::super::symbols::{definition_name_symbol, ref_identity, ref_marker_name};
 use super::CallEmitter;
 use super::CallEmitterInputs;
 use super::class_value::expression_position;
@@ -126,22 +124,6 @@ impl<'a> CallEmitter<'a> {
                     position: value.start.0,
                 });
             }
-            StyleInput::SubtreeAttachment(scope) => {
-                let marker = match subtree_marker_name(self.identifiers, scope) {
-                    Ok(marker) => marker,
-                    Err(failure) => {
-                        self.reject_name(failure, self.call.span);
-                        return None;
-                    }
-                };
-                let marker = marker.as_str().to_owned();
-                if !self.units.base.names.contains(&marker) {
-                    self.units.base.names.push(marker);
-                }
-                self.units.base.canonical.push_str("subtree:");
-                self.units.base.canonical.push_str(&scope.binding.value);
-                self.units.base.canonical.push('\u{0}');
-            }
             StyleInput::RefAttachment(definition) => {
                 let marker = match ref_marker_name(self.identifiers, definition) {
                     Ok(marker) => marker,
@@ -160,12 +142,6 @@ impl<'a> CallEmitter<'a> {
                     .canonical
                     .push_str(&definition.binding.value);
                 self.units.base.canonical.push('\u{0}');
-            }
-            StyleInput::DynamicSubtreeAttachment { value, subtrees } => {
-                self.runtime_assets
-                    .extend(subtrees.iter().map(subtree_identity));
-                let expression = ref_class_read(self.source_expression(*value)?);
-                self.push_expression(expression, value.start.0);
             }
             StyleInput::DynamicRefAttachment { value, refs } => {
                 self.runtime_assets.extend(refs.iter().map(ref_identity));

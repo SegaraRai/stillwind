@@ -44,7 +44,6 @@ export type StillwindClassValue =
   | Readonly<Record<string, unknown>>;
 
 declare const refProjection: unique symbol;
-declare const subtreeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
 declare const keyframesIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
@@ -58,34 +57,31 @@ export type StillwindDeclarationIdentity<Id extends string> = {
   readonly __stillwindDeclarationIdentity: Id;
 };
 
-export type StyleRefProjection<RefId extends string = string, SubtreeId extends string = never> = {
+export type StyleRefProjection<RefId extends string = string, BoundaryId extends string = never> = {
   readonly [refProjection]: true;
-  readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
+  readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
 };
 
-export type StyleSubtree<Id extends string = string> = {
-  readonly [subtreeIdentity]: Id;
-};
-
-export type StyleRef<RefId extends string = string, SubtreeId extends string = never> = {
-  readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
-  readonly anchor: StyleRefProjection<RefId, SubtreeId>;
-  readonly positionAnchor: StyleRefProjection<RefId, SubtreeId>;
-  readonly anchorScope: StyleRefProjection<RefId, SubtreeId>;
-  container(type: "size" | "inline-size"): StyleRefProjection<RefId, SubtreeId>;
-  at(query: string): StyleRefVariant<RefId, SubtreeId>;
-  at(strings: TemplateStringsArray): StyleRefVariant<RefId, SubtreeId>;
-  (strings: TemplateStringsArray): StyleRefVariant<RefId, SubtreeId>;
-  (): StyleRefVariant<RefId, SubtreeId>;
-  (variants: string): StyleRefVariant<RefId, SubtreeId>;
+/** A DOM identity. The same declaration marks the element and bounds bounded refs. */
+export type StyleRef<RefId extends string = string, BoundaryId extends string = never> = {
+  readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
+  readonly anchor: StyleRefProjection<RefId, BoundaryId>;
+  readonly positionAnchor: StyleRefProjection<RefId, BoundaryId>;
+  readonly anchorScope: StyleRefProjection<RefId, BoundaryId>;
+  container(type: "size" | "inline-size"): StyleRefProjection<RefId, BoundaryId>;
+  at(query: string): StyleRefVariant<RefId, BoundaryId>;
+  at(strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
+  (strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
+  (): StyleRefVariant<RefId, BoundaryId>;
+  (variants: string): StyleRefVariant<RefId, BoundaryId>;
 };
 
 export type StyleRefVariant<
   RefId extends string = string,
-  SubtreeId extends string = never,
+  BoundaryId extends string = never,
 > = string & {
   readonly [refProjection]: true;
-  readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
+  readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
 };
 
 export type StyleKeyframesUse<Id extends string = string> = {
@@ -158,7 +154,6 @@ export type StyleArgument =
   | undefined
   | readonly StyleArgument[]
   | StyleObject
-  | StyleSubtree
   | StyleRef
   | StyleRefProjection
   | StyleRefVariant
@@ -190,33 +185,26 @@ export type StyleMacro<Props = StyleProps> = {
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, Props>;
   (...inputs: readonly StyleArgument[]): StyleResult<string, Props>;
-  subtree(): StyleSubtree;
-  subtree(name: string): StyleSubtree;
-  subtree<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleSubtree<Id>;
-  subtree<const Id extends string>(
-    name: string,
-    identity: StillwindDeclarationIdentity<Id>,
-  ): StyleSubtree<Id>;
   ref(): StyleRef;
   ref(name: string): StyleRef;
-  /** The compiler requires subtree to resolve to exactly one identity. */
-  ref(subtree: StyleSubtree): StyleRef;
-  /** The compiler requires subtree to resolve to exactly one identity. */
-  ref(subtree: StyleSubtree, name: string): StyleRef;
+  /** The compiler requires the boundary to resolve to exactly one ref identity. */
+  ref(boundary: StyleRef): StyleRef;
+  /** The compiler requires the boundary to resolve to exactly one ref identity. */
+  ref(boundary: StyleRef, name: string): StyleRef;
   ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
   ref<const Id extends string>(
     name: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id>;
-  ref<const SubtreeId extends string, const Id extends string>(
-    subtree: StyleSubtree<SubtreeId>,
+  ref<const BoundaryId extends string, const Id extends string>(
+    boundary: StyleRef<BoundaryId>,
     identity: StillwindDeclarationIdentity<Id>,
-  ): StyleRef<Id, SubtreeId>;
-  ref<const SubtreeId extends string, const Id extends string>(
-    subtree: StyleSubtree<SubtreeId>,
+  ): StyleRef<Id, BoundaryId>;
+  ref<const BoundaryId extends string, const Id extends string>(
+    boundary: StyleRef<BoundaryId>,
     name: string,
     identity: StillwindDeclarationIdentity<Id>,
-  ): StyleRef<Id, SubtreeId>;
+  ): StyleRef<Id, BoundaryId>;
   keyframes(definition: StyleKeyframesDefinition): StyleKeyframes;
   keyframes<const Id extends string>(
     definition: StyleKeyframesDefinition,
@@ -236,10 +224,7 @@ export const style = Object.assign(
     );
   },
   {
-    subtree(_name?: string): StyleSubtree {
-      throw new Error("stillwind/react style.subtree() is a compile-time macro.");
-    },
-    ref(_scopeOrName?: StyleSubtree | string, _name?: string): StyleRef {
+    ref(_boundaryOrName?: StyleRef | string, _name?: string): StyleRef {
       throw new Error("stillwind/react style.ref() is a compile-time macro.");
     },
     keyframes(_definition: StyleKeyframesDefinition): StyleKeyframes {

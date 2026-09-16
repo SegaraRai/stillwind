@@ -35,27 +35,26 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 
 マクロ引数と CSS の表層 → Rust の名前:
 
-| 表層                                                                   | Rust                                                                                                              |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `style(base)`                                                          | `StyleInput::Composition { value, candidates }`                                                                   |
-| `style("…")` / utility テンプレート                                    | `ClassExpression::Utilities`（utility 列）                                                                        |
-| `style(a && b)` / `a ? b : c` / `style([...])`                         | `ClassExpression::Conditional` / `Array`                                                                          |
-| `{ "hover:": … }`                                                      | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                                              |
-| `{ class: value }`                                                     | `GroupEntry::Class(ClassExpression::ClassValue)`                                                                  |
-| `{ "aria-*" / "data-*": value }`                                       | `GroupEntry::Attribute(AttributeEntry)`                                                                           |
-| `{ "--x": value }`                                                     | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                                 |
-| `style(subtree)` / `style(ref)`                                        | `StyleInput::SubtreeAttachment` / `RefAttachment`（動的版は `DynamicSubtreeAttachment` / `DynamicRefAttachment`） |
-| `ref.anchor` / `.positionAnchor` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                                 |
-| `ref()` / `ref("variant:")` / ref タグ                                 | `StyleVariant::Ref { refs, prefix }`                                                                              |
-| `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                                         |
-| `style.subtree(name?)`                                                 | \x60SubtreeDefinition { binding, label, … }\x60（label が書かれた文字列）                                         |
-| `style.ref(subtree?, name?)`                                           | `RefDefinition { binding, label, subtree, … }`                                                                    |
-| `style.keyframes(definition)` の frame                                 | `KeyframesFrame { selector, utilities }`（utility 列）。variant キーは `KeyframesBranch`                          |
-| `keyframes(options)`                                                   | `ClassExpression::KeyframesUse { animation, options }`（option 列）                                               |
-| `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列                      |
-| `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                                             |
-| `transition.for(key?)`（`style()` の中）/ キー付きバインディング       | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                                     |
-| `StillwindDeclarationIdentity` 引数                                    | IR 表現なし（checker メタデータ）                                                                                 |
+| 表層                                                                   | Rust                                                                                         |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `style(base)`                                                          | `StyleInput::Composition { value, candidates }`                                              |
+| `style("…")` / utility テンプレート                                    | `ClassExpression::Utilities`（utility 列）                                                   |
+| `style(a && b)` / `a ? b : c` / `style([...])`                         | `ClassExpression::Conditional` / `Array`                                                     |
+| `{ "hover:": … }`                                                      | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                         |
+| `{ class: value }`                                                     | `GroupEntry::Class(ClassExpression::ClassValue)`                                             |
+| `{ "aria-*" / "data-*": value }`                                       | `GroupEntry::Attribute(AttributeEntry)`                                                      |
+| `{ "--x": value }`                                                     | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                            |
+| `style(ref)`                                                           | `StyleInput::RefAttachment`（動的版は `DynamicRefAttachment`）                               |
+| `ref.anchor` / `.positionAnchor` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`            |
+| `ref()` / `ref("variant:")` / ref タグ                                 | `StyleVariant::Ref { refs, prefix }`                                                         |
+| `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                    |
+| `style.ref(boundary?, name?)`                                          | `RefDefinition { binding, label, boundary, … }`                                              |
+| `style.keyframes(definition)` の frame                                 | `KeyframesFrame { selector, utilities }`（utility 列）。variant キーは `KeyframesBranch`     |
+| `keyframes(options)`                                                   | `ClassExpression::KeyframesUse { animation, options }`（option 列）                          |
+| `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列 |
+| `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                        |
+| `transition.for(key?)`（`style()` の中）/ キー付きバインディング       | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                |
+| `StillwindDeclarationIdentity` 引数                                    | IR 表現なし（checker メタデータ）                                                            |
 
 ## 1. 現状の問題
 
@@ -88,16 +87,16 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
   それぞれ `runtime_assets` を丸ごと extend する。
 
 `motion_assets` が正しく見えるのはこの 2 回のコピーのおかげで、コピーを外すと動的 VT と
-動的 animation の定義 CSS が消える。ref/subtree の identity も混ざる。集合の実体は
+動的 animation の定義 CSS が消える。ref の identity も混ざる。集合の実体は
 「定義 CSS を出す必要がある identity」であって motion ではない。
 
 ### 1.4 handles.rs に 3 つの責任が同居している
 
-- identity の生成: `ref_identity` / `subtree_identity` / `named_identity`
+- identity の生成: `ref_identity` / `named_identity`
 - call バンドの宣言生成: `render_handle_projection`（利用者は `emission.rs` の 2 箇所だけ）
 - 全資産の export 到達性: `summary_runtime_assets`
 
-`symbols.rs` は `use super::handles::{ref_identity, subtree_identity}` としており、identity バンドの
+`symbols.rs` は `use super::handles::{ref_identity, named_identity}` としており、identity バンドの
 中で依存が逆転している。名前も「handle = ref」という以前の呼び方のまま。
 
 ### 1.5 条件 wrapper の組み立てが複数箇所にある
@@ -231,7 +230,7 @@ handle は ref に置き換える（型・フィールド・関数・診断種�
 | field `handles`（`StyleVariant` と動的 attachment / projection）          | `refs`                                                        |
 | field `handle`（`ClassExpression::RefProjection`）                        | `definition`                                                  |
 
-あわせて `ClassExpression::External` を `ClassValue` に、`RefDefinition` / `SubtreeDefinition` /
+あわせて `ClassExpression::External` を `ClassValue` に、`RefDefinition` /
 `KeyframesDefinition` / `ViewTransitionDefinition` の field `name`（レキシカル束縛）を `binding`
 にする。書かれた文字列は `label` のまま。
 
@@ -262,7 +261,7 @@ crates/js-oxc/src/
 - motion/mod.rs
 - motion/keyframes.rs        → animation.rs
 - motion/view_transition.rs  → view_transition.rs
-  refs/                        変更なし。ref と subtree は projection と JSX 祖先検証を共有する
+  refs/                        変更なし。ref は projection と JSX 祖先検証を共有する
 ```
 
 ## 5. 意味の変更を伴う項目（移動とは別コミット）
@@ -271,7 +270,7 @@ crates/js-oxc/src/
 
 決定ごとに集合を 1 つにする（P4）。
 
-- `runtime_assets`: 実行時に JS 値として実体化する identity。宣言の置換を決める。ref/subtree も入る。
+- `runtime_assets`: 実行時に JS 値として実体化する identity。宣言の置換を決める。ref も入る。
 - `required_definitions`: 定義 CSS を出す identity。L3 の 1 番目を決める。
 
 挿入は次の 4 箇所で全部行い、写しは作らない。宣言の export 到達性（motion 種別のみ）、すべての

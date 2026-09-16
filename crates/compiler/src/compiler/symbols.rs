@@ -12,13 +12,13 @@
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{RefDefinition, RefProjection, SubtreeDefinition};
+use stillwind_ir::{BoundaryRef, RefDefinition, RefProjection};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
-    IdentifierPool, Label, LocatorContext, RefMarker, SubtreeMarker,
+    IdentifierPool, Label, LocatorContext, RefMarker,
 };
 
 /// A generated CSS identifier with the canonical identity used to allocate it.
@@ -33,8 +33,8 @@ use crate::identifiers::{
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
     pub name: String,
-    /// Symbol family: `ref`, `subtree`, `ref-marker`, `subtree-marker`, `keyframes`,
-    /// `view-transition`, `class`, `custom-property`, or `layer`.
+    /// Symbol family: `ref`, `ref-marker`, `keyframes`, `view-transition`, `class`,
+    /// `custom-property`, or `layer`.
     pub kind: String,
     /// CSS namespace the name is written into. Names in different pools never interact,
     /// so only equal spellings from different identities within one pool collide.
@@ -102,15 +102,15 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
     }
 }
 
-/// The declaration fields a subtree marker or container name is built from.
-pub(super) fn subtree_declaration_context(definition: &SubtreeDefinition) -> DeclarationContext {
+/// The declaration fields a boundary ref's marker is built from, including its label.
+pub(super) fn boundary_declaration_context(boundary: &BoundaryRef) -> DeclarationContext {
     DeclarationContext {
-        module: normalized_module_path(&definition.module_path),
-        start: definition.binding.span.start.0,
-        end: definition.binding.span.end.0,
-        binding: definition.binding.value.clone(),
+        module: normalized_module_path(&boundary.module_path),
+        start: boundary.binding.span.start.0,
+        end: boundary.binding.span.end.0,
+        binding: boundary.binding.value.clone(),
         // An empty label is no label; the declaration is named without one.
-        label: definition
+        label: boundary
             .label
             .as_ref()
             .map(|label| Label::new(&label.value))
@@ -132,30 +132,16 @@ pub(crate) fn ref_marker_name(
     context.ref_marker_name(&ref_declaration_context(definition))
 }
 
-/// The declaration fields a subtree's generated names are built from.
-pub(super) fn subtree_context(
-    definition: &SubtreeDefinition,
-    projection: Option<&str>,
-) -> LocatorContext {
-    LocatorContext {
-        module: normalized_module_path(&definition.module_path),
-        start: definition.binding.span.start.0,
-        end: definition.binding.span.end.0,
-        binding: definition.binding.value.clone(),
-        projection: projection.map(str::to_owned),
-    }
-}
-
-/// Generated subtree marker class token for one declaration, without a leading dot.
+/// Generated marker class token for a boundary ref, without a leading dot.
 ///
 /// # Errors
 ///
-/// Returns the host generator's failure for the subtree marker family.
-pub(crate) fn subtree_marker_name(
+/// Returns the host generator's failure for the ref marker family.
+pub(crate) fn boundary_marker_name(
     context: &IdentifierContext,
-    definition: &SubtreeDefinition,
-) -> Result<SubtreeMarker, CompileErrorKind> {
-    context.subtree_marker_name(&subtree_declaration_context(definition))
+    boundary: &BoundaryRef,
+) -> Result<RefMarker, CompileErrorKind> {
+    context.ref_marker_name(&boundary_declaration_context(boundary))
 }
 
 /// Generated `anchor-name` for a ref declaration's identity.
@@ -171,16 +157,20 @@ pub(crate) fn anchor_name(
     context.anchor_name(&ref_context(definition, projection))
 }
 
-/// Generated `container-name` for a subtree declaration's identity.
+/// Generated `container-name` for a ref declaration's identity.
+///
+/// Both the `container()` projection that writes the name and the `at()` projection
+/// that queries it resolve it through this one request, so a container query and the
+/// container name it selects always agree.
 ///
 /// # Errors
 ///
 /// Returns the host generator's failure for the container family.
-pub(super) fn container_name(
+pub(crate) fn ref_container_name(
     context: &IdentifierContext,
-    definition: &SubtreeDefinition,
+    definition: &RefDefinition,
 ) -> Result<ContainerName, CompileErrorKind> {
-    context.container_name(&subtree_context(definition, None))
+    context.container_name(&ref_context(definition, Some("container")))
 }
 
 /// Identity string for a declaration inside one source file.
@@ -221,7 +211,6 @@ fn kind_name(kind: AssetKind) -> &'static str {
     match kind {
         AssetKind::Style => "style",
         AssetKind::Ref => "ref",
-        AssetKind::Subtree => "subtree",
         AssetKind::Keyframes => "keyframes",
         AssetKind::ViewTransition => "view-transition",
     }
@@ -232,7 +221,6 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
     match kind {
         AssetKind::Style => IdentifierPool::ClassToken,
         AssetKind::Ref => IdentifierPool::AnchorName,
-        AssetKind::Subtree => IdentifierPool::ContainerName,
         AssetKind::Keyframes => IdentifierPool::KeyframesName,
         AssetKind::ViewTransition => IdentifierPool::ViewTransitionClass,
     }
@@ -293,10 +281,6 @@ fn declared_name(
             .to_owned(),
         AssetKind::Ref => context
             .anchor_name(&locator(declaration))?
-            .as_str()
-            .to_owned(),
-        AssetKind::Subtree => context
-            .container_name(&locator(declaration))?
             .as_str()
             .to_owned(),
     };
@@ -360,27 +344,6 @@ pub(super) fn generated_ref_symbol(
     })
 }
 
-/// Builds the reportable symbol for a subtree declaration's projection name.
-///
-/// # Errors
-///
-/// Returns the host generator's failure for the container family.
-pub(super) fn generated_subtree_symbol(
-    context: &IdentifierContext,
-    definition: &SubtreeDefinition,
-) -> Result<GeneratedSymbol, CompileErrorKind> {
-    let identity = identity_input(&subtree_identity(definition));
-    Ok(GeneratedSymbol {
-        name: container_name(context, definition)?.as_str().to_owned(),
-        kind: "subtree".to_owned(),
-        pool: IdentifierPool::ContainerName,
-        identity,
-        source_path: definition.module_path.clone(),
-        start: Some(definition.binding.span.start.0),
-        end: Some(definition.binding.span.end.0),
-    })
-}
-
 /// Builds the reportable symbol for a ref's marker class.
 ///
 /// # Errors
@@ -395,32 +358,6 @@ pub(super) fn generated_ref_marker_symbol(
         kind: "ref-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
         identity: asset_identity(&definition.module_path, "ref-marker", &definition.binding),
-        source_path: definition.module_path.clone(),
-        start: Some(definition.binding.span.start.0),
-        end: Some(definition.binding.span.end.0),
-    })
-}
-
-/// Builds the reportable symbol for a subtree's marker class.
-///
-/// # Errors
-///
-/// Returns the host generator's failure for the subtree marker family.
-pub(super) fn generated_subtree_marker_symbol(
-    context: &IdentifierContext,
-    definition: &SubtreeDefinition,
-) -> Result<GeneratedSymbol, CompileErrorKind> {
-    Ok(GeneratedSymbol {
-        name: subtree_marker_name(context, definition)?
-            .as_str()
-            .to_owned(),
-        kind: "subtree-marker".to_owned(),
-        pool: IdentifierPool::ClassToken,
-        identity: asset_identity(
-            &definition.module_path,
-            "subtree-marker",
-            &definition.binding,
-        ),
         source_path: definition.module_path.clone(),
         start: Some(definition.binding.span.start.0),
         end: Some(definition.binding.span.end.0),
@@ -509,17 +446,6 @@ pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
     )
 }
 
-/// Identity of a subtree declaration, spanning its name token.
-pub(super) fn subtree_identity(subtree: &SubtreeDefinition) -> IdentityId {
-    IdentityId::new(
-        AssetKind::Subtree,
-        &subtree.module_path,
-        subtree.binding.span.start.0,
-        subtree.binding.span.end.0,
-        subtree.binding.value.clone(),
-    )
-}
-
 /// Identity of a named motion asset, spanning its name token.
 pub(super) fn named_identity(
     source: &SourceFile,
@@ -535,6 +461,7 @@ pub(super) fn named_identity(
     )
 }
 
+/// Builds one reportable symbol for a name a declaration writes into a pool.
 ///
 /// Both `anchor_name` and `container_name` are written for one declaration's identity,
 /// and the same declaration may be written many times, so the pipeline drops repeated
@@ -607,7 +534,6 @@ mod tests {
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
             (AssetKind::Ref, "--sw-r-"),
-            (AssetKind::Subtree, "--sw-s-"),
             (AssetKind::Keyframes, "--sw-a-"),
             (AssetKind::ViewTransition, "--sw-v-"),
         ] {

@@ -1,7 +1,7 @@
 //! Checked symbolic values, correlated ref alternatives, and host type facts.
 //!
-//! Conversions reject inconsistent candidate kinds and invalid ref/scope pairs.
-//! Absent scope constraints retain their domain meaning as unconstrained refs.
+//! Conversions reject inconsistent candidate kinds and invalid ref/boundary pairs.
+//! An absent boundary retains its domain meaning as an unbounded ref.
 
 use napi::Error;
 use napi_derive::napi;
@@ -66,7 +66,7 @@ impl From<SymbolicValue> for NativeSymbolicValue {
     }
 }
 
-/// One ref candidate together with the scopes it may belong to.
+/// One ref candidate together with the boundaries it may be bounded by.
 ///
 /// The pair is a relationship, not a product: see [`stillwind_semantic::RefAlternative`].
 #[napi(object, use_nullable = true)]
@@ -74,9 +74,9 @@ impl From<SymbolicValue> for NativeSymbolicValue {
 pub struct NativeRefAlternative {
     /// The ref identity.
     pub reference: NativeIdentity,
-    /// Subtrees this ref may be bound to, or `None` when unconstrained.
-    #[napi(js_name = "permitted_subtrees")]
-    pub permitted_subtrees: Option<NativeSymbolicValue>,
+    /// Boundary refs this ref may be bounded by, or `None` when unconstrained.
+    #[napi(js_name = "permitted_boundaries")]
+    pub permitted_boundaries: Option<NativeSymbolicValue>,
 }
 
 /// A value an analyzed module can export.
@@ -87,11 +87,6 @@ pub enum NativeExportedValue {
     /// Exported `style(...)` payload.
     Styles {
         /// Reachable style identities.
-        value: NativeSymbolicValue,
-    },
-    /// Exported subtree.
-    Subtrees {
-        /// Reachable subtree identities.
         value: NativeSymbolicValue,
     },
     /// Exported ref, kept as alternatives so correlation is preserved.
@@ -124,9 +119,6 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
             NativeExportedValue::Styles { value } => {
                 (Self::Styles(value.try_into()?), AssetKind::Style)
             }
-            NativeExportedValue::Subtrees { value } => {
-                (Self::Subtrees(value.try_into()?), AssetKind::Subtree)
-            }
             NativeExportedValue::Keyframes { value } => {
                 (Self::Keyframes(value.try_into()?), AssetKind::Keyframes)
             }
@@ -145,7 +137,9 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
                         .map(|item| {
                             RefAlternative::new(
                                 item.reference.into(),
-                                item.permitted_subtrees.map(TryInto::try_into).transpose()?,
+                                item.permitted_boundaries
+                                    .map(TryInto::try_into)
+                                    .transpose()?,
                             )
                             .map_err(|error| Error::from_reason(error.to_string()))
                         })
@@ -155,7 +149,6 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
         };
         let actual = match &value {
             Self::Styles(value)
-            | Self::Subtrees(value)
             | Self::Keyframes(value)
             | Self::ViewTransitions(value)
             | Self::ViewTransitionKeys(value) => value.kind,
@@ -176,9 +169,6 @@ impl From<ExportedValue> for NativeExportedValue {
             ExportedValue::Styles(value) => Self::Styles {
                 value: value.into(),
             },
-            ExportedValue::Subtrees(value) => Self::Subtrees {
-                value: value.into(),
-            },
             ExportedValue::Keyframes(value) => Self::Keyframes {
                 value: value.into(),
             },
@@ -193,7 +183,7 @@ impl From<ExportedValue> for NativeExportedValue {
                     .into_iter()
                     .map(|item| NativeRefAlternative {
                         reference: item.reference.into(),
-                        permitted_subtrees: item.permitted_subtrees.map(Into::into),
+                        permitted_boundaries: item.permitted_boundaries.map(Into::into),
                     })
                     .collect(),
             },

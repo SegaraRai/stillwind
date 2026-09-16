@@ -35,10 +35,9 @@
 
 | 呼出箇所                                  | 再現入力                                                             |
 | ----------------------------------------- | -------------------------------------------------------------------- |
-| crates/js-oxc/src/refs/definitions.rs:18  | `const x=style.subtree(...args);`                                    |
 | crates/js-oxc/src/refs/definitions.rs:61  | `const x=style.ref(...args);`                                        |
 | crates/js-oxc/src/refs/definitions.rs:77  | `const x=style.ref(...args,'x');`                                    |
-| crates/js-oxc/src/refs/definitions.rs:85  | `const s=style.subtree(); const x=style.ref(s,...args);`             |
+| crates/js-oxc/src/refs/definitions.rs:85  | `const s=style.ref(); const x=style.ref(s,...args);`                 |
 | crates/js-oxc/src/keyframes.rs:86         | `const x=style.keyframes(...args);`                                  |
 | crates/js-oxc/src/keyframes.rs:50         | `const a=style.keyframes({from:'flex'}); const x=style(a(...args));` |
 | crates/js-oxc/src/view_transition.rs:108  | `const x=style.viewTransition(...args);`                             |
@@ -79,7 +78,7 @@
 | crates/js-oxc/src/expressions.rs:246                           | unreachable | animation_use の戻り値が2種類に限定されるという関数間契約。専用戻り値enumで表現可能。                                                         |
 | crates/js-oxc/src/refs/definitions.rs:42                       | expect      | 直前の is_some_and 条件内なので Some を保証。if let に整理可能。                                                                              |
 | crates/js-oxc/src/refs/definitions.rs:108                      | expect      | 直前の is_some_and 条件内なので Some を保証。if let に整理可能。                                                                              |
-| crates/js-oxc/src/refs/validation.rs:91                        | expect      | 同じイテレータで subtree.is_some() をfilter済み。filter_map に整理可能。                                                                      |
+| crates/js-oxc/src/refs/validation.rs:91                        | expect      | 同じイテレータで boundary.is_some() をfilter済み。filter_map に整理可能。                                                                     |
 | crates/js-oxc/src/visit.rs:181                                 | expect      | 直前に Ref/Scope 種別を明示して組み立てるため、現在の RefAlternative 検証条件を満たす。                                                       |
 | crates/tailwind/src/utilities/formatting.rs:13                 | expect      | String への文字列書込。現在の引数では fmt::Error は発生しない。                                                                               |
 | crates/core/src/compiler/handles.rs:41                         | unreachable | 抽出器による & 接頭辞保証に依存。ModuleAnalysis.ir は公開されており、手動IR構築時の防御にはならない。                                         |

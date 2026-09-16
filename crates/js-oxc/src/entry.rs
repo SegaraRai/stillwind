@@ -133,7 +133,6 @@ pub fn parse_with_language(
         imports: crate::imports::collect(&result.program, semantic.scoping(), source.id()),
         style_calls: extractor.style_calls,
         ref_definitions: extractor.ref_definitions,
-        subtree_definitions: extractor.subtree_definitions,
         keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
         view_transition_key_applications: extractor.view_transition_key_applications,

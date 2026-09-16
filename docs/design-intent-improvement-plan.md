@@ -20,7 +20,7 @@
 | F2              | 静的 spread・配列の穴の一律拒否を見直す                                                           | 構文正規化                                   |
 | F3              | 固定 computed key の一律拒否を見直す                                                              | 構文正規化                                   |
 | F4              | `ref.at()` の variant 化と有限候補の扱いを整理する                                                | variant 設計・実装                           |
-| F5              | ref/subtree label の ASCII 限定を見直す                                                           | 識別子の検証・直列化                         |
+| F5              | ref label の ASCII 限定を見直す                                                                   | 識別子の検証・直列化                         |
 | F6              | React 固有規約を除去し、変換可能な契約違反を default error の lint にする                         | 診断と host policy                           |
 | L1              | projected source の checker facts 未対応を TODO で明示する                                        | TODO 追加                                    |
 | L2              | per-module CSS 間の import による順序保証を別途調査し、未対応を TODO で明示する                   | TODO 追加・別途実験                          |
@@ -181,7 +181,7 @@ decoded 値、raw 文字列の span、属性値の span が元ファイルへ対
 
 ### 3. F5: label と CSS 識別子の扱い
 
-- [x] `style.ref('項目')` / `style.subtree('領域')` のような有効な非 ASCII label を検討対象とする。
+- [x] `style.ref('項目')` のような有効な非 ASCII label を検討対象とする。
 - [x] label、DOM class token、CSS selector、生成 identifier の表現を確認し、必要な escape を
       直列化境界で行う。validation の単純削除による不正な class/selector の生成を避ける。
 - [x] Unicode・escape 対象文字・不正入力の区分を明文化し、命名の安定性と衝突検出を検証する。
@@ -193,7 +193,7 @@ label は開発者向けの可読な名前であり、round-trip や一意性を
 空文字を含む任意の literal string を受け付け、空白だけを `_` に置き換える。
 記号・既存の `_`・Unicode は保持する。CSS で表現できない NUL は置換文字にする。
 CSS selector と生成 JavaScript の文字列はそれぞれの直列化境界で escape する。
-identity のハッシュ計算は不変。Unicode・空白・記号付き ref/subtree の DOM/CSS 対応を検証する。
+identity のハッシュ計算は不変。Unicode・空白・記号付き ref の DOM/CSS 対応を検証する。
 
 ### 4. F6: 契約診断の移行
 
@@ -202,7 +202,7 @@ identity のハッシュ計算は不変。Unicode・空白・記号付き ref/su
       実際に変換不可能な入力に分ける。既存 enum をそのまま移すだけにしない。
 - [x] 前者は型付き `LintKind` と `LintFinding`、既定 error の有効 policy で扱う。
       通常の関数名、class/JSX などを一律に不可能とはみなさず、値式として保持できるか確認する。
-- [x] `await` / `yield` 等も使用文脈で確認する。必要な subtree を保てない変換は compile error とし、
+- [x] `await` / `yield` 等も使用文脈で確認する。必要な ref の関係を保てない変換は compile error とし、
       そのケースのために変換機構を複雑化しない。
 - [x] default error、warn、off、局所 suppression、editor の結果保持、build の失敗判定を検証する。
 - [x] `docs/macro-contract.md` を、React の規約を前提としない Stillwind の引数契約へ更新する。
@@ -260,8 +260,8 @@ style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
       無条件に適用せず、runtime の選択と対応させる。
 - [x] API 型、抽出器、IR、compiler、runtime metadata、query と fixture を一貫して更新する。
       旧2引数 API の互換維持をこの計画の要件には追加しない。
-- [x] `style.ref(subtree)` の subtree は静的に一つの identity に特定されることを正式な契約とする。
-      ref 定義に複数の subtree 候補を保持する実装は行わない。
+- [x] `style.ref(boundary)` の boundary は静的に一つの ref identity に特定されることを正式な契約とする。
+      ref 定義に複数の boundary 候補を保持する実装は行わない。
 - [x] animation 定義 object に variant key を追加し、その値を条件付き animation 定義として解析する。
       `from` / `to` / 百分率の値は variant なしの utility 文字列のままとする。
 - [x] animation の通常定義、条件付き定義、条件の同時成立、任意 variant、要素依存 variant の拒否を
@@ -278,12 +278,12 @@ Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
 `experiments/module-graph` で `vp run verify:animation`。通常 `0 → 1`、reduced motion で
 省略した `from` が要素の基礎値を使う `.25 → .5` を検証する。
 
-#### ref 定義の subtree 契約
+#### ref 定義の boundary 契約
 
-`style.ref(subtree)` / `style.ref(subtree, name)` は、subtree が静的に一つの identity に
+`style.ref(boundary)` / `style.ref(boundary, name)` は、boundary が静的に一つの ref identity に
 特定できる場合に限り受け付ける。alias や条件式でも候補が同一 identity に収束すればよい。
-異なる subtree の有限集合は compile error とする。この契約を未実装項目として扱わない。
-利用側で有限候補の ref や subtree を選択する既存の機能は維持する。
+異なる boundary の有限集合は compile error とする。この契約を未実装項目として扱わない。
+利用側で有限候補の ref を選択する既存の機能は維持する。
 
 ### 7. D1 の拒否理由を固定する
 

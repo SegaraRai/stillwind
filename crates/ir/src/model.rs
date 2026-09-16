@@ -35,8 +35,6 @@ pub struct ModuleIr {
     pub style_calls: Vec<StyleCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
     pub ref_definitions: Vec<RefDefinition>,
-    /// In source order. Each entry is a `style.subtree()` declaration.
-    pub subtree_definitions: Vec<SubtreeDefinition>,
     /// In source order. Each entry is a `style.keyframes()` declaration.
     pub keyframes_declarations: Vec<KeyframesDefinition>,
     /// In source order. Each entry is a `style.viewTransition()` declaration.
@@ -74,7 +72,6 @@ impl ModuleIr {
             },
             style_calls: Vec::new(),
             ref_definitions: Vec::new(),
-            subtree_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
             view_transition_key_applications: Vec::new(),
@@ -138,6 +135,9 @@ pub struct AttributeEntry {
 }
 
 /// A `style.ref()` declaration serving as an identity and a prop producer.
+///
+/// One declaration covers both roles a ref plays: the element it is attached to, and the
+/// boundary that other refs may be bounded by.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefDefinition {
     /// Normalized module path of the declaring module.
@@ -146,20 +146,24 @@ pub struct RefDefinition {
     pub binding: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
-    /// The single subtree identity passed to `style.ref()`, resolved statically; `None`
+    /// The single boundary passed to `style.ref()`, resolved statically; `None`
     /// for `style.ref()` and `style.ref(name)`.
-    pub subtree: Option<SubtreeDefinition>,
+    pub boundary: Option<BoundaryRef>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
 }
 
-/// A `style.subtree()` declaration. Subtrees are pure identities: they produce CSS
-/// selectors and class-bearing runtime fragments rather than arbitrary attribute props.
+/// The bounding ref a bounded ref resolved to.
+///
+/// A boundary is a ref declaration elsewhere, and only its declaration fields are kept:
+/// holding a whole [`RefDefinition`] here would let a bounded ref recurse through the
+/// boundary's own boundary, which nothing reads. Selector and marker generation need no
+/// more than these fields.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SubtreeDefinition {
+pub struct BoundaryRef {
     /// Normalized module path of the declaring module.
     pub module_path: String,
-    /// Lexical binding of the subtree; its span seeds the declaration identity.
+    /// Lexical binding of the boundary ref; its span seeds the declaration identity.
     pub binding: Spanned<String>,
     /// Optional user label that participates in the generated class name.
     pub label: Option<Spanned<String>>,
@@ -260,8 +264,8 @@ pub enum StyleVariant {
         /// Literal CSS query condition, without the generated container name.
         query: Spanned<String>,
     },
-    /// Correlated ref/subtree alternatives, written as `ref()`, `ref("variant:")`, or a
-    /// ref tag, with a normalized variant prefix.
+    /// Correlated ref and boundary alternatives, written as `ref()`, `ref("variant:")`,
+    /// or a ref tag, with a normalized variant prefix.
     Ref {
         /// The refs this variant may refer to at this use site.
         refs: Vec<RefDefinition>,
@@ -285,18 +289,11 @@ pub enum StyleInput {
     },
     /// Class contributions that keep the source expression structure.
     Class(ClassExpression),
-    /// `style(subtree)`: mark the element as a member of a subtree.
-    SubtreeAttachment(SubtreeDefinition),
     /// `style(ref)`: attach a ref's props and marker class to the element.
+    ///
+    /// The same attachment marks a boundary element: the class token is what bounded
+    /// selectors read as the boundary of their `:has()` test.
     RefAttachment(RefDefinition),
-    /// A subtree value that is only known at runtime, with every statically reachable
-    /// alternative listed for CSS planning.
-    DynamicSubtreeAttachment {
-        /// The runtime subtree value.
-        value: Span,
-        /// Every statically reachable alternative, used for CSS planning.
-        subtrees: Vec<SubtreeDefinition>,
-    },
     /// A ref value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.
     DynamicRefAttachment {

@@ -14,7 +14,7 @@ use super::generator::{GeneratedName, IdentifierGenerator, builtin_text};
 use super::kind::{IdentifierKind, builtin_digest_digits, builtin_prefix};
 use super::name::{
     AnchorName, ContainerName, CustomPropertyName, KeyframesName, Label, LayerName, RefMarker,
-    SubtreeMarker, Token, UtilityClass, ViewTransitionClass,
+    Token, UtilityClass, ViewTransitionClass,
 };
 
 /// The canonical hash of one request, which is what identifies what was asked for.
@@ -407,9 +407,8 @@ name_requests! {
         call = context.call,
     ), asks(utility_class);
     RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker), labels(label);
-    SubtreeMarkerName(DeclarationContext): SubtreeMarker as SubtreeMarker = |context: &DeclarationContext| declaration_identity(context, "subtree"), asks(subtree_marker), labels(label);
     AnchorNameRequest(LocatorContext): AnchorName as AnchorName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(anchor_name);
-    ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "subtree"), asks(container_name);
+    ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(container_name);
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "keyframes"), asks(keyframes_name);
     ViewTransitionClassRequest(DeclarationContext): ViewTransitionClass as ViewTransitionClass = |context: &DeclarationContext| declaration_identity(context, "view-transition"), asks(view_transition_class);
     LayerNameRequest(LayerContext): LayerName as LayerName = |context: &LayerContext| format!(

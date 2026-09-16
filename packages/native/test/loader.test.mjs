@@ -30,15 +30,15 @@ void test("native object transport returns typed values and rejects the former J
     ["🧭.tsx"],
   );
   const summary = summarizeReact(
-    "import {style} from 'stillwind/react'; export const subtree=style.subtree();",
+    "import {style} from 'stillwind/react'; export const handle=style.ref();",
     "🧭.tsx",
   );
-  const scope = summary.exports.find((entry) => entry.name === "subtree").value;
-  assert.equal(scope.kind, "subtrees");
-  assert.equal(scope.value.candidates.kind, "finite");
-  assert.equal(scope.value.candidates.values[0].module_path, "🧭.tsx");
+  const handle = summary.exports.find((entry) => entry.name === "handle").value;
+  assert.equal(handle.kind, "refs");
+  assert.equal(handle.value[0].reference.module_path, "🧭.tsx");
+  assert.equal(handle.value[0].permitted_boundaries, null);
   const reserved = summarizeReact(
-    "import {style} from 'stillwind/react'; export const __proto__=style.subtree();",
+    "import {style} from 'stillwind/react'; export const __proto__=style.ref();",
     "reserved.ts",
   );
   assert.equal(reserved.exports[0].name, "__proto__");
@@ -101,44 +101,56 @@ void test("native semantic unions validate nested asset kinds and candidate payl
       [{ path: "facts.ts", source: "export {};", type_facts: [{ start: 0, end: 0, value }] }],
       "",
     );
-  const scope = {
-    kind: "subtree",
+  const reference = {
+    kind: "ref",
     module_path: "facts.ts",
     start: 0,
     end: 1,
-    binding_name: "subtree",
+    binding_name: "handle",
+  };
+  const boundary = {
+    kind: "ref",
+    module_path: "facts.ts",
+    start: 2,
+    end: 3,
+    binding_name: "menu",
   };
   const symbolic = (kind) => ({ kind, candidates: { kind: "universe" } });
+  const finite = (kind, values) => ({ kind, candidates: { kind: "finite", values } });
   for (const value of [
-    {
-      kind: "subtrees",
-      value: { kind: "subtree", candidates: { kind: "finite", values: [scope] } },
-    },
-    { kind: "subtrees", value: symbolic("subtree") },
-    { kind: "keyframes", value: symbolic("keyframes") },
-    { kind: "view-transitions", value: symbolic("view-transition") },
+    { kind: "refs", value: [{ reference, permitted_boundaries: null }] },
+    { kind: "refs", value: [{ reference, permitted_boundaries: symbolic("ref") }] },
     {
       kind: "refs",
-      value: [{ reference: { ...scope, kind: "ref" }, permitted_subtrees: symbolic("subtree") }],
+      value: [{ reference, permitted_boundaries: finite("ref", [boundary]) }],
     },
+    { kind: "keyframes", value: symbolic("keyframes") },
+    { kind: "view-transitions", value: symbolic("view-transition") },
   ])
     assert.deepEqual(compile(value).modules[0].diagnostics, []);
   for (const value of [
-    { kind: "subtrees", value: symbolic("ref") },
-    {
-      kind: "subtrees",
-      value: {
-        kind: "subtree",
-        candidates: { kind: "finite", values: [{ ...scope, kind: "keyframes" }] },
-      },
-    },
-    { kind: "refs", value: [{ reference: scope, permitted_subtrees: null }] },
     {
       kind: "refs",
-      value: [{ reference: { ...scope, kind: "ref" }, permitted_subtrees: symbolic("keyframes") }],
+      value: [{ reference: { ...reference, kind: "keyframes" }, permitted_boundaries: null }],
     },
-    { kind: "subtrees", value: { kind: "subtree", candidates: { kind: "finite" } } },
-    { kind: "unknown", value: symbolic("subtree") },
+    {
+      kind: "refs",
+      value: [{ reference, permitted_boundaries: symbolic("keyframes") }],
+    },
+    {
+      kind: "refs",
+      value: [
+        {
+          reference,
+          permitted_boundaries: finite("ref", [{ ...boundary, kind: "keyframes" }]),
+        },
+      ],
+    },
+    {
+      kind: "refs",
+      value: [{ reference, permitted_boundaries: { kind: "ref", candidates: { kind: "finite" } } }],
+    },
+    { kind: "unknown", value: symbolic("ref") },
   ])
     assert.throws(() => compile(value));
 });

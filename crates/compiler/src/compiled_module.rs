@@ -63,8 +63,8 @@ pub struct ModuleArtifactKey {
 ///
 /// The sets are conservative: they may hold more names than the output actually uses,
 /// so a change can invalidate a still-valid artifact. They must never hold fewer,
-/// because an omission would keep stale CSS. [`Self::assets`] lists the ref, subtree,
-/// keyframes, and view-transition identities the module referenced.
+/// because an omission would keep stale CSS. [`Self::assets`] lists the ref, keyframes,
+/// and view-transition identities the module referenced.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CompilationDependencies {
     /// Candidate spellings the module mentions, including their variant prefixes.

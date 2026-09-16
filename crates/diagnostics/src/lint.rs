@@ -44,37 +44,35 @@ pub enum LintKind {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
     },
-    /// A scoped ref's provider has no known JSX attachment.
-    #[error(
-        "ref `{name}` is bound to subtree `{subtree}`, but that subtree is not attached to a JSX element"
-    )]
-    UnattachedSubtree {
+    /// A bounded ref's boundary has no known JSX attachment.
+    #[error("ref `{name}` is bounded by `{boundary}`, but no element attaches that boundary")]
+    UnattachedBoundary {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
-        /// Authored name of the required subtree.
-        subtree: String,
+        /// Authored name of the required boundary ref.
+        boundary: String,
     },
-    /// A scoped ref is attached outside its provider's ancestry.
-    #[error("subtree `{subtree}` must be attached to an ancestor of ref `{name}`")]
-    MissingSubtreeAncestor {
-        /// Authored name of the required subtree.
-        subtree: String,
+    /// A bounded ref is attached outside its boundary's ancestry.
+    #[error("the boundary `{boundary}` must be attached to an ancestor of ref `{name}`")]
+    MissingBoundaryAncestor {
+        /// Authored name of the required boundary ref.
+        boundary: String,
         /// Authored or inferred ref binding name used for reporting.
         name: String,
     },
-    /// A subtree-bound selector targets an element outside its provider's ancestry.
+    /// A bounded selector targets an element outside its boundary's ancestry.
     #[error(
-        "a selector using a subtree-bound ref `{name}` must target an element inside subtree `{subtree}`"
+        "a selector using bounded ref `{name}` must target an element within boundary `{boundary}`"
     )]
-    SelectorOutsideSubtree {
+    SelectorOutsideBoundary {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
-        /// Authored name of the required subtree.
-        subtree: String,
+        /// Authored name of the required boundary ref.
+        boundary: String,
     },
     /// A Tailwind relationship utility violates the active typed-relationship policy.
     #[error(
-        "Tailwind relationship utility `{utility}` is forbidden; use style.ref() or style.subtree()"
+        "Tailwind relationship utility `{utility}` is forbidden; use style.ref(), optionally bounded by another ref"
     )]
     PreferTypedRelationships {
         /// Utility text as authored, including variants.
@@ -149,9 +147,9 @@ impl LintKind {
             Self::MissingAnchor { .. } => "require-anchor-provider",
             Self::MissingContainer { .. } => "require-container-provider",
             Self::MissingRefAncestor { .. } => "valid-ref-ancestry",
-            Self::UnattachedSubtree { .. } => "require-scope-provider",
-            Self::MissingSubtreeAncestor { .. } => "valid-scope-ancestry",
-            Self::SelectorOutsideSubtree { .. } => "scoped-selector-in-scope",
+            Self::UnattachedBoundary { .. } => "require-boundary-provider",
+            Self::MissingBoundaryAncestor { .. } => "valid-boundary-ancestry",
+            Self::SelectorOutsideBoundary { .. } => "bounded-selector-in-boundary",
             Self::PreferTypedRelationships { .. } => "prefer-typed-relationships",
             Self::DocumentScopedSelector { .. } => "require-element-scope",
             Self::MissingViewTransitionName => "require-view-transition-name",

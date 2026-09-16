@@ -13,7 +13,7 @@ use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{ClassExpression, RefDefinition, RefProjection, StyleInput, SubtreeDefinition};
+use stillwind_ir::{ClassExpression, RefDefinition, RefProjection, StyleInput};
 use stillwind_source::Span;
 
 use crate::state::MacroExtractor;
@@ -28,15 +28,6 @@ pub(crate) struct RefUse {
     pub(crate) projection: &'static str,
     /// Whole expression the use came from.
     pub(crate) span: Span,
-    /// JSX ancestor path of the use, when it appeared inside JSX.
-    pub(crate) jsx_path: Option<Vec<usize>>,
-}
-
-/// One recorded subtree use.
-#[derive(Clone, Debug)]
-pub(crate) struct SubtreeUse {
-    /// Marker name of the subtree that was used.
-    pub(crate) name: String,
     /// JSX ancestor path of the use, when it appeared inside JSX.
     pub(crate) jsx_path: Option<Vec<usize>>,
 }
@@ -140,14 +131,6 @@ impl<'a> MacroExtractor<'a> {
             name: definition.binding.value.clone(),
             projection,
             span,
-            jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
-        });
-    }
-
-    /// Records one subtree use, which makes the subtree a provider for its JSX path.
-    pub(crate) fn record_subtree_use(&mut self, subtree: &SubtreeDefinition) {
-        self.subtree_uses.push(SubtreeUse {
-            name: subtree.binding.value.clone(),
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
     }

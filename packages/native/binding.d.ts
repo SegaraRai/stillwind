@@ -225,9 +225,7 @@ export interface HostRegion {
 /** Asset kinds as the host names them. */
 export type NativeAssetKind = /** A `style(...)` call's payload. */
 'style'|
-/** A `style.subtree()` declaration. */
-'subtree'|
-/** A `style.ref()` declaration. */
+/** A `style.ref()` declaration| which may also bound other refs. */
 'ref'|
 /** A `style.keyframes()` declaration. */
 'keyframes'|
@@ -404,8 +402,6 @@ export interface NativeExport {
 export type NativeExportedValue =
   | { kind: 'styles'; /** Reachable style identities. */
 value: NativeSymbolicValue }
-| { kind: 'subtrees'; /** Reachable subtree identities. */
-value: NativeSymbolicValue }
 | { kind: 'refs'; /** The correlated alternatives. */
 value: Array<NativeRefAlternative> }
 | { kind: 'keyframes'; /** Reachable keyframes identities. */
@@ -498,8 +494,6 @@ export interface NativeIdentifierNaming {
   utilityClass?: (arg0: NativeClassContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for a ref marker class. */
   refMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
-  /** `(context, hash) => string | undefined`, for a subtree marker class. */
-  subtreeMarker?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for an `anchor-name` custom-ident. */
   anchorName?: (arg0: NativeLocatorContext, arg1: Buffer) => string | null
   /** `(context, hash) => string | undefined`, for a `container-name` custom-ident. */
@@ -703,15 +697,15 @@ export interface NativeReExport {
 }
 
 /**
- * One ref candidate together with the scopes it may belong to.
+ * One ref candidate together with the boundaries it may be bounded by.
  *
  * The pair is a relationship, not a product: see [`stillwind_semantic::RefAlternative`].
  */
 export interface NativeRefAlternative {
   /** The ref identity. */
   reference: NativeIdentity
-  /** Subtrees this ref may be bound to, or `None` when unconstrained. */
-  permitted_subtrees: NativeSymbolicValue | null
+  /** Boundary refs this ref may be bounded by, or `None` when unconstrained. */
+  permitted_boundaries: NativeSymbolicValue | null
 }
 
 /** What changed after publishing a reloaded design system. */

@@ -164,7 +164,6 @@ function typeFactValue(
 ): NativeExportedValue | null {
   const constituents = type.isUnionType() ? type.getTypes() : [type];
   const refs = [];
-  const subtrees: IdentityId[] = [];
   const keyframes: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
   let viewTransitionKeyed = false;
@@ -179,24 +178,18 @@ function typeFactValue(
       styles.push(...candidates);
       continue;
     }
-    if (symbol?.name === "StyleSubtree") {
-      const candidates = knownIdentities(args[0], identities, "subtree");
-      if (!candidates) return null;
-      subtrees.push(...candidates);
-      continue;
-    }
     if (symbol?.name === "StyleRef") {
       const references = knownIdentities(args[0], identities, "ref");
       if (!references) return null;
-      const subtreeText = args[1] ? checker.typeToString(args[1]) : "never";
-      const permittedSubtrees =
-        subtreeText === "never" ? [] : knownIdentities(args[1], identities, "subtree");
-      if (!permittedSubtrees) return null;
+      const boundaryText = args[1] ? checker.typeToString(args[1]) : "never";
+      const permittedBoundaries =
+        boundaryText === "never" ? [] : knownIdentities(args[1], identities, "ref");
+      if (!permittedBoundaries) return null;
       for (const reference of references) {
         refs.push({
           reference,
-          permitted_subtrees:
-            permittedSubtrees.length === 0 ? null : symbolic("subtree", permittedSubtrees),
+          permitted_boundaries:
+            permittedBoundaries.length === 0 ? null : symbolic("ref", permittedBoundaries),
         });
       }
       continue;
@@ -217,13 +210,12 @@ function typeFactValue(
     return null;
   }
 
-  const populated = [refs, subtrees, keyframes, viewTransitions, styles].filter(
+  const populated = [refs, keyframes, viewTransitions, styles].filter(
     (values) => values.length > 0,
   );
   if (populated.length !== 1) return null;
   if (styles.length > 0) return { kind: "styles", value: symbolic("style", styles) };
   if (refs.length > 0) return { kind: "refs", value: refs };
-  if (subtrees.length > 0) return { kind: "subtrees", value: symbolic("subtree", subtrees) };
   if (keyframes.length > 0) return { kind: "keyframes", value: symbolic("keyframes", keyframes) };
   if (viewTransitions.length > 0)
     return viewTransitionKeyed

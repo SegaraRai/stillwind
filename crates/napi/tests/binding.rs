@@ -188,11 +188,11 @@ const props = style(menu.anchor);"#,
 }
 
 #[test]
-fn serializes_cross_module_handle_summaries() {
+fn serializes_cross_module_ref_summaries() {
     let output = summarize_react_input(
         r#"import { style } from "stillwind/react";
-export const menu = style.subtree("menu");
-export const trigger = style.ref("trigger");"#,
+export const menu = style.ref("menu");
+export const trigger = style.ref(menu, "trigger");"#,
         r"src\Parent.tsx",
     )
     .unwrap();
@@ -201,9 +201,19 @@ export const trigger = style.ref("trigger");"#,
     assert_eq!(value["schema"], 1);
     assert_eq!(value["module_path"], "src/Parent.tsx");
     assert_eq!(value["exports"][0]["name"], "menu");
-    assert_eq!(value["exports"][0]["value"]["kind"], "subtrees");
+    assert_eq!(value["exports"][0]["value"]["kind"], "refs");
+    assert_eq!(
+        value["exports"][0]["value"]["value"][0]["permitted_boundaries"],
+        serde_json::Value::Null
+    );
     assert_eq!(value["exports"][1]["name"], "trigger");
     assert_eq!(value["exports"][1]["value"]["kind"], "refs");
+    // The bounded ref keeps the boundary it was declared with, so a consumer can
+    // reconstruct the pair from the summary alone.
+    assert_eq!(
+        value["exports"][1]["value"]["value"][0]["permitted_boundaries"]["kind"],
+        "ref"
+    );
 }
 
 #[test]

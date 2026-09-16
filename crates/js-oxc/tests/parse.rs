@@ -275,57 +275,64 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
     assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
 }
 
-/// `style.ref()`/`style.subtree()` argument forms map onto definition fields.
+/// `style.ref()` argument forms map onto definition fields.
 #[test]
-fn parses_named_and_subtree_bound_ref_declarations() {
+fn parses_named_and_bounded_ref_declarations() {
     let source = SourceFile::new(
         FileId(1),
         "Menu.tsx",
         r#"import { style } from "stillwind/react";
-const anonymousSubtree = style.subtree();
-const menu = style.subtree("menu");
+const anonymousBoundary = style.ref();
+const menu = style.ref("menu");
 const anonymous = style.ref();
 const named = style.ref("trigger");
-const subtreeBound = style.ref(menu);
-const subtreeBoundNamed = style.ref(menu, "item");
-export const Menu = () => <div {...style(menu)}><button {...style(subtreeBound)} /></div>;"#,
+const bounded = style.ref(menu);
+const boundedNamed = style.ref(menu, "item");
+export const Menu = () => <div {...style(menu)}><button {...style(bounded)} /></div>;"#,
     )
     .unwrap();
 
     let parsed = parse(&source);
 
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-    assert_eq!(parsed.module.subtree_definitions.len(), 2);
-    assert_eq!(parsed.module.subtree_definitions[0].label, None);
+    assert_eq!(parsed.module.ref_definitions.len(), 6);
+    assert_eq!(parsed.module.ref_definitions[0].label, None);
+    assert_eq!(parsed.module.ref_definitions[0].boundary, None);
     assert_eq!(
-        parsed.module.subtree_definitions[1]
+        parsed.module.ref_definitions[1]
             .label
             .as_ref()
             .map(|label| label.value.as_str()),
         Some("menu")
     );
-    assert_eq!(parsed.module.ref_definitions.len(), 4);
-    assert_eq!(parsed.module.ref_definitions[0].subtree, None);
+    assert_eq!(parsed.module.ref_definitions[2].boundary, None);
     assert_eq!(
-        parsed.module.ref_definitions[1]
+        parsed.module.ref_definitions[3]
             .label
             .as_ref()
             .map(|label| label.value.as_str()),
         Some("trigger")
     );
     assert_eq!(
-        parsed.module.ref_definitions[2]
-            .subtree
+        parsed.module.ref_definitions[4]
+            .boundary
             .as_ref()
-            .map(|subtree| subtree.binding.value.as_str()),
+            .map(|boundary| boundary.binding.value.as_str()),
         Some("menu")
     );
     assert_eq!(
-        parsed.module.ref_definitions[3]
+        parsed.module.ref_definitions[5]
             .label
             .as_ref()
             .map(|label| label.value.as_str()),
         Some("item")
+    );
+    assert_eq!(
+        parsed.module.ref_definitions[5]
+            .boundary
+            .as_ref()
+            .map(|boundary| boundary.binding.value.as_str()),
+        Some("menu")
     );
 }
 
@@ -337,7 +344,7 @@ fn summarizes_exported_assets_and_module_edges() {
         r"src\Parent.tsx",
         r#"import { style } from "stillwind/react";
 import { external as importedExternal } from "./external";
-export const menu = style.subtree("menu");
+export const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
 export { trigger as menuTrigger };
 export { sharedTransition as transition } from "./shared";
@@ -351,15 +358,16 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
     assert_eq!(parsed.summary.module_path, "src/Parent.tsx");
     assert_eq!(parsed.summary.imports.len(), 1);
     assert_eq!(parsed.summary.imports[0].local, "importedExternal");
-    assert!(matches!(
-        parsed.summary.exports.get("menu"),
-        Some(ExportedValue::Subtrees(_))
-    ));
+    let Some(ExportedValue::Refs(alternatives)) = parsed.summary.exports.get("menu") else {
+        panic!("menu should be an exported ref");
+    };
+    assert_eq!(alternatives.len(), 1);
+    assert_eq!(alternatives[0].permitted_boundaries, None);
     let Some(ExportedValue::Refs(alternatives)) = parsed.summary.exports.get("menuTrigger") else {
         panic!("menuTrigger should be an exported ref");
     };
     assert_eq!(alternatives.len(), 1);
-    assert!(alternatives[0].permitted_subtrees.is_some());
+    assert!(alternatives[0].permitted_boundaries.is_some());
     assert_eq!(parsed.summary.re_exports[0].exported, "transition");
     assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");
 }
@@ -387,19 +395,15 @@ export const selected = enabled ? alias : second;"#,
 fn spread_arguments_in_asset_macros_report_diagnostics() {
     for (body, kind) in [
         (
-            "const x=style.subtree(...args);",
-            CompileErrorKind::InvalidSubtreeNameArgument,
-        ),
-        (
             "const x=style.ref(...args);",
             CompileErrorKind::InvalidRefArgument,
         ),
         (
             "const x=style.ref(...args,'x');",
-            CompileErrorKind::InvalidRefSubtree,
+            CompileErrorKind::InvalidRefBoundary,
         ),
         (
-            "const s=style.subtree(); const x=style.ref(s,...args);",
+            "const s=style.ref(); const x=style.ref(s,...args);",
             CompileErrorKind::InvalidRefNameArgument,
         ),
         (
@@ -450,10 +454,10 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
 }
 
 #[test]
-fn ref_definition_requires_one_scope_identity() {
+fn ref_definition_requires_one_boundary_identity() {
     for (choice, valid) in [("first", true), ("enabled ? first : second", false)] {
         let source = SourceFile::new(FileId(1), "entry.ts", format!(
-            "import {{style}} from 'stillwind/react'; const first=style.subtree(); const second=style.subtree(); const ref=style.ref({choice}, 'item');"
+            "import {{style}} from 'stillwind/react'; const first=style.ref(); const second=style.ref(); const ref=style.ref({choice}, 'item');"
         )).unwrap();
         let parsed = parse(&source);
         if valid {
@@ -463,7 +467,7 @@ fn ref_definition_requires_one_scope_identity() {
                 parsed
                     .diagnostics
                     .iter()
-                    .any(|error| error.kind == CompileErrorKind::InvalidRefSubtree),
+                    .any(|error| error.kind == CompileErrorKind::InvalidRefBoundary),
                 "{:?}",
                 parsed.diagnostics
             );

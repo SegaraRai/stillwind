@@ -254,7 +254,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         module_path: "x.tsx".into(),
         binding: Spanned::new("r".into(), span),
         label: None,
-        subtree: None,
+        boundary: None,
         call_span: span,
     };
     for (input, expected) in [

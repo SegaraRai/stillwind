@@ -1,9 +1,9 @@
-//! Ref and subtree projection.
+//! Ref projection and boundaries.
 //!
 //! Pins that one declaration projects into anchor, position-anchor, anchor-scope, and
 //! container names sharing one identity, that named container queries emit rules for
-//! the ref's target, that subtrees get readable marker names, and that a selector which
-//! cannot hold the required ancestry is rejected.
+//! the ref's target, that boundary refs get readable marker names, and that a selector
+//! which cannot hold the required ancestry is rejected.
 
 use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -107,8 +107,22 @@ const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(result.css.contains("@container --sw-r-"));
-    assert!(result.css.contains("(width >= 40rem){"));
+    // The container projection writes the name and the query reads the same one back,
+    // so a ref at() query can only match the container it declared.
+    let name = result
+        .css
+        .split("container-name:")
+        .nth(1)
+        .and_then(|rest| rest.split(';').next())
+        .expect("container declaration");
+    assert!(name.starts_with("--sw-s-"), "{name}");
+    assert!(
+        result
+            .css
+            .contains(&format!("@container {name} (width >= 40rem){{")),
+        "{}",
+        result.css
+    );
     assert!(
         result
             .css
@@ -130,7 +144,7 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
         let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
         assert!(result.diagnostics.is_empty(), "{result:#?}");
         assert!(result.lint_findings.is_empty(), "{result:#?}");
-        assert!(result.css.contains("@container --sw-r-"), "{}", result.css);
+        assert!(result.css.contains("@container --sw-s-"), "{}", result.css);
         assert!(result.css.contains(":hover"), "{}", result.css);
     }
 }
@@ -163,12 +177,12 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
 }
 
 #[test]
-fn subtrees_refs_across_siblings_and_uses_readable_marker_names() {
+fn boundaries_place_refs_across_siblings_and_use_readable_marker_names() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const menu = style.subtree("menu");
+const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
 export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></section>;"#,
     ).unwrap();
@@ -185,23 +199,22 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
     let transformed = result.apply_to_source(&component).unwrap();
     // A marker spells its declaration's normalized label, which is what makes it
     // readable in generated markup.
-    let marker_of = |kind: &str| {
+    let marker_of = |prefix: &str| {
         result
             .symbols
             .iter()
-            .find(|symbol| symbol.kind == kind)
-            .unwrap_or_else(|| panic!("missing {kind}: {:?}", result.symbols))
+            .find(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with(prefix))
+            .unwrap_or_else(|| panic!("missing {prefix}: {:?}", result.symbols))
             .name
             .clone()
     };
-    let subtree = marker_of("subtree-marker");
-    let trigger = marker_of("ref-marker");
-    assert!(subtree.starts_with("s_menu_"), "{subtree}");
+    let boundary = marker_of("s_menu_");
+    let trigger = marker_of("s_trigger_");
     assert!(trigger.starts_with("s_trigger_"), "{trigger}");
-    assert!(transformed.contains(&subtree), "{transformed}");
+    assert!(transformed.contains(&boundary), "{transformed}");
     assert!(transformed.contains(&trigger), "{transformed}");
     assert!(
-        result.css.contains(&format!(".{subtree}")),
+        result.css.contains(&format!(".{boundary}")),
         "{}",
         result.css
     );
@@ -218,12 +231,12 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
 }
 
 #[test]
-fn rejects_a_scoped_ref_selector_target_outside_its_subtree() {
+fn rejects_a_bounded_ref_selector_target_outside_its_boundary() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const menu = style.subtree();
+const menu = style.ref();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
     ).unwrap();
@@ -240,19 +253,19 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
         result
             .lint_findings
             .iter()
-            .any(|item| matches!(item.kind, LintKind::SelectorOutsideSubtree { .. })),
+            .any(|item| matches!(item.kind, LintKind::SelectorOutsideBoundary { .. })),
         "{:#?}",
         result.lint_findings
     );
 }
 
 #[test]
-fn rejects_a_subtree_attached_outside_its_ref_ancestry() {
+fn rejects_a_boundary_attached_outside_its_ref_ancestry() {
     let component = SourceFile::new(
         FileId(1),
         "src/Menu.tsx",
         r#"import { style } from "stillwind/react";
-const menu = style.subtree();
+const menu = style.ref();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
     )
@@ -265,8 +278,81 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
         result
             .lint_findings
             .iter()
-            .any(|item| matches!(item.kind, LintKind::MissingSubtreeAncestor { .. })),
+            .any(|item| matches!(item.kind, LintKind::MissingBoundaryAncestor { .. })),
         "{:#?}",
         result.lint_findings
     );
+}
+
+#[test]
+fn one_ref_is_both_a_selector_subject_and_a_boundary() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Menu.tsx",
+        r#"import { style } from "stillwind/react";
+const menu = style.ref("menu");
+const trigger = style.ref(menu, "trigger");
+export const Menu = () => (
+  <section {...style(menu)}>
+    <button {...style(trigger)}>Open</button>
+    <div {...style({ [trigger`hover:`]: "block" })}>Menu</div>
+    <p {...style({ [menu`focus-within:`]: "ring-2" })}>Hint</p>
+  </section>
+);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:#?}",
+        result.lint_findings
+    );
+    // The boundary element keeps the unbounded relation for its own ref: a target inside
+    // the boundary element matches by ancestry.
+    assert!(
+        result.css.contains(":where(:focus-within) ._s_"),
+        "{}",
+        result.css
+    );
+    // The bounded ref reads the boundary instead, so its target may be a sibling.
+    assert!(result.css.contains(":has(.s_trigger_"), "{}", result.css);
+}
+
+#[test]
+fn a_bounded_ref_can_bound_another_ref() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Nested.tsx",
+        r#"import { style } from "stillwind/react";
+const outer = style.ref("outer");
+const inner = style.ref(outer, "inner");
+const leaf = style.ref(inner, "leaf");
+export const View = () => (
+  <section {...style(outer)}>
+    <div {...style(inner)}>
+      <span {...style(leaf)} />
+      <b {...style({ [leaf`hover:`]: "block" })} />
+    </div>
+  </section>
+);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:#?}",
+        result.lint_findings
+    );
+    // The leaf is bounded by the inner ref, so its selector reads the inner marker as the
+    // boundary even though that marker is itself bounded by the outer ref.
+    assert!(result.css.contains(".s_inner_"), "{}", result.css);
+    assert!(result.css.contains(":has(.s_leaf_"), "{}", result.css);
 }

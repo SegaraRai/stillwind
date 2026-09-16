@@ -8,13 +8,13 @@ import { compileReactProject, summarizeReact } from "@stillwind/native";
 import type { ModuleSummary } from "../src/protocol.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
-void test("direct ref variants preserve imported conditional ref/scope pairs", () => {
+void test("direct ref variants preserve imported conditional ref/boundary pairs", () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const producer = `import {style} from 'stillwind/react';
-export const subtreeA = style.subtree('subtreeA');
-export const subtreeB = style.subtree('subtreeB');
-export const a = style.ref(subtreeA, 'a');
-export const b = style.ref(subtreeB, 'b');`;
+export const boundaryA = style.ref('boundaryA');
+export const boundaryB = style.ref('boundaryB');
+export const a = style.ref(boundaryA, 'a');
+export const b = style.ref(boundaryB, 'b');`;
   const service = new TypeScriptFactsService(root);
   try {
     const outputs = [];
@@ -54,31 +54,31 @@ export const props = style(${expression});`;
       assert.ok(output);
       assert.deepEqual(output.diagnostics, []);
       if (expression.includes(".at")) {
-        assert.equal(new Set(output.css.match(/@container --sw-r-[\w-]+/g)).size, 2);
+        assert.equal(new Set(output.css.match(/@container --sw-s-[\w-]+/g)).size, 2);
         assert.match(output.css, /\(width > 40rem\)/);
         assert.doesNotMatch(output.css, /:has\(/);
       } else {
         // Labels do not reach the generated markers, so the pairs are read from the
-        // compiled selectors: each scope must bind to exactly one ref of the pair.
+        // compiled selectors: each boundary must bind to exactly one ref of the pair.
         const pairs = [
           ...output.css.matchAll(
             /@media \(hover:hover\)\{\.(s_\w+):has\(\.(s_\w+):where\(:hover\)\)/g,
           ),
-        ].map((match) => ({ scope: match[1], ref: match[2] }));
+        ].map((match) => ({ boundary: match[1], ref: match[2] }));
         assert.equal(pairs.length, 2, output.css);
         const [first, second] = pairs;
-        assert.notEqual(first.scope, second.scope);
+        assert.notEqual(first.boundary, second.boundary);
         assert.notEqual(first.ref, second.ref);
         assert.ok(
-          output.css.includes(`.${first.scope}:has(.${first.ref}:where(:hover))`),
+          output.css.includes(`.${first.boundary}:has(.${first.ref}:where(:hover))`),
           output.css,
         );
         assert.ok(
-          output.css.includes(`.${second.scope}:has(.${second.ref}:where(:hover))`),
+          output.css.includes(`.${second.boundary}:has(.${second.ref}:where(:hover))`),
           output.css,
         );
-        assert.ok(!output.css.includes(`.${first.scope}:has(.${second.ref}:`), output.css);
-        assert.ok(!output.css.includes(`.${second.scope}:has(.${first.ref}:`), output.css);
+        assert.ok(!output.css.includes(`.${first.boundary}:has(.${second.ref}:`), output.css);
+        assert.ok(!output.css.includes(`.${second.boundary}:has(.${first.ref}:`), output.css);
       }
       assert.match(output.css, /:active\{color:red;/);
       assert.doesNotMatch(output.code, /selected\(|selected`|selected\.at/);

@@ -115,29 +115,23 @@ pub enum CompileErrorKind {
     /// No valid phase remains after validating a transition declaration.
     #[error("style.viewTransition() requires at least one of group, old, new, or imagePair")]
     EmptyViewTransition,
-    /// A subtree declaration's optional name is not a literal string.
-    #[error("style.subtree() accepts an optional literal name")]
-    InvalidSubtreeNameArgument,
-    /// A subtree declaration supplies more than its optional name.
-    #[error("style.subtree() accepts at most one literal name")]
-    TooManySubtreeArguments,
     /// A single ref argument is neither a literal name nor an expression that resolves
-    /// to exactly one subtree identity.
+    /// to exactly one ref identity.
     #[error(
-        "style.ref() accepts an optional literal name or exactly one statically resolved scope identity"
+        "style.ref() accepts an optional literal name or exactly one statically resolved ref identity"
     )]
     InvalidRefArgument,
     /// The first argument of a two-argument ref declaration does not resolve to exactly
-    /// one subtree identity.
+    /// one ref identity.
     #[error(
-        "the first style.ref() argument must resolve statically to exactly one style.subtree() identity"
+        "the boundary argument of style.ref() must resolve statically to exactly one ref identity"
     )]
-    InvalidRefSubtree,
+    InvalidRefBoundary,
     /// The second ref argument is not a literal name.
     #[error("the second style.ref() argument must be a literal name")]
     InvalidRefNameArgument,
     /// A ref declaration uses an unsupported argument count.
-    #[error("style.ref() accepts (), (name), (subtree), or (subtree, name)")]
+    #[error("style.ref() accepts (), (name), (boundary), or (boundary, name)")]
     InvalidRefArguments,
     /// A ref variant's selector cannot be determined from literal text.
     #[error("ref variants require a static variant string")]
@@ -621,9 +615,8 @@ impl CompileErrorKind {
             | Self::InvalidViewTransitionKey
             | Self::InvalidViewTransitionValue
             | Self::EmptyViewTransition => "SHVIEW001",
-            Self::InvalidSubtreeNameArgument | Self::TooManySubtreeArguments => "SHSCOPE001",
             Self::InvalidRefArgument
-            | Self::InvalidRefSubtree
+            | Self::InvalidRefBoundary
             | Self::InvalidRefNameArgument
             | Self::InvalidRefArguments
             | Self::InvalidRefProjection => "SHREF001",

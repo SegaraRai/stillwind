@@ -17,8 +17,8 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, KeyframesDefinition, RefDefinition, StyleCall, SubtreeDefinition,
-    ViewTransitionDefinition, ViewTransitionKeyApplication,
+    AdapterKind, KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition,
+    ViewTransitionKeyApplication,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
@@ -26,7 +26,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{SourceFile, Spanned};
 
-use crate::refs::{RefUse, SubtreeUse};
+use crate::refs::RefUse;
 
 impl<'a> MacroExtractor<'a> {
     /// Builds an extractor for one parsed module.
@@ -45,11 +45,8 @@ impl<'a> MacroExtractor<'a> {
             style_symbols: HashSet::new(),
             adapter: None,
             ref_symbols: HashMap::new(),
-            subtree_symbols: HashMap::new(),
             ref_uses: Vec::new(),
-            subtree_uses: Vec::new(),
             ref_definitions: Vec::new(),
-            subtree_definitions: Vec::new(),
             keyframes_symbols: HashMap::new(),
             keyframes_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
@@ -91,11 +88,11 @@ impl<'a> MacroExtractor<'a> {
 
     /// Builds the module summary from the collected state.
     ///
-    /// Assets are appended in kind order (styles, subtrees, refs, keyframes, view
-    /// transitions), not source order. Exports are keyed by exported name and only
-    /// contain bindings whose value resolved to a symbolic form; a binding that was
-    /// reassigned or chosen conditionally is deliberately absent so the host checker
-    /// can answer instead of this pass guessing.
+    /// Assets are appended in kind order (styles, refs, keyframes, view transitions),
+    /// not source order. Exports are keyed by exported name and only contain bindings
+    /// whose value resolved to a symbolic form; a binding that was reassigned or chosen
+    /// conditionally is deliberately absent so the host checker can answer instead of
+    /// this pass guessing.
     pub(crate) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.source.path());
         summary.imports.clone_from(&self.imports);
@@ -116,16 +113,6 @@ impl<'a> MacroExtractor<'a> {
                 metadata: AssetMetadata { label: None },
                 call_start: call.span.start.0,
                 call_end: call.span.end.0,
-            });
-        }
-        for definition in &self.subtree_definitions {
-            summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Subtree, &definition.binding),
-                metadata: AssetMetadata {
-                    label: definition.label.as_ref().map(|label| label.value.clone()),
-                },
-                call_start: definition.call_span.start.0,
-                call_end: definition.call_span.end.0,
             });
         }
         for definition in &self.ref_definitions {
@@ -191,16 +178,11 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_symbols: HashSet<SymbolId>,
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
-    /// Symbols bound to a `style.subtree()` declaration, with their definitions.
-    pub(crate) subtree_symbols: HashMap<SymbolId, SubtreeDefinition>,
-    /// Every ref use, in source order, used for ancestry validation.
+    /// Every ref use, in source order, used for ancestry validation. An attachment is
+    /// also what makes a ref available as the boundary of a bounded ref.
     pub(crate) ref_uses: Vec<RefUse>,
-    /// Every subtree use, in source order, used for provider validation.
-    pub(crate) subtree_uses: Vec<SubtreeUse>,
     /// Ref definitions in declaration order.
     pub(crate) ref_definitions: Vec<RefDefinition>,
-    /// Scope definitions in declaration order.
-    pub(crate) subtree_definitions: Vec<SubtreeDefinition>,
     /// Symbols bound to an keyframes declaration, with their names.
     pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
     /// Animation declarations in declaration order.

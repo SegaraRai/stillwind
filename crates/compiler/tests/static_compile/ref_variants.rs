@@ -1,24 +1,25 @@
 //! Ref variants in selectors and templates.
 //!
-//! Pins that ref presence uses the existing subtree or ancestor relation, that call and tag spellings
-//! normalize the same way, that direct interpolation matches ordered nested wrappers, that custom
-//! alternatives and media conditions survive lowering, and that an unusable ref variant reports a
-//! diagnostic instead of emitting an unscoped selector.
+//! Pins that ref presence uses the existing boundary or ancestor relation, that call
+//! and tag spellings normalize the same way, that direct interpolation matches ordered
+//! nested wrappers, that custom alternatives and media conditions survive lowering, and
+//! that an unusable ref variant reports a diagnostic instead of emitting an unscoped
+//! selector.
 
 use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
 
-fn compile(args: &str, scoped: bool) -> (String, String) {
-    let ref_definition = if scoped {
-        "const subtree = style.subtree(\"menu\"); const trigger = style.ref(subtree, \"trigger\");"
+fn compile(args: &str, bounded: bool) -> (String, String) {
+    let ref_definition = if bounded {
+        "const menu = style.ref(\"menu\"); const trigger = style.ref(menu, \"trigger\");"
     } else {
         "const trigger = style.ref(\"trigger\");"
     };
-    let use_site = if scoped {
+    let use_site = if bounded {
         format!(
-            "const View = () => <section {{...style(subtree)}}><button {{...style(trigger)}}/><span {{...style({args})}}/></section>;"
+            "const View = () => <section {{...style(menu)}}><button {{...style(trigger)}}/><span {{...style({args})}}/></section>;"
         )
     } else {
         format!("const props = style({args});")
@@ -51,11 +52,11 @@ fn compile(args: &str, scoped: bool) -> (String, String) {
 }
 
 #[test]
-fn ref_presence_uses_the_existing_subtree_or_ancestor_relation() {
-    for scoped in [false, true] {
-        let (css, code) = compile(r#"{ [trigger()]: "text-accent" }"#, scoped);
+fn ref_presence_uses_the_existing_boundary_or_ancestor_relation() {
+    for bounded in [false, true] {
+        let (css, code) = compile(r#"{ [trigger()]: "text-accent" }"#, bounded);
         assert_eq!(
-            compile(r"`${trigger()}:text-accent`", scoped),
+            compile(r"`${trigger()}:text-accent`", bounded),
             (css.clone(), code.clone())
         );
         let utilities = css.split("@layer utilities{").nth(1).unwrap();
@@ -65,23 +66,23 @@ fn ref_presence_uses_the_existing_subtree_or_ancestor_relation() {
         );
         assert!(!utilities.contains(":where("), "{utilities}");
         assert!(!code.contains("trigger()"), "{code}");
-        if scoped {
+        if bounded {
             assert!(css.contains(":has(.s_"), "{css}");
         } else {
             assert!(css.contains(".s_"), "{css}");
             assert!(!css.contains(":has("), "{css}");
         }
         assert_eq!(
-            compile(r"`${trigger()}:active:text-accent`", scoped),
-            compile(r#"{ [trigger()]: { "active:": "text-accent" } }"#, scoped)
+            compile(r"`${trigger()}:active:text-accent`", bounded),
+            compile(r#"{ [trigger()]: { "active:": "text-accent" } }"#, bounded)
         );
     }
 }
 
 #[test]
 fn ref_calls_and_tags_normalize_optional_trailing_separators() {
-    for scoped in [false, true] {
-        let expected = compile(r#"{ [trigger`hover:active:`]: "text-accent" }"#, scoped);
+    for bounded in [false, true] {
+        let expected = compile(r#"{ [trigger`hover:active:`]: "text-accent" }"#, bounded);
         for args in [
             r#"{ [trigger`hover:active`]: "text-accent" }"#,
             r#"{ [trigger("hover:active:")]: "text-accent" }"#,
@@ -89,7 +90,7 @@ fn ref_calls_and_tags_normalize_optional_trailing_separators() {
             r"`${trigger`hover:active`}:text-accent`",
             r#"`${trigger("hover:active:")}:text-accent`"#,
         ] {
-            assert_eq!(compile(args, scoped), expected, "{args}");
+            assert_eq!(compile(args, bounded), expected, "{args}");
         }
         assert!(
             expected.0.contains(":where(:hover:active)"),
@@ -106,7 +107,7 @@ fn ref_calls_and_tags_normalize_optional_trailing_separators() {
 
 #[test]
 fn direct_ref_interpolation_matches_ordered_nested_wrappers() {
-    for scoped in [false, true] {
+    for bounded in [false, true] {
         for (inline, wrapper) in [
             (
                 r"`${trigger`hover:`}:active:text-accent`",
@@ -137,8 +138,8 @@ fn direct_ref_interpolation_matches_ordered_nested_wrappers() {
                 r#"[{ [trigger("hover")]: active && "text-accent" }, { [trigger("focus")]: !active && "text-accent" }]"#,
             ),
         ] {
-            let actual = compile(inline, scoped);
-            let expected = compile(wrapper, scoped);
+            let actual = compile(inline, bounded);
+            let expected = compile(wrapper, bounded);
             // A ternary and two separate guards retain their own source guard syntax.
             assert_eq!(actual.0, expected.0, "{inline}");
             if !inline.starts_with("active ?") {
@@ -243,9 +244,9 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
 }
 
 #[test]
-fn an_inline_scoped_ref_keeps_the_subtree_ancestry_check() {
+fn an_inline_bounded_ref_keeps_the_ancestry_check() {
     let source = SourceFile::new(FileId(1), "src/Scope.tsx", r#"import {style} from "stillwind/react";
-const menu = style.subtree("menu");
+const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
 export const View = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style(`${trigger`hover`}:text-accent`)} /></>;"#).unwrap();
     let theme =
@@ -256,7 +257,7 @@ export const View = () => <><section {...style(menu)}><button {...style(trigger)
         result
             .lint_findings
             .iter()
-            .any(|finding| matches!(finding.kind, LintKind::SelectorOutsideSubtree { .. })),
+            .any(|finding| matches!(finding.kind, LintKind::SelectorOutsideBoundary { .. })),
         "{:?}",
         result.lint_findings
     );

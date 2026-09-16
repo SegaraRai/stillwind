@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "typed-ref-graph",
   "title": "TypeScript-propagated ref graph",
-  "description": "Conditional ref and scope identities flow through imports and a barrel re-export before runtime attachment and projection lowering.",
-  "tags": ["typescript", "ref", "scope", "conditional", "cross-module", "re-export"],
+  "description": "Conditional ref and boundary identities flow through imports and a barrel re-export before runtime attachment and projection lowering.",
+  "tags": ["typescript", "ref", "boundary", "conditional", "cross-module", "re-export"],
   "theme": "stillwind.css",
   "sources": ["src/refs.ts", "src/chooser.ts", "src/barrel.ts", "src/consumer.ts"]
 }

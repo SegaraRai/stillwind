@@ -112,13 +112,6 @@ fn every_builtin_family_keeps_its_own_prefix() {
     );
     assert!(
         context
-            .subtree_marker_name(&declaration_context(None))
-            .unwrap()
-            .as_str()
-            .starts_with("s_")
-    );
-    assert!(
-        context
             .anchor_name(&locator_context(&declaration))
             .unwrap()
             .as_str()
@@ -213,10 +206,6 @@ fn a_class_token_an_object_already_holds_gains_a_prefix_when_it_is_built() {
     assert_eq!(marker.as_str(), "___proto__");
     assert_eq!(marker.selector(), ".___proto__");
     assert_eq!(marker.javascript_string(), "\"___proto__\"");
-    assert_eq!(
-        SubtreeMarker::new("hasOwnProperty").unwrap().as_str(),
-        "_hasOwnProperty"
-    );
     // The prefix is applied once, however many times a name is rebuilt.
     assert_eq!(
         RefMarker::new(marker.as_str()).unwrap().as_str(),
@@ -341,7 +330,6 @@ fn report_spellings_are_distinct_per_family() {
     let kinds = [
         IdentifierKind::UtilityClass,
         IdentifierKind::RefMarker,
-        IdentifierKind::SubtreeMarker,
         IdentifierKind::AnchorName,
         IdentifierKind::ContainerName,
         IdentifierKind::KeyframesName,

@@ -23,14 +23,14 @@ use stillwind_diagnostics::CompileErrorKind;
 
 use super::kind::{IdentifierKind, IdentifierMode, builtin_digest_digits, builtin_prefix};
 use super::name::{
-    AnchorName, ContainerName, CustomPropertyName, KeyframesName, LayerName, RefMarker,
-    SubtreeMarker, Token, UtilityClass, ViewTransitionClass,
+    AnchorName, ContainerName, CustomPropertyName, KeyframesName, LayerName, RefMarker, Token,
+    UtilityClass, ViewTransitionClass,
 };
 use super::request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest, LayerContext,
-    LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, SubtreeMarkerName,
-    ViewTransitionClassRequest, ViewTransitionSlotRequest,
+    LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ViewTransitionClassRequest,
+    ViewTransitionSlotRequest,
 };
 
 /// The naming inputs one compilation runs with.
@@ -132,19 +132,6 @@ pub trait IdentifierGenerator: fmt::Debug {
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<RefMarker>, String> {
-        Ok(GeneratedName::Builtin)
-    }
-
-    /// A subtree marker class, on its way into a class attribute and a class selector.
-    ///
-    /// # Errors
-    ///
-    /// Returns a failure the compilation reports for this declaration.
-    fn subtree_marker(
-        &self,
-        _context: &DeclarationContext,
-        _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<SubtreeMarker>, String> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -468,18 +455,6 @@ impl IdentifierContext {
         context: &DeclarationContext,
     ) -> Result<RefMarker, CompileErrorKind> {
         self.resolve_name(&RefMarkerName(context.clone()))
-    }
-
-    /// A subtree marker class token, without a leading dot.
-    ///
-    /// # Errors
-    ///
-    /// Returns the host generator's failure in release mode.
-    pub(crate) fn subtree_marker_name(
-        &self,
-        context: &DeclarationContext,
-    ) -> Result<SubtreeMarker, CompileErrorKind> {
-        self.resolve_name(&SubtreeMarkerName(context.clone()))
     }
 
     /// An anchor name for one ref projection.
