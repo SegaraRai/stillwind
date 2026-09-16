@@ -9,16 +9,17 @@
 //! The scan is a token walk, not a text search: `cssparser` splits the stylesheet into
 //! tokens, so a comment or a string can never be mistaken for a declaration, and escapes
 //! are decoded for free. It reads custom property declarations, `var()` references,
-//! `@property` registrations, `@layer` statements and blocks, and `@keyframes` names.
-//! It does not resolve imports, which the caller does before scanning, and it does not
-//! interpret values.
+//! `@property` registrations, `@layer` statements and blocks, `@keyframes` names, class
+//! selectors, and the custom-ident properties that name anchors, containers, and view
+//! transitions. It does not resolve imports, which the caller does before scanning, and it
+//! does not interpret values.
 //!
 //! A block the tokenizer cannot close contributes no names. The walk is best-effort and has no
 //! error channel, because the CSS it scans was parsed by the design system before it got here.
 //!
-//! TODO: CSS a module authors rather than imports is not scanned here. The compiler
-//! receives its declarations already resolved, so that text only exists on the host
-//! side; reserving it requires the host to supply those names with the analysis.
+//! The scan covers the text it is given: the design system's own sources, and whatever a host
+//! supplies for a producer through `ProjectSession::reserve_authored_css`. CSS a producer authors
+//! never reaches the compiler by itself, so a host that does not supply it leaves those names out.
 
 use std::collections::BTreeSet;
 
