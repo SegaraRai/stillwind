@@ -19,19 +19,20 @@ use stillwind_ir::{
     split_view_transition_classes, validate_composition,
 };
 use stillwind_semantic::AssetKind;
+use stillwind_semantic::{Candidates, ExportedValue, IdentityId, ModuleSummary};
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
 use super::definitions::{emit_animation_definition, emit_view_transition_definition};
 use super::emission::{CLASS_KEY, CallEmitter, CallEmitterInputs};
 use super::fragment::render_style_call;
-use super::handles::{named_identity, ref_identity, scope_identity, summary_runtime_assets};
 use super::output::CompileResult;
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol,
     generated_scope_marker_symbol, generated_scope_symbol, generated_symbol, identity_declaration,
     named_declaration, ref_marker_name, scope_marker_name,
 };
+use super::symbols::{named_identity, ref_identity, scope_identity};
 use super::{Compiler, CssContribution};
 use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
@@ -510,5 +511,72 @@ fn push_or_report<T>(
             diagnostics.push(CompileError::new(failure, span));
             None
         }
+    }
+}
+
+/// Every asset identity the module's exports can reach.
+///
+/// Finite candidates are exact roots. An exported universe conservatively retains all
+/// owned declarations of that kind, because the exporter cannot prove them unreachable.
+fn summary_runtime_assets(summary: &ModuleSummary) -> BTreeSet<IdentityId> {
+    let mut identities = BTreeSet::new();
+    for value in summary.exports.values() {
+        match value {
+            ExportedValue::Refs(alternatives) => {
+                for alternative in alternatives {
+                    identities.insert(alternative.reference.clone());
+                    if let Some(scopes) = &alternative.permitted_scopes
+                        && let Candidates::Finite(scopes) = &scopes.candidates
+                    {
+                        identities.extend(scopes.iter().cloned());
+                    }
+                }
+            }
+            ExportedValue::Styles(value)
+            | ExportedValue::Scopes(value)
+            | ExportedValue::Animations(value)
+            | ExportedValue::ViewTransitions(value)
+            | ExportedValue::ViewTransitionKeys(value) => {
+                if let Candidates::Finite(candidates) = &value.candidates {
+                    identities.extend(candidates.iter().cloned());
+                } else {
+                    identities.extend(
+                        summary
+                            .assets
+                            .iter()
+                            .filter(|asset| asset.identity.kind == value.kind)
+                            .map(|asset| asset.identity.clone()),
+                    );
+                }
+            }
+        }
+    }
+    identities
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_semantic::{AssetKind, AssetMetadata, AssetRecord, IdentityId, SymbolicValue};
+
+    use super::*;
+
+    #[test]
+    fn exported_universe_retains_owned_assets_of_its_kind() {
+        let mut summary = ModuleSummary::new("x");
+        let animation = IdentityId::new(AssetKind::Animation, "x", 0, 1, "a");
+        summary.assets.push(AssetRecord {
+            identity: animation.clone(),
+            metadata: AssetMetadata { label: None },
+            call_start: 2,
+            call_end: 8,
+        });
+        summary.exports.insert(
+            "chosen".into(),
+            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Animation)),
+        );
+        assert_eq!(
+            summary_runtime_assets(&summary),
+            BTreeSet::from([animation])
+        );
     }
 }

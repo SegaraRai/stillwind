@@ -8,10 +8,9 @@
 //! [`conditionals`] lowers runtime value tests after rule construction.
 //! [`literal`] resolves utility text; [`class_units`] allocates classes and orders CSS.
 //! [`expression_render`] serializes lowered class trees in class-value context.
-//! [`symbols`], [`handles`], [`definitions`], and [`lexer`] allocate names and emit asset
-//! definitions, while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders
-//! framework type declarations. [`output`] defines compilation results and structured CSS
-//! contributions.
+//! [`symbols`], [`definitions`], and [`lexer`] allocate names and emit asset definitions,
+//! while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders framework type
+//! declarations. [`output`] defines compilation results and structured CSS contributions.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's `ModuleCompiler`
@@ -25,7 +24,6 @@ mod definitions;
 mod emission;
 mod expression_render;
 mod fragment;
-mod handles;
 mod lexer;
 mod literal;
 

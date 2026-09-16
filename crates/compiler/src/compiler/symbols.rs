@@ -16,7 +16,6 @@ use stillwind_ir::{RefDefinition, RefProjection, ScopeDefinition};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
 
-use super::handles::{ref_identity, scope_identity};
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
     IdentifierPool, Label, LocatorContext, RefMarker, ScopeMarker,
@@ -494,6 +493,42 @@ pub(super) fn identity_input_parts(context: &LocatorContext) -> String {
     )
 }
 
+pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
+    IdentityId::new(
+        AssetKind::Ref,
+        &definition.module_path,
+        definition.binding.span.start.0,
+        definition.binding.span.end.0,
+        definition.binding.value.clone(),
+    )
+}
+
+/// Identity of a scope declaration, spanning its name token.
+pub(super) fn scope_identity(scope: &ScopeDefinition) -> IdentityId {
+    IdentityId::new(
+        AssetKind::Scope,
+        &scope.module_path,
+        scope.binding.span.start.0,
+        scope.binding.span.end.0,
+        scope.binding.value.clone(),
+    )
+}
+
+/// Identity of a named motion asset, spanning its name token.
+pub(super) fn named_identity(
+    source: &SourceFile,
+    kind: AssetKind,
+    name: &Spanned<String>,
+) -> IdentityId {
+    IdentityId::new(
+        kind,
+        source.path(),
+        name.span.start.0,
+        name.span.end.0,
+        name.value.clone(),
+    )
+}
+
 ///
 /// Both `anchor_name` and `container_name` are written for one declaration's identity,
 /// and the same declaration may be written many times, so the pipeline drops repeated
@@ -522,7 +557,7 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
-    use crate::identifiers::IdentifierContext;
+    use crate::identifiers::{IdentifierContext, Label, RefMarker};
 
     #[test]
     fn identities_normalize_paths_and_class_names_are_content_stable() {
@@ -587,5 +622,12 @@ mod tests {
             .unwrap();
             assert_ne!(symbol.name, shifted_name);
         }
+    }
+    #[test]
+    fn labels_preserve_punctuation_and_replace_whitespace() {
+        assert_eq!(Label::new("項目-🧭").unwrap().as_str(), "項目-🧭");
+        assert_eq!(Label::new("a b:c/d_").unwrap().as_str(), "a_b:c/d_");
+        assert_eq!(Label::new("a\t\nb").unwrap().as_str(), "a__b");
+        assert_eq!(RefMarker::new("a:b/c").unwrap().selector(), r".a\:b\/c");
     }
 }

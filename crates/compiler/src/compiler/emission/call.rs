@@ -11,9 +11,10 @@ use stillwind_source::Span;
 
 use super::super::class_units::ClassUnits;
 use super::super::fragment::{Emitted, Property, ValueExpr};
-use super::super::handles::{ref_identity, scope_identity};
 use super::super::props::{StyleEmission, StyleEmissionPart};
-use super::super::symbols::{definition_name_symbol, ref_marker_name, scope_marker_name};
+use super::super::symbols::{
+    definition_name_symbol, ref_identity, ref_marker_name, scope_identity, scope_marker_name,
+};
 use super::CallEmitter;
 use super::CallEmitterInputs;
 use super::class_value::expression_position;
