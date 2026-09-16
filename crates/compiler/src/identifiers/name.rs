@@ -218,6 +218,9 @@ impl LayerName {
 /// A label reaches a generator as part of a declaration context. The built-in generator does
 /// not embed it, but a generator that does writes it into a name that reaches the DOM, so it
 /// is cleaned like a class token.
+///
+/// An empty label is no label: a declaration whose authored label cleans to nothing passes
+/// `None` in its context and is named without one, rather than failing.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Label(String);
 
@@ -337,6 +340,7 @@ fn class_selector(name: &str) -> String {
 /// Escapes one canonical name as a CSS identifier.
 fn escaped_identifier(name: &str) -> String {
     let mut escaped = String::new();
+    // Writing through `fmt::Write` into a `String` cannot fail.
     let _ = serialize_identifier(name, &mut escaped);
     escaped
 }
