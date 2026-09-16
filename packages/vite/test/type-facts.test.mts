@@ -76,7 +76,7 @@ const summaries = new Map(
   ]),
 );
 
-void test("TypeScript is required for cross-module conditional handle propagation", () => {
+void test("TypeScript is required for cross-module conditional ref propagation", () => {
   const withoutFacts = compileReactProject(
     sources.map(({ path: sourcePath, source }) => ({ path: sourcePath, source })),
     resolveFixtureCss('@import "stillwind";'),

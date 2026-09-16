@@ -24,7 +24,7 @@ minimal Rust framework knowledge isolated in one file per framework.
    source code and host build-tool lifecycles.
 6. Formatter and linter consume the same parsed Stillwind IR. They do not recover
    intent from generated CSS.
-7. Handle-producing APIs create declaration-site identities, while their values
+7. Declaration-producing APIs create declaration-site identities, while their values
    remain ordinary JavaScript values across module boundaries. TypeScript 7 is
    the primary propagation engine for aliases, conditionals, and module edges;
    Rust consumes typed facts and does not reimplement TypeScript data flow.
@@ -150,8 +150,8 @@ Every input and emitted construct has provenance:
 
 - `style()` call, each argument, and each condition expression;
 - quote-delimited string literal, decoded-text segment, and each utility token;
-- object key, attribute value, selector fragment, and computed handle key;
-- handle declaration and every handle projection;
+- object key, attribute value, selector fragment, and computed ref key;
+- ref declaration and every ref projection;
 - theme token declaration and reference;
 - generated class, declaration, rule, source-map segment, diagnostic, and fix.
 
@@ -194,7 +194,7 @@ pub struct FrontendResult {
 }
 ```
 
-`ModuleIr` contains macro bindings, `style` calls, handle/asset declarations,
+`ModuleIr` contains macro bindings, `style` calls, ref/asset declarations,
 and optional local markup relations. All nodes are `Spanned` and reference
 original source text.
 
@@ -252,9 +252,9 @@ ordinary aliases, functions, properties, conditionals, imports, and re-exports;
 the TS7 checker provides the resulting candidates. JavaScript without checker
 facts deliberately remains limited to direct local declarations.
 
-### Finite symbolic handle values
+### Finite symbolic declaration values
 
-Handle producers are declaration-site assets, not local compiler variables.
+Producers are declaration-site assets, not local compiler variables.
 The extractor assigns each producer a globally stable `IdentityId` from the
 normalized module path, callsite span, kind, and compiler namespace. The same
 identity is denoted if a producer call is evaluated repeatedly; this keeps the
@@ -278,7 +278,7 @@ second propagation engine. TypeScript propagates branded declaration-site
 identities through imports, exports, re-exports, aliases, conditionals, arrays,
 objects, functions, and control flow. Rust receives the resulting facts keyed
 by original source spans. JavaScript keeps direct, single-module support; typed
-cross-module or conditional handles require TypeScript.
+cross-module or conditional declarations require TypeScript.
 
 Refs carry a relationship table rather than a flattened `scope × ref` product:
 
@@ -476,7 +476,7 @@ Initial checks:
 - unknown utility, token, variant, breakpoint, attribute state, or selector
   pseudo;
 - invalid animation keyframe frame or animation option;
-- invalid handle projection (`position` without a corresponding `anchor`,
+- invalid ref projection (`position` without a corresponding `anchor`,
   `at()` without `container()`);
 - scope that cannot contain both relevant anchor-positioning participants;
 - selector relationship impossible in locally visible JSX/template ancestry;
@@ -563,7 +563,7 @@ ordering contract; it is not a v1 requirement.
 Names are deterministic and private:
 
 - class names derive from canonical rule content and the callsite identity;
-- handle names derive from normalized module identity plus lexical binding
+- ref and scope names derive from normalized module identity plus lexical binding
   identity;
 - keyframe names derive from canonical keyframe content and lexical identity;
 - view-transition class tokens derive from their declaration identity, and a name composes

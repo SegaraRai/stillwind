@@ -54,7 +54,7 @@ fragment and the complete project stylesheet in `expected/project.css`.
   local selectors, and external classes.
 - `scoped-ref-layout`: scope/ref markers, anchor positioning, containers,
   container queries, and ref-tagged selectors.
-- `typed-handle-graph`: conditional refs/scopes propagated through imports and
+- `typed-ref-graph`: conditional refs/scopes propagated through imports and
   a barrel re-export by TypeScript.
 - `animation-matrix`: static and conditional animations across modules.
 - `view-transition-matrix`: static, keyed, and conditional view transitions

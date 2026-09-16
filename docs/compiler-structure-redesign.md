@@ -212,11 +212,14 @@ handle は ref に置き換える（型・フィールド・関数・診断種�
 
 据え置き:
 
-- `emission.rs` の canonical 文字列 `"handle:"` / `"dynamic-handle:"` は class identity の
-  ハッシュ入力なので変えない。変えると生成 class 名が変わる（§8）。
 - モジュール `compiler/handles.rs` の名前は §3 の解体コミットまで維持する。
-- fixture プロジェクト `typed-handle-graph`（id・title・`src/handles.ts`）は §8 で判断する。
-- docs の地の文は §5.5 で追随する。
+
+適用済み（追加）:
+
+- canonical 文字列を `"ref:"` / `"dynamic-ref:"` に改名した。class identity のハッシュ入力
+  なので生成 class 名が変わり、fixture の期待値と fixtures.json を更新した。
+- fixture プロジェクトを `typed-ref-graph`（id・title・`src/refs.ts`）に改名した。
+- docs の地の文とテスト名（§5.5）を更新した。
 
 utility 列と option 列の newtype は不採用。両者は字句（`lex_utilities` と candidate）を共有し、
 相違は解決器（`resolve_utility` / `resolve_animation_option`）と出力先だけにある。identifier
@@ -272,9 +275,9 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 
 `docs/panic-audit.md` と `docs/rust-unit-test-audit.md` のファイルパス、
 `docs/design-intent-improvement-plan.md` の `motion.rs` 参照、`docs/css-ordering.md` の L3-1 の
-語（definitions）を更新する。§3.2 の handle → ref に合わせ、`docs/compiler-design.md`、
+語（definitions）を更新する。§3.2 の handle → ref に合わせた `docs/compiler-design.md`、
 `docs/golden-case.md`、`docs/review-fixtures.md`、`packages/vite/test/type-facts.test.mts` の
-地の文も更新する。`fixtures/projects/typed-handle-graph` の改名は §8 の決定に従う。
+地の文は更新済み。
 
 ## 6. コミット分割案
 
@@ -308,7 +311,3 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 - `summary_runtime_assets` の最終的な置き場所。`crates/semantic` の
   `ModuleSummary::export_reachable_identities` を推すが、compiler 側の reachability
   モジュールでもよい。
-- canonical 文字列 `"handle:"` / `"dynamic-handle:"` を ref に合わせるか。class identity の
-  ハッシュ入力なので生成 class 名が変わる。変えるなら単独コミットと fixture 更新をセットにする。
-- fixture プロジェクト `typed-handle-graph`（id・title・`src/handles.ts`）を改名するか。
-  パスと期待出力に波及するため、改名するなら fixture 更新とセットにする。

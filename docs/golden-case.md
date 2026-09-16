@@ -11,7 +11,7 @@ implementation limitation, not a source-language restriction.
 
 ## Core principles
 
-### Handle values are JavaScript values
+### Declaration values are JavaScript values
 
 Objects created by `style.ref()`, `style.scope()`, `style.animation()`, and
 `style.viewTransition()` are ordinary JavaScript values. They may be exported,
@@ -20,7 +20,7 @@ structures, and conditionally selected across module boundaries. Stillwind must
 not narrow this valid composition merely because a compiler pass cannot yet
 resolve a value locally.
 
-The boundary is identity creation, not value flow. A handle-producing call has
+The boundary is identity creation, not value flow. A declaration-producing call has
 a declaration-site identity. Re-evaluating that call denotes the same
 Stillwind identity rather than allocating an unbounded sequence of CSS names.
 An API restriction is justified only by invalid CSS semantics, a genuine API
@@ -53,7 +53,7 @@ that could match a DOM relationship the source never denoted. The compiler
 factors only proven-independent candidate sets.
 
 Stillwind never generates CSS at runtime. Exact values may erase completely;
-dynamic handle selection can retain a small opaque runtime descriptor solely to
+dynamic declaration selection can retain a small opaque runtime descriptor solely to
 select already-generated classes or declarations. This is bounded value
 selection, not runtime CSS generation.
 
