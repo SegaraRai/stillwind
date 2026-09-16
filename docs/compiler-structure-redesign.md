@@ -136,7 +136,7 @@ crates/compiler/src/compiler/
     mod.rs                               バンドの契約（css-ordering.md L3-1 を参照）
     animation.rs                         emit_animation_definition と条件分岐（定義全体の置換）
     view_transition.rs                   4 bucket と group の option 条件
-  options.rs                           option 列の解決（animation use と VT group が共有）
+  animation_options.rs                 option 列の解決（animation use と VT group が共有）
   variants.rs                          variant 適用 → 条件 wrapper と conditions_only
   emission.rs                          call の walk（CallEmitter 状態の所有者）+ animation use の宣言化
   class_units.rs                       L3 の unit 順序、class identity、VT の要素側（slot）
@@ -153,8 +153,8 @@ crates/compiler/src/compiler/
 | ------------------------------------------- | ---------------------------------------------------- | ------------------------------------------ |
 | `motion.rs` の VT 定義 3 関数と option 条件 | `definitions/view_transition.rs`                     | L3 band 1                                  |
 | `motion.rs` の `resolve_animation_use`      | `emission.rs`                                        | use が寄与する宣言は call バンド           |
-| `motion.rs` の `resolve_motion_options` 系  | `options.rs`                                         | animation use と VT group が共有する解決器 |
-| `motion.rs` のテスト                        | `definitions/*.rs` と `options.rs`                   | 種別ごとに分ける                           |
+| `motion.rs` の `resolve_motion_options` 系  | `animation_options.rs`                               | animation use と VT group が共有する解決器 |
+| `motion.rs` のテスト                        | `definitions/*.rs` と `animation_options.rs`         | 種別ごとに分ける                           |
 | `motion/animation.rs`                       | `definitions/animation.rs`                           | L3 band 1                                  |
 | `variants.rs`                               | `variants.rs` + 条件 wrapper                         | 列挙の解釈を 1 箇所へ                      |
 | `handles.rs` の projection 生成             | `emission.rs`                                        | call バンド。利用者は walker のみ          |
@@ -178,8 +178,8 @@ motion を外す移動と語彙の整理として、次の改名を適用済み�
 
 | 現在                                             | 移動後                                                |
 | ------------------------------------------------ | ----------------------------------------------------- |
-| `resolve_motion_options`                         | `options.rs` の `resolve_options`                     |
-| `ResolvedMotionOptions`                          | `options.rs` の `ResolvedOptions`                     |
+| `resolve_motion_options`                         | `animation_options.rs` の `resolve_options`           |
+| `ResolvedMotionOptions`                          | `animation_options.rs` の `ResolvedOptions`           |
 | `motion_name_symbol`                             | `symbols.rs` の `definition_name_symbol`              |
 | `record_motion_name`                             | `emission.rs` の `record_definition_name`             |
 | `motion_css`（pipeline のローカル）              | `definition_css`                                      |
