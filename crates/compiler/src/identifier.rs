@@ -354,10 +354,11 @@ pub struct LayerContext {
 
 /// The naming inputs one compilation runs with.
 ///
-/// Generators are not part of [`CompilerOptions`], because options must stay a plain
-/// serializable configuration whose debug output is the artifact key. A host that
-/// supplies generators pairs them with a matching [`CompilerOptions::naming_revision`]
-/// so cached artifacts are not reused across naming changes.
+/// Generators are not part of [`crate::CompilerOptions`], because options must stay a
+/// plain serializable configuration whose debug output is the artifact key. A host that
+/// supplies generators pairs them with a matching
+/// [`crate::CompilerOptions::naming_revision`] so cached artifacts are not reused
+/// across naming changes.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Identifiers {
     generators: GeneratorSet,
