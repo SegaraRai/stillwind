@@ -1,16 +1,21 @@
 //! Animation uses, static and dynamic, and the declarations they contribute.
 
+use stillwind_design_system::{ThemeIndex, UtilityOrder};
+use stillwind_diagnostics::CompileError;
 use stillwind_ir::{AssetReference, StyleVariant};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
+use super::super::animation_options::{OptionVariants, resolve_options};
 use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
-use super::super::motion::resolve_animation_use;
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
+use super::super::symbols::identity_declaration;
+use super::super::utilities::resolve::CompiledUtility;
 use super::CallEmitter;
 use crate::generated::js_string;
+use crate::identifiers::IdentifierContext;
 use crate::runtime::RuntimeHelper;
 
 impl CallEmitter<'_> {
@@ -139,5 +144,42 @@ impl CallEmitter<'_> {
             span: *value,
         };
         Some(Emitted::Expression(expression))
+    }
+}
+
+/// Builds the declarations one animation use contributes.
+///
+/// The `animation-name` always names this declaration's keyframes, and the options follow in
+/// their written order.
+fn resolve_animation_use(
+    identifiers: &IdentifierContext,
+    animation: &AssetReference,
+    options: &Spanned<String>,
+    theme: &ThemeIndex,
+    diagnostics: &mut Vec<CompileError>,
+) -> CompiledUtility {
+    let mut declaration = format!(
+        "animation-name:{};",
+        match identifiers.animation_name(&identity_declaration(&animation.identity)) {
+            Ok(name) => name.custom_ident(),
+            Err(failure) => {
+                diagnostics.push(CompileError::new(failure, options.span));
+                String::new()
+            }
+        }
+    );
+    declaration.push_str(
+        &resolve_options(options, OptionVariants::Rejected, theme, diagnostics).declaration,
+    );
+    CompiledUtility {
+        required_properties: Vec::new(),
+        variants: Vec::new(),
+        variant_applications: Vec::new(),
+        declaration,
+        selector: None,
+        container: None,
+        nested: Vec::new(),
+        order: UtilityOrder::Authored(None),
+        candidate: String::new(),
     }
 }

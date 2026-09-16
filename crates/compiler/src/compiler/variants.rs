@@ -164,6 +164,77 @@ pub(super) fn document_scoped_selector(variant: &Variant, theme: &ThemeIndex) ->
     stillwind_design_system::document_scoped_selector(&application).map(str::to_owned)
 }
 
+/// One condition wrapper a rule is nested under.
+#[derive(Debug)]
+pub(super) enum OptionCondition {
+    /// `@media <condition>`
+    Media(String),
+    /// `@supports (<condition>)`
+    Supports(String),
+}
+
+impl OptionCondition {
+    /// The wrapper one resolved variant step produces.
+    ///
+    /// A step that cannot wrap a rule is not a condition, so the caller drops the utility rather
+    /// than emitting it unconditionally.
+    fn from_step(step: &VariantStep<'_>) -> Option<Self> {
+        match step {
+            VariantStep::Media(condition) => Some(Self::Media((*condition).to_owned())),
+            VariantStep::Supports(condition) => Some(Self::Supports((*condition).to_owned())),
+            _ => None,
+        }
+    }
+
+    /// Wraps one rule in this condition.
+    fn wrap(&self, rule: &str) -> String {
+        match self {
+            Self::Media(condition) => format!("@media {condition}{{{rule}}}"),
+            Self::Supports(condition) => format!("@supports ({condition}){{{rule}}}"),
+        }
+    }
+}
+
+/// Wraps one rule in a condition path, outermost condition first.
+pub(super) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> String {
+    path.iter()
+        .rev()
+        .fold(rule.to_owned(), |wrapped, condition| {
+            condition.wrap(&wrapped)
+        })
+}
+
+/// The condition paths one variant list produces, or `None` when a variant cannot wrap a rule.
+///
+/// A view-transition pseudo-element has no element state of its own and no container ancestor,
+/// so only media and supports conditions can wrap it. Any other variant fails the utility rather
+/// than dropping its condition silently.
+pub(super) fn condition_paths(
+    variants: &[Variant],
+    theme: &ThemeIndex,
+) -> Option<Vec<Vec<OptionCondition>>> {
+    let applications = condition_applications(variants, theme)?;
+    variant_paths(&applications)
+        .iter()
+        .map(|path| path.iter().map(OptionCondition::from_step).collect())
+        .collect()
+}
+
+/// Resolves a bucket utility's variants into the applications a pseudo-element rule can carry.
+fn condition_applications(
+    variants: &[Variant],
+    theme: &ThemeIndex,
+) -> Option<Vec<VariantApplication>> {
+    let mut applications = Vec::new();
+    for variant in variants {
+        match resolve_variant(variant, theme)? {
+            VariantApplication::Compound(children) => applications.extend(children),
+            application => applications.push(application),
+        }
+    }
+    conditions_only(&variant_paths(&applications)).then_some(applications)
+}
+
 #[cfg(test)]
 mod tests {
     use stillwind_design_system::UtilityOrder;

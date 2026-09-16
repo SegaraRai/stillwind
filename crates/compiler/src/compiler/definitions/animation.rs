@@ -155,3 +155,34 @@ fn emit_frames(
         output.push('}');
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use stillwind_js_oxc::OxcSourceAnalyzer;
+    use stillwind_source::FileId;
+
+    use super::*;
+    use crate::Compiler;
+
+    #[test]
+    fn reports_frame_variants_at_their_own_span() {
+        let source = SourceFile::new(
+            FileId(1),
+            "motion.tsx",
+            "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'hover:opacity-0' });",
+        )
+        .unwrap();
+        let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
+        let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        let errors = result
+            .diagnostics
+            .iter()
+            .filter(|error| error.kind == CompileErrorKind::AnimationFrameVariants)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
+        assert_eq!(
+            source.slice(errors[0].labels[0].span).unwrap(),
+            "hover:opacity-0"
+        );
+    }
+}

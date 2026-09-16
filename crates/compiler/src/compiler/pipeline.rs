@@ -22,10 +22,10 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
+use super::definitions::{emit_animation_definition, emit_view_transition_definition};
 use super::emission::{CLASS_KEY, CallEmitter, CallEmitterInputs};
 use super::fragment::render_style_call;
 use super::handles::{named_identity, ref_identity, scope_identity, summary_runtime_assets};
-use super::motion::{emit_animation_definition, emit_view_transition_definition};
 use super::output::CompileResult;
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol,

@@ -3,28 +3,31 @@
 //! [`api`] holds the stateless entry points, [`pipeline`] orders the passes, and
 //! [`emission`] lowers style inputs, [`props`] carries call metadata, and
 //! [`style_variants`] and [`variants`] resolve variant wrappers.
+//! [`animation_options`] resolves option lists for animation uses and group options.
 //! [`fragment`] folds ordered contributions and materializes framework props.
 //! [`conditionals`] lowers runtime value tests after rule construction.
 //! [`literal`] resolves utility text; [`class_units`] allocates classes and orders CSS.
 //! [`expression_render`] serializes lowered class trees in class-value context.
-//! [`symbols`], [`handles`], [`motion`], and [`lexer`] allocate names and emit asset definitions,
-//! while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders framework type
-//! declarations. [`output`] defines compilation results and structured CSS contributions.
+//! [`symbols`], [`handles`], [`definitions`], and [`lexer`] allocate names and emit asset
+//! definitions, while [`utilities`] and [`stylesheet`] render CSS and [`react`] renders
+//! framework type declarations. [`output`] defines compilation results and structured CSS
+//! contributions.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's `ModuleCompiler`
 //! and `StylesheetRenderer` interfaces; this module supplies their lowering passes.
 
+mod animation_options;
 mod api;
 mod class_units;
 mod conditionals;
+mod definitions;
 mod emission;
 mod expression_render;
 mod fragment;
 mod handles;
 mod lexer;
 mod literal;
-mod motion;
 
 mod output;
 mod pipeline;
