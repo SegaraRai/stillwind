@@ -42,8 +42,8 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 
 残件。
 
-- ランタイム側の export condition（第 3.1 節）。dev 専用 specifier へ移した `stillwindClsx` の検査版が
-  最初の例であり、以降も第 3.2 節の規則に従う。
+- ランタイム側の export condition（第 3.1 節）は、dev 専用 specifier へ移した `stillwindClsx` の
+  検査版だけが実装済みである。以降に増える検査も同じ規則に従う。
 - `view-transition-class` の値はランタイムが遷移名から設定するため、生成関数を持たない。
   プール F は名前空間として残る。
 - NAPI から JS の生成関数を渡す経路（第 6 節）。現状は `IdentifierMode` だけを渡せる。
