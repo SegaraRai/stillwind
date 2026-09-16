@@ -430,7 +430,7 @@ Keep both selectors so the same theme values are available in either scope.
     anchor-scope: --sw-r-af323949;
   }
   ._s_9fe72c9c {
-    container-name: --sw-s-3856e58e;
+    container-name: --sw-s-ec3bb7c0;
     container-type: inline-size;
   }
   ._s_4e51e893 {
@@ -440,16 +440,16 @@ Keep both selectors so the same theme values are available in either scope.
   ._s_c6b39c57 {
     anchor-name: --sw-r-af323949;
   }
-  ._s_6176087e {
+  ._s_f7f6772c {
     position: absolute;
   }
   @container --sw-r-af323949 (width >= 40rem) {
-    ._s_6176087e {
+    ._s_f7f6772c {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (hover: hover) {
-    .s_menu_3523e441:has(.s_trigger_af323949:where(:hover)) ._s_6176087e {
+    .s_menu_701cde9d:has(.s_trigger_af323949:where(:hover)) ._s_f7f6772c {
       color: var(--color-accent);
     }
   }

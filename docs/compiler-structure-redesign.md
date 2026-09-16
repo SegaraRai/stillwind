@@ -35,27 +35,27 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 
 マクロ引数と CSS の表層 → Rust の名前:
 
-| 表層                                                                   | Rust                                                                                                          |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `style(base)`                                                          | `StyleInput::Composition { value, candidates }`                                                               |
-| `style("…")` / utility テンプレート                                    | `ClassExpression::Utilities`（utility 列）                                                                    |
-| `style(a && b)` / `a ? b : c` / `style([...])`                         | `ClassExpression::Conditional` / `Array`                                                                      |
-| `{ "hover:": … }`                                                      | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                                          |
-| `{ class: value }`                                                     | `GroupEntry::Class(ClassExpression::ClassValue)`                                                              |
-| `{ "aria-*" / "data-*": value }`                                       | `GroupEntry::Attribute(AttributeEntry)`                                                                       |
-| `{ "--x": value }`                                                     | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                             |
-| `style(scope)` / `style(ref)`                                          | `StyleInput::ScopeAttachment` / `RefAttachment`（動的版は `DynamicScopeAttachment` / `DynamicRefAttachment`） |
-| `ref.anchor` / `.positionAnchor` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                             |
-| `ref()` / `ref("variant:")` / ref タグ                                 | `StyleVariant::Ref { refs, prefix }`                                                                          |
-| `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                                     |
-| `style.subtree(name?)`                                                 | \x60SubtreeDefinition { binding, label, … }\x60（label が書かれた文字列）                                     |
-| `style.ref(scope?, name?)`                                             | `RefDefinition { binding, label, scope, … }`                                                                  |
-| `style.keyframes(definition)` の frame                                 | `AnimationFrame { selector, utilities }`（utility 列）。variant キーは `AnimationBranch`                      |
-| `animation(options)`                                                   | `ClassExpression::AnimationUse { animation, options }`（option 列）                                           |
-| `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列                  |
-| `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                                         |
-| `transition.for(key?)`（`style()` の中）/ キー付きバインディング       | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                                 |
-| `StillwindDeclarationIdentity` 引数                                    | IR 表現なし（checker メタデータ）                                                                             |
+| 表層                                                                   | Rust                                                                                                              |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `style(base)`                                                          | `StyleInput::Composition { value, candidates }`                                                                   |
+| `style("…")` / utility テンプレート                                    | `ClassExpression::Utilities`（utility 列）                                                                        |
+| `style(a && b)` / `a ? b : c` / `style([...])`                         | `ClassExpression::Conditional` / `Array`                                                                          |
+| `{ "hover:": … }`                                                      | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                                              |
+| `{ class: value }`                                                     | `GroupEntry::Class(ClassExpression::ClassValue)`                                                                  |
+| `{ "aria-*" / "data-*": value }`                                       | `GroupEntry::Attribute(AttributeEntry)`                                                                           |
+| `{ "--x": value }`                                                     | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                                 |
+| `style(subtree)` / `style(ref)`                                        | `StyleInput::SubtreeAttachment` / `RefAttachment`（動的版は `DynamicSubtreeAttachment` / `DynamicRefAttachment`） |
+| `ref.anchor` / `.positionAnchor` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                                 |
+| `ref()` / `ref("variant:")` / ref タグ                                 | `StyleVariant::Ref { refs, prefix }`                                                                              |
+| `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                                         |
+| `style.subtree(name?)`                                                 | \x60SubtreeDefinition { binding, label, … }\x60（label が書かれた文字列）                                         |
+| `style.ref(subtree?, name?)`                                           | `RefDefinition { binding, label, subtree, … }`                                                                    |
+| `style.keyframes(definition)` の frame                                 | `KeyframesFrame { selector, utilities }`（utility 列）。variant キーは `KeyframesBranch`                          |
+| `keyframes(options)`                                                   | `ClassExpression::KeyframesUse { animation, options }`（option 列）                                               |
+| `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列                      |
+| `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                                             |
+| `transition.for(key?)`（`style()` の中）/ キー付きバインディング       | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                                     |
+| `StillwindDeclarationIdentity` 引数                                    | IR 表現なし（checker メタデータ）                                                                                 |
 
 ## 1. 現状の問題
 
@@ -72,7 +72,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 - `compiler/motion.rs`: `resolve_animation_use`、`resolve_motion_options` と option 条件の機構
   （`OptionVariants` / `ResolvedMotionOptions` / `ConditionedOption` / `OptionCondition` /
   `wrap_conditions`）、`emit_view_transition_definition`、`emit_view_transition_utilities`
-- `compiler/motion/animation.rs`: `emit_animation_definition`（animation の定義）
+- `compiler/motion/keyframes.rs`: `emit_animation_definition`（animation の定義）
 
 親がほぼ view transition、子が animation の定義側で、どちらのファイルも「1 資産を端から端まで」
 になっていない。呼び出し元も別で、`pipeline.rs` は定義側の 2 関数、`emission.rs` は
@@ -81,9 +81,9 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 ### 1.3 motion_assets は決定を表していない
 
 - `motion_assets` への直接挿入は 2 箇所だけ。`CallEmitter` の静的 VT use と
-  `ClassExpression::AnimationUse` の処理。
+  `ClassExpression::KeyframesUse` の処理。
 - `runtime_assets` へは、同じ VT use の両方、`DynamicViewTransitionUse`、
-  `DynamicAnimationUse`、`pipeline` の `.for` 適用が入る。
+  `DynamicKeyframesUse`、`pipeline` の `.for` 適用が入る。
 - `pipeline` は `runtime_assets` を clone し、call を歩いた後と `.for` 適用の後に、
   それぞれ `runtime_assets` を丸ごと extend する。
 
@@ -93,16 +93,16 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 
 ### 1.4 handles.rs に 3 つの責任が同居している
 
-- identity の生成: `ref_identity` / `scope_identity` / `named_identity`
+- identity の生成: `ref_identity` / `subtree_identity` / `named_identity`
 - call バンドの宣言生成: `render_handle_projection`（利用者は `emission.rs` の 2 箇所だけ）
 - 全資産の export 到達性: `summary_runtime_assets`
 
-`symbols.rs` は `use super::handles::{ref_identity, scope_identity}` としており、identity バンドの
+`symbols.rs` は `use super::handles::{ref_identity, subtree_identity}` としており、identity バンドの
 中で依存が逆転している。名前も「handle = ref」という以前の呼び方のまま。
 
 ### 1.5 条件 wrapper の組み立てが複数箇所にある
 
-media / supports の入れ子を作る同じ形が、`motion/animation.rs`（animation 定義）と
+media / supports の入れ子を作る同じ形が、`motion/keyframes.rs`（animation 定義）と
 `motion.rs` の `wrap_conditions`（VT の option 条件と bucket）にある。全 step を扱う版は
 `utilities/render.rs` と `style_variants.rs` にもある。列挙の解釈が散ると、variant を 1 つ
 足すたびに全箇所を直すことになる。
@@ -144,7 +144,7 @@ crates/compiler/src/compiler/
     call.rs                              入口と骨格（run / StyleInput の dispatch / attachment / 診断と lint）
     class_value.rs                       ClassExpression の walk（utility・配列・条件・variant・object）
     ref_projection.rs                    ref projection（静的・動的）と projection の宣言生成
-    animation_use.rs                     animation use（静的・動的）の宣言化
+    keyframes_use.rs                     animation use（静的・動的）の宣言化
     view_transition.rs                   VT use（静的・動的）、view-transition-name、guard 付き class
   class_units.rs                       L3 の unit 順序、class identity、VT の要素側（slot）
   utilities/                           L1 / L2
@@ -162,7 +162,7 @@ crates/compiler/src/compiler/
 | `motion.rs` の `resolve_animation_use`      | `emission/keyframes_use.rs`                          | use が寄与する宣言は call バンド           |
 | `motion.rs` の `resolve_motion_options` 系  | `animation_options.rs`                               | animation use と VT group が共有する解決器 |
 | `motion.rs` のテスト                        | `definitions/*.rs` と `animation_options.rs`         | 種別ごとに分ける                           |
-| `motion/animation.rs`                       | `definitions/keyframes.rs`                           | L3 band 1                                  |
+| `motion/keyframes.rs`                       | `definitions/keyframes.rs`                           | L3 band 1                                  |
 | `variants.rs`                               | `variants.rs` + 条件 wrapper                         | 列挙の解釈を 1 箇所へ                      |
 | `handles.rs` の projection 生成             | `emission/ref_projection.rs`                         | call バンド。利用者は walker のみ          |
 | `handles.rs` の identity 3 関数             | `symbols.rs`                                         | identity バンド。依存の逆転を解消          |
@@ -190,7 +190,7 @@ import が移動先を指すようになるだけで、処理の順序と引数�
   `expression_position`、variant の document-scope lint。
 - `ref_projection.rs`: `RefProjection` / `DynamicRefProjection` の腕、`handles.rs` から受け入れる
   `render_ref_projection`、`ref_class_read`。
-- `animation_use.rs`: `AnimationUse` / `DynamicAnimationUse` の腕、`motion.rs` から受け入れる
+- `keyframes_use.rs`: `KeyframesUse` / `DynamicKeyframesUse` の腕、`motion.rs` から受け入れる
   `resolve_animation_use`。
 - `view_transition.rs`: `ViewTransitionUse` / `DynamicViewTransitionUse` の腕、
   `emit_view_transition_name` / `push_guarded_class` / `static_view_transition_name` /
@@ -232,7 +232,7 @@ handle は ref に置き換える（型・フィールド・関数・診断種�
 | field `handle`（`ClassExpression::RefProjection`）                        | `definition`                                                  |
 
 あわせて `ClassExpression::External` を `ClassValue` に、`RefDefinition` / `SubtreeDefinition` /
-`AnimationDefinition` / `ViewTransitionDefinition` の field `name`（レキシカル束縛）を `binding`
+`KeyframesDefinition` / `ViewTransitionDefinition` の field `name`（レキシカル束縛）を `binding`
 にする。書かれた文字列は `label` のまま。
 
 据え置き:
@@ -260,9 +260,9 @@ transition は互いを参照せず、共有するのは「call から消費さ�
 ```
 crates/js-oxc/src/
 - motion/mod.rs
-- motion/animation.rs        → animation.rs
+- motion/keyframes.rs        → animation.rs
 - motion/view_transition.rs  → view_transition.rs
-  refs/                        変更なし。ref と scope は projection と JSX 祖先検証を共有する
+  refs/                        変更なし。ref と subtree は projection と JSX 祖先検証を共有する
 ```
 
 ## 5. 意味の変更を伴う項目（移動とは別コミット）
@@ -271,7 +271,7 @@ crates/js-oxc/src/
 
 決定ごとに集合を 1 つにする（P4）。
 
-- `runtime_assets`: 実行時に JS 値として実体化する identity。宣言の置換を決める。ref/scope も入る。
+- `runtime_assets`: 実行時に JS 値として実体化する identity。宣言の置換を決める。ref/subtree も入る。
 - `required_definitions`: 定義 CSS を出す identity。L3 の 1 番目を決める。
 
 挿入は次の 4 箇所で全部行い、写しは作らない。宣言の export 到達性（motion 種別のみ）、すべての

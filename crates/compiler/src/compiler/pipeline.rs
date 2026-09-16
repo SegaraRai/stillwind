@@ -361,7 +361,7 @@ impl Compiler {
                     {
                         Ok(name) => format!(
                             "{}({})",
-                            runtime.require(RuntimeHelper::Animation, animation.call_span),
+                            runtime.require(RuntimeHelper::Keyframes, animation.call_span),
                             name.javascript_string()
                         ),
                         Err(failure) => {

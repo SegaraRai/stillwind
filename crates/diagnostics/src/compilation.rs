@@ -58,7 +58,7 @@ pub enum CompileErrorKind {
     InvalidAttributeKey,
     /// A variant wrapper contains an unsupported input expression.
     #[error(
-        "variant wrappers accept utility strings, animations, arrays, and nested variant wrappers"
+        "variant wrappers accept utility strings, keyframes, arrays, and nested variant wrappers"
     )]
     InvalidVariantInput,
     /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
@@ -70,28 +70,28 @@ pub enum CompileErrorKind {
     /// A style call contains a spread argument whose elements cannot be resolved.
     #[error("style() argument spreads require a literal array")]
     StyleArgumentSpread,
-    /// An animation use does not supply one literal options string.
-    #[error("an animation use requires one literal options string")]
+    /// A keyframes use does not supply one literal options string.
+    #[error("a keyframes use requires one literal options string")]
     InvalidKeyframesOptions,
-    /// An animation declaration does not supply one static frame object.
+    /// A keyframes declaration does not supply one static frame object.
     #[error("style.keyframes() requires one object of static keyframe utility strings")]
     InvalidKeyframesDefinition,
-    /// An animation frame object contains a spread property.
+    /// A keyframes frame object contains a spread property.
     #[error("animation keyframes cannot use object spreads")]
     KeyframesSpread,
-    /// An animation frame entry is not a plain static property.
+    /// A keyframes frame entry is not a plain static property.
     #[error("animation keyframes must be plain static properties")]
     InvalidKeyframesProperty,
     /// A frame key cannot be interpreted as a keyframe selector.
-    #[error("animation frames must be `from`, `to`, or percentage keys")]
+    #[error("keyframe selectors must be `from`, `to`, or percentage keys")]
     InvalidKeyframesFrameKey,
     /// A static frame selector contains an invalid percentage or selector list.
-    #[error("animation frames must be `from`, `to`, or comma-separated percentages")]
+    #[error("keyframe selectors must be `from`, `to`, or comma-separated percentages")]
     InvalidKeyframesFrameSelector,
     /// A frame body is not a literal utility string.
-    #[error("animation frame values must be literal utility strings")]
+    #[error("keyframe values must be literal utility strings")]
     InvalidKeyframesFrameValue,
-    /// No valid frame remains after validating an animation declaration.
+    /// No valid frame remains after validating a keyframes declaration.
     #[error("style.keyframes() requires at least one valid keyframe")]
     EmptyKeyframes,
     /// A keyed transition use supplies more than one key expression.
@@ -177,7 +177,7 @@ pub enum CompileErrorKind {
     KeyframesFrameVariants,
     /// A definition-level variant cannot wrap a keyframes rule in valid CSS.
     #[error(
-        "animation definition variants must be media or supports conditions; container queries do not condition global keyframes"
+        "keyframes definition variants must be media or supports conditions; container queries do not condition global keyframes"
     )]
     InvalidKeyframesVariant,
     /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.

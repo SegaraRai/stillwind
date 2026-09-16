@@ -33,7 +33,7 @@ use crate::identifiers::{
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
     pub name: String,
-    /// Symbol family: `ref`, `scope`, `ref-marker`, `scope-marker`, `animation`,
+    /// Symbol family: `ref`, `subtree`, `ref-marker`, `subtree-marker`, `keyframes`,
     /// `view-transition`, `class`, `custom-property`, or `layer`.
     pub kind: String,
     /// CSS namespace the name is written into. Names in different pools never interact,
@@ -102,7 +102,7 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
     }
 }
 
-/// The declaration fields a scope marker or container name is built from.
+/// The declaration fields a subtree marker or container name is built from.
 pub(super) fn subtree_declaration_context(definition: &SubtreeDefinition) -> DeclarationContext {
     DeclarationContext {
         module: normalized_module_path(&definition.module_path),
@@ -132,7 +132,7 @@ pub(crate) fn ref_marker_name(
     context.ref_marker_name(&ref_declaration_context(definition))
 }
 
-/// The declaration fields a scope's generated names are built from.
+/// The declaration fields a subtree's generated names are built from.
 pub(super) fn subtree_context(
     definition: &SubtreeDefinition,
     projection: Option<&str>,
@@ -146,11 +146,11 @@ pub(super) fn subtree_context(
     }
 }
 
-/// Generated scope marker class token for one declaration, without a leading dot.
+/// Generated subtree marker class token for one declaration, without a leading dot.
 ///
 /// # Errors
 ///
-/// Returns the host generator's failure for the scope marker family.
+/// Returns the host generator's failure for the subtree marker family.
 pub(crate) fn subtree_marker_name(
     context: &IdentifierContext,
     definition: &SubtreeDefinition,
@@ -171,7 +171,7 @@ pub(crate) fn anchor_name(
     context.anchor_name(&ref_context(definition, projection))
 }
 
-/// Generated `container-name` for a scope declaration's identity.
+/// Generated `container-name` for a subtree declaration's identity.
 ///
 /// # Errors
 ///
@@ -221,8 +221,8 @@ fn kind_name(kind: AssetKind) -> &'static str {
     match kind {
         AssetKind::Style => "style",
         AssetKind::Ref => "ref",
-        AssetKind::Subtree => "scope",
-        AssetKind::Keyframes => "animation",
+        AssetKind::Subtree => "subtree",
+        AssetKind::Keyframes => "keyframes",
         AssetKind::ViewTransition => "view-transition",
     }
 }
@@ -360,7 +360,7 @@ pub(super) fn generated_ref_symbol(
     })
 }
 
-/// Builds the reportable symbol for a scope declaration's projection name.
+/// Builds the reportable symbol for a subtree declaration's projection name.
 ///
 /// # Errors
 ///
@@ -372,7 +372,7 @@ pub(super) fn generated_subtree_symbol(
     let identity = identity_input(&subtree_identity(definition));
     Ok(GeneratedSymbol {
         name: container_name(context, definition)?.as_str().to_owned(),
-        kind: "scope".to_owned(),
+        kind: "subtree".to_owned(),
         pool: IdentifierPool::ContainerName,
         identity,
         source_path: definition.module_path.clone(),
@@ -401,11 +401,11 @@ pub(super) fn generated_ref_marker_symbol(
     })
 }
 
-/// Builds the reportable symbol for a scope's marker class.
+/// Builds the reportable symbol for a subtree's marker class.
 ///
 /// # Errors
 ///
-/// Returns the host generator's failure for the scope marker family.
+/// Returns the host generator's failure for the subtree marker family.
 pub(super) fn generated_subtree_marker_symbol(
     context: &IdentifierContext,
     definition: &SubtreeDefinition,
@@ -414,9 +414,13 @@ pub(super) fn generated_subtree_marker_symbol(
         name: subtree_marker_name(context, definition)?
             .as_str()
             .to_owned(),
-        kind: "scope-marker".to_owned(),
+        kind: "subtree-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
-        identity: asset_identity(&definition.module_path, "scope-marker", &definition.binding),
+        identity: asset_identity(
+            &definition.module_path,
+            "subtree-marker",
+            &definition.binding,
+        ),
         source_path: definition.module_path.clone(),
         start: Some(definition.binding.span.start.0),
         end: Some(definition.binding.span.end.0),

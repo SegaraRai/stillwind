@@ -194,7 +194,7 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
             .name
             .clone()
     };
-    let subtree = marker_of("scope-marker");
+    let subtree = marker_of("subtree-marker");
     let trigger = marker_of("ref-marker");
     assert!(subtree.starts_with("s_menu_"), "{subtree}");
     assert!(trigger.starts_with("s_trigger_"), "{trigger}");

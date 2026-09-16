@@ -91,7 +91,7 @@ impl<'a> MacroExtractor<'a> {
 
     /// Builds the module summary from the collected state.
     ///
-    /// Assets are appended in kind order (styles, scopes, refs, keyframes, view
+    /// Assets are appended in kind order (styles, subtrees, refs, keyframes, view
     /// transitions), not source order. Exports are keyed by exported name and only
     /// contain bindings whose value resolved to a symbolic form; a binding that was
     /// reassigned or chosen conditionally is deliberately absent so the host checker

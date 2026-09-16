@@ -58,11 +58,11 @@ impl ModuleIr {
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }
-        for scope in &mut result.subtree_definitions {
-            map_subtree(scope, &mut map)?;
+        for subtree in &mut result.subtree_definitions {
+            map_subtree(subtree, &mut map)?;
         }
-        for animation in &mut result.keyframes_declarations {
-            map_animation(animation, &mut map)?;
+        for keyframes in &mut result.keyframes_declarations {
+            map_animation(keyframes, &mut map)?;
         }
         for transition in &mut result.view_transition_declarations {
             map_value(&mut transition.binding, &mut map)?;
@@ -91,14 +91,14 @@ fn map_value<E>(
 }
 
 fn map_subtree<E>(
-    scope: &mut SubtreeDefinition,
+    subtree: &mut SubtreeDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut scope.binding, map)?;
-    if let Some(label) = &mut scope.label {
+    map_value(&mut subtree.binding, map)?;
+    if let Some(label) = &mut subtree.label {
         map_value(label, map)?;
     }
-    scope.call_span = map(scope.call_span)?;
+    subtree.call_span = map(subtree.call_span)?;
     Ok(())
 }
 
@@ -118,12 +118,12 @@ fn map_ref<E>(
 }
 
 fn map_animation<E>(
-    animation: &mut KeyframesDefinition,
+    keyframes: &mut KeyframesDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    map_value(&mut animation.binding, map)?;
-    animation.call_span = map(animation.call_span)?;
-    map_keyframes_body(&mut animation.body, map)
+    map_value(&mut keyframes.binding, map)?;
+    keyframes.call_span = map(keyframes.call_span)?;
+    map_keyframes_body(&mut keyframes.body, map)
 }
 
 fn map_keyframes_body<E>(
@@ -172,8 +172,8 @@ fn map_input<E>(
 ) -> Result<(), E> {
     match input {
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
-        StyleInput::SubtreeAttachment(scope) => {
-            map_subtree(scope, map)?;
+        StyleInput::SubtreeAttachment(subtree) => {
+            map_subtree(subtree, map)?;
         }
         StyleInput::RefAttachment(definition) => {
             map_ref(definition, map)?;
@@ -336,8 +336,8 @@ fn map_class_expression<E>(
             options,
         } => {
             *value = map(*value)?;
-            for animation in keyframes {
-                map_asset(animation, map)?;
+            for keyframes in keyframes {
+                map_asset(keyframes, map)?;
             }
             map_value(options, map)?;
         }

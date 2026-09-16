@@ -48,7 +48,7 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
 Tailwind relationship primitives (`group`, `peer`, `container`, and container
 variants) are nevertheless accepted as a migration layer. The optional
 `forbidTailwindRelationships` lint policy reports `SHLINT001` so teams can move
-to typed `style.ref()` / `style.scope()` relationships without reducing compiler
+to typed `style.ref()` / `style.subtree()` relationships without reducing compiler
 compatibility.
 
 ## System overview
@@ -61,10 +61,10 @@ compatibility.
           │  ModuleIR: calls, static expressions, markup facts, exact spans
           ▼
  TypeScript 7 shadow project + checker sidecar
-          │  span-keyed finite candidates and correlated ref/scope relations
+          │  span-keyed finite candidates and correlated ref/subtree relations
           ▼
  semantic analysis
-          │  theme lookup, selector grammar, ref/scope graph, lint diagnostics
+          │  theme lookup, selector grammar, ref/subtree graph, lint diagnostics
           ├───────────────────────────┐
           ▼                           ▼
  CSS plan + CSS source map       source edit plan + runtime imports
@@ -90,7 +90,7 @@ crates/
   css/           # @theme extraction and CSS plan/source-map emission
   ir/            # language-neutral ModuleIR and StyleIR
   grammar/       # utility, selector-fragment, animation grammars
-  semantic/      # theme resolution, ref/scope graph, lint rules
+  semantic/      # theme resolution, ref/subtree graph, lint rules
   codegen/       # deterministic class/symbol allocation, transform plan
   napi/          # napi-rs binding; no compiler logic
   cli/           # check, build, format and diagnostics rendering
@@ -241,7 +241,7 @@ The current implementation recognizes stable `const` declarations in one
 module:
 
 ```ts
-const menu = style.scope("menu");
+const menu = style.subtree("menu");
 const trigger = style.ref(menu, "trigger");
 const enter = style.keyframes({ from: "opacity-0", to: "opacity-100" });
 const title = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
@@ -280,7 +280,7 @@ objects, functions, and control flow. Rust receives the resulting facts keyed
 by original source spans. JavaScript keeps direct, single-module support; typed
 cross-module or conditional declarations require TypeScript.
 
-Refs carry a relationship table rather than a flattened `scope × ref` product:
+Refs carry a relationship table rather than a flattened `subtree × ref` product:
 
 ```rust
 struct RefAlternative {
@@ -290,8 +290,8 @@ struct RefAlternative {
 ```
 
 The planner may lower independent alternatives as `:is(...)`, but it must keep
-the table when a scope/ref correlation matters. For example, it may emit a
-selector list grouped by identical scope sets; it must not turn
+the table when a subtree/ref correlation matters. For example, it may emit a
+selector list grouped by identical subtree sets; it must not turn
 `{ (scope_a, ref_a), (scope_b, ref_b) }` into four possible pairs.
 
 Projections inherit their ref candidate set. `anchor`, `position`,
@@ -305,7 +305,7 @@ Each module emits a small extraction summary containing producer identities,
 metadata, exact call spans, and dependency specifiers. It does not contain a
 Rust-computed cross-module value graph. The Vite adapter injects private phantom
 identity arguments into an in-memory shadow source, asks TypeScript 7 for types,
-and converts branded ref, scope, animation, and view-transition unions into
+and converts branded ref, subtree, animation, and view-transition unions into
 `TypeFact` records.
 
 Source modules in the active build graph can be summarized directly. Published
@@ -325,8 +325,8 @@ cost diagnostic rather than becoming unsound.
 
 | Producer / derivative | Identity and candidate rule                                                                | Runtime/CSS consequence                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `scope()`             | declaration-site scope identity                                                            | the value carries its `.s_*` token under `c`; dynamic attachments read that key           |
-| `ref(scope?)`         | declaration-site ref plus correlated permitted scope set                                   | selector planner preserves relation pairs; attachments read the declaration's `c`         |
+| `subtree()`           | declaration-site subtree identity                                                          | the value carries its `.s_*` token under `c`; dynamic attachments read that key           |
+| `ref(subtree?)`       | declaration-site ref plus correlated permitted subtree set                                 | selector planner preserves relation pairs; attachments read the declaration's `c`         |
 | ref projections       | derived from the ref candidate set                                                         | exact uses select a prebuilt projection class by token; dynamic uses select per candidate |
 | `animation()`         | declaration-site keyframe asset                                                            | candidate use selects prebuilt `animation-name` declarations                              |
 | `viewTransition()`    | declaration-site transition class; `.for(key)` folds a literal key and reads an expression | every use contributes the declaration's class token; a name composes the token and key    |
@@ -378,10 +378,10 @@ pub enum StyleInput {
     Utilities { text: DecodedText, guard: Guard, origin: Origin },
     Attributes { entries: Vec<AttributeEntry>, guard: Guard, origin: Origin },
     Variant { variant: StyleVariant, inputs: Vec<StyleInput> },
-    ScopeAttachment { scope: Scope, origin: Origin },
+    SubtreeAttachment { subtree: Scope, origin: Origin },
     RefAttachment { reference: Ref, origin: Origin },
     Projection { reference: Ref, kind: ProjectionKind, origin: Origin },
-    AnimationUse { animation: AnimationRef, options: DecodedText, guard: Guard },
+    KeyframesUse { animation: AnimationRef, options: DecodedText, guard: Guard },
     ViewTransitionUse { transition: TransitionRef, key: Option<ExprSpan>, guard: Guard },
 }
 ```
@@ -400,10 +400,10 @@ pub enum ProjectionKind {
 }
 ```
 
-The ref/scope graph is semantic data, not a naming convention. A scope must be
+The ref/subtree graph is semantic data, not a naming convention. A subtree must be
 attached to a strict ancestor of every bound ref. An unscoped ref targets its
-own descendants; a scoped ref generates `scope:has(ref:where(selector))` and
-may target any descendant of that scope.
+own descendants; a scoped ref generates `subtree:has(ref:where(selector))` and
+may target any descendant of that subtree.
 
 ## Utility and selector grammar
 
@@ -419,14 +419,14 @@ spans. A utility registry maps this representation to CSS declarations and the
 theme namespace it may reference.
 
 Variant wrappers and direct utility templates share an ordered `StyleVariant`
-representation: an ordinary prefix or a ref with its correlated ref/scope
+representation: an ordinary prefix or a ref with its correlated ref/subtree
 identities and the prefix applied to that ref.
 
 - ordinary wrapper keys end with `:`;
 - ref wrappers accept `trigger` tagged with a static variant string or
   `trigger("hover:active")`; the final `:` in the argument is optional;
 - `trigger()` is a ref variant with no state conditions: scoped refs test
-  presence within their scope, and unscoped refs require a matching ancestor;
+  presence within their subtree, and unscoped refs require a matching ancestor;
 - utility templates inside `style(...)` accept direct ref-variant substitutions
   at complete variant boundaries, such as `` `${trigger`hover:`}:active:text-accent` ``;
 - the ref's variants apply to the referenced element, and the surrounding
@@ -478,7 +478,7 @@ Initial checks:
 - invalid animation keyframe frame or animation option;
 - invalid ref projection (`position` without a corresponding `anchor`,
   `at()` without `container()`);
-- scope that cannot contain both relevant anchor-positioning participants;
+- subtree that cannot contain both relevant anchor-positioning participants;
 - selector relationship impossible in locally visible JSX/template ancestry;
 - a static view transition used in a repeated render;
 - duplicate or contradictory declarations at the same selector/guard level;
@@ -563,7 +563,7 @@ ordering contract; it is not a v1 requirement.
 Names are deterministic and private:
 
 - class names derive from canonical rule content and the callsite identity;
-- ref and scope names derive from normalized module identity plus lexical binding
+- ref and subtree names derive from normalized module identity plus lexical binding
   identity;
 - keyframe names derive from canonical keyframe content and lexical identity;
 - view-transition class tokens derive from their declaration identity, and a name composes
@@ -674,7 +674,7 @@ as a compiler integration error rather than falling back to Rust propagation.
 7. TypeScript-fact fixtures: exported values, re-exports, conditionals,
    correlation preservation, and exact/dynamic descriptor erasure.
 8. Property tests: shadow/original span mapping is stable, relation factoring
-   never adds a ref/scope pair, and invalid facts fail conservatively.
+   never adds a ref/subtree pair, and invalid facts fail conservatively.
 
 ## Implementation order
 
@@ -686,7 +686,7 @@ as a compiler integration error rather than falling back to Rust propagation.
 4. React transform plan plus Vite adapter; support static strings and finite
    conditional branches.
 5. Attributes and nested variant wrappers.
-6. `style.ref()` / `style.scope()` graph, selector relations, anchor positioning, and
+6. `style.ref()` / `style.subtree()` graph, selector relations, anchor positioning, and
    container queries with lint rules.
 7. String-based `style.keyframes()` and named view-transition assets.
 8. `.d.ts`, CLI `check`, macro formatter, and editor/LSP integration.

@@ -225,12 +225,12 @@ export interface HostRegion {
 /** Asset kinds as the host names them. */
 export type NativeAssetKind = /** A `style(...)` call's payload. */
 'style'|
-/** A `style.subtree()` declaration; the host sees the kind `scope`. */
-'scope'|
+/** A `style.subtree()` declaration. */
+'subtree'|
 /** A `style.ref()` declaration. */
 'ref'|
-/** A `style.keyframes()` declaration; the host sees the kind `animation`. */
-'animation'|
+/** A `style.keyframes()` declaration. */
+'keyframes'|
 /** A `style.viewTransition()` declaration. */
 'view-transition';
 
@@ -404,11 +404,11 @@ export interface NativeExport {
 export type NativeExportedValue =
   | { kind: 'styles'; /** Reachable style identities. */
 value: NativeSymbolicValue }
-| { kind: 'scopes'; /** Reachable subtree identities. */
+| { kind: 'subtrees'; /** Reachable subtree identities. */
 value: NativeSymbolicValue }
 | { kind: 'refs'; /** The correlated alternatives. */
 value: Array<NativeRefAlternative> }
-| { kind: 'animations'; /** Reachable keyframes identities. */
+| { kind: 'keyframes'; /** Reachable keyframes identities. */
 value: NativeSymbolicValue }
 | { kind: 'view-transitions'; /** Reachable transition identities. */
 value: NativeSymbolicValue }
@@ -710,8 +710,8 @@ export interface NativeReExport {
 export interface NativeRefAlternative {
   /** The ref identity. */
   reference: NativeIdentity
-  /** Scopes this ref may be bound to, or `None` when unconstrained. */
-  permitted_scopes: NativeSymbolicValue | null
+  /** Subtrees this ref may be bound to, or `None` when unconstrained. */
+  permitted_subtrees: NativeSymbolicValue | null
 }
 
 /** What changed after publishing a reloaded design system. */

@@ -22,8 +22,8 @@ use crate::{SourceTransform, plan_macro_import_removals};
 /// The set mirrors the exports of [`stillwind_ir::FrameworkSpec::runtime_import`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum RuntimeHelper {
-    /// The `stillwindAnimation` runtime export.
-    Animation,
+    /// The `stillwindKeyframes` runtime export.
+    Keyframes,
     /// The `stillwindAssetClass` runtime export.
     AssetClass,
     /// The `stillwindClassKey` runtime export.
@@ -52,7 +52,7 @@ impl RuntimeHelper {
     /// The export name in the runtime module, before local renaming.
     fn exported(self) -> &'static str {
         match self {
-            Self::Animation => "stillwindAnimation",
+            Self::Keyframes => "stillwindKeyframes",
             Self::AssetClass => "stillwindAssetClass",
             Self::ClassKey => "stillwindClassKey",
             Self::Clsx => "stillwindClsx",

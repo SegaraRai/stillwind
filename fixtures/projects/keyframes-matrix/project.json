@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "keyframes-matrix",
+  "title": "Keyframes lowering matrix",
+  "description": "Keyframes declarations and selector uses combined with a TypeScript-propagated conditional identity across modules.",
+  "tags": ["keyframes", "conditional", "selector", "cross-module", "typescript"],
+  "theme": "stillwind.css",
+  "sources": ["src/keyframes.ts", "src/Dialog.tsx"]
+}

@@ -1,6 +1,6 @@
 import { style } from "stillwind/react";
 
-import { exit, selectedAnimation } from "./animations";
+import { exit, selectedAnimation } from "./keyframes";
 
 export const panelProps = style(
   "rounded-md",

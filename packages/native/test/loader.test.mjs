@@ -30,11 +30,11 @@ void test("native object transport returns typed values and rejects the former J
     ["🧭.tsx"],
   );
   const summary = summarizeReact(
-    "import {style} from 'stillwind/react'; export const scope=style.subtree();",
+    "import {style} from 'stillwind/react'; export const subtree=style.subtree();",
     "🧭.tsx",
   );
-  const scope = summary.exports.find((entry) => entry.name === "scope").value;
-  assert.equal(scope.kind, "scopes");
+  const scope = summary.exports.find((entry) => entry.name === "subtree").value;
+  assert.equal(scope.kind, "subtrees");
   assert.equal(scope.value.candidates.kind, "finite");
   assert.equal(scope.value.candidates.values[0].module_path, "🧭.tsx");
   const reserved = summarizeReact(
@@ -101,35 +101,44 @@ void test("native semantic unions validate nested asset kinds and candidate payl
       [{ path: "facts.ts", source: "export {};", type_facts: [{ start: 0, end: 0, value }] }],
       "",
     );
-  const scope = { kind: "scope", module_path: "facts.ts", start: 0, end: 1, binding_name: "scope" };
+  const scope = {
+    kind: "subtree",
+    module_path: "facts.ts",
+    start: 0,
+    end: 1,
+    binding_name: "subtree",
+  };
   const symbolic = (kind) => ({ kind, candidates: { kind: "universe" } });
   for (const value of [
-    { kind: "scopes", value: { kind: "scope", candidates: { kind: "finite", values: [scope] } } },
-    { kind: "scopes", value: symbolic("scope") },
-    { kind: "animations", value: symbolic("animation") },
+    {
+      kind: "subtrees",
+      value: { kind: "subtree", candidates: { kind: "finite", values: [scope] } },
+    },
+    { kind: "subtrees", value: symbolic("subtree") },
+    { kind: "keyframes", value: symbolic("keyframes") },
     { kind: "view-transitions", value: symbolic("view-transition") },
     {
       kind: "refs",
-      value: [{ reference: { ...scope, kind: "ref" }, permitted_scopes: symbolic("scope") }],
+      value: [{ reference: { ...scope, kind: "ref" }, permitted_subtrees: symbolic("subtree") }],
     },
   ])
     assert.deepEqual(compile(value).modules[0].diagnostics, []);
   for (const value of [
-    { kind: "scopes", value: symbolic("ref") },
+    { kind: "subtrees", value: symbolic("ref") },
     {
-      kind: "scopes",
+      kind: "subtrees",
       value: {
-        kind: "scope",
-        candidates: { kind: "finite", values: [{ ...scope, kind: "animation" }] },
+        kind: "subtree",
+        candidates: { kind: "finite", values: [{ ...scope, kind: "keyframes" }] },
       },
     },
-    { kind: "refs", value: [{ reference: scope, permitted_scopes: null }] },
+    { kind: "refs", value: [{ reference: scope, permitted_subtrees: null }] },
     {
       kind: "refs",
-      value: [{ reference: { ...scope, kind: "ref" }, permitted_scopes: symbolic("animation") }],
+      value: [{ reference: { ...scope, kind: "ref" }, permitted_subtrees: symbolic("keyframes") }],
     },
-    { kind: "scopes", value: { kind: "scope", candidates: { kind: "finite" } } },
-    { kind: "unknown", value: symbolic("scope") },
+    { kind: "subtrees", value: { kind: "subtree", candidates: { kind: "finite" } } },
+    { kind: "unknown", value: symbolic("subtree") },
   ])
     assert.throws(() => compile(value));
 });

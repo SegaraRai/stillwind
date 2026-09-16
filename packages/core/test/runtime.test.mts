@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  stillwindAnimation,
+  stillwindKeyframes,
   stillwindAssetClass,
   stillwindClassKey,
   stillwindEscapedIdentifier,
@@ -67,7 +67,7 @@ void test("composes names matching the shared escape vectors", () => {
 });
 
 void test("selects classes carried by dynamic animation and view transition values", () => {
-  const fade = stillwindAnimation("--sw-a-fade");
+  const fade = stillwindKeyframes("--sw-a-fade");
 
   assert.equal(stillwindAssetClass(fade("infinite"), { "--sw-a-fade": "a_fade" }), "a_fade");
   assert.equal(

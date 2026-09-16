@@ -44,7 +44,7 @@ interface StillwindRuntimeAsset {
  * Calling it returns an animation-use record with the same identity; options are
  * ignored because their CSS is resolved by the compiler. Identity is not validated.
  */
-export function stillwindAnimation(identity: string) {
+export function stillwindKeyframes(identity: string) {
   return Object.assign(
     (_options: string): StillwindRuntimeAsset => ({ kind: "animation-use", identity }),
     { kind: "animation" as const, identity },

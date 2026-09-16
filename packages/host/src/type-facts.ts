@@ -180,7 +180,7 @@ function typeFactValue(
       continue;
     }
     if (symbol?.name === "StyleSubtree") {
-      const candidates = knownIdentities(args[0], identities, "scope");
+      const candidates = knownIdentities(args[0], identities, "subtree");
       if (!candidates) return null;
       subtrees.push(...candidates);
       continue;
@@ -188,21 +188,21 @@ function typeFactValue(
     if (symbol?.name === "StyleRef") {
       const references = knownIdentities(args[0], identities, "ref");
       if (!references) return null;
-      const scopeText = args[1] ? checker.typeToString(args[1]) : "never";
+      const subtreeText = args[1] ? checker.typeToString(args[1]) : "never";
       const permittedSubtrees =
-        scopeText === "never" ? [] : knownIdentities(args[1], identities, "scope");
+        subtreeText === "never" ? [] : knownIdentities(args[1], identities, "subtree");
       if (!permittedSubtrees) return null;
       for (const reference of references) {
         refs.push({
           reference,
-          permitted_scopes:
-            permittedSubtrees.length === 0 ? null : symbolic("scope", permittedSubtrees),
+          permitted_subtrees:
+            permittedSubtrees.length === 0 ? null : symbolic("subtree", permittedSubtrees),
         });
       }
       continue;
     }
     if (symbol?.name === "StyleKeyframes" || symbol?.name === "StyleKeyframesUse") {
-      const candidates = knownIdentities(args[0], identities, "animation");
+      const candidates = knownIdentities(args[0], identities, "keyframes");
       if (!candidates) return null;
       keyframes.push(...candidates);
       continue;
@@ -223,8 +223,8 @@ function typeFactValue(
   if (populated.length !== 1) return null;
   if (styles.length > 0) return { kind: "styles", value: symbolic("style", styles) };
   if (refs.length > 0) return { kind: "refs", value: refs };
-  if (subtrees.length > 0) return { kind: "scopes", value: symbolic("scope", subtrees) };
-  if (keyframes.length > 0) return { kind: "animations", value: symbolic("animation", keyframes) };
+  if (subtrees.length > 0) return { kind: "subtrees", value: symbolic("subtree", subtrees) };
+  if (keyframes.length > 0) return { kind: "keyframes", value: symbolic("keyframes", keyframes) };
   if (viewTransitions.length > 0)
     return viewTransitionKeyed
       ? {

@@ -146,7 +146,6 @@ pub struct RefAlternative {
     ///
     /// A finite subtree value is a candidate set of this ref's permitted subtrees; a
     /// universe value means the frontend could not narrow them.
-    #[serde(rename = "permitted_scopes")]
     pub permitted_subtrees: Option<SymbolicValue>,
 }
 
@@ -196,9 +195,6 @@ pub enum ExportedValue {
     /// Candidate set of `style()` call sites.
     Styles(SymbolicValue),
     /// Candidate set of subtree identities.
-    ///
-    /// Serialized as `scopes`, the spelling the host protocol uses.
-    #[serde(rename = "scopes")]
     Subtrees(SymbolicValue),
     /// Correlated ref alternatives, in the order they were derived.
     ///
@@ -207,9 +203,6 @@ pub enum ExportedValue {
     /// the subtrees it may appear under.
     Refs(Vec<RefAlternative>),
     /// Candidate set of keyframes identities.
-    ///
-    /// Serialized as `animations`, the spelling the host protocol uses.
-    #[serde(rename = "animations")]
     Keyframes(SymbolicValue),
     /// Candidate set of view-transition identities.
     ViewTransitions(SymbolicValue),

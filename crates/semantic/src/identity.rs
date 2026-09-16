@@ -23,16 +23,10 @@ pub enum AssetKind {
     /// A `style()` call site; its span is the call itself.
     Style,
     /// A `style.subtree()` boundary.
-    ///
-    /// Serialized as `scope`, the spelling the host protocol and identity strings use.
-    #[serde(rename = "scope")]
     Subtree,
     /// A `style.ref()` declaration, optionally bound to a subtree.
     Ref,
     /// A `style.keyframes()` asset.
-    ///
-    /// Serialized as `animation`, the spelling the host protocol and identity strings use.
-    #[serde(rename = "animation")]
     Keyframes,
     /// A `style.viewTransition()` named view-transition asset.
     ViewTransition,

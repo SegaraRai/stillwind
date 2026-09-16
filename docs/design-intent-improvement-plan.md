@@ -202,7 +202,7 @@ identity のハッシュ計算は不変。Unicode・空白・記号付き ref/su
       実際に変換不可能な入力に分ける。既存 enum をそのまま移すだけにしない。
 - [x] 前者は型付き `LintKind` と `LintFinding`、既定 error の有効 policy で扱う。
       通常の関数名、class/JSX などを一律に不可能とはみなさず、値式として保持できるか確認する。
-- [x] `await` / `yield` 等も使用文脈で確認する。必要な scope を保てない変換は compile error とし、
+- [x] `await` / `yield` 等も使用文脈で確認する。必要な subtree を保てない変換は compile error とし、
       そのケースのために変換機構を複雑化しない。
 - [x] default error、warn、off、局所 suppression、editor の結果保持、build の失敗判定を検証する。
 - [x] `docs/macro-contract.md` を、React の規約を前提としない Stillwind の引数契約へ更新する。
@@ -260,8 +260,8 @@ style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
       無条件に適用せず、runtime の選択と対応させる。
 - [x] API 型、抽出器、IR、compiler、runtime metadata、query と fixture を一貫して更新する。
       旧2引数 API の互換維持をこの計画の要件には追加しない。
-- [x] `style.ref(scope)` の scope は静的に一つの identity に特定されることを正式な契約とする。
-      ref 定義に複数の scope 候補を保持する実装は行わない。
+- [x] `style.ref(subtree)` の subtree は静的に一つの identity に特定されることを正式な契約とする。
+      ref 定義に複数の subtree 候補を保持する実装は行わない。
 - [x] animation 定義 object に variant key を追加し、その値を条件付き animation 定義として解析する。
       `from` / `to` / 百分率の値は variant なしの utility 文字列のままとする。
 - [x] animation の通常定義、条件付き定義、条件の同時成立、任意 variant、要素依存 variant の拒否を
@@ -278,12 +278,12 @@ Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
 `experiments/module-graph` で `vp run verify:animation`。通常 `0 → 1`、reduced motion で
 省略した `from` が要素の基礎値を使う `.25 → .5` を検証する。
 
-#### ref 定義の scope 契約
+#### ref 定義の subtree 契約
 
-`style.ref(scope)` / `style.ref(scope, name)` は、scope が静的に一つの identity に
+`style.ref(subtree)` / `style.ref(subtree, name)` は、subtree が静的に一つの identity に
 特定できる場合に限り受け付ける。alias や条件式でも候補が同一 identity に収束すればよい。
 異なる subtree の有限集合は compile error とする。この契約を未実装項目として扱わない。
-利用側で有限候補の ref や scope を選択する既存の機能は維持する。
+利用側で有限候補の ref や subtree を選択する既存の機能は維持する。
 
 ### 7. D1 の拒否理由を固定する
 

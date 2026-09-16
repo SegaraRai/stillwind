@@ -74,8 +74,8 @@ impl From<SymbolicValue> for NativeSymbolicValue {
 pub struct NativeRefAlternative {
     /// The ref identity.
     pub reference: NativeIdentity,
-    /// Scopes this ref may be bound to, or `None` when unconstrained.
-    #[napi(js_name = "permitted_scopes")]
+    /// Subtrees this ref may be bound to, or `None` when unconstrained.
+    #[napi(js_name = "permitted_subtrees")]
     pub permitted_subtrees: Option<NativeSymbolicValue>,
 }
 
@@ -89,8 +89,8 @@ pub enum NativeExportedValue {
         /// Reachable style identities.
         value: NativeSymbolicValue,
     },
-    /// Exported subtree, tagged `scopes` for the host.
-    Scopes {
+    /// Exported subtree.
+    Subtrees {
         /// Reachable subtree identities.
         value: NativeSymbolicValue,
     },
@@ -99,8 +99,8 @@ pub enum NativeExportedValue {
         /// The correlated alternatives.
         value: Vec<NativeRefAlternative>,
     },
-    /// Exported keyframes, tagged `animations` for the host.
-    Animations {
+    /// Exported keyframes.
+    Keyframes {
         /// Reachable keyframes identities.
         value: NativeSymbolicValue,
     },
@@ -124,10 +124,10 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
             NativeExportedValue::Styles { value } => {
                 (Self::Styles(value.try_into()?), AssetKind::Style)
             }
-            NativeExportedValue::Scopes { value } => {
+            NativeExportedValue::Subtrees { value } => {
                 (Self::Subtrees(value.try_into()?), AssetKind::Subtree)
             }
-            NativeExportedValue::Animations { value } => {
+            NativeExportedValue::Keyframes { value } => {
                 (Self::Keyframes(value.try_into()?), AssetKind::Keyframes)
             }
             NativeExportedValue::ViewTransitions { value } => (
@@ -176,10 +176,10 @@ impl From<ExportedValue> for NativeExportedValue {
             ExportedValue::Styles(value) => Self::Styles {
                 value: value.into(),
             },
-            ExportedValue::Subtrees(value) => Self::Scopes {
+            ExportedValue::Subtrees(value) => Self::Subtrees {
                 value: value.into(),
             },
-            ExportedValue::Keyframes(value) => Self::Animations {
+            ExportedValue::Keyframes(value) => Self::Keyframes {
                 value: value.into(),
             },
             ExportedValue::ViewTransitions(value) => Self::ViewTransitions {

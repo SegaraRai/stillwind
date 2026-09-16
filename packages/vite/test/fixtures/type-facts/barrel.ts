@@ -1,1 +1,1 @@
-export { selected, selectedAnimation, selectedTransition } from "./chooser";
+export { selected, selectedKeyframes, selectedTransition } from "./chooser";

@@ -38,7 +38,7 @@ pub struct RuleKey(
 /// a rule produced by `ModuleCssArtifact::from_css`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
-    /// True for an emitter-classified animation definition destined for the keyframes
+    /// True for an emitter-classified keyframes definition destined for the keyframes
     /// slot; false for a rule that stays in the utilities contribution.
     pub keyframes: bool,
     /// Custom-property names requiring registration, independent of CSS references.
@@ -73,7 +73,7 @@ impl GeneratedRule {
 
     /// Appends this rule and its dependencies to a producer's mapped contributions.
     ///
-    /// Ordinary rules extend `output.css`; animation definitions append a separate
+    /// Ordinary rules extend `output.css`; keyframes definitions append a separate
     /// entry to `output.keyframes`. Existing contribution order is preserved within
     /// each destination. `origin` is passed to [`MappedStylesheet::text`]; an unusable
     /// span leaves the emitted rule unmapped. Dependency names are not deduplicated.

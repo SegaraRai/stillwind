@@ -201,7 +201,7 @@ export const trigger = style.ref("trigger");"#,
     assert_eq!(value["schema"], 1);
     assert_eq!(value["module_path"], "src/Parent.tsx");
     assert_eq!(value["exports"][0]["name"], "menu");
-    assert_eq!(value["exports"][0]["value"]["kind"], "scopes");
+    assert_eq!(value["exports"][0]["value"]["kind"], "subtrees");
     assert_eq!(value["exports"][1]["name"], "trigger");
     assert_eq!(value["exports"][1]["value"]["kind"], "refs");
 }

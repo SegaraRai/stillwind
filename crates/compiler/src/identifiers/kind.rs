@@ -1,7 +1,7 @@
 //! Identifier families and the CSS namespaces they are written into.
 //!
 //! One family is one kind of name the compiler allocates: a utility class, a ref
-//! marker, an animation name, and so on. Identity is not the same thing as a CSS
+//! marker, an keyframes name, and so on. Identity is not the same thing as a CSS
 //! namespace, because several families can write into one namespace when the built-in
 //! generators reuse a single string per declaration.
 //!
@@ -26,13 +26,13 @@ pub(crate) const DEFAULT_CLASS_PREFIX: &str = "_s_";
 /// The prefix that marks a built-in ref marker class token as compiler-owned.
 pub(crate) const DEFAULT_REF_MARKER_PREFIX: &str = "s_";
 
-/// The prefix that marks a built-in scope marker class token as compiler-owned.
+/// The prefix that marks a built-in subtree marker class token as compiler-owned.
 pub(crate) const DEFAULT_SCOPE_MARKER_PREFIX: &str = "s_";
 
 /// The custom-property prefix of a built-in ref anchor name.
 pub(crate) const DEFAULT_ANCHOR_PREFIX: &str = "--sw-r-";
 
-/// The custom-property prefix of a built-in scope container name.
+/// The custom-property prefix of a built-in subtree container name.
 pub(crate) const DEFAULT_CONTAINER_PREFIX: &str = "--sw-s-";
 
 /// The custom-property prefix of a built-in keyframes name.
@@ -82,7 +82,7 @@ pub enum IdentifierKind {
     UtilityClass,
     /// A ref marker class, written where a ref is attached.
     RefMarker,
-    /// A scope marker class, written where a scope is attached.
+    /// A subtree marker class, written where a subtree is attached.
     SubtreeMarker,
     /// An `anchor-name` custom-ident, which the element being anchored is named by.
     AnchorName,
@@ -104,7 +104,7 @@ impl IdentifierKind {
         match self {
             Self::UtilityClass => "class",
             Self::RefMarker => "ref-marker",
-            Self::SubtreeMarker => "scope-marker",
+            Self::SubtreeMarker => "subtree-marker",
             Self::AnchorName => "anchor",
             Self::ContainerName => "container",
             Self::KeyframesName => "keyframes",

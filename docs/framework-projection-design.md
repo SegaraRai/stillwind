@@ -208,7 +208,7 @@ Vite は raw SFC を `pre` で処理し、framework の query subrequest は処�
 
 ## 8. 受け入れテスト
 
-- 既存 JS/TS/JSX/TSX: class 属性、dynamic props、refs/scopes、runtime helper、CSS 出力、診断の回帰。
+- 既存 JS/TS/JSX/TSX: class 属性、dynamic props、refs/subtrees、runtime helper、CSS 出力、診断の回帰。
 - SFC: script/template、複数 script、Astro client/server、Svelte module/instance、Vue normal/setup、alias、namespace import の対応可否。
 - binding: ローカルの同名 style、template loop 変数、ユーザー定義 `__VLS_ctx`、computed/optional access、未知 wrapper を誤認しない。
 - Vue: callee だけでなく、引数中の変数・条件式・ネストした式が runtime helper や props の生成後も元の参照を保つことを検証する。converter 由来の補助参照が残らず、ユーザー由来の同名 receiver・文字列リテラルは保持されることを確認する。

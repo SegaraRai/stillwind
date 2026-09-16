@@ -32,10 +32,10 @@ pub(crate) struct RefUse {
     pub(crate) jsx_path: Option<Vec<usize>>,
 }
 
-/// One recorded scope use.
+/// One recorded subtree use.
 #[derive(Clone, Debug)]
 pub(crate) struct SubtreeUse {
-    /// Marker name of the scope that was used.
+    /// Marker name of the subtree that was used.
     pub(crate) name: String,
     /// JSX ancestor path of the use, when it appeared inside JSX.
     pub(crate) jsx_path: Option<Vec<usize>>,
@@ -144,10 +144,10 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
-    /// Records one scope use, which makes the scope a provider for its JSX path.
-    pub(crate) fn record_subtree_use(&mut self, scope: &SubtreeDefinition) {
+    /// Records one subtree use, which makes the subtree a provider for its JSX path.
+    pub(crate) fn record_subtree_use(&mut self, subtree: &SubtreeDefinition) {
         self.subtree_uses.push(SubtreeUse {
-            name: scope.binding.value.clone(),
+            name: subtree.binding.value.clone(),
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
     }
