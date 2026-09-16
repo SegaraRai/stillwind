@@ -279,6 +279,25 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 `docs/golden-case.md`、`docs/review-fixtures.md`、`packages/vite/test/type-facts.test.mts` の
 地の文は更新済み。
 
+### 5.6 静的 ref projection を use-site の受信式に揃える（必須）
+
+原則: 生成コードが実行時に読むのは、その値を示す **use-site の式**である。宣言サイトの束縛名を
+式の代わりに使ってはならない。
+
+`ClassExpression::RefProjection` は宣言の definition しか持たないため、emitter は宣言の束縛名を
+式として書いている（設計スケッチ `docs/compiler-design.md` の
+`StyleInput::Projection { reference, kind, origin }` が持つ `origin` を実装が落としている）。
+利用側の名前が宣言名と異なると生成コードが壊れる。
+
+- `import { primary as p } from "./refs"; style(p.anchor)` → `primary.c`（`primary` はスコープに無い）。
+- `style(holder.trigger.anchor)` → `trigger.c`（member 受信でも同じ）。
+
+修正: use-site の受信式 span を `RefProjection` に持たせ（`DynamicRefProjection.value` と同じ）、
+emitter は `(受信式).c` を token 表で引く。静的と動的の差は表の大きさだけになる。動的側は
+受信式を読むよう修正済みで、残っているのは静的側。生成コードが変わるので単独コミットとし、
+aliased import と member 受信の回帰テストを追加する。実装後は §0.1 の `RefProjection` の行も
+追随させる。
+
 ## 6. コミット分割案
 
 1. `refactor: flatten the JavaScript motion extraction`（js-oxc、移動のみ）
@@ -288,7 +307,8 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 5. `refactor: name the definition reachability set`（§5.1）
 6. `refactor: make export reachability a module summary query`（§5.2）
 7. `chore: move the transition variant diagnostic into the view family`（§5.4）
-8. `docs: record the compiler module layout`（§5.5）
+8. `fix: read static ref projections from the use-site expression`（§5.6。生成コードが変わる）
+9. `docs: record the compiler module layout`（§5.5）
 
 この前に、§3.2 の改名を 1 コミット（`refactor: rename handle to ref and name to binding`）として置く。
 
