@@ -105,7 +105,7 @@ fn static_spreads_preserve_projected_raw_and_decoded_spans() {
 #[test]
 fn animation_branch_spans_map_back_to_the_original_script() {
     let input = projected_script(
-        "import {style} from 'stillwind/svelte'; const fade = style.animation({'motion-reduce:': {from:'opacity-0'}});",
+        "import {style} from 'stillwind/svelte'; const fade = style.keyframes({'motion-reduce:': {from:'opacity-0'}});",
     );
     let original = input.projection.as_ref().unwrap().original.clone();
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
@@ -114,7 +114,7 @@ fn animation_branch_spans_map_back_to_the_original_script() {
         "{:?}",
         analysis.diagnostics
     );
-    let branch = &analysis.ir.animation_declarations[0].body.branches[0];
+    let branch = &analysis.ir.keyframes_declarations[0].body.branches[0];
     let StyleVariant::Prefix(prefix) = &branch.variant else {
         panic!("prefix");
     };

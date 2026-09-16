@@ -3,7 +3,7 @@
 //!
 //! The visit records four kinds of fact: module structure (imports, re-exports,
 //! specifier literals, exported bindings), declarations of assets (`style.ref()`,
-//! `style.subtree()`, animations, view transitions), `style()` call sites, and the JSX
+//! `style.subtree()`, keyframes, view transitions), `style()` call sites, and the JSX
 //! ancestry of each visited element so ref/subtree validation can check containment
 //! later.
 //!
@@ -297,22 +297,22 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             BindingPattern::BindingIdentifier(identifier),
             Some(Expression::CallExpression(call)),
         ) = (&declarator.id, &declarator.init)
-            && self.is_style_animation_call(call)
+            && self.is_style_keyframes_call(call)
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
             let name = Spanned::new(
                 identifier.name.to_string(),
                 self.source_span(identifier.span),
             );
-            if let Some(definition) = self.collect_animation_definition(name.clone(), call) {
-                self.animation_symbols.insert(symbol_id, name);
+            if let Some(definition) = self.collect_keyframes_definition(name.clone(), call) {
+                self.keyframes_symbols.insert(symbol_id, name);
                 self.local_values.insert(
                     symbol_id,
-                    ExportedValue::Animations(SymbolicValue::exact(
-                        self.identity(AssetKind::Animation, &definition.binding),
+                    ExportedValue::Keyframes(SymbolicValue::exact(
+                        self.identity(AssetKind::Keyframes, &definition.binding),
                     )),
                 );
-                self.animation_declarations.push(definition);
+                self.keyframes_declarations.push(definition);
             }
         }
         if let (

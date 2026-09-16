@@ -108,7 +108,7 @@ pub(crate) fn parse_projected(
             }
             ExportedValue::Styles(value)
             | ExportedValue::Subtrees(value)
-            | ExportedValue::Animations(value)
+            | ExportedValue::Keyframes(value)
             | ExportedValue::ViewTransitions(value)
             | ExportedValue::ViewTransitionKeys(value) => {
                 map_symbolic(value, &normalized)?;

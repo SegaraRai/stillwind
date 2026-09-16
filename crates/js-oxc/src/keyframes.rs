@@ -1,4 +1,4 @@
-//! `style.animation()` declarations and their uses.
+//! `style.keyframes()` declarations and their uses.
 //!
 //! A declaration is one object of static keyframe utility strings keyed by `from`,
 //! `to`, or percentage steps. A use is a call on the declared binding with exactly one
@@ -12,52 +12,52 @@ use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AnimationBody, AnimationBranch, AnimationDefinition, AnimationFrame, AssetReference,
-    ClassExpression, StyleVariant,
+    AssetReference, ClassExpression, KeyframesBody, KeyframesBranch, KeyframesDefinition,
+    KeyframesFrame, StyleVariant,
 };
 use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
 
-/// A resolved animation use, split by whether the animation is already known.
+/// A resolved keyframes use, split by whether the keyframes is already known.
 ///
 /// The static case keeps the single asset; the dynamic case keeps every candidate the
 /// frontend proved plus the span of the whole expression, so the runtime can select
 /// among prebuilt declarations.
-pub(crate) enum ParsedAnimationUse {
-    /// Exactly one animation identity.
+pub(crate) enum ParsedKeyframesUse {
+    /// Exactly one keyframes identity.
     Static {
-        /// The declared animation.
-        animation: AssetReference,
+        /// The declared keyframes.
+        keyframes: AssetReference,
         /// The options string, with the span of its contents.
         options: Spanned<String>,
     },
-    /// Several possible animations; the runtime picks one.
+    /// Several possible keyframes; the runtime picks one.
     Dynamic {
         /// Span of the whole use expression, for the runtime descriptor.
         value: Span,
-        /// Candidate animations, each a declared animation.
-        animations: Vec<AssetReference>,
+        /// Candidate keyframes, each a declared keyframes.
+        keyframes: Vec<AssetReference>,
         /// The options string, shared by every candidate.
         options: Spanned<String>,
     },
 }
 
-impl ParsedAnimationUse {
+impl ParsedKeyframesUse {
     /// Converts the use into the IR class expression that mirrors its shape.
     pub(crate) fn into_class_expression(self) -> ClassExpression {
         match self {
-            Self::Static { animation, options } => {
-                ClassExpression::AnimationUse { animation, options }
+            Self::Static { keyframes, options } => {
+                ClassExpression::KeyframesUse { keyframes, options }
             }
             Self::Dynamic {
                 value,
-                animations,
+                keyframes,
                 options,
-            } => ClassExpression::DynamicAnimationUse {
+            } => ClassExpression::DynamicKeyframesUse {
                 value,
-                animations,
+                keyframes,
                 options,
             },
         }
@@ -65,18 +65,18 @@ impl ParsedAnimationUse {
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Resolves an expression to the animations it may denote.
+    /// Resolves an expression to the keyframes it may denote.
     ///
     /// Checker facts win; otherwise the expression must be a local binding of a
-    /// declared animation. `None` means it is not an animation value, so callers should
+    /// declared keyframes. `None` means it is not an keyframes value, so callers should
     /// fall through to the other expression forms.
-    pub(crate) fn animation_references(
+    pub(crate) fn keyframes_references(
         &self,
         expression: &Expression<'a>,
     ) -> Option<Vec<AssetReference>> {
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(ExportedValue::Animations(value)) = self.type_facts.get(&(span.start, span.end))
+        if let Some(ExportedValue::Keyframes(value)) = self.type_facts.get(&(span.start, span.end))
         {
             return value
                 .finite_candidates()?
@@ -89,102 +89,102 @@ impl<'a> MacroExtractor<'a> {
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        let animation = self.animation_symbols.get(&symbol_id)?;
+        let keyframes = self.keyframes_symbols.get(&symbol_id)?;
         Some(vec![AssetReference {
-            identity: self.identity(AssetKind::Animation, animation),
+            identity: self.identity(AssetKind::Keyframes, keyframes),
             span: self.source_span(span),
-            local_declaration: Some(animation.span),
+            local_declaration: Some(keyframes.span),
         }])
     }
 
-    /// Recognizes `<animation>(options)` and validates the options argument.
+    /// Recognizes `<keyframes>(options)` and validates the options argument.
     ///
     /// A use with zero candidates resolves to `None` rather than to an empty dynamic
     /// use; a wrong arity or a non-literal options value is reported and treated as
     /// unusable.
-    pub(crate) fn animation_use(
+    pub(crate) fn keyframes_use(
         &mut self,
         expression: &Expression<'a>,
-    ) -> Option<ParsedAnimationUse> {
+    ) -> Option<ParsedKeyframesUse> {
         let Expression::CallExpression(call) = expression else {
             return None;
         };
-        let animations = self.animation_references(&call.callee)?;
+        let keyframes = self.keyframes_references(&call.callee)?;
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidAnimationOptions,
+                CompileErrorKind::InvalidKeyframesOptions,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::StringLiteral(options)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidAnimationOptions,
+                CompileErrorKind::InvalidKeyframesOptions,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
         };
         let options = self.string_literal(options);
-        match animations.as_slice() {
-            [animation] => Some(ParsedAnimationUse::Static {
-                animation: animation.clone(),
+        match keyframes.as_slice() {
+            [keyframes] => Some(ParsedKeyframesUse::Static {
+                keyframes: keyframes.clone(),
                 options,
             }),
             [] => None,
-            _ => Some(ParsedAnimationUse::Dynamic {
+            _ => Some(ParsedKeyframesUse::Dynamic {
                 value: self.source_span(call.span),
-                animations,
+                keyframes,
                 options,
             }),
         }
     }
 
-    /// Validates and records one `style.animation({...})` declaration.
+    /// Validates and records one `style.keyframes({...})` declaration.
     ///
     /// Every frame must be a plain property with a static key and a literal utility
     /// string; invalid frames are reported and skipped, and a declaration with no valid
     /// frame is rejected so no identity is created for it.
-    pub(crate) fn collect_animation_definition(
+    pub(crate) fn collect_keyframes_definition(
         &mut self,
         binding: Spanned<String>,
         call: &CallExpression<'a>,
-    ) -> Option<AnimationDefinition> {
+    ) -> Option<KeyframesDefinition> {
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidAnimationDefinition,
+                CompileErrorKind::InvalidKeyframesDefinition,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidAnimationDefinition,
+                CompileErrorKind::InvalidKeyframesDefinition,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
         };
-        let body = self.animation_body(object)?;
-        Some(AnimationDefinition {
+        let body = self.keyframes_body(object)?;
+        Some(KeyframesDefinition {
             binding,
             call_span: self.source_span(call.span),
             body,
         })
     }
 
-    fn animation_body(&mut self, object: &ObjectExpression<'a>) -> Option<AnimationBody> {
+    fn keyframes_body(&mut self, object: &ObjectExpression<'a>) -> Option<KeyframesBody> {
         let mut branches = Vec::new();
         let mut frames = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::AnimationSpread,
+                    CompileErrorKind::KeyframesSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnimationProperty,
+                    CompileErrorKind::InvalidKeyframesProperty,
                     self.source_span(property.span),
                 ));
                 continue;
@@ -203,12 +203,12 @@ impl<'a> MacroExtractor<'a> {
             if let Some(variant) = variant {
                 if let Expression::ObjectExpression(nested) = property.value.get_inner_expression()
                 {
-                    if let Some(body) = self.animation_body(nested) {
-                        branches.push(AnimationBranch { variant, body });
+                    if let Some(body) = self.keyframes_body(nested) {
+                        branches.push(KeyframesBranch { variant, body });
                     }
                 } else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidAnimationDefinition,
+                        CompileErrorKind::InvalidKeyframesDefinition,
                         self.source_span(property.value.span()),
                     ));
                 }
@@ -216,38 +216,38 @@ impl<'a> MacroExtractor<'a> {
             }
             let Some(selector) = key else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnimationFrameKey,
+                    CompileErrorKind::InvalidKeyframesFrameKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
             };
-            if !is_animation_frame(&selector.value) {
+            if !is_keyframes_frame(&selector.value) {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnimationFrameSelector,
+                    CompileErrorKind::InvalidKeyframesFrameSelector,
                     selector.span,
                 ));
                 continue;
             }
             let Expression::StringLiteral(utilities) = &property.value else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnimationFrameValue,
+                    CompileErrorKind::InvalidKeyframesFrameValue,
                     self.source_span(property.value.span()),
                 ));
                 continue;
             };
-            frames.push(AnimationFrame {
+            frames.push(KeyframesFrame {
                 selector,
                 utilities: self.string_literal(utilities),
             });
         }
         if frames.is_empty() && branches.is_empty() {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::EmptyAnimation,
+                CompileErrorKind::EmptyKeyframes,
                 self.source_span(object.span),
             ));
             return None;
         }
-        Some(AnimationBody { frames, branches })
+        Some(KeyframesBody { frames, branches })
     }
 }
 
@@ -256,7 +256,7 @@ impl<'a> MacroExtractor<'a> {
 /// `from`, `to`, or a comma-separated list of unsigned integer percentages; a signed or
 /// fractional step is rejected because the generated keyframe rule would not match what
 /// was written.
-fn is_animation_frame(value: &str) -> bool {
+fn is_keyframes_frame(value: &str) -> bool {
     value == "from"
         || value == "to"
         || value.split(',').all(|part| {
@@ -273,10 +273,10 @@ mod tests {
     #[test]
     fn frames_require_keywords_or_comma_separated_unsigned_percentages() {
         for frame in ["from", "to", "0%", "100%", "0%, 50%, 100%"] {
-            assert!(is_animation_frame(frame));
+            assert!(is_keyframes_frame(frame));
         }
         for frame in ["", "middle", "-1%", "1.5%", "50%,", "256%"] {
-            assert!(!is_animation_frame(frame));
+            assert!(!is_keyframes_frame(frame));
         }
     }
 }

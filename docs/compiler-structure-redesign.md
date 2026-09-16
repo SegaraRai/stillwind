@@ -50,7 +50,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 | `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                                     |
 | `style.subtree(name?)`                                                 | \x60SubtreeDefinition { binding, label, … }\x60（label が書かれた文字列）                                     |
 | `style.ref(scope?, name?)`                                             | `RefDefinition { binding, label, scope, … }`                                                                  |
-| `style.animation(definition)` の frame                                 | `AnimationFrame { selector, utilities }`（utility 列）。variant キーは `AnimationBranch`                      |
+| `style.keyframes(definition)` の frame                                 | `AnimationFrame { selector, utilities }`（utility 列）。variant キーは `AnimationBranch`                      |
 | `animation(options)`                                                   | `ClassExpression::AnimationUse { animation, options }`（option 列）                                           |
 | `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列                  |
 | `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                                         |
@@ -159,16 +159,16 @@ crates/compiler/src/compiler/
 | 現在                                        | 移動後                                               | 理由                                       |
 | ------------------------------------------- | ---------------------------------------------------- | ------------------------------------------ |
 | `motion.rs` の VT 定義 3 関数と option 条件 | `definitions/view_transition.rs`                     | L3 band 1                                  |
-| `motion.rs` の `resolve_animation_use`      | `emission/animation_use.rs`                          | use が寄与する宣言は call バンド           |
+| `motion.rs` の `resolve_animation_use`      | `emission/keyframes_use.rs`                          | use が寄与する宣言は call バンド           |
 | `motion.rs` の `resolve_motion_options` 系  | `animation_options.rs`                               | animation use と VT group が共有する解決器 |
 | `motion.rs` のテスト                        | `definitions/*.rs` と `animation_options.rs`         | 種別ごとに分ける                           |
-| `motion/animation.rs`                       | `definitions/animation.rs`                           | L3 band 1                                  |
+| `motion/animation.rs`                       | `definitions/keyframes.rs`                           | L3 band 1                                  |
 | `variants.rs`                               | `variants.rs` + 条件 wrapper                         | 列挙の解釈を 1 箇所へ                      |
 | `handles.rs` の projection 生成             | `emission/ref_projection.rs`                         | call バンド。利用者は walker のみ          |
 | `handles.rs` の identity 3 関数             | `symbols.rs`                                         | identity バンド。依存の逆転を解消          |
 | `handles.rs` の `summary_runtime_assets`    | summary の問い `export_reachable_identities`（§5.2） | summary だけを読む関数                     |
 
-呼び出し側は `pipeline.rs`、`definitions/view_transition.rs`、`emission/animation_use.rs` の
+呼び出し側は `pipeline.rs`、`definitions/view_transition.rs`、`emission/keyframes_use.rs` の
 import が移動先を指すようになるだけで、処理の順序と引数は変えない。`handles.rs` は消える。
 
 ### 3.1 なぜ call バンドは 1 ディレクトリか
@@ -286,7 +286,7 @@ motion use（静的・動的とも）、`.for` 適用。これで clone と 2 �
 
 ### 5.3 条件 wrapper を variants.rs に寄せる
 
-media / supports の入れ子を組む関数を `variants.rs` に置き、`definitions/animation.rs`、
+media / supports の入れ子を組む関数を `variants.rs` に置き、`definitions/keyframes.rs`、
 `definitions/view_transition.rs`（bucket と group option）から使う。全 step を扱う 2 箇所
 （`utilities/render.rs`、`style_variants.rs`）は出力の形が違うので、step → 条件の写像だけを
 共有できるか別途判断する（§8）。

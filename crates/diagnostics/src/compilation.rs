@@ -72,28 +72,28 @@ pub enum CompileErrorKind {
     StyleArgumentSpread,
     /// An animation use does not supply one literal options string.
     #[error("an animation use requires one literal options string")]
-    InvalidAnimationOptions,
+    InvalidKeyframesOptions,
     /// An animation declaration does not supply one static frame object.
-    #[error("style.animation() requires one object of static keyframe utility strings")]
-    InvalidAnimationDefinition,
+    #[error("style.keyframes() requires one object of static keyframe utility strings")]
+    InvalidKeyframesDefinition,
     /// An animation frame object contains a spread property.
     #[error("animation keyframes cannot use object spreads")]
-    AnimationSpread,
+    KeyframesSpread,
     /// An animation frame entry is not a plain static property.
     #[error("animation keyframes must be plain static properties")]
-    InvalidAnimationProperty,
+    InvalidKeyframesProperty,
     /// A frame key cannot be interpreted as a keyframe selector.
     #[error("animation frames must be `from`, `to`, or percentage keys")]
-    InvalidAnimationFrameKey,
+    InvalidKeyframesFrameKey,
     /// A static frame selector contains an invalid percentage or selector list.
     #[error("animation frames must be `from`, `to`, or comma-separated percentages")]
-    InvalidAnimationFrameSelector,
+    InvalidKeyframesFrameSelector,
     /// A frame body is not a literal utility string.
     #[error("animation frame values must be literal utility strings")]
-    InvalidAnimationFrameValue,
+    InvalidKeyframesFrameValue,
     /// No valid frame remains after validating an animation declaration.
-    #[error("style.animation() requires at least one valid keyframe")]
-    EmptyAnimation,
+    #[error("style.keyframes() requires at least one valid keyframe")]
+    EmptyKeyframes,
     /// A keyed transition use supplies more than one key expression.
     #[error("viewTransition.for() accepts at most one key expression")]
     InvalidViewTransitionKeyExpression,
@@ -174,12 +174,12 @@ pub enum CompileErrorKind {
     StyleBaseFrameworkMismatch,
     /// A keyframe utility contains a variant forbidden in animation frames.
     #[error("animation keyframes cannot contain variants")]
-    AnimationFrameVariants,
+    KeyframesFrameVariants,
     /// A definition-level variant cannot wrap a keyframes rule in valid CSS.
     #[error(
         "animation definition variants must be media or supports conditions; container queries do not condition global keyframes"
     )]
-    InvalidAnimationVariant,
+    InvalidKeyframesVariant,
     /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.
     #[error("view transition utilities accept only media and supports condition variants")]
     InvalidViewTransitionVariant,
@@ -606,14 +606,14 @@ impl CompileErrorKind {
             | Self::InvalidAttributeKey => "SHJS003",
             Self::InvalidVariantInput => "SHJS004",
             Self::InvalidUtilityTemplate => "SHJS005",
-            Self::InvalidAnimationOptions | Self::UnknownAnimationOption { .. } => "SHANIMATION002",
-            Self::InvalidAnimationDefinition
-            | Self::AnimationSpread
-            | Self::InvalidAnimationProperty
-            | Self::InvalidAnimationFrameKey
-            | Self::InvalidAnimationFrameSelector
-            | Self::InvalidAnimationFrameValue
-            | Self::EmptyAnimation => "SHANIMATION001",
+            Self::InvalidKeyframesOptions | Self::UnknownAnimationOption { .. } => "SHANIMATION002",
+            Self::InvalidKeyframesDefinition
+            | Self::KeyframesSpread
+            | Self::InvalidKeyframesProperty
+            | Self::InvalidKeyframesFrameKey
+            | Self::InvalidKeyframesFrameSelector
+            | Self::InvalidKeyframesFrameValue
+            | Self::EmptyKeyframes => "SHANIMATION001",
             Self::InvalidViewTransitionKeyExpression => "SHVIEW002",
             Self::InvalidViewTransitionDefinition
             | Self::ViewTransitionSpread
@@ -635,8 +635,8 @@ impl CompileErrorKind {
             Self::UnavailableStyleBase => "SHCOMP005",
             Self::StyleBaseWithProps => "SHCOMP006",
             Self::StyleBaseFrameworkMismatch => "SHCOMP007",
-            Self::AnimationFrameVariants => "SHANIMATION003",
-            Self::InvalidAnimationVariant => "SHANIMATION004",
+            Self::KeyframesFrameVariants => "SHANIMATION003",
+            Self::InvalidKeyframesVariant => "SHANIMATION004",
             Self::InvalidViewTransitionVariant => "SHVIEW003",
             Self::InvalidVariantPrefix | Self::UnavailableVariantPrefix | Self::UnidentifiedRef => {
                 "SHREF003"

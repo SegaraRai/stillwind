@@ -15,7 +15,7 @@ void test("only requested UTF-8 probe spans are queried beside unrelated generic
 // 非ASCII 🧭 offsets must survive shadow identity insertion.
 declare function tuple<T>(value: T): [T, T];
 const unrelated = tuple(123);
-const token = style.animation({from: 'opacity-0', to: 'opacity-100'});
+const token = style.keyframes({from: 'opacity-0', to: 'opacity-100'});
 const selected = token;
 export const props = style(selected('infinite'));`;
   const summary = summarizeReact(source, "probe-document.ts") as ModuleSummary;

@@ -39,8 +39,8 @@
 | crates/js-oxc/src/refs/definitions.rs:61  | `const x=style.ref(...args);`                                        |
 | crates/js-oxc/src/refs/definitions.rs:77  | `const x=style.ref(...args,'x');`                                    |
 | crates/js-oxc/src/refs/definitions.rs:85  | `const s=style.scope(); const x=style.ref(s,...args);`               |
-| crates/js-oxc/src/animation.rs:86         | `const x=style.animation(...args);`                                  |
-| crates/js-oxc/src/animation.rs:50         | `const a=style.animation({from:'flex'}); const x=style(a(...args));` |
+| crates/js-oxc/src/keyframes.rs:86         | `const x=style.keyframes(...args);`                                  |
+| crates/js-oxc/src/keyframes.rs:50         | `const a=style.keyframes({from:'flex'}); const x=style(a(...args));` |
 | crates/js-oxc/src/view_transition.rs:108  | `const x=style.viewTransition(...args);`                             |
 | crates/js-oxc/src/refs/projections.rs:45  | `const r=style.ref(); const x=style(r.container(...args));`          |
 | crates/js-oxc/src/refs/projections.rs:113 | `const r=style.ref(); const x=style(r.at(...args,'flex'));`          |

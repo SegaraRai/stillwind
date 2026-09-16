@@ -13,7 +13,7 @@ implementation limitation, not a source-language restriction.
 
 ### Declaration values are JavaScript values
 
-Objects created by `style.ref()`, `style.subtree()`, `style.animation()`, and
+Objects created by `style.ref()`, `style.subtree()`, `style.keyframes()`, and
 `style.viewTransition()` are ordinary JavaScript values. They may be exported,
 imported, re-exported, passed to and returned from functions, stored in data
 structures, and conditionally selected across module boundaries. Stillwind must
@@ -299,12 +299,12 @@ parallel object-CSS DSL. A local animation receives a generated keyframe name;
 authors never write that name.
 
 ```tsx
-const enter = style.animation({
+const enter = style.keyframes({
   from: "opacity-0 translate-y-2 scale-98",
   to: "opacity-100 translate-y-0 scale-100",
 });
 
-const exit = style.animation({
+const exit = style.keyframes({
   from: "opacity-100",
   to: "opacity-0 scale-98",
 });

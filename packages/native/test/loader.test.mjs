@@ -349,7 +349,7 @@ void test("native watch reload reports compilation errors without publishing a p
   );
   const session = new NativeProjectSession(initial, true);
   const source =
-    "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion(''));";
+    "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'brand' }); const x = style(motion(''));";
   const output = session.compile([{ path: "motion.tsx", source }]);
   assert.deepEqual(output.modules[0].diagnostics, []);
   const before = session.css();

@@ -17,7 +17,7 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, AnimationDefinition, RefDefinition, StyleCall, SubtreeDefinition,
+    AdapterKind, KeyframesDefinition, RefDefinition, StyleCall, SubtreeDefinition,
     ViewTransitionDefinition, ViewTransitionKeyApplication,
 };
 use stillwind_semantic::{
@@ -50,8 +50,8 @@ impl<'a> MacroExtractor<'a> {
             subtree_uses: Vec::new(),
             ref_definitions: Vec::new(),
             subtree_definitions: Vec::new(),
-            animation_symbols: HashMap::new(),
-            animation_declarations: Vec::new(),
+            keyframes_symbols: HashMap::new(),
+            keyframes_declarations: Vec::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
             view_transition_key_applications: Vec::new(),
@@ -91,7 +91,7 @@ impl<'a> MacroExtractor<'a> {
 
     /// Builds the module summary from the collected state.
     ///
-    /// Assets are appended in kind order (styles, scopes, refs, animations, view
+    /// Assets are appended in kind order (styles, scopes, refs, keyframes, view
     /// transitions), not source order. Exports are keyed by exported name and only
     /// contain bindings whose value resolved to a symbolic form; a binding that was
     /// reassigned or chosen conditionally is deliberately absent so the host checker
@@ -138,9 +138,9 @@ impl<'a> MacroExtractor<'a> {
                 call_end: definition.call_span.end.0,
             });
         }
-        for definition in &self.animation_declarations {
+        for definition in &self.keyframes_declarations {
             summary.assets.push(AssetRecord {
-                identity: self.identity(AssetKind::Animation, &definition.binding),
+                identity: self.identity(AssetKind::Keyframes, &definition.binding),
                 metadata: AssetMetadata { label: None },
                 call_start: definition.call_span.start.0,
                 call_end: definition.call_span.end.0,
@@ -201,10 +201,10 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) ref_definitions: Vec<RefDefinition>,
     /// Scope definitions in declaration order.
     pub(crate) subtree_definitions: Vec<SubtreeDefinition>,
-    /// Symbols bound to an animation declaration, with their names.
-    pub(crate) animation_symbols: HashMap<SymbolId, Spanned<String>>,
+    /// Symbols bound to an keyframes declaration, with their names.
+    pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
     /// Animation declarations in declaration order.
-    pub(crate) animation_declarations: Vec<AnimationDefinition>,
+    pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
     /// Symbols bound to a view-transition declaration, with their names.
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
     /// View-transition declarations in declaration order.

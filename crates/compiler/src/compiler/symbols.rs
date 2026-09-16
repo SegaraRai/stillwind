@@ -222,7 +222,7 @@ fn kind_name(kind: AssetKind) -> &'static str {
         AssetKind::Style => "style",
         AssetKind::Ref => "ref",
         AssetKind::Subtree => "scope",
-        AssetKind::Animation => "animation",
+        AssetKind::Keyframes => "animation",
         AssetKind::ViewTransition => "view-transition",
     }
 }
@@ -233,7 +233,7 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
         AssetKind::Style => IdentifierPool::ClassToken,
         AssetKind::Ref => IdentifierPool::AnchorName,
         AssetKind::Subtree => IdentifierPool::ContainerName,
-        AssetKind::Animation => IdentifierPool::KeyframesName,
+        AssetKind::Keyframes => IdentifierPool::KeyframesName,
         AssetKind::ViewTransition => IdentifierPool::ViewTransitionClass,
     }
 }
@@ -277,7 +277,7 @@ fn declared_name(
     declaration: &DeclarationContext,
 ) -> Result<String, CompileErrorKind> {
     let name = match kind {
-        AssetKind::Animation => context.animation_name(declaration)?.as_str().to_owned(),
+        AssetKind::Keyframes => context.keyframes_name(declaration)?.as_str().to_owned(),
         AssetKind::ViewTransition => context
             .view_transition_class(declaration)?
             .as_str()
@@ -604,7 +604,7 @@ mod tests {
         for (kind, prefix) in [
             (AssetKind::Ref, "--sw-r-"),
             (AssetKind::Subtree, "--sw-s-"),
-            (AssetKind::Animation, "--sw-a-"),
+            (AssetKind::Keyframes, "--sw-a-"),
             (AssetKind::ViewTransition, "--sw-v-"),
         ] {
             let symbol = generated_symbol(&identifiers, &source, kind, &name).unwrap();

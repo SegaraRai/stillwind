@@ -19,32 +19,32 @@ use crate::identifiers::IdentifierContext;
 use crate::runtime::RuntimeHelper;
 
 impl CallEmitter<'_> {
-    /// Lowers one animation use whose animation is known at compile time.
+    /// Lowers one keyframes use whose keyframes is known at compile time.
     ///
     /// A use reached without a guard can fold into the base unit, which is why `fold` is
     /// passed down; the option list resolves into the use's own declarations.
-    pub(super) fn emit_animation_use(
+    pub(super) fn emit_keyframes_use(
         &mut self,
-        animation: &AssetReference,
+        keyframes: &AssetReference,
         options: &Spanned<String>,
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
         fold: bool,
     ) -> Option<Emitted> {
-        self.required_definitions.insert(animation.identity.clone());
+        self.required_definitions.insert(keyframes.identity.clone());
         let plan =
             StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
-        let mut utility = resolve_animation_use(
+        let mut utility = resolve_keyframes_use(
             self.identifiers,
-            animation,
+            keyframes,
             options,
             self.theme,
             self.diagnostics,
         );
-        plan.apply_animation(&mut utility);
+        plan.apply_keyframes(&mut utility);
         let canonical = format!(
             "{}{}:{}:{}\u{0}",
-            plan.canonical, "animation:", animation.identity.binding_name, options.value
+            plan.canonical, "keyframes:", keyframes.identity.binding_name, options.value
         );
         let contribution = LiteralContribution {
             canonical,
@@ -68,14 +68,14 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Lowers one animation use whose animation is only known at runtime.
+    /// Lowers one keyframes use whose keyframes is only known at runtime.
     ///
     /// Every candidate contributes its own prebuilt class, so the runtime selects a class
     /// set instead of resolving declarations.
-    pub(super) fn emit_dynamic_animation_use(
+    pub(super) fn emit_dynamic_keyframes_use(
         &mut self,
         value: &Span,
-        animations: &[AssetReference],
+        keyframes: &[AssetReference],
         options: &Spanned<String>,
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
@@ -83,13 +83,13 @@ impl CallEmitter<'_> {
         let plan =
             StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
         let mut table = Vec::new();
-        for animation in animations {
-            self.runtime_assets.insert(animation.identity.clone());
-            self.required_definitions.insert(animation.identity.clone());
+        for keyframes in keyframes {
+            self.runtime_assets.insert(keyframes.identity.clone());
+            self.required_definitions.insert(keyframes.identity.clone());
             let identity = match self.record_definition_name(
-                &animation.identity,
-                AssetKind::Animation,
-                animation.span,
+                &keyframes.identity,
+                AssetKind::Keyframes,
+                keyframes.span,
             ) {
                 Ok(identity) => identity,
                 Err(failure) => {
@@ -97,19 +97,19 @@ impl CallEmitter<'_> {
                     return None;
                 }
             };
-            let mut utility = resolve_animation_use(
+            let mut utility = resolve_keyframes_use(
                 self.identifiers,
-                animation,
+                keyframes,
                 options,
                 self.theme,
                 self.diagnostics,
             );
-            plan.apply_animation(&mut utility);
+            plan.apply_keyframes(&mut utility);
             let canonical = if plan.canonical.is_empty() {
-                format!("dynamic-animation:{identity}:{}", options.value)
+                format!("dynamic-keyframes:{identity}:{}", options.value)
             } else {
                 format!(
-                    "{}\u{0}dynamic-animation:{identity}:{}",
+                    "{}\u{0}dynamic-keyframes:{identity}:{}",
                     plan.canonical, options.value
                 )
             };
@@ -148,20 +148,20 @@ impl CallEmitter<'_> {
     }
 }
 
-/// Builds the declarations one animation use contributes.
+/// Builds the declarations one keyframes use contributes.
 ///
 /// The `animation-name` always names this declaration's keyframes, and the options follow in
 /// their written order.
-fn resolve_animation_use(
+fn resolve_keyframes_use(
     identifiers: &IdentifierContext,
-    animation: &AssetReference,
+    keyframes: &AssetReference,
     options: &Spanned<String>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
-        match identifiers.animation_name(&identity_declaration(&animation.identity)) {
+        match identifiers.keyframes_name(&identity_declaration(&keyframes.identity)) {
             Ok(name) => name.custom_ident(),
             Err(failure) => {
                 diagnostics.push(CompileError::new(failure, options.span));

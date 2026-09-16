@@ -64,7 +64,7 @@ void test("dependency overlays are used and removing an import stops dependency 
     id: dependency,
     version: 1,
     source:
-      "import { style } from 'stillwind/react'; export const token = style.animation({ from: 'red', to: 'red' });",
+      "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'red', to: 'red' });",
   });
   editor.update({ id: entry, version: 1, source: imported });
   const first = await editor.analyze(entry);
@@ -75,7 +75,7 @@ void test("dependency overlays are used and removing an import stops dependency 
     id: dependency,
     version: 2,
     source:
-      "import { style } from 'stillwind/react'; export const token = style.animation({ from: 'blue', to: 'blue' });",
+      "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'blue', to: 'blue' });",
   });
   const next = await editor.analyze(entry);
   assert.equal(next.status, "success");
@@ -102,7 +102,7 @@ void test("late dependency reads and cancellation cannot publish or replace the 
   editor.update({ id: entry, version: 2, source: literal });
   assert.equal((await editor.analyze(entry)).status, "success");
   release(
-    "import { style } from 'stillwind/react'; export const token = style.animation({ from: 'blue', to: 'blue' });",
+    "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'blue', to: 'blue' });",
   );
   const stale = await old;
   assert.equal(stale.status, "stale");
@@ -120,7 +120,7 @@ void test("semantic reads select a barrel export and exclude unrelated runtime i
     if (id === barrel)
       return "export { token } from './tokens'; export { lazy } from './unvisited';";
     if (id === dependency)
-      return "import { style } from 'stillwind/react'; export const token = style.animation({ from: 'red', to: 'red' });";
+      return "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'red', to: 'red' });";
     throw new Error(`Unrelated source was read: ${id}`);
   });
   editor.update({

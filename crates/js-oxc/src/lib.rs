@@ -2,7 +2,7 @@
 //!
 //! This crate is the JavaScript frontend: it parses a module with Oxc, finds the
 //! `style` binding that came from a Stillwind macro import, extracts style calls,
-//! ref definitions, animation and view-transition declarations, resolves the framework
+//! ref definitions, keyframes and view-transition declarations, resolves the framework
 //! adapter, and publishes a [`stillwind_semantic::ModuleSummary`] plus the type probes
 //! the host checker still has to answer. `entry` coordinates parsing and extraction;
 //! `contract` validates macro argument expressions before folding. `normalization` and
@@ -29,7 +29,6 @@
 )]
 
 mod analyzer;
-mod animation;
 mod ast;
 mod bindings;
 mod contract;
@@ -37,6 +36,7 @@ mod demand;
 mod entry;
 mod expressions;
 mod imports;
+mod keyframes;
 mod normalization;
 mod projected_scan;
 mod refs;

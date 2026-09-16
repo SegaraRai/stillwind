@@ -154,9 +154,9 @@ impl ModuleAnalysis {
             support.ir.style_calls.clear();
             support.ir.ref_definitions.clear();
             support.ir.subtree_definitions.clear();
-            support.ir.animation_declarations.retain(|declaration| {
+            support.ir.keyframes_declarations.retain(|declaration| {
                 identities.iter().any(|identity| {
-                    identity.kind == AssetKind::Animation
+                    identity.kind == AssetKind::Keyframes
                         && identity.binding_name == declaration.binding.value
                 })
             });
@@ -173,7 +173,7 @@ impl ModuleAnalysis {
                 .summary
                 .assets
                 .retain(|asset| identities.contains(&asset.identity));
-            if !support.ir.animation_declarations.is_empty()
+            if !support.ir.keyframes_declarations.is_empty()
                 || !support.ir.view_transition_declarations.is_empty()
             {
                 self.asset_support.push(support);

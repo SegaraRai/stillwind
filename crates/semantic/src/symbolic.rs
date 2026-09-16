@@ -206,8 +206,11 @@ pub enum ExportedValue {
     /// it into a ref set plus a subtree set would lose the correlation between a ref and
     /// the subtrees it may appear under.
     Refs(Vec<RefAlternative>),
-    /// Candidate set of animation identities.
-    Animations(SymbolicValue),
+    /// Candidate set of keyframes identities.
+    ///
+    /// Serialized as `animations`, the spelling the host protocol uses.
+    #[serde(rename = "animations")]
+    Keyframes(SymbolicValue),
     /// Candidate set of view-transition identities.
     ViewTransitions(SymbolicValue),
     /// Candidate set of view-transition uses that already carry their own key.
@@ -236,7 +239,7 @@ impl ExportedValue {
             }
             Self::Styles(value)
             | Self::Subtrees(value)
-            | Self::Animations(value)
+            | Self::Keyframes(value)
             | Self::ViewTransitions(value)
             | Self::ViewTransitionKeys(value) => {
                 if value.kind != self.kind() {
@@ -259,7 +262,7 @@ impl ExportedValue {
             Self::Styles(_) => AssetKind::Style,
             Self::Subtrees(_) => AssetKind::Subtree,
             Self::Refs(_) => AssetKind::Ref,
-            Self::Animations(_) => AssetKind::Animation,
+            Self::Keyframes(_) => AssetKind::Keyframes,
             Self::ViewTransitions(_) | Self::ViewTransitionKeys(_) => AssetKind::ViewTransition,
         }
     }
@@ -292,12 +295,12 @@ mod tests {
     fn validates_nested_subtree_candidates_and_export_tags() {
         let malformed = SymbolicValue {
             kind: AssetKind::Subtree,
-            candidates: Candidates::Finite(BTreeSet::from([identity(AssetKind::Animation, 0)])),
+            candidates: Candidates::Finite(BTreeSet::from([identity(AssetKind::Keyframes, 0)])),
         };
         assert!(RefAlternative::new(identity(AssetKind::Ref, 1), Some(malformed.clone())).is_err());
         assert!(ExportedValue::Subtrees(malformed).validate().is_err());
         assert!(
-            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Subtree))
+            ExportedValue::Keyframes(SymbolicValue::universe(AssetKind::Subtree))
                 .validate()
                 .is_err()
         );
@@ -313,14 +316,14 @@ mod boundary_tests {
         let id = IdentityId::new(AssetKind::Subtree, "x", 0, 1, "scope");
         let value = SymbolicValue::finite(AssetKind::Subtree, [id.clone(), id]).unwrap();
         assert_eq!(value.finite_candidates().unwrap().len(), 1);
-        let wrong = IdentityId::new(AssetKind::Animation, "x", 0, 1, "animation");
+        let wrong = IdentityId::new(AssetKind::Keyframes, "x", 0, 1, "animation");
         assert!(SymbolicValue::finite(AssetKind::Subtree, [wrong.clone()]).is_err());
         assert!(RefAlternative::new(wrong, None).is_err());
         let reference = IdentityId::new(AssetKind::Ref, "x", 0, 1, "ref");
         assert!(
             RefAlternative::new(
                 reference,
-                Some(SymbolicValue::universe(AssetKind::Animation))
+                Some(SymbolicValue::universe(AssetKind::Keyframes))
             )
             .is_err()
         );

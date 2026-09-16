@@ -165,7 +165,7 @@ function typeFactValue(
   const constituents = type.isUnionType() ? type.getTypes() : [type];
   const refs = [];
   const subtrees: IdentityId[] = [];
-  const animations: IdentityId[] = [];
+  const keyframes: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
   let viewTransitionKeyed = false;
   const styles: IdentityId[] = [];
@@ -201,10 +201,10 @@ function typeFactValue(
       }
       continue;
     }
-    if (symbol?.name === "StyleAnimation" || symbol?.name === "StyleAnimationUse") {
+    if (symbol?.name === "StyleKeyframes" || symbol?.name === "StyleKeyframesUse") {
       const candidates = knownIdentities(args[0], identities, "animation");
       if (!candidates) return null;
-      animations.push(...candidates);
+      keyframes.push(...candidates);
       continue;
     }
     if (symbol?.name === "StyleViewTransition" || symbol?.name === "StyleViewTransitionUse") {
@@ -217,15 +217,14 @@ function typeFactValue(
     return null;
   }
 
-  const populated = [refs, subtrees, animations, viewTransitions, styles].filter(
+  const populated = [refs, subtrees, keyframes, viewTransitions, styles].filter(
     (values) => values.length > 0,
   );
   if (populated.length !== 1) return null;
   if (styles.length > 0) return { kind: "styles", value: symbolic("style", styles) };
   if (refs.length > 0) return { kind: "refs", value: refs };
   if (subtrees.length > 0) return { kind: "scopes", value: symbolic("scope", subtrees) };
-  if (animations.length > 0)
-    return { kind: "animations", value: symbolic("animation", animations) };
+  if (keyframes.length > 0) return { kind: "animations", value: symbolic("animation", keyframes) };
   if (viewTransitions.length > 0)
     return viewTransitionKeyed
       ? {

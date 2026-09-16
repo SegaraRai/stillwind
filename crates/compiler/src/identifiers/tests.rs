@@ -133,7 +133,7 @@ fn every_builtin_family_keeps_its_own_prefix() {
     );
     assert!(
         context
-            .animation_name(&declaration)
+            .keyframes_name(&declaration)
             .unwrap()
             .as_str()
             .starts_with("--sw-a-")

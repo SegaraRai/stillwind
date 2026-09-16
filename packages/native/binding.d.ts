@@ -229,7 +229,7 @@ export type NativeAssetKind = /** A `style(...)` call's payload. */
 'scope'|
 /** A `style.ref()` declaration. */
 'ref'|
-/** A `style.animation()` declaration. */
+/** A `style.keyframes()` declaration; the host sees the kind `animation`. */
 'animation'|
 /** A `style.viewTransition()` declaration. */
 'view-transition';
@@ -408,7 +408,7 @@ value: NativeSymbolicValue }
 value: NativeSymbolicValue }
 | { kind: 'refs'; /** The correlated alternatives. */
 value: Array<NativeRefAlternative> }
-| { kind: 'animations'; /** Reachable animation identities. */
+| { kind: 'animations'; /** Reachable keyframes identities. */
 value: NativeSymbolicValue }
 | { kind: 'view-transitions'; /** Reachable transition identities. */
 value: NativeSymbolicValue }

@@ -26,7 +26,7 @@ impl<'a> MacroExtractor<'a> {
     /// Resolves an expression to the view transitions it may denote, and whether the value
     /// already carries the key its participants are paired under.
     ///
-    /// Facts win over local bindings, exactly as for animations; `None` means the
+    /// Facts win over local bindings, exactly as for keyframes; `None` means the
     /// expression is not a view-transition value.
     pub(crate) fn view_transition_references(
         &self,

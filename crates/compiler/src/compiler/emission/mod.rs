@@ -14,11 +14,11 @@
 //! [`CallEmitter`] declares the walk state here so every file in this directory can read
 //! the private fields while the rest of the compiler cannot. `call` runs the walk and
 //! dispatches one style input; `class_value` lowers class expressions; `ref_projection`,
-//! `animation_use`, and `view_transition` hold the arms of one contribution kind each.
+//! `keyframes_use`, and `view_transition` hold the arms of one contribution kind each.
 
-mod animation_use;
 mod call;
 mod class_value;
+mod keyframes_use;
 mod ref_projection;
 mod view_transition;
 

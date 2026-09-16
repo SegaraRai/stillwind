@@ -99,9 +99,9 @@ pub enum NativeExportedValue {
         /// The correlated alternatives.
         value: Vec<NativeRefAlternative>,
     },
-    /// Exported animation.
+    /// Exported keyframes, tagged `animations` for the host.
     Animations {
-        /// Reachable animation identities.
+        /// Reachable keyframes identities.
         value: NativeSymbolicValue,
     },
     /// Exported view transition.
@@ -128,7 +128,7 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
                 (Self::Subtrees(value.try_into()?), AssetKind::Subtree)
             }
             NativeExportedValue::Animations { value } => {
-                (Self::Animations(value.try_into()?), AssetKind::Animation)
+                (Self::Keyframes(value.try_into()?), AssetKind::Keyframes)
             }
             NativeExportedValue::ViewTransitions { value } => (
                 Self::ViewTransitions(value.try_into()?),
@@ -156,7 +156,7 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
         let actual = match &value {
             Self::Styles(value)
             | Self::Subtrees(value)
-            | Self::Animations(value)
+            | Self::Keyframes(value)
             | Self::ViewTransitions(value)
             | Self::ViewTransitionKeys(value) => value.kind,
             Self::Refs(_) => AssetKind::Ref,
@@ -179,7 +179,7 @@ impl From<ExportedValue> for NativeExportedValue {
             ExportedValue::Subtrees(value) => Self::Scopes {
                 value: value.into(),
             },
-            ExportedValue::Animations(value) => Self::Animations {
+            ExportedValue::Keyframes(value) => Self::Animations {
                 value: value.into(),
             },
             ExportedValue::ViewTransitions(value) => Self::ViewTransitions {

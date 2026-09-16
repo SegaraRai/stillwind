@@ -23,7 +23,7 @@ use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
 use super::definitions::{
-    emit_animation_definition, emit_view_transition_definition, is_definition_kind,
+    emit_keyframes_definition, emit_view_transition_definition, is_definition_kind,
 };
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, VIEW_TRANSITION_CLASS_KEY, VIEW_TRANSITION_KEY,
@@ -166,13 +166,13 @@ impl Compiler {
         );
         symbols.extend(
             module
-                .animation_declarations
+                .keyframes_declarations
                 .iter()
                 .map(|definition| {
                     generated_symbol(
                         identifiers,
                         source,
-                        AssetKind::Animation,
+                        AssetKind::Keyframes,
                         &definition.binding,
                     )
                 })
@@ -225,9 +225,9 @@ impl Compiler {
             }
         }
         let mut definition_css = Vec::new();
-        for animation in &module.animation_declarations {
+        for animation in &module.keyframes_declarations {
             let mut contribution = CssContribution::default();
-            emit_animation_definition(
+            emit_keyframes_definition(
                 &mut contribution,
                 source,
                 identifiers,
@@ -237,7 +237,7 @@ impl Compiler {
             );
             if required_definitions.contains(&named_identity(
                 source,
-                AssetKind::Animation,
+                AssetKind::Keyframes,
                 &animation.binding,
             )) {
                 definition_css.push(contribution);
@@ -348,16 +348,16 @@ impl Compiler {
                 expressions: Vec::new(),
             });
         }
-        for animation in module.animation_declarations {
+        for animation in module.keyframes_declarations {
             result.transforms.push(SourceTransform {
                 call_span: animation.call_span,
                 replacement: if runtime_assets.contains(&named_identity(
                     source,
-                    AssetKind::Animation,
+                    AssetKind::Keyframes,
                     &animation.binding,
                 )) {
                     match identifiers
-                        .animation_name(&named_declaration(source.path(), &animation.binding))
+                        .keyframes_name(&named_declaration(source.path(), &animation.binding))
                     {
                         Ok(name) => format!(
                             "{}({})",

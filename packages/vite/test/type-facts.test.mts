@@ -30,7 +30,7 @@ void test("Vite aliases select the same asset in the host and checker", async ()
   );
   put(
     "asset.ts",
-    "import {style} from 'stillwind/react'; export const token=style.animation({from:'chosen',to:'chosen'});",
+    "import {style} from 'stillwind/react'; export const token=style.keyframes({from:'chosen',to:'chosen'});",
   );
   put(
     "entry.ts",

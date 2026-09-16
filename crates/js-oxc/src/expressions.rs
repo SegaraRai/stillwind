@@ -300,8 +300,8 @@ impl<'a> MacroExtractor<'a> {
                 if let Some(StyleInput::Class(class)) = self.collect_ref_projection(expression) {
                     return Some(class);
                 }
-                if let Some(animation) = self.animation_use(expression) {
-                    return Some(animation.into_class_expression());
+                if let Some(keyframes) = self.keyframes_use(expression) {
+                    return Some(keyframes.into_class_expression());
                 }
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidStyleInput,
@@ -522,8 +522,8 @@ impl<'a> MacroExtractor<'a> {
 fn variant_compatible(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Utilities(_)
-        | ClassExpression::AnimationUse { .. }
-        | ClassExpression::DynamicAnimationUse { .. } => true,
+        | ClassExpression::KeyframesUse { .. }
+        | ClassExpression::DynamicKeyframesUse { .. } => true,
         ClassExpression::Array(elements) => elements.iter().all(variant_compatible),
         ClassExpression::Conditional {
             consequent,

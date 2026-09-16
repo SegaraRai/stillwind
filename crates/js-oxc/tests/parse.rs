@@ -403,12 +403,12 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             CompileErrorKind::InvalidRefNameArgument,
         ),
         (
-            "const x=style.animation(...args);",
-            CompileErrorKind::InvalidAnimationDefinition,
+            "const x=style.keyframes(...args);",
+            CompileErrorKind::InvalidKeyframesDefinition,
         ),
         (
-            "const a=style.animation({from:'flex'}); const x=style(a(...args));",
-            CompileErrorKind::InvalidAnimationOptions,
+            "const a=style.keyframes({from:'flex'}); const x=style(a(...args));",
+            CompileErrorKind::InvalidKeyframesOptions,
         ),
         (
             "const x=style.viewTransition(...args);",

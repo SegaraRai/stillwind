@@ -16,7 +16,7 @@ pub enum NativeAssetKind {
     Scope,
     /// A `style.ref()` declaration.
     Ref,
-    /// A `style.animation()` declaration.
+    /// A `style.keyframes()` declaration; the host sees the kind `animation`.
     Animation,
     /// A `style.viewTransition()` declaration.
     ViewTransition,
@@ -28,7 +28,7 @@ impl From<NativeAssetKind> for AssetKind {
             NativeAssetKind::Style => Self::Style,
             NativeAssetKind::Scope => Self::Subtree,
             NativeAssetKind::Ref => Self::Ref,
-            NativeAssetKind::Animation => Self::Animation,
+            NativeAssetKind::Animation => Self::Keyframes,
             NativeAssetKind::ViewTransition => Self::ViewTransition,
         }
     }
@@ -40,7 +40,7 @@ impl From<AssetKind> for NativeAssetKind {
             AssetKind::Style => Self::Style,
             AssetKind::Subtree => Self::Scope,
             AssetKind::Ref => Self::Ref,
-            AssetKind::Animation => Self::Animation,
+            AssetKind::Keyframes => Self::Animation,
             AssetKind::ViewTransition => Self::ViewTransition,
         }
     }

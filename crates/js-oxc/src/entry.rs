@@ -134,7 +134,7 @@ pub fn parse_with_language(
         style_calls: extractor.style_calls,
         ref_definitions: extractor.ref_definitions,
         subtree_definitions: extractor.subtree_definitions,
-        animation_declarations: extractor.animation_declarations,
+        keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
         view_transition_key_applications: extractor.view_transition_key_applications,
     };

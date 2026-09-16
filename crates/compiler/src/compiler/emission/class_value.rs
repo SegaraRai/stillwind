@@ -224,14 +224,14 @@ impl CallEmitter<'_> {
                 refs,
                 projection,
             } => self.emit_dynamic_ref_projection(value, refs, projection, guard),
-            ClassExpression::AnimationUse { animation, options } => {
-                self.emit_animation_use(animation, options, guard, wrappers, fold)
+            ClassExpression::KeyframesUse { keyframes, options } => {
+                self.emit_keyframes_use(keyframes, options, guard, wrappers, fold)
             }
-            ClassExpression::DynamicAnimationUse {
+            ClassExpression::DynamicKeyframesUse {
                 value,
-                animations,
+                keyframes,
                 options,
-            } => self.emit_dynamic_animation_use(value, animations, options, guard, wrappers),
+            } => self.emit_dynamic_keyframes_use(value, keyframes, options, guard, wrappers),
         }
     }
 
@@ -279,7 +279,7 @@ pub(super) fn expression_position(expression: &ClassExpression) -> u32 {
         }
         ClassExpression::RefProjection { value, .. }
         | ClassExpression::DynamicRefProjection { value, .. }
-        | ClassExpression::DynamicAnimationUse { value, .. } => value.start.0,
-        ClassExpression::AnimationUse { animation, .. } => animation.span.start.0,
+        | ClassExpression::DynamicKeyframesUse { value, .. } => value.start.0,
+        ClassExpression::KeyframesUse { keyframes, .. } => keyframes.span.start.0,
     }
 }

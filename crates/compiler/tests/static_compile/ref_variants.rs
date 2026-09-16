@@ -211,13 +211,13 @@ const props = style(check() && `${trigger`hover`}:text-accent ${trigger`focus`}:
 }
 
 #[test]
-fn ref_wrappers_apply_to_animations_and_preserve_media_conditions() {
+fn ref_wrappers_apply_to_keyframes_and_preserve_media_conditions() {
     let source = SourceFile::new(
         FileId(1),
         "src/Motion.tsx",
         r#"import {style} from "stillwind/react";
 const trigger = style.ref();
-const enter = style.animation({ from: "opacity-0", to: "opacity-100" });
+const enter = style.keyframes({ from: "opacity-0", to: "opacity-100" });
 const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } });"#,
     )
     .unwrap();

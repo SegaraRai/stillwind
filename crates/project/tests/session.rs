@@ -424,7 +424,7 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
             SourceFile::new(
                 FileId(1),
                 "dialog.tsx",
-                "import { style } from 'stillwind/react'; export const dialog = style.animation({ to: 'opacity-0' }); const x = style(dialog('both'));",
+                "import { style } from 'stillwind/react'; export const dialog = style.keyframes({ to: 'opacity-0' }); const x = style(dialog('both'));",
             )
             .unwrap(),
         )),

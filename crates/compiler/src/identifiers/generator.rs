@@ -515,7 +515,7 @@ impl IdentifierContext {
     /// # Errors
     ///
     /// Returns the host generator's failure in release mode.
-    pub(crate) fn animation_name(
+    pub(crate) fn keyframes_name(
         &self,
         context: &DeclarationContext,
     ) -> Result<KeyframesName, CompileErrorKind> {

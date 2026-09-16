@@ -46,7 +46,7 @@ export type StillwindClassValue =
 declare const refProjection: unique symbol;
 declare const subtreeIdentity: unique symbol;
 declare const refIdentity: unique symbol;
-declare const animationIdentity: unique symbol;
+declare const keyframesIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
 declare const styleIdentity: unique symbol;
 
@@ -88,18 +88,18 @@ export type StyleRefVariant<
   readonly [refIdentity]: { readonly ref: RefId; readonly subtree: SubtreeId };
 };
 
-export type StyleAnimationUse<Id extends string = string> = {
+export type StyleKeyframesUse<Id extends string = string> = {
   readonly [refProjection]: true;
-  readonly [animationIdentity]: Id;
+  readonly [keyframesIdentity]: Id;
 };
 
-export type StyleAnimation<Id extends string = string> = {
-  (options: string): StyleAnimationUse<Id>;
-  readonly [animationIdentity]: Id;
+export type StyleKeyframes<Id extends string = string> = {
+  (options: string): StyleKeyframesUse<Id>;
+  readonly [keyframesIdentity]: Id;
 };
 
-export interface StyleAnimationDefinition {
-  readonly [frameOrVariant: string]: string | StyleAnimationDefinition;
+export interface StyleKeyframesDefinition {
+  readonly [frameOrVariant: string]: string | StyleKeyframesDefinition;
 }
 
 export type StyleViewTransitionUse<Id extends string = string> = {
@@ -128,7 +128,7 @@ export type StyleViewTransitionDefinition = {
 /** Variant wrappers compose from outermost to innermost, just like utility prefixes. */
 export type StyleVariantValue =
   | UtilityString
-  | StyleAnimationUse
+  | StyleKeyframesUse
   | false
   | null
   | undefined
@@ -162,7 +162,7 @@ export type StyleArgument =
   | StyleRef
   | StyleRefProjection
   | StyleRefVariant
-  | StyleAnimationUse
+  | StyleKeyframesUse
   | StyleViewTransition
   | StyleViewTransitionUse;
 
@@ -217,11 +217,11 @@ export type StyleMacro<Props = StyleProps> = {
     name: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, SubtreeId>;
-  animation(definition: StyleAnimationDefinition): StyleAnimation;
-  animation<const Id extends string>(
-    definition: StyleAnimationDefinition,
+  keyframes(definition: StyleKeyframesDefinition): StyleKeyframes;
+  keyframes<const Id extends string>(
+    definition: StyleKeyframesDefinition,
     identity: StillwindDeclarationIdentity<Id>,
-  ): StyleAnimation<Id>;
+  ): StyleKeyframes<Id>;
   viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition;
   viewTransition<const Id extends string>(
     definition: StyleViewTransitionDefinition,
@@ -242,8 +242,8 @@ export const style = Object.assign(
     ref(_scopeOrName?: StyleSubtree | string, _name?: string): StyleRef {
       throw new Error("stillwind/react style.ref() is a compile-time macro.");
     },
-    animation(_definition: StyleAnimationDefinition): StyleAnimation {
-      throw new Error("stillwind/react style.animation() is a compile-time macro.");
+    keyframes(_definition: StyleKeyframesDefinition): StyleKeyframes {
+      throw new Error("stillwind/react style.keyframes() is a compile-time macro.");
     },
     viewTransition(_definition: StyleViewTransitionDefinition): StyleViewTransition {
       throw new Error("stillwind/react style.viewTransition() is a compile-time macro.");

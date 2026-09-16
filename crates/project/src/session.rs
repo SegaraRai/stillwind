@@ -505,7 +505,7 @@ mod tests {
         let source = SourceFile::new(
             FileId(1),
             "motion.tsx",
-            "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'brand' }); const x = style(motion('both')); ",
+            "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'brand' }); const x = style(motion('both')); ",
         ).unwrap();
         OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(source)), None)
     }

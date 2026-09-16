@@ -243,7 +243,7 @@ module:
 ```ts
 const menu = style.scope("menu");
 const trigger = style.ref(menu, "trigger");
-const enter = style.animation({ from: "opacity-0", to: "opacity-100" });
+const enter = style.keyframes({ from: "opacity-0", to: "opacity-100" });
 const title = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 ```
 
@@ -688,7 +688,7 @@ as a compiler integration error rather than falling back to Rust propagation.
 5. Attributes and nested variant wrappers.
 6. `style.ref()` / `style.scope()` graph, selector relations, anchor positioning, and
    container queries with lint rules.
-7. String-based `style.animation()` and named view-transition assets.
+7. String-based `style.keyframes()` and named view-transition assets.
 8. `.d.ts`, CLI `check`, macro formatter, and editor/LSP integration.
 9. Vue, Svelte, and Astro frontends once their extractor contracts are proven.
 

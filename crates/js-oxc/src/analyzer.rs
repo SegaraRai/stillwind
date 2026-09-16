@@ -174,7 +174,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                         }
                         ExportedValue::Styles(value)
                         | ExportedValue::Subtrees(value)
-                        | ExportedValue::Animations(value)
+                        | ExportedValue::Keyframes(value)
                         | ExportedValue::ViewTransitions(value)
                         | ExportedValue::ViewTransitionKeys(value) => {
                             assets.extend(value.finite_candidates().into_iter().flatten().cloned());

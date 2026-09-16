@@ -74,7 +74,7 @@ animation の frame 内 utility に variant を付ける形式は引き続き拒
 条件は frame と同じ階層の variant key で記述し、その値を animation 定義 object とする。
 
 ```ts
-style.animation({
+style.keyframes({
   from: "opacity-0 translate-y-2 scale-98",
   to: "opacity-100 translate-y-0 scale-100",
   "motion-reduce:": {
@@ -271,7 +271,7 @@ style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
       文字列化前に受け渡す。無関係な global selector へ frame declaration を漏出させない。
 
 対象: design-system の variant 解決、`crates/ir/src/model.rs`、`crates/js-oxc/src/refs`、
-compiler の `style_variants.rs` / `variants.rs` / `definitions/animation.rs`、公開 TypeScript API。
+compiler の `style_variants.rs` / `variants.rs` / `definitions/keyframes.rs`、公開 TypeScript API。
 
 検証: workspace 全テスト、rustdoc（warnings を error）、host 全54テスト、Chrome の実動作を確認。
 Chrome 検証は root で `vp run @stillwind/native#build` を実行後、

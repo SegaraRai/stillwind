@@ -2,7 +2,7 @@
 
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{AnimationBody, AnimationDefinition, AnimationFrame, StyleVariant};
+use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
 use stillwind_source::{SourceFile, Span};
 
 use super::super::CssContribution;
@@ -16,17 +16,17 @@ use crate::identifiers::IdentifierContext;
 
 /// Emits default keyframes first and complete replacements in canonical variant order.
 /// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
-pub(in crate::compiler) fn emit_animation_definition(
+pub(in crate::compiler) fn emit_keyframes_definition(
     contribution: &mut CssContribution,
     source: &SourceFile,
     identifiers: &IdentifierContext,
-    animation: &AnimationDefinition,
+    keyframes: &KeyframesDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
     let mut definitions = Vec::new();
     collect_definitions(
-        &animation.body,
+        &keyframes.body,
         &mut Vec::new(),
         identifiers,
         theme,
@@ -35,10 +35,10 @@ pub(in crate::compiler) fn emit_animation_definition(
     );
     definitions.sort_by(|(left, _, _), (right, _, _)| left.compare_order(right, theme));
     let name =
-        match identifiers.animation_name(&named_declaration(source.path(), &animation.binding)) {
+        match identifiers.keyframes_name(&named_declaration(source.path(), &keyframes.binding)) {
             Ok(name) => name,
             Err(failure) => {
-                diagnostics.push(CompileError::new(failure, animation.call_span));
+                diagnostics.push(CompileError::new(failure, keyframes.call_span));
                 return;
             }
         };
@@ -65,11 +65,11 @@ pub(in crate::compiler) fn emit_animation_definition(
 type Definition<'a> = (
     StyleVariantPlan,
     Vec<Vec<OptionCondition>>,
-    &'a [AnimationFrame],
+    &'a [KeyframesFrame],
 );
 
 fn collect_definitions<'a>(
-    body: &'a AnimationBody,
+    body: &'a KeyframesBody,
     wrappers: &mut Vec<StyleVariant>,
     identifiers: &IdentifierContext,
     theme: &ThemeIndex,
@@ -85,7 +85,7 @@ fn collect_definitions<'a>(
         else {
             if let Some(variant) = wrappers.last() {
                 diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnimationVariant,
+                    CompileErrorKind::InvalidKeyframesVariant,
                     variant_span(variant),
                 ));
             }
@@ -119,7 +119,7 @@ fn variant_span(variant: &StyleVariant) -> Span {
 
 fn emit_frames(
     contribution: &mut CssContribution,
-    frames: &[AnimationFrame],
+    frames: &[KeyframesFrame],
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
 ) {
@@ -130,7 +130,7 @@ fn emit_frames(
             match resolve_utility(&utility.value.raw, theme) {
                 Some(utility) if utility.variants.is_empty() => utilities.push(utility),
                 Some(_) => diagnostics.push(CompileError::new(
-                    CompileErrorKind::AnimationFrameVariants,
+                    CompileErrorKind::KeyframesFrameVariants,
                     utility.span,
                 )),
                 None => diagnostics.push(CompileError::new(
@@ -169,7 +169,7 @@ mod tests {
         let source = SourceFile::new(
             FileId(1),
             "motion.tsx",
-            "import { style } from 'stillwind/react'; const motion = style.animation({ from: 'hover:opacity-0' });",
+            "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'hover:opacity-0' });",
         )
         .unwrap();
         let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
@@ -177,7 +177,7 @@ mod tests {
         let errors = result
             .diagnostics
             .iter()
-            .filter(|error| error.kind == CompileErrorKind::AnimationFrameVariants)
+            .filter(|error| error.kind == CompileErrorKind::KeyframesFrameVariants)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
         assert_eq!(

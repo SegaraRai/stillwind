@@ -37,8 +37,8 @@ pub struct ModuleIr {
     pub ref_definitions: Vec<RefDefinition>,
     /// In source order. Each entry is a `style.subtree()` declaration.
     pub subtree_definitions: Vec<SubtreeDefinition>,
-    /// In source order. Each entry is a `style.animation()` declaration.
-    pub animation_declarations: Vec<AnimationDefinition>,
+    /// In source order. Each entry is a `style.keyframes()` declaration.
+    pub keyframes_declarations: Vec<KeyframesDefinition>,
     /// In source order. Each entry is a `style.viewTransition()` declaration.
     pub view_transition_declarations: Vec<ViewTransitionDefinition>,
     /// In source order. Each entry is a `transition.for(key)` value built outside a call.
@@ -75,7 +75,7 @@ impl ModuleIr {
             style_calls: Vec::new(),
             ref_definitions: Vec::new(),
             subtree_definitions: Vec::new(),
-            animation_declarations: Vec::new(),
+            keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
             view_transition_key_applications: Vec::new(),
         }
@@ -167,38 +167,38 @@ pub struct SubtreeDefinition {
     pub call_span: Span,
 }
 
-/// A `style.animation()` declaration: named keyframes plus their identity.
+/// A `style.keyframes()` declaration: named keyframes plus their identity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AnimationDefinition {
+pub struct KeyframesDefinition {
     /// Local binding; its span seeds the declaration identity.
     pub binding: Spanned<String>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Default frames and complete conditional replacements.
-    pub body: AnimationBody,
+    pub body: KeyframesBody,
 }
 
 /// A complete keyframe definition with optional conditional replacements.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AnimationBody {
+pub struct KeyframesBody {
     /// Frame declarations in authored order; omitted frames are not inherited.
-    pub frames: Vec<AnimationFrame>,
+    pub frames: Vec<KeyframesFrame>,
     /// Nested conditions conjoin with their ancestors and replace the complete definition.
-    pub branches: Vec<AnimationBranch>,
+    pub branches: Vec<KeyframesBranch>,
 }
 
-/// A condition selecting a complete animation definition.
+/// A condition selecting a complete keyframes definition.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AnimationBranch {
+pub struct KeyframesBranch {
     /// Variant conditions resolved at the keyframes rule boundary.
     pub variant: StyleVariant,
     /// Complete replacement frames and further conditional replacements.
-    pub body: AnimationBody,
+    pub body: KeyframesBody,
 }
 
-/// One `"from"` / `"to"` / percentage frame of a named animation.
+/// One `"from"` / `"to"` / percentage frame of a named keyframes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct AnimationFrame {
+pub struct KeyframesFrame {
     /// Frame selector text: `from`, `to`, or a percentage list.
     pub selector: Spanned<String>,
     /// Utility list applied inside the frame, in source order.
@@ -438,20 +438,20 @@ pub enum ClassExpression {
         /// The CSS role the projected element plays in each alternative.
         projection: RefProjection,
     },
-    /// `style(animation("options"))` with a statically known animation.
-    AnimationUse {
-        /// The declared animation being used.
-        animation: AssetReference,
-        /// Literal option candidates resolved into animation declarations by the compiler.
+    /// `style(keyframes("options"))` with a statically known keyframes.
+    KeyframesUse {
+        /// The declared keyframes being used.
+        keyframes: AssetReference,
+        /// Literal option candidates resolved into keyframes declarations by the compiler.
         options: Spanned<String>,
     },
-    /// An animation use whose animation is only known at runtime.
-    DynamicAnimationUse {
-        /// The runtime animation value.
+    /// An keyframes use whose keyframes is only known at runtime.
+    DynamicKeyframesUse {
+        /// The runtime keyframes value.
         value: Span,
         /// Every statically reachable alternative, used for CSS planning.
-        animations: Vec<AssetReference>,
-        /// Literal option candidates resolved into animation declarations by the compiler.
+        keyframes: Vec<AssetReference>,
+        /// Literal option candidates resolved into keyframes declarations by the compiler.
         options: Spanned<String>,
     },
 }

@@ -76,7 +76,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 
 ## 1. lower の原則
 
-すべてのマクロ呼び出し（`style()`、`style.ref()`、`style.subtree()`、`style.animation()`、
+すべてのマクロ呼び出し（`style()`、`style.ref()`、`style.subtree()`、`style.keyframes()`、
 `style.viewTransition()`、`ref.anchor` などの射影）は、呼び出し単位で「何らかの値」へ lower される。
 置換はマクロ呼び出しのスパン単位で行われ、lower に付随して CSS が生成される。
 
@@ -104,7 +104,7 @@ const primary = { c: "s_primary_047d522c" };
 - animation / view transition も同じ形（`c` が identity 文字列）
 
 この形にすると、投影用の第 2 識別子（`_swp_<marker>_<suffix>`）とその実行時組み立て、
-宣言ヘルパ（ref / subtree / animation / view transition）の出力、prod の表引きヘルパが
+宣言ヘルパ（ref / subtree / keyframes / view transition）の出力、prod の表引きヘルパが
 すべて不要になる。
 
 既定の生成では、ref マーカーを anchor 名・container 名・`@container` 名にも流用する。
@@ -179,7 +179,7 @@ CSS 構文上どうしても外に出せない部分（custom property の `--`�
 | ref マーカー                     | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
 | subtree マーカー                 | identity のハッシュ、正規化済みラベル                                   | `s_[label_]<8hex>`        |
 | anchor / container 名            | identity のハッシュ（既定は ref マーカー生成器へ委譲）                  | ref マーカーと同一        |
-| animation 名                     | identity のハッシュ                                                     | `--sw-a-<8hex>`           |
+| keyframes 名                     | identity のハッシュ                                                     | `--sw-a-<8hex>`           |
 | view transition クラス           | identity のハッシュ                                                     | `--sw-v-<8hex>`           |
 | 条件ヘルパ / ゲート / ルール分離 | 役割と CSS 断片のハッシュ、および断片だけのハッシュ                     | `--sw-if-<16hex>` ほか    |
 | view transition slot             | ガード付き use の class context のハッシュ                              | `--sw-vtc-<16hex>`        |
@@ -254,7 +254,7 @@ NUL は置換する。置換と正規化は生の名前に対して 1 回だけ�
 | A クラストークン         | class 属性とクラスセレクタ                                   | ユーティリティクラス、ref / subtree マーカー、射影クラス    | 同じクラスリストに照合され、規則が融合する             |
 | B anchor 名              | `anchor-name` / `position-anchor` / `anchor-scope`           | ref マーカー（流用時）、anchor 名                           | 解決先が曖昧になり、別の要素を anchor として参照し得る |
 | C container 名           | `container-name` / `@container` 名                           | ref マーカー（流用時）、container 名                        | 別の宣言の `@container` 規則が同じ名前の容器に一致する |
-| D keyframes 名           | `@keyframes` 名と `animation-name`                           | animation 名                                                | 別の宣言の keyframes を参照する                        |
+| D keyframes 名           | `@keyframes` 名と `animation-name`                           | keyframes 名                                                | 別の宣言の keyframes を参照する                        |
 | E view transition 名     | `view-transition-name`                                       | 生成しない（token と key から成る pairing key。共有が正当） | 検査しない。同じ名前の遷移が文書内で組になる           |
 | F view transition クラス | `view-transition-class`                                      | view transition クラス（identity そのもの）                 | 別の宣言の擬似要素規則が同じ遷移群に適用される         |
 | G custom property 名     | `--*`（宣言、`var()`、`@property` 登録、ビルトインの固定名） | 条件ヘルパ、Tailwind 互換の `--tw-*`                        | 登録内容や参照先が混ざる                               |

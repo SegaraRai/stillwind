@@ -232,7 +232,7 @@ docコメントと往復テストで検証済みなので、表現だけを現�
 
 [compiler/pipeline.rs](../crates/compiler/src/compiler/pipeline.rs)はanimation/view-transition宣言からCSSを生成した後でruntime利用に応じた置換を決める。
 
-`const unused = style.animation({from:'x'}); export const value = 1;`では、`unused`が`undefined`へ変換され、classesも空だが、`@keyframes --sw-a-2242a443{from{opacity:0;}}`が出力された。
+`const unused = style.keyframes({from:'x'}); export const value = 1;`では、`unused`が`undefined`へ変換され、classesも空だが、`@keyframes --sw-a-2242a443{from{opacity:0;}}`が出力された。
 
 改善案: CSS生成前に到達可能なasset集合を計算し、公開・外部参照可能なassetをrootに含める。未使用ローカルassetだけを除去し、別moduleからの参照を壊さないようproject単位の所有権と整合させる。view-transitionにも同様の経路があるが、このCLI観測はanimationについてのもの。
 

@@ -238,10 +238,10 @@ fn mixed_variant_forms_override_in_source_order_even_on_one_line() {
 #[test]
 fn motion_css_is_retained_for_uses_and_exports_only() {
     for (code, expected) in [
-        ("const a = style.animation({from:'x'});", false),
-        ("export const a = style.animation({from:'x'});", true),
+        ("const a = style.keyframes({from:'x'});", false),
+        ("export const a = style.keyframes({from:'x'});", true),
         (
-            "const a = style.animation({from:'x'}); const x = style(a(''));",
+            "const a = style.keyframes({from:'x'}); const x = style(a(''));",
             true,
         ),
     ] {
@@ -394,11 +394,11 @@ fn escaped_utility_diagnostics_keep_the_literal_provenance() {
 fn external_motion_identity_does_not_become_a_local_source_span() {
     let source = SourceFile::new(FileId(1), "consumer.tsx", "import { style } from 'stillwind/react'; import { motion } from './producer'; const x = style(motion(''));").unwrap();
     let start = u32::try_from(source.text().rfind("motion(").unwrap()).unwrap();
-    let identity = IdentityId::new(AssetKind::Animation, "producer.tsx", 4000, 4006, "motion");
+    let identity = IdentityId::new(AssetKind::Keyframes, "producer.tsx", 4000, 4006, "motion");
     let facts = [TypeFact {
         start,
         end: start + 6,
-        value: ExportedValue::Animations(SymbolicValue::exact(identity.clone())),
+        value: ExportedValue::Keyframes(SymbolicValue::exact(identity.clone())),
     }];
     let parsed = parse_with_type_facts(&source, &facts, &BTreeMap::new());
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
@@ -409,60 +409,60 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
             Ok::<_, SourceError>(span)
         })
         .unwrap();
-    let StyleInput::Class(ClassExpression::AnimationUse { animation, .. }) =
+    let StyleInput::Class(ClassExpression::KeyframesUse { keyframes, .. }) =
         &mapped.style_calls[0].inputs[0]
     else {
-        panic!("expected static animation");
+        panic!("expected static keyframes");
     };
-    assert_eq!(animation.identity, identity);
-    assert_eq!(source.slice(animation.span).unwrap(), "motion");
-    assert!(animation.local_declaration.is_none());
+    assert_eq!(keyframes.identity, identity);
+    assert_eq!(source.slice(keyframes.span).unwrap(), "motion");
+    assert!(keyframes.local_declaration.is_none());
 }
 
 #[test]
 fn local_motion_declaration_identity_follows_projection() {
-    let source = SourceFile::new(FileId(1), "local.tsx", "import { style } from 'stillwind/react'; const a=style.animation({from:'x'}); const x=style(a(''));").unwrap();
+    let source = SourceFile::new(FileId(1), "local.tsx", "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const x=style(a(''));").unwrap();
     let parsed = parse(&source);
     let mapped = parsed
         .module
         .try_map_spans(|span| Ok::<_, ()>(Span::new(span.file, span.start.0 + 20, span.end.0 + 20)))
         .unwrap();
-    let StyleInput::Class(ClassExpression::AnimationUse { animation, .. }) =
+    let StyleInput::Class(ClassExpression::KeyframesUse { keyframes, .. }) =
         &mapped.style_calls[0].inputs[0]
     else {
-        panic!("expected animation");
+        panic!("expected keyframes");
     };
     assert_eq!(
-        animation.identity.start,
-        mapped.animation_declarations[0].binding.span.start.0
+        keyframes.identity.start,
+        mapped.keyframes_declarations[0].binding.span.start.0
     );
     assert_eq!(
-        animation.identity.end,
-        mapped.animation_declarations[0].binding.span.end.0
+        keyframes.identity.end,
+        mapped.keyframes_declarations[0].binding.span.end.0
     );
     assert_eq!(
-        animation.local_declaration,
-        Some(mapped.animation_declarations[0].binding.span)
+        keyframes.local_declaration,
+        Some(mapped.keyframes_declarations[0].binding.span)
     );
 }
 
 #[test]
 fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
-    let source = SourceFile::new(FileId(1), "dynamic.tsx", "import { style } from 'stillwind/react'; const a=style.animation({from:'x'}); const b=style.animation({to:'x'}); const selected=flag?a:b; const x=style(selected(''));").unwrap();
+    let source = SourceFile::new(FileId(1), "dynamic.tsx", "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const b=style.keyframes({to:'x'}); const selected=flag?a:b; const x=style(selected(''));").unwrap();
     let scan = OxcSourceAnalyzer.scan(std::sync::Arc::new(source.clone()));
     let candidates = scan
         .summary
         .assets
         .iter()
-        .filter(|a| a.identity.kind == AssetKind::Animation)
+        .filter(|a| a.identity.kind == AssetKind::Keyframes)
         .map(|a| a.identity.clone())
         .collect::<Vec<_>>();
     let start = u32::try_from(source.text().rfind("selected(").unwrap()).unwrap();
     let facts = [TypeFact {
         start,
         end: start + 8,
-        value: ExportedValue::Animations(
-            SymbolicValue::finite(AssetKind::Animation, candidates).unwrap(),
+        value: ExportedValue::Keyframes(
+            SymbolicValue::finite(AssetKind::Keyframes, candidates).unwrap(),
         ),
     }];
     let theme = SourceFile::new(
@@ -546,16 +546,16 @@ fn explicit_registration_dependencies_survive_apply_and_do_not_leak_into_css() {
 #[test]
 fn local_animation_definitions_follow_the_explicit_keyframes_slot() {
     let (_, result) = compile(
-        "const animation=style.animation({from:'fade',to:'visible'});const x=style(animation(''));",
+        "const keyframes=style.keyframes({from:'fade',to:'visible'});const x=style(keyframes(''));",
         r"
         @utility fade { opacity:0; }
         @utility visible { opacity:1; }
-        @layer animations { @stillwind-slot keyframes; }
+        @layer keyframes { @stillwind-slot keyframes; }
     ",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(
-        result.css.contains("@layer animations{@keyframes"),
+        result.css.contains("@layer keyframes{@keyframes"),
         "{}",
         result.css
     );
@@ -571,8 +571,8 @@ fn motion_definitions_transport_explicit_property_dependencies_without_directive
         @utility consumer { @stillwind-require-properties --dependency; opacity:0; }
     "#;
     for (kind, definition) in [
-        ("animation", "{from:'consumer'}"),
-        ("animation", "{'[@media_print]:': {from:'consumer'}}"),
+        ("keyframes", "{from:'consumer'}"),
+        ("keyframes", "{'[@media_print]:': {from:'consumer'}}"),
         ("viewTransition", "{old:'consumer'}"),
     ] {
         let (_, result) = compile(

@@ -16,7 +16,7 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AnimationBody, AnimationDefinition, AssetReference, ClassExpression, GroupEntry, ModuleIr,
+    AssetReference, ClassExpression, GroupEntry, KeyframesBody, KeyframesDefinition, ModuleIr,
     RefDefinition, RefProjection, StyleGuard, StyleInput, StyleVariant, SubtreeDefinition,
     ViewTransitionKey, ViewTransitionName,
 };
@@ -61,7 +61,7 @@ impl ModuleIr {
         for scope in &mut result.subtree_definitions {
             map_subtree(scope, &mut map)?;
         }
-        for animation in &mut result.animation_declarations {
+        for animation in &mut result.keyframes_declarations {
             map_animation(animation, &mut map)?;
         }
         for transition in &mut result.view_transition_declarations {
@@ -118,16 +118,16 @@ fn map_ref<E>(
 }
 
 fn map_animation<E>(
-    animation: &mut AnimationDefinition,
+    animation: &mut KeyframesDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     map_value(&mut animation.binding, map)?;
     animation.call_span = map(animation.call_span)?;
-    map_animation_body(&mut animation.body, map)
+    map_keyframes_body(&mut animation.body, map)
 }
 
-fn map_animation_body<E>(
-    body: &mut AnimationBody,
+fn map_keyframes_body<E>(
+    body: &mut KeyframesBody,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     for frame in &mut body.frames {
@@ -136,7 +136,7 @@ fn map_animation_body<E>(
     }
     for branch in &mut body.branches {
         map_variant(&mut branch.variant, map)?;
-        map_animation_body(&mut branch.body, map)?;
+        map_keyframes_body(&mut branch.body, map)?;
     }
     Ok(())
 }
@@ -326,17 +326,17 @@ fn map_class_expression<E>(
             }
             map_projection(projection, map)?;
         }
-        ClassExpression::AnimationUse { animation, options } => {
-            map_asset(animation, map)?;
+        ClassExpression::KeyframesUse { keyframes, options } => {
+            map_asset(keyframes, map)?;
             map_value(options, map)?;
         }
-        ClassExpression::DynamicAnimationUse {
+        ClassExpression::DynamicKeyframesUse {
             value,
-            animations,
+            keyframes,
             options,
         } => {
             *value = map(*value)?;
-            for animation in animations {
+            for animation in keyframes {
                 map_asset(animation, map)?;
             }
             map_value(options, map)?;

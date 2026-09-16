@@ -48,8 +48,8 @@ const props = style({ "--progress": value });
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `style.subtree(name?)`                            | 名前は省略または任意の文字列リテラル。空白は `_` にし、CSS 出力時に記号を escape                                                                                                   |
 | `style.ref(subtree?, name?)`                      | subtree は静的に一つの identity に特定できること。名前は subtree と同じ制約                                                                                                        |
-| `style.animation(definition)`                     | 静的 object。frame は utility 文字列、variant key は完全置換の定義 object                                                                                                          |
-| `animation(options)`                              | options は文字列リテラル。receiver は有限の animation 候補                                                                                                                         |
+| `style.keyframes(definition)`                     | 静的 object。frame は utility 文字列、variant key は完全置換の定義 object                                                                                                          |
+| \x60keyframes(options)\x60                        | options は文字列リテラル。receiver は有限の animation 候補                                                                                                                         |
 | `style.viewTransition(definition)`                | 静的 object。`group` は animation option、`old` / `new` / `imagePair` は utility 文字列リテラル。条件 variant は 4 bucket とも media / supports のみ可。値は `{v:"<class token>"}` |
 | `transition.for(key?)`                            | receiver は有限の transition 候補。リテラル key はコンパイル時に畳み込み、式は実行時。名前は `serializeIdentifier(token + "-" + String(key))`                                      |
 | `transition.for(key)`                             | transition は有限候補、key は純粋な `string` / `number` の値式                                                                                                                     |
@@ -99,7 +99,7 @@ API は `packages/core/src/index.ts`、検証は `crates/js-oxc/src/contract.rs`
 ## Animation の条件分岐
 
 ```ts
-style.animation({
+style.keyframes({
   from: "opacity-0",
   to: "opacity-100",
   "motion-reduce:": { to: "opacity-100" },

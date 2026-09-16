@@ -129,7 +129,7 @@ impl ModuleSummary {
                 }
                 ExportedValue::Styles(value)
                 | ExportedValue::Subtrees(value)
-                | ExportedValue::Animations(value)
+                | ExportedValue::Keyframes(value)
                 | ExportedValue::ViewTransitions(value)
                 | ExportedValue::ViewTransitionKeys(value) => {
                     if let Candidates::Finite(candidates) = &value.candidates {
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn exported_universe_retains_owned_assets_of_its_kind() {
         let mut summary = ModuleSummary::new("x");
-        let animation = IdentityId::new(AssetKind::Animation, "x", 0, 1, "a");
+        let animation = IdentityId::new(AssetKind::Keyframes, "x", 0, 1, "a");
         summary.assets.push(AssetRecord {
             identity: animation.clone(),
             metadata: AssetMetadata { label: None },
@@ -168,7 +168,7 @@ mod tests {
         });
         summary.exports.insert(
             "chosen".into(),
-            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Animation)),
+            ExportedValue::Keyframes(SymbolicValue::universe(AssetKind::Keyframes)),
         );
         assert_eq!(
             summary.export_reachable_identities(),

@@ -22,11 +22,11 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
     [barrel, "export {token} from '@chosen';"],
     [
       token,
-      "import {style} from 'stillwind/react'; export const token=style.animation({from:'red',to:'red'});",
+      "import {style} from 'stillwind/react'; export const token=style.keyframes({from:'red',to:'red'});",
     ],
     [
       changedToken,
-      "import {style} from 'stillwind/react'; export const token=style.animation({from:'blue',to:'blue'});",
+      "import {style} from 'stillwind/react'; export const token=style.keyframes({from:'blue',to:'blue'});",
     ],
   ]);
   const loader = new NativeDesignSystemLoader();

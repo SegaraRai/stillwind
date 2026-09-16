@@ -315,7 +315,7 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 - 実装箇所は `crates/compiler/src/compiler/definitions/view_transition.rs` の
   `emit_view_transition_definition` と `crates/compiler/src/compiler/animation_options.rs` の
   `resolve_options`（option ごとに条件と宣言を分け、bucket 側と同じ wrapper を組む）。
-  `animation(options)` は条件を受け付けないため、variant を持つ option は従来どおり
+  \x60keyframes(options)\x60 は条件を受け付けないため、variant を持つ option は従来どおり
   `UnknownAnimationOption` のままとする。
 
 ## 4. 実装計画

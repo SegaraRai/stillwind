@@ -1,4 +1,4 @@
-//! Complete animation branch replacement and detached CSS conditions.
+//! Complete keyframes branch replacement and detached CSS conditions.
 
 use stillwind_compiler::{CompileResult, Compiler};
 use stillwind_diagnostics::CompileErrorKind;
@@ -7,7 +7,7 @@ use stillwind_source::{FileId, SourceFile};
 
 fn compile(body: &str) -> CompileResult {
     let source = SourceFile::new(FileId(1), "entry.tsx", format!(
-        "import {{style}} from 'stillwind/react'; const fade = style.animation({{{body}}}); export const x = style(fade(''));"
+        "import {{style}} from 'stillwind/react'; const fade = style.keyframes({{{body}}}); export const x = style(fade(''));"
     )).unwrap();
     let css = SourceFile::new(FileId(2), "theme.css", "@utility a {opacity:0;} @utility b {opacity:1;} @utility c {opacity:.5;} @variant motion-reduce {@media (prefers-reduced-motion:reduce) {@slot;}} @variant hover {&:hover {@slot;}} @stillwind-slot utilities; @stillwind-slot keyframes;").unwrap();
     Compiler::compile_source(&OxcSourceAnalyzer, &source, &css)
@@ -61,7 +61,7 @@ fn invalid_keyframe_contexts_fail_without_partial_output() {
             result
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == CompileErrorKind::InvalidAnimationVariant),
+                .any(|error| error.kind == CompileErrorKind::InvalidKeyframesVariant),
             "{key}: {result:#?}"
         );
         assert!(result.css.is_empty());
@@ -71,6 +71,6 @@ fn invalid_keyframe_contexts_fail_without_partial_output() {
         result
             .diagnostics
             .iter()
-            .any(|error| error.kind == CompileErrorKind::AnimationFrameVariants)
+            .any(|error| error.kind == CompileErrorKind::KeyframesFrameVariants)
     );
 }

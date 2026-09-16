@@ -276,8 +276,8 @@ impl StyleVariantPlan {
         }
     }
 
-    /// Applies the plan to an animation use, which has no candidate text to re-parse.
-    pub fn apply_animation(&self, utility: &mut CompiledUtility) {
+    /// Applies the plan to an keyframes use, which has no candidate text to re-parse.
+    pub fn apply_keyframes(&self, utility: &mut CompiledUtility) {
         utility.variants.clone_from(&self.variants);
         if self.has_refs {
             utility.variant_applications.clone_from(&self.paths);

@@ -1,6 +1,6 @@
 //! Animation and view-transition compilation.
 //!
-//! Pins keyframe emission for local `@utility` frames, selector-scoped animation uses, keyed view
+//! Pins keyframe emission for local `@utility` frames, selector-scoped keyframes uses, keyed view
 //! transitions, the independent `--sw-` and `--tw-` prefix configuration, and the rejection of a
 //! second view transition in one call.
 
@@ -17,8 +17,8 @@ fn compiles_local_utility_animations_and_selector_uses() {
         FileId(1),
         "src/Dialog.tsx",
         r#"import { style } from "stillwind/react";
-const enter = style.animation({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
-const exit = style.animation({ from: "opacity-100", to: "opacity-0 scale-98" });
+const enter = style.keyframes({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
+const exit = style.keyframes({ from: "opacity-100", to: "opacity-0 scale-98" });
 const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[&[data-state=closed]]:": exit("duration-120 ease-standard both") });"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
@@ -46,7 +46,7 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
             .contains("[data-state=closed]{animation-name:--sw-a-")
     );
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(!transformed.contains("style.animation"));
+    assert!(!transformed.contains("style.keyframes"));
     assert!(transformed.contains("const enter = undefined;"));
 }
 
