@@ -42,21 +42,23 @@ impl ViewTransitionClassUnit {
         self.classes.is_empty() && self.slot.is_none() && self.names.is_empty()
     }
 
-    /// Records one use's tokens and static names.
-    fn attach(&mut self, tokens: &[String], names: &[String]) {
-        for token in tokens {
-            let token = escaped_identifier(token);
-            if !self.classes.contains(&token) {
-                self.classes.push(token);
-            }
+    /// Records one unconditional use's class token and static name.
+    fn attach(&mut self, token: &str, name: Option<&str>) {
+        let token = escaped_identifier(token);
+        if !self.classes.contains(&token) {
+            self.classes.push(token);
         }
-        self.names.extend(names.iter().cloned());
+        if let Some(name) = name {
+            self.names.push(name.to_owned());
+        }
     }
 
-    /// Records the slot one guarded use fills, and its static names.
-    fn attach_slot(&mut self, property: String, token: &str, names: &[String]) {
+    /// Records the slot one guarded use fills, and its static name.
+    fn attach_slot(&mut self, property: String, token: &str, name: Option<&str>) {
         self.slot = Some((property, escaped_identifier(token)));
-        self.names.extend(names.iter().cloned());
+        if let Some(name) = name {
+            self.names.push(name.to_owned());
+        }
     }
 
     /// The rules the unit owning the element class list writes.
@@ -192,10 +194,10 @@ impl<'a> ClassUnits<'a> {
     pub(super) fn fold(&mut self, contribution: LiteralContribution) {
         self.base.canonical.push_str(&contribution.canonical);
         self.base.utilities.extend(contribution.utilities);
-        self.view_transition_classes[0].attach(
-            &contribution.view_transition_tokens,
-            &contribution.view_transition_names,
-        );
+        if let Some(token) = &contribution.view_transition_token {
+            self.view_transition_classes[0]
+                .attach(token, contribution.view_transition_name.as_deref());
+        }
         self.base.names.extend(contribution.markers);
         self.base.names.extend(contribution.external);
         self.base.names.extend(contribution.plain);
@@ -216,7 +218,7 @@ impl<'a> ClassUnits<'a> {
         guard: &[GuardStep],
     ) -> Result<Emitted, CompileErrorKind> {
         let mut names = Vec::new();
-        if !contribution.utilities.is_empty() || !contribution.view_transition_tokens.is_empty() {
+        if !contribution.utilities.is_empty() || contribution.view_transition_token.is_some() {
             self.class_index += 1;
             let branch = format!("{}:{}", self.class_index, contribution.canonical);
             let canonical =
@@ -232,15 +234,18 @@ impl<'a> ClassUnits<'a> {
             self.class_selectors.push(format!(".{name}"));
             let mut unit = ViewTransitionClassUnit::default();
             if guard.is_empty() {
-                unit.attach(
-                    &contribution.view_transition_tokens,
-                    &contribution.view_transition_names,
-                );
-            } else if let Some(token) = contribution.view_transition_tokens.first() {
+                if let Some(token) = &contribution.view_transition_token {
+                    unit.attach(token, contribution.view_transition_name.as_deref());
+                }
+            } else if let Some(token) = &contribution.view_transition_token {
                 // A guarded use contributes its token through the slot its own class fills,
                 // so a sibling condition that also holds contributes its token as well.
                 let property = self.view_transition_slot(&branch)?;
-                unit.attach_slot(property, token, &contribution.view_transition_names);
+                unit.attach_slot(
+                    property,
+                    token,
+                    contribution.view_transition_name.as_deref(),
+                );
             }
             self.view_transition_classes.push(unit);
             let slot = self.view_transition_classes.len() - 1;
@@ -388,18 +393,18 @@ impl<'a> ClassUnits<'a> {
     /// Returns the host generator's failure for the utility class family.
     pub(super) fn view_transition_class_unit(
         &mut self,
-        tokens: &[String],
-        names: &[String],
+        token: &str,
+        name: Option<&str>,
         guard: &[GuardStep],
     ) -> Result<String, CompileErrorKind> {
         let contribution = LiteralContribution {
-            canonical: format!("view-transition:{}\u{0}", tokens.join(",")),
+            canonical: format!("view-transition:{token}\u{0}"),
             utilities: Vec::new(),
             markers: Vec::new(),
             external: Vec::new(),
             plain: Vec::new(),
-            view_transition_tokens: tokens.to_vec(),
-            view_transition_names: names.to_vec(),
+            view_transition_token: Some(token.to_owned()),
+            view_transition_name: name.map(str::to_owned),
         };
         let Emitted::Leaf { names } = self.leaf(contribution, guard)? else {
             return Ok(String::new());

@@ -24,8 +24,8 @@ use crate::CompilerOptions;
 /// [`Self::canonical`] is the text appended to the class-hash input. Keeping markers,
 /// external names, and resolved utilities in separate lists is what lets an unresolved
 /// candidate still reach the output as a class name while contributing no rule.
-/// View-transition tokens and names travel beside the utilities because they are declared
-/// once per class unit rather than per utility.
+/// A view transition contributes one class token and at most one static name, and they
+/// travel beside the utilities because a class unit declares them rather than a utility.
 #[derive(Default)]
 pub(super) struct LiteralContribution {
     /// Canonical candidate and wrapper spelling of the literal, in source order.
@@ -38,10 +38,10 @@ pub(super) struct LiteralContribution {
     pub(super) external: Vec<String>,
     /// Names with no rule of their own, such as handle markers.
     pub(super) plain: Vec<String>,
-    /// View-transition class tokens this contribution declares, in order.
-    pub(super) view_transition_tokens: Vec<String>,
-    /// Escaped view-transition names this contribution declares statically, in order.
-    pub(super) view_transition_names: Vec<String>,
+    /// View-transition class token this contribution declares, when it declares one.
+    pub(super) view_transition_token: Option<String>,
+    /// Escaped view-transition name this contribution declares statically, if any.
+    pub(super) view_transition_name: Option<String>,
 }
 
 impl LiteralContribution {

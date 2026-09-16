@@ -247,7 +247,7 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     }
                 };
-                let names = static_view_transition_names(name, &token);
+                let static_name = static_view_transition_name(name, &token);
                 if guard.is_empty() {
                     self.units.fold(LiteralContribution {
                         canonical: format!("view-transition:{token}\u{0}"),
@@ -255,14 +255,14 @@ impl<'a> CallEmitter<'a> {
                         markers: Vec::new(),
                         external: Vec::new(),
                         plain: Vec::new(),
-                        view_transition_tokens: vec![token.clone()],
-                        view_transition_names: names,
+                        view_transition_token: Some(token.clone()),
+                        view_transition_name: static_name,
                     });
                 } else {
                     let steps = guard_steps(guard);
                     let class = match self.units.view_transition_class_unit(
-                        std::slice::from_ref(&token),
-                        &names,
+                        &token,
+                        static_name.as_deref(),
                         &steps,
                     ) {
                         Ok(class) => class,
@@ -300,10 +300,10 @@ impl<'a> CallEmitter<'a> {
                             return None;
                         }
                     };
-                    let names = static_view_transition_names(name, &token);
+                    let static_name = static_view_transition_name(name, &token);
                     let class = match self.units.view_transition_class_unit(
-                        std::slice::from_ref(&token),
-                        &names,
+                        &token,
+                        static_name.as_deref(),
                         &steps,
                     ) {
                         Ok(class) => class,
@@ -638,8 +638,8 @@ impl<'a> CallEmitter<'a> {
                     markers: Vec::new(),
                     external: Vec::new(),
                     plain: Vec::new(),
-                    view_transition_tokens: Vec::new(),
-                    view_transition_names: Vec::new(),
+                    view_transition_token: None,
+                    view_transition_name: None,
                 };
                 // The projection is read through the declaration's canonical token, so
                 // the element keeps its marker class and the caller needs no helper.
@@ -723,8 +723,8 @@ impl<'a> CallEmitter<'a> {
                         markers: Vec::new(),
                         external: Vec::new(),
                         plain: Vec::new(),
-                        view_transition_tokens: Vec::new(),
-                        view_transition_names: Vec::new(),
+                        view_transition_token: None,
+                        view_transition_name: None,
                     };
                     let class = match self.units.leaf(contribution, guard) {
                         Ok(class) => class,
@@ -773,8 +773,8 @@ impl<'a> CallEmitter<'a> {
                     markers: Vec::new(),
                     external: Vec::new(),
                     plain: Vec::new(),
-                    view_transition_tokens: Vec::new(),
-                    view_transition_names: Vec::new(),
+                    view_transition_token: None,
+                    view_transition_name: None,
                 };
                 if fold && guard.is_empty() {
                     self.units.fold(contribution);
@@ -835,8 +835,8 @@ impl<'a> CallEmitter<'a> {
                         markers: Vec::new(),
                         external: Vec::new(),
                         plain: Vec::new(),
-                        view_transition_tokens: Vec::new(),
-                        view_transition_names: Vec::new(),
+                        view_transition_token: None,
+                        view_transition_name: None,
                     };
                     let class = match self.units.leaf(contribution, guard) {
                         Ok(class) => class,
@@ -1059,10 +1059,7 @@ pub(super) struct CallEmitterInputs<'a> {
     pub motion_assets: &'a mut BTreeSet<IdentityId>,
 }
 
-/// The static names one view-transition use declares for `token`.
-///
-/// A literal key is folded here; an expression key and a key carried by the value are
-/// written as a style property instead.
+/// The guards one view-transition use carries, in the shape class units record.
 fn guard_steps(guard: &[StyleGuard]) -> Vec<GuardStep> {
     guard
         .iter()
@@ -1073,15 +1070,18 @@ fn guard_steps(guard: &[StyleGuard]) -> Vec<GuardStep> {
         .collect()
 }
 
-/// The static names one view-transition use declares for a class token.
-fn static_view_transition_names(name: &ViewTransitionName, token: &str) -> Vec<String> {
+/// The static name one view-transition use declares for a class token, if it declares one.
+///
+/// A literal key is folded here; an expression key and a key carried by the value are
+/// written as a style property instead.
+fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option<String> {
     match name {
         ViewTransitionName::Key(ViewTransitionKey::Literal(key)) => {
-            vec![view_transition_name(token, key)]
+            Some(view_transition_name(token, key))
         }
         ViewTransitionName::None
         | ViewTransitionName::Key(ViewTransitionKey::Dynamic(_))
-        | ViewTransitionName::Value => Vec::new(),
+        | ViewTransitionName::Value => None,
     }
 }
 
