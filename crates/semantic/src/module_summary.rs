@@ -11,14 +11,15 @@
 //! [`ModuleSummary::schema`] field versions this payload for hosts; adding fields is a
 //! schema change.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::normalized_module_path;
 
 use super::assets::AssetRecord;
-use super::symbolic::ExportedValue;
+use super::identity::IdentityId;
+use super::symbolic::{Candidates, ExportedValue};
 
 /// One name bound by an `import` declaration.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -106,5 +107,72 @@ impl ModuleSummary {
             probe_imports: Vec::new(),
             export_imports: BTreeMap::new(),
         }
+    }
+
+    /// Every asset identity the module's exports can reach.
+    ///
+    /// Finite candidates are exact roots. An exported universe conservatively retains all
+    /// owned declarations of that kind, because the exporter cannot prove them unreachable.
+    pub fn export_reachable_identities(&self) -> BTreeSet<IdentityId> {
+        let mut identities = BTreeSet::new();
+        for value in self.exports.values() {
+            match value {
+                ExportedValue::Refs(alternatives) => {
+                    for alternative in alternatives {
+                        identities.insert(alternative.reference.clone());
+                        if let Some(scopes) = &alternative.permitted_scopes
+                            && let Candidates::Finite(scopes) = &scopes.candidates
+                        {
+                            identities.extend(scopes.iter().cloned());
+                        }
+                    }
+                }
+                ExportedValue::Styles(value)
+                | ExportedValue::Scopes(value)
+                | ExportedValue::Animations(value)
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::ViewTransitionKeys(value) => {
+                    if let Candidates::Finite(candidates) = &value.candidates {
+                        identities.extend(candidates.iter().cloned());
+                    } else {
+                        identities.extend(
+                            self.assets
+                                .iter()
+                                .filter(|asset| asset.identity.kind == value.kind)
+                                .map(|asset| asset.identity.clone()),
+                        );
+                    }
+                }
+            }
+        }
+        identities
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::assets::{AssetMetadata, AssetRecord};
+    use crate::identity::{AssetKind, IdentityId};
+    use crate::symbolic::SymbolicValue;
+
+    #[test]
+    fn exported_universe_retains_owned_assets_of_its_kind() {
+        let mut summary = ModuleSummary::new("x");
+        let animation = IdentityId::new(AssetKind::Animation, "x", 0, 1, "a");
+        summary.assets.push(AssetRecord {
+            identity: animation.clone(),
+            metadata: AssetMetadata { label: None },
+            call_start: 2,
+            call_end: 8,
+        });
+        summary.exports.insert(
+            "chosen".into(),
+            ExportedValue::Animations(SymbolicValue::universe(AssetKind::Animation)),
+        );
+        assert_eq!(
+            summary.export_reachable_identities(),
+            BTreeSet::from([animation])
+        );
     }
 }
