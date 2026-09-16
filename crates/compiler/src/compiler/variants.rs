@@ -214,7 +214,15 @@ pub(super) fn condition_paths(
     theme: &ThemeIndex,
 ) -> Option<Vec<Vec<OptionCondition>>> {
     let applications = condition_applications(variants, theme)?;
-    variant_paths(&applications)
+    application_condition_paths(&applications)
+}
+
+/// The condition paths one already-resolved application list produces, or `None` when a step
+/// cannot wrap a rule.
+pub(super) fn application_condition_paths(
+    applications: &[VariantApplication],
+) -> Option<Vec<Vec<OptionCondition>>> {
+    variant_paths(applications)
         .iter()
         .map(|path| path.iter().map(OptionCondition::from_step).collect())
         .collect()
