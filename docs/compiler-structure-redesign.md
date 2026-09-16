@@ -45,7 +45,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 | `{ "aria-*" / "data-*": value }`                                 | `GroupEntry::Attribute(AttributeEntry)`                                                                       |
 | `{ "--x": value }`                                               | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                             |
 | `style(scope)` / `style(ref)`                                    | `StyleInput::ScopeAttachment` / `RefAttachment`（動的版は `DynamicScopeAttachment` / `DynamicRefAttachment`） |
-| `ref.anchor` / `.position` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, projection: RefProjection }`                                    |
+| `ref.anchor` / `.position` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                             |
 | `ref()` / `ref("variant:")` / ref タグ                           | `StyleVariant::Ref { refs, prefix }`                                                                          |
 | `ref.at(query)` / ref.at タグ                                    | `StyleVariant::Container { refs, query }`                                                                     |
 | `style.scope(name?)`                                             | `ScopeDefinition { binding, label, … }`（label が書かれた文字列）                                             |

@@ -216,8 +216,9 @@ impl CallEmitter<'_> {
             }
             ClassExpression::RefProjection {
                 definition,
+                value,
                 projection,
-            } => self.emit_ref_projection(definition, projection, guard),
+            } => self.emit_ref_projection(definition, value, projection, guard),
             ClassExpression::DynamicRefProjection {
                 value,
                 refs,
@@ -276,9 +277,9 @@ pub(super) fn expression_position(expression: &ClassExpression) -> u32 {
         ClassExpression::Group { span, .. } | ClassExpression::ClassValue { span, .. } => {
             span.start.0
         }
-        ClassExpression::RefProjection { definition, .. } => definition.call_span.start.0,
-        ClassExpression::AnimationUse { animation, .. } => animation.span.start.0,
-        ClassExpression::DynamicRefProjection { value, .. }
+        ClassExpression::RefProjection { value, .. }
+        | ClassExpression::DynamicRefProjection { value, .. }
         | ClassExpression::DynamicAnimationUse { value, .. } => value.start.0,
+        ClassExpression::AnimationUse { animation, .. } => animation.span.start.0,
     }
 }

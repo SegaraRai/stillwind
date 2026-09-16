@@ -421,6 +421,11 @@ pub enum ClassExpression {
     RefProjection {
         /// The ref this projection applies to.
         definition: RefDefinition,
+        /// The receiver expression the use site wrote, in the original source.
+        ///
+        /// Generated code reads the declaration token off this expression, so an alias or a
+        /// member receiver names the same declaration.
+        value: Span,
         /// The CSS role the referenced element plays for this call.
         projection: RefProjection,
     },

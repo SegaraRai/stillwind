@@ -308,9 +308,11 @@ fn map_class_expression<E>(
         }
         ClassExpression::RefProjection {
             definition,
+            value,
             projection,
         } => {
             map_ref(definition, map)?;
+            *value = map(*value)?;
             map_projection(projection, map)?;
         }
         ClassExpression::DynamicRefProjection {

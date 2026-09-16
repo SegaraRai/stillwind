@@ -22,10 +22,12 @@ impl CallEmitter<'_> {
     /// Lowers one static ref projection onto the element the projection is written on.
     ///
     /// The declaration keeps its runtime value: the emitted lookup reads the canonical token
-    /// off it, so the projection needs no runtime helper of its own.
+    /// off the receiver expression the use site wrote, so the projection needs no runtime
+    /// helper of its own and an alias or member receiver names the same declaration.
     pub(super) fn emit_ref_projection(
         &mut self,
         definition: &RefDefinition,
+        value: &Span,
         projection: &RefProjection,
         guard: &[GuardStep],
     ) -> Option<Emitted> {
@@ -82,8 +84,8 @@ impl CallEmitter<'_> {
             view_transition_token: None,
             view_transition_name: None,
         };
-        // The projection is read through the declaration's canonical token, so
-        // the element keeps its marker class and the caller needs no helper.
+        // The projection is read through the token the receiver carries, so the element
+        // keeps its marker class and the caller needs no helper.
         let class = match self.units.leaf(contribution, guard) {
             Ok(leaf) => leaf,
             Err(failure) => {
@@ -101,7 +103,7 @@ impl CallEmitter<'_> {
             js_string(&names.join(" "))
         );
         Some(Emitted::Expression(ValueExpr::Lookup {
-            value: Box::new(ValueExpr::Source(definition.binding.value.clone().into())),
+            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
             key: "c".to_owned(),
             table: format!("{{{entry}}}").into(),
         }))

@@ -112,6 +112,7 @@ impl<'a> MacroExtractor<'a> {
         if refs.len() == 1 {
             Some(StyleInput::Class(ClassExpression::RefProjection {
                 definition: refs[0].clone(),
+                value: self.source_span(ref_expression.span()),
                 projection,
             }))
         } else {
