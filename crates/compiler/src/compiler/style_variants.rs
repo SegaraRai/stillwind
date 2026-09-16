@@ -152,7 +152,9 @@ impl StyleVariantPlan {
             return None;
         }
         let mut alternatives = Vec::new();
-        let mut identities = Vec::new();
+        // The canonical spelling is hashed, so the pair keeps tokens as text: a branded
+        // name would otherwise contribute its type name to the hash.
+        let mut identities: Vec<(String, Option<String>)> = Vec::new();
         for handle in handles {
             let marker = match ref_marker_name(context, handle) {
                 Ok(marker) => marker,
@@ -171,7 +173,7 @@ impl StyleVariantPlan {
                 },
                 None => None,
             };
-            identities.push((marker.clone(), scope.clone()));
+            identities.push((marker.as_str().to_owned(), scope.clone()));
             for path in &paths {
                 alternatives.push(reference_path(&marker, scope.as_deref(), path));
             }
