@@ -291,7 +291,7 @@ impl ConditionHelperRequest {
     ///
     /// The text is hashed as it stands: a helper is a helper for exactly this CSS, so its identity
     /// is the text itself rather than a spelling the compiler invented.
-    fn text_hash(&self) -> IdentifierHash {
+    pub(crate) fn text_hash(&self) -> IdentifierHash {
         hashed(&self.0.text)
     }
 }

@@ -237,6 +237,106 @@ fn a_class_token_no_object_holds_keeps_its_spelling() {
 }
 
 #[test]
+fn a_helper_carries_its_role_in_the_hash_and_its_text_beside_it() {
+    let helper = |role, text: &str| {
+        ConditionHelperRequest(ConditionContext {
+            role,
+            text: text.to_owned(),
+        })
+    };
+    let gate = helper(ConditionRole::GateValue, "--a:1");
+    let inverted = helper(ConditionRole::GateNot, "--a:1");
+    // The role is part of the identity, so two helpers for one text never share a memo entry.
+    assert_ne!(gate.hash(), inverted.hash());
+    // The text's own hash is the same for both, which is what lets a generator name them by the
+    // text and spell the role itself.
+    assert_eq!(gate.text_hash(), inverted.text_hash());
+    assert_ne!(
+        gate.text_hash(),
+        helper(ConditionRole::GateValue, "--a:2").text_hash()
+    );
+}
+
+#[test]
+fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
+    let request = ConditionHelperRequest(ConditionContext {
+        role: ConditionRole::Rule,
+        text: ".a{color:red}".to_owned(),
+    });
+    let name = request.builtin(&request.hash());
+    let suffix = name
+        .strip_prefix("sw-if-rule-")
+        .unwrap_or_else(|| panic!("{name}"));
+    assert_eq!(suffix.len(), 16, "{name}");
+    assert_eq!(name, request.builtin(&request.hash()), "{name}");
+    // The name carries no leading hyphens: the custom-property family's render method adds them.
+    assert_eq!(
+        CustomPropertyName::new(&name).unwrap().property(),
+        format!("--{name}"),
+        "{name}"
+    );
+}
+
+#[test]
+fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
+    let request = LayerNameRequest(LayerContext {
+        template: "entry".to_owned(),
+        namespace: String::new(),
+    });
+    let name = request.builtin(&request.hash());
+    let suffix = name
+        .strip_prefix("sw-anon-")
+        .unwrap_or_else(|| panic!("{name}"));
+    assert_eq!(suffix.len(), 16, "{name}");
+    // Two layers of one template are distinguished by the index the compiler appends, and a
+    // different namespace separates applications that share a template.
+    assert_ne!(
+        request.hash(),
+        LayerNameRequest(LayerContext {
+            template: "entry".to_owned(),
+            namespace: "other-app".to_owned(),
+        })
+        .hash()
+    );
+    assert_ne!(
+        request.hash(),
+        LayerNameRequest(LayerContext {
+            template: "other".to_owned(),
+            namespace: String::new(),
+        })
+        .hash()
+    );
+}
+
+#[test]
+fn a_generator_receives_the_whole_digest() {
+    let host = IdentifierContext::new(GeneratorSet::new(Arc::new(DigestGenerator)));
+    let name = host.class_name(&class_context("0:flex")).unwrap();
+    assert_eq!(name.as_str(), "a-full-digest");
+}
+
+/// Answers with a body that proves every digest byte arrived.
+#[derive(Debug)]
+struct DigestGenerator;
+
+impl IdentifierGenerator for DigestGenerator {
+    fn utility_class(
+        &self,
+        _context: &ClassContext,
+        hash: &IdentifierHash,
+    ) -> Result<GeneratedName<UtilityClass>, String> {
+        let name = if hash.as_bytes().len() == 32 && hash.to_hex().len() == 64 {
+            "a-full-digest"
+        } else {
+            "a-truncated-digest"
+        };
+        Ok(GeneratedName::provided(
+            UtilityClass::new(name).expect("canonical test body"),
+        ))
+    }
+}
+
+#[test]
 fn report_spellings_are_distinct_per_family() {
     let kinds = [
         IdentifierKind::UtilityClass,
