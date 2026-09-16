@@ -29,6 +29,7 @@
 )]
 
 mod analyzer;
+mod animation;
 mod ast;
 mod bindings;
 mod contract;
@@ -36,13 +37,13 @@ mod demand;
 mod entry;
 mod expressions;
 mod imports;
-mod motion;
 mod normalization;
 mod projected_scan;
 mod refs;
 mod state;
 mod style_bindings;
 mod templates;
+mod view_transition;
 mod visit;
 
 pub use analyzer::OxcSourceAnalyzer;
