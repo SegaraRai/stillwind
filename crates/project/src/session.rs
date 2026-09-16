@@ -19,6 +19,7 @@ use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
+use stillwind_source::{FileId, Span};
 
 use crate::ReservedNames;
 use crate::{DependencyIndex, ProjectStylesheet};
@@ -84,6 +85,8 @@ pub struct ProjectSession {
     identifiers: Identifiers,
     /// Names the design system's authored CSS already uses, per CSS namespace.
     reserved: ReservedNames,
+    /// Names a producer's own CSS uses, keyed by module identity.
+    authored: BTreeMap<ModuleId, ReservedNames>,
     /// Whether a failed reload invalidates output or retains the last successful revision.
     mode: SessionMode,
     /// Retained frontend analyses keyed by module identity, used for recompilation.
@@ -131,6 +134,7 @@ impl ProjectSession {
             options,
             identifiers,
             reserved,
+            authored: BTreeMap::new(),
             mode,
             analyses: BTreeMap::new(),
             artifacts: BTreeMap::new(),
@@ -155,9 +159,38 @@ impl ProjectSession {
     /// A generated name that would collide with one of these is reported, because the
     /// authored declaration or reference already owns the name in that namespace.
     /// The set covers the accepted design-system sources and the authored CSS the theme
-    /// keeps outside its definition blocks; CSS a module authors itself is not included.
+    /// keeps outside its definition blocks. CSS a producer authors itself is not part of the
+    /// design system, so the host supplies it through [`Self::reserve_authored_css`].
     pub fn reserved_names(&self) -> &ReservedNames {
         &self.reserved
+    }
+
+    /// Reserves the names one producer's own CSS uses, replacing its previous ones.
+    ///
+    /// A producer's CSS is not part of the design system, so only the host can supply its text;
+    /// the session scans it exactly like the design system's CSS. Names authored here collide with
+    /// generated ones like any other authored name.
+    ///
+    /// Returns the modules whose published artifacts now collide, each with the errors a
+    /// recompilation would report; an empty result means every published artifact is still valid.
+    pub fn reserve_authored_css(
+        &mut self,
+        module: &str,
+        css: &str,
+    ) -> BTreeMap<ModuleId, Vec<CompileError>> {
+        let mut names = ReservedNames::default();
+        names.collect(css);
+        self.authored.insert(module.into(), names);
+        self.recheck_artifacts()
+    }
+
+    /// Forgets one producer's own CSS, for example after the producer is removed.
+    ///
+    /// Returns the modules whose published artifacts now collide, like
+    /// [`Self::reserve_authored_css`] does.
+    pub fn forget_authored_css(&mut self, module: &str) -> BTreeMap<ModuleId, Vec<CompileError>> {
+        self.authored.remove(module);
+        self.recheck_artifacts()
     }
 
     /// Pins the current immutable design-system revision. Cheap to clone.
@@ -314,6 +347,7 @@ impl ProjectSession {
         };
         let old_css = self.css();
         let mut next = Self::new(snapshot, self.mode, options, self.identifiers.clone());
+        next.authored = self.authored.clone();
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
             let changed = next.update_module(analysis.clone());
@@ -356,52 +390,37 @@ impl ProjectSession {
                 )
             })
             .collect();
-        for name in &self.reserved.custom_properties {
-            names.insert(
-                (IdentifierPool::CustomProperty, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.layers {
-            names.insert((IdentifierPool::LayerName, name.as_str()), "<authored CSS>");
-        }
-        for name in &self.reserved.keyframes {
-            names.insert(
-                (IdentifierPool::KeyframesName, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.classes {
-            names.insert(
-                (IdentifierPool::ClassToken, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.anchor_names {
-            names.insert(
-                (IdentifierPool::AnchorName, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.container_names {
-            names.insert(
-                (IdentifierPool::ContainerName, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.view_transition_names {
-            names.insert(
-                (IdentifierPool::ViewTransitionName, name.as_str()),
-                "<authored CSS>",
-            );
-        }
-        for name in &self.reserved.view_transition_classes {
-            names.insert(
-                (IdentifierPool::ViewTransitionClass, name.as_str()),
-                "<authored CSS>",
-            );
+        insert_reserved(&mut names, &self.reserved);
+        for authored in self.authored.values() {
+            insert_reserved(&mut names, authored);
         }
         names
+    }
+
+    /// Checks every published artifact against the document's names, in module order.
+    fn recheck_artifacts(&self) -> BTreeMap<ModuleId, Vec<CompileError>> {
+        let mut names = self.document_names("");
+        let mut reported = BTreeMap::new();
+        for (id, artifact) in &self.artifacts {
+            let mut diagnostics = Vec::new();
+            for symbol in &artifact.symbols {
+                if let Some(collision) = insert_document_name(&mut names, symbol) {
+                    diagnostics.push(CompileError::new(collision, self.module_span(id)));
+                }
+            }
+            if !diagnostics.is_empty() {
+                reported.insert(id.clone(), diagnostics);
+            }
+        }
+        reported
+    }
+
+    /// The span one module's analysis covers, or an empty span when it is unknown.
+    fn module_span(&self, module: &ModuleId) -> Span {
+        self.analyses.get(module).map_or_else(
+            || Span::new(FileId(0), 0, 0),
+            |analysis| analysis.source.full_span(),
+        )
     }
 
     /// Reports the first collision among names a stylesheet render generated, if any.
@@ -419,6 +438,36 @@ impl ProjectSession {
             }
         }
         Ok(())
+    }
+}
+
+/// Records every name one authored stylesheet already uses.
+///
+/// An authored name owns its namespace before anything is generated, so it is recorded with an
+/// identity no generated name can have.
+fn insert_reserved<'a>(
+    names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
+    reserved: &'a ReservedNames,
+) {
+    for (pool, names_in_pool) in [
+        (IdentifierPool::CustomProperty, &reserved.custom_properties),
+        (IdentifierPool::LayerName, &reserved.layers),
+        (IdentifierPool::KeyframesName, &reserved.keyframes),
+        (IdentifierPool::ClassToken, &reserved.classes),
+        (IdentifierPool::AnchorName, &reserved.anchor_names),
+        (IdentifierPool::ContainerName, &reserved.container_names),
+        (
+            IdentifierPool::ViewTransitionName,
+            &reserved.view_transition_names,
+        ),
+        (
+            IdentifierPool::ViewTransitionClass,
+            &reserved.view_transition_classes,
+        ),
+    ] {
+        for name in names_in_pool {
+            names.insert((pool, name.as_str()), "<authored CSS>");
+        }
     }
 }
 

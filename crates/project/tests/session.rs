@@ -594,6 +594,39 @@ fn a_helper_name_is_checked_in_the_custom_property_pool() {
     );
 }
 
+#[test]
+fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
+    let mut session = ProjectSession::new(
+        snapshot("red"),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::with(Arc::new(FixedBodyGenerator)),
+    );
+    let refs = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "panel.tsx",
+                "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
+            )
+            .unwrap(),
+        )),
+        None,
+    );
+    assert!(session.update_module(refs).diagnostics.is_empty());
+    // The producer's own stylesheet names its anchor `shared`, which the generator also returned.
+    let reported = session.reserve_authored_css("panel.css", ":root{anchor-name:shared;}");
+    assert!(
+        reported.values().flatten().any(|error| matches!(
+            error.kind,
+            CompileErrorKind::GeneratedIdentifierCollision { .. }
+        )),
+        "{reported:?}"
+    );
+    // Forgetting the stylesheet gives the name back.
+    assert!(session.forget_authored_css("panel.css").is_empty());
+}
+
 /// Names every anonymous layer with one fixed body, so an authored layer can collide with it.
 #[derive(Debug)]
 struct FixedLayerGenerator;
