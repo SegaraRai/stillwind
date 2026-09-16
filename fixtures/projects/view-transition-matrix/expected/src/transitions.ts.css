@@ -18,21 +18,85 @@
 ::view-transition-image-pair(.--sw-v-5ce18560) {
   isolation: auto;
 }
-._s_98b0e44c {
+._s_2cb9eec0 {
   view-transition-class: --sw-v-7e58d129;
 }
-._s_a088be8a {
+._s_ba3304a0 {
   view-transition-class: --sw-v-7e58d129;
 }
-._s_f6cdbfb9 {
+._s_27fd0933 {
+  display: block;
+}
+._s_27fd0933 {
   view-transition-class: --sw-v-7e58d129;
 }
-._s_e84d886d {
+._s_27fd0933 {
+  view-transition-name: --sw-v-7e58d129-hero;
+}
+._s_538d6843 {
+  view-transition-class: --sw-v-7e58d129;
+}
+._s_50c920c4 {
   view-transition-class: --sw-v-5ce18560;
 }
-._s_418ebbc0 {
+._s_a66a5d83 {
   view-transition-class: --sw-v-7e58d129;
 }
-._s_eff5c445 {
+._s_913700e8 {
   view-transition-class: --sw-v-5ce18560;
+}
+._s_ff2da744 {
+  display: block;
+}
+._s_62030c47 {
+  view-transition-class: --sw-v-7e58d129;
+}
+._s_62030c47 {
+  view-transition-name: --sw-v-7e58d129-hero;
+}
+._s_24aea93b {
+  view-transition-class: --sw-v-5ce18560;
+}
+._s_24aea93b {
+  view-transition-name: --sw-v-5ce18560-hero;
+}
+._s_03bd2150 {
+  display: block;
+}
+._s_03bd2150 {
+  view-transition-class: --sw-v-7e58d129;
+}
+._s_c5134c6d {
+  display: block;
+  view-transition-name: hero;
+}
+._s_814fc071 {
+  view-transition-class: --sw-v-7e58d129;
+}
+._s_b9926253 {
+  display: block;
+}
+._s_b9926253 {
+  view-transition-class: --sw-v-7e58d129 --sw-v-5ce18560;
+}
+._s_b9926253 {
+  view-transition-name: --sw-v-7e58d129-one;
+}
+._s_b9926253 {
+  view-transition-name: --sw-v-5ce18560-two;
+}
+._s_c0c71779 {
+  display: block;
+}
+._s_c0c71779 {
+  view-transition-class: --sw-v-7e58d129;
+}
+._s_c0c71779 {
+  view-transition-name: --sw-v-7e58d129-base;
+}
+._s_ccc9d63e {
+  view-transition-class: --sw-v-7e58d129 --sw-v-5ce18560;
+}
+._s_ccc9d63e {
+  view-transition-name: --sw-v-5ce18560-guarded;
 }

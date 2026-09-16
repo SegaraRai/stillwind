@@ -23,8 +23,9 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 4. 段 3（プール）: 名前空間ごとに `名前 → identity` で衝突を検査する。anchor 名と container 名も
    シンボルとして報告される。デザインシステムの authored CSS にある custom property /
    レイヤ / keyframes 名に加え、クラスセレクタ、`anchor-name` / `position-anchor` /
-   `anchor-scope`、`container-name` と `@container` 名、`view-transition-name` /
-   `view-transition-class` の値が予約として先に登録される。予約名の走査は `cssparser` の
+   `anchor-scope`、`container-name` と `@container` 名、`view-transition-class` の値が予約として
+   先に登録される。`view-transition-name` は identity 間で共有されうる pairing key なので予約しない。
+   予約名の走査は `cssparser` の
    トークン走査である。宣言を持たない種別（条件ヘルパと匿名レイヤ）も報告に載り、
    文書単位の検査がそれらの綴りも見る。producer 自身が authored した CSS は
    `ProjectSession::reserve_authored_css` で供給され、同じ検査に入る。バンドラプラグインは
@@ -49,6 +50,12 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
   検査版だけが実装済みである。以降に増える検査も同じ規則に従う。
 - `view-transition-class` の値はランタイムが遷移名から設定するため、生成関数を持たない。
   プール F は名前空間として残る。
+
+`style.viewTransition()` の宣言は `{v:"<class token>"}` になる。クラスファミリ（`--sw-v-`、digest 8）が
+このトークンを生成し、ホスト生成関数もこのファミリにだけある。`view-transition-name` は生成名では
+なく `token + "-" + String(key)` を CSS Syntax の identifier として escape した値なので、名前ファミリも
+名前プールも持たない。ホスト生成関数が返すトークンに `-` を含めないことはホストの責務である
+（名前の単射性がそこに依存する）。
 
 関連: [compiler-design.md](compiler-design.md)（identity と producer のモデル）、
 [macro-contract.md](macro-contract.md)（マクロ引数の純粋性契約）、
@@ -240,16 +247,16 @@ NUL は置換する。置換と正規化は生の名前に対して 1 回だけ�
 干渉しない。逆に、別のプロパティでも同じ名前空間を共有するものは同じプールに入れる
 （`anchor-name` と `position-anchor`、`@keyframes` 名と `animation-name` など）。
 
-| プール                   | 名前空間                                                     | 含む生成物                                                        | 重複したときの干渉                                     |
-| ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------ |
-| A クラストークン         | class 属性とクラスセレクタ                                   | ユーティリティクラス、ref / scope マーカー、射影クラス            | 同じクラスリストに照合され、規則が融合する             |
-| B anchor 名              | `anchor-name` / `position-anchor` / `anchor-scope`           | ref マーカー（流用時）、anchor 名                                 | 解決先が曖昧になり、別の要素を anchor として参照し得る |
-| C container 名           | `container-name` / `@container` 名                           | ref マーカー（流用時）、container 名                              | 別の宣言の `@container` 規則が同じ名前の容器に一致する |
-| D keyframes 名           | `@keyframes` 名と `animation-name`                           | animation 名                                                      | 別の宣言の keyframes を参照する                        |
-| E view transition 名     | `view-transition-name`                                       | view transition 名（キー付き派生名は実行時生成なので対象外）      | 同名の遷移が文書内で衝突する                           |
-| F view transition クラス | `view-transition-class`                                      | view transition クラス                                            | 別の宣言の擬似要素規則が同じ遷移群に適用される         |
-| G custom property 名     | `--*`（宣言、`var()`、`@property` 登録、ビルトインの固定名） | 条件ヘルパ、`--sw-vt-name` などの固定名、Tailwind 互換の `--tw-*` | 登録内容や参照先が混ざる                               |
-| H レイヤ名               | `@layer`                                                     | 匿名レイヤ名（文書と carrier の両方の歩査）                       | 層の同一性が変わりカスケード順が変わる                 |
+| プール                   | 名前空間                                                     | 含む生成物                                                  | 重複したときの干渉                                     |
+| ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
+| A クラストークン         | class 属性とクラスセレクタ                                   | ユーティリティクラス、ref / scope マーカー、射影クラス      | 同じクラスリストに照合され、規則が融合する             |
+| B anchor 名              | `anchor-name` / `position-anchor` / `anchor-scope`           | ref マーカー（流用時）、anchor 名                           | 解決先が曖昧になり、別の要素を anchor として参照し得る |
+| C container 名           | `container-name` / `@container` 名                           | ref マーカー（流用時）、container 名                        | 別の宣言の `@container` 規則が同じ名前の容器に一致する |
+| D keyframes 名           | `@keyframes` 名と `animation-name`                           | animation 名                                                | 別の宣言の keyframes を参照する                        |
+| E view transition 名     | `view-transition-name`                                       | 生成しない（token と key から成る pairing key。共有が正当） | 検査しない。同じ名前の遷移が文書内で組になる           |
+| F view transition クラス | `view-transition-class`                                      | view transition クラス（identity そのもの）                 | 別の宣言の擬似要素規則が同じ遷移群に適用される         |
+| G custom property 名     | `--*`（宣言、`var()`、`@property` 登録、ビルトインの固定名） | 条件ヘルパ、Tailwind 互換の `--tw-*`                        | 登録内容や参照先が混ざる                               |
+| H レイヤ名               | `@layer`                                                     | 匿名レイヤ名（文書と carrier の両方の歩査）                 | 層の同一性が変わりカスケード順が変わる                 |
 
 ref マーカーを anchor 名や container 名に流用する既定では、同じ宣言が複数のプールに同じ
 名前で現れる。これは同一 identity なのでどのプールでも衝突ではない。異なるプール間の一致

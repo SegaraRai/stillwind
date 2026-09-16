@@ -358,3 +358,27 @@ pub(crate) fn escaped_identifier(name: &str) -> String {
 pub(crate) fn view_transition_name(token: &str, key: &str) -> String {
     escaped_identifier(&format!("{token}-{key}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::view_transition_name;
+
+    /// The runtime composes the dynamic half of these names, so both sides read one table.
+    #[test]
+    fn composes_names_matching_the_shared_escape_vectors() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/view-transitions/name-escapes.json"
+        );
+        let text = std::fs::read_to_string(path).expect("the shared escape vectors");
+        let vectors: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
+        let token = vectors["token"].as_str().expect("a token");
+        let entries = vectors["vectors"].as_array().expect("vectors");
+        assert!(!entries.is_empty());
+        for entry in entries {
+            let key = entry["key"].as_str().expect("a key");
+            let expected = entry["name"].as_str().expect("a name");
+            assert_eq!(view_transition_name(token, key), expected, "key {key:?}");
+        }
+    }
+}

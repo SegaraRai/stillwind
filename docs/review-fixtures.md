@@ -58,7 +58,9 @@ fragment and the complete project stylesheet in `expected/project.css`.
   a barrel re-export by TypeScript.
 - `animation-matrix`: static and conditional animations across modules.
 - `view-transition-matrix`: static, keyed, and conditional view transitions
-  across modules, with media-conditioned and image-pair phases.
+  across modules, with media-conditioned and image-pair phases, literal and
+  expression keys, a key applied where the transition was declared, an
+  explicit name, a call that marks several transitions, and a guarded use.
 - `tailwind-relationships`: migration-compatible group/peer markers, named
   containers, and responsive container variants.
 

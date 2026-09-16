@@ -333,15 +333,23 @@ const pageTitle = style.viewTransition({
   new: "opacity-100",
 });
 
-<h1 {...style("text-3xl font-bold", pageTitle)}>Profile</h1>;
+<h1 {...style("text-3xl font-bold", pageTitle.for("hero"))}>Profile</h1>;
 ```
 
-This creates a stable generated `view-transition-name` and styles its generated
+The declaration lowers to a value whose class token is the transition's
+identity (`{v:"--sw-v-..."}`), and it styles the generated
 `::view-transition-group`, `::view-transition-old`, and
-`::view-transition-new` rules. `imagePair` styles
+`::view-transition-new` rules for that class. `imagePair` styles
 `::view-transition-image-pair` for the same participants, and a phase utility
 may carry media or supports condition variants. Other variants are rejected:
 a pseudo-element has neither element state nor a container ancestor.
+
+A use marks its element with the class, and `.for(key)` names it: a literal key
+becomes a declaration, an expression key becomes an inline
+`view-transition-name` composed as the token, a hyphen, and the key.
+`view-transition-name` is a pairing key rather than an allocated name, so two
+declarations may compose the same value on purpose, and the compiler neither
+reserves nor checks name values.
 
 Multiple simultaneously rendered instances require an application-stable key.
 
@@ -355,9 +363,7 @@ const productCard = style.viewTransition({
 <article {...style("rounded-xl border p-4", productCard.for(product.id))} />;
 ```
 
-All view-transition uses share one generated class. The declaration identity
-populates the family property; `for(product.id)` additionally encodes the key
-into the instance-name property. This same lowering covers static and
-conditional, keyed and unkeyed values. Lint warns when a static transition is
-used inside a repeated render, or when an unstable key such as an array index
-is used.
+Uses of one declaration share its class, and several transitions in one call
+list their classes in one declaration. Lint warns when a call marks
+participants without any name (`require-view-transition-name`) and when it
+states more than one (`single-view-transition-name`).

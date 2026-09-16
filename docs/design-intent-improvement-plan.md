@@ -323,6 +323,18 @@ style("hover:[--x:var(--y)]", { "--y": value });
 - 残り: `group` の option に条件を付ける方法（animation の定義 branch と同型になるか）、
   繰り返しレンダリング / unstable key の lint。
 
+後続設計（`docs/view-transition-redesign.md`）で実装済み。
+
+- identity はクラストークン（`{v:"--sw-v-..."}`）。name は token と key から成る pairing key で、
+  予約も一意性検査も行わない。同名を別の宣言が使うのは正当な pairing 手段である。
+- `.for(key?)` はコンパイル時マクロ。リテラル key は宣言に、式 key と値が持つ key は inline の名前に
+  なる。宣言の外の `.for` は `{v,k}` か `stillwindViewTransitionKey` 呼び出しになる。
+- 動的 identity はトークンごとのクラス表になり、条件付き use は「その条件での完全な
+  クラスリスト」を書く。
+- lint は `require-view-transition-name` / `single-view-transition-name`（既定 warn）。
+- 残り: `group` の option に条件を付ける方法、繰り返しレンダリング / unstable key の lint、
+  条件ユニットが入れ子になる場合（条件の中の三項など）の完全リスト。
+
 ## 実装順と完了判定
 
 1. F1、F2/F3、F5、F6 をそれぞれ独立した変更として進める。D1 の契約を並行して固定する。

@@ -133,6 +133,46 @@ fn a_theme_can_disable_the_element_scope_rule() {
     assert_eq!(result.lint_policy["require-element-scope"], "off");
 }
 
+/// A transition class participates only through a name, so a call states exactly one source
+/// of it; a name the compiler cannot see stays invisible, which is why both rules warn.
+#[test]
+fn reports_missing_and_duplicated_view_transition_names() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Transitions.tsx",
+        r#"import { style } from "stillwind/react";
+const title = style.viewTransition({ old: "opacity-0" });
+export const unnamed = style("block", title);
+export const named = style("block", title.for("hero"));
+export const optedOut = style("block", title, "[view-transition-name:none]");
+export const doubled = style("block", title.for("hero"), "[view-transition-name:other]");"#,
+    )
+    .unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let missing = result
+        .lint_findings
+        .iter()
+        .filter(|finding| matches!(finding.kind, LintKind::MissingViewTransitionName))
+        .count();
+    let duplicated = result
+        .lint_findings
+        .iter()
+        .filter_map(|finding| match finding.kind {
+            LintKind::DuplicateViewTransitionName { count } => Some(count),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(missing, 1, "{:#?}", result.lint_findings);
+    assert_eq!(duplicated, vec![2], "{:#?}", result.lint_findings);
+    assert_eq!(result.lint_policy["require-view-transition-name"], "warn");
+    assert_eq!(result.lint_policy["single-view-transition-name"], "warn");
+}
+
 #[test]
 fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
     let component = SourceFile::new(

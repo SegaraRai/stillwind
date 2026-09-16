@@ -1,0 +1,16 @@
+{
+  "note": "Shared (token, key) -> view-transition-name vectors: the compiler composes static names and the runtime composes dynamic ones from the same table.",
+  "token": "--sw-v-3f2a91cd",
+  "vectors": [
+    { "key": "hero", "name": "--sw-v-3f2a91cd-hero" },
+    { "key": "item 1", "name": "--sw-v-3f2a91cd-item\\ 1" },
+    { "key": "a\"b", "name": "--sw-v-3f2a91cd-a\\\"b" },
+    { "key": "back\\slash", "name": "--sw-v-3f2a91cd-back\\\\slash" },
+    { "key": " leading", "name": "--sw-v-3f2a91cd-\\ leading" },
+    { "key": "1hero", "name": "--sw-v-3f2a91cd-1hero" },
+    { "key": "見出し", "name": "--sw-v-3f2a91cd-見出し" },
+    { "key": "🎈", "name": "--sw-v-3f2a91cd-🎈" },
+    { "key": "", "name": "--sw-v-3f2a91cd-" },
+    { "key": "a-b_c", "name": "--sw-v-3f2a91cd-a-b_c" }
+  ]
+}
