@@ -75,6 +75,7 @@ impl Default for StillwindConfig {
                 ),
                 (LintKind::MissingViewTransitionName, "warn"),
                 (LintKind::DuplicateViewTransitionName { count: 0 }, "warn"),
+                (LintKind::SplitViewTransitionClasses, "warn"),
             ]
             .into_iter()
             .map(|(kind, level)| (kind.code().to_owned(), level.to_owned()))

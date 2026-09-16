@@ -6,6 +6,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
+use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -222,6 +223,68 @@ export const photo = style(item);"#,
         result.css.contains("{ animation-duration:75ms;}"),
         "{}",
         result.css
+    );
+}
+
+/// A composed base's transition classes do not merge with the derived call's own list: the
+/// derived rules come later and replace the single class property, so a transition only the base
+/// declares stops marking the element. Re-declaring the base's own transition loses nothing.
+#[test]
+fn warns_when_a_composed_base_declares_other_transition_classes() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Composed.tsx",
+        r#"import { style } from "stillwind/react";
+const base = style.viewTransition({ old: "opacity-0" });
+const other = style.viewTransition({ new: "opacity-100" });
+const block = style("block", base);
+export const replaced = style(block, other.for("hero"));
+export const kept = style(block, base.for("hero"));"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let findings = result
+        .lint_findings
+        .iter()
+        .filter(|finding| finding.kind == LintKind::SplitViewTransitionClasses)
+        .collect::<Vec<_>>();
+    assert_eq!(findings.len(), 1, "{:#?}", result.lint_findings);
+    assert_eq!(result.lint_policy["single-view-transition-class"], "warn");
+    assert_eq!(
+        component.slice(findings[0].labels[0].span).unwrap(),
+        "style(block, other.for(\"hero\"))"
+    );
+}
+
+/// A transition name the runtime composes reaches the element as an inline property, so a base
+/// carrying one still cannot be composed: merging two payloads is what the rejection covers.
+#[test]
+fn rejects_composing_a_base_with_a_runtime_transition_name() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Runtime.tsx",
+        r#"import { style } from "stillwind/react";
+declare const key: string;
+const transition = style.viewTransition({ old: "opacity-0" });
+const named = style(transition.for(key));
+export const props = style(named, "flex");"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|error| matches!(error.kind, CompileErrorKind::StyleBaseWithProps)),
+        "{:#?}",
+        result.diagnostics
     );
 }
 

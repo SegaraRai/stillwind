@@ -16,7 +16,7 @@ use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, filter_lint_findings};
 use stillwind_ir::{
     ModuleAnalysis, ViewTransitionKey, composition_dependencies, ordered_style_calls,
-    validate_composition,
+    split_view_transition_classes, validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
@@ -110,6 +110,9 @@ impl Compiler {
         let options = compiler_options;
         result.lint_policy.clone_from(&theme.config.lint_rules);
         filter_lint_findings(source, &mut result.lint_findings);
+        result
+            .lint_findings
+            .extend(split_view_transition_classes(parsed));
         result
             .diagnostics
             .extend(validate_composition(&[parsed], source.full_span(), false));

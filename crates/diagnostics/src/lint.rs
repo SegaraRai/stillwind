@@ -99,6 +99,11 @@ pub enum LintKind {
         /// How many sources the call supplied.
         count: usize,
     },
+    /// An element's view-transition classes come from more than one style call.
+    #[error(
+        "view-transition-class is one property: this call's list replaces the one its composed base declares, so declare the transitions in one call"
+    )]
+    SplitViewTransitionClasses,
     /// A host generator failed or returned a body its write positions cannot hold.
     #[error("identifier generator for {kind} was rejected: {detail}")]
     RejectedIdentifier {
@@ -149,6 +154,7 @@ impl LintKind {
             Self::DocumentScopedSelector { .. } => "require-element-scope",
             Self::MissingViewTransitionName => "require-view-transition-name",
             Self::DuplicateViewTransitionName { .. } => "single-view-transition-name",
+            Self::SplitViewTransitionClasses => "single-view-transition-class",
             Self::RejectedIdentifier { .. } => "rejected-identifier",
             Self::UnresolvedUtility { classification, .. }
             | Self::UnresolvedCandidate { classification, .. }

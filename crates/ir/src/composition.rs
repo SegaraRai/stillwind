@@ -16,11 +16,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::Span;
 
-use crate::{ClassExpression, GroupEntry};
+use crate::{ClassExpression, GroupEntry, ViewTransitionKey, ViewTransitionName};
 use crate::{ModuleAnalysis, StyleCall, StyleInput};
 
 /// One `derived` style call that consumes the payload of `base`.
@@ -163,6 +163,74 @@ pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {
         .collect()
 }
 
+/// One element whose view-transition classes come from two calls.
+///
+/// The class property is one declaration, so the derived call's rules replace the list its base
+/// declares: a transition only the base uses stops marking the element. The comparison is on
+/// declarations rather than on the tokens they generate, so it is independent of name allocation,
+/// and a transition both calls declare loses nothing. Only calls this compilation sees are
+/// compared, which is why the finding is advisory: a base from another module stays unseen.
+pub fn split_view_transition_classes(module: &ModuleAnalysis) -> Vec<LintFinding> {
+    let declared: BTreeMap<IdentityId, BTreeSet<IdentityId>> = module
+        .ir
+        .style_calls
+        .iter()
+        .map(|call| (identity(module, call), view_transitions(&call.inputs)))
+        .collect();
+    let mut findings = Vec::new();
+    for call in &module.ir.style_calls {
+        let own = &declared[&identity(module, call)];
+        if own.is_empty() {
+            continue;
+        }
+        let replaces = composition_bases(&call.inputs).into_iter().any(|base| {
+            declared
+                .get(&base)
+                .is_some_and(|classes| classes.difference(own).next().is_some())
+        });
+        if replaces {
+            findings.push(LintFinding::new(
+                LintKind::SplitViewTransitionClasses,
+                call.span,
+            ));
+        }
+    }
+    findings
+}
+
+/// Every transition one input list uses, including the candidates of a runtime value.
+fn view_transitions(values: &[StyleInput]) -> BTreeSet<IdentityId> {
+    let mut transitions = BTreeSet::new();
+    for input in values {
+        match input {
+            StyleInput::ViewTransitionUse { transition, .. } => {
+                transitions.insert(transition.identity.clone());
+            }
+            StyleInput::DynamicViewTransitionUse {
+                transitions: candidates,
+                ..
+            } => transitions.extend(
+                candidates
+                    .iter()
+                    .map(|transition| transition.identity.clone()),
+            ),
+            _ => {}
+        }
+    }
+    transitions
+}
+
+/// The base calls one input list composes.
+fn composition_bases(values: &[StyleInput]) -> BTreeSet<IdentityId> {
+    let mut bases = BTreeSet::new();
+    for input in values {
+        if let StyleInput::Composition { candidates, .. } = input {
+            bases.extend(candidates.iter().cloned());
+        }
+    }
+    bases
+}
+
 fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> bool {
     let mut props = false;
     for input in values {
@@ -170,8 +238,15 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
             StyleInput::Composition { candidates, .. } => {
                 dependencies.extend(candidates.iter().cloned());
             }
-            StyleInput::ViewTransitionUse { .. } | StyleInput::DynamicViewTransitionUse { .. } => {
-                props = true;
+            StyleInput::ViewTransitionUse { name, .. }
+            | StyleInput::DynamicViewTransitionUse { name, .. } => {
+                // A transition use marks the element with a class, which composes like any other
+                // class; only a name the runtime composes travels as an inline property.
+                props |= matches!(
+                    name,
+                    ViewTransitionName::Key(ViewTransitionKey::Dynamic(_))
+                        | ViewTransitionName::Value
+                );
             }
             StyleInput::Class(expression) => props |= class_expression(expression),
             _ => {}
