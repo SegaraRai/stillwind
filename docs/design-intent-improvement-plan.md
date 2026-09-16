@@ -335,6 +335,8 @@ style("hover:[--x:var(--y)]", { "--y": value });
     解決後のリストは要素が宣言した slot の union になり、同時に成立した条件が互いを消さない。
 - `group` の option 条件は option 単位の条件付き規則（§3.9。実装済み）。
 - lint は `require-view-transition-name` / `single-view-transition-name`（既定 warn）。
+  - 合成した base の遷移クラスはマージされないため `single-view-transition-class`（既定 warn）で
+    知らせる（class unit を超えたマージは未対応）。
   - 残り: 繰り返しレンダリング / unstable key の lint。
 
 ## 実装順と完了判定

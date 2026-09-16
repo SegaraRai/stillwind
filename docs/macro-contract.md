@@ -84,6 +84,9 @@ view transition はクラス（identity）でマークし、名前（pairing key
 無い call は `MissingViewTransitionName` (`require-view-transition-name`)、2つ以上ある call は
 `DuplicateViewTransitionName` (`single-view-transition-name`) の lint finding とする。どちらも既定は
 `warn` で、名前の値そのものは検査しない（別 call・stylesheet・ユーザーの inline style が見えないため）。
+合成した base と自 call が別々の遷移クラスを宣言する場合は `SplitViewTransitionClasses`
+(`single-view-transition-class`、既定 `warn`) とする。`view-transition-class` は単一プロパティなので
+マージされず、derived のリストが base のリストを置き換える。
 build host は有効 policy が `deny` の finding が残っていれば失敗とする。
 抑制しても、契約に違反する副作用の順序・回数の保存を保証することにはならない。
 構造の抽出や構文変換ができない場合は、引き続き抑制不可能なコンパイルエラーとする。

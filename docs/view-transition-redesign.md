@@ -200,6 +200,13 @@ style("rounded", cond && vtSub, vtMain.for("bar"));
 // conditional unit: --sw-vtc-…: --sw-v-sub;
 ```
 
+class unit を超えたマージは未対応のままとする。合成（`style(base, …)`）の base が遷移クラス
+**だけ**を宣言している場合は合成でき（クラスは普通のクラス寄与として1つの payload に乗る）、
+base が実行時に組む名前を持つ場合は従来どおり prop を持つ base として拒否する。base と自 call が
+別々の遷移クラスを宣言した場合は、`view-transition-class` が単一プロパティなので後から来る
+derived の規則が base のリストを置き換える（slot を call 横断で共有する案は未対応）。この
+置き換えは `SplitViewTransitionClasses`（`single-view-transition-class`、既定 warn）が知らせる。
+
 ### 3.6 `.for` の仕様（マクロ）
 
 - 引数は0個または1個。2個以上は診断（現行 SHVIEW002 のメッセージを
