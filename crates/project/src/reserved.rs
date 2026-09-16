@@ -13,6 +13,9 @@
 //! It does not resolve imports, which the caller does before scanning, and it does not
 //! interpret values.
 //!
+//! A block the tokenizer cannot close contributes no names. The walk is best-effort and has no
+//! error channel, because the CSS it scans was parsed by the design system before it got here.
+//!
 //! TODO: CSS a module authors rather than imports is not scanned here. The compiler
 //! receives its declarations already resolved, so that text only exists on the host
 //! side; reserving it requires the host to supply those names with the analysis.
@@ -31,12 +34,29 @@ pub struct ReservedNames {
     pub layers: BTreeSet<String>,
     /// `@keyframes` names.
     pub keyframes: BTreeSet<String>,
+    /// Class tokens written as class selectors.
+    pub classes: BTreeSet<String>,
+    /// `anchor-name`, `position-anchor`, and `anchor-scope` values.
+    pub anchor_names: BTreeSet<String>,
+    /// `container-name` values and `@container` prelude names.
+    pub container_names: BTreeSet<String>,
+    /// `view-transition-name` values.
+    pub view_transition_names: BTreeSet<String>,
+    /// `view-transition-class` values.
+    pub view_transition_classes: BTreeSet<String>,
 }
 
 impl ReservedNames {
     /// Whether nothing was reserved.
     pub fn is_empty(&self) -> bool {
-        self.custom_properties.is_empty() && self.layers.is_empty() && self.keyframes.is_empty()
+        self.custom_properties.is_empty()
+            && self.layers.is_empty()
+            && self.keyframes.is_empty()
+            && self.classes.is_empty()
+            && self.anchor_names.is_empty()
+            && self.container_names.is_empty()
+            && self.view_transition_names.is_empty()
+            && self.view_transition_classes.is_empty()
     }
 
     /// Reserves every name `css` uses.
@@ -62,13 +82,28 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
         };
         match token {
             Token::Ident(name) => {
-                if at_declaration && is_custom_property(name) {
-                    reserved.custom_properties.insert(name.to_string());
+                let mut next_at_declaration = false;
+                if at_declaration {
+                    if is_custom_property(name) {
+                        reserved.custom_properties.insert(name.to_string());
+                    } else if let Some(names) = ident_names(name) {
+                        // A property whose value is a custom-ident names something in the document,
+                        // so the value belongs to that name's pool.
+                        next_at_declaration = collect_ident_values(reserved, parser, names);
+                    }
                 }
-                at_declaration = false;
+                at_declaration = next_at_declaration;
+            }
+            Token::Delim('.') => {
+                // A dot directly before an ident is a class selector: an identifier cannot start
+                // with a dot, so a value can never spell one, and `.5px` is a number instead.
+                if let Ok(Token::Ident(name)) = parser.next() {
+                    reserved.classes.insert(name.to_string());
+                }
             }
             Token::Semicolon => at_declaration = true,
             Token::CurlyBracketBlock => {
+                // A malformed block drops the names inside it; see the module documentation.
                 let _ = parser.parse_nested_block(|body| {
                     walk(reserved, body, true);
                     Ok::<(), ParseError<()>>(())
@@ -94,6 +129,7 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                             reserved.keyframes.insert(name.to_string());
                         }
                     }
+                    "container" => collect_container_queries(reserved, parser),
                     "property" => {
                         if let Ok(Token::Ident(name)) = parser.next()
                             && is_custom_property(name)
@@ -127,6 +163,128 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
             _ => at_declaration = false,
         }
     }
+}
+
+/// The pool one custom-ident property's values are reserved in.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NamePool {
+    Anchor,
+    Container,
+    ViewTransition,
+    ViewTransitionClass,
+}
+
+impl ReservedNames {
+    /// Reserves one custom-ident value in the pool that owns it.
+    fn insert_ident(&mut self, pool: NamePool, name: &str) {
+        let names = match pool {
+            NamePool::Anchor => &mut self.anchor_names,
+            NamePool::Container => &mut self.container_names,
+            NamePool::ViewTransition => &mut self.view_transition_names,
+            NamePool::ViewTransitionClass => &mut self.view_transition_classes,
+        };
+        names.insert(name.to_string());
+    }
+}
+
+/// The pool a property's values belong to, or `None` when it takes no custom-ident.
+fn ident_names(property: &str) -> Option<NamePool> {
+    match property.to_ascii_lowercase().as_str() {
+        "anchor-name" | "position-anchor" | "anchor-scope" => Some(NamePool::Anchor),
+        "container-name" => Some(NamePool::Container),
+        "view-transition-name" => Some(NamePool::ViewTransition),
+        "view-transition-class" => Some(NamePool::ViewTransitionClass),
+        _ => None,
+    }
+}
+
+/// Reads one declaration's custom-ident values into the pool that owns them.
+///
+/// The values are the declaration's own idents: a block such as `var()` is stepped over, because a
+/// name it mentions belongs to that name's own property, and CSS-wide keywords and `none` name
+/// nothing. The loop ends at the declaration's semicolon or at the end of the enclosing block, and
+/// returns whether the declaration used a semicolon, which is where the next declaration begins.
+fn collect_ident_values(
+    reserved: &mut ReservedNames,
+    parser: &mut Parser<'_>,
+    pool: NamePool,
+) -> bool {
+    loop {
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::Ident(name)) => {
+                if !is_css_wide_or_none(name) {
+                    reserved.insert_ident(pool, name);
+                }
+            }
+            Ok(token) if is_block(token) => {
+                let _ = parser.parse_nested_block(|_| Ok::<(), ParseError<()>>(()));
+            }
+            Ok(Token::Semicolon) => return true,
+            Err(_) => return false,
+            Ok(_) => {}
+        }
+    }
+}
+
+/// Reads the names a `@container` prelude gives before its query.
+///
+/// A prelude names containers first, so idents before the query are names; the query's own grammar
+/// is stepped over, and `not`, `and`, and `or` are operators rather than names.
+fn collect_container_queries(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
+    loop {
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::Ident(name)) if !is_condition_operator(name) => {
+                reserved.container_names.insert(name.to_string());
+            }
+            Ok(token) if is_block(token) => {
+                if matches!(token, Token::CurlyBracketBlock) {
+                    // The block holds the rules the query applies to, so its names are this scan's
+                    // business too.
+                    let _ = parser.parse_nested_block(|body| {
+                        walk(reserved, body, true);
+                        Ok::<(), ParseError<()>>(())
+                    });
+                    return;
+                }
+                let _ = parser.parse_nested_block(|_| Ok::<(), ParseError<()>>(()));
+            }
+            Ok(Token::Semicolon) | Err(_) => return,
+            Ok(_) => {}
+        }
+    }
+}
+
+/// Whether a token opens a block this scan does not interpret.
+fn is_block(token: &Token<'_>) -> bool {
+    matches!(
+        token,
+        Token::Function(_)
+            | Token::ParenthesisBlock
+            | Token::SquareBracketBlock
+            | Token::CurlyBracketBlock
+    )
+}
+
+/// Whether one ident is a query operator rather than a name.
+fn is_condition_operator(name: &str) -> bool {
+    ["not", "and", "or"]
+        .iter()
+        .any(|operator| name.eq_ignore_ascii_case(operator))
+}
+
+/// Whether one ident is a CSS-wide keyword or `none`, which name nothing.
+fn is_css_wide_or_none(name: &str) -> bool {
+    [
+        "none",
+        "initial",
+        "inherit",
+        "unset",
+        "revert",
+        "revert-layer",
+        "revert-rule",
+    ]
+    .iter()
+    .any(|keyword| name.eq_ignore_ascii_case(keyword))
 }
 
 /// Reads the names of a `@layer` statement or block and walks its body.
@@ -219,7 +377,12 @@ mod tests {
         let mut reserved = ReservedNames::default();
         reserved
             .collect("/* --sw-comment:1; */ .x{content:\"--sw-string\";margin:calc(1px - -2px);}");
-        assert!(reserved.is_empty(), "{reserved:?}");
+        assert_eq!(
+            reserved.classes.iter().cloned().collect::<Vec<_>>(),
+            vec!["x".to_owned()]
+        );
+        assert!(reserved.custom_properties.is_empty(), "{reserved:?}");
+        assert!(reserved.layers.is_empty() && reserved.keyframes.is_empty());
     }
 
     #[test]
@@ -248,5 +411,81 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["--sw-after".to_owned(), "--sw-print".to_owned()]
         );
+    }
+
+    #[test]
+    fn collects_class_selectors_and_custom_ident_properties() {
+        let mut reserved = ReservedNames::default();
+        reserved.collect(
+            ".card,.card:is(.wide){anchor-name:--panel;position-anchor:--trigger, --other;\
+             container-name:card-box;view-transition-name:hero;view-transition-class:slide;\
+             width:var(--panel);height:.5px;}",
+        );
+        assert_eq!(
+            reserved.classes.iter().cloned().collect::<Vec<_>>(),
+            vec!["card".to_owned(), "wide".to_owned()]
+        );
+        assert_eq!(
+            reserved.anchor_names.iter().cloned().collect::<Vec<_>>(),
+            vec![
+                "--other".to_owned(),
+                "--panel".to_owned(),
+                "--trigger".to_owned()
+            ]
+        );
+        assert_eq!(
+            reserved.container_names.iter().cloned().collect::<Vec<_>>(),
+            vec!["card-box".to_owned()]
+        );
+        assert_eq!(
+            reserved
+                .view_transition_names
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec!["hero".to_owned()]
+        );
+        assert_eq!(
+            reserved
+                .view_transition_classes
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec!["slide".to_owned()]
+        );
+    }
+
+    #[test]
+    fn collects_container_query_names_without_their_operators() {
+        let mut reserved = ReservedNames::default();
+        reserved.collect(
+            "@container panel (width > 1px){.x{color:red}}\
+             @container not (width > 1px){@container sidebar (width > 2px){.y{color:blue}}}",
+        );
+        assert_eq!(
+            reserved.container_names.iter().cloned().collect::<Vec<_>>(),
+            vec!["panel".to_owned(), "sidebar".to_owned()]
+        );
+        assert_eq!(
+            reserved.classes.iter().cloned().collect::<Vec<_>>(),
+            vec!["x".to_owned(), "y".to_owned()]
+        );
+    }
+
+    #[test]
+    fn keeps_none_and_css_wide_keywords_out_of_the_pools() {
+        let mut reserved = ReservedNames::default();
+        reserved.collect(
+            ".x{anchor-name:none;container-name:INHERIT;view-transition-name:initial;\
+             view-transition-class:revert-layer;}",
+        );
+        assert!(
+            reserved.anchor_names.is_empty(),
+            "{:?}",
+            reserved.anchor_names
+        );
+        assert!(reserved.container_names.is_empty());
+        assert!(reserved.view_transition_names.is_empty());
+        assert!(reserved.view_transition_classes.is_empty());
     }
 }

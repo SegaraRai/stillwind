@@ -21,9 +21,11 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
    など）。書き出し側はカノニカルな綴りを自分でエスケープしない。
 4. 段 3（プール）: 名前空間ごとに `名前 → identity` で衝突を検査する。anchor 名と container 名も
    シンボルとして報告される。デザインシステムの authored CSS にある custom property /
-   レイヤ / keyframes 名は予約として先に登録される。予約名の走査は `cssparser` のトークン
-   走査である。宣言を持たない種別（条件ヘルパと匿名レイヤ）も報告に載り、文書単位の検査が
-   それらの綴りも見る。
+   レイヤ / keyframes 名に加え、クラスセレクタ、`anchor-name` / `position-anchor` /
+   `anchor-scope`、`container-name` と `@container` 名、`view-transition-name` /
+   `view-transition-class` の値が予約として先に登録される。予約名の走査は `cssparser` の
+   トークン走査である。宣言を持たない種別（条件ヘルパと匿名レイヤ）も報告に載り、
+   文書単位の検査がそれらの綴りも見る。
 5. 第 2 節（値の形）: 宣言は `{ c: <canonical> }`、添付は `.c` の読み、射影は
    `({...})[value.c]` の表引きになる。`stillwindRef` / `stillwindScope` /
    `stillwindHandleClass` と `_swp_` 射影クラスは削除された。

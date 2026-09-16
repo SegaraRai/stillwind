@@ -642,3 +642,42 @@ fn a_layer_name_is_checked_against_the_authored_document() {
         "{failure:?}"
     );
 }
+
+#[test]
+fn a_generated_anchor_name_is_checked_against_the_authored_document() {
+    let theme = css_fixture::source(
+        FileId(2),
+        "theme",
+        ":root{anchor-name:shared;} @stillwind-slot utilities;",
+    )
+    .unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+    let mut session = ProjectSession::new(
+        snapshot,
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::with(Arc::new(FixedBodyGenerator)),
+    );
+    let refs = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "panel.tsx",
+                "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
+            )
+            .unwrap(),
+        )),
+        None,
+    );
+    let update = session.update_module(refs);
+    // The generator names the anchor `shared`, which the authored declaration already owns.
+    assert!(
+        update.diagnostics.iter().any(|error| matches!(
+            error.kind,
+            CompileErrorKind::GeneratedIdentifierCollision { .. }
+        )),
+        "{:?}",
+        update.diagnostics
+    );
+}

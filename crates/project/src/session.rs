@@ -371,6 +371,36 @@ impl ProjectSession {
                 "<authored CSS>",
             );
         }
+        for name in &self.reserved.classes {
+            names.insert(
+                (IdentifierPool::ClassToken, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        for name in &self.reserved.anchor_names {
+            names.insert(
+                (IdentifierPool::AnchorName, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        for name in &self.reserved.container_names {
+            names.insert(
+                (IdentifierPool::ContainerName, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        for name in &self.reserved.view_transition_names {
+            names.insert(
+                (IdentifierPool::ViewTransitionName, name.as_str()),
+                "<authored CSS>",
+            );
+        }
+        for name in &self.reserved.view_transition_classes {
+            names.insert(
+                (IdentifierPool::ViewTransitionClass, name.as_str()),
+                "<authored CSS>",
+            );
+        }
         names
     }
 
