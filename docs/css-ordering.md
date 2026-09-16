@@ -176,6 +176,10 @@ Rule - a module emits in this order:
    units in source order of their literals. Unconditional utilities form one
    base unit whatever argument position they were written in; nested conditions
    use pre-order (outer before inner, consequent before alternate).
+   A view transition follows the same rule: the class property is one
+   declaration, so the unconditional unit lists the classes its own uses
+   contribute, and a conditional unit repeats them and appends its own, leaving
+   the later, complete list as the one that applies while its test holds.
 
 Why: "a conditional delta overrides the base" and "a derived style composes
 over its base" must not depend on the class attribute or on argument order. A

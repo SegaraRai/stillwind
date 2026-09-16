@@ -64,6 +64,6 @@ the variant's utility reference it.
 
 React, Preact, Solid, and Vue receive an object in the returned `style` prop.
 Svelte and Astro receive a serialized style string. Custom properties overlay
-the generated style payload, preserving unrelated view-transition properties.
+the generated style payload, preserving an unrelated view transition name.
 The existing restriction on composing props-bearing style results also applies
 to results containing custom properties.

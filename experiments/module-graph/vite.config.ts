@@ -15,6 +15,10 @@ export default defineConfig({
         command: "node scripts/verify-animation.mjs",
         cache: false,
       },
+      "verify:view-transition": {
+        command: "node scripts/verify-view-transition.mjs",
+        cache: false,
+      },
       "verify:adapters": { command: "node scripts/verify-adapters.mjs", cache: false },
       "verify:webpack": { command: "node scripts/verify-adapters.mjs webpack", cache: false },
       "verify:rspack": { command: "node scripts/verify-rspack.mjs", cache: false },
