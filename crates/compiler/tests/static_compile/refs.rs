@@ -1,8 +1,9 @@
 //! Ref and scope projection.
 //!
-//! Pins that one declaration projects into anchor, position, scope, and container names sharing one
-//! identity, that named container queries emit rules for the ref's target, that scopes get readable
-//! marker names, and that a selector which cannot hold the required ancestry is rejected.
+//! Pins that one declaration projects into anchor, position-anchor, anchor-scope, and
+//! container names sharing one identity, that named container queries emit rules for
+//! the ref's target, that scopes get readable marker names, and that a selector which
+//! cannot hold the required ancestry is rejected.
 
 use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -10,7 +11,7 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use super::*;
 
 #[test]
-fn projects_one_ref_into_anchor_position_scope_and_container_css() {
+fn projects_one_ref_into_anchor_position_and_container_names() {
     let component = SourceFile::new(
         FileId(1),
         "src/Popover.tsx",
@@ -18,7 +19,7 @@ fn projects_one_ref_into_anchor_position_scope_and_container_css() {
 const popover = style.ref();
 const root = style(popover.anchorScope, popover.container("inline-size"));
 const trigger = style(popover.anchor, "relative");
-const panel = style(popover.position, "absolute");"#,
+const panel = style(popover.positionAnchor, "absolute");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
@@ -68,13 +69,13 @@ const panel = style(popover.position, "absolute");"#,
 }
 
 #[test]
-fn reports_a_position_ref_without_an_anchor_provider() {
+fn reports_a_position_anchor_use_without_an_anchor_provider() {
     let component = SourceFile::new(
         FileId(1),
         "src/Popover.tsx",
         r#"import { style } from "stillwind/react";
 const popover = style.ref();
-const panel = style(popover.position);"#,
+const panel = style(popover.positionAnchor);"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();

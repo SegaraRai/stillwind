@@ -1,4 +1,4 @@
-//! Ref projections: `anchor`, `position`, `scope`, `container` and `at`.
+//! Ref projections: `anchor`, `positionAnchor`, `anchorScope`, `container` and `at`.
 //!
 //! A projection turns a ref identity into something a style call can attach to an
 //! element or use as a container query source. Projections need the ref to be
@@ -23,7 +23,8 @@ use crate::state::MacroExtractor;
 pub(crate) struct RefUse {
     /// Marker name of the ref that was used, as written at its declaration.
     pub(crate) name: String,
-    /// Use kind: `ref`, `selector`, `anchor`, `position`, `scope`, `container` or `container-query`.
+    /// Use kind: `ref`, `selector`, `anchor`, `positionAnchor`, `anchorScope`,
+    /// `container` or `container-query`.
     pub(crate) projection: &'static str,
     /// Whole expression the use came from.
     pub(crate) span: Span,
@@ -55,7 +56,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::StaticMemberExpression(member) => {
                 let projection = match member.property.name.as_str() {
                     "anchor" => RefProjection::Anchor,
-                    "position" => RefProjection::Position,
+                    "positionAnchor" => RefProjection::PositionAnchor,
                     "anchorScope" => RefProjection::Scope,
                     _ => return None,
                 };
@@ -98,7 +99,7 @@ impl<'a> MacroExtractor<'a> {
         };
         let projection_name = match &projection {
             RefProjection::Anchor => "anchor",
-            RefProjection::Position => "position",
+            RefProjection::PositionAnchor => "positionAnchor",
             RefProjection::Scope => "scope",
             RefProjection::Container(_) => "container",
         };

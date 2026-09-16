@@ -35,27 +35,27 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 
 マクロ引数と CSS の表層 → Rust の名前:
 
-| 表層                                                             | Rust                                                                                                          |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `style(base)`                                                    | `StyleInput::Composition { value, candidates }`                                                               |
-| `style("…")` / utility テンプレート                              | `ClassExpression::Utilities`（utility 列）                                                                    |
-| `style(a && b)` / `a ? b : c` / `style([...])`                   | `ClassExpression::Conditional` / `Array`                                                                      |
-| `{ "hover:": … }`                                                | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                                          |
-| `{ class: value }`                                               | `GroupEntry::Class(ClassExpression::ClassValue)`                                                              |
-| `{ "aria-*" / "data-*": value }`                                 | `GroupEntry::Attribute(AttributeEntry)`                                                                       |
-| `{ "--x": value }`                                               | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                             |
-| `style(scope)` / `style(ref)`                                    | `StyleInput::ScopeAttachment` / `RefAttachment`（動的版は `DynamicScopeAttachment` / `DynamicRefAttachment`） |
-| `ref.anchor` / `.position` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                             |
-| `ref()` / `ref("variant:")` / ref タグ                           | `StyleVariant::Ref { refs, prefix }`                                                                          |
-| `ref.at(query)` / ref.at タグ                                    | `StyleVariant::Container { refs, query }`                                                                     |
-| `style.scope(name?)`                                             | `ScopeDefinition { binding, label, … }`（label が書かれた文字列）                                             |
-| `style.ref(scope?, name?)`                                       | `RefDefinition { binding, label, scope, … }`                                                                  |
-| `style.animation(definition)` の frame                           | `AnimationFrame { selector, utilities }`（utility 列）。variant キーは `AnimationBranch`                      |
-| `animation(options)`                                             | `ClassExpression::AnimationUse { animation, options }`（option 列）                                           |
-| `style.viewTransition(definition)`                               | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列                  |
-| `transition.for(key?)`（`style()` の外）                         | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                                         |
-| `transition.for(key?)`（`style()` の中）/ キー付きバインディング | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                                 |
-| `StillwindDeclarationIdentity` 引数                              | IR 表現なし（checker メタデータ）                                                                             |
+| 表層                                                                   | Rust                                                                                                          |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `style(base)`                                                          | `StyleInput::Composition { value, candidates }`                                                               |
+| `style("…")` / utility テンプレート                                    | `ClassExpression::Utilities`（utility 列）                                                                    |
+| `style(a && b)` / `a ? b : c` / `style([...])`                         | `ClassExpression::Conditional` / `Array`                                                                      |
+| `{ "hover:": … }`                                                      | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                                          |
+| `{ class: value }`                                                     | `GroupEntry::Class(ClassExpression::ClassValue)`                                                              |
+| `{ "aria-*" / "data-*": value }`                                       | `GroupEntry::Attribute(AttributeEntry)`                                                                       |
+| `{ "--x": value }`                                                     | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                             |
+| `style(scope)` / `style(ref)`                                          | `StyleInput::ScopeAttachment` / `RefAttachment`（動的版は `DynamicScopeAttachment` / `DynamicRefAttachment`） |
+| `ref.anchor` / `.positionAnchor` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`                             |
+| `ref()` / `ref("variant:")` / ref タグ                                 | `StyleVariant::Ref { refs, prefix }`                                                                          |
+| `ref.at(query)` / ref.at タグ                                          | `StyleVariant::Container { refs, query }`                                                                     |
+| `style.scope(name?)`                                                   | `ScopeDefinition { binding, label, … }`（label が書かれた文字列）                                             |
+| `style.ref(scope?, name?)`                                             | `RefDefinition { binding, label, scope, … }`                                                                  |
+| `style.animation(definition)` の frame                                 | `AnimationFrame { selector, utilities }`（utility 列）。variant キーは `AnimationBranch`                      |
+| `animation(options)`                                                   | `ClassExpression::AnimationUse { animation, options }`（option 列）                                           |
+| `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列                  |
+| `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                                         |
+| `transition.for(key?)`（`style()` の中）/ キー付きバインディング       | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                                 |
+| `StillwindDeclarationIdentity` 引数                                    | IR 表現なし（checker メタデータ）                                                                             |
 
 ## 1. 現状の問題
 

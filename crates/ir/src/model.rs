@@ -240,8 +240,8 @@ pub struct AssetReference {
 pub enum RefProjection {
     /// `ref.anchor`: the element is the anchor for positioning.
     Anchor,
-    /// `ref.position`: the element is positioned against an anchor.
-    Position,
+    /// `ref.positionAnchor`: the element is positioned against an anchor, writing `position-anchor`.
+    PositionAnchor,
     /// `ref.anchorScope`: limits anchor-name visibility with `anchor-scope`.
     Scope,
     /// `container()`: the element is a query container of the named type.

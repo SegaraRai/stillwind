@@ -27,8 +27,8 @@ use crate::identifiers::{
 /// need to distinguish declarations across producers compare `identity`, not only
 /// `name`. This record reports both values; constructing it does not check collisions.
 ///
-/// A conditional helper is named for the CSS it serves and an anonymous layer for its template, so
-/// neither has a declaration of its own: those records carry no position.
+/// A conditional helper is named for the CSS it serves and an anonymous layer for its
+/// template, so neither has a declaration of its own: those records carry no position.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
@@ -67,7 +67,7 @@ pub(crate) fn detached_symbol(name: &DetachedName, source_path: &str) -> Generat
 pub(super) fn ref_projection_name(projection: &RefProjection) -> &'static str {
     match projection {
         RefProjection::Anchor => "anchor",
-        RefProjection::Position => "position",
+        RefProjection::PositionAnchor => "positionAnchor",
         RefProjection::Scope => "scope",
         RefProjection::Container(_) => "container",
     }

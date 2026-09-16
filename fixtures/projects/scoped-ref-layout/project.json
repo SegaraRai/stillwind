@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "scoped-ref-layout",
   "title": "Scoped ref and layout projections",
-  "description": "Named scope/ref markers lowered into anchor, position, anchor-scope, container, container-query, and tagged-selector CSS.",
+  "description": "Named scope/ref markers lowered into anchor, position-anchor, anchor-scope, container, container-query, and tagged-selector CSS.",
   "tags": ["scope", "ref", "anchor", "container", "selector"],
   "theme": "stillwind.css",
   "sources": ["src/Popover.tsx"]

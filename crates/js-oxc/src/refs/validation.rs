@@ -44,7 +44,7 @@ impl MacroExtractor<'_> {
             if !has_anchor {
                 for ref_use in uses
                     .iter()
-                    .filter(|ref_use| ref_use.projection == "position")
+                    .filter(|ref_use| ref_use.projection == "positionAnchor")
                 {
                     self.lint_findings.push(LintFinding::new(
                         LintKind::MissingAnchor { name: name.clone() },

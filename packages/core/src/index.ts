@@ -70,7 +70,7 @@ export type StyleScope<Id extends string = string> = {
 export type StyleRef<RefId extends string = string, ScopeId extends string = never> = {
   readonly [refIdentity]: { readonly ref: RefId; readonly scope: ScopeId };
   readonly anchor: StyleRefProjection<RefId, ScopeId>;
-  readonly position: StyleRefProjection<RefId, ScopeId>;
+  readonly positionAnchor: StyleRefProjection<RefId, ScopeId>;
   readonly anchorScope: StyleRefProjection<RefId, ScopeId>;
   container(type: "size" | "inline-size"): StyleRefProjection<RefId, ScopeId>;
   at(query: string): StyleRefVariant<RefId, ScopeId>;

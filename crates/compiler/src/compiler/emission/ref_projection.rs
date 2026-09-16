@@ -21,9 +21,10 @@ use crate::identifiers::{IdentifierContext, IdentifierPool};
 impl CallEmitter<'_> {
     /// Lowers one static ref projection onto the element the projection is written on.
     ///
-    /// The declaration keeps its runtime value: the emitted lookup reads the canonical token
-    /// off the receiver expression the use site wrote, so the projection needs no runtime
-    /// helper of its own and an alias or member receiver names the same declaration.
+    /// The declaration keeps its runtime value: the emitted lookup reads the canonical
+    /// token off the receiver expression the use site wrote, so the projection needs no
+    /// runtime helper of its own and an alias or member receiver names the same
+    /// declaration.
     pub(super) fn emit_ref_projection(
         &mut self,
         definition: &RefDefinition,
@@ -240,7 +241,9 @@ fn render_ref_projection(
             format!("anchor-name:{};", name.custom_ident()),
             symbol(name.as_str(), IdentifierPool::AnchorName, "anchor"),
         ),
-        RefProjection::Position => (format!("position-anchor:{};", name.custom_ident()), None),
+        RefProjection::PositionAnchor => {
+            (format!("position-anchor:{};", name.custom_ident()), None)
+        }
         RefProjection::Scope => (format!("anchor-scope:{};", name.custom_ident()), None),
         RefProjection::Container(kind) => {
             let container = context.container_name(&ref_context(definition, Some("container")))?;
@@ -293,9 +296,13 @@ mod tests {
             anchor_symbol.identity,
             identity_input_parts(&ref_context(&definition, None))
         );
-        let (position, _) =
-            render_ref_projection(&identifiers, &definition, &RefProjection::Position, "x")
-                .unwrap();
+        let (position, _) = render_ref_projection(
+            &identifiers,
+            &definition,
+            &RefProjection::PositionAnchor,
+            "x",
+        )
+        .unwrap();
         assert_eq!(position, format!("position-anchor:{reference}"));
         let (scope_projection, _) =
             render_ref_projection(&identifiers, &definition, &RefProjection::Scope, "x").unwrap();
