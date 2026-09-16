@@ -11,7 +11,7 @@ use stillwind_source::Span;
 use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::{StyleEmissionPart, guard_steps};
-use super::CallEmitter;
+use super::{CallEmitter, VIEW_TRANSITION_CLASS_KEY};
 use crate::generated::js_string;
 use crate::identifiers::view_transition_name;
 use crate::runtime::RuntimeHelper;
@@ -123,7 +123,7 @@ impl CallEmitter<'_> {
         }
         let expression = ValueExpr::Lookup {
             value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: "v".to_owned(),
+            key: VIEW_TRANSITION_CLASS_KEY.to_owned(),
             table: format!("{{{}}}", table.join(",")).into(),
         };
         self.parts.push(StyleEmissionPart::Class {

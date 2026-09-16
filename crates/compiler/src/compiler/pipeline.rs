@@ -25,7 +25,9 @@ use super::conditionals::lower;
 use super::definitions::{
     emit_animation_definition, emit_view_transition_definition, is_definition_kind,
 };
-use super::emission::{CLASS_KEY, CallEmitter, CallEmitterInputs};
+use super::emission::{
+    CLASS_KEY, CallEmitter, CallEmitterInputs, VIEW_TRANSITION_CLASS_KEY, VIEW_TRANSITION_KEY,
+};
 use super::fragment::render_style_call;
 use super::output::CompileResult;
 use super::symbols::{
@@ -297,7 +299,10 @@ impl Compiler {
                 (ViewTransitionKey::Literal(_), [transition]) => match identifiers
                     .view_transition_class(&identity_declaration(&transition.identity))
                 {
-                    Ok(class) => format!("{{v:{},k:{key}}}", class.javascript_string()),
+                    Ok(class) => format!(
+                        "{{{VIEW_TRANSITION_CLASS_KEY}:{class},{VIEW_TRANSITION_KEY}:{key}}}",
+                        class = class.javascript_string()
+                    ),
                     Err(failure) => {
                         diagnostics.push(CompileError::new(failure, application.call_span));
                         "undefined".to_owned()
@@ -382,7 +387,10 @@ impl Compiler {
                         source.path(),
                         &transition.binding,
                     )) {
-                        Ok(class) => format!("{{v:{}}}", class.javascript_string()),
+                        Ok(class) => format!(
+                            "{{{VIEW_TRANSITION_CLASS_KEY}:{class}}}",
+                            class = class.javascript_string()
+                        ),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, transition.call_span));
                             "undefined".to_owned()

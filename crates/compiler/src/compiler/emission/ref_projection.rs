@@ -104,7 +104,7 @@ impl CallEmitter<'_> {
         );
         Some(Emitted::Expression(ValueExpr::Lookup {
             value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: "c".to_owned(),
+            key: CLASS_KEY.to_owned(),
             table: format!("{{{entry}}}").into(),
         }))
     }
@@ -192,7 +192,7 @@ impl CallEmitter<'_> {
         let table = table.join(",");
         let expression = ValueExpr::Lookup {
             value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: "c".to_owned(),
+            key: CLASS_KEY.to_owned(),
             table: format!("{{{table}}}").into(),
         };
         Some(Emitted::Expression(expression))

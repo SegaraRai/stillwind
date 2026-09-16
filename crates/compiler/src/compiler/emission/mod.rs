@@ -36,7 +36,16 @@ use super::props::StyleEmissionPart;
 use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, GeneratedSymbol};
 
+/// Object key under which a ref or scope value carries its canonical class token.
 pub(super) const CLASS_KEY: &str = "c";
+
+/// Object key under which a view-transition value carries the class token that marks
+/// its participants.
+pub(super) const VIEW_TRANSITION_CLASS_KEY: &str = "v";
+
+/// Object key under which a keyed view-transition value carries the key its
+/// participants pair under.
+pub(super) const VIEW_TRANSITION_KEY: &str = "k";
 
 /// One `style()` call being lowered.
 ///
