@@ -178,10 +178,11 @@ export const item = style("translate-x-1", card);"#,
     assert!(!transformed.contains("--sw-"));
 }
 
-/// Several transitions in one call are one class list: `view-transition-class` is a single
-/// property, so the unit names every token rather than adding a second class of its own.
+/// A guarded use fills a slot its own class carries, and the unit owning the element class
+/// list references every slot with an empty fallback, so a condition contributes its token
+/// without replacing what another condition contributed.
 #[test]
-fn compiles_guarded_view_transitions_with_complete_class_lists() {
+fn compiles_guarded_view_transitions_through_class_slots() {
     let component = SourceFile::new(
         FileId(1),
         "src/Guarded.tsx",
@@ -197,22 +198,20 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
     let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    // The unconditional unit declares the classes its own uses contribute, and the guarded
-    // unit repeats them: the class property is one declaration, so the later, complete list
-    // is the one that applies when the test holds.
     assert_eq!(
         result.css.matches("view-transition-class:").count(),
-        2,
+        1,
         "{}",
         result.css
     );
-    let guarded = result
-        .css
-        .split("view-transition-class:")
-        .nth(2)
-        .and_then(|rest| rest.split('}').next())
-        .expect("a guarded class list");
-    assert_eq!(guarded.split_whitespace().count(), 2, "{}", result.css);
+    assert_eq!(
+        result.css.matches("var(--sw-vtc-").count(),
+        1,
+        "{}",
+        result.css
+    );
+    // One slot reference in the class list and one assignment in the guarded unit.
+    assert_eq!(result.css.matches("--sw-vtc-").count(), 2, "{}", result.css);
     assert!(
         result.css.contains("view-transition-name:--sw-v-"),
         "{}",
@@ -220,6 +219,44 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
     );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("(compact) &&"), "{transformed}");
+}
+
+/// Two conditions that hold together each fill their own slot, so the resolved class list
+/// is the union of what the element declares rather than the last one to apply.
+#[test]
+fn unions_guarded_view_transitions_through_class_slots() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Union.tsx",
+        r#"import { style } from "stillwind/react";
+declare const first: boolean;
+declare const second: boolean;
+const one = style.viewTransition({ old: "opacity-0" });
+const two = style.viewTransition({ new: "opacity-100" });
+export const item = style("block", first && one, second && two);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(
+        result.css.matches("view-transition-class:").count(),
+        1,
+        "{}",
+        result.css
+    );
+    assert_eq!(
+        result.css.matches("var(--sw-vtc-").count(),
+        2,
+        "{}",
+        result.css
+    );
+    assert_eq!(result.css.matches("--sw-vtc-").count(), 4, "{}", result.css);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("(first) &&"), "{transformed}");
+    assert!(transformed.contains("(second) &&"), "{transformed}");
 }
 
 /// A `.for(...)` outside a call builds a value: a literal key folds into a record, and a

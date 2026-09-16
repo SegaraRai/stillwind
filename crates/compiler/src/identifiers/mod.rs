@@ -29,7 +29,7 @@ pub use request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ConditionRole, ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest,
     LayerContext, LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ScopeMarkerName,
-    ViewTransitionClassRequest,
+    ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
 
 #[cfg(test)]

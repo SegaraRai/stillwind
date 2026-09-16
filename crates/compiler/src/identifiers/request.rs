@@ -335,6 +335,45 @@ impl NameRequest<CustomPropertyName> for ConditionHelperRequest {
     }
 }
 
+/// The custom property one guarded view-transition use writes its class token into.
+///
+/// The declaring class lists every slot as `var(--slot,)`, so a condition that holds
+/// contributes its token and a sibling condition contributes its own: the resolved
+/// class list is the union of whatever the element actually declares.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ViewTransitionSlotRequest(pub ClassContext);
+
+impl NameRequest<CustomPropertyName> for ViewTransitionSlotRequest {
+    fn kind(&self) -> IdentifierKind {
+        IdentifierKind::CustomProperty
+    }
+
+    fn identity(&self) -> String {
+        format!(
+            "stillwind/view-transition-slot/v1:{module}:{module_len}:{namespace_len}:{namespace}\u{0}{branch_len}:{branch}:{call}:{branch}",
+            module = self.0.module,
+            module_len = self.0.module.len(),
+            namespace_len = self.0.namespace.len(),
+            namespace = self.0.namespace,
+            branch_len = self.0.branch.len(),
+            branch = self.0.branch,
+            call = self.0.call,
+        )
+    }
+
+    fn name(
+        &self,
+        generator: &dyn IdentifierGenerator,
+        hash: &IdentifierHash,
+    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+        generator.view_transition_slot(&self.0, hash)
+    }
+
+    fn builtin(&self, hash: &IdentifierHash) -> String {
+        format!("sw-vtc-{}", hash.short_hex(16))
+    }
+}
+
 name_requests! {
     ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format!(
         "stillwind/style/v1:{module}:{module_len}:{namespace_len}:{namespace}\u{0}{branch_len}:{branch}:{call}:{branch}",

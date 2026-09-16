@@ -118,6 +118,10 @@ pub struct NativeIdentifierNaming<'env> {
     /// which is also the transition's identity.
     pub view_transition_class:
         Option<Function<'env, FnArgs<(NativeDeclarationContext, Buffer)>, Option<String>>>,
+    /// `(context, hash) => string | undefined`, for the custom property one guarded
+    /// view-transition use writes its class token into.
+    pub view_transition_slot:
+        Option<Function<'env, FnArgs<(NativeClassContext, Buffer)>, Option<String>>>,
     /// `(context, hash, text_hash) => string | undefined`, for a conditional helper custom
     /// property. `hash` covers the role and the text, `text_hash` the text alone.
     pub condition_helper:
@@ -137,6 +141,7 @@ pub(crate) struct NativeNaming {
     container_name: Option<NamingReference<NativeLocatorContext>>,
     keyframes_name: Option<NamingReference<NativeDeclarationContext>>,
     view_transition_class: Option<NamingReference<NativeDeclarationContext>>,
+    view_transition_slot: Option<NamingReference<NativeClassContext>>,
     condition_helper: Option<HelperReference>,
     layer_name: Option<NamingReference<NativeLayerContext>>,
 }
@@ -158,6 +163,7 @@ impl NativeNaming {
             container_name: reference(naming.container_name)?,
             keyframes_name: reference(naming.keyframes_name)?,
             view_transition_class: reference(naming.view_transition_class)?,
+            view_transition_slot: reference(naming.view_transition_slot)?,
             condition_helper: reference(naming.condition_helper)?,
             layer_name: reference(naming.layer_name)?,
         };
@@ -177,6 +183,7 @@ impl NativeNaming {
             && self.container_name.is_none()
             && self.keyframes_name.is_none()
             && self.view_transition_class.is_none()
+            && self.view_transition_slot.is_none()
             && self.condition_helper.is_none()
             && self.layer_name.is_none()
     }
@@ -379,6 +386,31 @@ impl IdentifierGenerator for NativeNaming {
         };
         Ok(GeneratedName::provided(
             ViewTransitionClass::new(&name).map_err(|error| error.to_string())?,
+        ))
+    }
+
+    fn view_transition_slot(
+        &self,
+        context: &ClassContext,
+        hash: &IdentifierHash,
+    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+        let Some(name) = self.call(
+            &self.view_transition_slot,
+            FnArgs::from((
+                NativeClassContext {
+                    module: context.module.clone(),
+                    namespace: context.namespace.clone(),
+                    call: context.call,
+                    branch: context.branch.clone(),
+                },
+                digest(hash),
+            )),
+        )?
+        else {
+            return Ok(GeneratedName::Builtin);
+        };
+        Ok(GeneratedName::provided(
+            CustomPropertyName::new(&name).map_err(|error| error.to_string())?,
         ))
     }
 

@@ -512,6 +512,11 @@ export interface NativeIdentifierNaming {
    */
   viewTransitionClass?: (arg0: NativeDeclarationContext, arg1: Buffer) => string | null
   /**
+   * `(context, hash) => string | undefined`, for the custom property one guarded
+   * view-transition use writes its class token into.
+   */
+  viewTransitionSlot?: (arg0: NativeClassContext, arg1: Buffer) => string | null
+  /**
    * `(context, hash, text_hash) => string | undefined`, for a conditional helper custom
    * property. `hash` covers the role and the text, `text_hash` the text alone.
    */

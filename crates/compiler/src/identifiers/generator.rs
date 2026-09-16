@@ -30,7 +30,7 @@ use super::request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest, LayerContext,
     LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ScopeMarkerName,
-    ViewTransitionClassRequest,
+    ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
 
 /// The naming inputs one compilation runs with.
@@ -214,6 +214,19 @@ pub trait IdentifierGenerator: fmt::Debug {
         _context: &ConditionContext,
         _hash: &IdentifierHash,
         _text_hash: &IdentifierHash,
+    ) -> Result<GeneratedName<CustomPropertyName>, String> {
+        Ok(GeneratedName::Builtin)
+    }
+
+    /// The custom property one guarded view-transition use writes its class token into.
+    ///
+    /// # Errors
+    ///
+    /// Returns a failure the compilation reports for this use.
+    fn view_transition_slot(
+        &self,
+        _context: &ClassContext,
+        _hash: &IdentifierHash,
     ) -> Result<GeneratedName<CustomPropertyName>, String> {
         Ok(GeneratedName::Builtin)
     }
@@ -531,6 +544,18 @@ impl IdentifierContext {
         context: &ConditionContext,
     ) -> Result<CustomPropertyName, CompileErrorKind> {
         self.resolve_name(&ConditionHelperRequest(context.clone()))
+    }
+
+    /// The custom property one guarded view-transition use writes its class token into.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure in release mode.
+    pub(crate) fn view_transition_slot(
+        &self,
+        context: &ClassContext,
+    ) -> Result<CustomPropertyName, CompileErrorKind> {
+        self.resolve_name(&ViewTransitionSlotRequest(context.clone()))
     }
 
     /// An anonymous layer name, without the traversal index its writer appends.

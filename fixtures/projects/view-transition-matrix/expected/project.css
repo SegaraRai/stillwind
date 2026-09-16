@@ -445,9 +445,6 @@ Keep both selectors so the same theme values are available in either scope.
   ::view-transition-image-pair(.--sw-v-5ce18560) {
     isolation: auto;
   }
-  ._s_2cb9eec0 {
-    view-transition-class: --sw-v-7e58d129;
-  }
   ._s_ba3304a0 {
     view-transition-class: --sw-v-7e58d129;
   }
@@ -460,29 +457,11 @@ Keep both selectors so the same theme values are available in either scope.
   ._s_27fd0933 {
     view-transition-name: --sw-v-7e58d129-hero;
   }
-  ._s_538d6843 {
-    view-transition-class: --sw-v-7e58d129;
-  }
-  ._s_50c920c4 {
-    view-transition-class: --sw-v-5ce18560;
-  }
-  ._s_a66a5d83 {
-    view-transition-class: --sw-v-7e58d129;
-  }
-  ._s_913700e8 {
-    view-transition-class: --sw-v-5ce18560;
-  }
   ._s_ff2da744 {
     display: block;
   }
   ._s_62030c47 {
-    view-transition-class: --sw-v-7e58d129;
-  }
-  ._s_62030c47 {
     view-transition-name: --sw-v-7e58d129-hero;
-  }
-  ._s_24aea93b {
-    view-transition-class: --sw-v-5ce18560;
   }
   ._s_24aea93b {
     view-transition-name: --sw-v-5ce18560-hero;
@@ -496,9 +475,6 @@ Keep both selectors so the same theme values are available in either scope.
   ._s_c5134c6d {
     display: block;
     view-transition-name: hero;
-  }
-  ._s_814fc071 {
-    view-transition-class: --sw-v-7e58d129;
   }
   ._s_b9926253 {
     display: block;
@@ -516,25 +492,16 @@ Keep both selectors so the same theme values are available in either scope.
     display: block;
   }
   ._s_c0c71779 {
-    view-transition-class: --sw-v-7e58d129;
+    view-transition-class: --sw-v-7e58d129 var(--sw-vtc-ced8086f187f679d,);
   }
   ._s_c0c71779 {
     view-transition-name: --sw-v-7e58d129-base;
   }
   ._s_ccc9d63e {
-    view-transition-class: --sw-v-7e58d129 --sw-v-5ce18560;
+    --sw-vtc-ced8086f187f679d: --sw-v-5ce18560;
   }
   ._s_ccc9d63e {
     view-transition-name: --sw-v-5ce18560-guarded;
-  }
-  ._s_e75a26c8 {
-    view-transition-class: --sw-v-7e58d129;
-  }
-  ._s_04565c77 {
-    view-transition-class: --sw-v-7e58d129;
-  }
-  ._s_6ca79e06 {
-    view-transition-class: --sw-v-5ce18560;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

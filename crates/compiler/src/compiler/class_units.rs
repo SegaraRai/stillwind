@@ -22,13 +22,16 @@ use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
 /// View-transition data one class unit declares.
 ///
-/// `view-transition-class` is one property, so a unit lists every token its call is
-/// responsible for at that point rather than adding tokens to an earlier unit's list. Two
-/// units declaring the same class therefore resolve to the later, complete list.
+/// The class property is one declaration, so the unit that owns the element class list
+/// references a slot per guarded use and each guarded unit fills its own slot. The resolved
+/// list is whatever slots the element actually declares, so two conditions that hold
+/// together contribute both tokens instead of replacing one another.
 #[derive(Clone, Default)]
 pub(super) struct ViewTransitionClassUnit {
-    /// Escaped class tokens the unit declares, in first-seen order.
+    /// Escaped class tokens the unit declares literally, in first-seen order.
     classes: Vec<String>,
+    /// The slot custom property this unit fills, and the token it writes into it.
+    slot: Option<(String, String)>,
     /// Escaped names the unit declares statically, in order.
     names: Vec<String>,
 }
@@ -36,7 +39,7 @@ pub(super) struct ViewTransitionClassUnit {
 impl ViewTransitionClassUnit {
     /// Whether the unit declares no view-transition data.
     pub(super) fn is_empty(&self) -> bool {
-        self.classes.is_empty() && self.names.is_empty()
+        self.classes.is_empty() && self.slot.is_none() && self.names.is_empty()
     }
 
     /// Records one use's tokens and static names.
@@ -50,29 +53,55 @@ impl ViewTransitionClassUnit {
         self.names.extend(names.iter().cloned());
     }
 
-    /// The complete class list this unit declares, given the classes it inherits.
-    ///
-    /// The class property is one declaration, so a conditional unit repeats the classes the
-    /// unconditional unit declared; the later, complete list is the one that applies.
-    fn complete_classes(&self, inherited: &[String]) -> Vec<String> {
-        let mut classes = inherited.to_vec();
-        for class in &self.classes {
-            if !classes.contains(class) {
-                classes.push(class.clone());
-            }
-        }
-        classes
+    /// Records the slot one guarded use fills, and its static names.
+    fn attach_slot(&mut self, property: String, token: &str, names: &[String]) {
+        self.slot = Some((property, escaped_identifier(token)));
+        self.names.extend(names.iter().cloned());
     }
 
-    /// The rules this unit writes for `selector`, declaring `classes` and its own names.
-    fn rules(&self, selector: &str, classes: &[String]) -> String {
+    /// The rules the unit owning the element class list writes.
+    ///
+    /// Its own classes come first and each slot follows as a `var()` reference with an empty
+    /// fallback, so a slot no unit filled contributes nothing to the resolved list.
+    fn class_rules(&self, selector: &str, slots: &[String]) -> String {
+        let mut list = self.classes.join(" ");
+        for slot in slots {
+            if !list.is_empty() {
+                list.push(' ');
+            }
+            list.push_str("var(");
+            list.push_str(slot);
+            list.push_str(",)");
+        }
         let mut css = String::new();
-        if !classes.is_empty() {
+        if !list.is_empty() {
             css.push_str(selector);
             css.push_str("{view-transition-class:");
-            css.push_str(&classes.join(" "));
+            css.push_str(&list);
             css.push_str(";}");
         }
+        css.push_str(&self.name_rules(selector));
+        css
+    }
+
+    /// The rules a guarded unit writes: the slot it fills and its static names.
+    fn guarded_rules(&self, selector: &str) -> String {
+        let mut css = String::new();
+        if let Some((property, token)) = &self.slot {
+            css.push_str(selector);
+            css.push('{');
+            css.push_str(property);
+            css.push(':');
+            css.push_str(token);
+            css.push_str(";}");
+        }
+        css.push_str(&self.name_rules(selector));
+        css
+    }
+
+    /// The static view-transition-name declarations this unit writes.
+    fn name_rules(&self, selector: &str) -> String {
+        let mut css = String::new();
         for name in &self.names {
             css.push_str(selector);
             css.push_str("{view-transition-name:");
@@ -200,14 +229,21 @@ impl<'a> ClassUnits<'a> {
                 &contribution.utilities,
             )?;
             names.push(name.clone());
-            self.view_transition_classes
-                .push(ViewTransitionClassUnit::default());
-            let slot = self.view_transition_classes.len() - 1;
             self.class_selectors.push(format!(".{name}"));
-            self.view_transition_classes[slot].attach(
-                &contribution.view_transition_tokens,
-                &contribution.view_transition_names,
-            );
+            let mut unit = ViewTransitionClassUnit::default();
+            if guard.is_empty() {
+                unit.attach(
+                    &contribution.view_transition_tokens,
+                    &contribution.view_transition_names,
+                );
+            } else if let Some(token) = contribution.view_transition_tokens.first() {
+                // A guarded use contributes its token through the slot its own class fills,
+                // so a sibling condition that also holds contributes its token as well.
+                let property = self.view_transition_slot(&branch)?;
+                unit.attach_slot(property, token, &contribution.view_transition_names);
+            }
+            self.view_transition_classes.push(unit);
+            let slot = self.view_transition_classes.len() - 1;
             self.classes.push(GeneratedClass {
                 class_name: name,
                 call_span: self.call_span,
@@ -231,7 +267,14 @@ impl<'a> ClassUnits<'a> {
     pub(super) fn finish(mut self) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileErrorKind> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
-        let base_declares = !self.view_transition_classes[0].is_empty();
+        // A call whose transitions are all guarded still needs the class that references
+        // their slots, so any unit beyond the base keeps it.
+        let base_declares = !self.view_transition_classes[0].is_empty()
+            || self
+                .view_transition_classes
+                .iter()
+                .skip(1)
+                .any(|unit| unit.slot.is_some());
         if !self.base.utilities.is_empty() || base_declares {
             let branch = format!("0:{}", self.base.canonical);
             let canonical =
@@ -243,8 +286,9 @@ impl<'a> ClassUnits<'a> {
             // The base unit must precede every conditional unit in the stylesheet.
             deferred.extend(rules);
             self.class_selectors[0] = format!(".{name}");
-            let classes = self.view_transition_classes[0].complete_classes(&[]);
-            let declarations = self.view_transition_classes[0].rules(&format!(".{name}"), &classes);
+            let slots = self.view_transition_slots();
+            let declarations =
+                self.view_transition_classes[0].class_rules(&format!(".{name}"), &slots);
             if !declarations.is_empty() {
                 deferred.push(CssContribution {
                     css: declarations,
@@ -266,9 +310,7 @@ impl<'a> ClassUnits<'a> {
         for (slot, contribution) in std::mem::take(&mut self.runtime_css) {
             deferred.push(contribution);
             if let Some(unit) = self.view_transition_classes.get(slot) {
-                let inherited = self.view_transition_classes[0].complete_classes(&[]);
-                let classes = unit.complete_classes(&inherited);
-                let declarations = unit.rules(&self.class_selectors[slot], &classes);
+                let declarations = unit.guarded_rules(&self.class_selectors[slot]);
                 if !declarations.is_empty() {
                     deferred.push(CssContribution {
                         css: declarations,
@@ -363,5 +405,29 @@ impl<'a> ClassUnits<'a> {
             return Ok(String::new());
         };
         Ok(names.first().cloned().unwrap_or_default())
+    }
+
+    /// The slot properties the base unit references, in the order their units were allocated.
+    fn view_transition_slots(&self) -> Vec<String> {
+        self.view_transition_classes
+            .iter()
+            .skip(1)
+            .filter_map(|unit| unit.slot.as_ref().map(|(property, _)| property.clone()))
+            .collect()
+    }
+
+    /// The custom property name one guarded unit fills with its class token.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator failure in release mode.
+    fn view_transition_slot(&self, branch: &str) -> Result<String, CompileErrorKind> {
+        let context = ClassContext {
+            module: normalized_module_path(self.source.path()),
+            namespace: self.options.class_namespace.clone(),
+            call: self.call_span.start.0,
+            branch: branch.to_owned(),
+        };
+        Ok(self.identifiers.view_transition_slot(&context)?.property())
     }
 }
