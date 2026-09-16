@@ -58,6 +58,9 @@ view-transition-name を独立に与える設計。設計・実装エージェ�
 10. **lint は2本**（名前の供給源の欠落 / 重複）。既定 warn。値の検査はしない。SHVIEW004 は削除。
 11. **エスケープは共有実装**。Rust は既存の `cssparser::serialize_identifier`（`name.rs` の
     `escaped_identifier`）。JS は `CSS.escape` があればそれ、無ければ spec 準拠のフォールバック。
+12. **`group` の option 条件は option 単位**（候補A、§3.9）。条件付きの option は同じ選択子の
+    規則として無条件の規則より後ろに並べ、プロパティ単位の差分を作る。keyframes 型の定義分岐は
+    使わない。
 
 ## 3. 仕様
 
@@ -238,6 +241,73 @@ style("rounded", cond && vtSub, vtMain.for("bar"));
 | `NamePool::ViewTransitionClass`（著者 CSS からの予約収集）                               | 維持。クラストークン生成時の衝突検査に使う                                                                                       |
 | 著者の `view-transition-name` 値の収集・予約                                             | 行わない。名前は identity 間で共有されうる値であり、生成側の検査対象にしない（§3.4）                                             |
 
+### 3.9 `group` の option 条件
+
+決定（未実装）。`group` の option にも media / supports 条件を書けるようにする。条件は option
+文字列の中に variant の形で書き、条件付きの option は同じ選択子の規則として、無条件の option の
+規則より後ろに出力する（候補A: option 単位）。
+
+```tsx
+style.viewTransition({
+  group: "duration-180 ease-linear both motion-reduce:duration-0",
+  old: "opacity-0",
+  new: "opacity-100",
+});
+```
+
+```css
+::view-transition-group(.--sw-v-a9ce35ce) {
+  animation-duration: calc(180 * 1ms);
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.--sw-v-a9ce35ce) {
+    animation-duration: calc(0 * 1ms);
+  }
+}
+```
+
+無条件の option は1つの規則にまとめる。条件付きの option は書いた順に1規則ずつ、base と同じ
+選択子のまま並べる。複数の条件を重ねた option は wrapper を外側へ積み、同時成立した条件は
+後ろの規則が勝つ。特異性が同じで後勝ちになるため、条件は option 列の**プロパティ単位の差分**
+になる（この例で条件成立時に変わるのは `animation-duration` だけで、`ease-linear` と `both` は
+そのまま効く）。
+
+`old` / `new` / `imagePair` の条件規則と選んだ形が同じで、4つの bucket はいずれも宣言に紐づく
+規則である。規則は要素の有無と無関係に出力されるため、条件も要素側の状態ではなく宣言側の
+wrapper で表すことになる。§3.5 の条件ユニットが要素側のクラスリストで union を解くのとは経路が
+別で、group には要素が介在しないため union を解く必要がない。
+
+自然な理由:
+
+- `::view-transition-*` の擬似要素は UA が文書 root の下に生成するもので、装飾した要素の子孫
+  にはならない。`&` を使う variant はこの規則に届かず、規則と要素を結ぶ手掛かりは
+  `view-transition-name` / `view-transition-class` のトークンだけになる。条件を選択子の中へ
+  持ち込む手段が無く、規則の外側に置く形が唯一の合成手段になる。
+- 一方、規則そのものは通常の style rule（選択子＋宣言）で、`animation-duration` などの宣言を
+  書く。`@media` / `@supports` の中の規則は cascade で普通の要素規則と同じに解決されるので、
+  同じ選択子の規則を後ろに足せばプロパティ単位の差分が得られる。定義規則に条件を許す判定
+  （`conditions_only`）が通す media / supports が、そのままこの形に載る。
+- `@keyframes` は選択子も入れ子規則も持たないグローバルな at-rule で、条件は定義全体を包む形
+  しかない。同名定義は部分マージされないため、条件ごとに完全な定義を作る D2 の分岐が要る
+  （`docs/design-intent-improvement-plan.md` の「animation は定義 object の variant key で
+  分岐する」）。group は option 列の差分で足りるので、この形を持ち込まない。条件で option 列を
+  丸ごと置き換える要求が出た場合は、そのとき定義分岐（候補B）を検討する。
+
+制約:
+
+- 条件は media / supports のみ。要素依存の選択子、`@container`、任意 at-rule を option に
+  書いた場合は `InvalidViewTransitionVariant`（SHMOTION001）で拒否する（他の3 bucket と揃える）。
+- 負値と `!important` は拒否したまま（option は値の記述で、修飾付き utility ではない）。
+  option 自体の文法の誤り（未知の名前、負値、`!important`）は現行どおり
+  `UnknownAnimationOption`（SHANIMATION002）、variant の位置の誤りは bucket 側の
+  `InvalidViewTransitionVariant`（SHMOTION001）と使い分ける。
+- `[transition-duration:75ms]` のようなプロパティ投影も同じ経路に載せる。条件を剥がして解決し、
+  投影した宣言を同じ wrapper に置く（投影が対象外プロパティを落とす規則は変えない）。
+- 実装箇所は `crates/compiler/src/compiler/motion.rs` の `emit_view_transition_definition` と
+  `resolve_motion_options`（option ごとに条件と宣言を分け、bucket 側と同じ wrapper を組む）。
+
 ## 4. 実装計画
 
 依存順に5フェーズ。各フェーズで workspace のゲートを通す。
@@ -312,6 +382,7 @@ style("rounded", cond && vtSub, vtMain.for("bar"));
   実際の勝敗は cascade 依存であることをドキュメントに書く。
 - レイヤによる優先順位制御（生成側の添付宣言を低レイヤに置く案）は**未採用**。
   明示名を同一 call に書く運用で足りるため。
+- `group` の option 条件（§3.9）は決定済み・未実装。
 
 ## 7. 却下した案（再検討しない）
 
