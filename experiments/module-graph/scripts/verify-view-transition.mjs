@@ -21,7 +21,7 @@ const coreRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../..
 
 /// Expands the package own imports, so the compiled theme carries the built-in registry.
 function expand(css, directory = coreRoot) {
-  return css.replace(/@import\s+(["\'])([^"\']+)\1([^;]*);/g, (rule, _quote, name, tail) => {
+  return css.replace(/@import\s+(["'])([^"']+)\1([^;]*);/g, (rule, _quote, name, tail) => {
     const path =
       name === "stillwind"
         ? resolve(coreRoot, "index.css")
