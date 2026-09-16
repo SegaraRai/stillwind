@@ -320,7 +320,7 @@ fn collect_variant_and_applications(
 /// the candidate grammar instead of duplicating it here. A prefix that does not end in
 /// `:` or that yields an empty variant is rejected, so a malformed wrapper cannot
 /// silently shift the meaning of the utility it wraps.
-fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
+pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
     if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
         return None;
     }

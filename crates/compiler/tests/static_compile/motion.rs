@@ -106,6 +106,42 @@ const detail = style(title);"#,
 }
 
 #[test]
+fn compiles_view_transition_conditions_and_image_pair_phases() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/Gallery.tsx",
+        r#"import { style } from "stillwind/react";
+const item = style.viewTransition({ old: "opacity-0 motion-reduce:opacity-100", new: "opacity-100", imagePair: "isolation-auto" });
+export const photo = style(item);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("::view-transition-image-pair(.--sw-v-"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains_css("isolation:isolate;") || result.css.contains_css("isolation:auto;"),
+        "{}",
+        result.css
+    );
+    let base = result
+        .css
+        .find("::view-transition-old(.--sw-v-")
+        .expect("base old rule");
+    let conditional = result
+        .css
+        .find("@media (prefers-reduced-motion: reduce){::view-transition-old(.--sw-v-")
+        .expect("conditional old rule");
+    assert!(base < conditional, "{}", result.css);
+}
+
+#[test]
 fn configures_stillwind_and_tailwind_compatibility_prefixes_independently() {
     let component = SourceFile::new(
         FileId(1),

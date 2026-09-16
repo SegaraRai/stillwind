@@ -1,6 +1,6 @@
 //! Complete conditional keyframe definitions and their registration requirements.
 
-use stillwind_design_system::{ThemeIndex, VariantApplication};
+use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AnimationBody, AnimationDefinition, AnimationFrame, StyleVariant};
 use stillwind_source::{SourceFile, Span};
@@ -11,7 +11,7 @@ use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
 use super::super::utilities::declaration_order::combine_declarations_for_theme;
 use super::super::utilities::resolve::resolve_utility;
-use super::super::variants::{VariantStep, variant_paths};
+use super::super::variants::{VariantStep, conditions_only, variant_paths};
 use crate::identifiers::IdentifierContext;
 
 /// Emits default keyframes first and complete replacements in canonical variant order.
@@ -79,13 +79,10 @@ fn collect_definitions<'a>(
     definitions: &mut Vec<(StyleVariantPlan, &'a [AnimationFrame])>,
 ) {
     if let Some(plan) = StyleVariantPlan::resolve(identifiers, wrappers, theme, diagnostics) {
-        let valid = plan.applications().iter().all(|applications| {
-            !applications.iter().any(VariantApplication::uses_subject)
-                && variant_paths(applications)
-                    .iter()
-                    .flatten()
-                    .all(|step| matches!(step, VariantStep::Media(_) | VariantStep::Supports(_)))
-        });
+        let valid = plan
+            .applications()
+            .iter()
+            .all(|applications| conditions_only(&variant_paths(applications)));
         if !valid {
             if let Some(variant) = wrappers.last() {
                 diagnostics.push(CompileError::new(

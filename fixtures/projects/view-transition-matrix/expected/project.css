@@ -434,28 +434,36 @@ Keep both selectors so the same theme values are available in either scope.
   ::view-transition-old(.--sw-v-5ce18560) {
     opacity: calc(100 * 1%);
   }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(.--sw-v-5ce18560) {
+      opacity: calc(75 * 1%);
+    }
+  }
   ::view-transition-new(.--sw-v-5ce18560) {
     opacity: calc(0 * 1%);
   }
-  ._s_c29d534e {
+  ::view-transition-image-pair(.--sw-v-5ce18560) {
+    isolation: auto;
+  }
+  ._s_be6f85cc {
     --sw-vt-name: none;
     --sw-vt-class: none;
     view-transition-name: var(--sw-vt-name);
     view-transition-class: var(--sw-vt-class);
   }
-  ._s_fb17aede {
+  ._s_6c9e3039 {
     --sw-vt-name: none;
     --sw-vt-class: none;
     view-transition-name: var(--sw-vt-name);
     view-transition-class: var(--sw-vt-class);
   }
-  ._s_46394631 {
+  ._s_062cacfe {
     --sw-vt-name: none;
     --sw-vt-class: none;
     view-transition-name: var(--sw-vt-name);
     view-transition-class: var(--sw-vt-class);
   }
-  ._s_b0348860 {
+  ._s_83d5525c {
     --sw-vt-name: none;
     --sw-vt-class: none;
     view-transition-name: var(--sw-vt-name);

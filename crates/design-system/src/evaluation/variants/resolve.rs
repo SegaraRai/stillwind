@@ -98,6 +98,33 @@ impl VariantApplication {
     }
 }
 
+/// Returns the selector of the first selector-bearing application that does not reference
+/// the subject element, if one exists.
+///
+/// A rule whose selector never mentions its subject is live wherever the stylesheet loads, so
+/// a host can reject such input where the rule must stay scoped to the element that produced
+/// it. Conditions, runtime conditions, and selectors that keep the subject are not reported.
+#[must_use]
+pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str> {
+    match application {
+        VariantApplication::Compound(children) | VariantApplication::Sequence(children) => {
+            children.iter().find_map(document_scoped_selector)
+        }
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::SelectorRule { selector, .. }
+        | VariantApplication::SelectorMedia { selector, .. }
+        | VariantApplication::SelectorMediaRule { selector, .. } => {
+            (!selector_uses_subject(selector)).then_some(selector.as_str())
+        }
+        VariantApplication::Conditional(_)
+        | VariantApplication::SelectorSuffix(_)
+        | VariantApplication::Media(_)
+        | VariantApplication::Container(_)
+        | VariantApplication::Supports(_)
+        | VariantApplication::StartingStyle => None,
+    }
+}
+
 /// One declaration carried by a variant rather than by the utility.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariantDeclaration {

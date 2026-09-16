@@ -5,8 +5,9 @@ export const pageTitle = style.viewTransition({
   new: "opacity-100",
 });
 export const pageCard = style.viewTransition({
-  old: "opacity-100",
+  old: "opacity-100 motion-reduce:opacity-75",
   new: "opacity-0",
+  imagePair: "isolation-auto",
 });
 
 export const compact = Date.now() % 2 === 0;

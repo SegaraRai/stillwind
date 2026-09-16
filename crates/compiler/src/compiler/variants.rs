@@ -7,7 +7,10 @@
 //! path and the generated utility path expand the same inputs through the same code and
 //! cannot drift apart.
 
-use stillwind_design_system::{VariantApplication, VariantDeclaration};
+use stillwind_design_system::{
+    ThemeIndex, VariantApplication, VariantDeclaration, resolve_variant,
+};
+use stillwind_syntax::Variant;
 
 /// One non-compound effect of a variant.
 #[derive(Clone, Copy)]
@@ -136,6 +139,29 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
             .collect();
     }
     paths
+}
+
+/// Whether every step of every path is a condition that can wrap a rule without a selector
+/// of its own.
+///
+/// Definition-level rules such as keyframes and view-transition pseudo-elements have no
+/// element to select, so only `@media` and `@supports` can contain them.
+pub(super) fn conditions_only(paths: &[Vec<VariantStep<'_>>]) -> bool {
+    paths
+        .iter()
+        .flatten()
+        .all(|step| matches!(step, VariantStep::Media(_) | VariantStep::Supports(_)))
+}
+
+/// Returns the selector of `variant` when the rule it produces would apply to the document
+/// instead of to the styled element.
+///
+/// A selector without the nesting subject is live wherever the stylesheet loads, which a
+/// `style()` call must not author; document-wide CSS belongs in a stylesheet. Conditions and
+/// selectors that keep the subject are unaffected.
+pub(super) fn document_scoped_selector(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
+    let application = resolve_variant(variant, theme)?;
+    stillwind_design_system::document_scoped_selector(&application).map(str::to_owned)
 }
 
 #[cfg(test)]

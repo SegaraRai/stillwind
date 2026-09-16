@@ -67,6 +67,9 @@ impl Default for StillwindConfig {
             lint_rules: [
                 LintKind::MacroArgumentMutation,
                 LintKind::MacroExecutionBoundary,
+                LintKind::DocumentScopedSelector {
+                    selector: String::new(),
+                },
             ]
             .into_iter()
             .map(|kind| (kind.code().to_owned(), "deny".to_owned()))

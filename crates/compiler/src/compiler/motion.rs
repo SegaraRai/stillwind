@@ -9,16 +9,20 @@
 //! Options are resolved through the shared candidate resolver, which is why a theme duration
 //! is usable as an animation option even though it is not a utility.
 
-use stillwind_design_system::{ThemeIndex, UtilityOrder, resolve_animation_option};
+use stillwind_design_system::{
+    ThemeIndex, UtilityOrder, VariantApplication, resolve_animation_option, resolve_variant,
+};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{AssetReference, ViewTransitionDefinition};
 use stillwind_source::{SourceFile, Spanned};
+use stillwind_syntax::Variant;
 
 use super::CssContribution;
 use super::lexer::lex_utilities;
 use super::symbols::{identity_declaration, named_declaration};
 use super::utilities::declaration_order::combine_declarations_for_theme;
 use super::utilities::resolve::{CompiledUtility, resolve_utility};
+use super::variants::{VariantStep, conditions_only, variant_paths};
 use crate::identifiers::IdentifierContext;
 
 mod animation;
@@ -88,9 +92,9 @@ pub(super) fn resolve_motion_options(
 
 /// Writes the view-transition rules for one declaration.
 ///
-/// The group rule carries the transition options, and the `old` and `new` pseudo-element rules
-/// carry their utility lists. Both pseudo-elements are keyed by the same generated name, which
-/// is what pairs them at runtime.
+/// The group rule carries the transition options, and the `old`, `new`, and `image-pair`
+/// pseudo-element rules carry their utility lists. Every pseudo-element is keyed by the same
+/// generated name, which is what pairs them at runtime.
 pub(super) fn emit_view_transition_definition(
     contribution: &mut CssContribution,
     source: &SourceFile,
@@ -120,58 +124,112 @@ pub(super) fn emit_view_transition_definition(
     for (pseudo, utilities) in [
         ("old", transition.old.as_ref()),
         ("new", transition.new.as_ref()),
+        ("image-pair", transition.image_pair.as_ref()),
     ] {
         let Some(utilities) = utilities else {
             continue;
         };
-        output.push_str("::view-transition-");
-        output.push_str(pseudo);
-        output.push('(');
-        output.push_str(&name);
-        output.push_str("){ ");
-        output.push_str(&resolve_static_utility_list(
+        emit_view_transition_utilities(
+            output,
+            &format!("::view-transition-{pseudo}({name})"),
             utilities,
             theme,
             diagnostics,
             &mut contribution.required_properties,
-        ));
-        output.push('}');
+        );
     }
 }
 
-/// Resolves a definition's utility list and combines the successful declarations.
+/// Writes one pseudo-element phase's rules for `selector`.
 ///
-/// Invalid coordinates, unresolved utilities, and variant-qualified utilities append
-/// fatal errors. Rejected tokens contribute nothing; successful tokens still append
-/// their property requirements, so callers must check diagnostics before publishing.
-pub(super) fn resolve_static_utility_list(
+/// Utilities without variants share one rule. A utility carrying condition variants emits its
+/// own rule per condition path, in source order after the shared rule, so a condition selects
+/// its declarations without changing what the unconditional rule says. Rejected tokens
+/// contribute nothing; successful tokens still append their property requirements, so callers
+/// must check diagnostics before publishing.
+fn emit_view_transition_utilities(
+    output: &mut String,
+    selector: &str,
     input: &Spanned<String>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     required_properties: &mut Vec<String>,
-) -> String {
-    let mut utilities = Vec::new();
+) {
+    let mut plain = Vec::new();
+    let mut conditional = String::new();
     for utility in lex_utilities(input, diagnostics) {
-        match resolve_utility(&utility.value.raw, theme) {
-            Some(utility) if utility.variants.is_empty() => utilities.push(utility),
-            Some(_) => diagnostics.push(CompileError::new(
-                CompileErrorKind::MotionVariants,
-                utility.span,
-            )),
-            None => diagnostics.push(CompileError::new(
+        let Some(resolved) = resolve_utility(&utility.value.raw, theme) else {
+            diagnostics.push(CompileError::new(
                 CompileErrorKind::UnavailableUtility {
                     utility: utility.value.raw.clone(),
                 },
                 utility.span,
-            )),
+            ));
+            continue;
+        };
+        if resolved.variants.is_empty() {
+            plain.push(resolved);
+            continue;
+        }
+        let Some(applications) = condition_applications(&resolved.variants, theme) else {
+            diagnostics.push(CompileError::new(
+                CompileErrorKind::InvalidViewTransitionVariant,
+                utility.span,
+            ));
+            continue;
+        };
+        required_properties.extend(resolved.required_properties.clone());
+        let declaration = combine_declarations_for_theme(&[&resolved], theme);
+        for path in variant_paths(&applications) {
+            let mut rule = format!("{selector}{{ {declaration}}}");
+            for step in path.iter().rev() {
+                match step {
+                    VariantStep::Media(condition) => {
+                        rule = format!("@media {condition}{{{rule}}}");
+                    }
+                    VariantStep::Supports(condition) => {
+                        rule = format!("@supports ({condition}){{{rule}}}");
+                    }
+                    _ => {}
+                }
+            }
+            conditional.push_str(&rule);
         }
     }
-    required_properties.extend(
-        utilities
-            .iter()
-            .flat_map(|utility| utility.required_properties.clone()),
-    );
-    combine_declarations_for_theme(&utilities.iter().collect::<Vec<_>>(), theme)
+    if !plain.is_empty() {
+        required_properties.extend(
+            plain
+                .iter()
+                .flat_map(|utility| utility.required_properties.clone()),
+        );
+        output.push_str(selector);
+        output.push_str("{ ");
+        output.push_str(&combine_declarations_for_theme(
+            &plain.iter().collect::<Vec<_>>(),
+            theme,
+        ));
+        output.push('}');
+    }
+    output.push_str(&conditional);
+}
+
+/// Resolves a bucket utility's variants into the applications a pseudo-element rule can carry.
+///
+/// A view-transition pseudo-element has no element state of its own and no container ancestor,
+/// so only media and supports conditions can wrap it. Any other variant fails the utility rather
+/// than dropping its condition silently.
+fn condition_applications(
+    variants: &[Variant],
+    theme: &ThemeIndex,
+) -> Option<Vec<VariantApplication>> {
+    let mut applications = Vec::new();
+    for variant in variants {
+        match resolve_variant(variant, theme)? {
+            VariantApplication::Compound(children) => applications.extend(children),
+            application => applications.push(application),
+        }
+    }
+    conditions_only(&variant_paths(&applications)).then_some(applications)
 }
 
 #[cfg(test)]
@@ -206,14 +264,21 @@ mod tests {
 
     #[test]
     fn motion_variants_report_the_exact_source_span_through_compilation() {
-        for (definition, kind) in [
+        for (definition, kind, expected) in [
             (
                 "style.animation({ from: 'hover:opacity-0' })",
                 CompileErrorKind::AnimationFrameVariants,
+                "hover:opacity-0",
             ),
             (
                 "style.viewTransition({ old: 'hover:opacity-0' })",
-                CompileErrorKind::MotionVariants,
+                CompileErrorKind::InvalidViewTransitionVariant,
+                "hover:opacity-0",
+            ),
+            (
+                "style.viewTransition({ imagePair: 'focus:opacity-50' })",
+                CompileErrorKind::InvalidViewTransitionVariant,
+                "focus:opacity-50",
             ),
         ] {
             let source = SourceFile::new(
@@ -230,10 +295,7 @@ mod tests {
                 .filter(|error| error.kind == kind)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
-            assert_eq!(
-                source.slice(errors[0].labels[0].span).unwrap(),
-                "hover:opacity-0"
-            );
+            assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), expected);
         }
     }
 }

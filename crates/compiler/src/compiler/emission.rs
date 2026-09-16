@@ -12,7 +12,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleCall,
     StyleInput, StyleVariant,
@@ -27,11 +27,12 @@ use super::handles::{ref_identity, render_handle_projection, scope_identity};
 use super::literal::LiteralContribution;
 use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
-use super::style_variants::StyleVariantPlan;
+use super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::symbols::{
     anchor_name, handle_projection_name, motion_name_symbol, ref_marker_name, scope_marker_name,
 };
 use super::utilities::resolve::{CompiledUtility, view_transition_utility};
+use super::variants::document_scoped_selector;
 use crate::generated::{Code, code, js_string};
 use crate::identifiers::IdentifierContext;
 use crate::runtime::RuntimeHelper;
@@ -339,6 +340,33 @@ impl<'a> CallEmitter<'a> {
         self.diagnostics.push(CompileError::new(failure, span));
     }
 
+    /// Reports a wrapper prefix whose variants would apply to the document instead of to the
+    /// styled element.
+    ///
+    /// The check runs once per authored wrapper, so one wrapper covering several literals is
+    /// reported once. The wrapper still lowers; the host decides the policy's severity.
+    fn report_document_scoped_variant(&mut self, variant: &StyleVariant) {
+        let StyleVariant::Prefix(prefix) = variant else {
+            return;
+        };
+        if !self.theme.config.lint_enabled("require-element-scope") {
+            return;
+        }
+        let Some(variants) = parse_prefix(prefix) else {
+            return;
+        };
+        let theme = self.theme;
+        if let Some(selector) = variants
+            .iter()
+            .find_map(|variant| document_scoped_selector(variant, theme))
+        {
+            self.lint_findings.push(LintFinding::new(
+                LintKind::DocumentScopedSelector { selector },
+                prefix.span,
+            ));
+        }
+    }
+
     /// Reserves the call's view-transition attachment, returning whether it is available.
     /// A repeated attachment appends a fatal error and returns `false`.
     ///
@@ -484,6 +512,7 @@ impl<'a> CallEmitter<'a> {
                 }
             }
             ClassExpression::Variant { variant, inputs } => {
+                self.report_document_scoped_variant(variant);
                 wrappers.push(variant.clone());
                 let mut items = Vec::new();
                 let mut any = false;

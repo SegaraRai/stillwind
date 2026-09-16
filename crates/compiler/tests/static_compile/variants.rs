@@ -75,6 +75,65 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
 }
 
 #[test]
+fn reports_variant_selectors_that_do_not_depend_on_the_styled_element() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ShadowHost.tsx",
+        r#"import { style } from "stillwind/react";
+export const host = style("[:host]:block");
+export const child = style("[&:where(.card)>*]:block", { "[:host-context(.dark)]:": "flex" });
+export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:flex");"#,
+    )
+    .unwrap();
+    let theme =
+        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let selectors = result
+        .lint_findings
+        .iter()
+        .filter_map(|finding| match &finding.kind {
+            LintKind::DocumentScopedSelector { selector } => Some(selector.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(selectors, vec![":host", ":host-context(.dark)"]);
+    assert_eq!(result.lint_policy["require-element-scope"], "deny");
+    assert!(
+        result.css.contains(":host{display:block;}"),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
+fn a_theme_can_disable_the_element_scope_rule() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ShadowHost.tsx",
+        "import { style } from \"stillwind/react\"; export const host = style(\"[:host]:block\");",
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(
+        FileId(2),
+        "stillwind.css",
+        "@import \"stillwind\"; @stillwind { require-element-scope: off; }",
+    )
+    .unwrap();
+
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:#?}",
+        result.lint_findings
+    );
+    assert_eq!(result.lint_policy["require-element-scope"], "off");
+}
+
+#[test]
 fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
     let component = SourceFile::new(
         FileId(1),

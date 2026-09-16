@@ -14,19 +14,19 @@
 
 ## 決定事項
 
-| 項目            | 改善方針                                                                                          | 実施区分                   |
-| --------------- | ------------------------------------------------------------------------------------------------- | -------------------------- |
-| F1              | utility の記述順依存を解消する                                                                    | 順序の定義と compiler 修正 |
-| F2              | 静的 spread・配列の穴の一律拒否を見直す                                                           | 構文正規化                 |
-| F3              | 固定 computed key の一律拒否を見直す                                                              | 構文正規化                 |
-| F4              | `ref.at()` の variant 化と有限候補の扱いを整理する                                                | variant 設計・実装         |
-| F5              | ref/scope label の ASCII 限定を見直す                                                             | 識別子の検証・直列化       |
-| F6              | React 固有規約を除去し、変換可能な契約違反を default error の lint にする                         | 診断と host policy         |
-| L1              | projected source の checker facts 未対応を TODO で明示する                                        | TODO 追加                  |
-| L2              | per-module CSS 間の import による順序保証を別途調査し、未対応を TODO で明示する                   | TODO 追加・別途実験        |
-| D1              | variant 内の `--*` object key は引き続き拒否する                                                  | 契約の明記・回帰テスト     |
-| D2              | animation は定義 object の variant key で分岐する。frame 内 utility の variant は引き続き拒否する | variant 設計・emitter 修正 |
-| View transition | variant にする部分と identity/attachment を整理する                                               | 後続設計。API は未確定     |
+| 項目            | 改善方針                                                                                          | 実施区分                                     |
+| --------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| F1              | utility の記述順依存を解消する                                                                    | 順序の定義と compiler 修正                   |
+| F2              | 静的 spread・配列の穴の一律拒否を見直す                                                           | 構文正規化                                   |
+| F3              | 固定 computed key の一律拒否を見直す                                                              | 構文正規化                                   |
+| F4              | `ref.at()` の variant 化と有限候補の扱いを整理する                                                | variant 設計・実装                           |
+| F5              | ref/scope label の ASCII 限定を見直す                                                             | 識別子の検証・直列化                         |
+| F6              | React 固有規約を除去し、変換可能な契約違反を default error の lint にする                         | 診断と host policy                           |
+| L1              | projected source の checker facts 未対応を TODO で明示する                                        | TODO 追加                                    |
+| L2              | per-module CSS 間の import による順序保証を別途調査し、未対応を TODO で明示する                   | TODO 追加・別途実験                          |
+| D1              | variant 内の `--*` object key は引き続き拒否する                                                  | 契約の明記・回帰テスト                       |
+| D2              | animation は定義 object の variant key で分岐する。frame 内 utility の variant は引き続き拒否する | variant 設計・emitter 修正                   |
+| View transition | variant にする部分と identity/attachment を整理する                                               | §8 で範囲決定済み。lint と宣言 bucket を実装 |
 
 ## 検証で明らかになった設計上の注意点
 
@@ -303,22 +303,33 @@ style("hover:[--x:var(--y)]", { "--y": value });
 
 ### 8. View transition の後続設計
 
-- [ ] name による participant の identity/対応付け、class による複数 participant の分類、
+- [x] name による participant の identity/対応付け、class による複数 participant の分類、
       要素への attachment、old/new/group/image-pair 等への styling を棚卸しする。
-- [ ] selector/条件の変換だけを行う部分と、identity・key・runtime attachment を生成する部分を分ける。
-- [ ] 単一要素、複数要素、keyed use、global/wildcard 対象の違いを整理してから API を決める。
-- [ ] `&` 依存と transition identity 依存を混同しない。参照会話の named VT = element-bound という
+- [x] selector/条件の変換だけを行う部分と、identity・key・runtime attachment を生成する部分を分ける。
+- [x] 単一要素、複数要素、keyed use、global/wildcard 対象の違いを整理してから API を決める。
+- [x] `&` 依存と transition identity 依存を混同しない。参照会話の named VT = element-bound という
       分類を、そのまま新フラグへ移さない。
 
-`vt.old` 等の API、`style.viewTransition()` の引数変更、name/class の統合・分離は未決定。
-今回の variant 共通処理をその仮案に固定しない。
+棚卸しで確定した範囲。
+
+- `style()` は要素に紐づく宣言と宣言 identity に紐づく宣言だけを書く場とする。要素にも宣言にも
+  紐づかない選択子は `DocumentScopedSelector` (`require-element-scope`、既定 `deny`) の lint とし、
+  文書全体の規則（`::view-transition-*(*)`、`::view-transition`、`@view-transition`、
+  `:active-view-transition-type()`）は stylesheet に書く。wildcard/global の第一級 variant は追加しない。
+- 個別の遷移の擬似要素スタイルは宣言が持つ。`group` は animation option、`old` / `new` /
+  `imagePair` は utility 文字列で、media / supports 条件 variant のみ付けられる。
+- `vt.old` 等の use 側 variant 受信 API は保留。採用する場合も `&` 依存とは別の identity 依存
+  フラグが要る。name/class の著者指定は未決定で、グローバル CSS と接続する唯一の経路になる。
+- 残り: `group` の option に条件を付ける方法（animation の定義 branch と同型になるか）、
+  繰り返しレンダリング / unstable key の lint。
 
 ## 実装順と完了判定
 
 1. F1、F2/F3、F5、F6 をそれぞれ独立した変更として進める。D1 の契約を並行して固定する。
 2. L1/L2 の TODO を追加する。L2 の実験は独立して実施する。
 3. variant の構造・文脈を整備し、ref.at、有限候補、D2 の順に実装する。
-4. view transition の API は後続の設計決定後に着手する。
+4. view transition は §8 の決定に従い、lint と宣言 bucket の条件 variant・`imagePair` から着手する。
+   use 側の variant 受信 API は決定後。
 
 各項目は、元の拒否テストを書き換えただけでは完了としない。正当な入力の出力、必要な拒否、
 順序、source map、host 経由の振る舞いを確認する。Rust の構造変更では早期に

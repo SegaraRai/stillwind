@@ -111,3 +111,23 @@ fn resolves_dynamic_media_structural_and_attribute_variants() {
         ))
     );
 }
+
+#[test]
+fn reports_variant_selectors_that_do_not_depend_on_the_subject() {
+    let theme = theme();
+    let document_scoped = |candidate: &str| {
+        let candidate = parse_candidate(candidate).unwrap();
+        resolve_variant(&candidate.variants[0], &theme)
+            .and_then(|application| document_scoped_selector(&application).map(str::to_owned))
+    };
+
+    assert_eq!(document_scoped("[:host]:flex").as_deref(), Some(":host"));
+    assert_eq!(
+        document_scoped("[::view-transition-old(*)]:flex").as_deref(),
+        Some("::view-transition-old(*)")
+    );
+    assert_eq!(document_scoped("[&:hover]:flex"), None);
+    assert_eq!(document_scoped("hover:flex"), None);
+    assert_eq!(document_scoped("motion-reduce:flex"), None);
+    assert_eq!(document_scoped("supports-[display:grid]:flex"), None);
+}

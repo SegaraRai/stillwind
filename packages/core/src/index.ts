@@ -116,6 +116,7 @@ export type StyleViewTransitionDefinition = {
   group?: string;
   old?: string;
   new?: string;
+  imagePair?: string;
 };
 
 /** Variant wrappers compose from outermost to innermost, just like utility prefixes. */

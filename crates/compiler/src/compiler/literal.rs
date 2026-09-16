@@ -16,6 +16,7 @@ use super::style_variants::StyleVariantPlan;
 use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_kind,
 };
+use super::variants::document_scoped_selector;
 use crate::CompilerOptions;
 
 /// The pieces one utility literal contributes before it becomes a leaf or a base-unit entry.
@@ -43,6 +44,8 @@ impl LiteralContribution {
     /// A compatibility marker is emitted instead of utilities when the candidate only marks a
     /// Tailwind relationship, and an unresolved candidate becomes an external class name plus a
     /// lint finding, which keeps the user's class in the output rather than dropping it.
+    /// A resolved candidate whose own variants would apply to the document is reported without
+    /// changing its output, because the host decides that policy's severity.
     /// A malformed CSS-registered runtime condition appends a compile diagnostic and skips
     /// that candidate; callers must discard the compilation if diagnostics are present.
     pub(super) fn resolve(
@@ -93,6 +96,18 @@ impl LiteralContribution {
             contribution.canonical.push('\u{0}');
             let resolved_input = raw.strip_prefix("tw:").unwrap_or(&raw);
             if let Some(mut resolved) = resolve_utility_targets(resolved_input, theme) {
+                if theme.config.lint_enabled("require-element-scope")
+                    && let Some(candidate) = parse_candidate(&utility.value.raw)
+                    && let Some(selector) = candidate
+                        .variants
+                        .iter()
+                        .find_map(|variant| document_scoped_selector(variant, theme))
+                {
+                    lint_findings.push(LintFinding::new(
+                        LintKind::DocumentScopedSelector { selector },
+                        utility.span,
+                    ));
+                }
                 for resolved_utility in &mut resolved {
                     plan.apply(resolved_utility, theme);
                 }

@@ -200,6 +200,8 @@ pub struct ViewTransitionDefinition {
     pub old: Option<Spanned<String>>,
     /// Utilities for the `::view-transition-new` pseudo-element.
     pub new: Option<Spanned<String>>,
+    /// Utilities for the `::view-transition-image-pair` pseudo-element.
+    pub image_pair: Option<Spanned<String>>,
 }
 
 /// A declaration identity paired with source provenance at its use site.

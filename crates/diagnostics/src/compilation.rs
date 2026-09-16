@@ -107,13 +107,13 @@ pub enum CompileErrorKind {
     #[error("view transition definitions must be plain static properties")]
     InvalidViewTransitionProperty,
     /// A transition entry names an unsupported pseudo-element phase.
-    #[error("view transition keys must be `group`, `old`, or `new`")]
+    #[error("view transition keys must be `group`, `old`, `new`, or `imagePair`")]
     InvalidViewTransitionKey,
     /// A transition body is not a literal utility string.
     #[error("view transition values must be literal utility strings")]
     InvalidViewTransitionValue,
     /// No valid phase remains after validating a transition declaration.
-    #[error("style.viewTransition() requires at least one of group, old, or new")]
+    #[error("style.viewTransition() requires at least one of group, old, new, or imagePair")]
     EmptyViewTransition,
     /// A scope's optional name is not a literal string.
     #[error("style.scope() accepts an optional literal name")]
@@ -183,9 +183,9 @@ pub enum CompileErrorKind {
         "animation definition variants must be media or supports conditions; container queries do not condition global keyframes"
     )]
     InvalidAnimationVariant,
-    /// A motion utility contains a variant forbidden in that definition.
-    #[error("motion definition utilities cannot contain variants")]
-    MotionVariants,
+    /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.
+    #[error("view transition utilities accept only media and supports condition variants")]
+    InvalidViewTransitionVariant,
     /// A variant prefix is syntactically malformed.
     #[error("invalid variant prefix")]
     InvalidVariantPrefix,
@@ -641,7 +641,7 @@ impl CompileErrorKind {
             Self::MultipleViewTransitions => "SHVIEW004",
             Self::AnimationFrameVariants => "SHANIMATION003",
             Self::InvalidAnimationVariant => "SHANIMATION004",
-            Self::MotionVariants => "SHMOTION001",
+            Self::InvalidViewTransitionVariant => "SHMOTION001",
             Self::InvalidVariantPrefix | Self::UnavailableVariantPrefix | Self::UnidentifiedRef => {
                 "SHREF003"
             }

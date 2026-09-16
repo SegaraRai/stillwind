@@ -78,6 +78,14 @@ pub enum LintKind {
         /// Utility text as authored, including variants.
         utility: String,
     },
+    /// A style rule would apply to the document instead of to the styled element.
+    #[error(
+        "`{selector}` does not depend on the styled element; declare document-wide CSS in a global stylesheet"
+    )]
+    DocumentScopedSelector {
+        /// Resolved selector that references neither the element nor a declaration identity.
+        selector: String,
+    },
     /// A host generator failed or returned a body its write positions cannot hold.
     #[error("identifier generator for {kind} was rejected: {detail}")]
     RejectedIdentifier {
@@ -125,6 +133,7 @@ impl LintKind {
             Self::MissingScopeAncestor { .. } => "valid-scope-ancestry",
             Self::SelectorOutsideScope { .. } => "scoped-selector-in-scope",
             Self::PreferTypedRelationships { .. } => "prefer-typed-relationships",
+            Self::DocumentScopedSelector { .. } => "require-element-scope",
             Self::RejectedIdentifier { .. } => "rejected-identifier",
             Self::UnresolvedUtility { classification, .. }
             | Self::UnresolvedCandidate { classification, .. }

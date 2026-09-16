@@ -1,9 +1,9 @@
 //! `style.viewTransition()` declarations and their uses.
 //!
-//! A declaration is an object with any of `group`, `old`, `new`, each a literal utility
-//! string; the generated `view-transition-name` and its pseudo-element rules come from
-//! that declaration identity. A use may add a stable key through `.for(key)`, which
-//! stays a user expression rather than being evaluated here.
+//! A declaration is an object with any of `group`, `old`, `new`, `imagePair`, each a
+//! literal utility string; the generated `view-transition-name` and its pseudo-element
+//! rules come from that declaration identity. A use may add a stable key through
+//! `.for(key)`, which stays a user expression rather than being evaluated here.
 //!
 //! Keyed uses are always dynamic in the IR even when only one transition is possible,
 //! because the key expression must be evaluated at runtime for every instance that
@@ -116,9 +116,9 @@ impl<'a> MacroExtractor<'a> {
 
     /// Validates and records one `style.viewTransition({...})` declaration.
     ///
-    /// Only `group`, `old` and `new` are accepted, each with a literal utility string.
-    /// Unknown or non-literal keys are reported and skipped; the result needs at least
-    /// one of the three to be usable.
+    /// Only `group`, `old`, `new` and `imagePair` are accepted, each with a literal
+    /// utility string. Unknown or non-literal keys are reported and skipped; the result
+    /// needs at least one of the four to be usable.
     pub(crate) fn collect_view_transition_definition(
         &mut self,
         name: Spanned<String>,
@@ -141,6 +141,7 @@ impl<'a> MacroExtractor<'a> {
         let mut group = None;
         let mut old = None;
         let mut new = None;
+        let mut image_pair = None;
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
                 self.diagnostics.push(CompileError::new(
@@ -175,13 +176,14 @@ impl<'a> MacroExtractor<'a> {
                 "group" => group = Some(value),
                 "old" => old = Some(value),
                 "new" => new = Some(value),
+                "imagePair" => image_pair = Some(value),
                 _ => self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidViewTransitionKey,
                     property_name.span,
                 )),
             }
         }
-        if group.is_none() && old.is_none() && new.is_none() {
+        if group.is_none() && old.is_none() && new.is_none() && image_pair.is_none() {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::EmptyViewTransition,
                 self.source_span(call.span),
@@ -194,6 +196,7 @@ impl<'a> MacroExtractor<'a> {
             group,
             old,
             new,
+            image_pair,
         })
     }
 }

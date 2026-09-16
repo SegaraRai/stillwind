@@ -5,10 +5,9 @@ product contract, not yet an implementation specification: the syntax may gain
 small ergonomic refinements, but the principles below should not be weakened.
 
 Implementation status: the React compiler implements the examples in this
-document except cross-module symbolic handle propagation and the
-repeat-render/unstable-key warning for view transitions. Today's JSX placement
-lint uses facts visible in one file; that is an implementation limitation, not
-a source-language restriction.
+document except the repeat-render/unstable-key warning for view transitions.
+Today's JSX placement lint uses facts visible in one file; that is an
+implementation limitation, not a source-language restriction.
 
 ## Core principles
 
@@ -339,7 +338,10 @@ const pageTitle = style.viewTransition({
 
 This creates a stable generated `view-transition-name` and styles its generated
 `::view-transition-group`, `::view-transition-old`, and
-`::view-transition-new` rules.
+`::view-transition-new` rules. `imagePair` styles
+`::view-transition-image-pair` for the same participants, and a phase utility
+may carry media or supports condition variants. Other variants are rejected:
+a pseudo-element has neither element state nor a container ancestor.
 
 Multiple simultaneously rendered instances require an application-stable key.
 
