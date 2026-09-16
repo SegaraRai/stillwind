@@ -29,7 +29,7 @@ use super::motion::resolve_animation_use;
 use super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::symbols::{
-    anchor_name, motion_name_symbol, ref_marker_name, ref_projection_name, scope_marker_name,
+    anchor_name, definition_name_symbol, ref_marker_name, ref_projection_name, scope_marker_name,
 };
 use super::utilities::resolve::CompiledUtility;
 use super::variants::document_scoped_selector;
@@ -239,7 +239,7 @@ impl<'a> CallEmitter<'a> {
                 if !matches!(name, ViewTransitionName::None) {
                     self.view_transition_names += 1;
                 }
-                let token = match self.record_motion_name(
+                let token = match self.record_definition_name(
                     &transition.identity,
                     AssetKind::ViewTransition,
                     transition.span,
@@ -292,7 +292,7 @@ impl<'a> CallEmitter<'a> {
                 let steps = guard_steps(guard);
                 for transition in transitions {
                     self.runtime_assets.insert(transition.identity.clone());
-                    let token = match self.record_motion_name(
+                    let token = match self.record_definition_name(
                         &transition.identity,
                         AssetKind::ViewTransition,
                         transition.span,
@@ -332,21 +332,21 @@ impl<'a> CallEmitter<'a> {
         Some(())
     }
 
-    /// Generates one motion asset's name and records it for pool validation.
+    /// Generates one definition's name and records it for pool validation.
     ///
-    /// A motion name is written by every use of its declaration, so the report keeps
+    /// A definition name is written by every use of its declaration, so the report keeps
     /// one record per declaration and the pipeline drops later repeats.
     ///
     /// # Errors
     ///
     /// Returns the host generator's failure for the asset's family.
-    fn record_motion_name(
+    fn record_definition_name(
         &mut self,
         identity: &IdentityId,
         kind: AssetKind,
         span: Span,
     ) -> Result<String, CompileErrorKind> {
-        let symbol = motion_name_symbol(self.identifiers, identity, kind, span)?;
+        let symbol = definition_name_symbol(self.identifiers, identity, kind, span)?;
         let name = symbol.name.clone();
         self.written_name_symbols.push(symbol);
         Ok(name)
@@ -811,7 +811,7 @@ impl<'a> CallEmitter<'a> {
                 let mut table = Vec::new();
                 for animation in animations {
                     self.runtime_assets.insert(animation.identity.clone());
-                    let identity = match self.record_motion_name(
+                    let identity = match self.record_definition_name(
                         &animation.identity,
                         AssetKind::Animation,
                         animation.span,

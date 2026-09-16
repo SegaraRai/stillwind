@@ -51,7 +51,7 @@ pub(super) fn resolve_animation_use(
         }
     );
     declaration.push_str(
-        &resolve_motion_options(options, OptionVariants::Rejected, theme, diagnostics).declaration,
+        &resolve_options(options, OptionVariants::Rejected, theme, diagnostics).declaration,
     );
     CompiledUtility {
         required_properties: Vec::new(),
@@ -77,7 +77,7 @@ enum OptionVariants {
 
 /// Declarations one option list contributes, split by the conditions its options carry.
 #[derive(Default)]
-struct ResolvedMotionOptions {
+struct ResolvedOptions {
     /// Declarations of the options that apply unconditionally, in written order.
     declaration: String,
     /// One entry per conditioned option, in written order. Always empty under
@@ -101,13 +101,13 @@ struct ConditionedOption {
 /// own span and contributes nothing. A variant that cannot condition a rule is reported as an
 /// unknown option under [`OptionVariants::Rejected`] and as an invalid view-transition
 /// variant under [`OptionVariants::Conditions`].
-fn resolve_motion_options(
+fn resolve_options(
     options: &Spanned<String>,
     variants: OptionVariants,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
-) -> ResolvedMotionOptions {
-    let mut resolved = ResolvedMotionOptions::default();
+) -> ResolvedOptions {
+    let mut resolved = ResolvedOptions::default();
     for option in lex_utilities(options, diagnostics) {
         let raw = option.value.raw.clone();
         let unknown = || {
@@ -189,8 +189,7 @@ pub(super) fn emit_view_transition_definition(
     let class = class.selector();
     if let Some(group) = &transition.group {
         let selector = format!("::view-transition-group({class})");
-        let resolved =
-            resolve_motion_options(group, OptionVariants::Conditions, theme, diagnostics);
+        let resolved = resolve_options(group, OptionVariants::Conditions, theme, diagnostics);
         emit_option_rules(output, &selector, &resolved);
     }
     for (pseudo, utilities) in [
@@ -281,7 +280,7 @@ fn emit_view_transition_utilities(
 /// state: the conditioned rule follows the unconditional one and wins for the properties both
 /// declare. `view-transition-group` carries no element state the condition could select through,
 /// so the condition wraps the rule rather than the selector.
-fn emit_option_rules(output: &mut String, selector: &str, options: &ResolvedMotionOptions) {
+fn emit_option_rules(output: &mut String, selector: &str, options: &ResolvedOptions) {
     if !options.declaration.is_empty() {
         output.push_str(selector);
         output.push_str("{ ");
@@ -388,7 +387,7 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         assert_eq!(
-            resolve_motion_options(&options, OptionVariants::Rejected, &theme, &mut diagnostics)
+            resolve_options(&options, OptionVariants::Rejected, &theme, &mut diagnostics)
                 .declaration,
             "animation-duration:var(--duration-normal);animation-fill-mode:both;"
         );
@@ -405,7 +404,7 @@ mod tests {
         );
         let mut diagnostics = Vec::new();
 
-        let resolved = resolve_motion_options(
+        let resolved = resolve_options(
             &options,
             OptionVariants::Conditions,
             &theme,
@@ -439,7 +438,7 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let resolved =
-            resolve_motion_options(&options, OptionVariants::Rejected, &theme, &mut diagnostics);
+            resolve_options(&options, OptionVariants::Rejected, &theme, &mut diagnostics);
 
         assert!(resolved.declaration.is_empty() && resolved.conditioned.is_empty());
         assert_eq!(

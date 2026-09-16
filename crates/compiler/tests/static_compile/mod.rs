@@ -19,8 +19,8 @@ use support::*;
 
 mod acceptance;
 mod conditional_flow;
+mod definitions;
 mod folding;
-mod motion;
 mod numeric;
 mod parity;
 mod react;

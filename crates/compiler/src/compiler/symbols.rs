@@ -445,7 +445,7 @@ pub(super) fn generated_class_symbol(
     }
 }
 
-/// Generates the name of a declared motion asset and reports it as a symbol.
+/// Generates one declared definition's name and reports it as a symbol.
 ///
 /// `kind` selects the family the name belongs to, which is the kind the report carries.
 /// The span addresses the declaration; the writer's span is the caller's business.
@@ -453,7 +453,7 @@ pub(super) fn generated_class_symbol(
 /// # Errors
 ///
 /// Returns the host generator's failure for the asset's family.
-pub(super) fn motion_name_symbol(
+pub(super) fn definition_name_symbol(
     context: &IdentifierContext,
     identity: &IdentityId,
     kind: AssetKind,

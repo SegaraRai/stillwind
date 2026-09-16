@@ -217,11 +217,11 @@ impl Compiler {
             }
         }
         motion_assets.extend(runtime_assets.iter().cloned());
-        let mut motion_css = Vec::new();
+        let mut definition_css = Vec::new();
         for animation in &module.animation_declarations {
-            let mut definition_css = CssContribution::default();
+            let mut contribution = CssContribution::default();
             emit_animation_definition(
-                &mut definition_css,
+                &mut contribution,
                 source,
                 identifiers,
                 animation,
@@ -233,13 +233,13 @@ impl Compiler {
                 AssetKind::Animation,
                 &animation.binding,
             )) {
-                motion_css.push(definition_css);
+                definition_css.push(contribution);
             }
         }
         for transition in &module.view_transition_declarations {
-            let mut definition_css = CssContribution::default();
+            let mut contribution = CssContribution::default();
             emit_view_transition_definition(
-                &mut definition_css,
+                &mut contribution,
                 source,
                 identifiers,
                 transition,
@@ -251,11 +251,11 @@ impl Compiler {
                 AssetKind::ViewTransition,
                 &transition.binding,
             )) {
-                motion_css.push(definition_css);
+                definition_css.push(contribution);
             }
         }
-        motion_css.append(&mut utility_css);
-        utility_css = motion_css;
+        definition_css.append(&mut utility_css);
+        utility_css = definition_css;
         for ref_definition in module.ref_definitions {
             result.transforms.push(SourceTransform {
                 call_span: ref_definition.call_span,
