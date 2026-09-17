@@ -18,4 +18,4 @@ pub(super) mod webref;
 pub use domain::ValueDomain;
 pub use properties::CssProperty;
 pub use validation::ValueType;
-pub use webref::csswg_formal_syntax;
+pub use webref::{csswg_formal_syntax, properties_interfere};
