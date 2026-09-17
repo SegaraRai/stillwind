@@ -17,7 +17,8 @@
 //! [`StylesheetCoverage`].
 //!
 //! `session` publishes revisions; `project_stylesheet` tracks shared rule ownership;
-//! `dependencies` indexes consumers; `stylesheet_plan` validates producer coverage.
+//! `dependencies` indexes consumers; `stylesheet_plan` validates producer coverage;
+//! `composition_lint` reports composition overlaps whose order the contract leaves open.
 
 #![cfg_attr(
     not(test),
@@ -31,6 +32,7 @@
     )
 )]
 
+mod composition_lint;
 mod dependencies;
 mod project_stylesheet;
 mod reserved;

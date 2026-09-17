@@ -16,12 +16,13 @@ use stillwind_compiler::{
     StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintKind, filter_lint_findings};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
 use stillwind_source::{FileId, Span};
 
 use crate::ReservedNames;
+use crate::composition_lint::composition_lints;
 use crate::{DependencyIndex, ProjectStylesheet};
 
 /// Why a design-system reload could not be applied.
@@ -61,6 +62,14 @@ pub struct ModuleUpdate {
     pub transformed: bool,
     /// Errors from this update. Non-empty means nothing was published.
     pub diagnostics: Vec<CompileError>,
+}
+
+/// Whether one finding comes from the composition-order comparison.
+fn is_composition_order_lint(kind: &LintKind) -> bool {
+    matches!(
+        kind,
+        LintKind::AmbiguousBaseOrder { .. } | LintKind::ImportedBaseInterference { .. }
+    )
 }
 
 /// What changed after a design-system reload.
@@ -294,7 +303,9 @@ impl ProjectSession {
                 &compiled.dependencies,
             );
             self.stylesheet.replace(module_id.clone(), &compiled.css);
-            self.artifacts.insert(module_id, compiled);
+            let dependents = self.composition_dependents(&module_id);
+            self.artifacts.insert(module_id.clone(), compiled);
+            self.refresh_composition_lints(std::iter::once(module_id).chain(dependents));
         } else {
             update.diagnostics = compiled.diagnostics;
             if self.mode == SessionMode::Build {
@@ -307,8 +318,51 @@ impl ProjectSession {
     /// Removes one producer, returning whether it was registered.
     pub fn remove_module(&mut self, module: &str) -> bool {
         let removed = self.analyses.remove(module).is_some();
+        let dependents = self.composition_dependents(&ModuleId::from(module));
         self.remove_artifact(module);
+        self.refresh_composition_lints(dependents);
         removed
+    }
+
+    /// Recomputes the composition-order lints of `modules` from published artifacts.
+    ///
+    /// The comparison spans modules, so it runs here rather than during compilation: a base
+    /// published after its derived module changes the result too. Findings replace the
+    /// previous ones for the same rules, so a resolved overlap stops being reported.
+    fn refresh_composition_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
+        for module in modules {
+            let Some(source) = self
+                .analyses
+                .get(&module)
+                .map(|analysis| analysis.source.clone())
+            else {
+                continue;
+            };
+            let mut findings = composition_lints(&self.artifacts, &module);
+            filter_lint_findings(&source, &mut findings);
+            let Some(artifact) = self.artifacts.get_mut(&module) else {
+                continue;
+            };
+            artifact
+                .lint_findings
+                .retain(|finding| !is_composition_order_lint(&finding.kind));
+            artifact.lint_findings.extend(findings);
+        }
+    }
+
+    /// Modules whose composition edges consume `module` as a base.
+    fn composition_dependents(&self, module: &ModuleId) -> Vec<ModuleId> {
+        self.artifacts
+            .iter()
+            .filter(|(id, artifact)| {
+                id.as_str() != module.as_str()
+                    && artifact
+                        .composition
+                        .iter()
+                        .any(|edge| edge.base.module_path == module.as_str())
+            })
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
     fn remove_artifact(&mut self, module: &str) {

@@ -1654,6 +1654,7 @@ dependencies = [
  "cssparser 0.38.0",
  "proptest",
  "stillwind-compiler",
+ "stillwind-css",
  "stillwind-design-system",
  "stillwind-diagnostics",
  "stillwind-ir",

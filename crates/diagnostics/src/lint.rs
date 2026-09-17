@@ -104,6 +104,25 @@ pub enum LintKind {
         "view-transition-class is one property: this call's list replaces the one its composed base declares, so declare the transitions in one call"
     )]
     SplitViewTransitionClasses,
+    /// Two composition bases declare one declaration slot and neither precedes the other.
+    #[error(
+        "two composition bases declare `{properties}`; neither base precedes the other, so which declaration wins is undefined"
+    )]
+    AmbiguousBaseOrder {
+        /// The competing declarations, as `property` or `property and property` when one
+        /// side is a shorthand of the other.
+        properties: String,
+    },
+    /// A base owned by another module declares a property this call also declares.
+    #[error(
+        "the base in `{module}` overlaps these declarations: `{properties}`; another module's rules arrive in host-transport order"
+    )]
+    ImportedBaseInterference {
+        /// Normalized project-relative path of the module owning the base.
+        module: String,
+        /// The competing declarations, as `property` or `property and property`.
+        properties: String,
+    },
     /// A host generator failed or returned a body its write positions cannot hold.
     #[error("identifier generator for {kind} was rejected: {detail}")]
     RejectedIdentifier {
@@ -155,6 +174,8 @@ impl LintKind {
             Self::MissingViewTransitionName => "require-view-transition-name",
             Self::DuplicateViewTransitionName { .. } => "single-view-transition-name",
             Self::SplitViewTransitionClasses => "single-view-transition-class",
+            Self::AmbiguousBaseOrder { .. } => "ambiguous-base-order",
+            Self::ImportedBaseInterference { .. } => "imported-base-interference",
             Self::RejectedIdentifier { .. } => "rejected-identifier",
             Self::UnresolvedUtility { classification, .. }
             | Self::UnresolvedCandidate { classification, .. }

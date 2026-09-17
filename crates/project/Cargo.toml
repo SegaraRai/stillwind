@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 stillwind-compiler = { path = "../compiler" }
+stillwind-css = { path = "../css" }
 stillwind-design-system = { path = "../design-system" }
 stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-ir = { path = "../ir" }

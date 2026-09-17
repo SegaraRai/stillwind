@@ -161,3 +161,24 @@ void test("default error contracts retain editable output and previous success",
     result.output?.lint_findings.some((finding) => finding.rule === "macro-argument-mutation"),
   );
 });
+
+void test("independent bases that share a property are reported", async () => {
+  const editor = project();
+  editor.update({
+    id: entry,
+    version: 1,
+    source:
+      "import {style} from 'stillwind/react'; const a = style('red'); const b = style('blue'); export const props = style(a, b);",
+  });
+  const result = await editor.analyze(entry);
+  assert.equal(
+    result.status,
+    "success",
+    result.error ?? JSON.stringify(result.output?.diagnostics),
+  );
+  assert.equal(result.output?.lint_policy["ambiguous-base-order"], "warn");
+  assert.ok(
+    result.output?.lint_findings.some((finding) => finding.rule === "ambiguous-base-order"),
+    JSON.stringify(result.output?.lint_findings),
+  );
+});

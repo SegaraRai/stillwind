@@ -76,6 +76,19 @@ impl Default for StillwindConfig {
                 (LintKind::MissingViewTransitionName, "warn"),
                 (LintKind::DuplicateViewTransitionName { count: 0 }, "warn"),
                 (LintKind::SplitViewTransitionClasses, "warn"),
+                (
+                    LintKind::AmbiguousBaseOrder {
+                        properties: String::new(),
+                    },
+                    "warn",
+                ),
+                (
+                    LintKind::ImportedBaseInterference {
+                        module: String::new(),
+                        properties: String::new(),
+                    },
+                    "warn",
+                ),
             ]
             .into_iter()
             .map(|(kind, level)| (kind.code().to_owned(), level.to_owned()))
