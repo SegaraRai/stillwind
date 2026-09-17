@@ -267,6 +267,15 @@ Not guaranteed:
 - other framework SSR pipelines, and
 - a later pass that reorders the emitted CSS.
 
+Beyond that transport, every path that composes across modules delivers whatever
+order its host decides: the loader follows the bundler's module graph, an explicit
+module CSS value carries only its own module's rules, and a standalone projection
+carries only its producer's. A delivered order can therefore put a base's rules
+after one of its derived modules' rules, which is why an overlap the contract
+leaves open is reported by the `ambiguous-base-order` and
+`imported-base-interference` lints instead of being ordered; see
+[style composition](style-composition.md).
+
 ## Reasoning about a conflict
 
 Resolve the cascade first, then apply the level that is still open:

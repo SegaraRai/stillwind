@@ -14,19 +14,19 @@
 
 ## 決定事項
 
-| 項目            | 改善方針                                                                                          | 実施区分                                     |
-| --------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| F1              | utility の記述順依存を解消する                                                                    | 順序の定義と compiler 修正                   |
-| F2              | 静的 spread・配列の穴の一律拒否を見直す                                                           | 構文正規化                                   |
-| F3              | 固定 computed key の一律拒否を見直す                                                              | 構文正規化                                   |
-| F4              | `ref.at()` の variant 化と有限候補の扱いを整理する                                                | variant 設計・実装                           |
-| F5              | ref label の ASCII 限定を見直す                                                                   | 識別子の検証・直列化                         |
-| F6              | React 固有規約を除去し、変換可能な契約違反を default error の lint にする                         | 診断と host policy                           |
-| L1              | projected source の checker facts 未対応を TODO で明示する                                        | TODO 追加                                    |
-| L2              | per-module CSS 間の import による順序保証を別途調査し、未対応を TODO で明示する                   | TODO 追加・別途実験                          |
-| D1              | variant 内の `--*` object key は引き続き拒否する                                                  | 契約の明記・回帰テスト                       |
-| D2              | animation は定義 object の variant key で分岐する。frame 内 utility の variant は引き続き拒否する | variant 設計・emitter 修正                   |
-| View transition | variant にする部分と identity/attachment を整理する                                               | §8 で範囲決定済み。lint と宣言 bucket を実装 |
+| 項目            | 改善方針                                                                                          | 実施区分                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| F1              | utility の記述順依存を解消する                                                                    | 順序の定義と compiler 修正                                                             |
+| F2              | 静的 spread・配列の穴の一律拒否を見直す                                                           | 構文正規化                                                                             |
+| F3              | 固定 computed key の一律拒否を見直す                                                              | 構文正規化                                                                             |
+| F4              | `ref.at()` の variant 化と有限候補の扱いを整理する                                                | variant 設計・実装                                                                     |
+| F5              | ref label の ASCII 限定を見直す                                                                   | 識別子の検証・直列化                                                                   |
+| F6              | React 固有規約を除去し、変換可能な契約違反を default error の lint にする                         | 診断と host policy                                                                     |
+| L1              | projected source の checker facts 未対応を TODO で明示する                                        | TODO 追加                                                                              |
+| L2              | per-module CSS 間の import による順序保証を別途調査し、未対応を TODO で明示する                   | 検証済み（2026-09-17）。3経路を実測し、結果を css-ordering.md とコード内コメントへ反映 |
+| D1              | variant 内の `--*` object key は引き続き拒否する                                                  | 契約の明記・回帰テスト                                                                 |
+| D2              | animation は定義 object の variant key で分岐する。frame 内 utility の variant は引き続き拒否する | variant 設計・emitter 修正                                                             |
+| View transition | variant にする部分と identity/attachment を整理する                                               | §8 で範囲決定済み。lint と宣言 bucket を実装                                           |
 
 ## 検証で明らかになった設計上の注意点
 
@@ -220,13 +220,16 @@ class/JSX 自体と Hook 風の関数名では診断しない。構造抽出不�
       3行以内の TODO として記載する。入力全体が不正という説明にしない。
 - [x] L2 の loader / standalone projection / explicit module CSS の拒否箇所に、
       CSS dependency transport と順序保証が未検証であることを3行以内の TODO として記載する。
-- [ ] L2 の実験を別途行う。派生 module の CSS が基底 module の CSS を import する形で、
-      base→derived を保証できるか確認する。現在の拒否は検証前に除去しない。
+- [x] L2 の実験を別途行う。派生 module の CSS が基底 module の CSS を import する形で、
+      base→derived を保証できるか確認する。
+- [x] 実験の結果を受け、順序保証は実装せず、3経路の拒否を撤去する（2026-09-17）。
+      干渉する順序依存は lint `ambiguous-base-order` / `imported-base-interference` が報告する。
 
 L1 の対象: `crates/js-oxc/src/analyzer.rs` の projected facts 分岐。
 
 L2 の対象: `packages/bundler/loader.cjs`、`packages/vite/src/index.ts` の
-standalone CSS projection と explicit module CSS の分岐。
+standalone CSS projection と explicit module CSS の分岐（拒否は撤去済み。各経路は
+自身の module の規則だけを運び、順序はホストの搬送に委ねる）。
 
 L2 の実験表は以下を軸に作る。未検証セルを成功として扱わない。
 
