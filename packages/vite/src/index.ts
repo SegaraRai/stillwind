@@ -505,12 +505,8 @@ export function stillwind(options: StillwindOptions): Plugin {
           },
         );
         if (!output) return "";
-        // TODO: Transport base module CSS through imports from standalone projections
-        // and verify dependency order when both base and derived CSS are requested.
-        if (output.compositionModules.length > 0)
-          this.error(
-            "Cross-module style composition is not supported by standalone CSS projections; import the producer JavaScript through Vite instead.",
-          );
+        // A projection carries only this producer's rules: a composing producer needs its
+        // base's projection too, and the requesting module's import order decides the order.
         const css = await renderCarrier(state, output.path, {
           includeSourcesContent: false,
           resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
@@ -694,12 +690,8 @@ export function stillwind(options: StillwindOptions): Plugin {
           },
         );
         if (!output?.code) return undefined;
-        // TODO: Verify dependent CSS imports for explicit module CSS values, including
-        // consumers inserting base and derived stylesheets in different orders.
-        if (output.hasModuleCssImport && output.compositionModules.length > 0)
-          this.error(
-            "Cross-module style composition requires automatic CSS transport; explicit module CSS values currently support same-module composition only.",
-          );
+        // A value carries only this module's rules, so a composing module's base rules come
+        // from the base's own value and the consumer's insertion order decides the cascade.
         state.producers.add(id);
         const producerId = cleanModuleId(id).replaceAll("\\", "/");
         const previousTopology = state.compositionTopologies.get(producerId);

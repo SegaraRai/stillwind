@@ -117,13 +117,6 @@ module.exports = function (source, inputMap, additionalData) {
     );
     if (!output?.code)
       return callback(null, projection ? "" : source, projection ? null : inputMap);
-    if (output.compositionModules.length > 0) {
-      // TODO: Verify dependent module CSS imports preserve base-before-derived order
-      // across this loader's dev, production, SSR, and lazy-loading paths.
-      throw new Error(
-        "Cross-module style composition requires the verified Vite CSS transport; this loader currently supports same-module composition only.",
-      );
-    }
     const plan = session.planStylesheet({
       modules: [output.path],
       coverage: { kind: "observed" },

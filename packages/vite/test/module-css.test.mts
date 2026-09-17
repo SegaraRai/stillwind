@@ -76,6 +76,45 @@ void test("explicit module CSS exports scoped values without adding document CSS
   }
 });
 
+void test("cross-module composition is accepted and a value carries only its own rules", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, "packages/vite/.session-test-"));
+  const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
+  put("index.html", '<script type="module" src="/main.ts"></script>');
+  put(
+    "root.css",
+    "@utility red { color: red; } @utility blue { color: blue; } @stillwind-slot utilities;",
+  );
+  put("base.ts", "import { style } from 'stillwind/react'; export const base = style('red');");
+  put(
+    "main.ts",
+    `import css from 'stillwind/module-css';
+import { style } from 'stillwind/react';
+import { base } from './base';
+globalThis.value = css;
+globalThis.props = style(base, 'blue');
+`,
+  );
+  try {
+    const result = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+      build: { write: false, minify: false, cssMinify: false, modulePreload: false },
+    });
+    if (!("output" in result)) throw new Error("expected a single build output");
+    const entry = result.output.find((asset) => asset.type === "chunk" && asset.isEntry);
+    if (!entry || entry.type !== "chunk") throw new Error("entry chunk not found");
+    const global: { value?: string; props?: { className: string } } = {};
+    runInNewContext(entry.code, { globalThis: global });
+    assert.match(global.value ?? "", /color:\s*blue/);
+    assert.doesNotMatch(global.value ?? "", /color:\s*red/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 void test("relative JS resources preserve distinct producer origins", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
