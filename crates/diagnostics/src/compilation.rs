@@ -73,6 +73,9 @@ pub enum CompileErrorKind {
     /// A keyframes use does not supply one literal options string.
     #[error("a keyframes use requires one literal options string")]
     InvalidKeyframesOptions,
+    /// A keyframes use appears where the call cannot become a class input.
+    #[error("a keyframes use must be a class input of style()")]
+    KeyframesUseNotAClassInput,
     /// A keyframes declaration does not supply one static frame object.
     #[error("style.keyframes() requires one object of static keyframe utility strings")]
     InvalidKeyframesDefinition,
@@ -614,7 +617,9 @@ impl CompileErrorKind {
             | Self::InvalidAttributeKey => "SHJS003",
             Self::InvalidVariantInput => "SHJS004",
             Self::InvalidUtilityTemplate => "SHJS005",
-            Self::InvalidKeyframesOptions | Self::UnknownAnimationOption { .. } => "SHANIMATION002",
+            Self::InvalidKeyframesOptions
+            | Self::KeyframesUseNotAClassInput
+            | Self::UnknownAnimationOption { .. } => "SHANIMATION002",
             Self::InvalidKeyframesDefinition
             | Self::KeyframesSpread
             | Self::InvalidKeyframesProperty

@@ -485,6 +485,10 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     let code = result.apply_to_source(&source).unwrap();
     assert!(!code.contains("const a=undefined"), "{code}");
     assert!(!code.contains("const b=undefined"), "{code}");
+    // A declaration carries its keyframes name as a record, and the dynamic use reads
+    // that name off the value instead of calling a runtime helper.
+    assert!(code.contains("const a={k:\"sw-kf-"), "{code}");
+    assert!(code.contains("[selected.k]"), "{code}");
     let parsed = OxcSourceAnalyzer.scan(std::sync::Arc::new(
         SourceFile::new(FileId(3), "generated.tsx", code).unwrap(),
     ));

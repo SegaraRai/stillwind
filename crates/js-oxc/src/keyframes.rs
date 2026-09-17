@@ -9,6 +9,7 @@ use oxc::ast::ast::{
     CallExpression, Expression, ObjectExpression, ObjectPropertyKind, PropertyKind,
 };
 use oxc::span::GetSpan;
+use oxc::syntax::symbol::SymbolFlags;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
@@ -23,8 +24,8 @@ use crate::state::MacroExtractor;
 /// A resolved keyframes use, split by whether the keyframes is already known.
 ///
 /// The static case keeps the single asset; the dynamic case keeps every candidate the
-/// frontend proved plus the span of the whole expression, so the runtime can select
-/// among prebuilt declarations.
+/// frontend proved plus the span of the value expression, so the generated lookup reads
+/// the name the value carries and selects one prebuilt declaration.
 pub(crate) enum ParsedKeyframesUse {
     /// Exactly one keyframes identity.
     Static {
@@ -35,7 +36,7 @@ pub(crate) enum ParsedKeyframesUse {
     },
     /// Several possible keyframes; the runtime picks one.
     Dynamic {
-        /// Span of the whole use expression, for the runtime descriptor.
+        /// The value expression the call is made on, which carries the keyframes name.
         value: Span,
         /// Candidate keyframes, each a declared keyframes.
         keyframes: Vec<AssetReference>,
@@ -104,7 +105,8 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// A use with zero candidates resolves to `None` rather than to an empty dynamic
     /// use; a wrong arity or a non-literal options value is reported and treated as
-    /// unusable.
+    /// unusable. A recognized call is claimed here, so the unclaimed-use check reports
+    /// only calls this lowering never consumed.
     pub(crate) fn keyframes_use(
         &mut self,
         expression: &Expression<'a>,
@@ -113,6 +115,9 @@ impl<'a> MacroExtractor<'a> {
             return None;
         };
         let keyframes = self.keyframes_references(&call.callee)?;
+        // Claim the call before validating it, so a rejected use is reported once.
+        self.keyframes_use_spans
+            .insert((call.span.start, call.span.end));
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::InvalidKeyframesOptions,
@@ -135,11 +140,72 @@ impl<'a> MacroExtractor<'a> {
             }),
             [] => None,
             _ => Some(ParsedKeyframesUse::Dynamic {
-                value: self.source_span(call.span),
+                value: self.source_span(call.callee.span()),
                 keyframes,
                 options,
             }),
         }
+    }
+
+    /// Reports a keyframes use the class-expression lowering never claimed.
+    ///
+    /// The declaration lowers to a plain record, so a call that no lowering rewrites
+    /// would invoke a non-callable value. Recognized callees are a local declaration and
+    /// a recorded fact, plus an imported binding, which is probed once so the next pass
+    /// can judge it. A callee the frontend cannot resolve, such as an alias of a
+    /// declaration, stays unreported.
+    pub(crate) fn report_unclaimed_keyframes_use(&mut self, call: &CallExpression<'a>) {
+        if self
+            .keyframes_use_spans
+            .contains(&(call.span.start, call.span.end))
+        {
+            return;
+        }
+        match self.keyframes_callee(&call.callee) {
+            KeyframesCallee::Value => {}
+            KeyframesCallee::Probe => {
+                self.record_type_probe(&call.callee);
+                return;
+            }
+            KeyframesCallee::Other => return,
+        }
+        self.diagnostics.push(CompileError::new(
+            CompileErrorKind::KeyframesUseNotAClassInput,
+            self.source_span(call.span),
+        ));
+    }
+
+    /// How one callee expression resolves as a keyframes value.
+    fn keyframes_callee(&self, expression: &Expression<'a>) -> KeyframesCallee {
+        let span = expression.span();
+        if let Some(fact) = self.type_facts.get(&(span.start, span.end)) {
+            return if matches!(fact, ExportedValue::Keyframes(_)) {
+                KeyframesCallee::Value
+            } else {
+                KeyframesCallee::Other
+            };
+        }
+        let Expression::Identifier(identifier) = expression else {
+            return KeyframesCallee::Other;
+        };
+        let Some(symbol) = identifier
+            .reference_id
+            .get()
+            .and_then(|reference| self.scoping.get_reference(reference).symbol_id())
+        else {
+            return KeyframesCallee::Other;
+        };
+        if self.keyframes_symbols.contains_key(&symbol) {
+            return KeyframesCallee::Value;
+        }
+        if self
+            .scoping
+            .symbol_flags(symbol)
+            .contains(SymbolFlags::Import)
+        {
+            return KeyframesCallee::Probe;
+        }
+        KeyframesCallee::Other
     }
 
     /// Validates and records one `style.keyframes({...})` declaration.
@@ -282,6 +348,16 @@ impl<'a> MacroExtractor<'a> {
         }
         Some(KeyframesBody { frames, branches })
     }
+}
+
+/// How one call's callee resolves as a keyframes value.
+enum KeyframesCallee {
+    /// The callee denotes keyframes in this module, so the call is a use.
+    Value,
+    /// The callee is an imported binding; only the checker can decide.
+    Probe,
+    /// The callee denotes something other than keyframes.
+    Other,
 }
 
 /// True for the keyframe selectors Stillwind accepts.

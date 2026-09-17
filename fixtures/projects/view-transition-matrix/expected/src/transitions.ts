@@ -16,7 +16,7 @@ export const conditionalKeyedTransition = stillwindMerge({[stillwindClassKey]:((
 export const conditionalLiteralKey = {className:stillwindClsx("sw_43hgg",({"sw-vt-page-title-vtl83":"sw_3oyfk","sw-vt-woqm1":"sw_556g5"})[selectedTransition.v])};
 
 // A key applied where the transition was declared travels in the value.
-export const keyedOutside = {v:"sw-vt-page-title-vtl83",k:"outside"};
+export const keyedOutside = {v:"sw-vt-page-title-vtl83",w:"outside"};
 export const keyedDynamically = stillwindViewTransitionKey(pageCard,transitionKey);
 export const usesKeyedOutside = stillwindMerge({[stillwindClassKey]:"sw_8pa1h"},{[stillwindStyleKey]:{"view-transition-name":stillwindViewTransitionName(keyedOutside)}});
 

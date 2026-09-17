@@ -13,10 +13,9 @@ use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::identity_declaration;
 use super::super::utilities::resolve::CompiledUtility;
-use super::CallEmitter;
+use super::{CallEmitter, KEYFRAMES_KEY};
 use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
-use crate::runtime::RuntimeHelper;
 
 impl CallEmitter<'_> {
     /// Lowers one keyframes use whose keyframes is known at compile time.
@@ -70,8 +69,8 @@ impl CallEmitter<'_> {
 
     /// Lowers one keyframes use whose keyframes is only known at runtime.
     ///
-    /// Every candidate contributes its own prebuilt class, so the runtime selects a class
-    /// set instead of resolving declarations.
+    /// Every candidate contributes its own prebuilt class, so the runtime selects one
+    /// class set by the name the value carries.
     pub(super) fn emit_dynamic_keyframes_use(
         &mut self,
         value: &Span,
@@ -136,13 +135,10 @@ impl CallEmitter<'_> {
             table.push(format!("\"{identity}\":{class}"));
         }
         let table = table.join(",");
-        let expression = ValueExpr::Call {
-            helper: RuntimeHelper::AssetClass,
-            arguments: vec![
-                self.source_expression(*value)?,
-                format!("{{{table}}}").into(),
-            ],
-            span: *value,
+        let expression = ValueExpr::Lookup {
+            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
+            key: KEYFRAMES_KEY.to_owned(),
+            table: format!("{{{table}}}").into(),
         };
         Some(Emitted::Expression(expression))
     }

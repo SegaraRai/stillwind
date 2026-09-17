@@ -631,6 +631,49 @@ const props = style({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }
 }
 
 #[test]
+fn unclaimed_keyframes_uses_report_diagnostics() {
+    for body in [
+        "const a=style.keyframes({from:'x'}); const use=a('');",
+        "const a=style.keyframes({from:'x'}); export const use=a('');",
+        "const a=style.keyframes({from:'x'}); const use=style({class:a('')});",
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            "entry.ts",
+            format!("import {{style}} from 'stillwind/react'; {body}"),
+        )
+        .unwrap();
+        let parsed = parse(&source);
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|error| error.kind == CompileErrorKind::KeyframesUseNotAClassInput),
+            "{body}: {:?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+/// A keyframes use the class lowering claims stays clean, wherever the class input sits.
+#[test]
+fn claimed_keyframes_uses_stay_diagnostic_free() {
+    let source = SourceFile::new(
+        FileId(1),
+        "entry.tsx",
+        r#"import { style } from "stillwind/react";
+const a = style.keyframes({ from: "opacity-0" });
+const b = style.keyframes({ to: "opacity-0" });
+export const props = style("flex", enabled ? a("") : b(""), ["p-4", a("duration-180")], {
+  "hover:": a(""),
+});"#,
+    )
+    .unwrap();
+    let parsed = parse(&source);
+    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+}
+
+#[test]
 fn external_class_arrays_keep_leaf_occurrences_and_spread_boundaries() {
     let source = SourceFile::new(FileId(1), "classes.tsx", "import {style} from 'stillwind/react'; const props = style({class: [first, [,, second, []], flag ? [third] : [], [...values], (fourth, fifth)]});").unwrap();
     let parsed = parse(&source);

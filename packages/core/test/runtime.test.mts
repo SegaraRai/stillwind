@@ -3,8 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  stillwindKeyframes,
-  stillwindAssetClass,
   stillwindClassKey,
   stillwindEscapedIdentifier,
   stillwindToFragment,
@@ -32,11 +30,11 @@ void test("view transition names pair a class token with a key", () => {
   assert.equal(stillwindViewTransitionName("sw-vt-card"), "");
   assert.equal(stillwindViewTransitionName("sw-vt-card", "hero"), "sw-vt-card-hero");
   assert.equal(stillwindViewTransitionName("sw-vt-card", "item 1"), "sw-vt-card-item\\ 1");
-  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", k: 7 }), "sw-vt-card-7");
-  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", k: 7 }, "hero"), "sw-vt-card-hero");
+  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", w: 7 }), "sw-vt-card-7");
+  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", w: 7 }, "hero"), "sw-vt-card-hero");
   assert.deepEqual(stillwindViewTransitionKey({ v: "sw-vt-card" }, "hero"), {
     v: "sw-vt-card",
-    k: "hero",
+    w: "hero",
   });
   assert.throws(() => stillwindViewTransitionName({}), TypeError);
 });
@@ -64,12 +62,4 @@ void test("composes names matching the shared escape vectors", () => {
       JSON.stringify(vector.key),
     );
   }
-});
-
-void test("selects classes carried by dynamic animation and view transition values", () => {
-  const fade = stillwindKeyframes("sw-kf-fade");
-
-  assert.equal(stillwindAssetClass(fade("infinite"), { "sw-kf-fade": "a_fade" }), "a_fade");
-  assert.equal(stillwindAssetClass({ v: "sw-vt-title" }, { "sw-vt-title": "v_title" }), "v_title");
-  assert.throws(() => stillwindAssetClass({ identity: "user-owned" }, {}), TypeError);
 });

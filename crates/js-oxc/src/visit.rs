@@ -192,21 +192,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     ///
     /// Only calls whose callee resolves to the imported macro are collected. A call
     /// nested inside an already-collected one is reported as `SHCOMP001` instead of
-    /// being lowered, and spread arguments are errors.
+    /// being lowered, and spread arguments are errors. Every other call is checked for
+    /// a keyframes use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
-        let Expression::Identifier(callee) = &call.callee else {
-            walk::walk_call_expression(self, call);
-            return;
-        };
-        let Some(reference_id) = callee.reference_id.get() else {
-            walk::walk_call_expression(self, call);
-            return;
-        };
-        let Some(symbol_id) = self.scoping.get_reference(reference_id).symbol_id() else {
-            walk::walk_call_expression(self, call);
-            return;
-        };
-        if !self.style_symbols.contains(&symbol_id) {
+        if !self.is_style_call(call) {
+            self.report_unclaimed_keyframes_use(call);
             walk::walk_call_expression(self, call);
             return;
         }

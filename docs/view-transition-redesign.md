@@ -132,10 +132,9 @@ identity が実行時に決まる場合は、候補ごとにクラス規則を�
 ```tsx
 const t = compact ? vtA : vtB; // {v:"--sw-v-a"} | {v:"--sw-v-b"}
 <article {...style("rounded-xl", t.for("hero"))} />;
-// ⇒ <article className={stillwindAssetClass(t, {
-//        "--sw-v-a": "_s_1",   /* ._s_1 { view-transition-name: --sw-v-a-hero; view-transition-class: --sw-v-a; } */
-//        "--sw-v-b": "_s_2",   /* ._s_2 { view-transition-name: --sw-v-b-hero; view-transition-class: --sw-v-b; } */
-//      })} />
+// ⇒ <article className={({"--sw-v-a":"_s_1","--sw-v-b":"_s_2"})[t.v]} />
+//      /* ._s_1 { view-transition-name: --sw-v-a-hero; view-transition-class: --sw-v-a; }
+//         ._s_2 { view-transition-name: --sw-v-b-hero; view-transition-class: --sw-v-b; } */
 ```
 
 リテラルキーの動的 identity はこの形で **inline 不要**。動的キーが絡む場合のみ
@@ -218,7 +217,7 @@ derived の規則が base のリストを置き換える（slot を call 横断�
 導出は宣言ごとに一意な名前を得るための便宜であり、名前と宣言の対応関係を意味しない。
 別の宣言が同じ値を書くことも、リテラル名で別コンポーネントと pairing することも自由。
 
-- 宣言の外（`export const keyed = vt.for(id)` 等）では、リテラルなら `{v:"…", k:"…"}`、
+- 宣言の外（`export const keyed = vt.for(id)` 等）では、リテラルなら `{v:"…", w:"…"}`、
   動的なら `stillwindViewTransitionKey(vt, id)` 呼び出しに書き換える
   （runtime に `.for` メソッドを置かない）。
 
@@ -341,7 +340,7 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 
 **Phase 3: 動的 identity**
 
-- 候補クラス表（`stillwindAssetClass` の `{v}` 対応）と、候補クラス規則の生成
+- 候補クラス表（値を `.v` で引く lookup）と、候補クラス規則の生成
 - リテラルキーは候補クラス側に静的名を持たせる
 
 **Phase 4: lint**

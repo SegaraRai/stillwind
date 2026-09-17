@@ -16,7 +16,7 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
     for framework in ["react", "preact", "solid", "vue", "svelte", "astro"] {
         let component = SourceFile::new(FileId(1), "entry.tsx", format!(
             "import {{style as sw, type Theme}} from 'stillwind/{framework}';\n\
-             const text = 'stillwindKeyframes(';\n\
+             const text = 'stillwindCssValue(';\n\
              function render(stillwindClsx: string) {{ return sw('flex', {{class: stillwindClsx_1}}); }}"
         )).unwrap();
         let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
@@ -27,10 +27,10 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
         assert!(code.contains(",stillwindClsx_1)"), "{code}");
         assert!(code.contains("type Theme"), "{code}");
         assert!(
-            code.contains("const text = 'stillwindKeyframes(';"),
+            code.contains("const text = 'stillwindCssValue(';"),
             "{code}"
         );
-        assert!(!code.contains("{ stillwindKeyframes"), "{code}");
+        assert!(!code.contains("{ stillwindCssValue"), "{code}");
         assert!(!code.contains("style as sw"), "{code}");
         let reparsed = parse(&SourceFile::new(FileId(3), "output.tsx", code).unwrap());
         assert!(reparsed.diagnostics.is_empty());

@@ -49,6 +49,7 @@ impl<'a> MacroExtractor<'a> {
             ref_definitions: Vec::new(),
             keyframes_symbols: HashMap::new(),
             keyframes_declarations: Vec::new(),
+            keyframes_use_spans: BTreeSet::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
             view_transition_key_applications: Vec::new(),
@@ -211,6 +212,9 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
     /// Animation declarations in declaration order.
     pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
+    /// Call spans the class-expression lowering claimed as keyframes uses. A call
+    /// outside this set is one the compiler cannot consume.
+    pub(crate) keyframes_use_spans: BTreeSet<(u32, u32)>,
     /// Symbols bound to a view-transition declaration, with their names.
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
     /// View-transition declarations in declaration order.

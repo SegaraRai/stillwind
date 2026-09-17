@@ -475,7 +475,7 @@ export const useLiteral = style("block", literal);"#,
         transformed.contains("const literal = {v:\"sw-vt-"),
         "{transformed}"
     );
-    assert!(transformed.contains(",k:\"hero\"}"), "{transformed}");
+    assert!(transformed.contains(",w:\"hero\"}"), "{transformed}");
     assert!(
         transformed.contains("stillwindViewTransitionKey(card,product.id)"),
         "{transformed}"

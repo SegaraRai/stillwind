@@ -34,23 +34,6 @@ export function stillwindClsxChecked(...values: readonly unknown[]): string {
   return stillwindClsx(...values);
 }
 
-interface StillwindRuntimeAsset {
-  readonly kind: "animation" | "animation-use";
-  readonly identity: string;
-}
-
-/**
- * Wraps a compiler-generated animation identity in a callable runtime value.
- * Calling it returns an animation-use record with the same identity; options are
- * ignored because their CSS is resolved by the compiler. Identity is not validated.
- */
-export function stillwindKeyframes(identity: string) {
-  return Object.assign(
-    (_options: string): StillwindRuntimeAsset => ({ kind: "animation-use", identity }),
-    { kind: "animation" as const, identity },
-  );
-}
-
 /**
  * Serializes one CSS identifier, matching `CSS.escape` and CSS Syntax "serialize an
  * identifier". A value that is already an identifier is returned unchanged, so the
@@ -97,14 +80,14 @@ export function stillwindEscapedIdentifier(value: string): string {
 export function stillwindViewTransitionName(value: unknown, key?: string | number): string {
   const record =
     value && typeof value === "object" && "v" in value
-      ? (value as { v?: unknown; k?: unknown })
+      ? (value as { v?: unknown; w?: unknown })
       : undefined;
   const token = typeof value === "string" ? value : record?.v;
   if (typeof token !== "string" || token.length === 0) {
     throw new TypeError("Stillwind received a view transition without a class token.");
   }
   const resolved =
-    key ?? (typeof record?.k === "string" || typeof record?.k === "number" ? record.k : undefined);
+    key ?? (typeof record?.w === "string" || typeof record?.w === "number" ? record.w : undefined);
   if (resolved === undefined) return "";
   return stillwindEscapedIdentifier(`${token}-${String(resolved)}`);
 }
@@ -116,7 +99,7 @@ export function stillwindViewTransitionName(value: unknown, key?: string | numbe
 export function stillwindViewTransitionKey(
   value: unknown,
   key: string | number,
-): { readonly v: string; readonly k: string | number } {
+): { readonly v: string; readonly w: string | number } {
   const token =
     typeof value === "string"
       ? value
@@ -126,27 +109,7 @@ export function stillwindViewTransitionKey(
   if (typeof token !== "string" || token.length === 0) {
     throw new TypeError("Stillwind received a view transition without a class token.");
   }
-  return { v: token, k: key };
-}
-
-/**
- * Looks up an object or function's string identity in the own entries of classes.
- * A view transition carries its class token under `v`, an animation under `identity`.
- * This validates table membership, not the asset kind or its provenance.
- * Throws TypeError for an unsupported value or an identity absent from the table.
- */
-export function stillwindAssetClass(
-  value: unknown,
-  classes: Readonly<Record<string, string>>,
-): string {
-  if (!value || (typeof value !== "object" && typeof value !== "function")) {
-    throw new TypeError("Stillwind expected a compiled animation or view transition value.");
-  }
-  const identity = "v" in value ? value.v : "identity" in value ? value.identity : undefined;
-  if (typeof identity !== "string" || !Object.hasOwn(classes, identity)) {
-    throw new TypeError("Stillwind received an unknown animation or view transition identity.");
-  }
-  return classes[identity];
+  return { v: token, w: key };
 }
 
 function flatten(value: unknown): string[] {

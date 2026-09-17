@@ -39,13 +39,19 @@ use crate::{CompilerOptions, GeneratedSymbol};
 /// Object key under which a ref or scope value carries its canonical class token.
 pub(super) const CLASS_KEY: &str = "c";
 
+/// Object key under which a keyframes value carries its generated keyframes name.
+///
+/// The name is what the declaration's `animation-name` states, and a use selects its
+/// prebuilt class by reading it.
+pub(super) const KEYFRAMES_KEY: &str = "k";
+
 /// Object key under which a view-transition value carries the class token that marks
 /// its participants.
 pub(super) const VIEW_TRANSITION_CLASS_KEY: &str = "v";
 
 /// Object key under which a keyed view-transition value carries the key its
 /// participants pair under.
-pub(super) const VIEW_TRANSITION_KEY: &str = "k";
+pub(super) const VIEW_TRANSITION_KEY: &str = "w";
 
 /// One `style()` call being lowered.
 ///

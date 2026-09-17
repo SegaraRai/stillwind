@@ -26,7 +26,8 @@ use super::definitions::{
     emit_keyframes_definition, emit_view_transition_definition, is_definition_kind,
 };
 use super::emission::{
-    CLASS_KEY, CallEmitter, CallEmitterInputs, VIEW_TRANSITION_CLASS_KEY, VIEW_TRANSITION_KEY,
+    CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
+    VIEW_TRANSITION_KEY,
 };
 use super::fragment::render_style_call;
 use super::output::CompileResult;
@@ -330,11 +331,9 @@ impl Compiler {
                         &animation.binding,
                         animation.label.as_ref(),
                     )) {
-                        Ok(name) => format!(
-                            "{}({})",
-                            runtime.require(RuntimeHelper::Keyframes, animation.call_span),
-                            name.javascript_string()
-                        ),
+                        Ok(name) => {
+                            format!("{{{KEYFRAMES_KEY}:{}}}", name.javascript_string())
+                        }
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, animation.call_span));
                             "undefined".to_owned()

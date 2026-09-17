@@ -456,7 +456,8 @@ pub enum ClassExpression {
     },
     /// An keyframes use whose keyframes is only known at runtime.
     DynamicKeyframesUse {
-        /// The runtime keyframes value.
+        /// The receiver expression the use site wrote, whose keyframes name selects the
+        /// prebuilt class.
         value: Span,
         /// Every statically reachable alternative, used for CSS planning.
         keyframes: Vec<AssetReference>,

@@ -129,7 +129,8 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   // A projection reads the use-site ref value, never the member expression it was written on.
   // The lowered ref value is a record under c, so `selected.anchor` must compile to `selected.c`.
   assert.match(consumer.code, /\[selected\.c\]/);
-  assert.match(consumer.code, /stillwindAssetClass\(selectedKeyframes\("infinite"\)/);
+  // A dynamic animation selects its prebuilt class by the keyframes name the value carries.
+  assert.match(consumer.code, /\[selectedKeyframes\.k\]/);
   // A transition the value selects at runtime carries one class per token, chosen by v.
   assert.match(consumer.code, /"sw-vt-[^"]+":"sw_[^"]+"[\s\S]{0,120}?\)\[selectedTransition\.v\]/);
   assert.match(consumer.code, /stillwindViewTransitionName\("sw-vt-[^"]+",transitionKey\)/);
@@ -210,7 +211,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);
   assert.match(
     runnable,
-    /^import \{ stillwindAssetClass, stillwindClassKey, stillwindMerge, stillwindStyleKey, stillwindViewTransitionName, stillwindViewTransitionKey \} from "stillwind\/react\/runtime";/,
+    /^import \{ stillwindClassKey, stillwindMerge, stillwindStyleKey, stillwindViewTransitionName, stillwindViewTransitionKey \} from "stillwind\/react\/runtime";/,
   );
   for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
     assert.match(runnable, new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));
