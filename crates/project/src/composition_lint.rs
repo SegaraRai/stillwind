@@ -18,6 +18,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::CompiledModule;
+use stillwind_css::{declaration_ranges, properties_interfere};
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_semantic::{IdentityId, ModuleId};
 use stillwind_source::{FileId, Span};
@@ -213,7 +214,7 @@ fn first_interference(
     for left_key in left {
         for right_key in right {
             if left_key.context == right_key.context
-                && stillwind_css::properties_interfere(&left_key.property, &right_key.property)
+                && properties_interfere(&left_key.property, &right_key.property)
             {
                 return Some((left_key.clone(), right_key.clone()));
             }
@@ -343,7 +344,7 @@ fn selector_suffix(prelude: &str, selector: &str) -> String {
 
 /// Collects declaration keys from one rule body, tracking nested contexts.
 fn collect_keys(fragment: &str, context: &str, keys: &mut BTreeSet<DeclarationKey>) {
-    for range in stillwind_css::declaration_ranges(fragment) {
+    for range in declaration_ranges(fragment) {
         let text = fragment[range].trim();
         if text.is_empty() {
             continue;
