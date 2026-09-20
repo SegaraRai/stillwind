@@ -89,6 +89,29 @@ const c = style(a, b, 'm-2');
 }
 
 #[test]
+fn base_pseudo_class_and_attribute_variants_stay_independent() {
+    let mut session = session();
+    session.update_module(analysis(
+        "app.tsx",
+        r"import { style } from 'stillwind/react';
+const base = style('p-3');
+const disabled = style('disabled:p-1');
+const icon = style('data-[type=icon]:p-2');
+const composed = style(base, disabled, icon, 'text-brand');
+",
+    ));
+    let artifact = session.artifacts().get("app.tsx").expect("published");
+    assert!(
+        !artifact
+            .lint_findings
+            .iter()
+            .any(|finding| finding.code() == "ambiguous-base-order"),
+        "unexpected findings: {:?}",
+        artifact.lint_findings
+    );
+}
+
+#[test]
 fn a_shorthand_base_and_a_longhand_base_are_reported() {
     let mut session = session();
     session.update_module(analysis(

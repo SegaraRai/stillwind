@@ -302,12 +302,11 @@ fn call_declarations(artifact: &CompiledModule) -> CallDeclarations {
             if !mentions(&rule.prelude, &selector) && !mentions(body, &selector) {
                 continue;
             }
-            let context = if rule.prelude.trim_start().starts_with('@') {
-                rule.prelude.trim().to_owned()
-            } else {
-                selector_suffix(&rule.prelude, &selector)
-            };
-            collect_keys(body, &context, &mut keys);
+            let mut context = selector_context(&rule.prelude, &selector);
+            if context == "&" {
+                context.clear();
+            }
+            collect_keys(body, &context, &selector, &mut keys);
         }
         if !keys.is_empty() {
             result.insert((class.call_span.start.0, class.call_span.end.0), keys);
@@ -331,19 +330,36 @@ fn mentions(text: &str, selector: &str) -> bool {
     false
 }
 
-/// The part of a selector that follows the call's class, for example `:hover`.
-fn selector_suffix(prelude: &str, selector: &str) -> String {
-    match prelude.find(selector) {
-        Some(index) => prelude[index + selector.len()..]
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" "),
-        None => String::new(),
+/// One emitted selector or at-rule header with the call's class represented as `&`.
+fn selector_context(prelude: &str, selector: &str) -> String {
+    if prelude.trim_start().starts_with('@') {
+        return prelude.trim().to_owned();
     }
+
+    let mut output = String::with_capacity(prelude.len());
+    let mut remaining = prelude;
+    while let Some(index) = remaining.find(selector) {
+        let end = index + selector.len();
+        let next = remaining[end..].chars().next();
+        output.push_str(&remaining[..index]);
+        if next.is_some_and(|next| next.is_ascii_alphanumeric() || next == '-' || next == '_') {
+            output.push_str(selector);
+        } else {
+            output.push('&');
+        }
+        remaining = &remaining[end..];
+    }
+    output.push_str(remaining);
+    output.trim().to_owned()
 }
 
 /// Collects declaration keys from one rule body, tracking nested contexts.
-fn collect_keys(fragment: &str, context: &str, keys: &mut BTreeSet<DeclarationKey>) {
+fn collect_keys(
+    fragment: &str,
+    context: &str,
+    selector: &str,
+    keys: &mut BTreeSet<DeclarationKey>,
+) {
     for range in declaration_ranges(fragment) {
         let text = fragment[range].trim();
         if text.is_empty() {
@@ -352,12 +368,13 @@ fn collect_keys(fragment: &str, context: &str, keys: &mut BTreeSet<DeclarationKe
         if let Some(open) = text.find('{') {
             let prelude = text[..open].trim();
             let body = text[open + 1..].trim_end().trim_end_matches('}');
+            let nested_context = selector_context(prelude, selector);
             let nested = if context.is_empty() {
-                prelude.to_owned()
+                nested_context
             } else {
-                format!("{context} {prelude}")
+                format!("{context} {nested_context}")
             };
-            collect_keys(body, &nested, keys);
+            collect_keys(body, &nested, selector, keys);
             continue;
         }
         let Some((name, _)) = text.split_once(':') else {
@@ -571,5 +588,91 @@ mod tests {
         let published = artifacts(&[("app.tsx", app)]);
         let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
         assert!(findings.is_empty(), "{}", codes(&findings));
+    }
+
+    #[test]
+    fn expanded_base_and_state_selectors_do_not_interfere() {
+        let mut app = artifact(
+            "app.tsx",
+            &[
+                (0, 10, "sw_a", "padding: 3px;"),
+                (20, 30, "sw_b", "padding: 1px;"),
+                (40, 50, "sw_c", "padding: 2px;"),
+                (60, 70, "sw_d", "color: red;"),
+            ],
+            &[
+                ("app.tsx", 3, "app.tsx", 0),
+                ("app.tsx", 3, "app.tsx", 1),
+                ("app.tsx", 3, "app.tsx", 2),
+            ],
+        );
+        app.css.rules[1].prelude = ".sw_b:disabled".to_owned();
+        app.css.rules[2].prelude = ".sw_c[data-type=\"icon\"]".to_owned();
+        let published = artifacts(&[("app.tsx", app)]);
+
+        let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
+
+        assert!(findings.is_empty(), "{}", codes(&findings));
+    }
+
+    #[test]
+    fn equal_expanded_selectors_interfere_across_generated_classes() {
+        let mut app = artifact(
+            "app.tsx",
+            &[
+                (0, 10, "sw_a", "padding: 3px;"),
+                (20, 30, "sw_b", "padding: 1px;"),
+                (40, 50, "sw_c", "color: red;"),
+            ],
+            &[("app.tsx", 2, "app.tsx", 0), ("app.tsx", 2, "app.tsx", 1)],
+        );
+        app.css.rules[0].prelude = ".sw_a:disabled".to_owned();
+        app.css.rules[1].prelude = ".sw_b:disabled".to_owned();
+        let published = artifacts(&[("app.tsx", app)]);
+
+        let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
+
+        assert_eq!(findings.len(), 1, "{}", codes(&findings));
+        assert_eq!(findings[0].code(), "ambiguous-base-order");
+    }
+
+    #[test]
+    fn selector_prefixes_are_part_of_the_expanded_context() {
+        let mut app = artifact(
+            "app.tsx",
+            &[
+                (0, 10, "sw_a", "padding: 3px;"),
+                (20, 30, "sw_b", "padding: 1px;"),
+                (40, 50, "sw_c", "color: red;"),
+            ],
+            &[("app.tsx", 2, "app.tsx", 0), ("app.tsx", 2, "app.tsx", 1)],
+        );
+        app.css.rules[1].prelude = ":where(:focus) .sw_b".to_owned();
+        let published = artifacts(&[("app.tsx", app)]);
+
+        let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
+
+        assert!(findings.is_empty(), "{}", codes(&findings));
+    }
+
+    #[test]
+    fn equal_selectors_inside_at_rules_share_a_context() {
+        let mut app = artifact(
+            "app.tsx",
+            &[
+                (0, 10, "sw_a", ".sw_a:hover { padding: 3px; }"),
+                (20, 30, "sw_b", ".sw_b:hover { padding: 1px; }"),
+                (40, 50, "sw_c", "color: red;"),
+            ],
+            &[("app.tsx", 2, "app.tsx", 0), ("app.tsx", 2, "app.tsx", 1)],
+        );
+        app.css.rules[0].prelude = "@media (hover: hover)".to_owned();
+        app.css.rules[1].prelude = "@media (hover: hover)".to_owned();
+        let published = artifacts(&[("app.tsx", app)]);
+
+        let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
+
+        assert_eq!(findings.len(), 1, "{}", codes(&findings));
+        assert_eq!(findings[0].code(), "ambiguous-base-order");
     }
 }
