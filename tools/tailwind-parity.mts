@@ -53,17 +53,22 @@ function topLevelSegments(css: string): string[] {
   for (let index = 0; index < css.length; index += 1) {
     const character = css[index];
     if (quote) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === quote) quote = "";
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === quote) {
+        quote = "";
+      }
       continue;
     }
     if (character === '"' || character === "'") {
       quote = character;
       continue;
     }
-    if (character === "{") depth += 1;
-    else if (character === "}") {
+    if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
       depth -= 1;
       if (depth === 0) {
         segments.push(css.slice(start, index + 1));
@@ -74,7 +79,9 @@ function topLevelSegments(css: string): string[] {
       start = index + 1;
     }
   }
-  if (start < css.length) segments.push(css.slice(start));
+  if (start < css.length) {
+    segments.push(css.slice(start));
+  }
   return segments.filter(Boolean);
 }
 
@@ -106,12 +113,19 @@ function hasVariant(candidate: string): boolean {
       escaped = false;
       continue;
     }
-    if (character === "\\") escaped = true;
-    else if (character === "[") brackets += 1;
-    else if (character === "]") brackets -= 1;
-    else if (character === "(") parentheses += 1;
-    else if (character === ")") parentheses -= 1;
-    else if (character === ":" && brackets === 0 && parentheses === 0) return true;
+    if (character === "\\") {
+      escaped = true;
+    } else if (character === "[") {
+      brackets += 1;
+    } else if (character === "]") {
+      brackets -= 1;
+    } else if (character === "(") {
+      parentheses += 1;
+    } else if (character === ")") {
+      parentheses -= 1;
+    } else if (character === ":" && brackets === 0 && parentheses === 0) {
+      return true;
+    }
   }
   return false;
 }
@@ -127,12 +141,19 @@ function candidateFamily(candidate: string): string {
       escaped = false;
       continue;
     }
-    if (character === "\\") escaped = true;
-    else if (character === "[") brackets += 1;
-    else if (character === "]") brackets -= 1;
-    else if (character === "(") parentheses += 1;
-    else if (character === ")") parentheses -= 1;
-    else if (character === ":" && brackets === 0 && parentheses === 0) utilityStart = index + 1;
+    if (character === "\\") {
+      escaped = true;
+    } else if (character === "[") {
+      brackets += 1;
+    } else if (character === "]") {
+      brackets -= 1;
+    } else if (character === "(") {
+      parentheses += 1;
+    } else if (character === ")") {
+      parentheses -= 1;
+    } else if (character === ":" && brackets === 0 && parentheses === 0) {
+      utilityStart = index + 1;
+    }
   }
   const utility = candidate.slice(utilityStart);
   return utility
@@ -149,7 +170,9 @@ function recordDifference(
   received: string,
   forcedCategory?: string,
 ): void {
-  if (!analyze) return;
+  if (!analyze) {
+    return;
+  }
   const withoutPropertiesExpected = withoutMetadata(expected, false);
   const withoutPropertiesReceived = withoutMetadata(received, false);
   const category =
@@ -170,7 +193,9 @@ function recordDifference(
   increment(familiesForCategory, candidateFamily(candidate));
   categoryFamilies.set(category, familiesForCategory);
   const examples = categoryExamples.get(category) ?? [];
-  if (examples.length < 5) examples.push(`${file} ${candidate}`);
+  if (examples.length < 5) {
+    examples.push(`${file} ${candidate}`);
+  }
   categoryExamples.set(category, examples);
 
   const expectedProperties = declarationProperties(withoutPropertiesExpected);
@@ -188,18 +213,26 @@ function recordDifference(
         : "both missing and extra declaration names",
   );
   for (const property of expectedProperties) {
-    if (!receivedProperties.has(property)) increment(missingProperties, property);
+    if (!receivedProperties.has(property)) {
+      increment(missingProperties, property);
+    }
   }
   for (const property of receivedProperties) {
-    if (!expectedProperties.has(property)) increment(extraProperties, property);
+    if (!expectedProperties.has(property)) {
+      increment(extraProperties, property);
+    }
   }
   const expectedRegistrations = registeredProperties(expected);
   const receivedRegistrations = registeredProperties(received);
   for (const property of expectedRegistrations) {
-    if (!receivedRegistrations.has(property)) increment(missingRegistrations, property);
+    if (!receivedRegistrations.has(property)) {
+      increment(missingRegistrations, property);
+    }
   }
   for (const property of receivedRegistrations) {
-    if (!expectedRegistrations.has(property)) increment(extraRegistrations, property);
+    if (!expectedRegistrations.has(property)) {
+      increment(extraRegistrations, property);
+    }
   }
 }
 
@@ -239,7 +272,9 @@ for (const file of readdirSync(caseRoot)
     const input = adapted.css;
     const frames = fixtureThemeKeyframes(input);
     const candidates = fixtureCase.candidates.split(/\s+/).filter(Boolean);
-    if (candidates.length === 0) candidates.push("");
+    if (candidates.length === 0) {
+      candidates.push("");
+    }
     for (const candidate of candidates.filter(
       (value) => !candidateFilter || value === candidateFilter,
     )) {
@@ -247,9 +282,13 @@ for (const file of readdirSync(caseRoot)
         checked += 1;
         continue;
       }
-      if (limit > 0 && checked >= limit) break;
+      if (limit > 0 && checked >= limit) {
+        break;
+      }
       checked += 1;
-      if (checked % 250 === 0) await setImmediate();
+      if (checked % 250 === 0) {
+        await setImmediate();
+      }
       const utility = adapted.candidate(candidate);
       const themePath = join(fixtureRoot, "parity-theme.css");
       const source = `import { style } from "stillwind/react"; const props = style(${JSON.stringify(utility)});`;
@@ -279,17 +318,19 @@ for (const file of readdirSync(caseRoot)
         if (
           (expected === received || hasEquivalentDeclarationOrder(expected, received)) &&
           (expected === "" || native.diagnostics.length === 0)
-        )
+        ) {
           continue;
+        }
         failures.push(`${file} ${candidate}: unresolved by Stillwind`);
         recordDifference(file, candidate, expected, "", "unresolved");
         if (!quiet && unresolvedShown < 20) {
           unresolvedShown += 1;
           console.error(`\n--- ${file} ${candidate} (unresolved) ---\nTailwind: ${expected}`);
-          if (debugRaw)
+          if (debugRaw) {
             console.error(
               `Native diagnostics: ${JSON.stringify(native.diagnostics)}\nRaw: ${native.css}`,
             );
+          }
         }
         continue;
       }
@@ -308,9 +349,13 @@ for (const file of readdirSync(caseRoot)
         }
       }
     }
-    if (limit > 0 && checked >= limit) break;
+    if (limit > 0 && checked >= limit) {
+      break;
+    }
   }
-  if (limit > 0 && checked >= limit) break;
+  if (limit > 0 && checked >= limit) {
+    break;
+  }
 }
 
 console.log(

@@ -42,7 +42,11 @@ export class TypeFactsError extends Error {
     const position = (offset: number) => {
       const utf16 = byteToUtf16(source, offset);
       const lines = source.slice(0, utf16).split("\n");
-      return { utf16, line: lines.length - 1, column: lines.at(-1)!.length };
+      return {
+        utf16,
+        line: lines.length - 1,
+        column: lines.at(-1)!.length,
+      };
     };
     const start = position(this.start),
       end = position(this.end);
@@ -79,7 +83,9 @@ function visit(node: Node, callback: (node: Node) => void) {
 
 function typeArguments(checker: Checker, type: Type): readonly Type[] {
   const aliasArguments = type.getAliasTypeArguments();
-  if (aliasArguments.length > 0) return aliasArguments;
+  if (aliasArguments.length > 0) {
+    return aliasArguments;
+  }
   return type.isTypeReference() ? checker.getTypeArguments(type) : [];
 }
 
@@ -88,13 +94,19 @@ function knownIdentities(
   identities: ReadonlyMap<string, IdentityId>,
   kind: IdentityId["kind"],
 ): IdentityId[] | null {
-  if (!type) return null;
+  if (!type) {
+    return null;
+  }
   const types = type.isUnionType() ? type.getTypes() : [type];
   const result: IdentityId[] = [];
   for (const candidate of types) {
-    if (!candidate.isStringLiteralType()) return null;
+    if (!candidate.isStringLiteralType()) {
+      return null;
+    }
     const identity = identities.get(candidate.value);
-    if (!identity || identity.kind !== kind) return null;
+    if (identity?.kind !== kind) {
+      return null;
+    }
     result.push(identity);
   }
   return result;
@@ -124,17 +136,23 @@ function typeFactValue(
     const args = typeArguments(checker, constituent);
     if (symbol?.name === "StyleResult") {
       const candidates = knownIdentities(args[0], identities, "style");
-      if (!candidates) return null;
+      if (!candidates) {
+        return null;
+      }
       styles.push(...candidates);
       continue;
     }
     if (symbol?.name === "StyleRef") {
       const references = knownIdentities(args[0], identities, "ref");
-      if (!references) return null;
+      if (!references) {
+        return null;
+      }
       const boundaryText = args[1] ? checker.typeToString(args[1]) : "never";
       const permittedBoundaries =
         boundaryText === "never" ? [] : knownIdentities(args[1], identities, "ref");
-      if (!permittedBoundaries) return null;
+      if (!permittedBoundaries) {
+        return null;
+      }
       for (const reference of references) {
         refs.push({
           reference,
@@ -146,13 +164,17 @@ function typeFactValue(
     }
     if (symbol?.name === "StyleKeyframes" || symbol?.name === "StyleKeyframesUse") {
       const candidates = knownIdentities(args[0], identities, "keyframes");
-      if (!candidates) return null;
+      if (!candidates) {
+        return null;
+      }
       keyframes.push(...candidates);
       continue;
     }
     if (symbol?.name === "StyleViewTransition" || symbol?.name === "StyleViewTransitionUse") {
       const candidates = knownIdentities(args[0], identities, "view-transition");
-      if (!candidates) return null;
+      if (!candidates) {
+        return null;
+      }
       viewTransitions.push(...candidates);
       viewTransitionKeyed ||= symbol.name === "StyleViewTransitionUse";
       continue;
@@ -163,11 +185,19 @@ function typeFactValue(
   const populated = [refs, keyframes, viewTransitions, styles].filter(
     (values) => values.length > 0,
   );
-  if (populated.length !== 1) return null;
-  if (styles.length > 0) return { kind: "styles", value: symbolic("style", styles) };
-  if (refs.length > 0) return { kind: "refs", value: refs };
-  if (keyframes.length > 0) return { kind: "keyframes", value: symbolic("keyframes", keyframes) };
-  if (viewTransitions.length > 0)
+  if (populated.length !== 1) {
+    return null;
+  }
+  if (styles.length > 0) {
+    return { kind: "styles", value: symbolic("style", styles) };
+  }
+  if (refs.length > 0) {
+    return { kind: "refs", value: refs };
+  }
+  if (keyframes.length > 0) {
+    return { kind: "keyframes", value: symbolic("keyframes", keyframes) };
+  }
+  if (viewTransitions.length > 0) {
     return viewTransitionKeyed
       ? {
           kind: "view-transition-keys",
@@ -177,6 +207,7 @@ function typeFactValue(
           kind: "view-transitions",
           value: symbolic("view-transition", viewTransitions),
         };
+  }
   return null;
 }
 
@@ -224,7 +255,9 @@ function prepareProject(
       );
       virtualFiles.set(normalize(shadow.id), shadow.text);
       mappings.push(shadow);
-      for (const [key, identity] of shadow.identities) allIdentities.set(key, identity);
+      for (const [key, identity] of shadow.identities) {
+        allIdentities.set(key, identity);
+      }
     }
     for (const probe of source.probes) {
       if (
@@ -235,7 +268,7 @@ function prepareProject(
               (candidate) => candidate.start === probe.start && candidate.end === probe.end,
             ),
         )
-      )
+      ) {
         throw new TypeFactsError(
           source.path,
           probe.start,
@@ -243,6 +276,7 @@ function prepareProject(
           "SHTS003",
           "Cannot map this expression to a checker source",
         );
+      }
     }
   }
   virtualFiles.set(
@@ -298,12 +332,16 @@ export class TypeScriptFactsService {
     sources: readonly TypeFactSource[],
     assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
   ): Map<string, TypeFact[]> {
-    if (this.#closed) throw new Error("TypeScript facts service is closed");
+    if (this.#closed) {
+      throw new Error("TypeScript facts service is closed");
+    }
     const prepared = prepareProject(sources, assetsByPath, this.#configFile);
     try {
       return this.#collectPrepared(prepared);
     } catch (firstError) {
-      if (firstError instanceof TypeFactsError) throw firstError;
+      if (firstError instanceof TypeFactsError) {
+        throw firstError;
+      }
       this.stats.restarts += 1;
       this.#restartApi();
       try {
@@ -318,7 +356,9 @@ export class TypeScriptFactsService {
   }
 
   close(): void {
-    if (this.#closed) return;
+    if (this.#closed) {
+      return;
+    }
     this.#closed = true;
     this.#snapshot?.dispose();
     this.#snapshot = undefined;
@@ -340,8 +380,11 @@ export class TypeScriptFactsService {
         fileExists: (fileName) => (this.#virtualFiles.has(normalize(fileName)) ? true : undefined),
         readFile: (fileName) => {
           const overlay = this.#virtualFiles.get(normalize(fileName));
-          if (overlay === undefined) this.stats.diskReadRequests += 1;
-          else this.stats.overlayReads += 1;
+          if (overlay === undefined) {
+            this.stats.diskReadRequests += 1;
+          } else {
+            this.stats.overlayReads += 1;
+          }
           return overlay;
         },
       },
@@ -360,13 +403,16 @@ export class TypeScriptFactsService {
     const created: string[] = [];
     const deleted: string[] = [];
     for (const [fileName, contents] of prepared.virtualFiles) {
-      if (!this.#virtualFiles.has(fileName))
+      if (!this.#virtualFiles.has(fileName)) {
         (existsSync(fileName) ? changed : created).push(fileName);
-      else if (this.#virtualFiles.get(fileName) !== contents) changed.push(fileName);
+      } else if (this.#virtualFiles.get(fileName) !== contents) {
+        changed.push(fileName);
+      }
     }
     for (const fileName of this.#virtualFiles.keys()) {
-      if (!prepared.virtualFiles.has(fileName))
+      if (!prepared.virtualFiles.has(fileName)) {
         (existsSync(fileName) ? changed : deleted).push(fileName);
+      }
     }
     this.#virtualFiles = prepared.virtualFiles;
 
@@ -374,14 +420,20 @@ export class TypeScriptFactsService {
       ? this.#api.updateSnapshot({ fileChanges: { changed, created, deleted } })
       : this.#api.updateSnapshot({ openProjects: [this.#configFile] });
     this.stats.snapshots += 1;
-    if (this.#snapshot) this.stats.incrementalSnapshots += 1;
+    if (this.#snapshot) {
+      this.stats.incrementalSnapshots += 1;
+    }
     try {
       const project = next.getProject(this.#configFile);
-      if (!project) throw new Error("TypeScript 7 could not open the Stillwind shadow project");
+      if (!project) {
+        throw new Error("TypeScript 7 could not open the Stillwind shadow project");
+      }
       const result = new Map<string, TypeFact[]>();
       for (const mapping of prepared.mappings) {
         const sourceFile = project.program.getSourceFile(mapping.id);
-        if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.id}`);
+        if (!sourceFile) {
+          throw new Error(`TypeScript 7 omitted ${mapping.id}`);
+        }
         const diagnostics = [
           ...project.program.getSyntacticDiagnostics(mapping.id),
           ...project.program.getSemanticDiagnostics(mapping.id),
@@ -412,7 +464,7 @@ export class TypeScriptFactsService {
           const existing = previous.find(
             (value) => value.start === fact.start && value.end === fact.end,
           );
-          if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value))
+          if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value)) {
             throw new TypeFactsError(
               mapping.source.path,
               fact.start,
@@ -420,7 +472,10 @@ export class TypeScriptFactsService {
               "SHTS003",
               "Ambiguous checker results for this original expression",
             );
-          if (!existing) previous.push(fact);
+          }
+          if (!existing) {
+            previous.push(fact);
+          }
         }
         result.set(mapping.source.path, previous);
       }
@@ -460,15 +515,17 @@ function factsForSource(
   const expressions: Node[] = [];
   const matched = new Set<string>();
   visit(sourceFile, (node) => {
-    if (!isExpression(node)) return;
+    if (!isExpression(node)) {
+      return;
+    }
     const key = `${node.getStart(sourceFile)}:${node.end}`;
     if (mapping.probes.has(key)) {
       expressions.push(node);
       matched.add(key);
     }
   });
-  for (const [key, probe] of mapping.probes)
-    if (!matched.has(key))
+  for (const [key, probe] of mapping.probes) {
+    if (!matched.has(key)) {
       throw new TypeFactsError(
         mapping.source.path,
         probe.start,
@@ -476,6 +533,8 @@ function factsForSource(
         "SHTS003",
         "Projected expression has no matching checker AST node",
       );
+    }
+  }
   const types = checker.getTypeAtLocation(expressions);
   const facts: TypeFact[] = [];
   for (const [index, expression] of expressions.entries()) {
@@ -500,7 +559,7 @@ function factsForSource(
                 (t.getAliasSymbol() ?? t.getSymbol())?.name ?? "",
               ),
             ))
-      )
+      ) {
         throw new TypeFactsError(
           mapping.source.path,
           probe.start,
@@ -508,6 +567,7 @@ function factsForSource(
           "SHTS003",
           "Cannot determine a finite set of declaration identities. Preserve the value's inferred type, use an explicit union, or use a generic parameter.",
         );
+      }
       continue;
     }
     facts.push({ ...probe, value });

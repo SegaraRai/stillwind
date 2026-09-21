@@ -70,12 +70,13 @@ try {
       const errors = [];
       page.on("pageerror", (error) => errors.push(String(error)));
       page.on("response", async (response) => {
-        if (response.status() >= 400)
+        if (response.status() >= 400) {
           console.error(
             response.status(),
             response.url().split("?")[0],
             (await response.text()).slice(0, 1500),
           );
+        }
       });
       await page.goto(`${url}?route=${first}`);
       for (const name of [first, first === "a" ? "b" : "a"]) {
@@ -107,7 +108,9 @@ try {
     const errors = [];
     page.on("pageerror", (error) => errors.push(String(error)));
     page.on("console", (message) => {
-      if (message.type() === "error") errors.push(message.text());
+      if (message.type() === "error") {
+        errors.push(message.text());
+      }
     });
     await page.goto(`${url}ssr.html`);
     await page.waitForFunction(
@@ -128,7 +131,9 @@ try {
   await page.waitForFunction(() => window.current === "a");
   let reloads = 0;
   page.on("framenavigated", (frame) => {
-    if (frame === page.mainFrame()) reloads++;
+    if (frame === page.mainFrame()) {
+      reloads++;
+    }
   });
   await put("base.ts", baseSource(12));
   await page.waitForFunction(() => window.current === "a");
@@ -181,8 +186,11 @@ try {
   await checkHydration(server.resolvedUrls.local[0], productionSsr.props, "production");
 } finally {
   await browser?.close();
-  if (server?.close) await server.close();
-  else await new Promise((resolve) => server?.httpServer?.close(resolve) ?? resolve());
+  if (server?.close) {
+    await server.close();
+  } else {
+    await new Promise((resolve) => server?.httpServer?.close(resolve) ?? resolve());
+  }
   await fs.writeFile(path.join(root, "results/composition.json"), JSON.stringify(results, null, 2));
 }
 console.log(JSON.stringify(results, null, 2));

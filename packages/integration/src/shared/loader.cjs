@@ -2,6 +2,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { isBuiltin } = require("node:module");
 const { createHash } = require("node:crypto");
+
 const fingerprint = (source) => createHash("sha256").update(source).digest("hex");
 
 const carrierPath = path.join(__dirname, "stillwind-carrier.css");
@@ -16,25 +17,30 @@ module.exports = function (source, inputMap, additionalData) {
   const prior = additionalData?.stillwind?.sourceTransform;
   // Framework loaders can clone the same rule into a subrequest's chain.
   // Skip only an identical output already produced for this resource.
-  if (prior?.resource === this.resourcePath && prior.fingerprint === fingerprint(text))
+  if (prior?.resource === this.resourcePath && prior.fingerprint === fingerprint(text)) {
     return callback(null, source, inputMap, additionalData);
+  }
   const projection = /[?&]stillwind\.css(?:&|$)/.test(this.resourceQuery ?? "");
   const cssValue = /[?&]stillwind-module-css(?:&|$)/.test(this.resourceQuery ?? "");
   const sfc = /\.(vue|svelte|astro)$/.test(this.resourcePath);
-  if (/[?&](?:raw|url)(?:[=&]|$)/.test(this.resourceQuery ?? ""))
+  if (/[?&](?:raw|url)(?:[=&]|$)/.test(this.resourceQuery ?? "")) {
     return callback(null, source, inputMap);
+  }
   if (
     !projection &&
     !cssValue &&
     !/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(text)
-  )
+  ) {
     return callback(null, source, inputMap);
+  }
   const context = this;
   const suppliedOptions = this.getOptions();
   const options = suppliedOptions.stillwindOptions
     ? JSON.parse(Buffer.from(suppliedOptions.stillwindOptions, "base64url").toString("utf8"))
     : suppliedOptions;
-  if (!options.css) return callback(new Error("Stillwind requires a CSS entrypoint"));
+  if (!options.css) {
+    return callback(new Error("Stillwind requires a CSS entrypoint"));
+  }
   let facts;
   // Loader requests remain reconstructible in another worker. Their payload
   // contains configuration, not generated CSS or mutable process-local state.
@@ -74,7 +80,9 @@ module.exports = function (source, inputMap, additionalData) {
     watch(require.resolve("@stillwind/native"));
     const hostDirectory = path.dirname(require.resolve("@stillwind/host"));
     for (const file of fs.readdirSync(hostDirectory)) {
-      if (file.endsWith(".js")) watch(path.join(hostDirectory, file));
+      if (file.endsWith(".js")) {
+        watch(path.join(hostDirectory, file));
+      }
     }
     const root = path.resolve(context.rootContext, options.root ?? ".");
     const css = path.resolve(root, options.css);
@@ -96,13 +104,16 @@ module.exports = function (source, inputMap, additionalData) {
       root,
       {
         resolve: async (specifier, importer) => {
-          if (specifier.startsWith("node:") && isBuiltin(specifier))
+          if (specifier.startsWith("node:") && isBuiltin(specifier)) {
             return { id: specifier, external: true };
+          }
           try {
             const id = await resolveJs(specifier, importer);
             return id ? { id } : null;
           } catch (error) {
-            if (isBuiltin(specifier)) return { id: specifier, external: true };
+            if (isBuiltin(specifier)) {
+              return { id: specifier, external: true };
+            }
             throw error;
           }
         },
@@ -118,8 +129,9 @@ module.exports = function (source, inputMap, additionalData) {
         moduleCssImport: virtualRequest("stillwind-module-css"),
       },
     );
-    if (!output?.code)
+    if (!output?.code) {
       return callback(null, projection ? "" : source, projection ? null : inputMap);
+    }
     const plan = session.planStylesheet({
       modules: [output.path],
       coverage: { kind: "observed" },
@@ -129,17 +141,19 @@ module.exports = function (source, inputMap, additionalData) {
     const valueResources = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
       const resolved = await resolveAsset(resource.specifier, path.resolve(root, resource.owner));
-      if (!resolved)
+      if (!resolved) {
         throw new Error(
           `Cannot resolve Stillwind resource ${resource.specifier} from ${resource.owner}`,
         );
+      }
       watch(host.cleanModuleId(resolved));
-      if (plan.css.includes(resource.placeholder))
+      if (plan.css.includes(resource.placeholder)) {
         valueResources.push({
           placeholder: resource.placeholder,
           id: resolved,
           request: relativeRequest(path.dirname(context.resourcePath), resolved),
         });
+      }
     }
     const carrier = relativeRequest(path.dirname(context.resourcePath), carrierPath);
     if (cssValue) {
@@ -167,7 +181,7 @@ module.exports = function (source, inputMap, additionalData) {
       );
     }
     const automatic = (!output.hasModuleCssImport && options.automatic !== false) || projection;
-    if (automatic)
+    if (automatic) {
       require("./emission.cjs").registerEmission(context, {
         source: text,
         id: context.resourcePath,
@@ -175,8 +189,11 @@ module.exports = function (source, inputMap, additionalData) {
         options,
         manual: false,
       });
+    }
     const cssImport = `import ${JSON.stringify(carrier + "?stillwind-document")};\n`;
-    if (projection) return callback(null, cssImport);
+    if (projection) {
+      return callback(null, cssImport);
+    }
     const finalized = host.finalizeModuleWithMap(output.code);
     // Append synthetic imports so RSC directives remain the first statements.
     const code =
@@ -192,12 +209,13 @@ module.exports = function (source, inputMap, additionalData) {
       "",
     );
     const composedMap = host.composeModuleSourceMap(map, inputMap);
-    if (sfc && context.data)
+    if (sfc && context.data) {
       context.data.stillwindSourceTransform = {
         code,
         map: composedMap,
         resource: context.resourcePath,
       };
+    }
     callback(null, code, composedMap, {
       ...additionalData,
       stillwind: {

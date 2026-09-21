@@ -186,8 +186,11 @@ void test("custom-property folding materializes object and string framework prop
         framework === "react" ? "className" : "class",
         "style",
       ]);
-      if (framework === "svelte") assert.equal(props.style, `--progress:${expected}`);
-      else assert.equal((props.style as Record<string, unknown>)["--progress"], expected);
+      if (framework === "svelte") {
+        assert.equal(props.style, `--progress:${expected}`);
+      } else {
+        assert.equal((props.style as Record<string, unknown>)["--progress"], expected);
+      }
     }
   }
 });
@@ -252,12 +255,14 @@ void test("pure folding and empty-branch removal preserve materialized values", 
       "style",
     ]);
     assert.equal(props["data-value"], 3);
-    if (framework === "svelte") assert.equal(props.style, "--x:3;--y:4");
-    else
+    if (framework === "svelte") {
+      assert.equal(props.style, "--x:3;--y:4");
+    } else {
       assert.deepEqual(Object.entries(props.style as object), [
         ["--x", "3"],
         ["--y", "4"],
       ]);
+    }
   }
 });
 
@@ -335,13 +340,14 @@ void test("folded expressions map to distinct original occurrences through nativ
           ),
         );
       }
-      if (call.includes("flag"))
+      if (call.includes("flag")) {
         assert.ok(
           expressions.every(
             (expression) =>
               fullSource.slice(expression.original_start, expression.original_end) !== "flag",
           ),
         );
+      }
     }
   }
 });

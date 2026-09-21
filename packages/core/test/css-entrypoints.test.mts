@@ -25,7 +25,9 @@ void test("every exported CSS import stays inside the published package", () => 
   const visited = new Set<string>();
   while (pending.length) {
     const file = pending.pop()!;
-    if (visited.has(file)) continue;
+    if (visited.has(file)) {
+      continue;
+    }
     visited.add(file);
     assert.ok(file.startsWith(packageRoot + path.sep), `CSS import escaped the package: ${file}`);
     const css = readFileSync(file, "utf8");

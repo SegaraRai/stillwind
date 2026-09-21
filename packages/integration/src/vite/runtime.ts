@@ -1,3 +1,14 @@
+import { fileURLToPath } from "node:url";
+
+const mappingModule = fileURLToPath(import.meta.resolve("@jridgewell/gen-mapping")).replaceAll(
+  "\\",
+  "/",
+);
+const tracingModule = fileURLToPath(import.meta.resolve("@jridgewell/trace-mapping")).replaceAll(
+  "\\",
+  "/",
+);
+
 /** Generates client code for versioned stylesheet updates. */
 export function developmentRuntime(
   snapshot: unknown,
@@ -52,13 +63,3 @@ apply(${JSON.stringify(snapshot)});
 if(import.meta.hot){import.meta.hot.on("stillwind:css",apply);import.meta.hot.accept();import.meta.hot.dispose(()=>import.meta.hot.off("stillwind:css",apply));}
 `;
 }
-import { fileURLToPath } from "node:url";
-
-const mappingModule = fileURLToPath(import.meta.resolve("@jridgewell/gen-mapping")).replaceAll(
-  "\\",
-  "/",
-);
-const tracingModule = fileURLToPath(import.meta.resolve("@jridgewell/trace-mapping")).replaceAll(
-  "\\",
-  "/",
-);

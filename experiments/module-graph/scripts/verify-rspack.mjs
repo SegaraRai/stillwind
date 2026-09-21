@@ -103,13 +103,18 @@ try {
   browser = await chromium.launch({ channel: "chrome", headless: true });
   const page = await browser.newPage();
   for (const stage of ["cold", "warm", "css-edit", "unreachable", "macro-removal"]) {
-    if (stage === "css-edit") await put("root.css", theme("rgb(44,55,66)"));
-    if (stage === "unreachable")
+    if (stage === "css-edit") {
+      await put("root.css", theme("rgb(44,55,66)"));
+    }
+    if (stage === "unreachable") {
       await put(
         "main.js",
         `import {props} from './static.js'; document.body.innerHTML='<p id="main">Main</p>'; document.querySelector('#main').className=props.className??'';`,
       );
-    if (stage === "macro-removal") await put("static.js", "export const props={};");
+    }
+    if (stage === "macro-removal") {
+      await put("static.js", "export const props={};");
+    }
     const stats = await build();
     if (stage === "cold" || stage === "warm") {
       const cssFile = stats.chunks
@@ -177,11 +182,12 @@ try {
     );
     const producers = stats.modules.filter((module) => /\.\/(static|lazy)\.js$/.test(module.name));
     assert.equal(producers.length, 2);
-    if (stage === "warm")
+    if (stage === "warm") {
       assert(
         producers.every((module) => !module.built),
         JSON.stringify(producers),
       );
+    }
     results.checks.push({
       name: `${mode}-${stage}-browser-css`,
       passed: true,

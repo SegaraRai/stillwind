@@ -16,7 +16,9 @@ export default function DiffView({
 }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!host.current) return undefined;
+    if (!host.current) {
+      return undefined;
+    }
     const view = new MergeView({
       parent: host.current,
       a: { doc: before, extensions: codeExtensions(language) },

@@ -5,7 +5,9 @@ module.exports = function (source, inputMap, additionalData) {
   const transform = this.loaders
     .map((loader) => (loader.data ?? loader.loaderItem?.data)?.stillwindSourceTransform)
     .find((entry) => entry?.resource === this.resourcePath);
-  if (!inputMap || !transform) return callback(null, source, inputMap, additionalData);
+  if (!inputMap || !transform) {
+    return callback(null, source, inputMap, additionalData);
+  }
   void import("@stillwind/host").then((host) => {
     try {
       const map = host.composeFrameworkSourceMap(inputMap, transform.map, transform.code);

@@ -40,8 +40,9 @@ export async function verifyMarkdownFixtures({
   const files = readdirSync(directory)
     .filter((file) => file.endsWith(".fixture.md"))
     .sort();
-  if (files.length > maxFiles)
+  if (files.length > maxFiles) {
     throw new Error(`fixture file budget exceeded (maximum: ${maxFiles})`);
+  }
 
   let changed = false;
   let caseCount = 0;
@@ -49,8 +50,9 @@ export async function verifyMarkdownFixtures({
     const path = join(directory, file);
     const markdown = readFileSync(path, "utf8").replaceAll("\r\n", "\n");
     const cases = parseMarkdownFixtureCases(markdown);
-    if (cases.length === 0)
+    if (cases.length === 0) {
       throw new Error(`${file} does not contain a valid Markdown fixture case`);
+    }
     caseCount += cases.length;
 
     const replacements = [];
@@ -64,8 +66,11 @@ export async function verifyMarkdownFixtures({
     }
     if (next !== markdown) {
       changed = true;
-      if (write) writeFileSync(path, next);
-      else console.error(`${basename(path)} is stale; run with --write`);
+      if (write) {
+        writeFileSync(path, next);
+      } else {
+        console.error(`${basename(path)} is stale; run with --write`);
+      }
     }
   }
   return { changed, caseCount, fileCount: files.length };

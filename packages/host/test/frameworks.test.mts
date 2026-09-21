@@ -213,7 +213,9 @@ for (const { extension, source, name, imports } of [
     for (const expression of module.mappings.flatMap((mapping) => mapping.expressions)) {
       const generated = module.code.slice(expression.generated_start, expression.generated_end);
       const original = source.slice(expression.original_start, expression.original_end);
-      if (expression.exact) assert.equal(generated, original);
+      if (expression.exact) {
+        assert.equal(generated, original);
+      }
       const origin = originalPositionFor(map, {
         line: module.code.slice(0, expression.generated_start).split("\n").length,
         column:
@@ -233,8 +235,9 @@ for (const { extension, source, name, imports } of [
       module.code.split('import "virtual:stillwind/carrier.css?revision=1";').length,
       explicit ? 1 : 2,
     );
-    if (explicit)
+    if (explicit) {
       assert.match(module.code, /import css from "virtual:stillwind\/module-css\?test=1"/);
+    }
     assert.ok(module.code.includes(`stillwind/${extension}/runtime`), module.code);
     assert.ok(!module.code.includes("import {style}"), module.code);
     assert.ok(!module.code.includes("style(active"), module.code);

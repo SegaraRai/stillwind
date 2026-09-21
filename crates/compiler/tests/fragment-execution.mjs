@@ -44,7 +44,7 @@ for (const mode of ["development", "production"]) {
             return truth;
           };
           const base = () => {
-            if (truth)
+            if (truth) {
               return new Proxy(
                 { style: { "--old": "old" }, "data-base": 1 },
                 {
@@ -56,6 +56,7 @@ for (const mode of ["development", "production"]) {
                   },
                 },
               );
+            }
             return null;
           };
           const payload = () => {

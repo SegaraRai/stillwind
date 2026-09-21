@@ -7,7 +7,9 @@ const { fileURLToPath } = require("node:url");
 module.exports = function (source, inputMap) {
   this.addDependency(__filename);
   const payload = new URLSearchParams(this.resourceQuery).get("stillwind");
-  if (!payload || !inputMap) return this.callback(null, source, inputMap);
+  if (!payload || !inputMap) {
+    return this.callback(null, source, inputMap);
+  }
   const callback = this.async();
   const resource = path.resolve(this.resourcePath).replaceAll("\\", "/");
   void import("@stillwind/host")

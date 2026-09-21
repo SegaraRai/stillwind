@@ -138,11 +138,15 @@ const summary = results.map((result, index) => {
     calls: result.ir.style_calls.map((call) => ({
       text: slice(inputs[index].original, call.span),
       reused: call.inputs.flatMap((input) => {
-        if (input.ConditionalUtilityString)
+        if (input.ConditionalUtilityString) {
           return [slice(inputs[index].original, input.ConditionalUtilityString.guard)];
-        if (input.ExternalClass) return [slice(inputs[index].original, input.ExternalClass)];
-        if (input.Attributes)
+        }
+        if (input.ExternalClass) {
+          return [slice(inputs[index].original, input.ExternalClass)];
+        }
+        if (input.Attributes) {
           return input.Attributes.map(({ value }) => slice(inputs[index].original, value));
+        }
         return [];
       }),
     })),

@@ -37,31 +37,42 @@ const visit = (node, fn) => {
 const lines = (text) => [0, ...[...text.matchAll(/\n/g)].map((m) => m.index + 1)];
 
 function projectionPoints(input) {
-  if (!input.fw_code) return null;
+  if (!input.fw_code) {
+    return null;
+  }
   const points = new Map();
   if (input.fw2js_map.kind === "volar") {
-    for (const m of input.fw2js_map.mappings)
+    for (const m of input.fw2js_map.mappings) {
       for (let i = 0; i < m.sourceOffsets.length; i++) {
         const length = m.lengths[i];
         const generatedLength = m.generatedLengths?.[i] ?? length;
         points.set(m.generatedOffsets[i], m.sourceOffsets[i]);
-        if (length === generatedLength)
-          for (let j = 1; j < length; j++)
+        if (length === generatedLength) {
+          for (let j = 1; j < length; j++) {
             points.set(m.generatedOffsets[i] + j, m.sourceOffsets[i] + j);
+          }
+        }
       }
+    }
   } else {
     const map = new TraceMap(input.fw2js_map.json);
     const generatedLines = lines(input.source),
       originalLines = lines(input.fw_code);
-    for (const [line, segments] of decodedMappings(map).entries())
-      for (const s of segments)
-        if (s.length >= 4) points.set(generatedLines[line] + s[0], originalLines[s[2]] + s[3]);
+    for (const [line, segments] of decodedMappings(map).entries()) {
+      for (const s of segments) {
+        if (s.length >= 4) {
+          points.set(generatedLines[line] + s[0], originalLines[s[2]] + s[3]);
+        }
+      }
+    }
   }
   return points;
 }
 
 function wrap(framework, script, template, moduleScript = "") {
-  if (framework === "astro") return `---\r\n${moduleScript}\r\n${script}\r\n---\r\n${template}`;
+  if (framework === "astro") {
+    return `---\r\n${moduleScript}\r\n${script}\r\n---\r\n${template}`;
+  }
   const module = moduleScript
     ? `<script ${framework === "svelte" ? 'context="module" ' : ""}lang="ts">${moduleScript}</script>\r\n`
     : "";
@@ -104,12 +115,15 @@ function fixtures(framework, variant) {
     body += `function forget(value: import('stillwind/${framework}').StyleResult<string>) { return value; }\n`;
     add("erased-parameter", "forget(a)", null);
   }
-  if (framework === "vue")
+  if (framework === "vue") {
     body += `const { enabled } = defineProps<{enabled: boolean}>();\nconst choices = [a, b];\n`;
-  if (framework === "svelte")
+  }
+  if (framework === "svelte") {
     body += `let { enabled }: {enabled: boolean} = $props();\nlet reactive = $state(a);\nimport { writable } from 'svelte/store';\nconst store = writable(flag ? a : b);\nconst choices = [a, b];\n`;
-  if (framework === "astro")
+  }
+  if (framework === "astro") {
     body += `interface Props {enabled: boolean}\nconst {enabled} = Astro.props;\nconst choices = [a, b];\n`;
+  }
   const expression = framework === "svelte" ? "$store" : "enabled ? a : b";
   probes.push({ name: "template", expression, expected: ["a", "b"] });
   const call = `style(observe('template', ${expression}), 'font-bold')`;
@@ -159,7 +173,9 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
     visited = new Set();
   while (queue.length) {
     const name = queue.shift();
-    if (visited.has(name)) continue;
+    if (visited.has(name)) {
+      continue;
+    }
     visited.add(name);
     const original = originals.get(name);
     assert.ok(original !== undefined, name);
@@ -217,15 +233,17 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
         !ts.isIdentifier(node.name) ||
         !node.initializer ||
         !ts.isCallExpression(node.initializer)
-      )
+      ) {
         return;
+      }
       const call = node.initializer;
       if (
         !/^(?:style|moduleStyle)(?:\.(?:ref|keyframes|viewTransition))?$/.test(
           call.expression.getText(ast),
         )
-      )
+      ) {
         return;
+      }
       const originalStart = points ? points.get(node.name.getStart(ast)) : node.name.getStart(ast);
       assert.equal(
         original.slice(originalStart, originalStart + node.name.text.length),
@@ -241,17 +259,23 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
     });
     edits.sort((a, b) => a.at - b.at);
     let shadow = projected.source;
-    for (const e of [...edits].reverse())
+    for (const e of [...edits].reverse()) {
       shadow = shadow.slice(0, e.at) + e.text + shadow.slice(e.end);
-    if (stripTemplateSymbols)
+    }
+    if (stripTemplateSymbols) {
       shadow +=
         '\ndeclare function __researchProps<T>(value:T): Omit<T, keyof import("stillwind/macro").StyleResult<never, {}>>;\n';
+    }
     const toProjected = (offset) => {
       let delta = 0;
       for (const e of edits) {
         const start = e.at + delta;
-        if (offset < start) break;
-        if (offset < start + e.text.length) return null;
+        if (offset < start) {
+          break;
+        }
+        if (offset < start + e.text.length) {
+          return null;
+        }
         delta += e.text.length - (e.end - e.at);
       }
       return offset - delta;
@@ -314,10 +338,13 @@ function inspect(prepared, program, checker, guards, version) {
       const symbol = is7 ? (t.getAliasSymbol() ?? t.getSymbol()) : (t.aliasSymbol ?? t.getSymbol());
       if (
         !["StyleResult", "StyleRef", "StyleKeyframes", "StyleViewTransition"].includes(symbol?.name)
-      )
+      ) {
         return null;
+      }
       const idType = typeArgs(t)[0];
-      if (!idType) return null;
+      if (!idType) {
+        return null;
+      }
       const ids = (is7 ? idType.isUnionType() : idType.isUnion())
         ? is7
           ? idType.getTypes()
@@ -327,8 +354,9 @@ function inspect(prepared, program, checker, guards, version) {
         if (
           !(is7 ? id.isStringLiteralType() : id.isStringLiteral()) ||
           !prepared.identities.has(id.value)
-        )
+        ) {
           return null;
+        }
         values.push(id.value.split(":").at(-1));
       }
     }
@@ -339,11 +367,14 @@ function inspect(prepared, program, checker, guards, version) {
       !guards.isCallExpression(node) ||
       node.arguments.length !== 2 ||
       !guards.isStringLiteral(node.arguments[0])
-    )
+    ) {
       return;
+    }
     const name = node.arguments[0].text;
     const expected = prepared.probes.find((p) => p.name === name);
-    if (!expected) return;
+    if (!expected) {
+      return;
+    }
     const expression = node.arguments[1],
       start = expression.getStart(sf),
       end = expression.end;
@@ -351,7 +382,9 @@ function inspect(prepared, program, checker, guards, version) {
     const mapped = [];
     for (let i = start; i < end; i++) {
       const point = entry.mapPoint(i);
-      if (point !== null) mapped.push(point);
+      if (point !== null) {
+        mapped.push(point);
+      }
     }
     const originalStart =
       entry.original.indexOf(`observe('${name}', `) + `observe('${name}', `.length;
@@ -419,7 +452,9 @@ function run7(p) {
     fs: {
       readFile: (f) => {
         const key = norm(f);
-        if (p.files.has(key)) loaded.add(key);
+        if (p.files.has(key)) {
+          loaded.add(key);
+        }
         return p.files.get(key);
       },
       fileExists: (f) => (p.files.has(norm(f)) ? true : undefined),
@@ -487,7 +522,9 @@ function incremental7(p) {
     p.files.set(norm(helper.virtual), "export {pass} from './late';");
     project = update({ fileChanges: { changed: [helper.virtual], created: [added] } });
     const afterAdd = inspect(p, project.program, project.checker, guards7, 7);
-    for (const r of [initial, changed, afterAdd]) assert.deepEqual(r.diagnostics, []);
+    for (const r of [initial, changed, afterAdd]) {
+      assert.deepEqual(r.diagnostics, []);
+    }
     p.files.delete(norm(added));
     project = update({ fileChanges: { deleted: [added] } });
     const missing = project.program
@@ -537,8 +574,9 @@ async function astroClient(split) {
   );
   let call;
   visit(ast, (node) => {
-    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "client")
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "client") {
       call = node.initializer;
+    }
   });
   assert.ok(call);
   const identity = `Client.astro:${Buffer.byteLength(original.slice(0, base + clientCode.indexOf("client =")))}:client`;
@@ -546,7 +584,9 @@ async function astroClient(split) {
   const at = call.end - 1;
   const shadow = source.slice(0, at) + insert + source.slice(at);
   const mapPoint = (offset) => {
-    if (offset >= at && offset < at + insert.length) return null;
+    if (offset >= at && offset < at + insert.length) {
+      return null;
+    }
     const before = offset >= at ? offset - insert.length : offset;
     return split ? base + before : (points.get(before) ?? null);
   };
@@ -576,8 +616,8 @@ async function astroClient(split) {
   return p;
 }
 
-for (const framework of ["vue", "svelte", "astro"])
-  for (const variant of ["valid", "invalid", "erased"])
+for (const framework of ["vue", "svelte", "astro"]) {
+  for (const variant of ["valid", "invalid", "erased"]) {
     for (const stripTemplateSymbols of framework === "svelte" ? [false, true] : [false]) {
       const prepared = await prepare(framework, variant, stripTemplateSymbols);
       const row = {
@@ -621,6 +661,8 @@ for (const framework of ["vue", "svelte", "astro"])
         ),
       );
     }
+  }
+}
 report.incremental = [];
 for (const framework of ["vue", "svelte", "astro"]) {
   try {
@@ -641,7 +683,7 @@ fs.writeFileSync(
   new URL("./results/checker-comparison.json", import.meta.url),
   JSON.stringify(report, null, 2) + "\n",
 );
-for (const row of report.rows)
+for (const row of report.rows) {
   for (const version of ["ts6", "ts7"]) {
     const result = row[version];
     assert.equal(result.error, undefined);
@@ -664,18 +706,25 @@ for (const row of report.rows)
       result.diagnostics.map((d) => d.code).sort((a, b) => a - b),
       expectedCodes,
     );
-    if (row.variant === "invalid")
+    if (row.variant === "invalid") {
       assert.ok(Number.isInteger(result.diagnostics.find((d) => d.code === 2322).original));
+    }
   }
-for (const row of report.incremental) assert.equal(row.error, undefined);
-for (const row of report.astroClient)
+}
+for (const row of report.incremental) {
+  assert.equal(row.error, undefined);
+}
+for (const row of report.astroClient) {
   for (const version of ["ts6", "ts7"]) {
     if (row.split) {
       assert.deepEqual(row[version].diagnostics, []);
       assert.deepEqual(row[version].probes[0].candidates, ["client"]);
       assert.equal(row[version].probes[0].mappingValid, true);
-    } else assert.ok(row[version].diagnostics.some((d) => d.code === 1232));
+    } else {
+      assert.ok(row[version].diagnostics.some((d) => d.code === 1232));
+    }
   }
+}
 console.log(
   `Verified ${report.rows.length} scenarios on both checker versions and ${report.incremental.length} TS7 incremental sequences.`,
 );

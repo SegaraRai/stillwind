@@ -24,8 +24,9 @@ for (const backend of ["webpack", "rspack"] as const) {
     void test(`${backend} ${framework} preserves framework output and module CSS value ownership`, async () => {
       const root = mkdtempSync(path.join(packageRoot, ".framework-test-"));
       const sfc = framework === "vue" || framework === "svelte";
-      if (sfc) writeFrameworkFixture(root, framework);
-      else {
+      if (sfc) {
+        writeFrameworkFixture(root, framework);
+      } else {
         writeFileSync(
           path.join(root, "root.css"),
           ".base{color:purple;} @utility red{color:red;background-image:url('./icon.svg');} @utility blue{color:blue;} @stillwind-slot utilities;",
@@ -91,15 +92,18 @@ for (const backend of ["webpack", "rspack"] as const) {
       try {
         await new Promise<void>((resolve, reject) =>
           compiler.run((error, stats) => {
-            if (error) reject(error);
-            else if (!stats || stats.hasErrors())
+            if (error) {
+              reject(error);
+            } else if (!stats || stats.hasErrors()) {
               reject(
                 new Error(
                   stats?.toString({ all: false, errors: true, errorDetails: true }) ??
                     "Missing build stats",
                 ),
               );
-            else resolve();
+            } else {
+              resolve();
+            }
           }),
         );
         const dist = path.join(root, "dist");

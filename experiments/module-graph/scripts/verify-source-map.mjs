@@ -12,7 +12,9 @@ export function resolveSourceMapFile(source, mapFile, projectRoot) {
   if (name.startsWith("webpack:///")) {
     return path.resolve(projectRoot, decodeURIComponent(name.slice("webpack:///".length)));
   }
-  if (name.startsWith("file:")) return fileURLToPath(name);
+  if (name.startsWith("file:")) {
+    return fileURLToPath(name);
+  }
   return path.resolve(path.dirname(mapFile), name);
 }
 
@@ -33,7 +35,9 @@ export async function verifyMacroSourceMap(
   };
   const candidates = [];
   for (const file of await fs.readdir(directory, { recursive: true })) {
-    if (!(css ? /\.css$/ : /\.[cm]?js$/).test(file)) continue;
+    if (!(css ? /\.css$/ : /\.[cm]?js$/).test(file)) {
+      continue;
+    }
     const target = path.join(directory, file);
     const code = await fs.readFile(target, "utf8");
     const reference = code.match(/[#@] sourceMappingURL=([^\s*]+)/)?.[1];
@@ -42,7 +46,9 @@ export async function verifyMacroSourceMap(
     try {
       map = AnyMap(JSON.parse(await fs.readFile(mapPath, "utf8")), pathToFileURL(mapPath).href);
     } catch (error) {
-      if (error.code === "ENOENT") continue;
+      if (error.code === "ENOENT") {
+        continue;
+      }
       throw error;
     }
     for (const match of code.matchAll(/sw_[0-9a-z]+/g)) {
@@ -58,7 +64,9 @@ export async function verifyMacroSourceMap(
       if (matchesSource && mapped.line === expected.line && mapped.column === expected.column) {
         return { source: sourcePath, line: mapped.line, column: mapped.column };
       }
-      if (candidates.length < 12) candidates.push({ file, ...mapped });
+      if (candidates.length < 12) {
+        candidates.push({ file, ...mapped });
+      }
     }
   }
   // Record this narrowly observed pipeline failure without treating it as map support.
@@ -70,13 +78,14 @@ export async function verifyMacroSourceMap(
         candidate.line === expected.line &&
         candidate.column === expected.column,
     );
-  if (knownMismatch)
+  if (knownMismatch) {
     return {
       supported: false,
       issue: "css-source-mismatch",
       expected: { source: sourcePath, ...expected },
       actual: knownMismatch,
     };
+  }
   assert.fail(
     `No generated class maps to ${sourcePath}:${expected.line}:${expected.column}: ${JSON.stringify(candidates)}`,
   );

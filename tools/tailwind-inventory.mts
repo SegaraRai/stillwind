@@ -57,7 +57,9 @@ function equivalent(a: string, b: string): boolean {
 }
 function withoutEmptyTheme(css: string): string {
   const ast = parse(css);
-  if (ast.type !== "StyleSheet") throw new Error("expected stylesheet");
+  if (ast.type !== "StyleSheet") {
+    throw new Error("expected stylesheet");
+  }
   ast.children.forEach((node, item, list) => {
     if (
       node.type === "Atrule" &&
@@ -65,8 +67,9 @@ function withoutEmptyTheme(css: string): string {
       !node.block &&
       node.prelude &&
       generate(node.prelude) === "theme"
-    )
+    ) {
       list.remove(item);
+    }
   });
   return generate(ast);
 }
@@ -75,14 +78,17 @@ function tokens(css: string): string {
 }
 function withoutMetadata(css: string): string {
   const ast = parse(css);
-  if (ast.type !== "StyleSheet") throw new Error("expected stylesheet");
+  if (ast.type !== "StyleSheet") {
+    throw new Error("expected stylesheet");
+  }
   ast.children.forEach((node, item, list) => {
     if (
       node.type === "Atrule" &&
       (node.name === "property" ||
         (node.name === "layer" && node.prelude && generate(node.prelude) === "properties"))
-    )
+    ) {
       list.remove(item);
+    }
   });
   return generate(ast);
 }
@@ -92,27 +98,35 @@ function withoutRegisteredFallbacks(css: string): string {
   walk(ast, {
     visit: "Atrule",
     enter(node) {
-      if (node.name !== "property" || !node.prelude || !node.block) return;
+      if (node.name !== "property" || !node.prelude || !node.block) {
+        return;
+      }
       const property = generate(node.prelude);
       node.block.children.forEach((child) => {
-        if (child.type === "Declaration" && child.property === "initial-value")
+        if (child.type === "Declaration" && child.property === "initial-value") {
           initials.set(property, generate(child.value));
+        }
       });
     },
   });
   walk(ast, {
     visit: "Function",
     enter(node) {
-      if (node.name !== "var") return;
-      const args = node.children.toArray();
-      if (args[0]?.type !== "Identifier" || args[1]?.type !== "Operator" || args[1].value !== ",")
+      if (node.name !== "var") {
         return;
+      }
+      const args = node.children.toArray();
+      if (args[0]?.type !== "Identifier" || args[1]?.type !== "Operator" || args[1].value !== ",") {
+        return;
+      }
       const initial = initials.get(args[0].name);
       const fallback = args
         .slice(2)
         .map((child) => generate(child))
         .join("");
-      if (initial !== undefined && initial === fallback) node.children.fromArray([args[0]]);
+      if (initial !== undefined && initial === fallback) {
+        node.children.fromArray([args[0]]);
+      }
     },
   });
   return generate(ast);
@@ -122,10 +136,15 @@ function shape(css: string): { properties: string[]; rules: string[] } {
     rules: string[] = [];
   walk(parse(css, { parseCustomProperty: true }), {
     enter(node: CssNode) {
-      if (node.type === "Declaration") properties.push(node.property);
-      if (node.type === "Rule") rules.push(generate(node.prelude));
-      if (node.type === "Atrule")
+      if (node.type === "Declaration") {
+        properties.push(node.property);
+      }
+      if (node.type === "Rule") {
+        rules.push(generate(node.prelude));
+      }
+      if (node.type === "Atrule") {
         rules.push(`@${node.name} ${node.prelude ? generate(node.prelude) : ""}`);
+      }
     },
   });
   return { properties: properties.sort(), rules };
@@ -133,20 +152,30 @@ function shape(css: string): { properties: string[]; rules: string[] } {
 function classify(expected: string, received: string): string {
   const a = withoutEmptyTheme(expected),
     b = withoutEmptyTheme(received);
-  if (equivalent(a, b)) return "empty-theme-layer-only";
+  if (equivalent(a, b)) {
+    return "empty-theme-layer-only";
+  }
   const ta = tokens(a),
     tb = tokens(b);
-  if (equivalent(ta, tb)) return "value-token-format";
+  if (equivalent(ta, tb)) {
+    return "value-token-format";
+  }
   const fa = withoutRegisteredFallbacks(a),
     fb = withoutRegisteredFallbacks(b);
-  if (equivalent(fa, fb)) return "registered-initial-fallback";
-  if (equivalent(withoutMetadata(ta), withoutMetadata(tb)))
+  if (equivalent(fa, fb)) {
+    return "registered-initial-fallback";
+  }
+  if (equivalent(withoutMetadata(ta), withoutMetadata(tb))) {
     return "property-registration-or-support";
+  }
   const sa = shape(ta),
     sb = shape(tb);
-  if (JSON.stringify(sa.rules) !== JSON.stringify(sb.rules)) return "selector-or-rule-structure";
-  if (JSON.stringify(sa.properties) !== JSON.stringify(sb.properties))
+  if (JSON.stringify(sa.rules) !== JSON.stringify(sb.rules)) {
+    return "selector-or-rule-structure";
+  }
+  if (JSON.stringify(sa.properties) !== JSON.stringify(sb.properties)) {
     return "declaration-inventory";
+  }
   return "declaration-value-or-order";
 }
 
@@ -227,8 +256,9 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         diagnostics = native.diagnostics;
         resources = native.resources;
         let resolvedCss = actual;
-        for (const resource of native.resources)
+        for (const resource of native.resources) {
           resolvedCss = resolvedCss.replaceAll(resource.placeholder, resource.specifier);
+        }
         received = minify(
           native.classes.length
             ? resolvedCss.replaceAll(
@@ -245,12 +275,16 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         } else if (
           equivalent(expected, received) ||
           (expected === "@layer utilities;" && received === "")
-        )
+        ) {
           category = "accepted";
-        else category = classify(expected, received);
+        } else {
+          category = classify(expected, received);
+        }
       } catch (error) {
         // A validation disagreement invalidates the run instead of becoming a compiler mismatch.
-        if (error instanceof assert.AssertionError) throw error;
+        if (error instanceof assert.AssertionError) {
+          throw error;
+        }
         category = "exception";
         diagnostics = [String(error)];
       }
@@ -275,7 +309,7 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         category,
       };
       rows.push(row);
-      if (!category.startsWith("accepted"))
+      if (!category.startsWith("accepted")) {
         evidence.write(
           JSON.stringify({
             ...row,
@@ -287,6 +321,7 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
             resources,
           }) + "\n",
         );
+      }
     }
   }
   console.log(
@@ -327,4 +362,6 @@ console.log(
   }),
 );
 
-if (Object.keys(counts).some((category) => !category.startsWith("accepted"))) process.exitCode = 1;
+if (Object.keys(counts).some((category) => !category.startsWith("accepted"))) {
+  process.exitCode = 1;
+}

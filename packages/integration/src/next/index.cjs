@@ -1,11 +1,15 @@
 const path = require("node:path");
+
 const { stillwindRules } = require("../shared/rules.cjs");
 const { StillwindPlugin } = require("../shared/emission.cjs");
+
 const loader = path.join(__dirname, "../shared/loader.cjs");
 const cssLoader = path.join(__dirname, "../shared/css-loader.cjs");
 
 function withStillwind(config = {}, options) {
-  if (!options?.css) throw new Error("Stillwind requires a CSS entrypoint");
+  if (!options?.css) {
+    throw new Error("Stillwind requires a CSS entrypoint");
+  }
   const rules = { ...config.turbopack?.rules };
   for (const [pattern, rule] of Object.entries({
     "*.{js,jsx,ts,tsx,mjs,cjs}": { loaders: [{ loader, options }] },

@@ -10,9 +10,12 @@ import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../vite/test");
 function wrap(ext: string, script: string, template = "", module = false) {
-  if (ext === "astro") return `---\n${script}\n---\n${template}`;
-  if (ext === "vue")
+  if (ext === "astro") {
+    return `---\n${script}\n---\n${template}`;
+  }
+  if (ext === "vue") {
     return `<script ${module ? "" : "setup"} lang="ts">\n${script}\n</script>\n<template>${template}</template>`;
+  }
   return `<script ${module ? "module" : ""} lang="ts">\n${script}\n</script>\n${template}`;
 }
 function harness(t: test.TestContext, files: Record<string, string>, entry: string) {

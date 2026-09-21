@@ -19,13 +19,21 @@ function utilityStart(candidate: string): number {
   let escaped = false;
   for (let index = 0; index < candidate.length; index += 1) {
     const character = candidate[index];
-    if (escaped) escaped = false;
-    else if (character === "\\") escaped = true;
-    else if (character === "[") brackets += 1;
-    else if (character === "]") brackets -= 1;
-    else if (character === "(") parentheses += 1;
-    else if (character === ")") parentheses -= 1;
-    else if (character === ":" && brackets === 0 && parentheses === 0) start = index + 1;
+    if (escaped) {
+      escaped = false;
+    } else if (character === "\\") {
+      escaped = true;
+    } else if (character === "[") {
+      brackets += 1;
+    } else if (character === "]") {
+      brackets -= 1;
+    } else if (character === "(") {
+      parentheses += 1;
+    } else if (character === ")") {
+      parentheses -= 1;
+    } else if (character === ":" && brackets === 0 && parentheses === 0) {
+      start = index + 1;
+    }
   }
   return start;
 }
@@ -58,7 +66,9 @@ for (const file of readdirSync(caseRoot)
   .sort()) {
   const markdown = readFileSync(join(caseRoot, file), "utf8");
   for (const fixtureCase of parseMarkdownFixtureCases(markdown)) {
-    if (/@(?:source|config|plugin|reference)\b/.test(fixtureCase.input)) continue;
+    if (/@(?:source|config|plugin|reference)\b/.test(fixtureCase.input)) {
+      continue;
+    }
     const baseline = (
       await compileTailwindCss({
         css: fixtureCase.input,
@@ -72,7 +82,9 @@ for (const file of readdirSync(caseRoot)
     for (const original of fixtureCase.candidates.split(/\s+/).filter(Boolean)) {
       for (const candidate of numericMutations(original)) {
         const key = `${fixtureCase.input}\0${candidate}`;
-        if (checked.has(key)) continue;
+        if (checked.has(key)) {
+          continue;
+        }
         checked.add(key);
         const tailwind = await compileTailwindCss({
           css: fixtureCase.input,
@@ -80,7 +92,9 @@ for (const file of readdirSync(caseRoot)
           base: fixtureRoot,
           from: themePath,
         });
-        if (!hasGeneratedUtility(tailwind, baseline)) continue;
+        if (!hasGeneratedUtility(tailwind, baseline)) {
+          continue;
+        }
         acceptedByTailwind += 1;
         const source = `import { style } from "stillwind/react"; style(${JSON.stringify(candidate)});`;
         const result = compileSource(

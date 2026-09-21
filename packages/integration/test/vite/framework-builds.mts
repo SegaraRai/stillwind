@@ -88,11 +88,13 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
       assert.doesNotMatch(js, /stillwind\/(?:vue|svelte|astro)["']/);
       assert.doesNotMatch(js, /requires a Stillwind compiler integration/);
       assert.match(framework === "astro" ? html : js, /(?:17,\s*155,\s*44|#119b2c)/i);
-      if (process.env.STILLWIND_KEEP_FRAMEWORK_FIXTURES)
+      if (process.env.STILLWIND_KEEP_FRAMEWORK_FIXTURES) {
         console.log(`${framework} fixture: ${root}`);
+      }
     } finally {
-      if (!process.env.STILLWIND_KEEP_FRAMEWORK_FIXTURES)
+      if (!process.env.STILLWIND_KEEP_FRAMEWORK_FIXTURES) {
         rmSync(root, { recursive: true, force: true });
+      }
     }
   });
 }

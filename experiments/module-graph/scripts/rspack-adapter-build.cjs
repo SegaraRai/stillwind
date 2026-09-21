@@ -31,7 +31,7 @@ compiler.run((error, stats) => {
   if (error || stats.hasErrors()) {
     console.error(error || stats.toString());
     process.exitCode = 1;
-  } else
+  } else {
     fs.writeFileSync(
       path.join(dir, "stats.json"),
       JSON.stringify(
@@ -50,6 +50,7 @@ compiler.run((error, stats) => {
         2,
       ),
     );
+  }
   compiler.close((error) => {
     if (error) {
       console.error(error);

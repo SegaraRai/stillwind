@@ -11,10 +11,11 @@ const packages = {
 };
 const packageName = packages[`${process.platform}-${process.arch}`];
 
-if (!packageName)
+if (!packageName) {
   throw new Error(
     `@stillwind/native has no binary package for ${process.platform}-${process.arch}`,
   );
+}
 
 let binding;
 let bindingPath;

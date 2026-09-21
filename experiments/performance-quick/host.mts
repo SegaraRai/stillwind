@@ -27,7 +27,9 @@ const host = {
 };
 const rows: { name: string; medianMs: number; samplesMs: number[] }[] = [];
 async function measure(name: string, operation: () => Promise<unknown>, warmup = 2, count = 9) {
-  for (let i = 0; i < warmup; i++) await operation();
+  for (let i = 0; i < warmup; i++) {
+    await operation();
+  }
   const samplesMs: number[] = [];
   for (let i = 0; i < count; i++) {
     const start = performance.now();

@@ -52,10 +52,14 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
 }
 let stopping = false;
 async function stop() {
-  if (stopping) return;
+  if (stopping) {
+    return;
+  }
   stopping = true;
   await Promise.all(close.map((stop) => stop()));
-  for (const root of roots) rmSync(root, { recursive: true, force: true });
+  for (const root of roots) {
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 process.once("SIGINT", () => {
   void stop();

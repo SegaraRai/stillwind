@@ -154,8 +154,9 @@ async function prettyCss(css: string) {
 function writeOrCheck(file: string, content: string, stale: string[]) {
   const next = `${normalize(content).trimEnd()}\n`;
   if (check) {
-    if (!existsSync(file) || normalize(readFileSync(file, "utf8")) !== next)
+    if (!existsSync(file) || normalize(readFileSync(file, "utf8")) !== next) {
       stale.push(path.relative(repositoryRoot, file));
+    }
     return;
   }
   mkdirSync(path.dirname(file), { recursive: true });

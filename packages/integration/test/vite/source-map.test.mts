@@ -27,7 +27,9 @@ void test("Vite development composes linked CSS maps through framework preproces
         name: "framework-preprocessing-fixture",
         enforce: "pre",
         transform(code, id) {
-          if (id !== path.join(root, "entry.ts").replaceAll("\\", "/")) return;
+          if (id !== path.join(root, "entry.ts").replaceAll("\\", "/")) {
+            return;
+          }
           const prefix = "// framework helper\n\n";
           return {
             code: prefix + code,

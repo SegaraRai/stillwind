@@ -1,4 +1,5 @@
 const path = require("node:path");
+
 const loader = path.join(__dirname, "loader.cjs");
 const cssLoader = path.join(__dirname, "css-loader.cjs");
 

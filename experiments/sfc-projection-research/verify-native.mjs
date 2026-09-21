@@ -47,8 +47,9 @@ for (const [index, result] of results.entries()) {
   }
   for (const [probeIndex, probe] of result.probes.entries()) {
     const expected = rows[index].probes[probeIndex];
-    if (probe.error) failures.push({ name: result.name, raw: expected.raw, error: probe.error });
-    else {
+    if (probe.error) {
+      failures.push({ name: result.name, raw: expected.raw, error: probe.error });
+    } else {
       assert.deepEqual(probe.range, [expected.start, expected.end]);
       accepted++;
     }

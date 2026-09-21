@@ -16,7 +16,9 @@ export const probe_array = tuple[enabled ? 0 : 1];
 
 function throughControlFlow(kind: "a" | "b") {
   let current = selected;
-  if (kind === "a") current = refA;
+  if (kind === "a") {
+    current = refA;
+  }
   return current;
 }
 

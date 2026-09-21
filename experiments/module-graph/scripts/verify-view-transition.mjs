@@ -36,10 +36,14 @@ function expand(css, directory = coreRoot) {
           : name.startsWith("./")
             ? resolve(directory, name)
             : null;
-    if (!path) return rule;
+    if (!path) {
+      return rule;
+    }
     const body = expand(readFileSync(path, "utf8"), dirname(path));
     const layer = /^\s*layer\(([^)]+)\)\s*$/.exec(tail);
-    if (layer) return `@layer ${layer[1]}{${body}}`;
+    if (layer) {
+      return `@layer ${layer[1]}{${body}}`;
+    }
     return tail.trim() === "" ? body : rule;
   });
 }

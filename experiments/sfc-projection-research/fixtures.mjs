@@ -167,9 +167,12 @@ for (const fixture of fixtures) {
   }
   for (const probe of fixture.probes) {
     let index = -1;
-    for (let i = 0; i <= (probe.occurrence ?? 0); i++)
+    for (let i = 0; i <= (probe.occurrence ?? 0); i++) {
       index = fixture.source.indexOf(probe.raw, index + 1);
-    if (index < 0) throw new Error(`missing probe ${fixture.name}: ${probe.raw}`);
+    }
+    if (index < 0) {
+      throw new Error(`missing probe ${fixture.name}: ${probe.raw}`);
+    }
     probe.start = index;
     probe.end = index + probe.raw.length;
   }

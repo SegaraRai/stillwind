@@ -28,7 +28,9 @@ export function codeExtensions(language: CodeLanguage): Extension[] {
 export default function CodeView({ value, language }: { value: string; language: CodeLanguage }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!host.current) return undefined;
+    if (!host.current) {
+      return undefined;
+    }
     const view = new EditorView({
       parent: host.current,
       state: EditorState.create({

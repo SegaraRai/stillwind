@@ -48,7 +48,9 @@ function findProducerEdits(sourceFile) {
     }
 
     const kind = node.expression.name.text;
-    if (kind !== "scope" && kind !== "ref") return;
+    if (kind !== "scope" && kind !== "ref") {
+      return;
+    }
 
     const relativeFile = path.relative(fixtureDir, sourceFile.fileName).replaceAll("\\", "/");
     const originalOffset = node.getStart(sourceFile);
@@ -94,11 +96,17 @@ function flattenRefAlternatives(checker, type) {
   const alternatives = [];
 
   for (const constituent of constituents) {
-    if (!constituent.isTypeReference()) continue;
+    if (!constituent.isTypeReference()) {
+      continue;
+    }
     const symbol = constituent.getSymbol();
-    if (symbol?.name !== "Ref") continue;
+    if (symbol?.name !== "Ref") {
+      continue;
+    }
     const [refType, scopeType] = checker.getTypeArguments(constituent);
-    if (!refType?.isStringLiteralType()) continue;
+    if (!refType?.isStringLiteralType()) {
+      continue;
+    }
     alternatives.push({
       ref: refType.value,
       scope: scopeType?.isStringLiteralType() ? scopeType.value : null,
@@ -134,7 +142,9 @@ try {
     const sourceFile = originalProject.program.getSourceFile(fileName);
     assert(sourceFile, `missing source file: ${fileName}`);
     const edits = findProducerEdits(sourceFile);
-    if (edits.length === 0) continue;
+    if (edits.length === 0) {
+      continue;
+    }
     shadowFiles.set(normalize(fileName), applyInsertions(sourceFile.text, edits));
     producerEdits.push(...edits.map((edit) => ({ fileName, ...edit })));
   }

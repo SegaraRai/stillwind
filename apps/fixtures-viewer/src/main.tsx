@@ -59,7 +59,9 @@ function App() {
   useEffect(() => {
     void fetch("./fixtures.json")
       .then((response) => {
-        if (!response.ok) throw new Error(`catalog request failed (${response.status})`);
+        if (!response.ok) {
+          throw new Error(`catalog request failed (${response.status})`);
+        }
         return response.json() as Promise<Catalog>;
       })
       .then(setCatalog)
@@ -74,8 +76,12 @@ function App() {
   }, []);
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      if ((event.target as HTMLElement).matches("input, textarea, [contenteditable=true]")) return;
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      if ((event.target as HTMLElement).matches("input, textarea, [contenteditable=true]")) {
+        return;
+      }
       event.preventDefault();
       search.current?.focus();
     };
@@ -85,17 +91,25 @@ function App() {
 
   const route = useMemo(() => (catalog ? parseRoute(catalog) : null), [catalog, routeVersion]);
   useEffect(() => {
-    if (!route?.project || !route.file) return;
+    if (!route?.project || !route.file) {
+      return;
+    }
     const canonical = href(route.project, route.file);
-    if (location.hash !== canonical) history.replaceState(null, "", canonical);
+    if (location.hash !== canonical) {
+      history.replaceState(null, "", canonical);
+    }
   }, [route]);
   const results = useMemo(() => {
-    if (!catalog) return [];
+    if (!catalog) {
+      return [];
+    }
     const needle = query.trim().toLocaleLowerCase();
     return catalog.projects.flatMap((project) =>
       project.files
         .filter((file) => {
-          if (!needle) return true;
+          if (!needle) {
+            return true;
+          }
           return [
             project.title,
             project.id,
@@ -112,9 +126,12 @@ function App() {
     );
   }, [catalog, query]);
 
-  if (loadError) return <main className="loading">{loadError}</main>;
-  if (!catalog || !route?.project || !route.file)
+  if (loadError) {
+    return <main className="loading">{loadError}</main>;
+  }
+  if (!catalog || !route?.project || !route.file) {
     return <main className="loading">Loading fixture catalog…</main>;
+  }
   const { project, file } = route;
   const cssOutput =
     cssScope === "module"
@@ -250,5 +267,7 @@ function App() {
 }
 
 const root = import.meta.hot?.data.root ?? createRoot(document.getElementById("root")!);
-if (import.meta.hot) import.meta.hot.data.root = root;
+if (import.meta.hot) {
+  import.meta.hot.data.root = root;
+}
 root.render(<App />);

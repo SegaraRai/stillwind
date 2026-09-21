@@ -17,8 +17,11 @@ export function verifyNativeTypes() {
   const summary = summarizeSource("export {};", "x.ts");
   const loader = new NativeDesignSystemLoader({ prefix: "--custom-" });
   const step = loader.provide(0, "root.css", "");
-  if (step.kind === "needFile") step.requests.map((request) => request.id);
-  else step.sources.map((name) => name.length);
+  if (step.kind === "needFile") {
+    step.requests.map((request) => request.id);
+  } else {
+    step.sources.map((name) => name.length);
+  }
   const session = new NativeProjectSession(loader, true);
   const selection: NativeStylesheetSelection = {
     modules: [],

@@ -13,7 +13,9 @@ const propertyPath = resolve(
 const version = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "node_modules/tailwindcss/package.json"), "utf8"),
 ).version;
-if (version !== "4.3.3") throw new Error(`Update the ordering contract for Tailwind ${version}`);
+if (version !== "4.3.3") {
+  throw new Error(`Update the ordering contract for Tailwind ${version}`);
+}
 const css = `
 @utility order-many { color:red; color:blue; --extra:; }
 @utility order-one { color:red; }
@@ -39,19 +41,23 @@ const tables: string[][] = [];
 function visit(node: ts.Node): void {
   if (ts.isArrayLiteralExpression(node) && node.elements.every(ts.isStringLiteral)) {
     const values = node.elements.filter(ts.isStringLiteral).map((element) => element.text);
-    if (values.includes("--tw-container-component") && values.includes("container-type"))
+    if (values.includes("--tw-container-component") && values.includes("container-type")) {
       tables.push(values);
+    }
   }
   ts.forEachChild(node, visit);
 }
 visit(source);
-if (tables.length !== 1) throw new Error("Cannot uniquely extract Tailwind's property-order table");
+if (tables.length !== 1) {
+  throw new Error("Cannot uniquely extract Tailwind's property-order table");
+}
 const properties = tables[0];
 for (const [index, property] of properties.entries()) {
   const candidate = system.parseCandidate(`[${property}:initial]`)[0];
   const order = system.compileAstNodes(candidate)[0]?.propertySort.order;
-  if (order?.length !== 1 || order[0] !== index)
+  if (order?.length !== 1 || order[0] !== index) {
     throw new Error(`Incorrect extracted property index: ${property}`);
+  }
 }
 const rust = `//! Generated from tailwindcss ${version} by tools/generate-utility-order-fixture.mts.
 //! Property indices used by the Tailwind utility comparator.
@@ -61,9 +67,12 @@ ${properties.map((property) => `    ${JSON.stringify(property)},`).join("\n")}
 ];
 `;
 if (process.argv.includes("--check")) {
-  if (readFileSync(propertyPath, "utf8").replace(/\r\n/g, "\n") !== rust)
+  if (readFileSync(propertyPath, "utf8").replace(/\r\n/g, "\n") !== rust) {
     throw new Error("Generated Rust property order is stale");
-} else writeFileSync(propertyPath, rust);
+  }
+} else {
+  writeFileSync(propertyPath, rust);
+}
 const candidates = [
   ...system.getClassList().map(([name]) => name),
   "[unknown:1]",
@@ -79,7 +88,9 @@ const signatures = new Set<string>();
 const keys = [];
 for (const candidate of candidates) {
   const asts = system.parseCandidate(candidate).flatMap((value) => system.compileAstNodes(value));
-  if (asts.length !== 1) continue;
+  if (asts.length !== 1) {
+    continue;
+  }
   const { propertySort } = asts[0];
   const signature = JSON.stringify([
     candidate.replace(
@@ -88,7 +99,9 @@ for (const candidate of candidates) {
     ),
     propertySort,
   ]);
-  if (signatures.has(signature) && !candidate.startsWith("order-")) continue;
+  if (signatures.has(signature) && !candidate.startsWith("order-")) {
+    continue;
+  }
   signatures.add(signature);
   keys.push({ candidate, ...propertySort });
 }
@@ -113,7 +126,12 @@ const output =
   ) + "\n";
 const path = resolve(root, "fixtures/tailwind-v4/utility-order.json");
 if (process.argv.includes("--check")) {
-  if (JSON.stringify(JSON.parse(readFileSync(path, "utf8"))) !== JSON.stringify(JSON.parse(output)))
+  if (
+    JSON.stringify(JSON.parse(readFileSync(path, "utf8"))) !== JSON.stringify(JSON.parse(output))
+  ) {
     throw new Error("Utility-order fixture is stale");
-} else writeFileSync(path, output);
+  }
+} else {
+  writeFileSync(path, output);
+}
 console.log(`Verified ${keys.length} Tailwind ${version} utility ordering keys`);

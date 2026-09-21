@@ -26,7 +26,9 @@ void test("failed compile transactions retain watch CSS but reject current plans
     const css = session.css();
     const result = session.compile([source("a.ts", "'blue'"), source("b.ts", "unknown")]);
     assert.ok(result.modules.some((module) => module.diagnostics.length));
-    if (watch) assert.equal(session.css(), css);
+    if (watch) {
+      assert.equal(session.css(), css);
+    }
     assert.throws(
       () =>
         session.planStylesheet({
@@ -166,8 +168,9 @@ void test("native semantic unions validate nested asset kinds and candidate payl
     },
     { kind: "keyframes", value: symbolic("keyframes") },
     { kind: "view-transitions", value: symbolic("view-transition") },
-  ])
+  ]) {
     assert.deepEqual(compile(value).modules[0].diagnostics, []);
+  }
   for (const value of [
     {
       kind: "refs",
@@ -191,8 +194,9 @@ void test("native semantic unions validate nested asset kinds and candidate payl
       value: [{ reference, permitted_boundaries: { kind: "ref", candidates: { kind: "finite" } } }],
     },
     { kind: "unknown", value: symbolic("ref") },
-  ])
+  ]) {
     assert.throws(() => compile(value));
+  }
 });
 
 void test("stylesheet assembly errors belong to rendering APIs", async () => {

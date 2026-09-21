@@ -21,8 +21,9 @@ await test("layer bodies, registration semantics, fallbacks and interfering orde
     [".x{--x:1}", '@property --x{syntax:"*";inherits:false}.x{--x:1}'],
     [".x{opacity:.5;opacity:.7}", ".x{opacity:.7;opacity:.5}"],
     ["@layer other;@layer theme{.x{color:red}}", "@layer theme{.x{color:red}}"],
-  ])
+  ]) {
     assert.notEqual(comparisonCss(a), comparisonCss(b));
+  }
 });
 
 await test("only upstream theme-owned keyframes adopt the preset slot", () => {

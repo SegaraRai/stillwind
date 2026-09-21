@@ -32,13 +32,17 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 let sink;
 const quantile = (values, q) => [...values].sort((a, b) => a - b)[Math.ceil(values.length * q) - 1];
 function measure(name, operation, iterations = 9, warmup = 2) {
-  for (let i = 0; i < warmup; i++) sink = operation();
+  for (let i = 0; i < warmup; i++) {
+    sink = operation();
+  }
   const samples = [];
   for (let i = 0; i < iterations; i++) {
     const start = performance.now();
     sink = operation();
     samples.push(performance.now() - start);
-    if (samples.reduce((a, b) => a + b, 0) > 30_000) break;
+    if (samples.reduce((a, b) => a + b, 0) > 30_000) {
+      break;
+    }
   }
   const row = {
     name,

@@ -96,11 +96,12 @@ function start(kind) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   let logs = "";
-  for (const stream of [child.stdout, child.stderr])
+  for (const stream of [child.stdout, child.stderr]) {
     stream.on("data", (data) => {
       logs += data;
       process.stdout.write(data);
     });
+  }
   return { child, logs: () => logs, done: new Promise((resolve) => child.on("exit", resolve)) };
 }
 async function stop() {
@@ -112,9 +113,13 @@ async function stop() {
 }
 async function ready() {
   for (let n = 0; n < 100; n++) {
-    if (processHandle.child.exitCode !== null) throw new Error(processHandle.logs());
+    if (processHandle.child.exitCode !== null) {
+      throw new Error(processHandle.logs());
+    }
     try {
-      if ((await fetch(url, { signal: AbortSignal.timeout(2000) })).ok) return;
+      if ((await fetch(url, { signal: AbortSignal.timeout(2000) })).ok) {
+        return;
+      }
     } catch {}
     await pause(200);
   }
@@ -208,13 +213,14 @@ try {
     processHandle = start("build");
     assert.equal(await processHandle.done, 0, processHandle.logs());
     for (const entry of await fs.readdir(path.join(dir, "build/client"), { recursive: true })) {
-      if (/\.(js|map)$/.test(entry))
+      if (/\.(js|map)$/.test(entry)) {
         assert.ok(
           !(await fs.readFile(path.join(dir, "build/client", entry), "utf8")).includes(
             "SERVER_CODE_ONLY",
           ),
           "Server code leaked to client artifacts",
         );
+      }
     }
     const homeAsset = (await fs.readdir(path.join(dir, "build/client/assets"))).find((name) =>
       /^home-.*\.js$/.test(name),

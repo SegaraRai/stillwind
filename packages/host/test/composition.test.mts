@@ -138,7 +138,7 @@ void test("conditional utilities keep their branches alongside a runtime-selecte
       "import {style} from 'stillwind/react';const a=style('red'),b=style('green');const props=style(selectA?a:b,enabled?'blue':'red');globalThis.result={a,b,props};",
   });
   assert.equal(output.classes.length, 4);
-  for (const selectA of [false, true])
+  for (const selectA of [false, true]) {
     for (const enabled of [false, true]) {
       const context: Record<string, unknown> = { ...runtime, selectA, enabled };
       runInNewContext(output.code!.replace(/^import\s+[^;]+;\s*/gm, ""), context);
@@ -148,6 +148,7 @@ void test("conditional utilities keep their branches alongside a runtime-selecte
       assert.equal(classes[0], result[selectA ? "a" : "b"].className);
       assert.notEqual(classes[0], classes[1]);
     }
+  }
 });
 
 void test("rejects unknown, props-bearing, nested, and incompatible-framework bases", async () => {
@@ -158,11 +159,12 @@ void test("rejects unknown, props-bearing, nested, and incompatible-framework ba
       /SHCOMP006/,
     ],
     ["const props=style({'data-x':style('red')});", /SHCOMP001/],
-  ] as const)
+  ] as const) {
     await assert.rejects(
       compile({ "entry.ts": `import {style} from 'stillwind/react';${body}` }),
       error,
     );
+  }
   await assert.rejects(
     compile({
       "entry.ts":

@@ -9,7 +9,12 @@ export default defineConfig({
       "experiments/sfc-projection-research/results/**",
       "packages/native/binding.d.ts",
     ],
-    options: { typeAware: true },
+    options: {
+      typeAware: true,
+    },
+    rules: {
+      curly: "warn",
+    },
   },
   fmt: {
     // Raw converter output and offset-sensitive inputs are research evidence.

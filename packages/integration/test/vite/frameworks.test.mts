@@ -72,7 +72,9 @@ void test("raw SFC transforms retain stable producer registrations and replace l
         assert.doesNotMatch(code, /import \{style\}/);
         const producer = code.match(/"(virtual:stillwind\/producer:[^"]+)"/)?.[1];
         assert.ok(producer, code);
-        if (color === "blue") assert.equal(producer, carriers.at(-1));
+        if (color === "blue") {
+          assert.equal(producer, carriers.at(-1));
+        }
         carriers.push(producer);
         const loaded: unknown = await load.call(context, "\0stillwind:snapshot.css");
         assert.ok(loaded && typeof loaded === "object" && "code" in loaded);

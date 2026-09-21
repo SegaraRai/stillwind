@@ -4,7 +4,9 @@
  * space (an empty CSS value that CSSOM does not remove); false becomes initial.
  */
 export function stillwindCssValue(value: URL | string | number | boolean): string {
-  if (typeof value === "boolean") return value ? " " : "initial";
+  if (typeof value === "boolean") {
+    return value ? " " : "initial";
+  }
   if (value instanceof URL) {
     const escaped = value.href.replace(
       /["\\\n\r\f]/g,
@@ -49,21 +51,28 @@ export function stillwindEscapedIdentifier(value: string): string {
     const code = character.codePointAt(0)!;
     const isDigit = code >= 48 && code <= 57;
     const isControl = (code >= 1 && code <= 31) || code === 127;
-    if (code === 0) escaped += "\uFFFD";
-    else if (isControl) escaped += `\\${code.toString(16)} `;
-    else if (index === 0 && isDigit) escaped += `\\${code.toString(16)} `;
-    else if (index === 0 && character === "-" && characters.length === 1) escaped += "\\-";
-    else if (index === 1 && isDigit && characters[0] === "-") escaped += `\\${code.toString(16)} `;
-    else if (
+    if (code === 0) {
+      escaped += "\uFFFD";
+    } else if (isControl) {
+      escaped += `\\${code.toString(16)} `;
+    } else if (index === 0 && isDigit) {
+      escaped += `\\${code.toString(16)} `;
+    } else if (index === 0 && character === "-" && characters.length === 1) {
+      escaped += "\\-";
+    } else if (index === 1 && isDigit && characters[0] === "-") {
+      escaped += `\\${code.toString(16)} `;
+    } else if (
       isDigit ||
       (code >= 65 && code <= 90) ||
       (code >= 97 && code <= 122) ||
       code === 45 ||
       code === 95 ||
       code >= 128
-    )
+    ) {
       escaped += character;
-    else escaped += `\\${character}`;
+    } else {
+      escaped += `\\${character}`;
+    }
   }
   return escaped;
 }
@@ -88,7 +97,9 @@ export function stillwindViewTransitionName(value: unknown, key?: string | numbe
   }
   const resolved =
     key ?? (typeof record?.w === "string" || typeof record?.w === "number" ? record.w : undefined);
-  if (resolved === undefined) return "";
+  if (resolved === undefined) {
+    return "";
+  }
   return stillwindEscapedIdentifier(`${token}-${String(resolved)}`);
 }
 
@@ -116,7 +127,9 @@ function flatten(value: unknown): string[] {
   if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") {
     return [String(value)];
   }
-  if (Array.isArray(value)) return value.flatMap(flatten);
+  if (Array.isArray(value)) {
+    return value.flatMap(flatten);
+  }
   if (value && typeof value === "object") {
     return Object.entries(value as Record<string, unknown>)
       .filter(([, enabled]) => Boolean(enabled))

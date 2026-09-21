@@ -22,14 +22,20 @@ export interface EditorAnalysis {
   error?: string;
   dependencies: string[];
   checkerStats?: TypeScriptFactsStats;
-  previousSuccess?: { version: number; revision: number; output: CompilerOutput };
+  previousSuccess?: {
+    version: number;
+    revision: number;
+    output: CompilerOutput;
+  };
 }
 
 /** Versioned, unpublished previews. Each request owns its compiler session. */
 export class EditorProject {
   readonly #documents = new Map<string, EditorDocument>();
   readonly #successes = new Map<string, NonNullable<EditorAnalysis["previousSuccess"]>>();
+
   #revision = 0;
+
   readonly root: string;
   readonly host: CompilerHost;
   readonly designSystem: () => NativeDesignSystemLoader;
@@ -55,7 +61,9 @@ export class EditorProject {
 
   close(id: string): void {
     id = cleanModuleId(id);
-    if (this.#documents.delete(id)) this.#revision += 1;
+    if (this.#documents.delete(id)) {
+      this.#revision += 1;
+    }
     this.#successes.delete(id);
   }
 
@@ -67,7 +75,9 @@ export class EditorProject {
   async analyze(id: string, signal?: AbortSignal): Promise<EditorAnalysis> {
     id = cleanModuleId(id);
     const document = this.#documents.get(id);
-    if (!document) throw new Error(`Editor document is not open: ${id}`);
+    if (!document) {
+      throw new Error(`Editor document is not open: ${id}`);
+    }
     const revision = this.#revision;
     const overlays = new Map(this.#documents);
     const dependencies = new Set<string>();
@@ -80,8 +90,12 @@ export class EditorProject {
       previousSuccess: this.#successes.get(id),
     };
     const assertActive = () => {
-      if (signal?.aborted) throw new Error("Editor analysis cancelled");
-      if (revision !== this.#revision) throw new Error("Editor analysis superseded");
+      if (signal?.aborted) {
+        throw new Error("Editor analysis cancelled");
+      }
+      if (revision !== this.#revision) {
+        throw new Error("Editor analysis superseded");
+      }
     };
     let facts: TypeScriptFactsService | undefined;
     try {
@@ -89,7 +103,10 @@ export class EditorProject {
       const session = new NativeProjectSession(this.designSystem(), false);
       const output = await compileModule(
         session,
-        () => (facts ??= new TypeScriptFactsService(this.root)),
+        () => {
+          facts ??= new TypeScriptFactsService(this.root);
+          return facts;
+        },
         document.source,
         id,
         this.root,
@@ -119,12 +136,18 @@ export class EditorProject {
       );
       if (output?.code != null && output.diagnostics.length === 0 && !denied) {
         result.status = "success";
-        this.#successes.set(id, { version: document.version, revision, output });
+        this.#successes.set(id, {
+          version: document.version,
+          revision,
+          output,
+        });
       }
     } catch (error) {
       result.error = error instanceof Error ? error.message : String(error);
     } finally {
-      if (facts) result.checkerStats = { ...facts.stats };
+      if (facts) {
+        result.checkerStats = { ...facts.stats };
+      }
       facts?.close();
       result.dependencies = [...dependencies];
     }

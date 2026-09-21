@@ -11,12 +11,18 @@ const documents = new WeakMap<Document, Map<string, { css: string; sheet: CSSSty
  */
 export function styleSheets(parts: readonly CssPart[], document: Document): CSSStyleSheet[] {
   const realm = document.defaultView;
-  if (!realm) throw new Error("Stillwind stylesheets require a document with a Window");
+  if (!realm) {
+    throw new Error("Stillwind stylesheets require a document with a Window");
+  }
   let cache = documents.get(document);
-  if (!cache) documents.set(document, (cache = new Map()));
+  if (!cache) {
+    documents.set(document, (cache = new Map()));
+  }
   return parts.map((part) => {
     const previous = cache.get(part.key);
-    if (previous?.css === part.css) return previous.sheet;
+    if (previous?.css === part.css) {
+      return previous.sheet;
+    }
     const sheet = new realm.CSSStyleSheet();
     sheet.replaceSync(part.css);
     cache!.set(part.key, { css: part.css, sheet });
@@ -45,7 +51,9 @@ export function stylesheetLinks(manifest: StylesheetManifest, modules: readonly 
   const selected = new Set(
     modules.flatMap((module) => {
       const parts = manifest.modules[module];
-      if (!parts) throw new Error(`Unknown Stillwind stylesheet producer: ${module}`);
+      if (!parts) {
+        throw new Error(`Unknown Stillwind stylesheet producer: ${module}`);
+      }
       return parts;
     }),
   );
@@ -71,7 +79,9 @@ export async function loadStyles(
       const previous = [
         ...document.querySelectorAll<HTMLLinkElement>("link[data-stillwind-part]"),
       ].find((link) => link.dataset.stillwindPart === part.id);
-      if (previous?.sheet) return Promise.resolve();
+      if (previous?.sheet) {
+        return Promise.resolve();
+      }
       const link = previous ?? document.createElement("link");
       const loaded = new Promise<void>((resolve, reject) => {
         link.addEventListener("load", () => resolve(), { once: true });

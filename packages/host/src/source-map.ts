@@ -118,7 +118,9 @@ export function moduleSourceMap(
   setSourceContent(map, id, source);
   const lines = [0];
   for (let index = 0; index < source.length; index++) {
-    if (source[index] === "\n") lines.push(index + 1);
+    if (source[index] === "\n") {
+      lines.push(index + 1);
+    }
   }
   let line = prefix.split("\n").length - 1;
   let column = prefix.length - prefix.lastIndexOf("\n") - 1;
@@ -128,8 +130,12 @@ export function moduleSourceMap(
   let delta = 0;
   let originalLine = 0;
   for (let index = 0; index < compiled.length; index++) {
-    while (removedIndex < removed.length && removed[removedIndex].to <= index) removedIndex++;
-    if (removedIndex < removed.length && removed[removedIndex].from <= index) continue;
+    while (removedIndex < removed.length && removed[removedIndex].to <= index) {
+      removedIndex++;
+    }
+    if (removedIndex < removed.length && removed[removedIndex].from <= index) {
+      continue;
+    }
     while (editIndex < mappings.length && mappings[editIndex].generated_end <= index) {
       const edit = mappings[editIndex++];
       delta = edit.original_end - edit.generated_end;
@@ -140,8 +146,9 @@ export function moduleSourceMap(
     while (
       expressionIndex < expressions.length &&
       expressions[expressionIndex].generated_end <= index
-    )
+    ) {
       expressionIndex++;
+    }
     const expression = expressions[expressionIndex];
     const original =
       expression && expression.generated_start <= index
@@ -158,8 +165,11 @@ export function moduleSourceMap(
       let high = lines.length;
       while (low < high) {
         const middle = (low + high) >>> 1;
-        if (lines[middle] <= original) low = middle + 1;
-        else high = middle;
+        if (lines[middle] <= original) {
+          low = middle + 1;
+        } else {
+          high = middle;
+        }
       }
       originalLine = low - 1;
     }
@@ -167,7 +177,9 @@ export function moduleSourceMap(
     if (compiled[index] === "\n") {
       line++;
       column = 0;
-    } else column++;
+    } else {
+      column++;
+    }
   }
   return toEncodedMap(map);
 }

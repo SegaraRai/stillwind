@@ -28,10 +28,11 @@ export const props = style(selected('infinite'));`;
       )
       .get("probe-document.ts")!;
     assert.ok(facts.length > 0);
-    for (const fact of facts)
+    for (const fact of facts) {
       assert.ok(
         summary.type_probes.some((probe) => probe.start === fact.start && probe.end === fact.end),
       );
+    }
     assert.equal(service.stats.restarts, 0);
     const noProbes = service.collect(
       [{ id, path: "probe-document.ts", source, probes: [] }],

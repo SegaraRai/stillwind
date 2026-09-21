@@ -48,8 +48,9 @@ export function byteToUtf16(text: string, offset: number): number {
     offset < 0 ||
     offset > bytes.length ||
     (offset < bytes.length && (bytes[offset] & 0xc0) === 0x80)
-  )
+  ) {
     throw new Error("Invalid original UTF-8 boundary");
+  }
   return bytes.subarray(0, offset).toString("utf8").length;
 }
 
@@ -89,7 +90,9 @@ export class CheckerSource {
       this.identities.set(key, asset.identity);
       for (const [start, end] of targets) {
         const call = buffer.source.slice(start, end);
-        if (!call.endsWith(")")) throw new Error(`Cannot locate producer in ${source.path}`);
+        if (!call.endsWith(")")) {
+          throw new Error(`Cannot locate producer in ${source.path}`);
+        }
         const separator = [...call.matchAll(/[,(]/g)].some(
           (match) => skipTrivia(call, match.index + 1) === call.length - 1,
         )
@@ -124,16 +127,22 @@ export class CheckerSource {
     }
     this.#edits.sort((a, b) => a.at - b.at || a.end - b.end);
     for (let i = 1; i < this.#edits.length; i++) {
-      if (this.#edits[i].at < this.#edits[i - 1].end || this.#edits[i].at === this.#edits[i - 1].at)
+      if (
+        this.#edits[i].at < this.#edits[i - 1].end ||
+        this.#edits[i].at === this.#edits[i - 1].at
+      ) {
         throw new Error(`Overlapping checker edits in ${source.path}`);
+      }
     }
     for (const probe of source.probes) {
-      for (const [start, end] of this.targets(probe.start, probe.end))
+      for (const [start, end] of this.targets(probe.start, probe.end)) {
         this.probes.set(`${this.toShadow(start)}:${this.toShadow(end, true)}`, probe);
+      }
     }
     let text = buffer.source;
-    for (const edit of [...this.#edits].reverse())
+    for (const edit of [...this.#edits].reverse()) {
       text = text.slice(0, edit.at) + edit.text + text.slice(edit.end);
+    }
     this.text = text;
   }
 
@@ -141,17 +150,21 @@ export class CheckerSource {
   targets(start: number, end: number): Array<[number, number]> {
     const a = byteToUtf16(this.#original, start),
       b = byteToUtf16(this.#original, end);
-    if (this.buffer.region)
+    if (this.buffer.region) {
       return a >= this.buffer.region.start && b <= this.buffer.region.end
         ? [[a - this.buffer.region.start, b - this.buffer.region.start]]
         : [];
+    }
     if (
       this.source.checker_buffers?.some(
         (buffer) => buffer.region && a >= buffer.region.start && b <= buffer.region.end,
       )
-    )
+    ) {
       return [];
-    if (this.source.fw_code === undefined) return [[a, b]];
+    }
+    if (this.source.fw_code === undefined) {
+      return [[a, b]];
+    }
     return [
       ...new Map(
         (this.source.checker_spans ?? [])
@@ -168,7 +181,9 @@ export class CheckerSource {
   toShadow(position: number, end = false): number {
     let delta = 0;
     for (const edit of this.#edits) {
-      if (edit.at > position || (end && edit.at === position)) break;
+      if (edit.at > position || (end && edit.at === position)) {
+        break;
+      }
       delta += edit.text.length - (edit.end - edit.at);
     }
     return position + delta;
@@ -179,8 +194,12 @@ export class CheckerSource {
     let delta = 0;
     for (const edit of this.#edits) {
       const start = edit.at + delta;
-      if (position < start) break;
-      if (position < start + edit.text.length) return end ? edit.original.end : edit.original.start;
+      if (position < start) {
+        break;
+      }
+      if (position < start + edit.text.length) {
+        return end ? edit.original.end : edit.original.start;
+      }
       delta += edit.text.length - (edit.end - edit.at);
     }
     const generated = position - delta;
@@ -199,20 +218,28 @@ export class CheckerSource {
 function projectionPoints(source: ProjectSource): Map<number, number | null> {
   const points = new Map<number, number | null>();
   const add = (generated: number, original: number) => {
-    if (points.has(generated) && points.get(generated) !== original) points.set(generated, null);
-    else points.set(generated, original);
+    if (points.has(generated) && points.get(generated) !== original) {
+      points.set(generated, null);
+    } else {
+      points.set(generated, original);
+    }
   };
   const map = source.fw2js_map;
-  if (!map) return points;
+  if (!map) {
+    return points;
+  }
   if (map.kind === "volar") {
-    for (const entry of map.mappings)
+    for (const entry of map.mappings) {
       for (let i = 0; i < entry.sourceOffsets.length; i++) {
         const length = entry.generatedLengths?.[i] ?? entry.lengths[i];
         add(entry.generatedOffsets[i], entry.sourceOffsets[i]);
-        if (length === entry.lengths[i])
-          for (let j = 1; j < length; j++)
+        if (length === entry.lengths[i]) {
+          for (let j = 1; j < length; j++) {
             add(entry.generatedOffsets[i] + j, entry.sourceOffsets[i] + j);
+          }
+        }
       }
+    }
   } else {
     const lines = (text: string) => [
       0,
@@ -222,11 +249,13 @@ function projectionPoints(source: ProjectSource): Map<number, number | null> {
       original = lines(source.fw_code!);
     const trace = new TraceMap(map.json);
     const selected = trace.sources.indexOf(map.source);
-    for (const [line, segments] of decodedMappings(trace).entries())
+    for (const [line, segments] of decodedMappings(trace).entries()) {
       for (const segment of segments) {
-        if (segment.length >= 4 && segment[1] === selected)
+        if (segment.length >= 4 && segment[1] === selected) {
           add(generated[line] + segment[0], original[segment[2]!] + segment[3]!);
+        }
       }
+    }
   }
   return points;
 }

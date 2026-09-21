@@ -12,7 +12,11 @@ import { fixtures } from "./fixtures.mjs";
 const require = createRequire(import.meta.url);
 function starts(text) {
   const a = [0];
-  for (let i = 0; i < text.length; i++) if (text[i] === "\n") a.push(i + 1);
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\n") {
+      a.push(i + 1);
+    }
+  }
   return a;
 }
 function location(lines, offset) {
@@ -20,18 +24,30 @@ function location(lines, offset) {
     hi = lines.length;
   while (lo + 1 < hi) {
     const mid = (lo + hi) >> 1;
-    if (lines[mid] <= offset) lo = mid;
-    else hi = mid;
+    if (lines[mid] <= offset) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
   }
   return { line: lo + 1, column: offset - lines[lo] };
 }
 function nodesOf(node, result = []) {
-  if (!node || typeof node !== "object") return result;
-  if (typeof node.type === "string") result.push(node);
+  if (!node || typeof node !== "object") {
+    return result;
+  }
+  if (typeof node.type === "string") {
+    result.push(node);
+  }
   for (const [k, v] of Object.entries(node)) {
-    if (k === "parent") continue;
-    if (Array.isArray(v)) v.forEach((x) => nodesOf(x, result));
-    else if (v && typeof v === "object") nodesOf(v, result);
+    if (k === "parent") {
+      continue;
+    }
+    if (Array.isArray(v)) {
+      v.forEach((x) => nodesOf(x, result));
+    } else if (v && typeof v === "object") {
+      nodesOf(v, result);
+    }
   }
   return result;
 }
@@ -69,8 +85,9 @@ function mapping(result, source) {
 const rows = [];
 mkdirSync("results/outputs", { recursive: true });
 mkdirSync("fixtures", { recursive: true });
-for (const fixture of fixtures)
+for (const fixture of fixtures) {
   writeFileSync(`fixtures/${fixture.language}-${fixture.name}.${fixture.language}`, fixture.source);
+}
 for (const adapter of adapters) {
   for (const fixture of fixtures.filter((f) => f.language === adapter.language)) {
     const filename = `${fixture.language}-${fixture.name}.${fixture.language}`;
@@ -116,13 +133,15 @@ for (const adapter of adapters) {
             fixture.source.slice(probe.start, probe.start + text.length) === text;
           let scalarPoints = 0,
             exactScalarPoints = 0;
-          if (rawEqual)
+          if (rawEqual) {
             for (let offset = 0; offset < text.length;) {
               scalarPoints++;
-              if (mapper.point(node.start + offset).includes(probe.start + offset))
+              if (mapper.point(node.start + offset).includes(probe.start + offset)) {
                 exactScalarPoints++;
+              }
               offset += text.codePointAt(offset) > 0xffff ? 2 : 1;
             }
+          }
           const directBinding = probe.kind === "import" || node.callee.type === "Identifier";
           const nativeRange = mapper.range?.(node.start, node.end) ?? [];
           return {
@@ -223,6 +242,8 @@ writeFileSync(
   ) + "\n",
 );
 console.table(summary.map(({ byRegion: _byRegion, ...row }) => row));
-for (const row of rows)
-  if (row.error || row.parseErrors?.length)
+for (const row of rows) {
+  if (row.error || row.parseErrors?.length) {
     console.log(row.adapter, row.fixture, row.error ?? row.parseErrors);
+  }
+}

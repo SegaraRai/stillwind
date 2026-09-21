@@ -7,7 +7,9 @@ const indexes = process.argv
   .slice(2)
   .filter((value) => /^\d+$/.test(value))
   .map(Number);
-if (!indexes.length) indexes.push(5, 6, 7);
+if (!indexes.length) {
+  indexes.push(5, 6, 7);
+}
 const current = indexes.map((index) => read(`current-${index}`));
 const legacy = indexes.map((index) => read(`legacy-${index}`));
 for (const run of [...current, ...legacy]) {
@@ -47,7 +49,8 @@ writeFileSync(
   new URL("./results/summary.json", import.meta.url),
   JSON.stringify(summary, null, 2) + "\n",
 );
-for (const row of rows)
+for (const row of rows) {
   console.log(
     `${row.name}: current ${row.current.medianMs.toFixed(3)} [${row.current.minMs.toFixed(3)}, ${row.current.maxMs.toFixed(3)}]; old ${row.legacy.medianMs.toFixed(3)}; ratio ${row.ratio.toFixed(2)}`,
   );
+}

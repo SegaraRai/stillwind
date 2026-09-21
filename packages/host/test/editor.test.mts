@@ -117,10 +117,12 @@ void test("semantic reads select a barrel export and exclude unrelated runtime i
   const barrel = path.join(root, "barrel.ts");
   const editor = project(async (id) => {
     reads.push(id);
-    if (id === barrel)
+    if (id === barrel) {
       return "export { token } from './tokens'; export { lazy } from './unvisited';";
-    if (id === dependency)
+    }
+    if (id === dependency) {
       return "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'red', to: 'red' });";
+    }
     throw new Error(`Unrelated source was read: ${id}`);
   });
   editor.update({

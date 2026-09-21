@@ -95,7 +95,9 @@ export const adapters = [
     language: "vue",
     convert(source, filename) {
       const parsed = parseVue(source, { filename });
-      if (parsed.errors.length) throw new Error(parsed.errors.join("\n"));
+      if (parsed.errors.length) {
+        throw new Error(parsed.errors.join("\n"));
+      }
       const result = compileScript(parsed.descriptor, {
         id: "research",
         inlineTemplate,

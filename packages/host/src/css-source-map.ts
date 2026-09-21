@@ -10,10 +10,14 @@ export interface CssUpstreamMap {
 }
 
 function composeUpstream(map: ReturnType<typeof toEncodedMap>, upstream?: CssUpstreamMap) {
-  if (!upstream) return map;
+  if (!upstream) {
+    return map;
+  }
   const resource = pathToFileURL(resolve(upstream.id)).href;
   const original = JSON.parse(upstream.map);
-  if (!Array.isArray(original.sources) || !original.mappings) return map;
+  if (!Array.isArray(original.sources) || !original.mappings) {
+    return map;
+  }
   const sourceUrl = (source: string, base: string) => {
     const normalized = source.replaceAll("\\", "/");
     const clean = normalized.replace(/[?#].*$/, "");
@@ -51,7 +55,9 @@ export function cssWithSourceMap(
   upstream?: CssUpstreamMap | readonly CssUpstreamMap[],
   includeSourcesContent = true,
 ) {
-  if (!output.css) return "";
+  if (!output.css) {
+    return "";
+  }
   const { css, sourceMap } = output;
   const positions = sourceMap.sources.map(({ content }) => {
     const result = new Map<number, [number, number]>();
@@ -64,7 +70,9 @@ export function cssWithSourceMap(
       if (char === "\n") {
         line++;
         column = 0;
-      } else column += char.length;
+      } else {
+        column += char.length;
+      }
     }
     result.set(byte, [line, column]);
     return result;
@@ -80,7 +88,9 @@ export function cssWithSourceMap(
   const entries = [...sourceMap.entries].sort((a, b) => a.generatedStart - b.generatedStart);
   const edits = [...replacements];
   for (let offset = 0; offset < css.length;) {
-    while (entryIndex < entries.length && entries[entryIndex].generatedEnd <= byte) entryIndex++;
+    while (entryIndex < entries.length && entries[entryIndex].generatedEnd <= byte) {
+      entryIndex++;
+    }
     const entry = entries[entryIndex];
     const active = entry && entry.generatedStart <= byte ? entry : undefined;
     const replacement = edits.find(([placeholder]) => css.startsWith(placeholder, offset));
@@ -92,12 +102,17 @@ export function cssWithSourceMap(
         active.originalStart + (active.exact ? byte - active.generatedStart : 0),
       );
     for (const char of emitted) {
-      if (active && position) addSegment(map, line, column, names[active.source], ...position);
-      else addSegment(map, line, column);
+      if (active && position) {
+        addSegment(map, line, column, names[active.source], ...position);
+      } else {
+        addSegment(map, line, column);
+      }
       if (char === "\n") {
         line++;
         column = 0;
-      } else column += char.length;
+      } else {
+        column += char.length;
+      }
     }
     result += emitted;
     byte += Buffer.byteLength(originalText);
@@ -123,7 +138,12 @@ export function cssWithSourceMap(
 export function decodeCssSourceMap(css: string) {
   const match =
     /\n\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/$/.exec(css);
-  if (!match) return { code: css, map: null };
+  if (!match) {
+    return {
+      code: css,
+      map: null,
+    };
+  }
   return {
     code: css.slice(0, match.index),
     map: JSON.parse(Buffer.from(match[1], "base64").toString("utf8")),

@@ -28,18 +28,21 @@ void test("server-only projections emit split CSS without publishing server sour
       plugins: [stillwind({ css: "./root.css", types: false, emission: "split" })],
       build: { write: false, minify: false, sourcemap: true },
     });
-    if (!("output" in result)) throw new Error("expected output");
+    if (!("output" in result)) {
+      throw new Error("expected output");
+    }
     const code = result.output
       .filter((item) => item.type === "chunk")
       .map((item) => item.code)
       .join("");
     assert.match(code, /data-stillwind-part/);
     assert.ok(result.output.some((item) => item.fileName.endsWith(".css")));
-    for (const item of result.output)
+    for (const item of result.output) {
       assert.doesNotMatch(
         item.type === "chunk" ? item.code : String(item.source),
         /SERVER_SOURCE_SENTINEL/,
       );
+    }
   } finally {
     assert.ok(
       path
@@ -83,7 +86,9 @@ void test("explicit module CSS exports scoped values without adding document CSS
         modulePreload: false,
       },
     });
-    if (!("output" in result)) throw new Error("expected a single build output");
+    if (!("output" in result)) {
+      throw new Error("expected a single build output");
+    }
     const documentCss = result.output
       .filter((asset) => asset.type === "asset")
       .filter((asset) => asset.fileName.endsWith(".css"))
@@ -143,9 +148,13 @@ globalThis.props = style(base, 'blue');
       plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
       build: { write: false, minify: false, cssMinify: false, modulePreload: false },
     });
-    if (!("output" in result)) throw new Error("expected a single build output");
+    if (!("output" in result)) {
+      throw new Error("expected a single build output");
+    }
     const entry = result.output.find((asset) => asset.type === "chunk" && asset.isEntry);
-    if (!entry || entry.type !== "chunk") throw new Error("entry chunk not found");
+    if (!entry || entry.type !== "chunk") {
+      throw new Error("entry chunk not found");
+    }
     const global: { value?: string; props?: { className: string } } = {};
     runInNewContext(entry.code, { globalThis: global });
     assert.match(global.value ?? "", /color:\s*blue/);
@@ -180,7 +189,9 @@ void test("relative JS resources preserve distinct producer origins", async () =
       plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
       build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
     });
-    if (!("output" in result)) throw new Error("expected a single build output");
+    if (!("output" in result)) {
+      throw new Error("expected a single build output");
+    }
     const css = result.output
       .filter((asset) => asset.type === "asset")
       .filter((asset) => asset.fileName.endsWith(".css"))
@@ -228,14 +239,18 @@ void test("build retains late and lazy producer CSS without collecting transform
           name: "delay-producer",
           enforce: "pre",
           async transform(_, id) {
-            if (id.endsWith("/slow.ts")) await new Promise((resolve) => setTimeout(resolve, 200));
+            if (id.endsWith("/slow.ts")) {
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
           },
         },
         stillwind({ css: path.join(root, "root.css"), types: false }),
       ],
       build: { write: false, minify: false, cssMinify: false, sourcemap: true },
     });
-    if (!("output" in output)) throw new Error("expected a single build output");
+    if (!("output" in output)) {
+      throw new Error("expected a single build output");
+    }
     const assets = output.output
       .filter((asset) => asset.type === "asset")
       .filter((asset) => asset.fileName.endsWith(".css"));
@@ -299,7 +314,9 @@ void test("imported CSS resources retain their owner through document and module
       plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
       build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
     });
-    if (!("output" in result)) throw new Error("expected a single build output");
+    if (!("output" in result)) {
+      throw new Error("expected a single build output");
+    }
     const css = result.output
       .filter((asset) => asset.type === "asset")
       .filter((asset) => asset.fileName.endsWith(".css"))

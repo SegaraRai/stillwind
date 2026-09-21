@@ -3,12 +3,13 @@ import { pathToFileURL } from "node:url";
 const [bundler, mode, root] = process.argv.slice(2);
 process.chdir(root);
 if (bundler === "vite") {
-  if (mode === "start")
+  if (mode === "start") {
     await import(pathToFileURL(path.join(root, ".output/server/index.mjs")).href);
-  else {
+  } else {
     const { createBuilder, createServer } = await import("vite-plus");
-    if (mode === "build") await (await createBuilder({ root })).buildApp();
-    else {
+    if (mode === "build") {
+      await (await createBuilder({ root })).buildApp();
+    } else {
       const server = await createServer({ root });
       await server.listen();
       server.printUrls();
@@ -32,5 +33,7 @@ if (bundler === "vite") {
   if (mode === "build") {
     const result = await instance.build();
     await result.close();
-  } else await instance.startDevServer();
+  } else {
+    await instance.startDevServer();
+  }
 }

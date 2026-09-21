@@ -32,7 +32,9 @@ const rsbuild = await createRsbuild({
 const result = await rsbuild.build();
 try {
   const stats = result.stats.stats?.[0] ?? result.stats;
-  if (stats.hasErrors()) throw new Error(stats.toString());
+  if (stats.hasErrors()) {
+    throw new Error(stats.toString());
+  }
   fs.writeFileSync(
     path.join(dir, "stats.json"),
     JSON.stringify(

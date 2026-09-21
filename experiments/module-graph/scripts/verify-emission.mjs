@@ -80,7 +80,9 @@ try {
         console.error(error);
       });
       page.on("console", (message) => {
-        if (message.type() === "error") console.error(message.text());
+        if (message.type() === "error") {
+          console.error(message.text());
+        }
       });
       await page.goto(`${url}?route=${first}`);
       await page.waitForFunction(() => window.goto && window.sharedSheet);
@@ -122,7 +124,9 @@ try {
   );
   let reloads = 0;
   page.on("framenavigated", (frame) => {
-    if (frame === page.mainFrame()) reloads++;
+    if (frame === page.mainFrame()) {
+      reloads++;
+    }
   });
   await page.evaluate(() => {
     window.originalStyle = document.querySelector("style[data-stillwind]");
@@ -171,8 +175,11 @@ try {
     const output = result.output;
     const css = output.filter((item) => item.type === "asset" && item.fileName.endsWith(".css"));
     assert.ok(css.length > 0);
-    if (emission === "single") assert.equal(css.length, 1);
-    else assert.ok(css.length < 10, "split output packs adjacent rules into producer partitions");
+    if (emission === "single") {
+      assert.equal(css.length, 1);
+    } else {
+      assert.ok(css.length < 10, "split output packs adjacent rules into producer partitions");
+    }
     const manifest = JSON.parse(
       output.find((item) => item.fileName === "stillwind-manifest.json").source,
     );
@@ -229,14 +236,20 @@ try {
     );
     assert.equal(await page.locator("style[data-stillwind]").count(), 0);
     await page.close();
-    if (mode === "dev") await server.close();
-    else await new Promise((resolve) => server.httpServer.close(resolve));
+    if (mode === "dev") {
+      await server.close();
+    } else {
+      await new Promise((resolve) => server.httpServer.close(resolve));
+    }
     server = undefined;
     record(`Web Components ${mode}: explicit closure has no automatic document styles`);
   }
 } finally {
   await browser.close();
-  if (server?.close) await server.close();
-  else if (server) await new Promise((resolve) => server.httpServer.close(resolve));
+  if (server?.close) {
+    await server.close();
+  } else if (server) {
+    await new Promise((resolve) => server.httpServer.close(resolve));
+  }
 }
 console.log(JSON.stringify({ directory, checks }, null, 2));

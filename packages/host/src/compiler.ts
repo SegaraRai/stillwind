@@ -40,7 +40,9 @@ export function cleanModuleId(id: string): string {
 }
 
 function semanticDependencies(summary: ModuleSummary, requested: string | null) {
-  if (requested === null) return summary.probe_imports;
+  if (requested === null) {
+    return summary.probe_imports;
+  }
   const selected = summary.export_imports.find((entry) => entry.name === requested);
   if (requested !== "*" && selected) {
     return selected.imports;
@@ -91,8 +93,12 @@ export async function compileModule(
   });
   const entrySummary = scanSource(entrySource);
   const hasModuleCssImport = entrySummary.module_css_imports > 0;
-  if (entrySummary.macro_imports > 0) entrySource.stylesheet_imports = options.stylesheetImports;
-  if (hasModuleCssImport) entrySource.module_css_import = options.moduleCssImport;
+  if (entrySummary.macro_imports > 0) {
+    entrySource.stylesheet_imports = options.stylesheetImports;
+  }
+  if (hasModuleCssImport) {
+    entrySource.module_css_import = options.moduleCssImport;
+  }
   const needsTypeFacts = entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesById = new Map<string, ProjectSource>();
@@ -107,24 +113,36 @@ export async function compileModule(
   while (pending.length > 0) {
     const { source, requested } = pending.pop()!;
     const demands = visited.get(source.id) ?? new Set<string | null>();
-    if (demands.has(requested)) continue;
+    if (demands.has(requested)) {
+      continue;
+    }
     demands.add(requested);
     visited.set(source.id, demands);
     sourcesById.set(source.id, source);
     const summary =
       summaries.get(source.path) ?? (source.id === entryId ? entrySummary : scanSource(source));
     summaries.set(source.path, summary);
-    if (!needsTypeFacts) continue;
+    if (!needsTypeFacts) {
+      continue;
+    }
     for (const dependency of semanticDependencies(summary, requested)) {
       const resolved = await host.resolve(dependency.source, source.id, { skipSelf: true });
-      if (!resolved || resolved.external) continue;
+      if (!resolved || resolved.external) {
+        continue;
+      }
       const dependencyId = cleanModuleId(resolved.id);
       // Package runtime exports do not identify their declaration files. Leave
       // external package type resolution (for example React) to TypeScript.
-      if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyId)) continue;
-      if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyId)) continue;
+      if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyId)) {
+        continue;
+      }
+      if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyId)) {
+        continue;
+      }
       let sourceResolutions = resolutions.get(source.id);
-      if (!sourceResolutions) resolutions.set(source.id, (sourceResolutions = new Map()));
+      if (!sourceResolutions) {
+        resolutions.set(source.id, (sourceResolutions = new Map()));
+      }
       sourceResolutions.set(dependency.source, dependencyId);
       host.watch(dependencyId);
       let dependencySource = sourcesById.get(dependencyId);
@@ -165,7 +183,9 @@ export async function compileModule(
         )
       : new Map<string, TypeFact[]>();
   } catch (error) {
-    if (!(error instanceof TypeFactsError) || options.diagnostics !== "collect") throw error;
+    if (!(error instanceof TypeFactsError) || options.diagnostics !== "collect") {
+      throw error;
+    }
     const source = sources.find((source) => source.path === error.path)!;
     return {
       path: entrySource.path,
@@ -194,7 +214,9 @@ export async function compileModule(
   const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
   for (const output of projectOutput.modules) {
     const moduleId = idsByPath.get(output.path);
-    if (!moduleId) fail(`Stillwind returned an unknown module: ${output.path}`);
+    if (!moduleId) {
+      fail(`Stillwind returned an unknown module: ${output.path}`);
+    }
     if (output.diagnostics.length > 0 && options.diagnostics !== "collect") {
       const diagnostic = output.diagnostics[0];
       fail(`${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`);
@@ -202,7 +224,9 @@ export async function compileModule(
     const deniedFindings: string[] = [];
     for (const finding of output.lint_findings ?? []) {
       const level = output.lint_policy?.[finding.rule] ?? "warn";
-      if (level === "off") continue;
+      if (level === "off") {
+        continue;
+      }
       if (level !== "deny") {
         host.warn(`${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`);
       } else {
@@ -247,6 +271,8 @@ export async function compileModule(
       diagnostics: projectOutput.modules.flatMap((module) => module.diagnostics),
     };
   }
-  if (!output?.code) return undefined;
+  if (!output?.code) {
+    return undefined;
+  }
   return { ...output, hasModuleCssImport, compositionModules, compositionTopology };
 }

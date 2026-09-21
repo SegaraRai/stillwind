@@ -149,7 +149,9 @@ let socket: WebSocket | undefined;
 try {
   const portFile = resolve(profile, "DevToolsActivePort");
   const deadline = Date.now() + 20000;
-  while (!existsSync(portFile) && Date.now() < deadline) await setTimeout(100);
+  while (!existsSync(portFile) && Date.now() < deadline) {
+    await setTimeout(100);
+  }
   assert.ok(existsSync(portFile), "headless browser did not publish a debug port");
   const port = readFileSync(portFile, "utf8").split(/\r?\n/)[0];
   const targets = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()) as Array<{
@@ -176,11 +178,16 @@ try {
       );
       const listener = (event: MessageEvent) => {
         const result = JSON.parse(String(event.data));
-        if (result.id !== request) return;
+        if (result.id !== request) {
+          return;
+        }
         globalThis.clearTimeout(timeout);
         socket!.removeEventListener("message", listener);
-        if (result.error) reject(new Error(JSON.stringify(result.error)));
-        else resolve(result.result);
+        if (result.error) {
+          reject(new Error(JSON.stringify(result.error)));
+        } else {
+          resolve(result.result);
+        }
       };
       socket!.addEventListener("message", listener);
       socket!.send(JSON.stringify({ id: request, method, params }));
@@ -193,7 +200,9 @@ try {
       returnByValue: true,
     });
     status = result.result?.value ?? "";
-    if (!status) await setTimeout(100);
+    if (!status) {
+      await setTimeout(100);
+    }
   }
   const result = await command("Runtime.evaluate", {
     expression: "document.body.textContent",

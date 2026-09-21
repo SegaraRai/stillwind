@@ -78,8 +78,11 @@ function jsEncode(input) {
   const map = new GenMapping({ file: input.file });
   input.sources.forEach((s, i) => setSourceContent(map, s, input.contents[i]));
   for (const [line, col, source, ol, oc] of input.tokens) {
-    if (source === null) addSegment(map, line, col);
-    else addSegment(map, line, col, input.sources[source], ol, oc);
+    if (source === null) {
+      addSegment(map, line, col);
+    } else {
+      addSegment(map, line, col, input.sources[source], ol, oc);
+    }
   }
   return JSON.stringify(toEncodedMap(map));
 }
@@ -170,11 +173,15 @@ for (const char of small) {
   unit += char.length;
   boundaries.push(unit);
 }
-for (const a of boundaries)
-  for (const b of boundaries)
-    if (a <= b)
-      for (const replacement of ["", "x", "🧭\r\n中"])
+for (const a of boundaries) {
+  for (const b of boundaries) {
+    if (a <= b) {
+      for (const replacement of ["", "x", "🧭\r\n中"]) {
         jsCase(small, [[a, b, replacement]], "// p\n");
+      }
+    }
+  }
+}
 for (let i = 0; i < 200; i++) {
   let source = "",
     ranges = [];
@@ -367,7 +374,7 @@ for (const kind of ["js", "css"]) {
   compare(map, result.map);
   const trace = new TraceMap(result.map);
   // Every mapped segment must also remain reachable through reverse lookup.
-  for (const [line, col, src, ol, oc] of input.tokens)
+  for (const [line, col, src, ol, oc] of input.tokens) {
     if (src !== null) {
       assert.equal(originalPositionFor(trace, { line: line + 1, column: col }).line, ol + 1);
       assert.ok(
@@ -375,6 +382,7 @@ for (const kind of ["js", "css"]) {
           .line !== null,
       );
     }
+  }
   compare(map, JSON.parse(addon.encodeTokens(JSON.stringify(input))));
   codecs.push({
     kind,
@@ -568,14 +576,19 @@ for (const unit of finalized.code.split("")) {
     const a = originalPositionFor(new TraceMap(direct), { line, column, bias });
     const b = originalPositionFor(new TraceMap(composed), { line, column, bias });
     if (JSON.stringify(a) !== JSON.stringify(b)) {
-      if (bias === 1) glbDifferences++;
-      else lubDifferences++;
+      if (bias === 1) {
+        glbDifferences++;
+      } else {
+        lubDifferences++;
+      }
     }
   }
   if (unit === "\n") {
     line++;
     column = 0;
-  } else column++;
+  } else {
+    column++;
+  }
 }
 assert.equal(glbDifferences, 0);
 checks++;

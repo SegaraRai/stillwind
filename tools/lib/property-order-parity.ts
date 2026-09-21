@@ -49,19 +49,31 @@ export interface PropertyOrderParityResult {
 }
 
 function propertyIdName(id: unknown): string | undefined {
-  if (typeof id === "string") return id;
-  if (!id || typeof id !== "object") return undefined;
+  if (typeof id === "string") {
+    return id;
+  }
+  if (!id || typeof id !== "object") {
+    return undefined;
+  }
   const property = Reflect.get(id, "property");
-  if (typeof property !== "string") return undefined;
-  if (property !== "custom") return property;
+  if (typeof property !== "string") {
+    return undefined;
+  }
+  if (property !== "custom") {
+    return property;
+  }
   const value = Reflect.get(id, "value");
   return value && typeof value === "object" ? String(Reflect.get(value, "name")) : undefined;
 }
 
 function declarationName(declaration: unknown): string | undefined {
-  if (!declaration || typeof declaration !== "object") return undefined;
+  if (!declaration || typeof declaration !== "object") {
+    return undefined;
+  }
   const property = Reflect.get(declaration, "property");
-  if (typeof property !== "string") return undefined;
+  if (typeof property !== "string") {
+    return undefined;
+  }
   const value = Reflect.get(declaration, "value");
   if (property === "custom") {
     return value && typeof value === "object" ? String(Reflect.get(value, "name")) : undefined;
@@ -75,9 +87,13 @@ function declarationName(declaration: unknown): string | undefined {
 }
 
 function exactClassName(rule: StyleRule): string | undefined {
-  if (rule.selectors.length !== 1) return undefined;
+  if (rule.selectors.length !== 1) {
+    return undefined;
+  }
   const selector = rule.selectors[0];
-  if (selector.length !== 1 || selector[0].type !== "class") return undefined;
+  if (selector.length !== 1 || selector[0].type !== "class") {
+    return undefined;
+  }
   return selector[0].name;
 }
 
@@ -93,7 +109,9 @@ function classRules(css: string, accepted: ReadonlySet<string>): Map<string, Cla
         style(rule) {
           const value = rule.value as StyleRule;
           const className = exactClassName(value);
-          if (!className || !accepted.has(className)) return;
+          if (!className || !accepted.has(className)) {
+            return;
+          }
           const normal = (value.declarations?.declarations ?? [])
             .map(declarationName)
             .filter((name): name is string => name !== undefined);
@@ -154,9 +172,15 @@ class PropertyRelations {
 
   affected(name: string, visiting = new Set<string>()): Set<string> {
     const cached = this.#affected.get(name);
-    if (cached) return cached;
-    if (name === "all") return new Set(["*"]);
-    if (visiting.has(name)) throw new Error(`cyclic Webref longhand relation for ${name}`);
+    if (cached) {
+      return cached;
+    }
+    if (name === "all") {
+      return new Set(["*"]);
+    }
+    if (visiting.has(name)) {
+      throw new Error(`cyclic Webref longhand relation for ${name}`);
+    }
     const property = this.#properties.get(name);
     const canonical = property?.legacyAliasOf ?? name;
     const children = [...(property?.longhands ?? []), ...(property?.resetLonghands ?? [])];
@@ -172,18 +196,24 @@ class PropertyRelations {
   }
 
   interferes(left: string, right: string): boolean {
-    if (left === right) return false;
+    if (left === right) {
+      return false;
+    }
     const leftAffected = this.affected(left);
     const rightAffected = this.affected(right);
     if (leftAffected.has("*") || rightAffected.has("*")) {
       return !left.startsWith("--") && !right.startsWith("--");
     }
-    if ([...leftAffected].some((property) => rightAffected.has(property))) return true;
+    if ([...leftAffected].some((property) => rightAffected.has(property))) {
+      return true;
+    }
 
     for (const leftProperty of leftAffected) {
       const leftDefinition = this.#properties.get(leftProperty);
       const group = leftDefinition?.logicalPropertyGroup;
-      if (!group) continue;
+      if (!group) {
+        continue;
+      }
       for (const rightProperty of rightAffected) {
         const rightDefinition = this.#properties.get(rightProperty);
         if (
@@ -290,7 +320,9 @@ function preservesDependentDeclarationOrder(
         declaration.name === leftProperty || declaration.name === rightProperty;
       const expectedOrder = expected.filter(includesProperty).map(({ key }) => key);
       const actualOrder = actual.filter(includesProperty).map(({ key }) => key);
-      if (expectedOrder.join("\0") !== actualOrder.join("\0")) return false;
+      if (expectedOrder.join("\0") !== actualOrder.join("\0")) {
+        return false;
+      }
     }
   }
   return true;
@@ -345,7 +377,9 @@ function compareBucket(
     for (let right = left + 1; right < properties.length; right += 1) {
       const leftProperty = properties[left];
       const rightProperty = properties[right];
-      if (!relations.interferes(leftProperty, rightProperty)) continue;
+      if (!relations.interferes(leftProperty, rightProperty)) {
+        continue;
+      }
       constraints += 1;
       const expectedOrder =
         expectedPositions.get(leftProperty)! < expectedPositions.get(rightProperty)!;
@@ -378,16 +412,22 @@ export function verifyPropertyOrderParity(
     .sort()) {
     const markdown = readFileSync(join(caseRoot, file), "utf8");
     for (const fixtureCase of parseMarkdownFixtureCases(markdown)) {
-      if (/@(?:source|config|plugin|reference)\b/.test(fixtureCase.input)) continue;
+      if (/@(?:source|config|plugin|reference)\b/.test(fixtureCase.input)) {
+        continue;
+      }
       const candidates = fixtureCase.candidates
         .split(/\s+/)
         .filter((candidate) => candidate && !hasVariant(candidate));
-      if (candidates.length < 2) continue;
+      if (candidates.length < 2) {
+        continue;
+      }
       const expectedCss = markdown.slice(fixtureCase.expectedStart, fixtureCase.expectedEnd);
       const accepted = new Set(candidates);
       const expectedRules = classRules(expectedCss, accepted);
       const applicable = candidates.filter((candidate) => expectedRules.has(candidate));
-      if (applicable.length < 2) continue;
+      if (applicable.length < 2) {
+        continue;
+      }
 
       const source = `import { style } from "stillwind/react"; style(${JSON.stringify(applicable.join(" "))});`;
       const native = compileSource(

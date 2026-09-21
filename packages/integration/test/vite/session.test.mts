@@ -33,7 +33,9 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     writeFileSync(sourcePath, source);
     const transform =
       typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
-    if (typeof transform !== "function") throw new Error("expected transform hook");
+    if (typeof transform !== "function") {
+      throw new Error("expected transform hook");
+    }
     const transformed = await transform.call(
       {
         resolve: (specifier: string, importer: string) =>
@@ -52,14 +54,18 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     );
     const load = plugin.load;
     assert.equal(typeof load, "function");
-    if (typeof load !== "function") throw new Error("expected load hook");
+    if (typeof load !== "function") {
+      throw new Error("expected load hook");
+    }
     const context = server.pluginContainer as unknown as ThisParameterType<typeof load>;
     const before = await load.call(context, "\0stillwind:snapshot.css");
     // Pinning is observable even after the file changes, before the reload hook runs.
     writeFileSync(tokens, "@theme { --color-brand: blue; }");
     assert.deepEqual(await load.call(context, "\0stillwind:snapshot.css"), before);
     const hot = plugin.hotUpdate;
-    if (typeof hot !== "function") throw new Error("expected HMR hook");
+    if (typeof hot !== "function") {
+      throw new Error("expected HMR hook");
+    }
     const hotContext = {
       file: tokens,
       timestamp: Date.now(),
@@ -112,8 +118,9 @@ void test("Vite supplies ready CSS and discovers nested imports before a slow si
         name: "parallel-css-test",
         enforce: "pre",
         async resolveId(specifier) {
-          if (specifier.startsWith("parallel-"))
+          if (specifier.startsWith("parallel-")) {
             resolutions.set(specifier, (resolutions.get(specifier) ?? 0) + 1);
+          }
           if (specifier === "parallel-first") {
             await new Promise<void>((resolve, reject) => {
               const timeout = setTimeout(
@@ -130,7 +137,9 @@ void test("Vite supplies ready CSS and discovers nested imports before a slow si
             });
             return first;
           }
-          if (specifier === "parallel-second") return second;
+          if (specifier === "parallel-second") {
+            return second;
+          }
           if (specifier === "parallel-child") {
             assert.ok(releaseFirst);
             releaseFirst();
@@ -147,13 +156,17 @@ void test("Vite supplies ready CSS and discovers nested imports before a slow si
   try {
     await server.pluginContainer.buildStart({});
     const load = plugin.load;
-    if (typeof load !== "function") throw new Error("expected load hook");
+    if (typeof load !== "function") {
+      throw new Error("expected load hook");
+    }
     const output = await load.call(
       server.pluginContainer as unknown as ThisParameterType<typeof load>,
       "\0stillwind:snapshot.css",
     );
     assert.ok(output && typeof output === "object" && output.map);
-    if (!output || typeof output !== "object") throw new Error("expected mapped CSS");
+    if (!output || typeof output !== "object") {
+      throw new Error("expected mapped CSS");
+    }
     assert.ok(output.code.includes(".first"));
     assert.ok(output.code.indexOf(".first") < output.code.indexOf(".child"));
     assert.ok(output.code.indexOf(".child") < output.code.indexOf(".second"));
@@ -179,7 +192,9 @@ void test("Vite rejects a failed CSS load without waiting for or leaking late re
   writeFileSync(css, "@import 'failed'; @import 'late';");
   const plugin = stillwind({ css, types: false });
   const buildStart = plugin.buildStart;
-  if (typeof buildStart !== "function") throw new Error("expected buildStart hook");
+  if (typeof buildStart !== "function") {
+    throw new Error("expected buildStart hook");
+  }
   let releaseLate!: () => void;
   const late = new Promise<void>((resolve) => {
     releaseLate = resolve;
@@ -191,7 +206,9 @@ void test("Vite rejects a failed CSS load without waiting for or leaking late re
         buildStart.call(
           {
             async resolve(specifier: string) {
-              if (specifier === "failed") throw new Error("first CSS resolution failed");
+              if (specifier === "failed") {
+                throw new Error("first CSS resolution failed");
+              }
               await late;
               lateFinished = true;
               throw new Error("late CSS resolution failed");
@@ -240,7 +257,9 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
             onHeldResolution?.();
             return held;
           }
-          if (id === "environment-css") return this.environment.name === "ssr" ? ssrCss : clientCss;
+          if (id === "environment-css") {
+            return this.environment.name === "ssr" ? ssrCss : clientCss;
+          }
         },
       },
       plugin,

@@ -66,7 +66,9 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
 
   const serialize = (payload: unknown): unknown => {
     if (styleFormat === "string") {
-      if (typeof payload === "string") return payload;
+      if (typeof payload === "string") {
+        return payload;
+      }
       if (isObject(payload)) {
         return Object.entries(payload)
           .map(([name, value]) => `${name}:${String(value)}`)
@@ -85,12 +87,18 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
     let hasStyle = false;
 
     const collect = (value: unknown): void => {
-      if (!value) return;
-      if (Array.isArray(value)) {
-        for (const element of value) collect(element);
+      if (!value) {
         return;
       }
-      if (!isObject(value)) return;
+      if (Array.isArray(value)) {
+        for (const element of value) {
+          collect(element);
+        }
+        return;
+      }
+      if (!isObject(value)) {
+        return;
+      }
       const symbols = Object.getOwnPropertySymbols(value);
       const fragment =
         symbols.includes(stillwindClassKey) ||
@@ -108,9 +116,13 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
       }
       if (fragment) {
         const custom = value[stillwindCustomPropertiesKey];
-        if (isObject(custom)) Object.assign(customProperties, custom);
+        if (isObject(custom)) {
+          Object.assign(customProperties, custom);
+        }
         const contribution = value[stillwindClassKey];
-        if (typeof contribution === "string" && contribution.length > 0) classes.push(contribution);
+        if (typeof contribution === "string" && contribution.length > 0) {
+          classes.push(contribution);
+        }
         if (Object.hasOwn(value, stillwindStyleKey)) {
           const payload = value[stillwindStyleKey];
           if (payload !== undefined && payload !== null) {
@@ -119,17 +131,25 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
           }
         }
       }
-      for (const [key, entry] of Object.entries(value)) props[key] = entry;
+      for (const [key, entry] of Object.entries(value)) {
+        props[key] = entry;
+      }
     };
 
-    for (const value of values) collect(value);
+    for (const value of values) {
+      collect(value);
+    }
 
     const result: Record<string, unknown> = {};
-    if (classes.length > 0) result[classProperty] = classes.join(" ");
+    if (classes.length > 0) {
+      result[classProperty] = classes.join(" ");
+    }
     Object.assign(result, props);
     if (hasStyle) {
       const materialized = serialize(style);
-      if (materialized !== undefined) result.style = materialized;
+      if (materialized !== undefined) {
+        result.style = materialized;
+      }
     }
     if (Object.keys(customProperties).length > 0) {
       result.style =

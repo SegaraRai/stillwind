@@ -13,8 +13,9 @@ const upstreamArgument =
 const upstream = upstreamArgument ? resolve(upstreamArgument) : undefined;
 const write = process.argv.includes("--write");
 
-if (!upstream)
+if (!upstream) {
   throw new Error("pass --upstream <tailwindcss-checkout> or set STILLWIND_TAILWIND_UPSTREAM");
+}
 
 function registrations(path: string, expression: RegExp): string[] {
   const source = readFileSync(path, "utf8");
@@ -55,14 +56,18 @@ const intellisenseSnapshot = readFileSync(intellisenseSnapshotPath, "utf8");
 const classListSnapshot = /exports\[`getClassList 1`\] = `\n([\s\S]*?)\n`;/m.exec(
   intellisenseSnapshot,
 )?.[1];
-if (!classListSnapshot) throw new Error("could not find the default getClassList snapshot");
+if (!classListSnapshot) {
+  throw new Error("could not find the default getClassList snapshot");
+}
 const defaultCompletions = [...classListSnapshot.matchAll(/^  "([^"]+)",?$/gm)].map(
   (match) => match[1],
 );
 const variantSnapshot = /exports\[`getVariants 1`\] = `\n([\s\S]*?)\n`;/m.exec(
   intellisenseSnapshot,
 )?.[1];
-if (!variantSnapshot) throw new Error("could not find the default getVariants snapshot");
+if (!variantSnapshot) {
+  throw new Error("could not find the default getVariants snapshot");
+}
 
 const catalog = `# ${tailwindLabel} direct registrations\n\nThis file is generated from the upstream source matching the tools dependency. It records every\ndirect \`staticUtility\`, \`functionalUtility\`, and static/functional/compound\nvariant registration. Template-generated registrations and parameterized grammar\nare covered by the dedicated candidate and dynamic-variant fixtures.\n\n## Static utilities (${staticUtilities.length})\n\n\`\`\`text\n${lines(staticUtilities)}\`\`\`\n\n## Functional utility roots (${functionalUtilities.length})\n\n\`\`\`text\n${lines(functionalUtilities)}\`\`\`\n\n## Static variants (${staticVariants.length})\n\n\`\`\`text\n${lines(staticVariants)}\`\`\`\n\n## Functional variant roots (${functionalVariants.length})\n\n\`\`\`text\n${lines(functionalVariants)}\`\`\`\n\n## Compound variant roots (${compoundVariants.length})\n\n\`\`\`text\n${lines(compoundVariants)}\`\`\`\n`;
 const completionCatalog = `# ${tailwindLabel} default completion catalog\n\nThis is the complete default-theme class list from upstream's\n\`getClassList\` IntelliSense snapshot. It includes utility values generated\nfrom theme namespaces and loop-based registrations, complementing the direct\nregistration catalog.\n\n## Default completions (${defaultCompletions.length})\n\n\`\`\`text\n${lines(defaultCompletions, 8)}\`\`\`\n`;
@@ -92,7 +97,9 @@ function synchronizeCandidates(markdown: string): string {
     const pattern = new RegExp(
       `(## \`${name}\`[\\s\\S]*?### Candidates\\n\\n\`\`\`text\\n)([\\s\\S]*?)(\\n\`\`\`)`,
     );
-    if (!pattern.test(next)) throw new Error(`builtins fixture is missing ${name}`);
+    if (!pattern.test(next)) {
+      throw new Error(`builtins fixture is missing ${name}`);
+    }
     next = next.replace(pattern, `$1${candidates.trimEnd()}$3`);
   }
   return next;
@@ -101,7 +108,9 @@ function synchronizeCandidates(markdown: string): string {
 function synchronizeCompletionCandidates(markdown: string): string {
   const pattern =
     /(## `builtins\.default-theme-completions`[\s\S]*?### Candidates\n\n```text\n)([\s\S]*?)(\n```)/;
-  if (!pattern.test(markdown)) throw new Error("default-completions fixture is missing its case");
+  if (!pattern.test(markdown)) {
+    throw new Error("default-completions fixture is missing its case");
+  }
   return markdown.replace(pattern, `$1${lines(defaultCompletions, 8).trimEnd()}$3`);
 }
 
@@ -124,7 +133,9 @@ for (const [path, output] of outputs) {
     if (write) {
       mkdirSync(resolve(path, ".."), { recursive: true });
       writeFileSync(path, output);
-    } else console.error(`${path} is stale; run with --write`);
+    } else {
+      console.error(`${path} is stale; run with --write`);
+    }
   }
 }
 
@@ -138,8 +149,11 @@ try {
 const nextFixture = currentFixture ? synchronizeCandidates(currentFixture) : fixtureTemplate;
 if (currentFixture !== nextFixture) {
   changed = true;
-  if (write) writeFileSync(fixturePath, nextFixture);
-  else console.error(`${fixturePath} is stale; run with --write`);
+  if (write) {
+    writeFileSync(fixturePath, nextFixture);
+  } else {
+    console.error(`${fixturePath} is stale; run with --write`);
+  }
 }
 
 const completionFixturePath = join(fixtureRoot, "cases", "default-completions.fixture.md");
@@ -154,12 +168,17 @@ const nextCompletionFixture = currentCompletionFixture
   : completionFixtureTemplate;
 if (currentCompletionFixture !== nextCompletionFixture) {
   changed = true;
-  if (write) writeFileSync(completionFixturePath, nextCompletionFixture);
-  else console.error(`${completionFixturePath} is stale; run with --write`);
+  if (write) {
+    writeFileSync(completionFixturePath, nextCompletionFixture);
+  } else {
+    console.error(`${completionFixturePath} is stale; run with --write`);
+  }
 }
 
-if (changed && !write) process.exitCode = 1;
-else
+if (changed && !write) {
+  process.exitCode = 1;
+} else {
   console.log(
     `${write ? "Generated" : "Verified"} ${staticUtilities.length} static utilities, ${functionalUtilities.length} functional utility roots, ${staticVariants.length} static variants, ${functionalVariants.length} functional variant roots, ${compoundVariants.length} compound variant roots, and ${defaultCompletions.length} default completions.`,
   );
+}

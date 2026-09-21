@@ -11,8 +11,12 @@ function registerEmission(context, input) {
       "Automatic Stillwind CSS requires a complete-graph webpack/Rspack integration; use stillwind/module-css for explicit transport in loader-only hosts",
     );
   }
-  if (input) context._module.buildInfo.stillwind = input;
-  if (installed.has(compilation)) return;
+  if (input) {
+    context._module.buildInfo.stillwind = input;
+  }
+  if (installed.has(compilation)) {
+    return;
+  }
   if (context._compiler?.rspack) {
     throw new Error(
       "Stillwind Rspack emission requires new StillwindPlugin() alongside stillwindRules()",
@@ -35,7 +39,9 @@ function registerEmission(context, input) {
     const carriers = [...modules].filter((module) =>
       module.resource?.includes("stillwind-carrier.css?stillwind-document"),
     );
-    if (!carriers.length || !producers.length) return;
+    if (!carriers.length || !producers.length) {
+      return;
+    }
     const host = await import("@stillwind/host");
     const { NativeProjectSession } = await import("@stillwind/native");
     const read = (id) =>
@@ -65,8 +71,9 @@ function registerEmission(context, input) {
     try {
       for (const producer of producers) {
         const input = producer.buildInfo.stillwind;
-        if (input.root !== root || JSON.stringify(input.options) !== JSON.stringify(options))
+        if (input.root !== root || JSON.stringify(input.options) !== JSON.stringify(options)) {
           throw new Error("A compilation must use one Stillwind design system");
+        }
         const output = await host.compileModule(
           session,
           () => facts,
@@ -81,7 +88,9 @@ function registerEmission(context, input) {
           },
           { moduleCssImport: "stillwind/module-css" },
         );
-        if (output && !input.manual) selection.push(output.path);
+        if (output && !input.manual) {
+          selection.push(output.path);
+        }
       }
       const revision = createHash("sha256")
         .update(producers.map((module) => module.buildInfo.stillwind.source).join("\0"))
@@ -96,14 +105,17 @@ function registerEmission(context, input) {
         const file = await resolveAsset(resource.specifier, path.resolve(root, resource.owner));
         compilation.fileDependencies.add(file);
         let request = path.relative(__dirname, file).replaceAll("\\", "/");
-        if (!request.startsWith(".")) request = `./${request}`;
+        if (!request.startsWith(".")) {
+          request = `./${request}`;
+        }
         replacements.set(resource.placeholder, JSON.stringify(request).slice(1, -1));
       }
       compilation.__stillwindCss = host.cssWithSourceMap(plan, replacements, root);
-      for (const carrier of carriers)
+      for (const carrier of carriers) {
         await new Promise((resolve, reject) =>
           compilation.rebuildModule(carrier, (error) => (error ? reject(error) : resolve())),
         );
+      }
     } finally {
       facts.close();
     }

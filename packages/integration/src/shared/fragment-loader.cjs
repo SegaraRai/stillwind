@@ -1,7 +1,9 @@
 /** Immutable string fragments remain reconstructible in isolated loader workers. */
 module.exports = function () {
   const encoded = new URLSearchParams(this.resourceQuery).get("css");
-  if (!encoded) throw new Error("Missing Stillwind CSS fragment");
+  if (!encoded) {
+    throw new Error("Missing Stillwind CSS fragment");
+  }
   const { css, resources } = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
   const imports = resources
     .map((resource, index) => `import asset${index} from ${JSON.stringify(resource.id)};`)

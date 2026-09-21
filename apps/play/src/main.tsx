@@ -84,7 +84,9 @@ function formatCss(source: string): string {
   let parentheses = 0;
 
   const write = (value: string) => {
-    if (!value) return;
+    if (!value) {
+      return;
+    }
     output += `${"  ".repeat(indent)}${value}\n`;
   };
   const normalize = (value: string, declaration = false) => {
@@ -94,8 +96,9 @@ function formatCss(source: string): string {
       compact.startsWith("@") ||
       compact.startsWith("&") ||
       compact.startsWith(":")
-    )
+    ) {
       return compact;
+    }
     const colon = compact.indexOf(":");
     return colon === -1
       ? compact
@@ -105,7 +108,9 @@ function formatCss(source: string): string {
   for (const character of source) {
     if (quote) {
       token += character;
-      if (character === quote && token.at(-2) !== "\\") quote = "";
+      if (character === quote && token.at(-2) !== "\\") {
+        quote = "";
+      }
       continue;
     }
     if (character === '"' || character === "'") {
@@ -113,8 +118,12 @@ function formatCss(source: string): string {
       token += character;
       continue;
     }
-    if (character === "(") parentheses += 1;
-    if (character === ")") parentheses = Math.max(0, parentheses - 1);
+    if (character === "(") {
+      parentheses += 1;
+    }
+    if (character === ")") {
+      parentheses = Math.max(0, parentheses - 1);
+    }
     if (parentheses === 0 && character === "{") {
       write(`${normalize(token)} {`);
       token = "";
@@ -123,7 +132,9 @@ function formatCss(source: string): string {
       write(`${normalize(token, true)};`);
       token = "";
     } else if (parentheses === 0 && character === "}") {
-      if (token.trim()) write(normalize(token, true));
+      if (token.trim()) {
+        write(normalize(token, true));
+      }
       token = "";
       indent = Math.max(0, indent - 1);
       write("}");
@@ -131,7 +142,9 @@ function formatCss(source: string): string {
       token += character;
     }
   }
-  if (token.trim()) write(normalize(token, true));
+  if (token.trim()) {
+    write(normalize(token, true));
+  }
   return output.trim();
 }
 
@@ -151,7 +164,9 @@ function CodeEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   useEffect(() => {
-    if (!host.current) return undefined;
+    if (!host.current) {
+      return undefined;
+    }
     view.current = new EditorView({
       state: EditorState.create({
         doc: value,
@@ -160,7 +175,9 @@ function CodeEditor({
           extensions,
           EditorView.lineWrapping,
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) onChangeRef.current(update.state.doc.toString());
+            if (update.docChanged) {
+              onChangeRef.current(update.state.doc.toString());
+            }
           }),
         ],
       }),
@@ -173,12 +190,16 @@ function CodeEditor({
   }, [extensions]);
   useEffect(() => {
     const editor = view.current;
-    if (!editor || editor.state.doc.toString() === value) return;
+    if (!editor || editor.state.doc.toString() === value) {
+      return;
+    }
     editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
   }, [value]);
   useEffect(() => {
     const editor = view.current;
-    if (!editor || !selection) return;
+    if (!editor || !selection) {
+      return;
+    }
     editor.dispatch({
       selection: EditorSelection.range(selection.start, selection.end),
       scrollIntoView: true,
@@ -216,15 +237,22 @@ function Play() {
           signal: controller.signal,
         });
         const next = (await response.json()) as Result;
-        if (!response.ok)
+        if (!response.ok) {
           throw new Error("error" in next ? String(next.error) : "Preview compilation failed");
-        if (requestId.current !== currentRequest) return;
+        }
+        if (requestId.current !== currentRequest) {
+          return;
+        }
         setResult(next);
         setPreviewError(null);
         setStatus(next.diagnostics.length ? "Diagnostics" : "Ready");
-        if (next.diagnostics.length) setOutputTab("diagnostics");
+        if (next.diagnostics.length) {
+          setOutputTab("diagnostics");
+        }
       } catch (error) {
-        if (controller.signal.aborted || requestId.current !== currentRequest) return;
+        if (controller.signal.aborted || requestId.current !== currentRequest) {
+          return;
+        }
         setResult(null);
         setPreviewError(error instanceof Error ? error.message : String(error));
         setStatus("Error");
@@ -241,8 +269,9 @@ function Play() {
       if (
         event.source !== frame.current?.contentWindow ||
         event.data?.type !== "stillwind-preview-error"
-      )
+      ) {
         return;
+      }
       setPreviewError(event.data.message ?? "Preview execution failed");
       setStatus("Runtime error");
     };

@@ -8,23 +8,40 @@ import {
   sourceRegions,
   type ConvertedFramework,
   type ScriptRegion,
-} from "./index.ts";
+} from "./common.ts";
 
 export function convert(source: string, filename: string): ConvertedFramework {
-  const ast = parse(source, { modern: true, filename });
-  const options = { isTsFile: true, emitOnTemplateError: false } as const;
-  const result = svelte2tsx(source, { ...options, filename });
+  const ast = parse(source, {
+    modern: true,
+    filename,
+  });
+  const options = {
+    isTsFile: true,
+    emitOnTemplateError: false,
+  } as const;
+  const result = svelte2tsx(source, {
+    ...options,
+    filename,
+  });
   const scripts: ScriptRegion[] = [];
   for (const [id, script] of [
     [0, ast.module],
     [1, ast.instance],
   ] as const) {
-    if (!script) continue;
+    if (!script) {
+      continue;
+    }
     const start = "start" in script.content ? script.content.start : undefined;
     const end = "end" in script.content ? script.content.end : undefined;
-    if (typeof start !== "number" || typeof end !== "number")
+    if (typeof start !== "number" || typeof end !== "number") {
       throw new Error("Svelte script has no source coordinates");
-    scripts.push({ id, start, end, ...(id === 1 && ast.module ? { parent: 0 } : {}) });
+    }
+    scripts.push({
+      id,
+      start,
+      end,
+      ...(id === 1 && ast.module ? { parent: 0 } : {}),
+    });
   }
   return {
     framework: "Svelte",

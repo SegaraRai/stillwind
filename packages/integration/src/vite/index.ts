@@ -96,15 +96,23 @@ function resolvedFile(
   result: { id: string; external?: boolean | string } | null,
   description: string,
 ): string {
-  if (!result) throw new Error(`Cannot resolve ${description}`);
-  if (result.id.startsWith("file:")) return fileURLToPath(result.id);
-  if (!result.external || isAbsolute(result.id)) return result.id;
+  if (!result) {
+    throw new Error(`Cannot resolve ${description}`);
+  }
+  if (result.id.startsWith("file:")) {
+    return fileURLToPath(result.id);
+  }
+  if (!result.external || isAbsolute(result.id)) {
+    return result.id;
+  }
   throw new Error(`Cannot read external ${description}: ${result.id}`);
 }
 
 function cssEntrypoint(options: StillwindOptions): string {
   const path = options.css ?? options.theme;
-  if (!path) throw new Error("Stillwind requires a CSS-first entrypoint (`css`)");
+  if (!path) {
+    throw new Error("Stillwind requires a CSS-first entrypoint (`css`)");
+  }
   return path;
 }
 
@@ -113,8 +121,12 @@ function cssEntrypoint(options: StillwindOptions): string {
 /// The design system's own sources are reserved already, so reserving them again changes nothing;
 /// the carriers the plugin serves are generated CSS and must never be read as authored names.
 function isAuthoredStylesheet(id: string): boolean {
-  if (!cleanModuleId(id).endsWith(".css")) return false;
-  if (id.startsWith("virtual:") || id.includes("?")) return false;
+  if (!cleanModuleId(id).endsWith(".css")) {
+    return false;
+  }
+  if (id.startsWith("virtual:") || id.includes("?")) {
+    return false;
+  }
   const path = cleanModuleId(id).replaceAll("\\", "/");
   return !path.startsWith("\0stillwind:");
 }
@@ -144,13 +156,17 @@ function readJson(request: IncomingMessage): Promise<{ source: string; theme: st
     request.setEncoding("utf8");
     request.on("data", (chunk: string) => {
       body += chunk;
-      if (Buffer.byteLength(body) > maximumPlayPayloadBytes)
+      if (Buffer.byteLength(body) > maximumPlayPayloadBytes) {
         reject(new Error("playground input exceeds 1 MB"));
+      }
     });
     request.on("error", reject);
     request.on("end", () => {
       try {
-        const value = JSON.parse(body) as Partial<{ source: unknown; theme: unknown }>;
+        const value = JSON.parse(body) as Partial<{
+          source: unknown;
+          theme: unknown;
+        }>;
         if (typeof value.source !== "string" || typeof value.theme !== "string") {
           throw new Error("source and theme must be strings");
         }
@@ -182,10 +198,11 @@ async function bundlePreview(source: string, css: string, server: ViteDevServer)
     : /\bexport\s+(?:function|const|let|class)\s+App\b|\bexport\s*\{\s*App\s*\}/.test(userSource)
       ? `import { App } from "${userModuleId}";`
       : null;
-  if (!appImport)
+  if (!appImport) {
     throw new Error(
       "Play expects `export default App`, `export function App`, or `export { App }`.",
     );
+  }
   const entry = `
     import * as React from "react";
     import { createRoot } from "react-dom/client";
@@ -229,7 +246,9 @@ async function bundlePreview(source: string, css: string, server: ViteDevServer)
     ],
   });
   const javascript = result.outputFiles[0]?.text;
-  if (!javascript) throw new Error("preview bundle did not produce JavaScript");
+  if (!javascript) {
+    throw new Error("preview bundle did not produce JavaScript");
+  }
   return `
 window.addEventListener("error", (event) => parent.postMessage({type:"stillwind-preview-error",message:event.message}, "*"));
 window.addEventListener("unhandledrejection", (event) => parent.postMessage({type:"stillwind-preview-error",message:String(event.reason)}, "*"));
@@ -288,7 +307,9 @@ export function stillwind(options: StillwindOptions): Plugin {
   let projectRoot = "";
   const loaderResources = new WeakMap<NativeDesignSystemLoader, Map<string, string>>();
   const resolveResources = (css: string, references = new Map<string, string>()) => {
-    for (const [placeholder, url] of references) css = css.replaceAll(placeholder, url);
+    for (const [placeholder, url] of references) {
+      css = css.replaceAll(placeholder, url);
+    }
     return css;
   };
   const closeTypeFacts = () => {
@@ -326,11 +347,15 @@ export function stillwind(options: StillwindOptions): Plugin {
   };
 
   const writeTypes = (loader: NativeDesignSystemLoader) => {
-    if (options.types === false) return;
+    if (options.types === false) {
+      return;
+    }
     const path = resolve(projectRoot, options.types ?? "src/stillwind.generated.d.ts");
     const types = loader.generateVocabularyTypes();
     try {
-      if (readFileSync(path, "utf8") === types) return;
+      if (readFileSync(path, "utf8") === types) {
+        return;
+      }
     } catch {
       /* First generation. */
     }
@@ -349,24 +374,32 @@ export function stillwind(options: StillwindOptions): Plugin {
       addWatchFile: (id: string) => void;
     },
   ) => {
-    if (state.session) return;
+    if (state.session) {
+      return;
+    }
     if (!state.initializing) {
       const revision = ++state.revision;
       const initialize = async () => {
         const dependencies = new Set<string>();
         const loader = await loadDesignSystem(
           async (specifier, importer) => {
-            const result = await context.resolve(specifier, importer, { skipSelf: true });
+            const result = await context.resolve(specifier, importer, {
+              skipSelf: true,
+            });
             return resolvedFile(result, `CSS ${specifier} from ${importer}`);
           },
           undefined,
           dependencies,
         );
-        if (state.revision !== revision) return;
+        if (state.revision !== revision) {
+          return;
+        }
         state.session = new NativeProjectSession(loader, watching, compilerMode, options.naming);
         state.resources = loaderResources.get(loader) ?? new Map();
         state.cssFiles = dependencies;
-        for (const path of dependencies) context.addWatchFile(path);
+        for (const path of dependencies) {
+          context.addWatchFile(path);
+        }
         writeTypes(loader);
       };
       state.initializing = initialize().finally(() => {
@@ -389,7 +422,9 @@ export function stillwind(options: StillwindOptions): Plugin {
   const inputs = new Map<string, Map<string, Input>>();
   const inputMap = (name = "client") => {
     let map = inputs.get(name);
-    if (!map) inputs.set(name, (map = new Map()));
+    if (!map) {
+      inputs.set(name, (map = new Map()));
+    }
     return map;
   };
   const includeSourceContent = (name?: string) =>
@@ -405,7 +440,9 @@ export function stillwind(options: StillwindOptions): Plugin {
     const key = watching
       ? createHash("sha256").update(css).digest("hex")
       : Buffer.from(css).toString("base64url");
-    if (watching) fragments.set(key, css);
+    if (watching) {
+      fragments.set(key, css);
+    }
     return "virtual:stillwind/fragment:" + key;
   };
   const runtimeId = "\0stillwind:runtime";
@@ -435,7 +472,11 @@ export function stillwind(options: StillwindOptions): Plugin {
     const plan = state.session!.planStylesheet({
       modules,
       coverage: complete
-        ? { kind: "complete", target: "application", revision: String(state.revision) }
+        ? {
+            kind: "complete",
+            target: "application",
+            revision: String(state.revision),
+          }
         : { kind: "observed" },
       placement: "document",
     });
@@ -495,11 +536,13 @@ export function stillwind(options: StillwindOptions): Plugin {
     return resolvePlan(state, modules, context, complete);
   };
   const publish = async (name: string | undefined, context: Parameters<typeof resolvePlan>[2]) => {
-    if (!watching || !devServerRef) return;
+    if (!watching || !devServerRef) {
+      return;
+    }
     const state = environmentState(name);
     const revision = ++state.revision;
     const plan = await documentPlan(name, context);
-    if (revision === state.revision)
+    if (revision === state.revision) {
       devServerRef.environments[name ?? "client"]?.hot.send({
         type: "custom",
         event: "stillwind:css",
@@ -511,6 +554,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           ),
         },
       });
+    }
   };
   const compile = async (
     name: string | undefined,
@@ -550,7 +594,9 @@ export function stillwind(options: StillwindOptions): Plugin {
           moduleCssImport: valueSpecifier(id),
         },
       );
-      if (!output?.code) return;
+      if (!output?.code) {
+        return;
+      }
       const finalized = sfc
         ? { code: output.code, removed: [], prefix: "" }
         : finalizeModuleWithMap(output.code, false);
@@ -562,7 +608,10 @@ export function stillwind(options: StillwindOptions): Plugin {
       inputMap(name).set(cleanModuleId(id), {
         projection: inputMap(name).get(cleanModuleId(id))?.projection,
         upstream: context.getCombinedSourcemap
-          ? { id: cleanModuleId(id), map: JSON.stringify(context.getCombinedSourcemap()) }
+          ? {
+              id: cleanModuleId(id),
+              map: JSON.stringify(context.getCombinedSourcemap()),
+            }
           : inputMap(name).get(cleanModuleId(id))?.upstream,
         code,
         id,
@@ -584,7 +633,12 @@ export function stillwind(options: StillwindOptions): Plugin {
           ),
         ),
         meta: {
-          stillwind: { input: code, id, path: output.path, manual: output.hasModuleCssImport },
+          stillwind: {
+            input: code,
+            id,
+            path: output.path,
+            manual: output.hasModuleCssImport,
+          },
         },
       };
     } finally {
@@ -602,18 +656,29 @@ export function stillwind(options: StillwindOptions): Plugin {
         const source = await this.resolve(id.slice(0, -"?stillwind.css".length), importer, {
           skipSelf: true,
         });
-        if (!source || source.external) this.error(`Cannot resolve Stillwind projection ${id}`);
+        if (!source || source.external) {
+          this.error(`Cannot resolve Stillwind projection ${id}`);
+        }
         return projectionPrefix + Buffer.from(cleanModuleId(source.id)).toString("base64url");
       }
-      if (id === runtimeSpecifier || id === virtualCssId) return runtimeId;
-      if (id === "virtual:stillwind/snapshot.css") return "\0stillwind:snapshot.css";
-      if (id.startsWith("virtual:stillwind/value:"))
+      if (id === runtimeSpecifier || id === virtualCssId) {
+        return runtimeId;
+      }
+      if (id === "virtual:stillwind/snapshot.css") {
+        return "\0stillwind:snapshot.css";
+      }
+      if (id.startsWith("virtual:stillwind/value:")) {
         return valuePrefix + id.slice("virtual:stillwind/value:".length);
-      if (id.startsWith("virtual:stillwind/fragment:"))
+      }
+      if (id.startsWith("virtual:stillwind/fragment:")) {
         return fragmentPrefix + id.slice("virtual:stillwind/fragment:".length);
-      if (id.startsWith("virtual:stillwind/producer:"))
+      }
+      if (id.startsWith("virtual:stillwind/producer:")) {
         return producerPrefix + id.slice("virtual:stillwind/producer:".length);
-      if (id.startsWith("\0stillwind:")) return id;
+      }
+      if (id.startsWith("\0stillwind:")) {
+        return id;
+      }
       return undefined;
     },
     async load(id) {
@@ -633,7 +698,9 @@ export function stillwind(options: StillwindOptions): Plugin {
         );
       }
       if (id.startsWith(producerPrefix)) {
-        if (!watching) return "export {};";
+        if (!watching) {
+          return "export {};";
+        }
         const producer = Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8");
         return `import {register,unregister,synchronize} from ${JSON.stringify(runtimeSpecifier)}; await synchronize(${environmentState(name).revision}); register(${JSON.stringify(producer)}); if(import.meta.hot) import.meta.hot.prune(()=>unregister(${JSON.stringify(producer)}));`;
       }
@@ -653,7 +720,9 @@ export function stillwind(options: StillwindOptions): Plugin {
         };
       }
       if (id === runtimeId) {
-        if (!watching) return "export {};";
+        if (!watching) {
+          return "export {};";
+        }
         const plan = await documentPlan(name, this);
         const revision = environmentState(name).revision;
         const code = developmentRuntime(
@@ -667,9 +736,14 @@ export function stillwind(options: StillwindOptions): Plugin {
           devSourceMaps,
           `${publicBase}__stillwind/css?environment=${encodeURIComponent(name ?? "client")}`,
         );
-        if (!devSourceMaps) return code;
+        if (!devSourceMaps) {
+          return code;
+        }
         const bundled = await build({
-          stdin: { contents: code, resolveDir: dirname(fileURLToPath(import.meta.url)) },
+          stdin: {
+            contents: code,
+            resolveDir: dirname(fileURLToPath(import.meta.url)),
+          },
           bundle: true,
           write: false,
           format: "esm",
@@ -680,9 +754,12 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (id.startsWith(fragmentPrefix)) {
         const key = id.slice(fragmentPrefix.length);
         let css = watching ? fragments.get(key) : Buffer.from(key, "base64url").toString("utf8");
-        if (css === undefined) this.error(`Unknown Stillwind CSS fragment ${key}`);
-        if (!watching && minifyCss)
+        if (css === undefined) {
+          this.error(`Unknown Stillwind CSS fragment ${key}`);
+        }
+        if (!watching && minifyCss) {
           css = (await transformCss(css, { loader: "css", minify: true })).code;
+        }
         const files = [
           ...new Set([...css.matchAll(/\/@fs\/([^"'\s)]+)/g)].map((match) => match[1])),
         ];
@@ -703,14 +780,20 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (id.startsWith(valuePrefix)) {
         const sourceId = Buffer.from(id.slice(valuePrefix.length), "base64url").toString("utf8");
         this.addWatchFile(sourceId);
-        if (!inputMap(name).has(sourceId))
+        if (!inputMap(name).has(sourceId)) {
           await compile(name, await readFile(sourceId, "utf8"), sourceId, this);
+        }
         const input = inputMap(name).get(sourceId);
-        if (!input) this.error(`No Stillwind producer for ${sourceId}`);
+        if (!input) {
+          this.error(`No Stillwind producer for ${sourceId}`);
+        }
         const plan = await resolvePlan(environmentState(name), [input.path], this, !watching);
-        for (const producer of plan.producers)
+        for (const producer of plan.producers) {
           this.addWatchFile(resolve(projectRoot, producer.module));
-        for (const file of environmentState(name).cssFiles) this.addWatchFile(file);
+        }
+        for (const file of environmentState(name).cssFiles) {
+          this.addWatchFile(file);
+        }
         const imports = plan.parts
           .map(
             (part, index) =>
@@ -748,18 +831,26 @@ export function stillwind(options: StillwindOptions): Plugin {
       );
     },
     async renderStart() {
-      if (watching) return;
+      if (watching) {
+        return;
+      }
       const name = this.environment?.name;
       const state = environmentState(name);
       // The final graph includes lazy modules and cached transforms. Recover inputs
       // from graph metadata before making a complete-coverage claim.
       for (const id of this.getModuleIds()) {
         const metadata = this.getModuleInfo(id)?.meta.stillwind;
-        if (metadata?.input !== undefined && !inputMap(name).has(cleanModuleId(metadata.id ?? id)))
+        if (
+          metadata?.input !== undefined &&
+          !inputMap(name).has(cleanModuleId(metadata.id ?? id))
+        ) {
           await compile(name, metadata.input, metadata.id ?? id, this);
+        }
         if (metadata?.projection) {
           const input = inputMap(name).get(cleanModuleId(metadata.id ?? id));
-          if (input) input.projection = true;
+          if (input) {
+            input.projection = true;
+          }
         }
       }
       const plan = await documentPlan(name, this, true);
@@ -768,13 +859,16 @@ export function stillwind(options: StillwindOptions): Plugin {
           (id) =>
             id === runtimeId || id.startsWith(producerPrefix) || id.startsWith(projectionPrefix),
         )
-      )
+      ) {
         return;
+      }
       const assets = new Map<string, string>();
       let css = plan.css;
       for (const match of css.matchAll(/\/@fs\/([^"'\s)]+)/g)) {
         const file = match[1];
-        if (assets.has(file)) continue;
+        if (assets.has(file)) {
+          continue;
+        }
         const reference = this.emitFile({
           type: "asset",
           name: decodeURIComponent(file).split("/").at(-1),
@@ -783,11 +877,12 @@ export function stillwind(options: StillwindOptions): Plugin {
         assets.set(file, reference);
       }
       const resourceUrls = (text: string) => {
-        for (const [file, reference] of assets)
+        for (const [file, reference] of assets) {
           text = text.replaceAll(
             `/@fs/${file}`,
             posix.relative(assetsDirectory, this.getFileName(reference)),
           );
+        }
         return text;
       };
       css = resourceUrls(css);
@@ -891,8 +986,11 @@ export function stillwind(options: StillwindOptions): Plugin {
         const modules = Object.fromEntries(
           plan.producers.map((producer) => {
             const closure = new Set([producer.module]);
-            for (const module of closure)
-              for (const dependency of dependencies.get(module) ?? []) closure.add(dependency);
+            for (const module of closure) {
+              for (const dependency of dependencies.get(module) ?? []) {
+                closure.add(dependency);
+              }
+            }
             return [
               producer.module,
               parts
@@ -917,9 +1015,14 @@ export function stillwind(options: StillwindOptions): Plugin {
       const { manifest, buildCss } = environmentState(this.environment?.name);
       if (options.emission === "split" && manifest) {
         const graph = new Set(Object.keys(chunk.modules));
-        if (chunk.facadeModuleId) graph.add(chunk.facadeModuleId);
-        for (const id of graph)
-          for (const dependency of this.getModuleInfo(id)?.importedIds ?? []) graph.add(dependency);
+        if (chunk.facadeModuleId) {
+          graph.add(chunk.facadeModuleId);
+        }
+        for (const id of graph) {
+          for (const dependency of this.getModuleInfo(id)?.importedIds ?? []) {
+            graph.add(dependency);
+          }
+        }
         const ids = new Set(
           [...graph].flatMap(
             (id) =>
@@ -943,15 +1046,19 @@ export function stillwind(options: StillwindOptions): Plugin {
                 ? posix.relative(posix.dirname(chunk.fileName), part.href.slice(publicBase.length))
                 : part.href,
           }));
-        if (parts.length)
+        if (parts.length) {
           return {
             code: `${_code}\nif(typeof document!=="undefined"){for(const p of ${JSON.stringify(parts)}){const links=[...document.querySelectorAll('link[data-stillwind-part]')];if(links.some(l=>l.dataset.stillwindPart===p.id))continue;const l=document.createElement('link');l.rel='stylesheet';l.href=p.relative?new URL(p.href,import.meta.url).href:p.href;l.dataset.stillwindPart=p.id;l.dataset.stillwindOrder=String(p.order);document.head.insertBefore(l,links.find(e=>Number(e.dataset.stillwindOrder)>p.order)??null);}}`,
             map: null,
           };
+        }
       }
       if (buildCss) {
         const metadata = chunk as typeof chunk & {
-          viteMetadata?: { importedCss: Set<string>; importedAssets: Set<string> };
+          viteMetadata?: {
+            importedCss: Set<string>;
+            importedAssets: Set<string>;
+          };
         };
         metadata.viteMetadata ??= {
           importedCss: new Set(),
@@ -972,7 +1079,9 @@ export function stillwind(options: StillwindOptions): Plugin {
         addWatchFile: (id: string) => {
           context.server.watcher.add(id);
         },
-        warn: (message: string) => this.warn(message),
+        warn: (message: string) => {
+          this.warn(message);
+        },
       };
       try {
         if (state.cssFiles.has(context.file) || state.cssFiles.has(resolve(context.file))) {
@@ -984,7 +1093,9 @@ export function stillwind(options: StillwindOptions): Plugin {
             undefined,
             dependencies,
           );
-          if (revision !== state.loadRevision) return [];
+          if (revision !== state.loadRevision) {
+            return [];
+          }
           const update = state.session!.reload(loader);
           state.resources = loaderResources.get(loader) ?? new Map();
           state.cssFiles = dependencies;
@@ -1004,14 +1115,18 @@ export function stillwind(options: StillwindOptions): Plugin {
                   ].filter((module): module is NonNullable<typeof module> => Boolean(module))
                 : []),
             ]);
-          for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
+          for (const module of modules) {
+            this.environment.moduleGraph.invalidateModule(module);
+          }
           return modules;
         }
         const previous = inputMap(name).get(id);
         if (previous && context.type !== "delete") {
           const result = await compile(name, await context.read(), id, host);
           await publish(name, host);
-          if (!previous.manual && result?.code === previous.javascript) return [];
+          if (!previous.manual && result?.code === previous.javascript) {
+            return [];
+          }
         }
       } catch (error) {
         this.warn(`Stillwind update failed; retaining published styles: ${String(error)}`);
@@ -1019,10 +1134,14 @@ export function stillwind(options: StillwindOptions): Plugin {
       return undefined;
     },
     async watchChange(id, change) {
-      if (change.event !== "delete") return;
+      if (change.event !== "delete") {
+        return;
+      }
       const name = this.environment?.name;
       const state = environmentState(name);
-      if (!state.session || !inputMap(name).delete(cleanModuleId(id))) return;
+      if (!state.session || !inputMap(name).delete(cleanModuleId(id))) {
+        return;
+      }
       state.session.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
       await publish(name, this);
     },
@@ -1044,8 +1163,9 @@ export function stillwind(options: StillwindOptions): Plugin {
           id.includes("node_modules") ||
           id.startsWith("\0") ||
           /[?&](?:raw|url|type)(?:[=&]|$)/.test(id)
-        )
+        ) {
           return;
+        }
         if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
           if (inputMap(name).delete(cleanModuleId(id))) {
             environmentState(name).session?.remove(
@@ -1067,7 +1187,9 @@ export function stillwind(options: StillwindOptions): Plugin {
           new URL(request.url ?? "", "http://stillwind.local").searchParams.get("environment") ??
           "client";
         const environment = server.environments[name];
-        if (!environment) return sendJson(response, { error: "Unknown environment" }, 404);
+        if (!environment) {
+          return sendJson(response, { error: "Unknown environment" }, 404);
+        }
         const host = {
           resolve: (specifier: string, importer: string) =>
             environment.pluginContainer.resolveId(specifier, importer),
@@ -1089,15 +1211,17 @@ export function stillwind(options: StillwindOptions): Plugin {
       });
       server.httpServer?.once("close", closeTypeFacts);
       server.middlewares.use("/__stillwind/compile", (request, response) => {
-        if (request.method !== "POST")
+        if (request.method !== "POST") {
           return sendJson(response, { error: "POST is required" }, 405);
+        }
         void readJson(request)
           .then(async ({ source, theme }) => {
             const playLoader = await loadDesignSystem(
               async (specifier, importer) => {
                 const result = await server.pluginContainer.resolveId(specifier, importer);
-                if (!result || result.external)
+                if (!result || result.external) {
                   throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+                }
                 return result.id;
               },
               theme,
@@ -1111,7 +1235,10 @@ export function stillwind(options: StillwindOptions): Plugin {
             );
             // Preserve byte length for the Play shorthand's source positions.
             const playProject = playSession.compile([
-              { path: "Play.tsx", source: source.replace(/\bexport App;/g, "export{App}") },
+              {
+                path: "Play.tsx",
+                source: source.replace(/\bexport App;/g, "export{App}"),
+              },
             ]);
             const output = playProject.modules[0]!;
             output.css = resolveResources(playSession.css(), loaderResources.get(playLoader));
@@ -1120,8 +1247,9 @@ export function stillwind(options: StillwindOptions): Plugin {
               try {
                 const id = randomUUID();
                 previewBundles.set(id, await bundlePreview(output.code, output.css, server));
-                while (previewBundles.size > 12)
+                while (previewBundles.size > 12) {
                   previewBundles.delete(previewBundles.keys().next().value!);
+                }
                 previewUrl = `/__stillwind/preview?id=${encodeURIComponent(id)}`;
               } catch (error) {
                 output.diagnostics.push({

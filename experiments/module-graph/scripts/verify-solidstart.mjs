@@ -73,11 +73,12 @@ function start(mode) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   let logs = "";
-  for (const stream of [child.stdout, child.stderr])
+  for (const stream of [child.stdout, child.stderr]) {
     stream.on("data", (data) => {
       logs += data;
       process.stdout.write(data);
     });
+  }
   return { child, logs: () => logs, done: new Promise((resolve) => child.on("exit", resolve)) };
 }
 async function stop() {
@@ -89,9 +90,13 @@ async function stop() {
 }
 async function ready() {
   for (let i = 0; i < 100; i++) {
-    if (proc.child.exitCode !== null) throw new Error(proc.logs());
+    if (proc.child.exitCode !== null) {
+      throw new Error(proc.logs());
+    }
     try {
-      if ((await fetch(url, { signal: AbortSignal.timeout(2000) })).ok) return;
+      if ((await fetch(url, { signal: AbortSignal.timeout(2000) })).ok) {
+        return;
+      }
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 200));
   }

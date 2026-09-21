@@ -43,10 +43,13 @@ for (const backend of ["webpack", "rspack"] as const) {
     const run = () =>
       new Promise<void>((resolve, reject) =>
         compiler.run((error, stats) => {
-          if (error) reject(error);
-          else if (!stats || stats.hasErrors())
+          if (error) {
+            reject(error);
+          } else if (!stats || stats.hasErrors()) {
             reject(new Error(stats?.toString({ all: false, errors: true })));
-          else resolve();
+          } else {
+            resolve();
+          }
         }),
       );
     const css = () =>

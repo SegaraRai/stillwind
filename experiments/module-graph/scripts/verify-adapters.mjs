@@ -79,9 +79,13 @@ function start(args) {
 }
 async function ready() {
   for (let i = 0; i < 100; i++) {
-    if (proc.child.exitCode !== null) throw new Error(proc.logs());
+    if (proc.child.exitCode !== null) {
+      throw new Error(proc.logs());
+    }
     try {
-      if ((await fetch(url, { signal: AbortSignal.timeout(2000) })).ok) return;
+      if ((await fetch(url, { signal: AbortSignal.timeout(2000) })).ok) {
+        return;
+      }
     } catch {}
     await delay(300);
   }

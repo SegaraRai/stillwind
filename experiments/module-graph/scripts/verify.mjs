@@ -14,8 +14,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runId = new Date().toISOString().replaceAll(/[:.]/g, "-");
 const out = path.join(root, "output", runId);
 const results = { runId, node: process.version, versions: {}, checks: [] };
-for (const p of ["vite-plus", "next", "react", "playwright", "@rspack/core"])
+for (const p of ["vite-plus", "next", "react", "playwright", "@rspack/core"]) {
   results.versions[p] = require(p + "/package.json").version;
+}
 const write = async (file, text) => {
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, text);
@@ -65,15 +66,21 @@ function startNext(dir, args) {
   return { child, done, logs: () => logs };
 }
 async function stop(proc) {
-  if (proc.child.exitCode === null) proc.child.kill();
+  if (proc.child.exitCode === null) {
+    proc.child.kill();
+  }
   await Promise.race([proc.done, delay(5000)]);
 }
 async function ready(url, proc) {
   for (let i = 0; i < 40; i++) {
-    if (proc.child.exitCode !== null) throw new Error(proc.logs());
+    if (proc.child.exitCode !== null) {
+      throw new Error(proc.logs());
+    }
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(1500) });
-      if (r.ok) return;
+      if (r.ok) {
+        return;
+      }
     } catch {}
     await delay(500);
   }
@@ -106,10 +113,11 @@ async function colors(page, url, expected) {
 }
 async function files(dir) {
   let names = [];
-  for (const e of await fs.readdir(dir, { withFileTypes: true }))
+  for (const e of await fs.readdir(dir, { withFileTypes: true })) {
     names.push(
       ...(e.isDirectory() ? await files(path.join(dir, e.name)) : [path.join(dir, e.name)]),
     );
+  }
   return names;
 }
 
@@ -192,7 +200,9 @@ async function nextExperiment() {
     await check("next-loader-events-" + pass, async () => {
       const afterEvents = (await fs.readFile(eventFile, "utf8")).trim().split("\n").length;
       const executed = afterEvents - beforeEvents;
-      if (pass === "warm") assert.equal(executed, 0);
+      if (pass === "warm") {
+        assert.equal(executed, 0);
+      }
       return { executed, separateNodeProcess: true };
     });
     const server = startNext(dir, ["start", "-p", "43172"]);
@@ -222,18 +232,26 @@ function vitePlugin(mode, state) {
   return {
     name: "transport-experiment",
     resolveId(id) {
-      if (id === "virtual:aggregate.css" || id.startsWith("/__sw/")) return id;
+      if (id === "virtual:aggregate.css" || id.startsWith("/__sw/")) {
+        return id;
+      }
     },
     load(id) {
       if (id === "virtual:aggregate.css") {
         state.loads.push([...state.rules.keys()]);
         return mode === "aggregate" ? [...state.rules.values()].join("\n") : "";
       }
-      if (id.startsWith("/__sw/")) return new URLSearchParams(id.split("?")[1]).get("css");
+      if (id.startsWith("/__sw/")) {
+        return new URLSearchParams(id.split("?")[1]).get("css");
+      }
     },
     async transform(code, id) {
-      if (!id.endsWith(".js") || !code.includes("styleToken(")) return;
-      if (id.endsWith("slow.js")) await delay(350);
+      if (!id.endsWith(".js") || !code.includes("styleToken(")) {
+        return;
+      }
+      if (id.endsWith("slow.js")) {
+        await delay(350);
+      }
       state.transformed.push(path.basename(id));
       let css = "";
       const replaced = code.replace(/styleToken\('([^']+)'\)/g, (_, rule) => {
@@ -271,8 +289,9 @@ async function viteExperiment() {
     ["slow", "rgb(40, 50, 60)"],
     ["lazy", "rgb(70, 80, 90)"],
     ["unused", "rgb(100, 110, 120)"],
-  ])
+  ]) {
     await write(path.join(dir, name + ".js"), `export const ${name}=styleToken('color:${color}');`);
+  }
   for (const mode of ["aggregate", "carrier"]) {
     const state = { rules: new Map(), loads: [], transformed: [] };
     await check("vite-build-" + mode, async () => {
@@ -292,7 +311,9 @@ async function viteExperiment() {
       if (mode === "carrier") {
         assert(hasSlow);
         assert(hasLazy);
-      } else assert(!hasSlow, "Baseline unexpectedly includes slow CSS; examine scheduling");
+      } else {
+        assert(!hasSlow, "Baseline unexpectedly includes slow CSS; examine scheduling");
+      }
       return {
         aggregateLoadAt: state.loads,
         transformed: state.transformed,
@@ -364,7 +385,9 @@ async function rspackExperiment() {
     "export const unused=styleToken('color:rgb(201, 202, 203)');",
   );
   for (const pass of ["cold", "warm", "changed"]) {
-    if (pass === "changed") await fs.writeFile(path.join(dir, "theme.txt"), "rgb(41, 42, 43)");
+    if (pass === "changed") {
+      await fs.writeFile(path.join(dir, "theme.txt"), "rgb(41, 42, 43)");
+    }
     await check("rspack-" + pass, async () => {
       const before = await fs
         .readFile(path.join(dir, "loader-events.jsonl"), "utf8")
@@ -406,8 +429,12 @@ async function rspackExperiment() {
         ).test(css),
       );
       assert(/color:\s*rgb\(31,\s*32,\s*33\)/.test(css));
-      if (pass === "warm") assert.equal(events.length, 0);
-      if (pass === "changed") assert(events.length > 0);
+      if (pass === "warm") {
+        assert.equal(events.length, 0);
+      }
+      if (pass === "changed") {
+        assert(events.length > 0);
+      }
       return {
         cssAssets: cssAssets.map((a) => a.name),
         executedLoaders: events,
@@ -456,7 +483,9 @@ try {
   results.fatal = String(e.stack);
   console.error(e);
 } finally {
-  for (const p of processes) p.kill();
+  for (const p of processes) {
+    p.kill();
+  }
   await browser?.close();
   await write(path.join(root, "results/latest.json"), JSON.stringify(results, null, 2));
 }
