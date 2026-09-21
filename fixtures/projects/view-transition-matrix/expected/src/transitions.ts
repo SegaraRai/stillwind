@@ -25,4 +25,4 @@ export const namedExplicitly = {className:stillwindClsx("sw_0j70v",({"sw-vt-page
 export const unioned = {className:"sw_j0jnc"};
 
 // A guarded use fills a slot its own class carries, beside the unconditional classes.
-export const guarded = {className:stillwindClsx("sw_mo7p2",(compact) && ("sw_wiq0e"))};
+export const guarded = stillwindMerge({[stillwindClassKey]:"sw_mo7p2"},(compact) && ({[stillwindClassKey]:"sw_wiq0e"}));

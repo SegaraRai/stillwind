@@ -257,7 +257,6 @@ fn folded_javascript_matches_runtime_materialization() {
             },
             StyleEmissionPart::Style {
                 expression: "payload()".into(),
-                guard: Vec::new(),
                 position: 1,
             },
         ] {

@@ -13,7 +13,7 @@ use stillwind_source::Span;
 
 use super::super::class_units::ClassUnits;
 use super::super::fragment::{Emitted, Property, ValueExpr};
-use super::super::props::{StyleEmission, StyleEmissionPart};
+use super::super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::super::symbols::{definition_name_symbol, ref_identity, ref_marker_name};
 use super::CallEmitter;
 use super::CallEmitterInputs;
@@ -54,7 +54,6 @@ impl<'a> CallEmitter<'a> {
             ),
             written_name_symbols: Vec::new(),
             view_transition_classes: false,
-            view_transition_names: 0,
             view_transition_name_paths: TransitionNamePaths::default(),
         };
         emitter.emit()
@@ -64,7 +63,7 @@ impl<'a> CallEmitter<'a> {
     /// Stops on an input returning `None`; shared output destinations are not rolled back.
     fn emit(mut self) -> Option<StyleEmission> {
         for input in self.call.inputs.clone() {
-            self.emit_input(&input)?;
+            self.emit_input(&input, &mut Vec::new())?;
         }
         self.report_view_transition_names();
         let parts = std::mem::take(&mut self.parts);
@@ -91,14 +90,34 @@ impl<'a> CallEmitter<'a> {
     /// required lowering/slicing failure; diagnostics and accumulated state remain owned
     /// by the pipeline, including failures represented by omitted nested contributions.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the style inputs.
-    fn emit_input(&mut self, input: &StyleInput) -> Option<()> {
+    fn emit_input(&mut self, input: &StyleInput, guard: &mut Vec<GuardStep>) -> Option<()> {
         match input {
+            StyleInput::Conditional {
+                test,
+                kind,
+                consequent,
+                alternate,
+            } => {
+                if let Some(expression) = class_input(input) {
+                    self.emit_item(&expression, test.start.0, guard);
+                    return Some(());
+                }
+                let consequent = self.emit_branch(consequent, *test, true, guard)?;
+                let alternate = self.emit_branch(alternate, *test, false, guard)?;
+                self.parts.push(StyleEmissionPart::Conditional {
+                    test: self.source_expression(*test)?,
+                    kind: *kind,
+                    consequent,
+                    alternate,
+                    position: test.start.0,
+                });
+            }
             StyleInput::Class(ClassExpression::Group { entries, .. }) => {
                 for entry in entries {
                     match entry {
                         GroupEntry::Class(expression) => {
                             let position = expression_position(expression);
-                            self.emit_item(expression, position);
+                            self.emit_item(expression, position, guard);
                         }
                         GroupEntry::Attribute(attribute) => {
                             let property = self.render_attribute(attribute)?;
@@ -119,7 +138,7 @@ impl<'a> CallEmitter<'a> {
             }
             StyleInput::Class(expression) => {
                 let position = expression_position(expression);
-                self.emit_item(expression, position);
+                self.emit_item(expression, position, guard);
             }
             StyleInput::Composition { value, .. } => {
                 let expression = self.source_expression(*value)?;
@@ -137,6 +156,15 @@ impl<'a> CallEmitter<'a> {
                     }
                 };
                 let marker = marker.as_str().to_owned();
+                if !guard.is_empty() {
+                    self.parts.push(StyleEmissionPart::Class {
+                        emitted: Emitted::Leaf {
+                            names: vec![marker],
+                        },
+                        position: definition.call_span.start.0,
+                    });
+                    return Some(());
+                }
                 if !self.units.base.names.contains(&marker) {
                     self.units.base.names.push(marker);
                 }
@@ -152,23 +180,37 @@ impl<'a> CallEmitter<'a> {
                 let expression = ref_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
-            StyleInput::ViewTransitionUse {
-                transition,
-                name,
-                guard,
-            } => {
+            StyleInput::ViewTransitionUse { transition, name } => {
                 self.emit_view_transition_use(transition, name, guard)?;
             }
             StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
                 name,
-                guard,
             } => {
                 self.emit_dynamic_view_transition_use(value, transitions, name, guard)?;
             }
         }
         Some(())
+    }
+
+    /// Collects one branch's contributions with its inherited CSS and diagnostic guard path.
+    /// Restores the caller's contribution and guard stacks even if lowering fails.
+    fn emit_branch(
+        &mut self,
+        inputs: &[StyleInput],
+        test: Span,
+        when_true: bool,
+        guard: &mut Vec<GuardStep>,
+    ) -> Option<Vec<StyleEmissionPart>> {
+        let outer = std::mem::take(&mut self.parts);
+        guard.push(GuardStep { test, when_true });
+        let result = inputs
+            .iter()
+            .try_for_each(|input| self.emit_input(input, guard));
+        guard.pop();
+        let parts = std::mem::replace(&mut self.parts, outer);
+        result.map(|()| parts)
     }
 
     /// Generates one definition's name and records it for pool validation.
@@ -243,5 +285,24 @@ impl<'a> CallEmitter<'a> {
     /// `None` on a slicing error; this helper does not emit diagnostics.
     fn slice(&self, span: Span) -> Option<String> {
         self.source.slice(span).ok().map(str::to_owned)
+    }
+}
+
+/// Preserves class-only folding when a common input branch contains no other channels.
+fn class_input(input: &StyleInput) -> Option<ClassExpression> {
+    match input {
+        StyleInput::Class(expression) => Some(expression.clone()),
+        StyleInput::Conditional {
+            test,
+            kind,
+            consequent,
+            alternate,
+        } => Some(ClassExpression::Conditional {
+            test: *test,
+            kind: *kind,
+            consequent: consequent.iter().map(class_input).collect::<Option<_>>()?,
+            alternate: alternate.iter().map(class_input).collect::<Option<_>>()?,
+        }),
+        _ => None,
     }
 }

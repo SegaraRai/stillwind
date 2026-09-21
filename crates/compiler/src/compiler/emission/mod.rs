@@ -89,12 +89,8 @@ pub(super) struct CallEmitter<'a> {
     written_name_symbols: Vec<GeneratedSymbol>,
     /// Whether the call marks participants with a view-transition class.
     view_transition_classes: bool,
-    /// Resolved utility entries whose declaration text contains `view-transition-name`.
-    /// Counts across all utility branches, without guard-path exclusivity analysis.
-    view_transition_names: usize,
-    /// Name supplies from transition uses, including keys carried by runtime values.
-    /// Its guard-aware maximum is added to the utility count for duplicate-name
-    /// linting.
+    /// Name supplies from utilities and transition uses, grouped by their shared guard paths.
+    /// The maximum simultaneous count drives duplicate-name linting.
     view_transition_name_paths: TransitionNamePaths,
 }
 

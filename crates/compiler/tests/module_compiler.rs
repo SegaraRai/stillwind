@@ -42,7 +42,9 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
         "{transformed}"
     );
     assert!(
-        transformed.contains("stillwindMerge(stillwindToFragment((flag?a:c)))"),
+        transformed.contains(
+            "stillwindMerge((flag) ? (stillwindToFragment((a))) : (stillwindToFragment((c))))"
+        ),
         "{transformed}"
     );
     assert!(

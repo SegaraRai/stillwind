@@ -305,8 +305,19 @@ fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
 
 fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
     for input in inputs {
-        if let StyleInput::Class(expression) = input {
-            collect_class(expression, prefix, candidates);
+        match input {
+            StyleInput::Class(expression) => {
+                collect_class(expression, prefix, candidates);
+            }
+            StyleInput::Conditional {
+                consequent,
+                alternate,
+                ..
+            } => {
+                collect(consequent, prefix, candidates);
+                collect(alternate, prefix, candidates);
+            }
+            _ => {}
         }
     }
 }

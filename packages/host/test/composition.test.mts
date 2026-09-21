@@ -245,7 +245,7 @@ void test("composition follows imported and re-exported style producers", async 
     assert.ok(result);
     assert.match(
       result.code!,
-      /stillwindMerge\(\{\[stillwindClassKey\]:"sw_[^"]*"\},stillwindToFragment\(\(flag\?a:b\)\)/,
+      /\(flag\) \? \(stillwindToFragment\(\(a\)\)\) : \(stillwindToFragment\(\(b\)\)\)/,
     );
     assert.match(result.css, /color:blue/);
     assert.doesNotMatch(result.css, /color:red|color:green/);

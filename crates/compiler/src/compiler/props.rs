@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 
-use stillwind_ir::StyleGuard;
+use stillwind_ir::ConditionalKind;
 use stillwind_source::Span;
 
 use super::fragment::{Emitted, Property, ValueExpr};
@@ -20,17 +20,6 @@ pub struct GuardStep {
     pub test: Span,
     /// Whether the contribution is selected when the test is truthy.
     pub when_true: bool,
-}
-
-/// The guards one view-transition use carries, in the shape class units record.
-pub(super) fn guard_steps(guard: &[StyleGuard]) -> Vec<GuardStep> {
-    guard
-        .iter()
-        .map(|step| GuardStep {
-            test: step.test,
-            when_true: step.when_true,
-        })
-        .collect()
 }
 
 /// One class a callsite can apply, with the tests that select it.
@@ -52,6 +41,19 @@ pub struct GeneratedClass {
 /// separate because their merge semantics differ. Parts need not arrive sorted.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum StyleEmissionPart {
+    /// A source branch selecting all contribution channels together.
+    Conditional {
+        /// Original test code with occurrence mappings.
+        test: Code,
+        /// Source operator.
+        kind: ConditionalKind,
+        /// Ordered contributions in the truthy branch.
+        consequent: Vec<Self>,
+        /// Ordered contributions in the falsy branch.
+        alternate: Vec<Self>,
+        /// Original-source UTF-8 condition offset used for ordering.
+        position: u32,
+    },
     /// One inline custom property, merged independently at runtime.
     CustomProperties {
         /// Property identity and source value, converted only when rendered.
@@ -84,9 +86,6 @@ pub(crate) enum StyleEmissionPart {
     Style {
         /// Source expression or deferred helper producing the style payload.
         expression: ValueExpr,
-        /// Outermost-to-innermost tests paired with the truthiness that selects this payload.
-        /// An empty path contributes unconditionally.
-        guard: Vec<(Code, bool)>,
         /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },

@@ -203,6 +203,14 @@ fn view_transitions(values: &[StyleInput]) -> BTreeSet<IdentityId> {
     let mut transitions = BTreeSet::new();
     for input in values {
         match input {
+            StyleInput::Conditional {
+                consequent,
+                alternate,
+                ..
+            } => {
+                transitions.extend(view_transitions(consequent));
+                transitions.extend(view_transitions(alternate));
+            }
             StyleInput::ViewTransitionUse { transition, .. } => {
                 transitions.insert(transition.identity.clone());
             }
@@ -224,8 +232,19 @@ fn view_transitions(values: &[StyleInput]) -> BTreeSet<IdentityId> {
 fn composition_bases(values: &[StyleInput]) -> BTreeSet<IdentityId> {
     let mut bases = BTreeSet::new();
     for input in values {
-        if let StyleInput::Composition { candidates, .. } = input {
-            bases.extend(candidates.iter().cloned());
+        match input {
+            StyleInput::Composition { candidates, .. } => {
+                bases.extend(candidates.iter().cloned());
+            }
+            StyleInput::Conditional {
+                consequent,
+                alternate,
+                ..
+            } => {
+                bases.extend(composition_bases(consequent));
+                bases.extend(composition_bases(alternate));
+            }
+            _ => {}
         }
     }
     bases
@@ -235,6 +254,14 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
     let mut props = false;
     for input in values {
         match input {
+            StyleInput::Conditional {
+                consequent,
+                alternate,
+                ..
+            } => {
+                props |= inputs(consequent, dependencies);
+                props |= inputs(alternate, dependencies);
+            }
             StyleInput::Composition { candidates, .. } => {
                 dependencies.extend(candidates.iter().cloned());
             }

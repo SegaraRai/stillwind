@@ -17,8 +17,8 @@ use stillwind_source::{Span, Spanned};
 
 use crate::{
     AssetReference, BoundaryRef, ClassExpression, GroupEntry, KeyframesBody, KeyframesDefinition,
-    ModuleIr, RefDefinition, RefProjection, StyleGuard, StyleInput, StyleVariant,
-    ViewTransitionKey, ViewTransitionName,
+    ModuleIr, RefDefinition, RefProjection, StyleInput, StyleVariant, ViewTransitionKey,
+    ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -172,6 +172,17 @@ fn map_input<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match input {
+        StyleInput::Conditional {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            *test = map(*test)?;
+            for input in consequent.iter_mut().chain(alternate) {
+                map_input(input, map)?;
+            }
+        }
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
         StyleInput::RefAttachment(definition) => {
             map_ref(definition, map)?;
@@ -185,27 +196,20 @@ fn map_input<E>(
         StyleInput::Composition { value, .. } => {
             *value = map(*value)?;
         }
-        StyleInput::ViewTransitionUse {
-            transition,
-            name,
-            guard,
-        } => {
+        StyleInput::ViewTransitionUse { transition, name } => {
             map_asset(transition, map)?;
             map_view_transition_name(name, map)?;
-            map_style_guard(guard, map)?;
         }
         StyleInput::DynamicViewTransitionUse {
             value,
             transitions,
             name,
-            guard,
         } => {
             *value = map(*value)?;
             for transition in transitions {
                 map_asset(transition, map)?;
             }
             map_view_transition_name(name, map)?;
-            map_style_guard(guard, map)?;
         }
     }
     Ok(())
@@ -218,17 +222,6 @@ fn map_view_transition_name<E>(
 ) -> Result<(), E> {
     if let ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) = name {
         *key = map(*key)?;
-    }
-    Ok(())
-}
-
-/// Projects the guard tests that select one style input.
-fn map_style_guard<E>(
-    guard: &mut [StyleGuard],
-    map: &mut impl FnMut(Span) -> Result<Span, E>,
-) -> Result<(), E> {
-    for step in guard {
-        step.test = map(step.test)?;
     }
     Ok(())
 }

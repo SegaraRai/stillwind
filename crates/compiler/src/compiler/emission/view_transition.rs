@@ -4,15 +4,13 @@
 use std::collections::BTreeMap;
 
 use stillwind_diagnostics::{LintFinding, LintKind};
-use stillwind_ir::{
-    AssetReference, ConditionalKind, StyleGuard, ViewTransitionKey, ViewTransitionName,
-};
+use stillwind_ir::{AssetReference, ViewTransitionKey, ViewTransitionName};
 use stillwind_semantic::AssetKind;
 use stillwind_source::Span;
 
 use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
-use super::super::props::{StyleEmissionPart, guard_steps};
+use super::super::props::{GuardStep, StyleEmissionPart};
 use super::{CallEmitter, VIEW_TRANSITION_CLASS_KEY};
 use crate::generated::js_string;
 use crate::identifiers::view_transition_name;
@@ -32,10 +30,10 @@ pub(super) struct TransitionNamePaths {
 }
 
 impl TransitionNamePaths {
-    /// Adds one name supply under an outermost-to-innermost guard path from this call's
+    /// Adds `count` name supplies under an outermost-to-innermost guard path from this call's
     /// source. An empty path adds an unconditional supply. Repeated insertion counts
     /// another supply, even when the path matches an existing one.
-    fn insert(&mut self, guard: &[StyleGuard]) {
+    pub(super) fn insert(&mut self, guard: &[GuardStep], count: usize) {
         let mut node = self;
         for step in guard {
             node = &mut node
@@ -43,7 +41,7 @@ impl TransitionNamePaths {
                 .entry((step.test.start.0, step.test.end.0))
                 .or_default()[usize::from(step.when_true)];
         }
-        node.count += 1;
+        node.count += count;
     }
 
     /// Returns a conservative upper bound on simultaneous supplies below this guard
@@ -69,14 +67,14 @@ impl CallEmitter<'_> {
         &mut self,
         transition: &AssetReference,
         name: &ViewTransitionName,
-        guard: &[StyleGuard],
+        guard: &[GuardStep],
     ) -> Option<()> {
         self.required_definitions
             .insert(transition.identity.clone());
         self.runtime_assets.insert(transition.identity.clone());
         self.view_transition_classes = true;
         if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_name_paths.insert(guard);
+            self.view_transition_name_paths.insert(guard, 1);
         }
         let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
             Ok(token) => token,
@@ -97,11 +95,10 @@ impl CallEmitter<'_> {
                 view_transition_name: static_name,
             });
         } else {
-            let steps = guard_steps(guard);
             let class =
                 match self
                     .units
-                    .view_transition_class_unit(&token, static_name.as_deref(), &steps)
+                    .view_transition_class_unit(&token, static_name.as_deref(), guard)
                 {
                     Ok(class) => class,
                     Err(failure) => {
@@ -109,9 +106,12 @@ impl CallEmitter<'_> {
                         return None;
                     }
                 };
-            self.push_guarded_class(guard, class, transition.span.start.0);
+            self.parts.push(StyleEmissionPart::Class {
+                emitted: Emitted::Leaf { names: vec![class] },
+                position: transition.span.start.0,
+            });
         }
-        self.emit_view_transition_name(name, Some(&token), transition.span, guard);
+        self.emit_view_transition_name(name, Some(&token), transition.span);
         Some(())
     }
 
@@ -124,14 +124,13 @@ impl CallEmitter<'_> {
         value: &Span,
         transitions: &[AssetReference],
         name: &ViewTransitionName,
-        guard: &[StyleGuard],
+        guard: &[GuardStep],
     ) -> Option<()> {
         self.view_transition_classes = true;
         if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_name_paths.insert(guard);
+            self.view_transition_name_paths.insert(guard, 1);
         }
         let mut table = Vec::new();
-        let steps = guard_steps(guard);
         for transition in transitions {
             self.runtime_assets.insert(transition.identity.clone());
             self.required_definitions
@@ -147,7 +146,7 @@ impl CallEmitter<'_> {
             let class =
                 match self
                     .units
-                    .view_transition_class_unit(&token, static_name.as_deref(), &steps)
+                    .view_transition_class_unit(&token, static_name.as_deref(), guard)
                 {
                     Ok(class) => class,
                     Err(failure) => {
@@ -163,10 +162,10 @@ impl CallEmitter<'_> {
             table: format!("{{{}}}", table.join(",")).into(),
         };
         self.parts.push(StyleEmissionPart::Class {
-            emitted: self.guarded_class(guard, Emitted::Expression(expression)),
+            emitted: Emitted::Expression(expression),
             position: value.start.0,
         });
-        self.emit_view_transition_name(name, None, *value, guard);
+        self.emit_view_transition_name(name, None, *value);
         Some(())
     }
 
@@ -182,7 +181,7 @@ impl CallEmitter<'_> {
         if !self.view_transition_classes {
             return;
         }
-        let kind = match self.view_transition_names + self.view_transition_name_paths.maximum() {
+        let kind = match self.view_transition_name_paths.maximum() {
             0 => LintKind::MissingViewTransitionName,
             1 => return,
             count => LintKind::DuplicateViewTransitionName { count },
@@ -201,7 +200,6 @@ impl CallEmitter<'_> {
         name: &ViewTransitionName,
         token: Option<&str>,
         value: Span,
-        guard: &[StyleGuard],
     ) {
         let key = match name {
             ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) => Some(*key),
@@ -235,51 +233,8 @@ impl CallEmitter<'_> {
                     span: value,
                 }),
             },
-            guard: guard
-                .iter()
-                .filter_map(|step| {
-                    self.source_expression(step.test)
-                        .map(|test| (test, step.when_true))
-                })
-                .collect(),
             position: value.start.0,
         });
-    }
-
-    /// Wraps one class value in the tests that select it.
-    fn guarded_class(&self, guard: &[StyleGuard], value: Emitted) -> Emitted {
-        let mut emitted = value;
-        for step in guard.iter().rev() {
-            let Some(code) = self.source_expression(step.test) else {
-                continue;
-            };
-            emitted = Emitted::Conditional {
-                code,
-                kind: if step.when_true {
-                    ConditionalKind::LogicalAnd
-                } else {
-                    ConditionalKind::Ternary
-                },
-                consequent: if step.when_true {
-                    Some(Box::new(emitted.clone()))
-                } else {
-                    None
-                },
-                alternate: if step.when_true {
-                    None
-                } else {
-                    Some(Box::new(emitted))
-                },
-            };
-        }
-        emitted
-    }
-
-    /// Adds the conditional class a guarded view-transition use marks its element with.
-    fn push_guarded_class(&mut self, guard: &[StyleGuard], class: String, position: u32) {
-        let emitted = self.guarded_class(guard, Emitted::Leaf { names: vec![class] });
-        self.parts
-            .push(StyleEmissionPart::Class { emitted, position });
     }
 }
 

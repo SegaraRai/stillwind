@@ -266,52 +266,59 @@ impl Fragment {
     /// Static names precede a stable sort of the dynamic parts by source position;
     /// repeated positions keep their emission order and all retained code keeps its mappings.
     pub(super) fn from_emission(emission: &StyleEmission) -> Self {
-        let mut parts = emission.parts.iter().collect::<Vec<_>>();
-        parts.sort_by_key(|part| match part {
-            StyleEmissionPart::Class { position, .. }
-            | StyleEmissionPart::Attributes { position, .. }
-            | StyleEmissionPart::CustomProperties { position, .. }
-            | StyleEmissionPart::Base { position, .. }
-            | StyleEmissionPart::Style { position, .. } => *position,
-        });
         let mut children = Vec::new();
         if !emission.static_names.is_empty() {
             children.push(Self::Record(vec![Atom::Class(Emitted::Leaf {
                 names: emission.static_names.clone(),
             })]));
         }
-        children.extend(parts.into_iter().map(|part| match part {
-            StyleEmissionPart::Class { emitted, .. } => Self::from_class(emitted),
-            StyleEmissionPart::Attributes { property, .. } => {
-                Self::Record(vec![Atom::Attribute(property.clone())])
-            }
-            StyleEmissionPart::CustomProperties { property, .. } => {
-                Self::Record(vec![Atom::Custom(property.clone())])
-            }
-            StyleEmissionPart::Base { expression, .. } => Self::FromProps(expression.clone()),
-            StyleEmissionPart::Style {
-                expression, guard, ..
-            } => {
-                let mut payload = Self::StylePayload(expression.clone());
-                for (test, when_true) in guard.iter().rev() {
-                    let empty = Box::new(Self::Record(Vec::new()));
-                    let selected = Box::new(payload);
-                    let (consequent, alternate) = if *when_true {
-                        (selected, empty)
-                    } else {
-                        (empty, selected)
-                    };
-                    payload = Self::Branch {
-                        test: test.clone(),
-                        kind: ConditionalKind::Ternary,
+        children.push(Self::from_parts(&emission.parts));
+        Self::Sequence(children)
+    }
+
+    /// Orders branch-local contributions without moving them across their selecting test.
+    fn from_parts(parts: &[StyleEmissionPart]) -> Self {
+        let mut parts = parts.iter().collect::<Vec<_>>();
+        parts.sort_by_key(|part| match part {
+            StyleEmissionPart::Conditional { position, .. }
+            | StyleEmissionPart::Class { position, .. }
+            | StyleEmissionPart::Attributes { position, .. }
+            | StyleEmissionPart::CustomProperties { position, .. }
+            | StyleEmissionPart::Base { position, .. }
+            | StyleEmissionPart::Style { position, .. } => *position,
+        });
+        Self::Sequence(
+            parts
+                .into_iter()
+                .map(|part| match part {
+                    StyleEmissionPart::Conditional {
+                        test,
+                        kind,
                         consequent,
                         alternate,
-                    };
-                }
-                payload
-            }
-        }));
-        Self::Sequence(children)
+                        ..
+                    } => Self::Branch {
+                        test: test.clone(),
+                        kind: *kind,
+                        consequent: Box::new(Self::from_parts(consequent)),
+                        alternate: Box::new(Self::from_parts(alternate)),
+                    },
+                    StyleEmissionPart::Class { emitted, .. } => Self::from_class(emitted),
+                    StyleEmissionPart::Attributes { property, .. } => {
+                        Self::Record(vec![Atom::Attribute(property.clone())])
+                    }
+                    StyleEmissionPart::CustomProperties { property, .. } => {
+                        Self::Record(vec![Atom::Custom(property.clone())])
+                    }
+                    StyleEmissionPart::Base { expression, .. } => {
+                        Self::FromProps(expression.clone())
+                    }
+                    StyleEmissionPart::Style { expression, .. } => {
+                        Self::StylePayload(expression.clone())
+                    }
+                })
+                .collect(),
+        )
     }
 
     /// Converts mixed-channel groups to fragment structure, omitting provably empty values.

@@ -39,12 +39,17 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Lowers one top-level class item with empty guard and variant stacks.
+    /// Lowers a class item under its enclosing input guards and an empty variant stack.
     /// Appends retained runtime code at `position`; omitted contributions may instead
     /// have joined the base unit or reported diagnostics during lowering.
-    pub(super) fn emit_item(&mut self, expression: &ClassExpression, position: u32) {
+    pub(super) fn emit_item(
+        &mut self,
+        expression: &ClassExpression,
+        position: u32,
+        inherited: &[GuardStep],
+    ) {
         let mut wrappers = Vec::new();
-        let mut guard = Vec::new();
+        let mut guard = inherited.to_vec();
         if let Some(emitted) = self.emit_expression(expression, &mut guard, &mut wrappers, true) {
             self.parts
                 .push(StyleEmissionPart::Class { emitted, position });
@@ -90,6 +95,7 @@ impl CallEmitter<'_> {
                     self.theme,
                     self.diagnostics,
                 )?;
+                let mut name_supplies = 0;
                 let contribution = LiteralContribution::resolve(
                     value,
                     &plan,
@@ -97,8 +103,11 @@ impl CallEmitter<'_> {
                     self.theme,
                     self.diagnostics,
                     self.lint_findings,
-                    &mut self.view_transition_names,
+                    &mut name_supplies,
                 );
+                if name_supplies > 0 {
+                    self.view_transition_name_paths.insert(guard, name_supplies);
+                }
                 if fold && guard.is_empty() {
                     self.units.fold(contribution);
                     return None;

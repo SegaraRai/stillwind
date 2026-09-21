@@ -19,8 +19,8 @@ use oxc::syntax::operator::LogicalOperator;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleGuard,
-    StyleInput, StyleVariant,
+    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleInput,
+    StyleVariant,
 };
 use stillwind_semantic::{ExportedValue, IdentityId};
 use stillwind_source::Span;
@@ -130,6 +130,33 @@ impl<'a> MacroExtractor<'a> {
             ));
             return;
         }
+        match expression {
+            Expression::ConditionalExpression(conditional) => {
+                let mut consequent = Vec::new();
+                let mut alternate = Vec::new();
+                self.collect_style_expression(&conditional.consequent, &mut consequent);
+                self.collect_style_expression(&conditional.alternate, &mut alternate);
+                inputs.push(StyleInput::Conditional {
+                    test: self.source_span(conditional.test.span()),
+                    kind: ConditionalKind::Ternary,
+                    consequent,
+                    alternate,
+                });
+                return;
+            }
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
+                let mut consequent = Vec::new();
+                self.collect_style_expression(&logical.right, &mut consequent);
+                inputs.push(StyleInput::Conditional {
+                    test: self.source_span(logical.left.span()),
+                    kind: ConditionalKind::LogicalAnd,
+                    consequent,
+                    alternate: Vec::new(),
+                });
+                return;
+            }
+            _ => {}
+        }
         if let Some(candidates) = self.style_candidates(expression) {
             inputs.push(StyleInput::Composition {
                 value: self.source_span(expression.span()),
@@ -144,8 +171,8 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(projection);
             return;
         }
-        if let Some(guarded) = self.guarded_view_transition_uses(expression) {
-            inputs.extend(guarded);
+        if let Some(transition) = self.view_transition_use(expression) {
+            inputs.push(transition);
             return;
         }
         // A utility template keeps one class expression per utility segment, so it
@@ -159,86 +186,6 @@ impl<'a> MacroExtractor<'a> {
         if let Some(class) = self.class_expression(expression) {
             inputs.push(StyleInput::Class(class));
         }
-    }
-
-    /// Recognizes a transition use or a tree of `&&` and ternary selections as style
-    /// inputs. Each transition leaf retains its complete guard path. `false`, `null`,
-    /// and the identifier `undefined` contribute no input.
-    ///
-    /// Returns a nonempty vector only when every leaf is recognized. `None` lets the
-    /// caller try ordinary class lowering for the whole expression, discarding partial
-    /// inputs. Type probes and diagnostics recorded during recognition remain in the
-    /// extractor.
-    fn guarded_view_transition_uses(
-        &mut self,
-        expression: &Expression<'a>,
-    ) -> Option<Vec<StyleInput>> {
-        let mut inputs = Vec::new();
-        self.collect_guarded_transitions(expression, &mut Vec::new(), &mut inputs)?;
-        (!inputs.is_empty()).then_some(inputs)
-    }
-
-    /// Appends recognized transition leaves using `guard` as their inherited
-    /// outer-to-inner path. Ternary arms are visited consequent first, then alternate,
-    /// even when one cannot resolve, so both arms can request checker facts. Empty
-    /// leaves append nothing.
-    ///
-    /// Returns `Some(())` when every leaf is recognized, including an entirely empty
-    /// tree. An unsupported or unresolved leaf returns `None`. On either return,
-    /// `guard` is restored to its entry state, while appended inputs, type probes, and
-    /// diagnostics are retained.
-    fn collect_guarded_transitions(
-        &mut self,
-        expression: &Expression<'a>,
-        guard: &mut Vec<StyleGuard>,
-        inputs: &mut Vec<StyleInput>,
-    ) -> Option<()> {
-        match expression.get_inner_expression() {
-            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
-                guard.push(StyleGuard {
-                    test: self.source_span(logical.left.span()),
-                    when_true: true,
-                });
-                let resolved = self.collect_guarded_transitions(&logical.right, guard, inputs);
-                guard.pop();
-                resolved?;
-            }
-            Expression::ConditionalExpression(conditional) => {
-                let test = self.source_span(conditional.test.span());
-                let mut resolved = true;
-                for (branch, when_true) in [
-                    (&conditional.consequent, true),
-                    (&conditional.alternate, false),
-                ] {
-                    guard.push(StyleGuard { test, when_true });
-                    resolved &= self
-                        .collect_guarded_transitions(branch, guard, inputs)
-                        .is_some();
-                    guard.pop();
-                }
-                if !resolved {
-                    return None;
-                }
-            }
-            Expression::NullLiteral(_) => {}
-            Expression::BooleanLiteral(value) if !value.value => {}
-            Expression::Identifier(value) if value.name == "undefined" => {}
-            leaf => inputs.push(Self::with_guard(
-                self.view_transition_use(leaf)?,
-                guard.clone(),
-            )),
-        }
-        Some(())
-    }
-
-    /// Records the tests that select one view-transition input.
-    fn with_guard(mut input: StyleInput, guard: Vec<StyleGuard>) -> StyleInput {
-        match &mut input {
-            StyleInput::ViewTransitionUse { guard: slot, .. }
-            | StyleInput::DynamicViewTransitionUse { guard: slot, .. } => *slot = guard,
-            _ => {}
-        }
-        input
     }
 
     /// Lowers one class-valued expression while mirroring the source structure.

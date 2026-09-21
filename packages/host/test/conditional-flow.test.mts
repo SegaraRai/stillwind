@@ -239,6 +239,61 @@ void test("inactive transition payloads preserve preceding styles in both format
   }
 });
 
+void test("common input branches select transitions, props, refs, and composed styles", async () => {
+  for (const framework of ["react", "svelte"]) {
+    const output = await compile(
+      [
+        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
+        "const transition = style.viewTransition({old:'red'}); const key = 'selected';",
+        "const ref = style.ref('target'); const base = style('blue');",
+        "const props = style('green', enabled ? transition.for(key) : {'data-state':'off','--progress':'1'}, outer && (enabled ? ref : base));",
+      ].join("\n"),
+    );
+    for (const enabled of [false, true]) {
+      for (const outer of [false, true]) {
+        const { props } = evaluate(output.code!, {
+          ...(framework === "svelte" ? svelteRuntime : runtime),
+          enabled,
+          outer,
+        });
+        assert.equal(props["data-state"], enabled ? undefined : "off");
+        const style = props.style;
+        if (enabled) {
+          const name =
+            framework === "svelte"
+              ? style
+              : (style as Record<string, unknown>)["view-transition-name"];
+          assert.ok(String(name).endsWith("-selected"));
+        } else if (framework === "svelte") {
+          assert.equal(style, "--progress:1");
+        } else {
+          assert.equal((style as Record<string, unknown>)["--progress"], "1");
+        }
+        const classes = String(props[framework === "svelte" ? "class" : "className"]).split(" ");
+        assert.equal(classes.length, 1 + Number(enabled) + Number(outer));
+      }
+    }
+  }
+});
+
+void test("utility and transition names share branch exclusivity for linting", async () => {
+  const warnings: string[] = [];
+  await compile(
+    [
+      "import {style} from 'stillwind/react'; const events = [];",
+      "const enabled = Boolean(globalThis.enabled);",
+      "const a = style.viewTransition({old:'red'});",
+      "const props = style(a, enabled ? '[view-transition-name:first]' : '[view-transition-name:second]');",
+    ].join("\n"),
+    warnings,
+  );
+  assert.ok(
+    !warnings.some((message) => message.includes("single-view-transition-name")),
+    warnings.join("\n"),
+  );
+});
+
 void test("pure conditional calls select one class branch", async () => {
   const output = await compile(
     [

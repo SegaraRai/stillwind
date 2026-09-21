@@ -140,21 +140,18 @@ impl<'a> MacroExtractor<'a> {
                 value,
                 transitions,
                 name,
-                guard: Vec::new(),
             });
         }
         match transitions.as_slice() {
             [transition] => Some(StyleInput::ViewTransitionUse {
                 transition: transition.clone(),
                 name,
-                guard: Vec::new(),
             }),
             [] => None,
             _ => Some(StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
                 name,
-                guard: Vec::new(),
             }),
         }
     }
