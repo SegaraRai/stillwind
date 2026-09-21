@@ -47,6 +47,34 @@ async function compile(files: Record<string, string>, entry = "entry.ts") {
   }
 }
 
+void test("nested transition branches resolve both imported producers", async () => {
+  const output = await compile({
+    "entry.ts": [
+      "import {style} from 'stillwind/react';\nimport {a,b} from './barrel';",
+      "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
+      "globalThis.props = style('green', outer ? (enabled && a.for('a')) : b.for('b'));",
+    ].join("\n"),
+    "barrel.ts": "export {a,b} from './transitions';",
+    "transitions.ts":
+      "import {style} from 'stillwind/react'; export const a=style.viewTransition({old:'red'}), b=style.viewTransition({old:'blue'});",
+  });
+  assert.doesNotMatch(output.code!, /\.for\(/);
+  const classes = [];
+  for (const context of [
+    { outer: true, enabled: false },
+    { outer: true, enabled: true },
+    { outer: false, enabled: false },
+  ]) {
+    const sandbox = { ...runtime, ...context, props: { className: "" } };
+    runInNewContext(output.code!.replace(/^import\s+[^;]+;\s*/gm, ""), sandbox);
+    classes.push(sandbox.props.className.split(" "));
+  }
+  assert.deepEqual(
+    classes.map((value) => value.length),
+    [1, 2, 2],
+  );
+  assert.notEqual(classes[1].join(), classes[2].join());
+});
 void test("enumerates factory and mutable conditional bases and preserves evaluation order", async () => {
   const output = await compile({
     "entry.ts": `import {style} from 'stillwind/react';

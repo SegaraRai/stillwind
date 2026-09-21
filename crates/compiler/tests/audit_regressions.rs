@@ -306,7 +306,7 @@ fn static_ref_projection_reads_the_use_site_receiver() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     let value = code.split("export const x = ").nth(1).unwrap();
-    assert!(value.contains("p.c"), "{value}");
+    assert!(value.contains("(p).c"), "{value}");
     assert!(!value.contains("primary"), "{value}");
 }
 
@@ -346,7 +346,7 @@ fn static_ref_projection_reads_a_member_receiver() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     let value = code.split("export const x = ").nth(1).unwrap();
-    assert!(value.contains("holder.trigger.c"), "{value}");
+    assert!(value.contains("(holder.trigger).c"), "{value}");
 }
 
 #[test]
@@ -491,7 +491,7 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     // A declaration carries its keyframes name as a record, and the dynamic use reads
     // that name off the value instead of calling a runtime helper.
     assert!(code.contains("const a={k:\"sw-kf-"), "{code}");
-    assert!(code.contains("[selected.k]"), "{code}");
+    assert!(code.contains("[(selected).k]"), "{code}");
     let parsed = OxcSourceAnalyzer.scan(std::sync::Arc::new(
         SourceFile::new(FileId(3), "generated.tsx", code).unwrap(),
     ));

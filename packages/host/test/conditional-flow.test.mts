@@ -13,7 +13,7 @@ import { compileModule } from "../src/compiler.ts";
 import { moduleSourceMap } from "../src/source-map.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
-async function compile(source: string) {
+async function compile(source: string, warnings: string[] = []) {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const loader = new NativeDesignSystemLoader();
   loader.provide(
@@ -38,7 +38,7 @@ async function compile(source: string) {
           throw new Error("unexpected dependency");
         },
         watch: () => {},
-        warn: () => {},
+        warn: (message) => warnings.push(message),
       },
     );
     assert.ok(output);
@@ -79,6 +79,121 @@ void test("guarded view transitions preserve short-circuiting through type colle
   assert.ok(enabledClasses.includes(baseClasses[0]));
 });
 
+void test("conditional transition trees select only the active class and key", async () => {
+  const cases: Array<[string, (enabled: boolean, outer: boolean) => string | null]> = [
+    ["enabled ? a : b", () => "literal"],
+    ["enabled ? a : b.for(key('b'))", (enabled) => (enabled ? "literal" : "b")],
+    ["(enabled ? a.for('a') : b.for('b'))", () => "literal"],
+    ["enabled ? a.for(key('a')) : b.for(key('b'))", (enabled) => (enabled ? "a" : "b")],
+    ["enabled ? a.for('a') : b.for(key('b'))", (enabled) => (enabled ? "literal" : "b")],
+    [
+      "outer && (enabled ? a.for(key('a')) : b.for(key('b')))",
+      (enabled, outer) => (outer ? (enabled ? "a" : "b") : null),
+    ],
+    [
+      "outer ? (enabled ? a.for(key('a')) : b.for(key('b'))) : a.for(key('c'))",
+      (enabled, outer) => (outer ? (enabled ? "a" : "b") : "c"),
+    ],
+    [
+      "outer ? a.for(key('a')) : (enabled ? b.for(key('b')) : a.for(key('c')))",
+      (enabled, outer) => (outer ? "a" : enabled ? "b" : "c"),
+    ],
+    ["(enabled ? a : b).for(key('selected'))", () => "selected"],
+    ["(outer ? (enabled ? a : b) : a).for(key('selected'))", () => "selected"],
+    [
+      "(outer ? enabled : !enabled) && a.for(key('a'))",
+      (enabled, outer) => ((outer ? enabled : !enabled) ? "a" : null),
+    ],
+    [
+      "outer ? (enabled && a.for(key('a'))) : b.for(key('b'))",
+      (enabled, outer) => (outer ? (enabled ? "a" : null) : "b"),
+    ],
+    ...["false", "null", "undefined"].flatMap(
+      (empty) =>
+        [
+          [`enabled ? (a.for(key('a'))) : ${empty}`, (enabled: boolean) => (enabled ? "a" : null)],
+          [`enabled ? ${empty} : (b.for(key('b')))`, (enabled: boolean) => (enabled ? null : "b")],
+        ] as Array<[string, (enabled: boolean, outer: boolean) => string | null]>,
+    ),
+  ];
+  for (const [expression, selected] of cases) {
+    const warnings: string[] = [];
+    const output = await compile(
+      [
+        "import {style} from 'stillwind/react'; const events = [];",
+        "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
+        "const a = style.viewTransition({old: 'red'});",
+        "const b = style.viewTransition({old: 'blue'});",
+        "const key = value => { events.push(value); return value; };",
+        `const props = style('green', ${expression});`,
+      ].join("\n"),
+      warnings,
+    );
+    assert.ok(
+      !warnings.some((message) => message.includes("single-view-transition-name")),
+      warnings.join("\n"),
+    );
+    assert.doesNotMatch(output.code!, /\.for\(/, expression);
+    for (const enabled of [false, true]) {
+      for (const outer of [false, true]) {
+        const expected = selected(enabled, outer);
+        const { props, events } = evaluate(output.code!, { enabled, outer });
+        assert.equal(String(props.className).split(" ").length, expected ? 2 : 1, expression);
+        assert.equal(events.join(), expected === "literal" ? "" : (expected ?? ""), expression);
+        if (expected && expected !== "literal") {
+          assert.ok(
+            String((props.style as Record<string, unknown>)["view-transition-name"]).endsWith(
+              "-" + expected,
+            ),
+            expression,
+          );
+        }
+      }
+    }
+  }
+});
+
+void test("conditional ref and keyframes receivers retain finite candidates", async () => {
+  for (const [declarations, expression] of [
+    ["const a = style.ref('a'), b = style.ref('b');", "enabled ? a : b"],
+    [
+      "const a = style.keyframes({from:'red'}), b = style.keyframes({from:'blue'});",
+      "(enabled ? a : b)('')",
+    ],
+  ]) {
+    const output = await compile(
+      [
+        "import {style} from 'stillwind/react'; const events = [];",
+        "const enabled = Boolean(globalThis.enabled);",
+        declarations,
+        `const props = style('green', ${expression});`,
+      ].join("\n"),
+    );
+    const enabled = evaluate(output.code!, { enabled: true }).props;
+    const disabled = evaluate(output.code!, { enabled: false }).props;
+    assert.notEqual(enabled.className, disabled.className, expression);
+    assert.doesNotMatch(String(enabled.className), /undefined/);
+    assert.doesNotMatch(String(disabled.className), /undefined/);
+  }
+});
+
+void test("a separate name still conflicts with a conditional transition name", async () => {
+  const warnings: string[] = [];
+  await compile(
+    [
+      "import {style} from 'stillwind/react'; const events = [];",
+      "const enabled = Boolean(globalThis.enabled);",
+      "const a = style.viewTransition({old: 'red'}), b = style.viewTransition({old: 'blue'});",
+      "const props = style(a.for('base'), enabled ? a.for('a') : b.for('b'));",
+    ].join("\n"),
+    warnings,
+  );
+  assert.equal(
+    warnings.filter((message) => message.includes("single-view-transition-name")).length,
+    1,
+  );
+  assert.ok(warnings.some((message) => message.includes("2 view-transition-name sources")));
+});
 void test("pure conditional calls select one class branch", async () => {
   const output = await compile(
     [

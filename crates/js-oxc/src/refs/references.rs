@@ -23,6 +23,18 @@ impl<'a> MacroExtractor<'a> {
     /// Records a type probe for non-literal expressions, so the host checker can answer
     /// on a later pass when local analysis cannot.
     pub(crate) fn ref_references(&self, expression: &Expression<'a>) -> Option<Vec<RefDefinition>> {
+        let expression = expression.get_inner_expression();
+        if let Expression::ConditionalExpression(conditional) = expression {
+            let consequent = self.ref_references(&conditional.consequent);
+            let alternate = self.ref_references(&conditional.alternate);
+            let mut refs = consequent?;
+            for definition in alternate? {
+                if !refs.contains(&definition) {
+                    refs.push(definition);
+                }
+            }
+            return Some(refs);
+        }
         let span = expression.span();
         self.record_type_probe(expression);
         if let Some(ExportedValue::Refs(alternatives)) = self.type_fact(span) {

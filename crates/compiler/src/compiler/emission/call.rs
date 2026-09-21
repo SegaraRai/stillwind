@@ -19,6 +19,7 @@ use super::CallEmitter;
 use super::CallEmitterInputs;
 use super::class_value::expression_position;
 use super::ref_projection::ref_class_read;
+use super::view_transition::TransitionNamePaths;
 use crate::generated::Code;
 
 impl<'a> CallEmitter<'a> {
@@ -54,6 +55,7 @@ impl<'a> CallEmitter<'a> {
             written_name_symbols: Vec::new(),
             view_transition_classes: false,
             view_transition_names: 0,
+            view_transition_name_paths: TransitionNamePaths::default(),
         };
         emitter.emit()
     }

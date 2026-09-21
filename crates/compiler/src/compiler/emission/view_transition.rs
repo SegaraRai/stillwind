@@ -1,6 +1,8 @@
 //! View-transition uses: the class an element carries, the name it states, and the
 //! conditional class a guarded use adds.
 
+use std::collections::BTreeMap;
+
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_ir::{
     AssetReference, ConditionalKind, StyleGuard, ViewTransitionKey, ViewTransitionName,
@@ -15,6 +17,35 @@ use super::{CallEmitter, VIEW_TRANSITION_CLASS_KEY};
 use crate::generated::js_string;
 use crate::identifiers::view_transition_name;
 use crate::runtime::RuntimeHelper;
+
+/// Name supplies grouped by shared conditional paths, so exclusive arms count once.
+#[derive(Default)]
+pub(super) struct TransitionNamePaths {
+    count: usize,
+    branches: BTreeMap<(u32, u32), [Self; 2]>,
+}
+
+impl TransitionNamePaths {
+    fn insert(&mut self, guard: &[StyleGuard]) {
+        let mut node = self;
+        for step in guard {
+            node = &mut node
+                .branches
+                .entry((step.test.start.0, step.test.end.0))
+                .or_default()[usize::from(step.when_true)];
+        }
+        node.count += 1;
+    }
+
+    fn maximum(&self) -> usize {
+        self.count
+            + self
+                .branches
+                .values()
+                .map(|arms| arms[0].maximum().max(arms[1].maximum()))
+                .sum::<usize>()
+    }
+}
 
 impl CallEmitter<'_> {
     /// Lowers one view-transition use whose transition is known at compile time.
@@ -32,7 +63,7 @@ impl CallEmitter<'_> {
         self.runtime_assets.insert(transition.identity.clone());
         self.view_transition_classes = true;
         if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_names += 1;
+            self.view_transition_name_paths.insert(guard);
         }
         let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
             Ok(token) => token,
@@ -84,7 +115,7 @@ impl CallEmitter<'_> {
     ) -> Option<()> {
         self.view_transition_classes = true;
         if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_names += 1;
+            self.view_transition_name_paths.insert(guard);
         }
         let mut table = Vec::new();
         let steps = guard_steps(guard);
@@ -138,7 +169,7 @@ impl CallEmitter<'_> {
         if !self.view_transition_classes {
             return;
         }
-        let kind = match self.view_transition_names {
+        let kind = match self.view_transition_names + self.view_transition_name_paths.maximum() {
             0 => LintKind::MissingViewTransitionName,
             1 => return,
             count => LintKind::DuplicateViewTransitionName { count },

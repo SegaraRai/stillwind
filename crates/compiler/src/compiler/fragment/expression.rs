@@ -81,9 +81,9 @@ impl ValueExpr {
             } => {
                 let rendered = value.render(runtime);
                 if *when_true {
-                    code![code.clone(), "&&", rendered]
+                    code!["(", code.clone(), ")&&(", rendered, ")"]
                 } else {
-                    code![code.clone(), "?undefined:", rendered]
+                    code!["(", code.clone(), ")?undefined:(", rendered, ")"]
                 }
             }
             Self::Call {
@@ -101,8 +101,9 @@ impl ValueExpr {
                 code![
                     "(",
                     table.clone(),
-                    ")[",
+                    ")[(",
                     value.render(runtime),
+                    ")",
                     if key.is_empty() {
                         String::new()
                     } else {

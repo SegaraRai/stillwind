@@ -64,8 +64,10 @@ impl<'a> MacroExtractor<'a> {
                 Some(value.finite_candidates()?.iter().cloned().collect())
             }
             Expression::ConditionalExpression(conditional) => {
-                let mut candidates = self.style_candidates(&conditional.consequent)?;
-                candidates.extend(self.style_candidates(&conditional.alternate)?);
+                let consequent = self.style_candidates(&conditional.consequent);
+                let alternate = self.style_candidates(&conditional.alternate);
+                let mut candidates = consequent?;
+                candidates.extend(alternate?);
                 candidates.sort();
                 candidates.dedup();
                 Some(candidates)
@@ -83,11 +85,14 @@ impl<'a> MacroExtractor<'a> {
     /// deduplicates spans. Probes are what keep a module of literal utilities from
     /// asking the checker anything.
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
-        // Conjunctions are lowered with their guards. A fact for the whole expression
-        // cannot represent its falsy branch or preserve short-circuiting.
+        // Control-flow expressions are lowered through their branches. A whole-expression
+        // fact would bypass branch-specific macro lowering and erase empty alternatives.
         if matches!(
             expression.get_inner_expression(),
             Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And
+        ) || matches!(
+            expression.get_inner_expression(),
+            Expression::ConditionalExpression(_)
         ) {
             return;
         }
@@ -115,6 +120,7 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) {
+        let expression = expression.get_inner_expression();
         if let Expression::CallExpression(call) = expression
             && self.is_style_call(call)
         {
@@ -138,10 +144,6 @@ impl<'a> MacroExtractor<'a> {
             inputs.push(projection);
             return;
         }
-        if let Some(transition) = self.view_transition_use(expression) {
-            inputs.push(transition);
-            return;
-        }
         if let Some(guarded) = self.guarded_view_transition_uses(expression) {
             inputs.extend(guarded);
             return;
@@ -159,49 +161,59 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Lowers `test && <transition>` chains, and a ternary whose arms are both transitions,
-    /// into guarded view-transition inputs.
-    ///
-    /// A transition use is a top-level input, so the test that selects it travels in the input
-    /// rather than in a class expression. `None` leaves the expression to the ordinary
-    /// class-expression path, which is also what a ternary with a non-transition arm gets.
+    /// Lowers conditional transition trees, retaining each leaf's complete guard path.
+    /// Empty branches contribute no transition; other leaf kinds use ordinary class lowering.
     fn guarded_view_transition_uses(
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<Vec<StyleInput>> {
-        let mut guard = Vec::new();
-        let mut current = expression;
-        loop {
-            match current {
-                Expression::LogicalExpression(logical)
-                    if logical.operator == LogicalOperator::And =>
-                {
-                    guard.push(StyleGuard {
-                        test: self.source_span(logical.left.span()),
-                        when_true: true,
-                    });
-                    current = &logical.right;
-                }
-                Expression::ConditionalExpression(conditional) => {
-                    let consequent = self.view_transition_use(&conditional.consequent)?;
-                    let alternate = self.view_transition_use(&conditional.alternate)?;
-                    let test = self.source_span(conditional.test.span());
-                    let mut inputs = Vec::new();
-                    for (input, when_true) in [(consequent, true), (alternate, false)] {
-                        let mut path = guard.clone();
-                        path.push(StyleGuard { test, when_true });
-                        inputs.push(Self::with_guard(input, path));
-                    }
-                    return Some(inputs);
-                }
-                _ => break,
+        let mut inputs = Vec::new();
+        self.collect_guarded_transitions(expression, &mut Vec::new(), &mut inputs)?;
+        (!inputs.is_empty()).then_some(inputs)
+    }
+
+    fn collect_guarded_transitions(
+        &mut self,
+        expression: &Expression<'a>,
+        guard: &mut Vec<StyleGuard>,
+        inputs: &mut Vec<StyleInput>,
+    ) -> Option<()> {
+        match expression.get_inner_expression() {
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
+                guard.push(StyleGuard {
+                    test: self.source_span(logical.left.span()),
+                    when_true: true,
+                });
+                let resolved = self.collect_guarded_transitions(&logical.right, guard, inputs);
+                guard.pop();
+                resolved?;
             }
+            Expression::ConditionalExpression(conditional) => {
+                let test = self.source_span(conditional.test.span());
+                let mut resolved = true;
+                for (branch, when_true) in [
+                    (&conditional.consequent, true),
+                    (&conditional.alternate, false),
+                ] {
+                    guard.push(StyleGuard { test, when_true });
+                    resolved &= self
+                        .collect_guarded_transitions(branch, guard, inputs)
+                        .is_some();
+                    guard.pop();
+                }
+                if !resolved {
+                    return None;
+                }
+            }
+            Expression::NullLiteral(_) => {}
+            Expression::BooleanLiteral(value) if !value.value => {}
+            Expression::Identifier(value) if value.name == "undefined" => {}
+            leaf => inputs.push(Self::with_guard(
+                self.view_transition_use(leaf)?,
+                guard.clone(),
+            )),
         }
-        if guard.is_empty() {
-            return None;
-        }
-        let input = self.view_transition_use(current)?;
-        Some(vec![Self::with_guard(input, guard)])
+        Some(())
     }
 
     /// Records the tests that select one view-transition input.

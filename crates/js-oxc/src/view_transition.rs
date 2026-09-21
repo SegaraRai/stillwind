@@ -33,6 +33,25 @@ impl<'a> MacroExtractor<'a> {
         &self,
         expression: &Expression<'a>,
     ) -> Option<(Vec<AssetReference>, bool)> {
+        let expression = expression.get_inner_expression();
+        if let Expression::ConditionalExpression(conditional) = expression {
+            let consequent = self.view_transition_references(&conditional.consequent);
+            let alternate = self.view_transition_references(&conditional.alternate);
+            let (mut refs, keyed) = consequent?;
+            let (alternate, alternate_keyed) = alternate?;
+            if keyed != alternate_keyed {
+                return None;
+            }
+            for reference in alternate {
+                if !refs
+                    .iter()
+                    .any(|existing| existing.identity == reference.identity)
+                {
+                    refs.push(reference);
+                }
+            }
+            return Some((refs, keyed));
+        }
         let span = expression.span();
         self.record_type_probe(expression);
         if let Some(fact) = self.type_fact(span) {

@@ -129,11 +129,14 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.match(consumer.code, /\(\(selected\)\.c\)/);
   // A projection reads the use-site ref value, never the member expression it was written on.
   // The lowered ref value is a record under c, so `selected.anchor` must compile to `selected.c`.
-  assert.match(consumer.code, /\[selected\.c\]/);
+  assert.match(consumer.code, /\[\(selected\)\.c\]/);
   // A dynamic animation selects its prebuilt class by the keyframes name the value carries.
-  assert.match(consumer.code, /\[selectedKeyframes\.k\]/);
+  assert.match(consumer.code, /\[\(selectedKeyframes\)\.k\]/);
   // A transition the value selects at runtime carries one class per token, chosen by v.
-  assert.match(consumer.code, /"sw-vt-[^"]+":"sw_[^"]+"[\s\S]{0,120}?\)\[selectedTransition\.v\]/);
+  assert.match(
+    consumer.code,
+    /"sw-vt-[^"]+":"sw_[^"]+"[\s\S]{0,120}?\)\[\(selectedTransition\)\.v\]/,
+  );
   assert.match(consumer.code, /stillwindViewTransitionName\("sw-vt-[^"]+",transitionKey\)/);
   assert.match(consumer.code, /stillwindViewTransitionName\(selectedTransition,transitionKey\)/);
   assert.match(consumer.code, /stillwindViewTransitionName\(keyedTransitionAlias\)/);

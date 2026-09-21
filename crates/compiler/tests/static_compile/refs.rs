@@ -63,7 +63,7 @@ const panel = style(popover.positionAnchor, "absolute");"#,
         "{transformed}"
     );
     assert!(
-        transformed.contains("({\"sw_") && transformed.contains("})[popover.c]"),
+        transformed.contains("({\"sw_") && transformed.contains("})[(popover).c]"),
         "{transformed}"
     );
 }

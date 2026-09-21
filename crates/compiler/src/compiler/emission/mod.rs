@@ -88,8 +88,9 @@ pub(super) struct CallEmitter<'a> {
     written_name_symbols: Vec<GeneratedSymbol>,
     /// Whether the call marks participants with a view-transition class.
     view_transition_classes: bool,
-    /// How many sources of a view-transition-name the call states.
+    /// Explicit view-transition-name declarations supplied by utility literals.
     view_transition_names: usize,
+    view_transition_name_paths: view_transition::TransitionNamePaths,
 }
 
 /// Source, analysis, and shared output destinations for lowering one style call.
