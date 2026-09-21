@@ -194,6 +194,51 @@ void test("a separate name still conflicts with a conditional transition name", 
   );
   assert.ok(warnings.some((message) => message.includes("2 view-transition-name sources")));
 });
+
+void test("inactive transition payloads preserve preceding styles in both formats", async () => {
+  for (const framework of ["react", "svelte"]) {
+    for (const withBase of [false, true]) {
+      for (const [expression, active] of [
+        ["enabled && b.for(optionalKey)", (enabled: boolean, _outer: boolean) => enabled],
+        ["enabled ? null : b.for(optionalKey)", (enabled: boolean, _outer: boolean) => !enabled],
+        [
+          "outer && (enabled ? b.for(optionalKey) : null)",
+          (enabled: boolean, outer: boolean) => outer && enabled,
+        ],
+      ] as const) {
+        const output = await compile(
+          [
+            `import {style} from 'stillwind/${framework}'; const events = [];`,
+            "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
+            "const a = style.viewTransition({old:'red'}), b = style.viewTransition({old:'blue'});",
+            "const baseKey = 'base', optionalKey = 'optional';",
+            `const props = style('green', ${withBase ? "a.for(baseKey)," : ""} ${expression});`,
+          ].join("\n"),
+        );
+        for (const enabled of [false, true]) {
+          for (const outer of [false, true]) {
+            const context = framework === "svelte" ? svelteRuntime : runtime;
+            const { props } = evaluate(output.code!, { ...context, enabled, outer });
+            const suffix = active(enabled, outer) ? "optional" : withBase ? "base" : null;
+            if (suffix === null) {
+              assert.equal(Object.hasOwn(props, "style"), false, expression);
+            } else {
+              const style =
+                framework === "svelte"
+                  ? props.style
+                  : (props.style as Record<string, unknown>)?.["view-transition-name"];
+              assert.ok(
+                typeof style === "string" && style.endsWith("-" + suffix),
+                JSON.stringify({ framework, expression, enabled, outer, props }),
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
 void test("pure conditional calls select one class branch", async () => {
   const output = await compile(
     [

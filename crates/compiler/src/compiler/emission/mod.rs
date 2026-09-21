@@ -36,6 +36,8 @@ use super::props::StyleEmissionPart;
 use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, GeneratedSymbol};
 
+use view_transition::TransitionNamePaths;
+
 /// Object key under which a ref or scope value carries its canonical class token.
 pub(super) const CLASS_KEY: &str = "c";
 
@@ -55,9 +57,9 @@ pub(super) const VIEW_TRANSITION_KEY: &str = "w";
 
 /// One `style()` call being lowered.
 ///
-/// The emitter accumulates state rather than building a tree in one pass, because the base unit
-/// has to be collected across argument positions while each conditional leaf needs its own class
-/// unit and guard path.
+/// The emitter accumulates state rather than building a tree in one pass, because the
+/// base unit has to be collected across argument positions while each conditional leaf
+/// needs its own class unit and guard path.
 pub(super) struct CallEmitter<'a> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
@@ -73,12 +75,11 @@ pub(super) struct CallEmitter<'a> {
     diagnostics: &'a mut Vec<CompileError>,
     /// Nonfatal findings appended in encounter order.
     lint_findings: &'a mut Vec<LintFinding>,
-    /// Identities the module references at runtime; the pipeline uses this set to decide which
-    /// declarations are replaced by a runtime call and which are erased.
+    /// Identities the module references at runtime; the pipeline uses this set to
+    /// decide which declarations are replaced by a runtime call and which are erased.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Definition identities whose CSS this module must emit; every use, static or dynamic,
-    /// Definition identities whose CSS this module must emit; every use, static or dynamic,
-    /// and every `.for` application records here.
+    /// Definition identities whose CSS this module must emit; every use, static or
+    /// dynamic, and every `.for` application records here.
     required_definitions: &'a mut BTreeSet<IdentityId>,
     /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
@@ -88,14 +89,18 @@ pub(super) struct CallEmitter<'a> {
     written_name_symbols: Vec<GeneratedSymbol>,
     /// Whether the call marks participants with a view-transition class.
     view_transition_classes: bool,
-    /// Explicit view-transition-name declarations supplied by utility literals.
+    /// Resolved utility entries whose declaration text contains `view-transition-name`.
+    /// Counts across all utility branches, without guard-path exclusivity analysis.
     view_transition_names: usize,
-    view_transition_name_paths: view_transition::TransitionNamePaths,
+    /// Name supplies from transition uses, including keys carried by runtime values.
+    /// Its guard-aware maximum is added to the utility count for duplicate-name
+    /// linting.
+    view_transition_name_paths: TransitionNamePaths,
 }
 
-/// Source, analysis, and shared output destinations for lowering one style call.
-/// Spans in the call must address `source`; destinations are appended
-/// during lowering and are not individually rolled back on failure.
+/// Source, analysis, and shared output destinations for lowering one style call. Spans
+/// in the call must address `source`; destinations are appended during lowering and are
+/// not individually rolled back on failure.
 pub(super) struct CallEmitterInputs<'a> {
     /// Original buffer used to slice user expressions.
     pub source: &'a SourceFile,
@@ -115,12 +120,13 @@ pub(super) struct CallEmitterInputs<'a> {
     pub utility_css: &'a mut Vec<CssContribution>,
     /// Shared destination for generated symbol records.
     pub symbols: &'a mut Vec<GeneratedSymbol>,
-    /// Previously emitted (class name, canonical input) pairs used to suppress identical units.
+    /// Previously emitted (class name, canonical input) pairs used to suppress
+    /// identical units.
     pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
-    /// Referenced runtime identities used to retain declarations that need runtime values.
+    /// Referenced runtime identities used to retain declarations that need runtime
+    /// values.
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Definition identities whose CSS the module must emit, recorded by every use and by
-    /// Definition identities whose CSS the module must emit, recorded by every use and by
-    /// `.for` applications.
+    /// Definition identities whose CSS the module must emit, recorded by every use and
+    /// by `.for` applications.
     pub required_definitions: &'a mut BTreeSet<IdentityId>,
 }

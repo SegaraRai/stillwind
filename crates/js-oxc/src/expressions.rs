@@ -161,8 +161,14 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Lowers conditional transition trees, retaining each leaf's complete guard path.
-    /// Empty branches contribute no transition; other leaf kinds use ordinary class lowering.
+    /// Recognizes a transition use or a tree of `&&` and ternary selections as style
+    /// inputs. Each transition leaf retains its complete guard path. `false`, `null`,
+    /// and the identifier `undefined` contribute no input.
+    ///
+    /// Returns a nonempty vector only when every leaf is recognized. `None` lets the
+    /// caller try ordinary class lowering for the whole expression, discarding partial
+    /// inputs. Type probes and diagnostics recorded during recognition remain in the
+    /// extractor.
     fn guarded_view_transition_uses(
         &mut self,
         expression: &Expression<'a>,
@@ -172,6 +178,15 @@ impl<'a> MacroExtractor<'a> {
         (!inputs.is_empty()).then_some(inputs)
     }
 
+    /// Appends recognized transition leaves using `guard` as their inherited
+    /// outer-to-inner path. Ternary arms are visited consequent first, then alternate,
+    /// even when one cannot resolve, so both arms can request checker facts. Empty
+    /// leaves append nothing.
+    ///
+    /// Returns `Some(())` when every leaf is recognized, including an entirely empty
+    /// tree. An unsupported or unresolved leaf returns `None`. On either return,
+    /// `guard` is restored to its entry state, while appended inputs, type probes, and
+    /// diagnostics are retained.
     fn collect_guarded_transitions(
         &mut self,
         expression: &Expression<'a>,

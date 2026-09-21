@@ -53,18 +53,6 @@ pub(crate) enum ValueExpr {
         /// Property value expression.
         value: Box<Self>,
     },
-    /// A value one conditional test selects.
-    ///
-    /// A guarded contribution still evaluates to nothing when its test fails, so the
-    /// expression carries the test instead of the caller dropping the part.
-    Conditional {
-        /// Complete test expression with original whitespace and occurrence mappings.
-        code: Code,
-        /// Whether the value applies when the test is truthy.
-        when_true: bool,
-        /// The value the test selects.
-        value: Box<Self>,
-    },
 }
 
 impl ValueExpr {
@@ -74,18 +62,6 @@ impl ValueExpr {
     pub(crate) fn render(&self, runtime: &mut RuntimeBindings<'_>) -> Code {
         match self {
             Self::Source(expression) => expression.clone(),
-            Self::Conditional {
-                code,
-                when_true,
-                value,
-            } => {
-                let rendered = value.render(runtime);
-                if *when_true {
-                    code!["(", code.clone(), ")&&(", rendered, ")"]
-                } else {
-                    code!["(", code.clone(), ")?undefined:(", rendered, ")"]
-                }
-            }
             Self::Call {
                 helper,
                 arguments,
@@ -313,7 +289,27 @@ impl Fragment {
                 Self::Record(vec![Atom::Custom(property.clone())])
             }
             StyleEmissionPart::Base { expression, .. } => Self::FromProps(expression.clone()),
-            StyleEmissionPart::Style { expression, .. } => Self::StylePayload(expression.clone()),
+            StyleEmissionPart::Style {
+                expression, guard, ..
+            } => {
+                let mut payload = Self::StylePayload(expression.clone());
+                for (test, when_true) in guard.iter().rev() {
+                    let empty = Box::new(Self::Record(Vec::new()));
+                    let selected = Box::new(payload);
+                    let (consequent, alternate) = if *when_true {
+                        (selected, empty)
+                    } else {
+                        (empty, selected)
+                    };
+                    payload = Self::Branch {
+                        test: test.clone(),
+                        kind: ConditionalKind::Ternary,
+                        consequent,
+                        alternate,
+                    };
+                }
+                payload
+            }
         }));
         Self::Sequence(children)
     }

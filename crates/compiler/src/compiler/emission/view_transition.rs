@@ -18,14 +18,23 @@ use crate::generated::js_string;
 use crate::identifiers::view_transition_name;
 use crate::runtime::RuntimeHelper;
 
-/// Name supplies grouped by shared conditional paths, so exclusive arms count once.
+/// Conditional name supplies used to detect competing view-transition names in one
+/// style call. Each node represents a shared guard prefix. Test identity comes from
+/// source positions, so equivalent expressions at different positions remain
+/// independent for this analysis.
 #[derive(Default)]
 pub(super) struct TransitionNamePaths {
+    /// Supplies selected by this node's prefix without any further condition.
     count: usize,
+    /// Half-open UTF-8 test ranges in the call's source, with falsy arm at 0 and truthy
+    /// arm at 1.
     branches: BTreeMap<(u32, u32), [Self; 2]>,
 }
 
 impl TransitionNamePaths {
+    /// Adds one name supply under an outermost-to-innermost guard path from this call's
+    /// source. An empty path adds an unconditional supply. Repeated insertion counts
+    /// another supply, even when the path matches an existing one.
     fn insert(&mut self, guard: &[StyleGuard]) {
         let mut node = self;
         for step in guard {
@@ -37,6 +46,10 @@ impl TransitionNamePaths {
         node.count += 1;
     }
 
+    /// Returns a conservative upper bound on simultaneous supplies below this guard
+    /// prefix. Opposite arms of a shared test contribute their larger count. Distinct
+    /// test ranges contribute additively, without checking correlations between their
+    /// runtime values.
     fn maximum(&self) -> usize {
         self.count
             + self
@@ -214,38 +227,23 @@ impl CallEmitter<'_> {
             }
         }
         self.parts.push(StyleEmissionPart::Style {
-            expression: self.guarded_value(
-                guard,
-                ValueExpr::Entry {
-                    property: "view-transition-name".to_owned(),
-                    value: Box::new(ValueExpr::Call {
-                        helper: RuntimeHelper::ViewTransitionName,
-                        arguments,
-                        span: value,
-                    }),
-                },
-            ),
+            expression: ValueExpr::Entry {
+                property: "view-transition-name".to_owned(),
+                value: Box::new(ValueExpr::Call {
+                    helper: RuntimeHelper::ViewTransitionName,
+                    arguments,
+                    span: value,
+                }),
+            },
+            guard: guard
+                .iter()
+                .filter_map(|step| {
+                    self.source_expression(step.test)
+                        .map(|test| (test, step.when_true))
+                })
+                .collect(),
             position: value.start.0,
         });
-    }
-
-    /// Wraps one inline value in the tests that select it, outermost test last.
-    ///
-    /// A guarded contribution still evaluates to nothing when its test fails, so the value
-    /// carries the test rather than the caller dropping the part.
-    fn guarded_value(&self, guard: &[StyleGuard], value: ValueExpr) -> ValueExpr {
-        let mut value = value;
-        for step in guard.iter().rev() {
-            let Some(code) = self.source_expression(step.test) else {
-                continue;
-            };
-            value = ValueExpr::Conditional {
-                code,
-                when_true: step.when_true,
-                value: Box::new(value),
-            };
-        }
-        value
     }
 
     /// Wraps one class value in the tests that select it.

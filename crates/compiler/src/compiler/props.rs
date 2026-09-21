@@ -84,6 +84,9 @@ pub(crate) enum StyleEmissionPart {
     Style {
         /// Source expression or deferred helper producing the style payload.
         expression: ValueExpr,
+        /// Outermost-to-innermost tests paired with the truthiness that selects this payload.
+        /// An empty path contributes unconditionally.
+        guard: Vec<(Code, bool)>,
         /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },
