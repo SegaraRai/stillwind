@@ -236,13 +236,11 @@ pub struct ViewTransitionDefinition {
 /// A declaration identity paired with source provenance at its use site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetReference {
-    /// Durable declaration identity; external offsets are never interpreted in this file.
+    /// Original UTF-8 declaration identity in its own module.
     pub identity: IdentityId,
-    /// Expression referring to the asset in the current module.
+    /// Use-site UTF-8 span in the current module; mapped from analysis to original
+    /// before compilation.
     pub span: Span,
-    /// A local declaration's range, which must follow source projection alongside its
-    /// identity. External declarations have no span in the current source buffer.
-    pub local_declaration: Option<Span>,
     /// Authored label of the referenced declaration, when the frontend could read it.
     ///
     /// A label participates in the declaration's generated name, so a use site in

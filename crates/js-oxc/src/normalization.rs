@@ -12,6 +12,8 @@
 //! that does not correspond exactly to original text fails the whole conversion instead
 //! of producing a plausible edit.
 
+use std::collections::HashMap;
+
 use oxc::allocator::Allocator;
 use oxc::ast::ast::{
     ArrayExpressionElement, BindingPattern, Expression, ObjectProperty, PropertyKey, Statement,
@@ -25,7 +27,8 @@ use stillwind_ir::{
     AdapterKind, FrameworkSpec, ModuleIr, ProjectionDecision, ProjectionExpression, ScriptLanguage,
 };
 use stillwind_source::{
-    FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance, Span,
+    BytePos, FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance,
+    Span,
 };
 
 use crate::entry::source_type;
@@ -51,6 +54,9 @@ pub struct NormalizedProjection<'a> {
     index: ProjectionIndex<'a>,
     /// Retained text runs, in normalized source order.
     segments: Vec<Segment>,
+    /// Generated-source UTF-8 property starts mapped to their full member-expression
+    /// starts, restoring omitted `__VLS_ctx.` text in checker query spans.
+    member_starts_by_property_start: HashMap<BytePos, BytePos>,
 }
 
 impl NormalizedProjection<'_> {
@@ -69,7 +75,11 @@ impl NormalizedProjection<'_> {
         for segment in &self.segments {
             let start = span.start.0.max(segment.normalized.start.0);
             let end = span.end.0.min(segment.normalized.end.0);
-            if start < end {
+            if start < end
+                || (span.start == span.end
+                    && segment.normalized.start <= span.start
+                    && span.end <= segment.normalized.end)
+            {
                 let shift = segment.projected.start.0 - segment.normalized.start.0;
                 fragments.push(Span::new(
                     segment.projected.file,
@@ -78,7 +88,14 @@ impl NormalizedProjection<'_> {
                 ));
             }
         }
-        self.index.verify_fragments(&fragments)
+        let mut mapped = self.index.verify_fragments(&fragments)?;
+        if let Some(start) = self
+            .member_starts_by_property_start
+            .get(&mapped.projected.start)
+        {
+            mapped.projected.start = *start;
+        }
+        Ok(mapped)
     }
 
     /// Rewrites every IR span to the original source, returning the provenance of each
@@ -105,6 +122,9 @@ impl NormalizedProjection<'_> {
             }
         }
         let mut original = editable.try_map_spans(|span| {
+            if span.file != self.source.id() {
+                return Ok(span);
+            }
             let mapped = self.original_span(span)?;
             provenance.push(mapped);
             Ok::<_, ProjectionError>(mapped.original)
@@ -190,8 +210,14 @@ pub(crate) fn normalize_with_language<'a>(
         index: &index,
         framework: framework.spec(),
         omitted: Vec::new(),
+        receiver_prefixes: Vec::new(),
     };
     visitor.visit_program(&parsed.program);
+    let member_starts_by_property_start = visitor
+        .receiver_prefixes
+        .into_iter()
+        .map(|prefix| (prefix.end, prefix.start))
+        .collect();
     let mut omitted = visitor.omitted;
     omitted.sort_by_key(|span| (span.start.0, std::cmp::Reverse(span.end.0)));
     omitted.dedup();
@@ -234,6 +260,7 @@ pub(crate) fn normalize_with_language<'a>(
         source: SourceFile::new(analysis_id, generated.path(), output)?,
         index,
         segments,
+        member_starts_by_property_start,
     })
 }
 
@@ -250,6 +277,10 @@ struct NormalizationVisitor<'a, 'b> {
     framework: &'static FrameworkSpec,
     /// Candidate omission spans, in visit order.
     omitted: Vec<Span>,
+    /// Half-open UTF-8 spans in `source` covering the generated receiver and dot
+    /// removed from member expressions, e.g. `__VLS_ctx.` in `__VLS_ctx.foo`.
+    /// Each span ends at the retained property's start, after projection validation.
+    receiver_prefixes: Vec<Span>,
 }
 
 impl<'a> Visit<'a> for NormalizationVisitor<'_, '_> {
@@ -354,8 +385,9 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, '_> {
             if let ProjectionDecision::Retain(retained) = decision
                 && self.index.is_collapsed_prefix(whole, retained)
             {
-                self.omitted
-                    .push(Span::new(whole.file, whole.start.0, retained.start.0));
+                let prefix = Span::new(whole.file, whole.start.0, retained.start.0);
+                self.omitted.push(prefix);
+                self.receiver_prefixes.push(prefix);
             }
         }
         walk::walk_static_member_expression(self, member);

@@ -181,9 +181,8 @@ impl<'a> CallEmitter<'a> {
         &mut self,
         reference: &AssetReference,
         kind: AssetKind,
-        span: Span,
     ) -> Result<String, CompileErrorKind> {
-        let symbol = definition_name_symbol(self.identifiers, reference, kind, span)?;
+        let symbol = definition_name_symbol(self.identifiers, reference, kind)?;
         let name = symbol.name.clone();
         self.written_name_symbols.push(symbol);
         Ok(name)

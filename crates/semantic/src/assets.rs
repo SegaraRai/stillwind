@@ -30,8 +30,8 @@ pub struct AssetRecord {
     pub identity: IdentityId,
     /// Optional author-provided label.
     pub metadata: AssetMetadata,
-    /// Byte offset where the producing call starts in the module's original source.
+    /// UTF-8 byte offset where the producing call starts in the module's original source.
     pub call_start: u32,
-    /// Byte offset where the producing call ends, exclusive.
+    /// UTF-8 byte offset where the producing call ends, exclusive.
     pub call_end: u32,
 }

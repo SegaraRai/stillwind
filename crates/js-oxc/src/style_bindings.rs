@@ -18,6 +18,7 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
+use stillwind_source::{SourceFile, Span};
 
 use crate::state::MacroExtractor;
 
@@ -50,7 +51,8 @@ impl<'a> MacroExtractor<'a> {
         let mut collector = Bindings {
             macros: &macros,
             scoping: self.scoping,
-            module: self.source.path(),
+            source: self.source,
+            coordinates: self.coordinates,
             values: HashMap::new(),
             writes: HashSet::new(),
         };
@@ -69,8 +71,10 @@ struct Bindings<'s> {
     macros: &'s HashSet<SymbolId>,
     /// Scoping table used to resolve callee references.
     scoping: &'s Scoping,
-    /// Module path recorded in the identities this pass creates.
-    module: &'s str,
+    /// Analysis source that owns Oxc byte spans.
+    source: &'s SourceFile,
+    /// Maps analysis UTF-8 spans to original UTF-8 spans before creating identities.
+    coordinates: &'s dyn Fn(Span) -> Option<Span>,
     /// Resolved value for each direct style binding.
     values: HashMap<SymbolId, ExportedValue>,
     /// Symbols that are ever written to, and therefore not constants.
@@ -89,14 +93,16 @@ impl<'a> Visit<'a> for Bindings<'_> {
             && let Some(symbol) = self.scoping.get_reference(reference).symbol_id()
             && self.macros.contains(&symbol)
             && let Some(binding) = identifier.symbol_id.get()
+            && let Some(span) =
+                (self.coordinates)(Span::new(self.source.id(), call.span.start, call.span.end))
         {
             self.values.insert(
                 binding,
                 ExportedValue::Styles(SymbolicValue::exact(IdentityId::new(
                     AssetKind::Style,
-                    self.module,
-                    call.span.start,
-                    call.span.end,
+                    self.source.path(),
+                    span.start.0,
+                    span.end.0,
                     "",
                 ))),
             );

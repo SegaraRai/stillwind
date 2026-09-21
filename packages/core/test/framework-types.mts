@@ -74,3 +74,14 @@ function customPropertyTypes(image: URL, progress: number) {
   react({ "hover:": { "--progress": 1 } });
 }
 void customPropertyTypes;
+
+function boundedIdentityTypes(
+  boundary: import("stillwind/react").StyleRef<"boundary">,
+  identity: import("stillwind/react").StillwindDeclarationIdentity<"bounded">,
+) {
+  const bounded = react.ref(boundary, identity);
+  react(bounded, bounded.anchor);
+  svelte(bounded, bounded.positionAnchor);
+  vue({ [bounded("hover")]: "text-accent" });
+}
+void boundedIdentityTypes;

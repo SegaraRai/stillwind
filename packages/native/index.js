@@ -34,6 +34,7 @@ export const compileReact = binding.compileReact;
 export const compileReactProject = binding.compileReactProject;
 export const renderReactStylesheet = binding.renderReactStylesheet;
 export const summarizeReact = binding.summarizeReact;
+export const scanSource = binding.scanSource;
 export const generateReactTypes = binding.generateReactTypes;
 export const foldCalcExpressions = binding.foldCalcExpressions;
 export const NativeDesignSystemLoader = binding.NativeDesignSystemLoader;

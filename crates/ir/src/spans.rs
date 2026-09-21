@@ -22,7 +22,7 @@ use crate::{
 };
 
 impl ModuleIr {
-    /// Maps every local source span, retaining this IR unchanged on failure. The
+    /// Maps local analysis spans while preserving original-coordinate identities. The
     /// frontend owns correspondence validation and keeps its provenance.
     ///
     /// The mapping function is called for each stored span occurrence, and the same
@@ -153,12 +153,6 @@ fn map_asset<E>(
     if let Some(label) = &mut asset.label {
         map_value(label, map)?;
     }
-    if let Some(declaration) = asset.local_declaration {
-        let declaration = map(declaration)?;
-        asset.identity.start = declaration.start.0;
-        asset.identity.end = declaration.end.0;
-        asset.local_declaration = Some(declaration);
-    }
     Ok(())
 }
 
@@ -188,12 +182,7 @@ fn map_input<E>(
                 map_ref(definition, map)?;
             }
         }
-        StyleInput::Composition { value, candidates } => {
-            for candidate in candidates {
-                let span = map(Span::new(value.file, candidate.start, candidate.end))?;
-                candidate.start = span.start.0;
-                candidate.end = span.end.0;
-            }
+        StyleInput::Composition { value, .. } => {
             *value = map(*value)?;
         }
         StyleInput::ViewTransitionUse {

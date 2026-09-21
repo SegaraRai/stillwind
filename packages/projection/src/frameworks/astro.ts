@@ -37,6 +37,13 @@ export async function convert(source: string, filename: string): Promise<Convert
     scripts.push({ id: scripts.length + 1, start, end });
   }
   return {
+    checker_scripts: (result.metaRanges.scripts ?? [])
+      .filter(
+        (script) =>
+          ["processed-module", "module", "inline"].includes(script.type) &&
+          script.content.length > 0,
+      )
+      .map((script) => ({ start: script.position.start, end: script.position.end })),
     framework: "Astro",
     language: "tsx",
     source: result.code,

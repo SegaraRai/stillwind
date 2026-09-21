@@ -18,12 +18,12 @@ use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
-use stillwind_source::{FileId, Fingerprint, SourceError, SourceFile};
+use stillwind_source::{CoordinateIndex, FileId, Fingerprint, SourceError, SourceFile};
 
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput};
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
-use crate::semantic::{NativeModuleSummary, NativeTypeProbe};
+use crate::semantic::{NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe};
 use crate::source_input::{NativeProjectSource, ProjectSource};
 
 /// Failures that can occur before any compiler diagnostic is produced.
@@ -275,6 +275,73 @@ pub fn compile_react_project_input_with_options(
         })
         .collect();
     Ok(ProjectBindingOutput { modules })
+}
+
+/// Scans plain or projected input and returns original UTF-8 summary coordinates.
+///
+/// # Errors
+///
+/// Rejects malformed input and projection failures before checker queries are issued.
+#[napi(js_name = "scanSource", strict)]
+pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSummary> {
+    let source = ProjectSource::try_from(source)?;
+    let scan = OxcSourceAnalyzer.scan_input(source.input(FileId(1), FileId(2), FileId(3))?);
+    if let Some(error) = scan
+        .diagnostics
+        .iter()
+        .find(|error| error.kind.code() == "SHPRJ001" || error.kind.code() == "SHJS001")
+    {
+        return Err(Error::from_reason(error.to_string()));
+    }
+    let count = |length| u32::try_from(length).map_err(|_| Error::from_reason("too many imports"));
+    let mut result = NativeModuleSummary::new(
+        scan.summary,
+        count(scan.local_ir.imports.module_css.len())?,
+        count(scan.local_ir.imports.macros.len())?,
+        scan.type_probes
+            .iter()
+            .map(|probe| NativeTypeProbe {
+                start: probe.span.start.0,
+                end: probe.span.end.0,
+            })
+            .collect(),
+    );
+    let wanted: BTreeSet<_> = result
+        .type_probes
+        .iter()
+        .map(|probe| (probe.start, probe.end))
+        .chain(
+            result
+                .assets
+                .iter()
+                .map(|asset| (asset.call_start, asset.call_end)),
+        )
+        .chain(
+            result
+                .module_specifiers
+                .iter()
+                .map(|specifier| (specifier.start, specifier.end)),
+        )
+        .collect();
+    let index = CoordinateIndex::new(&scan.input.code);
+    for mapped in scan.provenance {
+        if !wanted.contains(&(mapped.original.start.0, mapped.original.end.0)) {
+            continue;
+        }
+        result.checker_spans.push(NativeCheckerSpan {
+            start: mapped.original.start.0,
+            end: mapped.original.end.0,
+            projected_start: index
+                .utf16(mapped.projected.start)
+                .map_err(|e| Error::from_reason(e.to_string()))?
+                .0,
+            projected_end: index
+                .utf16(mapped.projected.end)
+                .map_err(|e| Error::from_reason(e.to_string()))?
+                .0,
+        });
+    }
+    Ok(result)
 }
 
 /// Extracts the versioned cross-module summary for a React source module.

@@ -14,7 +14,37 @@ use stillwind_ir::{
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_semantic::AssetKind;
-use stillwind_source::{FileId, ProjectionMap, SourceFile, VolarMapping};
+use stillwind_source::{FileId, ProjectionMap, SourceFile, Span, VolarMapping};
+
+#[test]
+fn checker_spans_restore_each_generated_receiver_for_properties_and_calls() {
+    let original = SourceFile::new(FileId(1), "Component.vue", "foo(); bar;").unwrap();
+    let generated =
+        SourceFile::new(FileId(2), "Component.ts", "__VLS_ctx.foo(); __VLS_ctx.bar;").unwrap();
+    let map = ProjectionMap::Volar {
+        mappings: vec![VolarMapping {
+            source_offsets: vec![0, 7],
+            generated_offsets: vec![10, 27],
+            lengths: vec![7, 4],
+            generated_lengths: None,
+        }],
+    };
+    let normalized =
+        normalize_projection(&generated, &original, &map, AdapterKind::Vue, FileId(3)).unwrap();
+    assert_eq!(normalized.source.text(), original.text());
+    for (start, end, expected) in [
+        (0, 3, "__VLS_ctx.foo"),
+        (0, 5, "__VLS_ctx.foo()"),
+        (7, 10, "__VLS_ctx.bar"),
+        (3, 5, "()"),
+    ] {
+        let mapped = normalized
+            .original_span(Span::new(FileId(3), start, end))
+            .unwrap();
+        assert_eq!(mapped.original, Span::new(original.id(), start, end));
+        assert_eq!(generated.slice(mapped.projected).unwrap(), expected);
+    }
+}
 
 /// A Svelte-style projection of one script block into an original file.
 ///
@@ -217,8 +247,7 @@ fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_mac
 /// Finalized projected analyses speak in original coordinates.
 ///
 /// The source buffer is the original file, every summary span slices it, asset
-/// identities point at declarations in it, and checker probes are empty because their
-/// spans would describe the generated module.
+/// identities and checker probes point into the original file.
 #[test]
 fn projected_analysis_preserves_original_source_and_semantic_identity() {
     let input = projected();
@@ -227,7 +256,11 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
     assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
     assert!(Arc::ptr_eq(&scan.source, &original));
     assert!(!scan.provenance.is_empty());
-    assert!(scan.type_probes.is_empty());
+    assert!(!scan.type_probes.is_empty());
+    for probe in &scan.type_probes {
+        assert_eq!(probe.span.file, original.id());
+        assert!(original.slice(probe.span).is_ok());
+    }
     for specifier in &scan.summary.module_specifiers {
         assert_eq!(
             &original.text()[specifier.start as usize..specifier.end as usize],
@@ -323,4 +356,64 @@ fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
     assert!(scan.diagnostics.is_empty());
     assert!(Arc::ptr_eq(&scan.source, &source));
     assert_eq!(scan.local_ir.style_calls.len(), 1);
+}
+
+#[test]
+fn projected_facts_resolve_composition_at_original_unicode_offsets() {
+    use std::collections::BTreeMap;
+    use stillwind_semantic::{ExportedValue, SymbolicValue, TypeFact, TypeFacts};
+    use stillwind_source::Fingerprint;
+    let input = projected_script(
+        "import {style} from 'stillwind/svelte'; const 前置='🧭'; const base=style('flex'); const chosen=base; const props=style(chosen);",
+    );
+    let scan = OxcSourceAnalyzer.scan_input(input);
+    let identity = scan
+        .summary
+        .assets
+        .iter()
+        .find(|asset| asset.identity.kind == AssetKind::Style)
+        .unwrap()
+        .identity
+        .clone();
+    let probe = scan
+        .type_probes
+        .iter()
+        .find(|probe| scan.source.slice(probe.span).unwrap() == "chosen")
+        .unwrap()
+        .span;
+    let facts = TypeFacts {
+        schema: TypeFacts::SCHEMA,
+        module_id: scan.module_id.clone(),
+        source_revision: scan.source_revision.clone(),
+        semantic_revision: Fingerprint::of("checker"),
+        assets: BTreeMap::new(),
+        facts: vec![TypeFact {
+            start: probe.start.0,
+            end: probe.end.0,
+            value: ExportedValue::Styles(SymbolicValue::exact(identity.clone())),
+        }],
+    };
+    let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(analysis.integration_diagnostics.is_empty());
+    let StyleInput::Composition { value, candidates } = &analysis.ir.style_calls[1].inputs[0]
+    else {
+        panic!("composition")
+    };
+    assert_eq!(*value, probe);
+    assert_eq!(candidates, std::slice::from_ref(&identity));
+    assert_eq!(
+        &analysis.source.text()[identity.start as usize..identity.end as usize],
+        "style('flex')"
+    );
+    assert!(
+        analysis
+            .provenance
+            .iter()
+            .any(|mapping| mapping.original == probe)
+    );
 }

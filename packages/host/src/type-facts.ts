@@ -9,47 +9,63 @@ import type {
   NativeExportedValue,
 } from "@stillwind/native";
 import type { Node, SourceFile } from "typescript/unstable/ast";
-import { SyntaxKind } from "typescript/unstable/ast";
 import {
   isExpression,
   isIdentifier,
-  isVariableDeclaration,
-  isBinaryExpression,
-  isConditionalExpression,
-  isParenthesizedExpression,
-  isPropertyAccessExpression,
   isCallExpression,
-  isFunctionDeclaration,
-  isFunctionExpression,
-  isArrowFunction,
-  isBlock,
-  isReturnStatement,
-  isPropertyAssignment,
-  isObjectLiteralExpression,
-  isShorthandPropertyAssignment,
+  isPropertyAccessExpression,
+  isElementAccessExpression,
 } from "typescript/unstable/ast/is";
-import { API, SymbolFlags, TypeFlags } from "typescript/unstable/sync";
-import type { Checker, Snapshot, Type } from "typescript/unstable/sync";
+import { API, TypeFlags } from "typescript/unstable/sync";
+import type { Checker, Snapshot, Type, Diagnostic } from "typescript/unstable/sync";
 
-export interface TypeFactSource {
-  id: string;
-  path: string;
-  source: string;
-  /** Byte spans requested by the macro frontend; unrelated expressions are not queried. */
-  probes: readonly { start: number; end: number }[];
-  /** Host-selected local modules; spans include the import's string quotes. */
-  resolutions?: readonly { start: number; end: number; id: string }[];
+import { CheckerSource, checkerId, byteToUtf16 } from "./checker-source.ts";
+import type { TypeFactSource } from "./checker-source.ts";
+export type { TypeFactSource } from "./checker-source.ts";
+
+/** A failed checker contract, reported at original UTF-8 coordinates. */
+export class TypeFactsError extends Error {
+  readonly path: string;
+  readonly start: number;
+  readonly end: number;
+  readonly code: string;
+  constructor(path: string, start: number, end: number, code: string, message: string) {
+    super(`${code}: ${message} (${path}:${start})`);
+    this.path = path;
+    this.start = start;
+    this.end = end;
+    this.code = code;
+  }
+
+  /** Formats original UTF-8 bounds and original UTF-16 editor coordinates. */
+  diagnostic(source: string) {
+    const position = (offset: number) => {
+      const utf16 = byteToUtf16(source, offset);
+      const lines = source.slice(0, utf16).split("\n");
+      return { utf16, line: lines.length - 1, column: lines.at(-1)!.length };
+    };
+    const start = position(this.start),
+      end = position(this.end);
+    return {
+      code: this.code,
+      message: this.message,
+      file: this.path,
+      start: this.start,
+      end: this.end,
+      start_utf16: start.utf16,
+      end_utf16: end.utf16,
+      start_line: start.line,
+      end_line: end.line,
+      start_column: start.column,
+      end_column: end.column,
+      notes: [],
+    };
+  }
 }
 
 export type IdentityId = NativeIdentity;
 export type AssetRecord = NativeAssetRecord;
 export type TypeFact = NativeTypeFact;
-
-interface ShadowEdit {
-  at: number;
-  end: number;
-  text: string;
-}
 
 const normalize = (fileName: string) => {
   const name = path.resolve(fileName).replaceAll("\\", "/");
@@ -59,72 +75,6 @@ const normalize = (fileName: string) => {
 function visit(node: Node, callback: (node: Node) => void) {
   callback(node);
   node.forEachChild((child) => visit(child, callback));
-}
-
-function byteToUtf16(text: string, offset: number): number {
-  return Buffer.from(text).subarray(0, offset).toString("utf8").length;
-}
-
-function utf16ToByte(text: string, offset: number): number {
-  return Buffer.byteLength(text.slice(0, offset), "utf8");
-}
-
-function identityKey(identity: IdentityId): string {
-  return `stillwind/v1:${Buffer.from(JSON.stringify(identity)).toString("base64url")}`;
-}
-
-function shadowSource(source: TypeFactSource, assets: readonly AssetRecord[]) {
-  const identities = new Map<string, IdentityId>();
-  const edits = assets.map((asset): ShadowEdit => {
-    const key = identityKey(asset.identity);
-    identities.set(key, asset.identity);
-    const callStart = byteToUtf16(source.source, asset.call_start);
-    const callEnd = byteToUtf16(source.source, asset.call_end);
-    const call = source.source.slice(callStart, callEnd);
-    const closingParen = call.lastIndexOf(")");
-    if (closingParen < 0) throw new Error(`Stillwind producer has no closing parenthesis`);
-    const openingParen = call.indexOf("(");
-    const hasArguments = call.slice(openingParen + 1, closingParen).trim().length > 0;
-    const identityType = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
-    return {
-      at: callStart + closingParen,
-      end: callStart + closingParen,
-      text: `${hasArguments ? "," : ""}undefined as unknown as ${identityType}`,
-    };
-  });
-  for (const resolution of source.resolutions ?? []) {
-    edits.push({
-      at: byteToUtf16(source.source, resolution.start),
-      end: byteToUtf16(source.source, resolution.end),
-      text: JSON.stringify(path.resolve(resolution.id).replaceAll("\\", "/")),
-    });
-  }
-  edits.sort((left, right) => left.at - right.at);
-
-  let text = source.source;
-  for (const edit of [...edits].reverse()) {
-    text = text.slice(0, edit.at) + edit.text + text.slice(edit.end);
-  }
-  return { text, edits, identities };
-}
-
-function shadowToOriginal(
-  position: number,
-  edits: readonly ShadowEdit[],
-  end = false,
-): number | null {
-  let inserted = 0;
-  for (const edit of edits) {
-    const shadowStart = edit.at + inserted;
-    const shadowEnd = shadowStart + edit.text.length;
-    if (position < shadowStart) break;
-    // A real argument can end exactly where the hidden identity is inserted.
-    // Its end belongs to the original source, not to the inserted argument.
-    if (end && position === shadowStart) return edit.at;
-    if (position < shadowEnd) return null;
-    inserted += edit.text.length - (edit.end - edit.at);
-  }
-  return position - inserted;
 }
 
 function typeArguments(checker: Checker, type: Type): readonly Type[] {
@@ -230,189 +180,9 @@ function typeFactValue(
   return null;
 }
 
-/** Hidden nominal identities must not discard later, source-valid assignments.
- * Collect every assignment to the checker-resolved binding, irrespective of flow.
- */
-function styleFlow(
-  checker: Checker,
-  sources: readonly SourceFile[],
-  identities: ReadonlyMap<string, IdentityId>,
-) {
-  const definitions: { target: Node; value: Node }[] = [];
-  for (const source of sources)
-    visit(source, (node) => {
-      if (isVariableDeclaration(node) && isIdentifier(node.name) && node.initializer)
-        definitions.push({ target: node.name, value: node.initializer });
-      if (isFunctionDeclaration(node) && node.name)
-        definitions.push({ target: node.name, value: node });
-      if (isPropertyAssignment(node))
-        definitions.push({ target: node.name, value: node.initializer });
-      if (
-        isBinaryExpression(node) &&
-        node.operatorToken.kind === SyntaxKind.EqualsToken &&
-        (isIdentifier(node.left) || isPropertyAccessExpression(node.left))
-      )
-        definitions.push({ target: node.left, value: node.right });
-    });
-  const cachedSymbols = new Map(
-    checker
-      .getSymbolAtLocation(definitions.map(({ target }) => target))
-      .map((symbol, index) => [definitions[index].target, symbol]),
-  );
-  const symbolId = (node: Node) => {
-    if (!cachedSymbols.has(node)) cachedSymbols.set(node, checker.getSymbolAtLocation(node));
-    let symbol = cachedSymbols.get(node);
-    if (symbol && symbol.flags & SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
-    return symbol?.getExportSymbol().id;
-  };
-  const assignments = new Map<number, Node[]>();
-  for (const { target, value } of definitions) {
-    const id = symbolId(target);
-    if (id === undefined) continue;
-    const values = assignments.get(id) ?? [];
-    values.push(value);
-    assignments.set(id, values);
-  }
-  const unite = (values: (IdentityId[] | null)[]): IdentityId[] | null => {
-    if (values.some((value) => value === null)) return null;
-    const unique = new Map(
-      values.flatMap((value) => value ?? []).map((identity) => [identityKey(identity), identity]),
-    );
-    return [...unique.values()];
-  };
-  const resolve = (
-    node: Node,
-    pending: Set<number>,
-    parameters = new Map<number, Node>(),
-  ): IdentityId[] | null => {
-    if (isParenthesizedExpression(node)) return resolve(node.expression, pending, parameters);
-    if (isConditionalExpression(node))
-      return unite([
-        resolve(node.whenTrue, pending, parameters),
-        resolve(node.whenFalse, pending, parameters),
-      ]);
-    if (isPropertyAccessExpression(node) && isIdentifier(node.expression)) {
-      const objectId = symbolId(node.expression);
-      const objects = objectId === undefined ? undefined : assignments.get(objectId);
-      if (objects?.every(isObjectLiteralExpression)) {
-        const propertyId = symbolId(node);
-        if (propertyId !== undefined && pending.has(propertyId)) return null;
-        const next = new Set(pending);
-        if (propertyId !== undefined) next.add(propertyId);
-        const property = node.name.text;
-        const values: Node[] = [];
-        for (const object of objects)
-          for (const entry of object.properties) {
-            if (
-              isPropertyAssignment(entry) &&
-              isIdentifier(entry.name) &&
-              entry.name.text === property
-            )
-              values.push(entry.initializer);
-            if (
-              isShorthandPropertyAssignment(entry) &&
-              isIdentifier(entry.name) &&
-              entry.name.text === property
-            )
-              values.push(entry.name);
-          }
-        for (const assignment of definitions)
-          if (
-            isPropertyAccessExpression(assignment.target) &&
-            assignment.target.name.text === property &&
-            symbolId(assignment.target.expression) === objectId
-          )
-            values.push(assignment.value);
-        return values.length
-          ? unite(values.map((value) => resolve(value, next, parameters)))
-          : null;
-      }
-    }
-    if (isCallExpression(node) && isIdentifier(node.expression)) {
-      const id = symbolId(node.expression);
-      const values = id === undefined ? undefined : assignments.get(id);
-      if (
-        id !== undefined &&
-        values?.every(
-          (value) =>
-            isArrowFunction(value) || isFunctionDeclaration(value) || isFunctionExpression(value),
-        )
-      ) {
-        if (pending.has(id)) return null;
-        const results: (IdentityId[] | null)[] = [];
-        for (const value of values) {
-          if (
-            !(
-              isArrowFunction(value) ||
-              isFunctionDeclaration(value) ||
-              isFunctionExpression(value)
-            ) ||
-            !value.body
-          )
-            return null;
-          const frame = new Map(parameters);
-          for (let index = 0; index < value.parameters.length; index++) {
-            const parameter = value.parameters[index];
-            if (!isIdentifier(parameter.name) || parameter.dotDotDotToken) return null;
-            const argument = node.arguments[index] ?? parameter.initializer;
-            const parameterId = symbolId(parameter.name);
-            if (argument && parameterId !== undefined) frame.set(parameterId, argument);
-          }
-          const returned: Node[] = [];
-          if (!isBlock(value.body)) returned.push(value.body);
-          else {
-            const collect = (child: Node) => {
-              if (
-                isArrowFunction(child) ||
-                isFunctionDeclaration(child) ||
-                isFunctionExpression(child)
-              )
-                return;
-              if (isReturnStatement(child)) {
-                if (child.expression) returned.push(child.expression);
-                return;
-              }
-              child.forEachChild(collect);
-            };
-            value.body.forEachChild(collect);
-          }
-          results.push(
-            ...returned.map((returned) => resolve(returned, new Set(pending).add(id), frame)),
-          );
-        }
-        return unite(results);
-      }
-    }
-    if (isIdentifier(node) || isPropertyAccessExpression(node)) {
-      const id = symbolId(node);
-      const values =
-        id === undefined
-          ? undefined
-          : [...(assignments.get(id) ?? []), ...(parameters.has(id) ? [parameters.get(id)!] : [])];
-      if (id !== undefined && values?.length) {
-        if (pending.has(id)) return null;
-        const next = new Set(pending).add(id);
-        return unite(values.map((value) => resolve(value, next, parameters)));
-      }
-    }
-    const type = checker.getTypeAtLocation(node);
-    const value = type && typeFactValue(checker, type, identities);
-    return value?.kind === "styles" && value.value.candidates.kind === "finite"
-      ? value.value.candidates.values
-      : null;
-  };
-  return (node: Node): NativeExportedValue | null => {
-    const candidates = resolve(node, new Set());
-    return candidates?.length ? { kind: "styles", value: symbolic("style", candidates) } : null;
-  };
-}
-
 interface PreparedProject {
   virtualFiles: Map<string, string>;
-  mappings: Map<
-    string,
-    { source: TypeFactSource; edits: ShadowEdit[]; identities: Map<string, IdentityId> }
-  >;
+  mappings: CheckerSource[];
   identities: Map<string, IdentityId>;
 }
 
@@ -431,34 +201,70 @@ function prepareProject(
   configFile: string,
 ): PreparedProject {
   const virtualFiles = new Map<string, string>();
-  const mappings = new Map<
-    string,
-    { source: TypeFactSource; edits: ShadowEdit[]; identities: Map<string, IdentityId> }
-  >();
+  const mappings: CheckerSource[] = [];
   const allIdentities = new Map<string, IdentityId>();
-
+  const ids = new Map(sources.map((source) => [source.id, checkerId(source)]));
   for (const source of sources) {
-    const shadow = shadowSource(source, assetsByPath.get(source.path) ?? []);
-    virtualFiles.set(normalize(source.id), shadow.text);
-    mappings.set(normalize(source.id), { source, ...shadow });
-    for (const [key, identity] of shadow.identities) allIdentities.set(key, identity);
+    const buffers = source.checker_buffers ?? [
+      {
+        source: source.source,
+        language:
+          source.language === "tsx" || source.language === "jsx"
+            ? ("tsx" as const)
+            : ("ts" as const),
+      },
+    ];
+    for (const [index, buffer] of buffers.entries()) {
+      const shadow = new CheckerSource(
+        source,
+        buffer,
+        index,
+        assetsByPath.get(source.path) ?? [],
+        ids,
+      );
+      virtualFiles.set(normalize(shadow.id), shadow.text);
+      mappings.push(shadow);
+      for (const [key, identity] of shadow.identities) allIdentities.set(key, identity);
+    }
+    for (const probe of source.probes) {
+      if (
+        !mappings.some(
+          (mapping) =>
+            mapping.source === source &&
+            [...mapping.probes.values()].some(
+              (candidate) => candidate.start === probe.start && candidate.end === probe.end,
+            ),
+        )
+      )
+        throw new TypeFactsError(
+          source.path,
+          probe.start,
+          probe.end,
+          "SHTS003",
+          "Cannot map this expression to a checker source",
+        );
+    }
   }
-
   virtualFiles.set(
     normalize(configFile),
     JSON.stringify({
       compilerOptions: {
         allowJs: true,
-        checkJs: false,
-        jsx: "react-jsx",
+        checkJs: true,
+        jsx: "preserve",
         module: "esnext",
         moduleResolution: "bundler",
         noEmit: true,
         skipLibCheck: true,
         strict: true,
         target: "esnext",
+        allowImportingTsExtensions: true,
+        types: [],
       },
-      files: sources.map((source) => source.id),
+      files: [
+        ...mappings.map((mapping) => mapping.id),
+        ...new Set(sources.flatMap((source) => source.checker_types ?? [])),
+      ],
     }),
   );
   return { virtualFiles, mappings, identities: allIdentities };
@@ -497,6 +303,7 @@ export class TypeScriptFactsService {
     try {
       return this.#collectPrepared(prepared);
     } catch (firstError) {
+      if (firstError instanceof TypeFactsError) throw firstError;
       this.stats.restarts += 1;
       this.#restartApi();
       try {
@@ -571,20 +378,51 @@ export class TypeScriptFactsService {
     try {
       const project = next.getProject(this.#configFile);
       if (!project) throw new Error("TypeScript 7 could not open the Stillwind shadow project");
-      const sourceFiles = [...prepared.mappings.values()].map((mapping) => {
-        const sourceFile = project.program.getSourceFile(mapping.source.id);
-        if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.source.id}`);
-        return sourceFile;
-      });
-      const possibleStyles = styleFlow(project.checker, sourceFiles, prepared.identities);
       const result = new Map<string, TypeFact[]>();
-      for (const mapping of prepared.mappings.values()) {
-        const sourceFile = project.program.getSourceFile(mapping.source.id);
-        if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.source.id}`);
-        result.set(
-          mapping.source.path,
-          factsForSource(project.checker, sourceFile, mapping, prepared.identities, possibleStyles),
+      for (const mapping of prepared.mappings) {
+        const sourceFile = project.program.getSourceFile(mapping.id);
+        if (!sourceFile) throw new Error(`TypeScript 7 omitted ${mapping.id}`);
+        const diagnostics = [
+          ...project.program.getSyntacticDiagnostics(mapping.id),
+          ...project.program.getSemanticDiagnostics(mapping.id),
+        ];
+        const diagnostic = diagnostics.find((d) =>
+          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+            diagnosticText(d),
+          ),
         );
+        if (diagnostic) {
+          const start = mapping.originalOffset(diagnostic.pos) ?? 0;
+          const end = mapping.originalOffset(diagnostic.end, true) ?? start;
+          const message = diagnosticText(diagnostic).replace(
+            /stillwind\/v1:[A-Za-z0-9_-]+/g,
+            "declaration identity",
+          );
+          throw new TypeFactsError(
+            mapping.source.path,
+            start,
+            end,
+            "SHTS002",
+            `TS${diagnostic.code}: ${message} Preserve declaration candidates with an explicit union or a generic parameter.`,
+          );
+        }
+        const facts = factsForSource(project.checker, sourceFile, mapping, prepared.identities);
+        const previous = result.get(mapping.source.path) ?? [];
+        for (const fact of facts) {
+          const existing = previous.find(
+            (value) => value.start === fact.start && value.end === fact.end,
+          );
+          if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value))
+            throw new TypeFactsError(
+              mapping.source.path,
+              fact.start,
+              fact.end,
+              "SHTS003",
+              "Ambiguous checker results for this original expression",
+            );
+          if (!existing) previous.push(fact);
+        }
+        result.set(mapping.source.path, previous);
       }
       return result;
     } finally {
@@ -608,47 +446,71 @@ export function collectTypeScriptFacts(
   }
 }
 
+/** Includes nested checker explanations that may carry the declaration identity. */
+function diagnosticText(diagnostic: Diagnostic): string {
+  return [diagnostic.text, ...(diagnostic.messageChain ?? []).map(diagnosticText)].join("\n");
+}
+
 function factsForSource(
   checker: Checker,
   sourceFile: SourceFile,
-  mapping: { source: TypeFactSource; edits: ShadowEdit[] },
+  mapping: CheckerSource,
   identities: ReadonlyMap<string, IdentityId>,
-  possibleStyles: (node: Node) => NativeExportedValue | null,
 ): TypeFact[] {
   const expressions: Node[] = [];
-  const probes = new Set(mapping.source.probes.map(({ start, end }) => `${start}:${end}`));
-  if (probes.size === 0) return [];
+  const matched = new Set<string>();
   visit(sourceFile, (node) => {
     if (!isExpression(node)) return;
-    const start = shadowToOriginal(node.getStart(sourceFile), mapping.edits);
-    const end = shadowToOriginal(node.end, mapping.edits, true);
-    if (start === null || end === null) return;
-    if (
-      probes.has(
-        `${utf16ToByte(mapping.source.source, start)}:${utf16ToByte(mapping.source.source, end)}`,
-      )
-    )
+    const key = `${node.getStart(sourceFile)}:${node.end}`;
+    if (mapping.probes.has(key)) {
       expressions.push(node);
+      matched.add(key);
+    }
   });
+  for (const [key, probe] of mapping.probes)
+    if (!matched.has(key))
+      throw new TypeFactsError(
+        mapping.source.path,
+        probe.start,
+        probe.end,
+        "SHTS003",
+        "Projected expression has no matching checker AST node",
+      );
   const types = checker.getTypeAtLocation(expressions);
   const facts: TypeFact[] = [];
-  for (let index = 0; index < expressions.length; index += 1) {
+  for (const [index, expression] of expressions.entries()) {
+    const probe = mapping.probes.get(`${expression.getStart(sourceFile)}:${expression.end}`)!;
     const type = types[index];
-    if (!type) continue;
-    const checked = typeFactValue(checker, type, identities);
-    const value =
-      checked?.kind === "styles" || (!checked && type.flags & TypeFlags.Any)
-        ? possibleStyles(expressions[index])
-        : checked;
-    if (!value) continue;
-    const start = shadowToOriginal(expressions[index].getStart(sourceFile), mapping.edits);
-    const end = shadowToOriginal(expressions[index].end, mapping.edits, true);
-    if (start === null || end === null) continue;
-    facts.push({
-      start: utf16ToByte(mapping.source.source, start),
-      end: utf16ToByte(mapping.source.source, end),
-      value,
-    });
+    const value = type && typeFactValue(checker, type, identities);
+    if (!value) {
+      const name = type && (type.getAliasSymbol() ?? type.getSymbol())?.name;
+      if (
+        !type ||
+        (type.flags & (TypeFlags.Any | TypeFlags.Unknown) &&
+          (isIdentifier(expression) ||
+            isCallExpression(expression) ||
+            isPropertyAccessExpression(expression) ||
+            isElementAccessExpression(expression))) ||
+        (name && /^Style(?:Result|Ref|Keyframes(?:Use)?|ViewTransition(?:Use)?)$/.test(name)) ||
+        (type.isUnionType() &&
+          type
+            .getTypes()
+            .some((t) =>
+              /^Style(?:Result|Ref|Keyframes(?:Use)?|ViewTransition(?:Use)?)$/.test(
+                (t.getAliasSymbol() ?? t.getSymbol())?.name ?? "",
+              ),
+            ))
+      )
+        throw new TypeFactsError(
+          mapping.source.path,
+          probe.start,
+          probe.end,
+          "SHTS003",
+          "Cannot determine a finite set of declaration identities. Preserve the value's inferred type, use an explicit union, or use a generic parameter.",
+        );
+      continue;
+    }
+    facts.push({ ...probe, value });
   }
   return facts;
 }

@@ -77,8 +77,7 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<Vec<AssetReference>> {
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(ExportedValue::Keyframes(value)) = self.type_facts.get(&(span.start, span.end))
-        {
+        if let Some(ExportedValue::Keyframes(value)) = self.type_fact(span) {
             return value
                 .finite_candidates()?
                 .iter()
@@ -97,7 +96,6 @@ impl<'a> MacroExtractor<'a> {
             label: self.declaration_label(&identity, span),
             identity,
             span,
-            local_declaration: Some(keyframes.span),
         }])
     }
 
@@ -178,7 +176,7 @@ impl<'a> MacroExtractor<'a> {
     /// How one callee expression resolves as a keyframes value.
     fn keyframes_callee(&self, expression: &Expression<'a>) -> KeyframesCallee {
         let span = expression.span();
-        if let Some(fact) = self.type_facts.get(&(span.start, span.end)) {
+        if let Some(fact) = self.type_fact(span) {
             return if matches!(fact, ExportedValue::Keyframes(_)) {
                 KeyframesCallee::Value
             } else {

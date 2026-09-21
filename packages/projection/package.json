@@ -11,18 +11,46 @@
     "default": "./dist/index.js"
   },
   "dependencies": {
-    "@astrojs/compiler": "4.0.0",
-    "@vue/compiler-dom": "3.5.42",
-    "@vue/compiler-sfc": "3.5.42",
-    "@vue/language-core": "3.3.11",
-    "svelte": "5.57.0",
-    "svelte2tsx": "0.7.61",
-    "typescript": "6.0.3"
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
+    "@astrojs/compiler": "^4.0.0",
     "@types/node": "catalog:",
-    "@volar/typescript": "2.4.28",
-    "typescript": "6.0.3",
+    "@volar/typescript": "^2.4.28",
+    "@vue/compiler-dom": "^3.5.43",
+    "@vue/compiler-sfc": "^3.5.43",
+    "@vue/language-core": "^3.3.11",
+    "svelte": "^5.57.1",
+    "svelte2tsx": "^0.7.61",
     "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "@astrojs/compiler": "^4.0.0",
+    "@vue/compiler-dom": "^3.0.0",
+    "@vue/compiler-sfc": "^3.0.0",
+    "@vue/language-core": "^3.0.0",
+    "svelte": "^5.0.0",
+    "svelte2tsx": "^0.6.0 || ^0.7.0"
+  },
+  "peerDependenciesMeta": {
+    "@astrojs/compiler": {
+      "optional": true
+    },
+    "@vue/compiler-dom": {
+      "optional": true
+    },
+    "@vue/compiler-sfc": {
+      "optional": true
+    },
+    "@vue/language-core": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "svelte2tsx": {
+      "optional": true
+    }
   }
 }

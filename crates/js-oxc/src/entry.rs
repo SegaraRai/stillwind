@@ -33,8 +33,9 @@ use {crate::OxcSourceAnalyzer, stillwind_ir::SourceAnalyzer};
 /// The result of parsing one module.
 ///
 /// The fields are independent: [`Self::module`] is the IR, [`Self::summary`] the
-/// cross-module facts, and the two diagnostic vectors the findings. Every span they
-/// carry belongs to `source`.
+/// cross-module facts, and the two diagnostic vectors the findings. Extraction spans
+/// use analysis UTF-8 coordinates until projection; declaration identities and checker
+/// facts always use original UTF-8 coordinates. Projected scans return original spans.
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
     /// Adapter selected from the macro import, when one was imported.
@@ -88,6 +89,18 @@ pub fn parse_with_language(
     assets: &BTreeMap<IdentityId, AssetMetadata>,
     language: ScriptLanguage,
 ) -> ParsedJavaScript {
+    parse_with_coordinates(source, type_facts, assets, language, source, &Some)
+}
+
+/// Extracts an analysis buffer with original UTF-8 identity and checker coordinates.
+pub(crate) fn parse_with_coordinates(
+    source: &SourceFile,
+    type_facts: &[TypeFact],
+    assets: &BTreeMap<IdentityId, AssetMetadata>,
+    language: ScriptLanguage,
+    original: &SourceFile,
+    coordinates: &dyn Fn(Span) -> Option<Span>,
+) -> ParsedJavaScript {
     let allocator = Allocator::default();
     let source_type = source_type(source.path(), language);
     let result = Parser::new(&allocator, source.text(), source_type).parse();
@@ -113,7 +126,14 @@ pub fn parse_with_language(
         &[]
     };
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
-    let mut extractor = MacroExtractor::new(source, semantic.scoping(), type_facts, assets);
+    let mut extractor = MacroExtractor::new(
+        source,
+        semantic.scoping(),
+        type_facts,
+        assets,
+        original,
+        coordinates,
+    );
     extractor.seed_style_bindings(&result.program);
     extractor.visit_program(&result.program);
     extractor.validate_refs();

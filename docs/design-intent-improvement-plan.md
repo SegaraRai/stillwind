@@ -225,7 +225,8 @@ class/JSX 自体と Hook 風の関数名では診断しない。構造抽出不�
 - [x] 実験の結果を受け、順序保証は実装せず、3経路の拒否を撤去する（2026-09-17）。
       干渉する順序依存は lint `ambiguous-base-order` / `imported-base-interference` が報告する。
 
-L1 の対象: `crates/js-oxc/src/analyzer.rs` の projected facts 分岐。
+L1 は原文座標による projected facts 適用を実装済み。TS7 checker と各 converter の
+契約は [SFC の TypeScript 型情報](sfc-type-checking.md) を参照。
 
 L2 の対象: `packages/bundler/loader.cjs`、`packages/vite/src/index.ts` の
 standalone CSS projection と explicit module CSS の分岐（拒否は撤去済み。各経路は

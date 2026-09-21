@@ -48,3 +48,22 @@ semantic `dependencies`.
 Run `vp run --filter @stillwind/host test` for real native/checker verification of
 unsaved imports, dependency edits, broken syntax, macro removal, cancellation,
 and out-of-order completion.
+
+## SFC type facts
+
+The host resolves Stillwind identities with TypeScript 7 in JS/TS, Vue, Svelte and
+Astro. Framework converters use their own TypeScript 6 SDK dependency. Install the
+optional converter peers for the framework you use; versions and the coordinate
+contract are documented in [SFC type checking](../../docs/sfc-type-checking.md).
+
+`let selected = a; selected = b` can become incompatible after declaration identity
+injection. Use `let selected: typeof a | typeof b = a` in TypeScript, or preserve
+inference through a conditional/generic helper. The checker reports `SHTS002` for
+identity-related type errors and `SHTS003` when an asset expression has lost finite
+identity information. These are compilation errors, including in editor collect
+mode. They cannot be suppressed with Stillwind lint policy.
+
+`TypeFactSource.probes`, facts, asset identities and host dependency specifiers use
+original UTF-8 byte ranges. `scanSource` provides the additional projected UTF-16
+ranges needed by `TypeScriptFactsService`. Checker shadow text is never emitted;
+the native compiler applies edits to the original SFC.

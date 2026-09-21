@@ -27,10 +27,10 @@ pub struct NativeAssetRecord {
     pub identity: NativeIdentity,
     /// Metadata carried with the asset.
     pub metadata: NativeAssetMetadata,
-    /// Byte start of the producing call.
+    /// Inclusive original UTF-8 byte offset of the producing call.
     #[napi(js_name = "call_start")]
     pub call_start: u32,
-    /// Exclusive byte end of the producing call.
+    /// Exclusive original UTF-8 byte offset of the producing call.
     #[napi(js_name = "call_end")]
     pub call_end: u32,
 }
@@ -98,9 +98,9 @@ impl From<ReExport> for NativeReExport {
 pub struct NativeModuleSpecifier {
     /// Authored specifier text.
     pub source: String,
-    /// Byte start of the specifier literal.
+    /// Inclusive original UTF-8 byte offset of the specifier literal.
     pub start: u32,
-    /// Byte end of the specifier literal.
+    /// Exclusive original UTF-8 byte offset of the specifier literal.
     pub end: u32,
 }
 
@@ -118,9 +118,9 @@ impl From<ModuleSpecifier> for NativeModuleSpecifier {
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeTypeProbe {
-    /// Byte start of the expression.
+    /// Inclusive original UTF-8 byte offset of the expression.
     pub start: u32,
-    /// Byte end of the expression.
+    /// Exclusive original UTF-8 byte offset of the expression.
     pub end: u32,
 }
 
@@ -145,10 +145,26 @@ pub struct NativeExportImports {
     pub imports: Vec<NativeImportBinding>,
 }
 
+/// Validated correspondence used only to locate checker AST nodes.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct NativeCheckerSpan {
+    /// Inclusive original UTF-8 byte offset.
+    pub start: u32,
+    /// Exclusive original UTF-8 byte offset.
+    pub end: u32,
+    /// Inclusive projected UTF-16 code-unit offset.
+    pub projected_start: u32,
+    /// Exclusive projected UTF-16 code-unit offset.
+    pub projected_end: u32,
+}
+
 /// Versioned cross-module summary of one module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeModuleSummary {
+    /// Original-to-projected expression/import correspondences; empty for plain inputs.
+    pub checker_spans: Vec<NativeCheckerSpan>,
     /// Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`].
     pub schema: u32,
     /// Module this summary describes.
@@ -192,6 +208,7 @@ impl NativeModuleSummary {
         type_probes: Vec<NativeTypeProbe>,
     ) -> Self {
         Self {
+            checker_spans: Vec::new(),
             schema: summary.schema,
             module_path: summary.module_path,
             module_css_imports,

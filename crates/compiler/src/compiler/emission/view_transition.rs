@@ -34,11 +34,7 @@ impl CallEmitter<'_> {
         if !matches!(name, ViewTransitionName::None) {
             self.view_transition_names += 1;
         }
-        let token = match self.record_definition_name(
-            transition,
-            AssetKind::ViewTransition,
-            transition.span,
-        ) {
+        let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
             Ok(token) => token,
             Err(failure) => {
                 self.reject_name(failure, self.call.span);
@@ -96,11 +92,7 @@ impl CallEmitter<'_> {
             self.runtime_assets.insert(transition.identity.clone());
             self.required_definitions
                 .insert(transition.identity.clone());
-            let token = match self.record_definition_name(
-                transition,
-                AssetKind::ViewTransition,
-                transition.span,
-            ) {
+            let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
                 Ok(token) => token,
                 Err(failure) => {
                     self.reject_name(failure, self.call.span);

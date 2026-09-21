@@ -43,7 +43,6 @@ impl<'a> MacroExtractor<'a> {
         AssetReference {
             identity: identity.clone(),
             span,
-            local_declaration: None,
             label: self.declaration_label(identity, span),
         }
     }

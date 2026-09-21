@@ -25,9 +25,7 @@ impl<'a> MacroExtractor<'a> {
     pub(crate) fn ref_references(&self, expression: &Expression<'a>) -> Option<Vec<RefDefinition>> {
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(ExportedValue::Refs(alternatives)) =
-            self.type_facts.get(&(span.start, span.end))
-        {
+        if let Some(ExportedValue::Refs(alternatives)) = self.type_fact(span) {
             return self.refs_from_alternatives(alternatives);
         }
         let Expression::Identifier(identifier) = expression else {
@@ -110,7 +108,7 @@ impl<'a> MacroExtractor<'a> {
         {
             return Self::boundary_of(definition);
         }
-        let span = Span::new(self.source.id(), identity.start, identity.end);
+        let span = Span::new(self.original.id(), identity.start, identity.end);
         let metadata = self.imported_assets.get(identity);
         BoundaryRef {
             module_path: identity.module_path.clone(),
@@ -128,7 +126,7 @@ impl<'a> MacroExtractor<'a> {
     /// finite candidate, because a ref definition carries at most one boundary.
     pub(crate) fn imported_ref(&self, alternative: &RefAlternative) -> Option<RefDefinition> {
         let span = Span::new(
-            self.source.id(),
+            self.original.id(),
             alternative.reference.start,
             alternative.reference.end,
         );

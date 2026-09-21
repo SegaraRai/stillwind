@@ -23,6 +23,8 @@ export interface ProjectSource {
   module_css_import?: string;
   /** Original framework source; source above remains the projected JS/TS. */
   fw_code?: string;
+  /** Independent checker script regions, in original SFC UTF-16 code units. */
+  checker_scripts?: Array<{ start: number; end: number }>;
   /** Maps projected source positions back to fw_code. */
   fw2js_map?: ProjectionMap;
   /** Source map from fw_code to its upstream source. */

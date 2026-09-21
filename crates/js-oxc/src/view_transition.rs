@@ -35,7 +35,7 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<(Vec<AssetReference>, bool)> {
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(fact) = self.type_facts.get(&(span.start, span.end)) {
+        if let Some(fact) = self.type_fact(span) {
             let (value, keyed) = match fact {
                 ExportedValue::ViewTransitions(value) => (value, false),
                 ExportedValue::ViewTransitionKeys(value) => (value, true),
@@ -61,7 +61,6 @@ impl<'a> MacroExtractor<'a> {
                     label: self.declaration_label(&identity, span),
                     identity,
                     span,
-                    local_declaration: Some(transition.span),
                 }],
                 false,
             ));
@@ -77,7 +76,6 @@ impl<'a> MacroExtractor<'a> {
                     label: self.declaration_label(identity, span),
                     identity: identity.clone(),
                     span,
-                    local_declaration: None,
                 })
                 .collect(),
             true,
@@ -94,9 +92,7 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
-        let expression_has_type_fact = self
-            .type_facts
-            .contains_key(&(expression.span().start, expression.span().end));
+        let expression_has_type_fact = self.type_fact(expression.span()).is_some();
         let (value, transitions, name) = if let Expression::CallExpression(call) = expression {
             let Expression::StaticMemberExpression(member) = &call.callee else {
                 return None;

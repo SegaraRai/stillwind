@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,32 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
   void test(`${framework} official production build consumes native SFC edits and explicit CSS values`, async () => {
     const root = mkdtempSync(path.join(packageRoot, ".framework-test-"));
     writeFrameworkFixture(root, framework);
+    const entry = path.join(
+      root,
+      framework === "astro" ? "src/pages/index.astro" : `Component.${framework}`,
+    );
+    const directory = path.dirname(entry);
+    const declarations = `import {style} from 'stillwind/${framework}';export const red=style('red'),blue=style('blue');`;
+    writeFileSync(
+      path.join(directory, `StyleBase.${framework}`),
+      framework === "astro"
+        ? `---\n${declarations}\n---`
+        : `<script ${framework === "svelte" ? "module " : ""}lang="ts">${declarations}${framework === "vue" ? "export default {};" : ""}</script>`,
+    );
+    writeFileSync(
+      path.join(directory, "style-values.ts"),
+      `export {red,blue} from './StyleBase.${framework}';export function pass<T>(value:T):T{return value;}`,
+    );
+    writeFileSync(
+      entry,
+      readFileSync(entry, "utf8")
+        .replace(
+          "import Explicit",
+          "import {red,blue,pass} from './style-values.ts';\nimport Explicit",
+        )
+        .replace("style(active ? 'red' : 'blue',", "style(pass(active ? red : blue),")
+        .replace("style('red',", "style(pass(red),"),
+    );
     try {
       const plugin = stillwind({ css: path.join(root, "root.css"), types: false });
       if (framework === "astro") {

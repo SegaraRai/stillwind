@@ -17,6 +17,8 @@ export interface ScriptRegion {
  * Projected parser input and metadata for mapping edits into the original SFC buffer.
  */
 export interface ConvertedFramework {
+  /** Independent checker script regions in original SFC UTF-16 code units. */
+  checker_scripts?: Array<{ start: number; end: number }>;
   source: string;
   language: "ts" | "tsx";
   framework: NonNullable<ProjectSource["framework"]>;

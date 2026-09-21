@@ -49,7 +49,7 @@ impl<'a> MacroExtractor<'a> {
     pub(crate) fn style_candidates(&self, expression: &Expression<'a>) -> Option<Vec<IdentityId>> {
         self.record_type_probe(expression);
         let span = expression.span();
-        if let Some(ExportedValue::Styles(value)) = self.type_facts.get(&(span.start, span.end)) {
+        if let Some(ExportedValue::Styles(value)) = self.type_fact(span) {
             return Some(value.finite_candidates()?.iter().cloned().collect());
         }
         match expression {

@@ -82,7 +82,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     fn scan_input(&self, input: SourceInput) -> ModuleScan {
         let source = Arc::clone(input.edit_source());
         let (mut parsed, provenance) = if input.projection.is_some() {
-            match parse_projected(&input) {
+            match parse_projected(&input, &[], &BTreeMap::new()) {
                 Ok(value) => value,
                 Err(error) => {
                     return ModuleScan {
@@ -130,24 +130,13 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     ///
     /// Facts are used only when the schema, module id and source revision all match and
     /// every fact span slices the scanned source; otherwise the scan's own IR is kept
-    /// and an [`IntegrationDiagnostic`] records why. Facts for projected sources are
-    /// rejected entirely: applying checker facts after projection is not implemented.
+    /// and an [`IntegrationDiagnostic`] records why. Projected facts use original UTF-8
+    /// ranges through the same normalized analysis mapping as the scan.
     /// [`ModuleAnalysis::semantic_revision`] is copied from accepted facts and is
     /// `None` when they were rejected.
     fn finalize(&self, scan: ModuleScan, facts: Option<&TypeFacts>) -> ModuleAnalysis {
         let mut integration_diagnostics = Vec::new();
         let facts = facts.filter(|facts| {
-            if scan.input.projection.is_some() {
-                // TODO: Map checker fact spans into the projected analysis buffer before
-                // re-extraction; imported finite identities in SFC scripts need this mapping.
-                if !facts.facts.is_empty() {
-                    integration_diagnostics.push(IntegrationDiagnostic {
-                        module_id: Some(scan.module_id.clone()),
-                        kind: CompileErrorKind::ProjectedFactsUnsupported,
-                    });
-                }
-                return false;
-            }
             let valid = facts.schema == TypeFacts::SCHEMA
                 && facts.module_id == scan.module_id
                 && facts.source_revision == scan.source_revision
@@ -170,13 +159,38 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         });
         // Oxc arenas are request-local. Re-extract only when external facts exist;
         // neither scan nor finalized IR contains checker objects or module graphs.
+        let mut provenance = scan.provenance;
         let parsed = facts.map(|facts| {
-            let mut parsed = parse_with_language(
-                &scan.source,
-                &facts.facts,
-                &facts.assets,
-                scan.input.language,
-            );
+            let mut parsed = if scan.input.projection.is_some() {
+                match parse_projected(&scan.input, &facts.facts, &facts.assets) {
+                    Ok((parsed, mapped)) => {
+                        provenance = mapped;
+                        parsed
+                    }
+                    Err(error) => {
+                        let mut parsed = ParsedJavaScript {
+                            framework: None,
+                            type_probes: Vec::new(),
+                            diagnostics: vec![CompileError::new(
+                                error.into(),
+                                scan.source.full_span(),
+                            )],
+                            lint_findings: Vec::new(),
+                            module: ModuleIr::react(),
+                            summary: ModuleSummary::new(scan.source.path()),
+                        };
+                        select_framework(&mut parsed, &scan.input);
+                        return parsed;
+                    }
+                }
+            } else {
+                parse_with_language(
+                    &scan.source,
+                    &facts.facts,
+                    &facts.assets,
+                    scan.input.language,
+                )
+            };
             select_framework(&mut parsed, &scan.input);
             parsed
         });
@@ -198,7 +212,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         );
         ModuleAnalysis {
             input: scan.input,
-            provenance: scan.provenance,
+            provenance,
             asset_support: Vec::new(),
             external_assets: Self::external_assets(facts),
             module_id: scan.module_id,

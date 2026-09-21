@@ -396,7 +396,7 @@ pub(super) fn generated_class_symbol(
 /// Generates one declared definition's name and reports it as a symbol.
 ///
 /// `kind` selects the family the name belongs to, which is the kind the report carries.
-/// The span addresses the declaration; the writer's span is the caller's business.
+/// Reported UTF-8 bounds address the original declaration in its identity's module.
 ///
 /// # Errors
 ///
@@ -405,7 +405,6 @@ pub(super) fn definition_name_symbol(
     context: &IdentifierContext,
     reference: &AssetReference,
     kind: AssetKind,
-    span: Span,
 ) -> Result<GeneratedSymbol, CompileErrorKind> {
     let name = declared_name(context, kind, &identity_declaration(reference))?;
     Ok(GeneratedSymbol {
@@ -414,8 +413,8 @@ pub(super) fn definition_name_symbol(
         pool: kind_pool(kind),
         identity: identity_input(&reference.identity),
         source_path: normalized_module_path(&reference.identity.module_path),
-        start: Some(span.start.0),
-        end: Some(span.end.0),
+        start: Some(reference.identity.start),
+        end: Some(reference.identity.end),
     })
 }
 

@@ -1,10 +1,11 @@
 import { relative } from "node:path";
 
-import { summarizeReact } from "@stillwind/native";
+import { scanSource } from "@stillwind/native";
 import type { NativeProjectSession } from "@stillwind/native";
-import { projectFrameworkSource } from "@stillwind/projection";
+import { checkerEnvironment, projectFrameworkSource } from "@stillwind/projection";
 
 import type { ModuleSummary, ProjectSource } from "./protocol.ts";
+import { TypeFactsError } from "./type-facts.ts";
 import type { TypeScriptFactsService, TypeFact } from "./type-facts.ts";
 /**
  * Host services for resolving and reading semantic dependencies, registering watches,
@@ -60,12 +61,13 @@ function semanticDependencies(summary: ModuleSummary, requested: string | null) 
 /**
  * Compiles an entry buffer and its demanded semantic dependencies into a project session.
  * The entry id is cleaned before projection; native module paths are relative to projectRoot.
- * Type facts are requested lazily for ordinary JS/TS inputs that contain probes.
+ * Type facts are requested lazily for original-coordinate probes in JS/TS or SFC inputs.
  *
  * Returns the entry output with composition metadata, or undefined when normal mode
  * has no generated entry code. Collect mode retains compiler diagnostics across outputs;
  * normal mode throws on compiler diagnostics and deny-level lint findings.
- * Host I/O, projection, checker, and native failures propagate in either mode.
+ * Checker contract errors use original coordinates and participate in collect mode.
+ * Host I/O, projection, checker process, and native failures propagate in either mode.
  * Session updates, watches, and warnings are not rolled back on failure.
  */
 export async function compileModule(
@@ -87,18 +89,11 @@ export async function compileModule(
     path: compilerModulePath(projectRoot, entryId),
     source: code,
   });
-  const entrySummary = summarizeReact(
-    entrySource.source,
-    entrySource.fw_code === undefined
-      ? entrySource.path
-      : `${entrySource.path}.${entrySource.language}`,
-  );
+  const entrySummary = scanSource(entrySource);
   const hasModuleCssImport = entrySummary.module_css_imports > 0;
   if (entrySummary.macro_imports > 0) entrySource.stylesheet_imports = options.stylesheetImports;
   if (hasModuleCssImport) entrySource.module_css_import = options.moduleCssImport;
-  // The checker queries ordinary source coordinates. Framework projections have
-  // separate original and generated buffers, so their probes are excluded.
-  const needsTypeFacts = entrySource.fw_code === undefined && entrySummary.type_probes.length > 0;
+  const needsTypeFacts = entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesById = new Map<string, ProjectSource>();
   const resolutions = new Map<string, Map<string, string>>();
@@ -117,8 +112,7 @@ export async function compileModule(
     visited.set(source.id, demands);
     sourcesById.set(source.id, source);
     const summary =
-      summaries.get(source.path) ??
-      (source.id === entryId ? entrySummary : summarizeReact(source.source, source.path));
+      summaries.get(source.path) ?? (source.id === entryId ? entrySummary : scanSource(source));
     summaries.set(source.path, summary);
     if (!needsTypeFacts) continue;
     for (const dependency of semanticDependencies(summary, requested)) {
@@ -128,18 +122,18 @@ export async function compileModule(
       // Package runtime exports do not identify their declaration files. Leave
       // external package type resolution (for example React) to TypeScript.
       if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyId)) continue;
-      if (!/\.[cm]?[jt]sx?$/.test(dependencyId)) continue;
+      if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyId)) continue;
       let sourceResolutions = resolutions.get(source.id);
       if (!sourceResolutions) resolutions.set(source.id, (sourceResolutions = new Map()));
       sourceResolutions.set(dependency.source, dependencyId);
       host.watch(dependencyId);
       let dependencySource = sourcesById.get(dependencyId);
       if (!dependencySource) {
-        dependencySource = {
+        dependencySource = await projectFrameworkSource({
           id: dependencyId,
           path: compilerModulePath(projectRoot, dependencyId),
           source: await host.read(dependencyId),
-        };
+        });
         sourcesById.set(dependencyId, dependencySource);
       }
       pending.push({
@@ -150,22 +144,47 @@ export async function compileModule(
   }
 
   const sources = [...sourcesById.values()];
-  const typeFacts = needsTypeFacts
-    ? factsService().collect(
-        sources.map((source) => {
-          const summary = summaries.get(source.path)!;
-          return {
-            ...source,
-            probes: summary.type_probes,
-            resolutions: summary.module_specifiers.flatMap((specifier) => {
-              const id = resolutions.get(source.id)?.get(specifier.source);
-              return id ? [{ start: specifier.start, end: specifier.end, id }] : [];
-            }),
-          };
-        }),
-        new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
-      )
-    : new Map<string, TypeFact[]>();
+  let typeFacts: Map<string, TypeFact[]>;
+  try {
+    typeFacts = needsTypeFacts
+      ? factsService().collect(
+          sources.map((source) => {
+            const summary = summaries.get(source.path)!;
+            return {
+              ...source,
+              ...checkerEnvironment(source),
+              checker_spans: summary.checkerSpans,
+              probes: summary.type_probes,
+              resolutions: summary.module_specifiers.flatMap((specifier) => {
+                const id = resolutions.get(source.id)?.get(specifier.source);
+                return id ? [{ start: specifier.start, end: specifier.end, id }] : [];
+              }),
+            };
+          }),
+          new Map([...summaries].map(([path, summary]) => [path, summary.assets])),
+        )
+      : new Map<string, TypeFact[]>();
+  } catch (error) {
+    if (!(error instanceof TypeFactsError) || options.diagnostics !== "collect") throw error;
+    const source = sources.find((source) => source.path === error.path)!;
+    return {
+      path: entrySource.path,
+      code: null,
+      css: "",
+      resources: [],
+      mappings: [],
+      classes: [],
+      symbols: [],
+      diagnostics: [error.diagnostic(source.fw_code ?? source.source)],
+      rejected_names: [],
+      lint_findings: [],
+      lint_policy: {},
+      composition: [],
+      hasModuleCssImport,
+      compositionModules: [],
+      compositionTopology: "[]",
+    };
+  }
   const typedSources = sources.map((source) => ({
     ...source,
     type_facts: typeFacts.get(source.path) ?? [],

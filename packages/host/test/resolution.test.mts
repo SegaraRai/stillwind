@@ -100,9 +100,9 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
         .collect(sources, new Map(sources.map((source) => [source.path, source.assets])))
         .get("entry.ts")!;
     };
-    assert.equal(collect(false).length, 0);
+    assert.throws(() => collect(false), /SHTS003/);
     assert.equal(collect(true).length, 1);
-    assert.equal(collect(false).length, 0);
+    assert.throws(() => collect(false), /SHTS003/);
     assert.equal(collect(true).length, 1);
     assert.equal(service.stats.restarts, 0);
     assert.equal(service.stats.incrementalSnapshots, 3);

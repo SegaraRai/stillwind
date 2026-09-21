@@ -5,19 +5,15 @@
 //! then rewrite every diagnostic label, lint label, module specifier, asset record and
 //! exported symbolic value into original spans. Anything that cannot be mapped is
 //! reported rather than left in generated coordinates.
-//!
-//! Checker-fact application for projected inputs is not implemented, so
-//! [`ParsedJavaScript::type_probes`] is cleared and the analysis is intentionally
-//! fact-free.
-
 use std::collections::BTreeMap;
 
 use stillwind_ir::SourceInput;
-use stillwind_semantic::{Candidates, ExportedValue, IdentityId, SymbolicValue};
+use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
 use stillwind_source::{ProjectionError, SourceFile, SourceProvenance, Span};
 
+use crate::ParsedJavaScript;
+use crate::entry::parse_with_coordinates;
 use crate::normalization::normalize_with_language;
-use crate::{NormalizedProjection, ParsedJavaScript, parse_with_language};
 
 /// Parses a projected input and returns IR plus the provenance it collected.
 ///
@@ -27,6 +23,8 @@ use crate::{NormalizedProjection, ParsedJavaScript, parse_with_language};
 /// generated offset.
 pub(crate) fn parse_projected(
     input: &SourceInput,
+    facts: &[TypeFact],
+    assets: &BTreeMap<IdentityId, AssetMetadata>,
 ) -> Result<(ParsedJavaScript, Vec<SourceProvenance>), ProjectionError> {
     let projection = input
         .projection
@@ -54,15 +52,37 @@ pub(crate) fn parse_projected(
         projection.analysis_id,
         input.language,
     )?;
-    let mut parsed = parse_with_language(&normalized.source, &[], &BTreeMap::new(), input.language);
-    let (ir, provenance) = normalized.original_ir(&parsed.module)?;
+    let coordinates = |span| {
+        normalized
+            .original_span(span)
+            .ok()
+            .map(|mapped| mapped.original)
+    };
+    let mut parsed = parse_with_coordinates(
+        &normalized.source,
+        facts,
+        assets,
+        input.language,
+        &projection.original,
+        &coordinates,
+    );
+    let (ir, mut provenance) = normalized.original_ir(&parsed.module)?;
     parsed.module = ir;
-    parsed.type_probes.clear(); // Checker projections are a separate, deferred contract.
+
     let map_span = |span| {
         normalized
             .original_span(span)
             .map(|provenance| provenance.original)
     };
+    parsed.type_probes = parsed
+        .type_probes
+        .into_iter()
+        .map(|span| {
+            let mapped = normalized.original_span(span)?;
+            provenance.push(mapped);
+            Ok(mapped.original)
+        })
+        .collect::<Result<_, ProjectionError>>()?;
     for diagnostic in &mut parsed.diagnostics {
         for label in &mut diagnostic.labels {
             label.span = map_span(label.span).unwrap_or(projection.original.full_span());
@@ -75,19 +95,19 @@ pub(crate) fn parse_projected(
     }
     let mut mapped_specifiers = Vec::new();
     for mut specifier in parsed.summary.module_specifiers {
-        if let Ok(span) = map_span(Span::new(
+        if let Ok(mapped) = normalized.original_span(Span::new(
             normalized.source.id(),
             specifier.start,
             specifier.end,
         )) {
-            specifier.start = span.start.0;
-            specifier.end = span.end.0;
+            provenance.push(mapped);
+            specifier.start = mapped.original.start.0;
+            specifier.end = mapped.original.end.0;
             mapped_specifiers.push(specifier);
         }
     }
     parsed.summary.module_specifiers = mapped_specifiers;
     for asset in &mut parsed.summary.assets {
-        map_identity(&mut asset.identity, &normalized)?;
         let span = map_span(Span::new(
             normalized.source.id(),
             asset.call_start,
@@ -96,63 +116,5 @@ pub(crate) fn parse_projected(
         asset.call_start = span.start.0;
         asset.call_end = span.end.0;
     }
-    for value in parsed.summary.exports.values_mut() {
-        match value {
-            ExportedValue::Refs(alternatives) => {
-                for alternative in alternatives {
-                    map_identity(&mut alternative.reference, &normalized)?;
-                    if let Some(boundaries) = &mut alternative.permitted_boundaries {
-                        map_symbolic(boundaries, &normalized)?;
-                    }
-                }
-            }
-            ExportedValue::Styles(value)
-            | ExportedValue::Keyframes(value)
-            | ExportedValue::ViewTransitions(value)
-            | ExportedValue::ViewTransitionKeys(value) => {
-                map_symbolic(value, &normalized)?;
-            }
-        }
-    }
     Ok((parsed, provenance))
-}
-
-/// Rewrites an identity's declaration span into the original file.
-///
-/// The module path and declaration offsets in the identity are rewritten together.
-/// The resulting key names the original declaration rather than the generated copy.
-fn map_identity(
-    identity: &mut IdentityId,
-    normalized: &NormalizedProjection<'_>,
-) -> Result<(), ProjectionError> {
-    let span = normalized
-        .original_span(Span::new(
-            normalized.source.id(),
-            identity.start,
-            identity.end,
-        ))?
-        .original;
-    identity.start = span.start.0;
-    identity.end = span.end.0;
-    Ok(())
-}
-
-/// Rewrites every finite candidate of a symbolic value into original spans.
-///
-/// A universe value needs no mapping, because it holds no identities.
-fn map_symbolic(
-    value: &mut SymbolicValue,
-    normalized: &NormalizedProjection<'_>,
-) -> Result<(), ProjectionError> {
-    if let Candidates::Finite(candidates) = &mut value.candidates {
-        *candidates = candidates
-            .iter()
-            .cloned()
-            .map(|mut identity| {
-                map_identity(&mut identity, normalized)?;
-                Ok(identity)
-            })
-            .collect::<Result<_, ProjectionError>>()?;
-    }
-    Ok(())
 }

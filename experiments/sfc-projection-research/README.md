@@ -1,5 +1,8 @@
 # SFC projection research
 
+TypeScript 6 / 7 の型候補・診断・仮想モジュール・更新処理の比較は
+[checker-comparison.md](./checker-comparison.md) を参照。`vp run compare-checkers` で再実行できる。
+
 実装判断: Astro は `@astrojs/compiler.convertToTSX`、Svelte は `svelte2tsx` が有望。Vue は `@vue/language-core` の script 投影を利用できるが、template を同じ無加工の OXC マクロ解析に流すことはできない。
 
 ## 再実行

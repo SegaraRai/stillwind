@@ -53,9 +53,9 @@ pub struct ReExport {
 pub struct ModuleSpecifier {
     /// Decoded string-literal value, without quotes or source escape spelling.
     pub source: String,
-    /// Byte offset of the literal start in the original source.
+    /// UTF-8 byte offset of the literal start in the original source.
     pub start: u32,
-    /// Byte offset of the literal end, exclusive.
+    /// UTF-8 byte offset of the literal end, exclusive.
     pub end: u32,
 }
 

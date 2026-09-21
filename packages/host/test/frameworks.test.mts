@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { transform as compileAstro } from "@astrojs/compiler";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
@@ -15,6 +17,7 @@ import { compile as compileSvelte } from "svelte/compiler";
 import { compileModule } from "../src/compiler.ts";
 import type { ProjectCompilerOutput } from "../src/protocol.ts";
 import { moduleSourceMap } from "../src/source-map.ts";
+import { TypeScriptFactsService } from "../src/type-facts.ts";
 
 const examples = {
   vue: `<script setup lang="ts">\nimport {style} from 'stillwind/vue';\nconst active = true, external = 'extra';\n</script>\n<template><div v-bind="style(active ? 'flex' : 'grid', {class: external})" /></template>`,
@@ -22,7 +25,10 @@ const examples = {
   astro: `---\n// 🧭\nimport {style} from 'stillwind/astro';\nconst active = true, external = 'extra';\n---\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
 };
 
-void test("host compiles raw SFCs and updates session CSS after edits", async () => {
+void test("host compiles raw SFCs and updates session CSS after edits", async (t) => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../vite/test");
+  const facts = new TypeScriptFactsService(root);
+  t.after(() => facts.close());
   const loader = new NativeDesignSystemLoader();
   loader.provide(
     0,
@@ -41,28 +47,17 @@ void test("host compiles raw SFCs and updates session CSS after edits", async ()
     warn: () => {},
   };
   for (const [extension, source] of Object.entries(examples)) {
-    const id = `/src/Component.${extension}`;
-    const output = await compileModule(
-      session,
-      () => {
-        throw new Error("Unexpected projected checker query");
-      },
-      source,
-      id,
-      "/",
-      host,
-    );
+    const id = path.join(root, `Component.${extension}`);
+    const output = await compileModule(session, () => facts, source, id, root, host);
     assert.ok(output?.code?.includes(`<${extension === "astro" ? "div" : "script"}`));
     assert.deepEqual(output.diagnostics, []);
     assert.match(session.moduleCss(output.path), /display:\s*flex/);
     const edited = await compileModule(
       session,
-      () => {
-        throw new Error("Unexpected projected checker query");
-      },
+      () => facts,
       source.replace("'flex'", "'grid'"),
       id,
-      "/",
+      root,
       host,
     );
     assert.ok(edited?.code);

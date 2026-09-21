@@ -186,3 +186,19 @@ fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
     let malformed = point_map(&[(0, Some(1)), (1, Some(3))], original.text());
     assert!(ProjectionIndex::new(&generated, &original, &malformed).is_err());
 }
+
+#[test]
+fn empty_spans_require_an_exact_mapped_boundary() {
+    let original = SourceFile::new(FileId(1), "component", "<x>''</x>").unwrap();
+    let generated = SourceFile::new(FileId(2), "component.ts", "''").unwrap();
+    let map = point_map(&[(1, Some(4))], original.text());
+    let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
+    assert_eq!(
+        index
+            .verify_exact(Span::new(FileId(2), 1, 1))
+            .unwrap()
+            .original,
+        Span::new(FileId(1), 4, 4)
+    );
+    assert!(index.verify_exact(Span::new(FileId(2), 0, 0)).is_err());
+}

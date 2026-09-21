@@ -18,9 +18,9 @@ use super::symbolic::ExportedValue;
 /// when it is missing.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TypeFact {
-    /// Byte offset of the expression start in the original source.
+    /// UTF-8 byte offset of the expression start in the original source.
     pub start: u32,
-    /// Byte offset of the expression end, exclusive.
+    /// UTF-8 byte offset of the expression end, exclusive.
     pub end: u32,
     /// Symbolic value of the expression.
     pub value: ExportedValue,

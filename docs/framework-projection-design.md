@@ -229,3 +229,8 @@ Rust unit/integration、native public API、host/bundler、実 framework build�
 [source-map 調査](../experiments/source-map-research/README.md) は線形 renderer の有効性と、追加 map 合成での LUB 差異を確認している。まず契約を維持して線形化し、map ライブラリ交換は切り離す。
 
 Vue binding provenance、Volar 区間の端点、複数 realm の親参照、virtual module の公開 API は共通契約に実装した。実ビルド、画面/HMR、性能、再実行コマンドと検証範囲は [検証記録](framework-projection-validation.md) にまとめる。投影入力の checker type facts は合意どおり後続作業とし、通常入力の既存経路は維持する。
+
+## SFC の型情報
+
+原文座標の type fact 適用、TS7 checker と TS6 converter の役割、optional peers、
+診断と script scope の契約は [SFC の TypeScript 型情報](sfc-type-checking.md) を参照。

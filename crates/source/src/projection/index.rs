@@ -76,13 +76,13 @@ pub enum ProjectionMap {
 ///
 /// Both halves are half-open spans in their own [`SourceFile`]; the original span
 /// returned by exact verification contains the same text. Fragment verification may
-/// omit synthetic gaps inside the projected envelope. Public construction and
-/// deserialization do not validate this correspondence.
+/// omit synthetic text, including receiver prefixes, from the projected envelope.
+/// Public construction and deserialization do not validate this correspondence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SourceProvenance {
     /// The span that was asked about, in the generated (shadow) source.
     pub projected: Span,
-    /// The original (editable) span holding the same text.
+    /// The original (editable) UTF-8 span holding the retained projected text.
     pub original: Span,
 }
 
@@ -173,7 +173,8 @@ impl<'a> ProjectionIndex<'a> {
     /// # Errors
     ///
     /// Requires mapped first/last scalars and exact original text. In particular, an
-    /// exclusive-end token is not required (some converters move it).
+    /// exclusive-end token is not required (some converters move it). Empty ranges
+    /// require an exact mapped boundary.
     pub fn verify_exact(&self, projected: Span) -> Result<SourceProvenance, ProjectionError> {
         self.verify_fragments(&[projected])
     }
@@ -201,6 +202,17 @@ impl<'a> ProjectionIndex<'a> {
             }
             text.push_str(self.generated.slice(*fragment)?);
             previous_end = fragment.end.0;
+        }
+        if projected.start == projected.end {
+            let offset = self
+                .original_byte(projected.start)
+                .ok_or(ProjectionError::Unmapped(projected))?;
+            let original = Span::new(self.original.id(), offset.0, offset.0);
+            self.original.slice(original)?;
+            return Ok(SourceProvenance {
+                projected,
+                original,
+            });
         }
         let last_text = self.generated.slice(*last_span)?;
         let Some((last, character)) = last_text.char_indices().next_back() else {

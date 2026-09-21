@@ -8,5 +8,5 @@ mod module_summary;
 mod values;
 
 pub use identity::NativeIdentity;
-pub use module_summary::{NativeModuleSummary, NativeTypeProbe};
+pub use module_summary::{NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe};
 pub use values::NativeTypeFact;

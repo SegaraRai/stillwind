@@ -23,7 +23,7 @@ RsbuildのLightning CSSがroot外carrierを`../`を含むsource名へ再構成�
 
 Vite 0.3.1の実ビルドではJSの`.map`は生成されるがCSSの`.map`は生成されない。これは[ViteのCSS production source mapの未対応](https://github.com/vitejs/vite/issues/2830)と一致する。Stillwindから渡すmapは開発時に有効だが、Vite上のframeworkの本番CSS mapを保証しない。最終CSS assetを後から推測でmap化する処理は追加しない。
 
-意味依存については、hostが実際に選んだstatic import/re-exportの参照先をchecker用shadow sourceへ渡す。OXCのstring literal spanを使って置換し、元のUTF-8 spanへ戻すための編集位置も保持する。同じaliasがimporterごとに異なる場合、参照先変更後のincremental snapshot、未保存サブディレクトリ、Viteの独自aliasを検証した。外部packageの型解決はTypeScriptに委ね、将来のSFC仮想moduleやdynamic importまで同じ契約で対応したとは扱わない。
+意味依存については、hostが実際に選んだstatic import/re-exportの参照先をchecker用shadow sourceへ渡す。OXCのstring literal spanを使って置換し、元のUTF-8 spanへ戻すための編集位置も保持する。同じaliasがimporterごとに異なる場合、参照先変更後のincremental snapshot、未保存サブディレクトリ、Viteの独自aliasを検証した。外部packageの型解決はTypeScriptに委ね、SFC仮想moduleへの拡張は [SFC の TypeScript 型情報](sfc-type-checking.md) を参照。dynamic import の意味依存収集は対象外。
 
 本番JS mapはReact Routerに加え、SolidStart、TanStack StartのVite/Rsbuild、NextのTurbopack/webpackでcold/warm両方を検証した。`verify-source-map.mjs`は最終JSの`sourceMappingURL`を読み、生成classから元macroの行・列へ戻ることを確認する。TurbopackではJSとmapのhash名が異なるため、単なる`.map` suffixの推測では検証しない。TanStack/Rsbuildはさらに`unplugin@3.3.0`のRspack transform map合成patchを適用する。未patchではroute splitの中間ソースへ戻るだけで、元routeへ戻らない。
 

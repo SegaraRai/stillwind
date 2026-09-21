@@ -32,15 +32,19 @@ impl<'a> MacroExtractor<'a> {
     /// Builds an extractor for one parsed module.
     ///
     /// `type_facts` and `imported_assets` come from the host checker and are looked up
-    /// by span; passing empty maps is the normal no-checker path.
+    /// by original UTF-8 span; passing empty maps is the normal no-checker path.
     pub(crate) fn new(
         source: &'a SourceFile,
         scoping: &'a Scoping,
         type_facts: &[TypeFact],
         imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
+        original: &'a SourceFile,
+        coordinates: &'a dyn Fn(Span) -> Option<Span>,
     ) -> Self {
         Self {
             source,
+            original,
+            coordinates,
             scoping,
             style_symbols: HashSet::new(),
             adapter: None,
@@ -73,16 +77,23 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Looks up a fact by its original UTF-8 expression range.
+    pub(crate) fn type_fact(&self, span: oxc::span::Span) -> Option<&ExportedValue> {
+        let span = (self.coordinates)(self.source_span(span))?;
+        self.type_facts.get(&(span.start.0, span.end.0))
+    }
+
     /// Creates the declaration-site identity of an asset declared in this module.
     ///
     /// The span is the declaration's name, so uses elsewhere resolve back to this
     /// declaration rather than to their own position.
     pub(crate) fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
+        let span = (self.coordinates)(name.span).unwrap_or(self.original.full_span());
         IdentityId::new(
             kind,
             self.source.path(),
-            name.span.start.0,
-            name.span.end.0,
+            span.start.0,
+            span.end.0,
             name.value.clone(),
         )
     }
@@ -103,12 +114,13 @@ impl<'a> MacroExtractor<'a> {
         summary.re_exports.clone_from(&self.re_exports);
 
         for call in &self.style_calls {
+            let span = (self.coordinates)(call.span).unwrap_or(self.original.full_span());
             summary.assets.push(AssetRecord {
                 identity: IdentityId::new(
                     AssetKind::Style,
                     self.source.path(),
-                    call.span.start.0,
-                    call.span.end.0,
+                    span.start.0,
+                    span.end.0,
                     "",
                 ),
                 metadata: AssetMetadata { label: None },
@@ -195,8 +207,12 @@ impl<'a> MacroExtractor<'a> {
 pub(crate) struct MacroExtractor<'a> {
     /// Adapter selected from a macro import, once one was seen.
     pub(crate) adapter: Option<AdapterKind>,
-    /// Source being analysed; every produced span is tagged with its id.
+    /// Analysis buffer for Oxc spans; declaration identities use `original` coordinates.
     pub(crate) source: &'a SourceFile,
+    /// Editable original source, including the complete SFC for projected input.
+    pub(crate) original: &'a SourceFile,
+    /// Analysis UTF-8 spans to original UTF-8 spans; synthetic spans have no mapping.
+    pub(crate) coordinates: &'a dyn Fn(Span) -> Option<Span>,
     /// Oxc scoping table used to resolve references to symbols.
     pub(crate) scoping: &'a Scoping,
     /// Symbols bound to the imported `style` macro.
@@ -242,7 +258,7 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) re_exports: Vec<ReExport>,
     /// Exported bindings as symbol plus exported name, in visit order.
     pub(crate) export_symbols: Vec<(SymbolId, String)>,
-    /// Checker facts keyed by expression span.
+    /// Checker facts keyed by original UTF-8 expression range.
     pub(crate) type_facts: HashMap<(u32, u32), ExportedValue>,
     /// Spans the checker should resolve, accumulated during the visit.
     pub(crate) type_probes: RefCell<BTreeSet<(u32, u32)>>,

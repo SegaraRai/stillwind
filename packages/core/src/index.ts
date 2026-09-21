@@ -47,10 +47,10 @@ declare const refProjection: unique symbol;
 declare const refIdentity: unique symbol;
 declare const keyframesIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
-declare const styleIdentity: unique symbol;
 
 export type StyleResult<Id extends string = string, Props = StyleProps> = Props & {
-  readonly [styleIdentity]: Id;
+  /** Checker-only declaration identity; macro lowering never emits this attribute. */
+  readonly "data-__stillwindStyleIdentity": Id;
 };
 
 export type StillwindDeclarationIdentity<Id extends string> = {
@@ -139,7 +139,7 @@ export type StyleVariantValue =
 
 export interface StyleVariantObject {
   readonly [variant: StyleVariant]: StyleVariantValue;
-  readonly [variant: StyleRefVariant]: StyleVariantValue;
+  readonly [variant: StyleRefVariant<string, string>]: StyleVariantValue;
 }
 
 /** Inline CSS values; strings are CSS text and URL objects become url("..."). */
@@ -160,9 +160,9 @@ export type StyleArgument =
   | undefined
   | readonly StyleArgument[]
   | StyleObject
-  | StyleRef
-  | StyleRefProjection
-  | StyleRefVariant
+  | StyleRef<string, string>
+  | StyleRefProjection<string, string>
+  | StyleRefVariant<string, string>
   | StyleKeyframesUse
   | StyleViewTransition
   | StyleViewTransitionUse;
@@ -194,20 +194,20 @@ export type StyleMacro<Props = StyleProps> = {
   ref(): StyleRef;
   ref(label: string): StyleRef;
   /** The compiler requires the boundary to resolve to exactly one ref identity. */
-  ref(boundary: StyleRef): StyleRef;
+  ref(boundary: StyleRef<string, string>): StyleRef;
   /** The compiler requires the boundary to resolve to exactly one ref identity. */
-  ref(boundary: StyleRef, label: string): StyleRef;
+  ref(boundary: StyleRef<string, string>, label: string): StyleRef;
   ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
   ref<const Id extends string>(
     label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id>;
   ref<const BoundaryId extends string, const Id extends string>(
-    boundary: StyleRef<BoundaryId>,
+    boundary: StyleRef<BoundaryId, string>,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, BoundaryId>;
   ref<const BoundaryId extends string, const Id extends string>(
-    boundary: StyleRef<BoundaryId>,
+    boundary: StyleRef<BoundaryId, string>,
     label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, BoundaryId>;

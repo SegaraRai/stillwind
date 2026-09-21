@@ -64,7 +64,7 @@ globalThis.result={props,events};`,
   assert.equal(JSON.parse(output.compositionTopology).length, 2);
   await assert.rejects(
     compile({
-      "entry.ts": `import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});let selected=a;if(flag)selected=b;const props=style(selected,'blue');`,
+      "entry.ts": `import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});let selected: typeof a | typeof b=a;if(flag)selected=b;const props=style(selected,'blue');`,
     }),
     /SHCOMP006/,
   );
@@ -85,7 +85,7 @@ void test("rejects a CSS module cycle even when the style graph is acyclic", asy
 void test("retains mutable candidates through exports and factories", async () => {
   await assert.rejects(
     compile({
-      "entry.ts": `import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});let selected=a;if(flag)selected=b;function select(){return selected;}const props=style(select(),'blue');`,
+      "entry.ts": `import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});let selected: typeof a | typeof b=a;if(flag)selected=b;function select(){return selected;}const props=style(select(),'blue');`,
     }),
     /SHCOMP006/,
   );
@@ -94,7 +94,7 @@ void test("retains mutable candidates through exports and factories", async () =
       "entry.ts":
         "import {style} from 'stillwind/react';import {selected} from './base';const props=style(selected,'blue');",
       "base.ts":
-        "import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});export let selected=a;if(flag)selected=b;",
+        "import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});export let selected: typeof a | typeof b=a;if(flag)selected=b;",
     }),
     /SHCOMP006/,
   );
@@ -110,13 +110,13 @@ void test("parameterized factories preserve all base origins", async () => {
   );
   const output = await compile({
     "entry.ts":
-      "import {style} from 'stillwind/react';const a=style('red'),b=style('green');function identity(value){return value;}const props=style(identity(flag?a:b),'blue');",
+      "import {style} from 'stillwind/react';const a=style('red'),b=style('green');function identity<T>(value:T){return value;}const props=style(identity(flag?a:b),'blue');",
   });
   assert.equal(output.composition.length, 2);
   await assert.rejects(
     compile({
       "entry.ts":
-        "import {style} from 'stillwind/react';const a=style('red',{'data-x':1}),b=style('green');const choice={value:a};if(flag)choice.value=b;const props=style(choice.value,'blue');",
+        "import {style} from 'stillwind/react';const a=style('red',{'data-x':1}),b=style('green');const choice:{value:typeof a|typeof b}={value:a};if(flag)choice.value=b;const props=style(choice.value,'blue');",
     }),
     /SHCOMP006/,
   );
@@ -227,4 +227,35 @@ void test("composition follows imported and re-exported style producers", async 
   } finally {
     facts.close();
   }
+});
+
+void test("JavaScript checker shadows preserve JSDoc identities and reject incompatible assignment", async () => {
+  const output = await compile(
+    {
+      "entry.js": `import {style} from 'stillwind/react';const a=style('red',/* retained */),b=style('green');
+/**
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */ function identity(value){return value;} const props=style(identity(Math.random()?a:b),'blue');`,
+    },
+    "entry.js",
+  );
+  assert.equal(output.composition.length, 2);
+  assert.doesNotMatch(output.code!, /__stillwindDeclarationIdentity/);
+  await assert.rejects(
+    compile(
+      {
+        "entry.js": `import {style} from 'stillwind/react';const a=style('red'),b=style('green');let selected=a;if(Math.random())selected=b;const props=style(selected,'blue');`,
+      },
+      "entry.js",
+    ),
+    /SHTS002/,
+  );
+});
+void test("checker identity insertion accepts empty commented calls and trailing commas", async () => {
+  const output = await compile({
+    "entry.ts": `import {style} from 'stillwind/react';const r=style.ref(/* marker */);const a=style('red',/* trailing */);const props=style(a,'blue',);const target=style(r);`,
+  });
+  assert.equal(output.composition.length, 1);
 });

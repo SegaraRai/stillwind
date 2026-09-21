@@ -224,9 +224,6 @@ pub enum CompileErrorKind {
     /// The JavaScript parser rejected the input; external details belong in wrapper notes.
     #[error("JavaScript parse error")]
     JavaScriptParse,
-    /// Checker facts were supplied through an entry point that cannot map projected facts.
-    #[error("checker facts for projected sources are not supported")]
-    ProjectedFactsUnsupported,
     /// Checker facts fail schema, revision, range, or payload validation.
     #[error("incompatible, stale or invalid TypeScript facts")]
     InvalidTypeScriptFacts,
@@ -600,9 +597,7 @@ impl CompileErrorKind {
     pub const fn code(&self) -> &'static str {
         match self {
             Self::FrameworkConflict | Self::MixedFrameworks => "SHJS008",
-            Self::InvalidSymbolicFacts
-            | Self::ProjectedFactsUnsupported
-            | Self::InvalidTypeScriptFacts => "SHFACT001",
+            Self::InvalidSymbolicFacts | Self::InvalidTypeScriptFacts => "SHFACT001",
             Self::NestedStyleCall => "SHCOMP001",
             Self::StyleArraySpread
             | Self::StyleArrayHole

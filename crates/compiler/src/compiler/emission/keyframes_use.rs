@@ -85,11 +85,7 @@ impl CallEmitter<'_> {
         for keyframes in keyframes {
             self.runtime_assets.insert(keyframes.identity.clone());
             self.required_definitions.insert(keyframes.identity.clone());
-            let identity = match self.record_definition_name(
-                keyframes,
-                AssetKind::Keyframes,
-                keyframes.span,
-            ) {
+            let identity = match self.record_definition_name(keyframes, AssetKind::Keyframes) {
                 Ok(identity) => identity,
                 Err(failure) => {
                     self.reject_name(failure, self.call.span);

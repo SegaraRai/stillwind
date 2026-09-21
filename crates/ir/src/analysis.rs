@@ -23,7 +23,7 @@ use crate::{ModuleIr, SourceInput, validate_composition};
 /// An expression whose TypeScript type the host must report back.
 #[derive(Clone, Debug)]
 pub struct TypeProbe {
-    /// Span of the expression whose type the host must report.
+    /// Original UTF-8 span of the expression whose type the host must report.
     pub span: Span,
 }
 

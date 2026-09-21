@@ -8,7 +8,7 @@
   "devDependencies": {
     "@emnapi/core": "2.0.0-alpha.4",
     "@emnapi/runtime": "2.0.0-alpha.4",
-    "@napi-rs/cli": "^3.8.6",
+    "@napi-rs/cli": "^3.10.4",
     "@types/node": "catalog:",
     "emnapi": "2.0.0-alpha.4",
     "typescript": "catalog:",

@@ -42,9 +42,9 @@ pub struct IdentityId {
     pub kind: AssetKind,
     /// Normalized project-relative path of the declaring module.
     pub module_path: String,
-    /// Byte offset where the declaration starts in the original source.
+    /// UTF-8 byte offset where the declaration starts in the original source.
     pub start: u32,
-    /// Byte offset where the declaration ends, exclusive.
+    /// UTF-8 byte offset where the declaration ends, exclusive.
     pub end: u32,
     /// Local binding name at the declaration site. Empty for `style()` call sites,
     /// which are identified by their call span instead.

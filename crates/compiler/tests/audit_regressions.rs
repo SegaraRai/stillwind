@@ -418,11 +418,10 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
     };
     assert_eq!(keyframes.identity, identity);
     assert_eq!(source.slice(keyframes.span).unwrap(), "motion");
-    assert!(keyframes.local_declaration.is_none());
 }
 
 #[test]
-fn local_motion_declaration_identity_follows_projection() {
+fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
     let source = SourceFile::new(FileId(1), "local.tsx", "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const x=style(a(''));").unwrap();
     let parsed = parse(&source);
     let mapped = parsed
@@ -436,16 +435,20 @@ fn local_motion_declaration_identity_follows_projection() {
     };
     assert_eq!(
         keyframes.identity.start,
-        mapped.keyframes_declarations[0].binding.span.start.0
+        parsed.module.keyframes_declarations[0].binding.span.start.0
     );
     assert_eq!(
         keyframes.identity.end,
-        mapped.keyframes_declarations[0].binding.span.end.0
+        parsed.module.keyframes_declarations[0].binding.span.end.0
     );
-    assert_eq!(
-        keyframes.local_declaration,
-        Some(mapped.keyframes_declarations[0].binding.span)
-    );
+    let StyleInput::Class(ClassExpression::KeyframesUse {
+        keyframes: original,
+        ..
+    }) = &parsed.module.style_calls[0].inputs[0]
+    else {
+        panic!("keyframes")
+    };
+    assert_eq!(keyframes.span.start.0, original.span.start.0 + 20);
 }
 
 #[test]

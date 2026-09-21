@@ -13,22 +13,61 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use oxc::ast::ast::{BindingIdentifier, IdentifierReference, Program, Statement};
-use oxc::ast_visit::Visit;
+use oxc::ast::ast::{
+    BindingIdentifier, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, Program,
+};
+use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{ReferenceId, Scoping, SymbolId};
 
+use stillwind_ir::from_macro_import;
 use stillwind_semantic::{ImportBinding, ModuleSummary};
 
 /// The bindings and references of one top-level statement.
 #[derive(Default)]
-struct References {
+struct StatementReads {
     /// Bound names paired with their symbols, in source order.
     bindings: Vec<(String, SymbolId)>,
     /// Identifier reads as span plus reference id, in source order.
     references: Vec<(u32, u32, ReferenceId)>,
+    /// Non-macro import bindings paired with their local symbols, including imports
+    /// nested in converter-generated functions. Symbol identity distinguishes equal
+    /// local names in separate scopes when resolving semantic dependencies.
+    imports: Vec<(SymbolId, ImportBinding)>,
 }
 
-impl<'a> Visit<'a> for References {
+impl<'a> Visit<'a> for StatementReads {
+    /// Records non-macro specifiers with resolved local symbols as dependency targets,
+    /// then walks the declaration to collect its bindings. Default and namespace
+    /// imports use `default` and `*` as their imported names.
+    fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
+        if from_macro_import(declaration.source.value.as_str()).is_none() {
+            for specifier in declaration.specifiers.iter().flatten() {
+                let (local, imported) = match specifier {
+                    ImportDeclarationSpecifier::ImportSpecifier(specifier) => {
+                        (&specifier.local, specifier.imported.name().to_string())
+                    }
+                    ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
+                        (&specifier.local, "default".into())
+                    }
+                    ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => {
+                        (&specifier.local, "*".into())
+                    }
+                };
+                if let Some(symbol) = local.symbol_id.get() {
+                    self.imports.push((
+                        symbol,
+                        ImportBinding {
+                            source: declaration.source.value.to_string(),
+                            imported,
+                            local: local.name.to_string(),
+                        },
+                    ));
+                }
+            }
+        }
+        walk::walk_import_declaration(self, declaration);
+    }
+
     /// Records one declared binding.
     fn visit_binding_identifier(&mut self, node: &BindingIdentifier<'a>) {
         if let Some(symbol) = node.symbol_id.get() {
@@ -62,7 +101,7 @@ pub(crate) fn collect(
     let mut imports = HashMap::<SymbolId, ImportBinding>::new();
     let mut roots = Vec::new();
     for statement in &program.body {
-        let mut references = References::default();
+        let mut references = StatementReads::default();
         references.visit_statement(statement);
         let symbols: Vec<_> = references
             .references
@@ -86,14 +125,8 @@ pub(crate) fn collect(
                 dependencies.entry(symbol).or_default().extend(&symbols);
             }
         }
-        for (name, symbol) in references.bindings {
-            // Only an import statement may associate a binding by spelling.
-            // Other bindings (including shadowed parameters) retain their symbol IDs.
-            if matches!(statement, Statement::ImportDeclaration(_))
-                && let Some(import) = summary.imports.iter().find(|import| import.local == name)
-            {
-                imports.insert(symbol, import.clone());
-            }
+        imports.extend(references.imports);
+        for (_, symbol) in references.bindings {
             dependencies.entry(symbol).or_default().extend(&symbols);
         }
     }
