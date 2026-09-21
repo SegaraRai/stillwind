@@ -757,11 +757,29 @@ export interface NativeStylesheetOutput {
   sourceMap: NativeStylesheetMap
 }
 
+/** A CSS fragment at one position in an output plan. */
+export interface NativeStylesheetPart {
+  /** Source locations relative to this wrapped fragment. */
+  sourceMap: NativeStylesheetMap
+  /** Stable template node ordinal. */
+  slot: number
+  /** Zero-based occurrence index for this template slot and producer set. */
+  sequence: number
+  /** Producer paths contributing to this occurrence; empty for shared support. */
+  producers: Array<string>
+  /** Content fingerprint. */
+  key: string
+  /** Complete CSS including enclosing context. */
+  css: string
+}
+
 /** Where a rendered stylesheet is meant to live. */
 export type NativeStylesheetPlacement = 'document' | 'carrier'
 
 /** A rendered stylesheet with provenance and watch information. */
 export interface NativeStylesheetPlan {
+  /** Ordered occurrences. Repeated payloads retain their positions. */
+  parts: Array<NativeStylesheetPart>
   /** The rendered CSS text. */
   css: string
   /** Source locations for the rules that have one. */

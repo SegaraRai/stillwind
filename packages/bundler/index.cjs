@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { StillwindPlugin } = require("./emission.cjs");
 const loader = path.join(__dirname, "loader.cjs");
 const cssLoader = path.join(__dirname, "css-loader.cjs");
 const cssMapLoader = path.join(__dirname, "css-map-loader.cjs");
@@ -62,6 +63,7 @@ function withStillwind(config = {}, options) {
       result.module ??= {};
       result.module.rules ??= [];
       result.module.rules.push(...stillwindRules(options));
+      (result.plugins ??= []).push(new StillwindPlugin());
       return result;
     },
   };
@@ -80,9 +82,10 @@ function pluginStillwind(options) {
         // ownership is determined. Appending a normal loader still runs before SWC.
         delete javascript.enforce;
         config.module.rules.push(javascript, ...stylesheets);
+        (config.plugins ??= []).push(new StillwindPlugin());
         return config;
       });
     },
   };
 }
-module.exports = { stillwindRules, withStillwind, pluginStillwind };
+module.exports = { stillwindRules, withStillwind, pluginStillwind, StillwindPlugin };

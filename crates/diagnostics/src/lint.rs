@@ -114,9 +114,7 @@ pub enum LintKind {
         properties: String,
     },
     /// A base owned by another module declares a property this call also declares.
-    #[error(
-        "the base in `{module}` overlaps these declarations: `{properties}`; another module's rules arrive in host-transport order"
-    )]
+    #[error("the base in `{module}` overlaps these declarations: `{properties}`")]
     ImportedBaseInterference {
         /// Normalized project-relative path of the module owning the base.
         module: String,

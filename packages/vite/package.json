@@ -9,6 +9,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@jridgewell/gen-mapping": "^0.3.13",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",

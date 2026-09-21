@@ -1,19 +1,8 @@
 //! Composition-order lints over published artifacts.
 //!
-//! A composition call's own rules follow its bases' rules, but the order between two
-//! unrelated bases, or between another module's rules and this module's, is not part of
-//! the contract: it comes from the host transport. These rules report the cases where
-//! that order decides the cascade, so the author can remove the overlap instead:
-//!
-//! - `ambiguous-base-order`: two bases of one call declare a property in the same
-//!   context and neither is an ancestor of the other.
-//! - `imported-base-interference`: a base owned by another module declares a property
-//!   the call's own rules or its other bases declare.
-//!
-//! Both compare declaration keys - property plus variant context - read from the published
-//! rules, so the comparison follows what the host actually delivers rather than what the
-//! source spells. Findings are advisory: a host that delivers a verified order still leaves
-//! the overlap in place, it just decides it.
+//! [`composition_lints`] detects competing declarations among unrelated bases and
+//! across imported bases. It compares Webref property interference within matching
+//! selector and at-rule contexts. Authored document CSS is outside this analysis.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -185,7 +174,7 @@ fn imported_base_interference(
             span,
         );
         finding.notes.push(format!(
-            "another module's rules reach the element in host-transport order{}",
+            "the overlap has matching selector and at-rule contexts{}",
             context_note(&base_declaration)
         ));
         findings.push(finding);
@@ -296,13 +285,13 @@ fn call_declarations(artifact: &CompiledModule) -> CallDeclarations {
         let selector = format!(".{}", class.class_name);
         let mut keys = BTreeSet::new();
         for rule in &artifact.css.rules {
-            let Some(body) = rule.body.as_deref() else {
+            let Some(body) = rule.syntax.body.as_deref() else {
                 continue;
             };
-            if !mentions(&rule.prelude, &selector) && !mentions(body, &selector) {
+            if !mentions(&rule.syntax.prelude, &selector) && !mentions(body, &selector) {
                 continue;
             }
-            let mut context = selector_context(&rule.prelude, &selector);
+            let mut context = selector_context(&rule.syntax.prelude, &selector);
             if context == "&" {
                 context.clear();
             }
@@ -390,16 +379,19 @@ fn collect_keys(
         });
     }
 }
+
 #[cfg(test)]
 mod tests {
-    use super::*;
     use stillwind_compiler::{
         CompilationDependencies, GeneratedClass, GeneratedRule, ModuleArtifactKey,
         ModuleCssArtifact, RuleKey,
     };
+    use stillwind_css::CssRule;
     use stillwind_ir::StyleDependency;
     use stillwind_semantic::AssetKind;
     use stillwind_source::{FileId, Fingerprint};
+
+    use super::*;
 
     /// One artifact with the given calls and composition edges.
     ///
@@ -424,8 +416,11 @@ mod tests {
                 keyframes: false,
                 required_properties: Vec::new(),
                 key: RuleKey(Fingerprint::of(body)),
-                prelude: format!(".{class}"),
-                body: Some((*body).to_owned()),
+                syntax: CssRule {
+                    range: 0..0,
+                    prelude: format!(".{class}"),
+                    body: Some((*body).to_owned()),
+                },
             })
             .collect();
         let composition = edges
@@ -606,8 +601,8 @@ mod tests {
                 ("app.tsx", 3, "app.tsx", 2),
             ],
         );
-        app.css.rules[1].prelude = ".sw_b:disabled".to_owned();
-        app.css.rules[2].prelude = ".sw_c[data-type=\"icon\"]".to_owned();
+        app.css.rules[1].syntax.prelude = ".sw_b:disabled".to_owned();
+        app.css.rules[2].syntax.prelude = ".sw_c[data-type=\"icon\"]".to_owned();
         let published = artifacts(&[("app.tsx", app)]);
 
         let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
@@ -626,8 +621,8 @@ mod tests {
             ],
             &[("app.tsx", 2, "app.tsx", 0), ("app.tsx", 2, "app.tsx", 1)],
         );
-        app.css.rules[0].prelude = ".sw_a:disabled".to_owned();
-        app.css.rules[1].prelude = ".sw_b:disabled".to_owned();
+        app.css.rules[0].syntax.prelude = ".sw_a:disabled".to_owned();
+        app.css.rules[1].syntax.prelude = ".sw_b:disabled".to_owned();
         let published = artifacts(&[("app.tsx", app)]);
 
         let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
@@ -647,7 +642,7 @@ mod tests {
             ],
             &[("app.tsx", 2, "app.tsx", 0), ("app.tsx", 2, "app.tsx", 1)],
         );
-        app.css.rules[1].prelude = ":where(:focus) .sw_b".to_owned();
+        app.css.rules[1].syntax.prelude = ":where(:focus) .sw_b".to_owned();
         let published = artifacts(&[("app.tsx", app)]);
 
         let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
@@ -666,8 +661,8 @@ mod tests {
             ],
             &[("app.tsx", 2, "app.tsx", 0), ("app.tsx", 2, "app.tsx", 1)],
         );
-        app.css.rules[0].prelude = "@media (hover: hover)".to_owned();
-        app.css.rules[1].prelude = "@media (hover: hover)".to_owned();
+        app.css.rules[0].syntax.prelude = "@media (hover: hover)".to_owned();
+        app.css.rules[1].syntax.prelude = "@media (hover: hover)".to_owned();
         let published = artifacts(&[("app.tsx", app)]);
 
         let findings = composition_lints(&published, &ModuleId::from("app.tsx"));

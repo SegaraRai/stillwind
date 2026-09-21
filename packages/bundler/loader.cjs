@@ -81,6 +81,7 @@ module.exports = function (source, inputMap, additionalData) {
     const compilerOptions = { ...options };
     delete compilerOptions.css;
     delete compilerOptions.root;
+    delete compilerOptions.automatic;
     const loaded = await host.loadCssGraph(css, compilerOptions, {
       resolve: resolveCss,
       read,
@@ -111,7 +112,9 @@ module.exports = function (source, inputMap, additionalData) {
       },
       {
         stylesheetImports:
-          sfc && !projection && !cssValue ? [virtualRequest("stillwind.css")] : undefined,
+          sfc && !projection && !cssValue && options.automatic !== false
+            ? [virtualRequest("stillwind.css")]
+            : undefined,
         moduleCssImport: virtualRequest("stillwind-module-css"),
       },
     );
@@ -120,9 +123,9 @@ module.exports = function (source, inputMap, additionalData) {
     const plan = session.planStylesheet({
       modules: [output.path],
       coverage: { kind: "observed" },
-      placement: cssValue ? "document" : "carrier",
+      placement: "document",
     });
-    const replacements = new Map();
+
     const valueResources = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
       const resolved = await resolveAsset(resource.specifier, path.resolve(root, resource.owner));
@@ -134,50 +137,52 @@ module.exports = function (source, inputMap, additionalData) {
       if (plan.css.includes(resource.placeholder))
         valueResources.push({
           placeholder: resource.placeholder,
+          id: resolved,
           request: relativeRequest(path.dirname(context.resourcePath), resolved),
         });
-      replacements.set(
-        resource.placeholder,
-        JSON.stringify(relativeRequest(path.dirname(carrierPath), resolved)).slice(1, -1),
-      );
     }
     const carrier = relativeRequest(path.dirname(context.resourcePath), carrierPath);
-    const upstream =
-      !projection && inputMap
-        ? {
-            id: context.resourcePath,
-            map: typeof inputMap === "string" ? inputMap : JSON.stringify(inputMap),
-          }
-        : undefined;
-    const cssImport = (output) =>
-      `import ${JSON.stringify(carrier + "?stillwind=" + Buffer.from(host.cssWithSourceMap(output, replacements, root, upstream, !projection)).toString("base64url"))};\n`;
-    const base = session.baseCssWithMap();
     if (cssValue) {
-      // This JavaScript module owns the literal; the original SFC only receives
-      // an import. Asset imports let the caller's bundler choose final URLs.
-      const imports = valueResources
-        .map((resource, index) => `import asset${index} from ${JSON.stringify(resource.request)};`)
+      const imports = plan.parts
+        .map((part, index) => {
+          const payload = Buffer.from(
+            JSON.stringify({
+              css: part.css,
+              resources: valueResources.filter((resource) =>
+                part.css.includes(resource.placeholder),
+              ),
+            }),
+          ).toString("base64url");
+          const request = `!!${path.join(__dirname, "fragment-loader.cjs")}!${path.join(__dirname, "stillwind-fragment.js")}?css=${payload}`;
+          return `import {css as p${index}} from ${JSON.stringify(request)};`;
+        })
         .join("\n");
-      const css = host.cssWithSourceMap(plan, new Map(), root, upstream);
-      const replace = valueResources
-        .map(
-          (resource, index) =>
-            `.replaceAll(${JSON.stringify(resource.placeholder)}, JSON.stringify(typeof asset${index} === 'string' ? asset${index} : asset${index}.src).slice(1,-1))`,
-        )
-        .join("");
-      return callback(null, `${imports}\nexport default ${JSON.stringify(css)}${replace};`, null);
+      const parts = plan.parts
+        .map((part, index) => `{key:${JSON.stringify(part.key)},css:p${index}}`)
+        .join(",");
+      return callback(
+        null,
+        `${imports}\nexport const parts=[${parts}];\nexport const css=parts.map(part=>part.css).join("");\nexport default css;`,
+        null,
+      );
     }
-    if (projection) return callback(null, cssImport(base) + cssImport(plan));
+    const automatic = (!output.hasModuleCssImport && options.automatic !== false) || projection;
+    if (automatic)
+      require("./emission.cjs").registerEmission(context, {
+        source: text,
+        id: context.resourcePath,
+        root,
+        options,
+        manual: false,
+      });
+    const cssImport = `import ${JSON.stringify(carrier + "?stillwind-document")};\n`;
+    if (projection) return callback(null, cssImport);
     const finalized = host.finalizeReactModuleWithMap(output.code);
     // Append synthetic imports so RSC directives remain the first statements.
     const code =
-      sfc || output.hasModuleCssImport
+      sfc || !automatic
         ? finalized.code
-        : finalized.code.slice(finalized.prefix.length) +
-          "\n" +
-          finalized.prefix +
-          cssImport(base) +
-          cssImport(plan);
+        : finalized.code.slice(finalized.prefix.length) + "\n" + finalized.prefix + cssImport;
     const map = host.moduleSourceMap(
       text,
       output.code,

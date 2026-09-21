@@ -1,12 +1,15 @@
 const { fileURLToPath } = require("node:url");
 module.exports = function () {
   this.addDependency(__filename);
-  const css = new URLSearchParams(this.resourceQuery).get("stillwind");
-  if (css === null) throw new Error("Missing Stillwind CSS carrier payload");
+  const document = new URLSearchParams(this.resourceQuery).has("stillwind-document");
+  if (!document) throw new Error("Unknown Stillwind stylesheet request");
+  this.cacheable(false);
+  require("./emission.cjs").registerEmission(this);
+  const css = this._compilation?.__stillwindCss ?? "";
   const callback = this.async();
   void import("@stillwind/host")
     .then(({ decodeCssSourceMap }) => {
-      const output = decodeCssSourceMap(Buffer.from(css, "base64url").toString("utf8"));
+      const output = decodeCssSourceMap(css);
       if (output.map)
         output.map.sources = output.map.sources.map((source) =>
           source.startsWith("file:") ? fileURLToPath(source).replaceAll("\\", "/") : source,

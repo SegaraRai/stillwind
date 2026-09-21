@@ -55,19 +55,10 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
     assert.equal(typeof load, "function");
     if (typeof load !== "function") throw new Error("expected load hook");
     const context = server.pluginContainer as unknown as ThisParameterType<typeof load>;
-    const before = await load.call(
-      context,
-      fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
-    );
+    const before = await load.call(context, "\0stillwind:snapshot.css");
     // Pinning is observable even after the file changes, before the reload hook runs.
     writeFileSync(tokens, "@theme { --color-brand: blue; }");
-    assert.deepEqual(
-      await load.call(
-        context,
-        fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
-      ),
-      before,
-    );
+    assert.deepEqual(await load.call(context, "\0stillwind:snapshot.css"), before);
     const hot = plugin.hotUpdate;
     if (typeof hot !== "function") throw new Error("expected HMR hook");
     const hotContext = {
@@ -83,10 +74,7 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
       >,
       { ...hotContext, type: "update" },
     );
-    const after = await load.call(
-      context,
-      fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
-    );
+    const after = await load.call(context, "\0stillwind:snapshot.css");
     assert.ok(after && typeof after === "object" && after.map);
     assert.notDeepEqual(after, before);
     writeFileSync(tokens, "@theme {");
@@ -96,13 +84,7 @@ void test("Vite loads imported CSS and keeps a failed reload's last successful s
       >,
       { ...hotContext, type: "update" },
     );
-    assert.deepEqual(
-      await load.call(
-        context,
-        fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
-      ),
-      after,
-    );
+    assert.deepEqual(await load.call(context, "\0stillwind:snapshot.css"), after);
   } finally {
     await server.close();
     rmSync(root, { recursive: true, force: true });
@@ -169,7 +151,7 @@ void test("Vite supplies ready CSS and discovers nested imports before a slow si
     if (typeof load !== "function") throw new Error("expected load hook");
     const output = await load.call(
       server.pluginContainer as unknown as ThisParameterType<typeof load>,
-      fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
+      "\0stillwind:snapshot.css",
     );
     assert.ok(output && typeof output === "object" && output.map);
     if (!output || typeof output !== "object") throw new Error("expected mapped CSS");
@@ -279,7 +261,7 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
     const readCss = async (environment: typeof client) => {
       const css = await load.call(
         { environment } as ThisParameterType<typeof load>,
-        fileURLToPath(new URL("../stillwind-base.css", import.meta.url)).replaceAll("\\", "/"),
+        "\0stillwind:snapshot.css",
       );
       assert.ok(css && typeof css === "object" && css.map);
       return (css as { code: string }).code;
@@ -312,21 +294,8 @@ void test("client and SSR resolve and reload independent CSS snapshots", async (
         sourcePath,
       );
     const outputs = await Promise.all([compile(client), compile(ssr)]);
-    const moduleCss = await Promise.all(
-      outputs.map(async (output, index) => {
-        assert.ok(output && typeof output === "object" && output.code);
-        const carrier = output.code
-          .toString()
-          .match(/"(virtual:stillwind\/module\.css\?[^"\n]+)"/)?.[1];
-        assert.ok(carrier);
-        const environment = index === 0 ? client : ssr;
-        const resolved = await environment.pluginContainer.resolveId(carrier);
-        assert.ok(resolved);
-        const loaded = await environment.pluginContainer.load(resolved.id);
-        assert.ok(loaded);
-        return typeof loaded === "string" ? loaded : loaded.code;
-      }),
-    );
+    assert.ok(outputs.every((output) => output && typeof output === "object" && output.code));
+    const moduleCss = await Promise.all([readCss(client), readCss(ssr)]);
     assert.match(moduleCss[0], /red/);
     assert.match(moduleCss[1], /blue/);
     writeFileSync(

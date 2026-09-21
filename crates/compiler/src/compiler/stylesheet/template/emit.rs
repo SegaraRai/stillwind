@@ -56,6 +56,7 @@ pub(super) fn emit(
         support,
         identifiers,
         slots: 0,
+        position: 0,
         layer_identity: LayerContext {
             template: template.source_identity.clone(),
             namespace: options.class_namespace.clone(),
@@ -71,6 +72,8 @@ pub(super) fn emit(
 /// Recursive walks share this state so filtering carrier output cannot renumber
 /// anonymous layers or lose nested utilities-slot counts.
 struct Context<'a> {
+    /// Depth-first template node ordinal, including omitted and empty nodes.
+    position: usize,
     /// Theme used to resolve authored nodes; must match the prepared support.
     theme: &'a ThemeIndex,
     /// Mapped utility contribution inserted at utilities slots.
@@ -134,6 +137,10 @@ impl Context<'_> {
     ) -> Result<MappedStylesheet, CompileErrorKind> {
         let mut output = MappedStylesheet::default();
         for node in nodes {
+            let position = self.position;
+            self.position += 1;
+            let start = output.css.len();
+            let segment_count = output.segments.len();
             match node {
                 CssOutputNode::LayerOrder { css, origin } => {
                     output.text(css, resolve_origin(self.sources, *origin));
@@ -210,6 +217,9 @@ impl Context<'_> {
                         output.text("}", None);
                     }
                 }
+            }
+            if output.css.len() > start && output.segments.len() == segment_count {
+                output.segments.push((start..output.css.len(), position));
             }
         }
         Ok(output)

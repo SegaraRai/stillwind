@@ -10,6 +10,47 @@ import { build } from "vite-plus";
 
 import { stillwind } from "../src/index.ts";
 
+void test("server-only projections emit split CSS without publishing server source contents", async () => {
+  const root = mkdtempSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "../.session-test-"),
+  );
+  writeFileSync(path.join(root, "index.html"), '<script type="module" src="/main.ts"></script>');
+  writeFileSync(path.join(root, "main.ts"), "import './server.ts?stillwind.css';");
+  writeFileSync(
+    path.join(root, "server.ts"),
+    "import {style} from 'stillwind/react';const privateValue='SERVER_SOURCE_SENTINEL';export const props=style('red');",
+  );
+  writeFileSync(path.join(root, "root.css"), "@utility red{color:red}@stillwind-slot utilities;");
+  try {
+    const result = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      plugins: [stillwind({ css: "./root.css", types: false, emission: "split" })],
+      build: { write: false, minify: false, sourcemap: true },
+    });
+    if (!("output" in result)) throw new Error("expected output");
+    const code = result.output
+      .filter((item) => item.type === "chunk")
+      .map((item) => item.code)
+      .join("");
+    assert.match(code, /data-stillwind-part/);
+    assert.ok(result.output.some((item) => item.fileName.endsWith(".css")));
+    for (const item of result.output)
+      assert.doesNotMatch(
+        item.type === "chunk" ? item.code : String(item.source),
+        /SERVER_SOURCE_SENTINEL/,
+      );
+  } finally {
+    assert.ok(
+      path
+        .resolve(root)
+        .startsWith(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + path.sep),
+    );
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 void test("explicit module CSS exports scoped values without adding document CSS and retains helpers", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, "packages/vite/.session-test-"));
@@ -76,7 +117,7 @@ void test("explicit module CSS exports scoped values without adding document CSS
   }
 });
 
-void test("cross-module composition is accepted and a value carries only its own rules", async () => {
+void test("a CSS value includes its transitive composition closure in reference order", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, "packages/vite/.session-test-"));
   const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
@@ -109,7 +150,8 @@ globalThis.props = style(base, 'blue');
     const global: { value?: string; props?: { className: string } } = {};
     runInNewContext(entry.code, { globalThis: global });
     assert.match(global.value ?? "", /color:\s*blue/);
-    assert.doesNotMatch(global.value ?? "", /color:\s*red/);
+    assert.match(global.value ?? "", /color:\s*red/);
+    assert.ok(global.value!.indexOf("red") < global.value!.indexOf("blue"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -203,13 +245,8 @@ void test("build retains late and lazy producer CSS without collecting transform
     assert.match(css, /44,\s*55,\s*66/);
     assert.doesNotMatch(css, /77,\s*88,\s*99/);
     assert.equal(css.match(/\.document-only/g)?.length, 1);
-    assert.ok(assets.some((asset) => asset.fileName.includes("lazy")));
-    // Vite currently emits JS build maps but discards CSS build maps. Keep the
-    // boundary explicit; the adapter's CSS maps are accepted in development.
-    assert.equal(
-      output.output.some((asset) => asset.fileName.endsWith(".css.map")),
-      false,
-    );
+    assert.equal(assets.length, 1);
+    assert.ok(output.output.some((asset) => asset.fileName.endsWith(".css.map")));
     const lazy = output.output.find(
       (asset) => asset.type === "chunk" && asset.fileName.includes("lazy"),
     );
@@ -236,19 +273,19 @@ void test("imported CSS resources retain their owner through document and module
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
   const put = (name: string, content: string) => writeFileSync(path.join(root, name), content);
-  mkdirSync(path.join(root, "nested"));
+  mkdirSync(path.join(root, "nested folder"));
   put("index.html", '<script type="module" src="/main.ts"></script>');
-  put("root.css", '@import "./nested/design.css"; @stillwind-slot utilities;');
+  put("root.css", '@import "./nested folder/design.css"; @stillwind-slot utilities;');
   put(
-    "nested/design.css",
+    "nested folder/design.css",
     '.document-only{background:url("./document.svg")} @stillwind-utility picture{background-image:url("./utility.svg")}',
   );
   put(
-    "nested/document.svg",
+    "nested folder/document.svg",
     '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><path fill="red" d="M0 0h1v1H0z"/></svg>',
   );
   put(
-    "nested/utility.svg",
+    "nested folder/utility.svg",
     '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><path fill="blue" d="M0 0h2v2H0z"/></svg>',
   );
   put(
@@ -269,8 +306,8 @@ void test("imported CSS resources retain their owner through document and module
       .filter((asset) => asset.fileName.endsWith(".css"))
       .map((asset) => String(asset.source))
       .join("\n");
-    assert.match(css, /assets\/document-[\w-]+\.svg/);
-    assert.match(css, /assets\/utility-[\w-]+\.svg/);
+    assert.match(css, /document-[\w-]+\.svg/);
+    assert.match(css, /utility-[\w-]+\.svg/);
     assert.doesNotMatch(css, /__stillwind_resource_|@fs|nested\//);
     assert.equal(
       result.output.filter((asset) => asset.type === "asset" && asset.fileName.endsWith(".svg"))

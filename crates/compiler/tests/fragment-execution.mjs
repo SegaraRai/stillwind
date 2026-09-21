@@ -62,6 +62,7 @@ for (const mode of ["development", "production"]) {
             return truth ? { "--x": "old" } : null;
           };
           try {
+            // eslint-disable-next-line typescript/no-implied-eval -- This test executes compiler-generated expressions against the runtime helpers.
             const result = new Function(
               ...Object.keys(runtime),
               "value",

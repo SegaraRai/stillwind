@@ -14,6 +14,7 @@ use stillwind_compiler::{
     Identifiers, KeyframesName, LayerContext, LayerName, LocatorContext, ModuleCssArtifact,
     RefMarker, RuleKey, StylesheetPlacement, StylesheetRenderer, UtilityClass,
 };
+use stillwind_css::CssRule;
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
@@ -29,13 +30,16 @@ fn publication_rekeys_publicly_edited_rules_before_sharing_them() {
             keyframes: false,
             required_properties: Vec::new(),
             key,
-            prelude: ".x".into(),
-            body: Some("color:red;".into()),
+            syntax: CssRule {
+                range: 0..0,
+                prelude: ".x".into(),
+                body: Some("color:red;".into()),
+            },
         }],
     };
     let mut sheet = ProjectStylesheet::default();
     sheet.replace("a".into(), &artifact);
-    artifact.rules[0].body = Some("color:blue;".into());
+    artifact.rules[0].syntax.body = Some("color:blue;".into());
     sheet.replace("b".into(), &artifact);
     assert_eq!(sheet.rule_count(), 2);
     assert!(sheet.module_css().unwrap().contains("color:red;"));

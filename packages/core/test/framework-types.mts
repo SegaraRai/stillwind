@@ -41,7 +41,7 @@ function refVariantTypes(active: boolean) {
   // @ts-expect-error Ref variant arguments are static strings.
   trigger(123);
   // @ts-expect-error Ref tags do not accept substitutions.
-  trigger`hover:${"active"}`;
+  void trigger`hover:${"active"}`;
 }
 void refVariantTypes;
 

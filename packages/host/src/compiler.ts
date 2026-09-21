@@ -187,6 +187,7 @@ export async function compileModule(
   }
   const typedSources = sources.map((source) => ({
     ...source,
+    module_css_import: source.id === entryId ? source.module_css_import : "stillwind/module-css",
     type_facts: typeFacts.get(source.path) ?? [],
   }));
   const projectOutput = session.compile(typedSources, compilerModulePath(projectRoot, entryId));

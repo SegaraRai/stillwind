@@ -1,6 +1,6 @@
 # モジュールグラフとCSS出力のアーキテクチャ調査
 
-調査日: 2026-09-10。最小輸送実験に加え、Stillwind本体のVite・Next・Rspack系adapter、React Router・SolidStart・TanStack Startを検証した。最新の完了範囲は次の表を優先する。後半の調査記録は実装前の根拠と計画も含む。
+調査日: 2026-09-10。最小輸送実験に加え、Stillwind本体のVite・Next・Rspack系adapter、React Router・SolidStart・TanStack Startを検証した。以下は当時の検証記録である。現在のCSSエミッション仕様と検証範囲は[CSS emission](css-emission.md)を参照する。後半の調査記録は実装前の根拠と計画も含む。
 
 ## 継続実装と受け入れ状況
 

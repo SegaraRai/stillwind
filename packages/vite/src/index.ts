@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -16,11 +16,14 @@ import {
   TypeScriptFactsService,
   finalizeReactModuleWithMap as finalizeModuleWithMap,
 } from "@stillwind/host";
-import type { CssLocations, CssUpstreamMap, PlayOutput } from "@stillwind/host";
+import type { CssUpstreamMap, PlayOutput } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import type { NativeIdentifierNaming } from "@stillwind/native";
-import { build } from "esbuild";
+import { build, transform as transformCss } from "esbuild";
 import type { Plugin, ViteDevServer } from "vite-plus";
+
+import { partitionStylesheet } from "./emission.ts";
+import { developmentRuntime } from "./runtime.ts";
 
 /**
  * Project configuration for the Stillwind Vite plugin. `css` or `theme` must identify
@@ -28,6 +31,10 @@ import type { Plugin, ViteDevServer } from "vite-plus";
  * are resolved against Vite's project root.
  */
 export interface StillwindOptions {
+  /** Apply producer CSS to the document. Disable for libraries that supply explicit CSS values. */
+  automatic?: boolean;
+  /** Build transport. Split outputs use the same ordered manifest in the browser and SSR. */
+  emission?: "single" | "split";
   /** Entry stylesheet alias used when `css` is absent; absolute or project-root relative. */
   theme?: string;
   /** Entry stylesheet defining the design system; takes precedence over `theme`. */
@@ -70,22 +77,20 @@ export interface StillwindOptions {
 }
 
 const virtualCssId = "virtual:stillwind.css";
-const resolvedVirtualCssId = fileURLToPath(
-  new URL("../stillwind-base.css", import.meta.url),
-).replaceAll("\\", "/");
-const moduleCssPrefix = "virtual:stillwind/module.css?css=";
-const registeredCssPrefix = "virtual:stillwind/module.css?ref=";
-const moduleCssValuePrefix = "virtual:stillwind/module-css?ref=";
-const resolvedModuleCssValueId = fileURLToPath(
-  new URL("../stillwind-module-css.js", import.meta.url),
-).replaceAll("\\", "/");
-const resolvedModuleCssId = fileURLToPath(
-  new URL("../stillwind-carrier.css", import.meta.url),
-).replaceAll("\\", "/");
-const resolvedProjectionId = fileURLToPath(
-  new URL("../stillwind-projection.js", import.meta.url),
-).replaceAll("\\", "/");
 const maximumPlayPayloadBytes = 1_000_000;
+
+function resourceUrl(file: string): string {
+  return `/@fs/${file
+    .replaceAll("\\", "/")
+    .split("/")
+    .map((segment) =>
+      encodeURIComponent(segment)
+        .replaceAll("'", "%27")
+        .replaceAll("(", "%28")
+        .replaceAll(")", "%29"),
+    )
+    .join("/")}`;
+}
 
 function resolvedFile(
   result: { id: string; external?: boolean | string } | null,
@@ -111,7 +116,7 @@ function isAuthoredStylesheet(id: string): boolean {
   if (!cleanModuleId(id).endsWith(".css")) return false;
   if (id.startsWith("virtual:") || id.includes("?")) return false;
   const path = cleanModuleId(id).replaceAll("\\", "/");
-  return path !== resolvedVirtualCssId && path !== resolvedModuleCssId;
+  return !path.startsWith("\0stillwind:");
 }
 
 function compilerOptions(options: StillwindOptions) {
@@ -243,30 +248,31 @@ function previewHtml(id: string) {
 /** Runs the native compiler and renders Play user modules only inside a sandboxed iframe. */
 export function stillwind(options: StillwindOptions): Plugin {
   type EnvironmentState = {
+    work: Promise<void>;
+    loadRevision: number;
     session?: NativeProjectSession;
     initializing?: Promise<void>;
-    projectionDependencies: Map<string, Set<string>>;
     resources: Map<string, string>;
-    producers: Set<string>;
-    compositionDependencies: Map<string, Set<string>>;
-    compositionTopologies: Map<string, string>;
     cssFiles: Set<string>;
     typeFacts?: TypeScriptFactsService;
     revision: number;
+    buildCss?: string;
+    manifest?: {
+      version: 1;
+      revision: string;
+      parts: { id: string; href: string }[];
+      modules: Record<string, string[]>;
+    };
   };
   const environments = new Map<string, EnvironmentState>();
-  const carrierPayloads = new Map<string, string>();
-  let carrierSequence = 0;
   const environmentState = (name = "client") => {
     let state = environments.get(name);
     if (!state) {
       state = {
+        work: Promise.resolve(),
+        loadRevision: 0,
         resources: new Map(),
-        producers: new Set(),
-        compositionDependencies: new Map(),
-        compositionTopologies: new Map(),
         cssFiles: new Set(),
-        projectionDependencies: new Map(),
         revision: 0,
       };
       environments.set(name, state);
@@ -285,18 +291,6 @@ export function stillwind(options: StillwindOptions): Plugin {
     for (const [placeholder, url] of references) css = css.replaceAll(placeholder, url);
     return css;
   };
-  const carrierSpecifier = (_state: EnvironmentState, css: string) => {
-    // Development requests must not put a complete source map in the HTTP URL.
-    // A fresh reference also prevents delayed HMR pruning from removing restored CSS.
-    if (watching) {
-      const reference = String(++carrierSequence);
-      carrierPayloads.set(reference, css);
-      return `${registeredCssPrefix}${reference}&lang.css`;
-    }
-    // Production transport remains self-contained across independent cached transforms.
-    return `${moduleCssPrefix}${Buffer.from(css).toString("base64url")}&lang.css`;
-  };
-
   const closeTypeFacts = () => {
     for (const state of environments.values()) {
       state.typeFacts?.close();
@@ -323,7 +317,7 @@ export function stillwind(options: StillwindOptions): Plugin {
     const references = new Map<string, string>();
     for (const resource of resourceReferences) {
       const resolved = await resolveImport(resource.specifier, resource.owner);
-      const url = `/@fs/${resolved.replaceAll("\\", "/")}`;
+      const url = resourceUrl(resolved);
       references.set(resource.placeholder, JSON.stringify(url).slice(1, -1));
       dependencies.add(cleanModuleId(resolved));
     }
@@ -372,7 +366,6 @@ export function stillwind(options: StillwindOptions): Plugin {
         state.session = new NativeProjectSession(loader, watching, compilerMode, options.naming);
         state.resources = loaderResources.get(loader) ?? new Map();
         state.cssFiles = dependencies;
-        state.producers.clear();
         for (const path of dependencies) context.addWatchFile(path);
         writeTypes(loader);
       };
@@ -383,55 +376,220 @@ export function stillwind(options: StillwindOptions): Plugin {
     await state.initializing;
   };
 
-  const renderCarrier = async (
+  type Input = {
+    projection?: boolean;
+    upstream?: CssUpstreamMap;
+    code: string;
+    id: string;
+    path: string;
+    manual: boolean;
+    javascript: string;
+    dependencies: string[];
+  };
+  const inputs = new Map<string, Map<string, Input>>();
+  const inputMap = (name = "client") => {
+    let map = inputs.get(name);
+    if (!map) inputs.set(name, (map = new Map()));
+    return map;
+  };
+  const includeSourceContent = (name?: string) =>
+    ![...inputMap(name).values()].some((input) => input.projection);
+  let devServerRef: ViteDevServer | undefined;
+  let assetsDirectory = "assets";
+  let publicBase = "/";
+  let sourceMaps = false;
+  let devSourceMaps = false;
+  let minifyCss = true;
+  const fragments = new Map<string, string>();
+  const fragmentSpecifier = (css: string) => {
+    const key = watching
+      ? createHash("sha256").update(css).digest("hex")
+      : Buffer.from(css).toString("base64url");
+    if (watching) fragments.set(key, css);
+    return "virtual:stillwind/fragment:" + key;
+  };
+  const runtimeId = "\0stillwind:runtime";
+  const valuePrefix = "\0stillwind:value:";
+  const fragmentPrefix = "\0stillwind:fragment:";
+  const projectionPrefix = "\0stillwind:projection:";
+  const producerPrefix = "\0stillwind:producer:";
+  const runtimeSpecifier = "virtual:stillwind/runtime";
+  const producerSpecifier = (id: string) =>
+    `virtual:stillwind/producer:${Buffer.from(compilerModulePath(projectRoot, cleanModuleId(id))).toString("base64url")}`;
+  const valueSpecifier = (id: string) =>
+    `virtual:stillwind/value:${Buffer.from(cleanModuleId(id)).toString("base64url")}`;
+  const resolvePlan = async (
     state: EnvironmentState,
-    modulePath: string,
-    host: {
-      resolve(
+    modules: string[],
+    context: {
+      resolve: (
         specifier: string,
         importer: string,
-      ): Promise<{ id: string; external?: boolean | string } | null>;
-      watch(id: string): void;
-      upstream?: CssUpstreamMap;
-      includeSourcesContent?: boolean;
-      placement?: "document" | "carrier";
+        options: { skipSelf: boolean },
+      ) => Promise<{ id: string; external?: boolean | string } | null>;
+      addWatchFile: (id: string) => void;
     },
+    complete = false,
   ) => {
+    const revision = state.revision;
     const plan = state.session!.planStylesheet({
-      modules: [modulePath],
-      coverage: { kind: "observed" },
-      placement: host.placement ?? "carrier",
-    }) as {
-      css: string;
-      sourceMap: CssLocations;
-      coverage: { kind: string };
-      designSystem: string;
-      producers: unknown[];
-      resources: { placeholder: string; owner: string; specifier: string }[];
-    };
+      modules,
+      coverage: complete
+        ? { kind: "complete", target: "application", revision: String(state.revision) }
+        : { kind: "observed" },
+      placement: "document",
+    });
     const resources = new Map(state.resources);
     for (const resource of plan.resources) {
-      const resolved = await host.resolve(resource.specifier, resolve(projectRoot, resource.owner));
-      const file = resolvedFile(
-        resolved,
-        `Stillwind resource ${resource.specifier} from ${resource.owner}`,
+      const resolved = await context.resolve(
+        resource.specifier,
+        resolve(projectRoot, resource.owner),
+        { skipSelf: true },
       );
-      host.watch(cleanModuleId(file));
-      resources.set(
-        resource.placeholder,
-        JSON.stringify(`/@fs/${file.replaceAll("\\", "/")}`).slice(1, -1),
-      );
+      const file = resolvedFile(resolved, `Stillwind resource ${resource.specifier}`);
+      context.addWatchFile(file);
+      resources.set(resource.placeholder, JSON.stringify(resourceUrl(file)).slice(1, -1));
     }
     return {
       ...plan,
-      css: cssWithSourceMap(
-        plan,
-        resources,
-        projectRoot,
-        host.upstream,
-        host.includeSourcesContent,
-      ),
+      revision,
+      originalCss: plan.css,
+      resourceReplacements: resources,
+      css: resolveResources(plan.css, resources),
+      rawParts: plan.parts,
+      parts: plan.parts.map((part) => {
+        const name = [...environments].find(([, candidate]) => candidate === state)?.[0];
+        const mapped =
+          watching && devSourceMaps
+            ? decodeCssSourceMap(
+                cssWithSourceMap(
+                  part,
+                  resources,
+                  projectRoot,
+                  [...inputMap(name).values()].flatMap((input) =>
+                    input.upstream ? [input.upstream] : [],
+                  ),
+                  includeSourceContent(name),
+                ),
+              )
+            : undefined;
+        return {
+          key: part.key,
+          producers: part.producers,
+          css: mapped?.code ?? resolveResources(part.css, resources),
+          map: mapped?.map,
+        };
+      }),
     };
+  };
+  const documentPlan = async (
+    name: string | undefined,
+    context: Parameters<typeof resolvePlan>[2],
+    complete = false,
+  ) => {
+    const state = environmentState(name);
+    await ensureSession(state, context);
+    const modules = [...inputMap(name).values()]
+      .filter((input) => !input.manual)
+      .map((input) => input.path);
+    return resolvePlan(state, modules, context, complete);
+  };
+  const publish = async (name: string | undefined, context: Parameters<typeof resolvePlan>[2]) => {
+    if (!watching || !devServerRef) return;
+    const state = environmentState(name);
+    const revision = ++state.revision;
+    const plan = await documentPlan(name, context);
+    if (revision === state.revision)
+      devServerRef.environments[name ?? "client"]?.hot.send({
+        type: "custom",
+        event: "stillwind:css",
+        data: {
+          revision,
+          parts: plan.parts,
+          dependencies: Object.fromEntries(
+            [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+          ),
+        },
+      });
+  };
+  const compile = async (
+    name: string | undefined,
+    code: string,
+    id: string,
+    context: Parameters<typeof resolvePlan>[2] & {
+      warn: (message: string) => void;
+      getCombinedSourcemap?: () => unknown;
+    },
+  ) => {
+    const state = environmentState(name);
+    const previous = state.work;
+    let release!: () => void;
+    state.work = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      await ensureSession(state, context);
+      const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
+      const output = await compileModule(
+        state.session!,
+        () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
+        code,
+        id,
+        projectRoot,
+        {
+          resolve: (specifier, importer) =>
+            context.resolve(specifier, importer, { skipSelf: true }),
+          read: (id) => readFile(id, "utf8"),
+          watch: (id) => context.addWatchFile(id),
+          warn: (message) => context.warn(message),
+        },
+        {
+          stylesheetImports:
+            sfc && options.automatic !== false ? [producerSpecifier(id)] : undefined,
+          moduleCssImport: valueSpecifier(id),
+        },
+      );
+      if (!output?.code) return;
+      const finalized = sfc
+        ? { code: output.code, removed: [], prefix: "" }
+        : finalizeReactModuleWithMap(output.code, false);
+      const suffix =
+        sfc || output.hasModuleCssImport || options.automatic === false
+          ? ""
+          : `\nimport ${JSON.stringify(producerSpecifier(id))};\n`;
+      const javascript = finalized.code + suffix;
+      inputMap(name).set(cleanModuleId(id), {
+        projection: inputMap(name).get(cleanModuleId(id))?.projection,
+        upstream: context.getCombinedSourcemap
+          ? { id: cleanModuleId(id), map: JSON.stringify(context.getCombinedSourcemap()) }
+          : inputMap(name).get(cleanModuleId(id))?.upstream,
+        code,
+        id,
+        path: output.path,
+        manual: output.hasModuleCssImport || options.automatic === false,
+        javascript,
+        dependencies: output.compositionModules,
+      });
+      return {
+        code: javascript,
+        map: JSON.stringify(
+          moduleSourceMap(
+            code,
+            output.code,
+            id,
+            output.mappings,
+            finalized.removed,
+            finalized.prefix,
+          ),
+        ),
+        meta: {
+          stillwind: { input: code, id, path: output.path, manual: output.hasModuleCssImport },
+        },
+      };
+    } finally {
+      release();
+    }
   };
 
   return {
@@ -440,326 +598,495 @@ export function stillwind(options: StillwindOptions): Plugin {
     perEnvironmentStartEndDuringDev: true,
     perEnvironmentWatchChangeDuringDev: true,
     async resolveId(id, importer) {
-      if (id.startsWith(resolvedModuleCssId)) {
-        // Some framework asset collectors append ?inline to an existing query.
-        return id.replace(/\?inline$/, "&inline");
-      }
-      if (importer && cleanModuleId(importer) === resolvedProjectionId) {
-        const state = environmentState(this.environment?.name);
-        if (state.projectionDependencies.get(id.replaceAll("\\", "/"))?.has(importer)) {
-          return `${id}?stillwind-css-watch`;
-        }
-      }
-      if (id.endsWith("?stillwind-css-watch")) return id;
-      if (id === virtualCssId) return resolvedVirtualCssId;
-      if (id.startsWith(moduleCssPrefix))
-        return `${resolvedModuleCssId}?css=${id.slice(moduleCssPrefix.length)}`;
-      if (id.startsWith(registeredCssPrefix))
-        return `${resolvedModuleCssId}?ref=${id.slice(registeredCssPrefix.length)}`;
-      if (id.startsWith(moduleCssValuePrefix))
-        return `${resolvedModuleCssValueId}?ref=${id.slice(moduleCssValuePrefix.length)}`;
       if (id.endsWith("?stillwind.css")) {
-        const source = await this.resolve(id, importer, { skipSelf: true });
-        if (!source || source.external) this.error(`Cannot resolve Stillwind CSS projection ${id}`);
-        return `${resolvedProjectionId}?source=${Buffer.from(cleanModuleId(source.id)).toString("base64url")}`;
+        const source = await this.resolve(id.slice(0, -"?stillwind.css".length), importer, {
+          skipSelf: true,
+        });
+        if (!source || source.external) this.error(`Cannot resolve Stillwind projection ${id}`);
+        return projectionPrefix + Buffer.from(cleanModuleId(source.id)).toString("base64url");
       }
+      if (id === runtimeSpecifier || id === virtualCssId) return runtimeId;
+      if (id === "virtual:stillwind/snapshot.css") return "\0stillwind:snapshot.css";
+      if (id.startsWith("virtual:stillwind/value:"))
+        return valuePrefix + id.slice("virtual:stillwind/value:".length);
+      if (id.startsWith("virtual:stillwind/fragment:"))
+        return fragmentPrefix + id.slice("virtual:stillwind/fragment:".length);
+      if (id.startsWith("virtual:stillwind/producer:"))
+        return producerPrefix + id.slice("virtual:stillwind/producer:".length);
+      if (id.startsWith("\0stillwind:")) return id;
       return undefined;
     },
     async load(id) {
-      if (id.endsWith("?stillwind-css-watch")) return "";
-      const state = environmentState(this.environment?.name);
-      if (cleanModuleId(id) === resolvedModuleCssValueId) {
-        const reference = new URLSearchParams(id.slice(id.indexOf("?") + 1)).get("ref");
-        if (reference === null || !carrierPayloads.has(reference))
-          this.error("Unknown Stillwind module CSS value");
-        return `export { default } from ${JSON.stringify(`${registeredCssPrefix}${reference}&inline&lang.css`)};`;
-      }
-      if (cleanModuleId(id) === resolvedProjectionId) {
-        for (const [dependency, projections] of state.projectionDependencies) {
-          projections.delete(id);
-          if (projections.size === 0) state.projectionDependencies.delete(dependency);
-        }
-        const encoded = new URLSearchParams(id.slice(id.indexOf("?") + 1)).get("source");
-        if (encoded === null) this.error("Stillwind CSS projection is missing its source");
-        const sourceId = Buffer.from(encoded, "base64url").toString("utf8");
-        const watch = (dependency: string) => {
-          this.addWatchFile(dependency);
-          const key = dependency.replaceAll("\\", "/");
-          const projections = state.projectionDependencies.get(key) ?? new Set<string>();
-          projections.add(id);
-          state.projectionDependencies.set(key, projections);
-        };
-        watch(sourceId);
-        await ensureSession(state, this);
-        const output = await compileModule(
-          state.session!,
-          () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
-          await readFile(sourceId, "utf8"),
-          sourceId,
-          projectRoot,
-          {
-            resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
-            read: (dependency) => readFile(dependency, "utf8"),
-            watch,
-            warn: (message) => this.warn(message),
-          },
-        );
-        if (!output) return "";
-        // A projection carries only this producer's rules: a composing producer needs its
-        // base's projection too, and the requesting module's import order decides the order.
-        const css = await renderCarrier(state, output.path, {
-          includeSourcesContent: false,
-          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
-          watch,
-        });
-        state.producers.add(id);
-        return `import ${JSON.stringify(virtualCssId)};\nimport ${JSON.stringify(carrierSpecifier(state, css.css))};`;
-      }
-      if (cleanModuleId(id) === resolvedVirtualCssId) {
-        await ensureSession(state, this);
+      const name = this.environment?.name;
+      if (id === "\0stillwind:snapshot.css") {
+        const plan = await documentPlan(name, this);
         return decodeCssSourceMap(
-          cssWithSourceMap(state.session!.baseCssWithMap(), state.resources, projectRoot),
+          cssWithSourceMap(
+            { css: plan.originalCss, sourceMap: plan.sourceMap },
+            plan.resourceReplacements,
+            projectRoot,
+            [...inputMap(name).values()].flatMap((input) =>
+              input.upstream ? [input.upstream] : [],
+            ),
+            includeSourceContent(name),
+          ),
         );
       }
-      if (cleanModuleId(id) === resolvedModuleCssId) {
-        const parameters = new URLSearchParams(id.slice(id.indexOf("?") + 1));
-        const reference = parameters.get("ref");
-        if (reference !== null) {
-          const css = carrierPayloads.get(reference);
-          if (css === undefined) this.error(`Unknown Stillwind CSS carrier ${reference}`);
-          return decodeCssSourceMap(css);
+      if (id.startsWith(producerPrefix)) {
+        if (!watching) return "export {};";
+        const producer = Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8");
+        return `import {register,unregister,synchronize} from ${JSON.stringify(runtimeSpecifier)}; await synchronize(${environmentState(name).revision}); register(${JSON.stringify(producer)}); if(import.meta.hot) import.meta.hot.prune(()=>unregister(${JSON.stringify(producer)}));`;
+      }
+      if (id.startsWith(projectionPrefix)) {
+        const source = Buffer.from(id.slice(projectionPrefix.length), "base64url").toString("utf8");
+        this.addWatchFile(source);
+        const result = await compile(name, await readFile(source, "utf8"), source, this);
+        const input = inputMap(name).get(source);
+        if (input) {
+          input.manual = false;
+          input.projection = true;
         }
-        const payload = parameters.get("css");
-        if (payload === null) this.error("Stillwind CSS carrier is missing its payload");
-        return decodeCssSourceMap(Buffer.from(payload, "base64url").toString("utf8"));
+        await publish(name, this);
+        return {
+          code: `import ${JSON.stringify(producerSpecifier(source))};`,
+          meta: { stillwind: { ...result?.meta.stillwind, projection: true } },
+        };
+      }
+      if (id === runtimeId) {
+        if (!watching) return "export {};";
+        const plan = await documentPlan(name, this);
+        const revision = environmentState(name).revision;
+        const code = developmentRuntime(
+          {
+            revision,
+            parts: plan.parts,
+            dependencies: Object.fromEntries(
+              [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+            ),
+          },
+          devSourceMaps,
+          `${publicBase}__stillwind/css?environment=${encodeURIComponent(name ?? "client")}`,
+        );
+        if (!devSourceMaps) return code;
+        const bundled = await build({
+          stdin: { contents: code, resolveDir: dirname(fileURLToPath(import.meta.url)) },
+          bundle: true,
+          write: false,
+          format: "esm",
+          platform: "browser",
+        });
+        return bundled.outputFiles[0].text;
+      }
+      if (id.startsWith(fragmentPrefix)) {
+        const key = id.slice(fragmentPrefix.length);
+        let css = watching ? fragments.get(key) : Buffer.from(key, "base64url").toString("utf8");
+        if (css === undefined) this.error(`Unknown Stillwind CSS fragment ${key}`);
+        if (!watching && minifyCss)
+          css = (await transformCss(css, { loader: "css", minify: true })).code;
+        const files = [
+          ...new Set([...css.matchAll(/\/@fs\/([^"'\s)]+)/g)].map((match) => match[1])),
+        ];
+        const imports = files
+          .map(
+            (file, index) =>
+              `import asset${index} from ${JSON.stringify(decodeURIComponent(file) + "?url")};`,
+          )
+          .join("\n");
+        const replacements = files
+          .map(
+            (file, index) =>
+              `.replaceAll(${JSON.stringify(`/@fs/${file}`)}, JSON.stringify(asset${index}).slice(1,-1))`,
+          )
+          .join("");
+        return `${imports}\nexport const css = ${JSON.stringify(css)}${replacements};`;
+      }
+      if (id.startsWith(valuePrefix)) {
+        const sourceId = Buffer.from(id.slice(valuePrefix.length), "base64url").toString("utf8");
+        this.addWatchFile(sourceId);
+        if (!inputMap(name).has(sourceId))
+          await compile(name, await readFile(sourceId, "utf8"), sourceId, this);
+        const input = inputMap(name).get(sourceId);
+        if (!input) this.error(`No Stillwind producer for ${sourceId}`);
+        const plan = await resolvePlan(environmentState(name), [input.path], this, !watching);
+        for (const producer of plan.producers)
+          this.addWatchFile(resolve(projectRoot, producer.module));
+        for (const file of environmentState(name).cssFiles) this.addWatchFile(file);
+        const imports = plan.parts
+          .map(
+            (part, index) =>
+              `import { css as p${index} } from ${JSON.stringify(fragmentSpecifier(part.css))};`,
+          )
+          .join("\n");
+        return `${imports}\nexport const parts = [${plan.parts.map((part, index) => `{key:${JSON.stringify(part.key)},css:p${index}}`).join(",")}];\nexport const css = parts.map(part => part.css).join("");\nexport default css;`;
       }
       return undefined;
     },
     configResolved(config) {
       projectRoot = config.root;
+      assetsDirectory = config.build.assetsDir;
+      publicBase = config.base;
+      sourceMaps = Boolean(config.build.sourcemap);
+      devSourceMaps = Boolean(config.css.devSourcemap);
+      minifyCss = config.build.cssMinify !== false;
       watching = config.command === "serve";
       compilerMode = watching ? "development" : "release";
       closeTypeFacts();
     },
     async buildStart() {
-      const state = environmentState(this.environment?.name);
+      const name = this.environment?.name;
+      const state = environmentState(name);
       state.session = undefined;
+      inputMap(name).clear();
+      state.buildCss = undefined;
+      state.manifest = undefined;
       await ensureSession(state, this);
     },
-    async hotUpdate(context) {
-      const state = environmentState(this.environment.name);
-      const changed = cleanModuleId(context.file).replaceAll("\\", "/");
-      const hasComposition = state.compositionDependencies.size > 0;
-      const touchesComposition = [...state.compositionDependencies].some(
-        ([producer, dependencies]) => producer === changed || dependencies.has(changed),
+    shouldTransformCachedModule({ id }) {
+      return (
+        /\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(cleanModuleId(id)) &&
+        !id.includes("node_modules")
       );
-      // Replacing a carrier can move its style element behind a derived carrier.
-      // Reload until a transport can prove it preserves that relative position.
-      if (touchesComposition && !state.cssFiles.has(context.file)) {
-        for (const module of this.environment.moduleGraph.idToModuleMap.values()) {
-          this.environment.moduleGraph.invalidateModule(module);
-        }
-        this.environment.hot.send({ type: "full-reload" });
-        return [];
-      }
-      if (!state.cssFiles.has(context.file) && !state.cssFiles.has(resolve(context.file))) {
-        const projections = state.projectionDependencies.get(context.file.replaceAll("\\", "/"));
-        if (!projections) return;
-        const modules = [...context.modules];
-        for (const id of projections) {
-          const module = this.environment.moduleGraph.getModuleById(id);
-          if (module) {
-            this.environment.moduleGraph.invalidateModule(module);
-            modules.push(module);
-          }
-        }
-        return modules;
-      }
-      const revision = ++state.revision;
-      const dependencies = new Set<string>();
-      try {
-        const loader = await loadDesignSystem(
-          async (specifier, importer) => {
-            const result = await this.environment.pluginContainer.resolveId(specifier, importer);
-            return resolvedFile(result, `CSS ${specifier} from ${importer}`);
-          },
-          undefined,
-          dependencies,
-        );
-        if (revision !== state.revision) return [];
-        const update = state.session!.reload(loader) as {
-          cssChanged: boolean;
-          transformedModules: string[];
-        };
-        state.resources = loaderResources.get(loader) ?? new Map();
-        state.cssFiles = dependencies;
-        context.server.watcher.add([...dependencies]);
-        writeTypes(loader);
-        // A CSS-only semantic change must also refresh the producer's payload
-        // import, even when its class names and JS transforms are unchanged.
-        const modules = [
-          ...new Set(
-            [...state.producers].flatMap((id) => [
-              ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(id)) ?? []),
-            ]),
-          ),
-        ];
-        const cssModule = this.environment.moduleGraph.getModuleById(resolvedVirtualCssId);
-        if (update.cssChanged && cssModule) modules.push(cssModule);
-        for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
-        if (hasComposition) {
-          this.environment.hot.send({ type: "full-reload" });
-          return [];
-        }
-        return modules;
-      } catch (error) {
-        this.warn(
-          `Stillwind CSS reload failed; retaining last successful output: ${String(error)}`,
-        );
-        return [];
-      }
     },
-    watchChange(id, change) {
-      const state = environmentState(this.environment?.name);
-      if (change.event === "delete") {
-        state.session?.remove(compilerModulePath(projectRoot, id));
-        state.producers.delete(id);
-        if (isAuthoredStylesheet(id)) {
-          state.session?.reserveAuthoredCss(compilerModulePath(projectRoot, cleanModuleId(id)));
+    async renderStart() {
+      if (watching) return;
+      const name = this.environment?.name;
+      const state = environmentState(name);
+      // The final graph includes lazy modules and cached transforms. Recover inputs
+      // from graph metadata before making a complete-coverage claim.
+      for (const id of this.getModuleIds()) {
+        const metadata = this.getModuleInfo(id)?.meta.stillwind;
+        if (metadata?.input !== undefined && !inputMap(name).has(cleanModuleId(metadata.id ?? id)))
+          await compile(name, metadata.input, metadata.id ?? id, this);
+        if (metadata?.projection) {
+          const input = inputMap(name).get(cleanModuleId(metadata.id ?? id));
+          if (input) input.projection = true;
         }
       }
+      const plan = await documentPlan(name, this, true);
+      if (
+        ![...this.getModuleIds()].some(
+          (id) =>
+            id === runtimeId || id.startsWith(producerPrefix) || id.startsWith(projectionPrefix),
+        )
+      )
+        return;
+      const assets = new Map<string, string>();
+      let css = plan.css;
+      for (const match of css.matchAll(/\/@fs\/([^"'\s)]+)/g)) {
+        const file = match[1];
+        if (assets.has(file)) continue;
+        const reference = this.emitFile({
+          type: "asset",
+          name: decodeURIComponent(file).split("/").at(-1),
+          source: await readFile(decodeURIComponent(file)),
+        });
+        assets.set(file, reference);
+      }
+      const resourceUrls = (text: string) => {
+        for (const [file, reference] of assets)
+          text = text.replaceAll(
+            `/@fs/${file}`,
+            posix.relative(assetsDirectory, this.getFileName(reference)),
+          );
+        return text;
+      };
+      css = resourceUrls(css);
+      const emitCss = async (text: string, sourceMap?: string) => {
+        if (minifyCss) {
+          const input = sourceMap
+            ? `${text}\n/*# sourceMappingURL=data:application/json;base64,${Buffer.from(sourceMap).toString("base64")} */`
+            : text;
+          const result = await transformCss(input, {
+            loader: "css",
+            minify: true,
+            sourcemap: sourceMap ? "external" : false,
+            sourcefile: "stillwind.css",
+          });
+          text = result.code;
+          sourceMap = result.map || undefined;
+        }
+        const hash = createHash("sha256").update(text).digest("hex").slice(0, 16);
+        if (sourceMap) {
+          this.emitFile({
+            type: "asset",
+            fileName: `${assetsDirectory}/stillwind-${hash}.css.map`,
+            source: sourceMap,
+          });
+          text += `\n/*# sourceMappingURL=stillwind-${hash}.css.map */`;
+        }
+        return this.emitFile({
+          type: "asset",
+          fileName: `${assetsDirectory}/stillwind-${hash}.css`,
+          source: text,
+        });
+      };
+      const href = (reference: string) => publicBase + this.getFileName(reference);
+      const revision = createHash("sha256")
+        .update(plan.designSystem)
+        .update(plan.originalCss)
+        .update(JSON.stringify(plan.producers))
+        .digest("hex");
+      if (options.emission !== "split") {
+        const replacements = new Map(
+          [...plan.resourceReplacements].map(([key, value]) => [key, resourceUrls(value)]),
+        );
+        const mapped = sourceMaps
+          ? decodeCssSourceMap(
+              cssWithSourceMap(
+                { css: plan.originalCss, sourceMap: plan.sourceMap },
+                replacements,
+                projectRoot,
+                [...inputMap(name).values()].flatMap((input) =>
+                  input.upstream ? [input.upstream] : [],
+                ),
+                includeSourceContent(name),
+              ),
+            )
+          : undefined;
+        state.buildCss = await emitCss(css, mapped?.map ? JSON.stringify(mapped.map) : undefined);
+        state.manifest = {
+          version: 1,
+          revision,
+          parts: [{ id: "document", href: href(state.buildCss) }],
+          modules: Object.fromEntries(
+            plan.producers.map((producer) => [producer.module, ["document"]]),
+          ),
+        };
+      } else {
+        const references = new Map<string, string>();
+        const parts: { id: string; href: string }[] = [];
+        const partitions = partitionStylesheet(plan.rawParts);
+        for (const [index, part] of partitions.entries()) {
+          let reference = references.get(part.key);
+          if (!reference) {
+            const replacements = new Map(
+              [...plan.resourceReplacements].map(([key, value]) => [key, resourceUrls(value)]),
+            );
+            const mapped = sourceMaps
+              ? decodeCssSourceMap(
+                  cssWithSourceMap(
+                    part,
+                    replacements,
+                    projectRoot,
+                    [...inputMap(name).values()].flatMap((input) =>
+                      input.upstream ? [input.upstream] : [],
+                    ),
+                    includeSourceContent(name),
+                  ),
+                )
+              : undefined;
+            references.set(
+              part.key,
+              (reference = await emitCss(
+                mapped?.code ?? resolveResources(part.css, replacements),
+                mapped?.map ? JSON.stringify(mapped.map) : undefined,
+              )),
+            );
+          }
+          parts.push({ id: `${index}:${part.key}`, href: href(reference) });
+        }
+        const dependencies = new Map(
+          [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+        );
+        const modules = Object.fromEntries(
+          plan.producers.map((producer) => {
+            const closure = new Set([producer.module]);
+            for (const module of closure)
+              for (const dependency of dependencies.get(module) ?? []) closure.add(dependency);
+            return [
+              producer.module,
+              parts
+                .filter(
+                  (_, index) =>
+                    partitions[index].producers.length === 0 ||
+                    partitions[index].producers.some((owner) => closure.has(owner)),
+                )
+                .map((part) => part.id),
+            ];
+          }),
+        );
+        state.manifest = { version: 1, revision, parts, modules };
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: "stillwind-manifest.json",
+        source: JSON.stringify(state.manifest, null, 2),
+      });
+    },
+    renderChunk(_code, chunk) {
+      const { manifest, buildCss } = environmentState(this.environment?.name);
+      if (options.emission === "split" && manifest) {
+        const graph = new Set(Object.keys(chunk.modules));
+        if (chunk.facadeModuleId) graph.add(chunk.facadeModuleId);
+        for (const id of graph)
+          for (const dependency of this.getModuleInfo(id)?.importedIds ?? []) graph.add(dependency);
+        const ids = new Set(
+          [...graph].flatMap(
+            (id) =>
+              manifest!.modules[
+                inputMap(this.environment?.name).get(cleanModuleId(id))?.path ??
+                  this.getModuleInfo(id)?.meta.stillwind?.path ??
+                  (id.startsWith(producerPrefix)
+                    ? Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8")
+                    : "")
+              ] ?? [],
+          ),
+        );
+        const parts = manifest.parts
+          .filter((part) => ids.has(part.id))
+          .map((part) => ({
+            ...part,
+            order: manifest!.parts.indexOf(part),
+            relative: publicBase === "./" || publicBase === "",
+            href:
+              publicBase === "./" || publicBase === ""
+                ? posix.relative(posix.dirname(chunk.fileName), part.href.slice(publicBase.length))
+                : part.href,
+          }));
+        if (parts.length)
+          return {
+            code: `${_code}\nif(typeof document!=="undefined"){for(const p of ${JSON.stringify(parts)}){const links=[...document.querySelectorAll('link[data-stillwind-part]')];if(links.some(l=>l.dataset.stillwindPart===p.id))continue;const l=document.createElement('link');l.rel='stylesheet';l.href=p.relative?new URL(p.href,import.meta.url).href:p.href;l.dataset.stillwindPart=p.id;l.dataset.stillwindOrder=String(p.order);document.head.insertBefore(l,links.find(e=>Number(e.dataset.stillwindOrder)>p.order)??null);}}`,
+            map: null,
+          };
+      }
+      if (buildCss) {
+        const metadata = chunk as typeof chunk & {
+          viteMetadata?: { importedCss: Set<string>; importedAssets: Set<string> };
+        };
+        metadata.viteMetadata ??= {
+          importedCss: new Set(),
+          importedAssets: new Set(),
+          __modules: new Set(),
+        };
+        metadata.viteMetadata.importedCss.add(this.getFileName(buildCss));
+      }
+      return null;
+    },
+    async hotUpdate(context) {
+      const name = this.environment.name;
+      const state = environmentState(name);
+      const id = cleanModuleId(context.file);
+      const host = {
+        resolve: (specifier: string, importer: string) =>
+          this.environment.pluginContainer.resolveId(specifier, importer),
+        addWatchFile: (id: string) => {
+          context.server.watcher.add(id);
+        },
+        warn: (message: string) => this.warn(message),
+      };
+      try {
+        if (state.cssFiles.has(context.file) || state.cssFiles.has(resolve(context.file))) {
+          const revision = ++state.loadRevision;
+          const dependencies = new Set<string>();
+          const loader = await loadDesignSystem(
+            async (specifier, importer) =>
+              resolvedFile(await host.resolve(specifier, importer), `CSS ${specifier}`),
+            undefined,
+            dependencies,
+          );
+          if (revision !== state.loadRevision) return [];
+          const update = state.session!.reload(loader);
+          state.resources = loaderResources.get(loader) ?? new Map();
+          state.cssFiles = dependencies;
+          context.server.watcher.add([...dependencies]);
+          writeTypes(loader);
+          await publish(name, host);
+          const changed = new Set(update.transformedModules);
+          const modules = [...inputMap(name).values()]
+            .filter((input) => input.manual || changed.has(input.path))
+            .flatMap((input) => [
+              ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(input.id)) ?? []),
+              ...(input.manual
+                ? [
+                    this.environment.moduleGraph.getModuleById(
+                      valuePrefix + Buffer.from(cleanModuleId(input.id)).toString("base64url"),
+                    ),
+                  ].filter((module): module is NonNullable<typeof module> => Boolean(module))
+                : []),
+            ]);
+          for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
+          return modules;
+        }
+        const previous = inputMap(name).get(id);
+        if (previous && context.type !== "delete") {
+          const result = await compile(name, await context.read(), id, host);
+          await publish(name, host);
+          if (!previous.manual && result?.code === previous.javascript) return [];
+        }
+      } catch (error) {
+        this.warn(`Stillwind update failed; retaining published styles: ${String(error)}`);
+      }
+      return undefined;
+    },
+    async watchChange(id, change) {
+      if (change.event !== "delete") return;
+      const name = this.environment?.name;
+      const state = environmentState(name);
+      if (!state.session || !inputMap(name).delete(cleanModuleId(id))) return;
+      state.session.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
+      await publish(name, this);
     },
     transform: {
       order: "pre",
       async handler(code, id) {
-        const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
+        const name = this.environment?.name;
         if (isAuthoredStylesheet(id)) {
-          // A stylesheet a producer authors is not part of the design system, so its names are
-          // reserved here; a generated name equal to one of them would change what it means.
-          const state = environmentState(this.environment?.name);
+          const state = environmentState(name);
           await ensureSession(state, this);
-          try {
-            state.session!.reserveAuthoredCss(
-              compilerModulePath(projectRoot, cleanModuleId(id)),
-              code,
-            );
-          } catch (error) {
-            // A generated name and an authored one would mean two different things.
-            this.error(`Stillwind: ${String(error)}`);
-          }
-          return undefined;
-        }
-        if (
-          (!sfc && !/\.[cm]?[jt]sx?$/.test(cleanModuleId(id))) ||
-          (sfc && id !== cleanModuleId(id)) ||
-          id.includes("node_modules") ||
-          id.endsWith("?stillwind-css-watch") ||
-          /[?&](?:raw|url)(?:[=&]|$)/.test(id)
-        )
-          return undefined;
-        const state = environmentState(this.environment?.name);
-        if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
-          state.session?.remove(compilerModulePath(projectRoot, cleanModuleId(id)));
-          state.producers.delete(id);
-          const removed = cleanModuleId(id).replaceAll("\\", "/");
-          state.compositionDependencies.delete(removed);
-          state.compositionTopologies.delete(removed);
-          return undefined;
-        }
-        await ensureSession(state, this);
-        const session = state.session!;
-        // Native needs the import identity before it renders edits. Publish its
-        // immutable CSS payload after compilation and before Vite can load it.
-        const carrierReference = String(++carrierSequence);
-        const allocatedCarrier = `${registeredCssPrefix}${carrierReference}&lang.css`;
-        const output = await compileModule(
-          session,
-          () => (state.typeFacts ??= new TypeScriptFactsService(projectRoot)),
-          code,
-          id,
-          projectRoot,
-          {
-            resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
-            read: (id) => readFile(id, "utf8"),
-            watch: (id) => this.addWatchFile(id),
-            warn: (message) => this.warn(message),
-          },
-          {
-            stylesheetImports: sfc ? [virtualCssId, allocatedCarrier] : undefined,
-            moduleCssImport: `${moduleCssValuePrefix}${carrierReference}`,
-          },
-        );
-        if (!output?.code) return undefined;
-        // A value carries only this module's rules, so a composing module's base rules come
-        // from the base's own value and the consumer's insertion order decides the cascade.
-        state.producers.add(id);
-        const producerId = cleanModuleId(id).replaceAll("\\", "/");
-        const previousTopology = state.compositionTopologies.get(producerId);
-        state.compositionTopologies.set(producerId, output.compositionTopology);
-        if (
-          watching &&
-          this.environment &&
-          "hot" in this.environment &&
-          previousTopology !== undefined &&
-          previousTopology !== output.compositionTopology
-        ) {
-          this.environment.hot.send({ type: "full-reload" });
-        }
-        if (output.compositionTopology !== "[]") {
-          state.compositionDependencies.set(
-            producerId,
-            new Set(
-              output.compositionModules.map((module) =>
-                resolve(projectRoot, module).replaceAll("\\", "/"),
-              ),
-            ),
+          state.session!.reserveAuthoredCss(
+            compilerModulePath(projectRoot, cleanModuleId(id)),
+            code,
           );
-        } else {
-          state.compositionDependencies.delete(producerId);
+          return;
         }
-        const upstreamMap = this.getCombinedSourcemap?.();
-        const plan = await renderCarrier(state, output.path, {
-          placement: output.hasModuleCssImport ? "document" : "carrier",
-          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
-          watch: (id) => this.addWatchFile(id),
-          upstream: upstreamMap
-            ? { id: cleanModuleId(id), map: JSON.stringify(upstreamMap) }
-            : undefined,
-        });
-        const css = plan.css;
-        if (sfc || output.hasModuleCssImport) carrierPayloads.set(carrierReference, css);
-        const carrier = sfc ? allocatedCarrier : carrierSpecifier(state, css);
-        const finalized = sfc
-          ? { code: output.code, removed: [], prefix: "" }
-          : finalizeReactModuleWithMap(output.code, false);
-        const imports = sfc || output.hasModuleCssImport ? "" : `import "${virtualCssId}";\n`;
-        const suffix =
-          sfc || output.hasModuleCssImport ? "" : `\nimport ${JSON.stringify(carrier)};\n`;
-        return {
-          code: imports + finalized.code + suffix,
-          meta: {
-            stillwind: {
-              coverage: plan.coverage,
-              designSystem: plan.designSystem,
-              producers: plan.producers,
-              compositionModules: output.compositionModules,
-              compositionTopology: output.compositionTopology,
-            },
-          },
-          map: JSON.stringify(
-            moduleSourceMap(
-              code,
-              output.code,
-              id,
-              output.mappings,
-              finalized.removed,
-              imports + finalized.prefix,
-            ),
-          ),
-        };
+        if (
+          !/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(cleanModuleId(id)) ||
+          id.includes("node_modules") ||
+          id.startsWith("\0") ||
+          /[?&](?:raw|url|type)(?:[=&]|$)/.test(id)
+        )
+          return;
+        if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
+          if (inputMap(name).delete(cleanModuleId(id))) {
+            environmentState(name).session?.remove(
+              compilerModulePath(projectRoot, cleanModuleId(id)),
+            );
+            await publish(name, this);
+          }
+          return;
+        }
+        const result = await compile(name, code, id, this);
+        await publish(name, this);
+        return result;
       },
     },
     configureServer(server: ViteDevServer) {
+      devServerRef = server;
+      server.middlewares.use("/__stillwind/css", (request, response) => {
+        const name =
+          new URL(request.url ?? "", "http://stillwind.local").searchParams.get("environment") ??
+          "client";
+        const environment = server.environments[name];
+        if (!environment) return sendJson(response, { error: "Unknown environment" }, 404);
+        const host = {
+          resolve: (specifier: string, importer: string) =>
+            environment.pluginContainer.resolveId(specifier, importer),
+          addWatchFile: (id: string) => {
+            server.watcher.add(id);
+          },
+        };
+        void documentPlan(name, host)
+          .then((plan) =>
+            sendJson(response, {
+              revision: plan.revision,
+              parts: plan.parts,
+              dependencies: Object.fromEntries(
+                [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+              ),
+            }),
+          )
+          .catch((error) => sendJson(response, { error: String(error) }, 500));
+      });
       server.httpServer?.once("close", closeTypeFacts);
       server.middlewares.use("/__stillwind/compile", (request, response) => {
         if (request.method !== "POST")

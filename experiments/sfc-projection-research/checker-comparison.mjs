@@ -332,7 +332,7 @@ function inspect(prepared, program, checker, guards, version) {
         values.push(id.value.split(":").at(-1));
       }
     }
-    return [...new Set(values)].sort();
+    return [...new Set(values)].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
   }
   visit(sf, (node) => {
     if (
@@ -659,8 +659,11 @@ for (const row of report.rows)
       );
       assert.equal(probe.mappingValid, true, `${version}/${row.framework}/${probe.name} mapping`);
     }
-    const expectedCodes = [...(row.variant === "invalid" ? [2322] : [])].sort();
-    assert.deepEqual(result.diagnostics.map((d) => d.code).sort(), expectedCodes);
+    const expectedCodes = row.variant === "invalid" ? [2322] : [];
+    assert.deepEqual(
+      result.diagnostics.map((d) => d.code).sort((a, b) => a - b),
+      expectedCodes,
+    );
     if (row.variant === "invalid")
       assert.ok(Number.isInteger(result.diagnostics.find((d) => d.code === 2322).original));
   }

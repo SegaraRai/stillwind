@@ -10,7 +10,7 @@ import { createServer } from "vite-plus";
 
 import { stillwind } from "../src/index.ts";
 
-void test("Vite development composes carrier CSS maps through framework preprocessing", async () => {
+void test("Vite development composes linked CSS maps through framework preprocessing", async () => {
   const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repo, ".session-test-"));
   writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
@@ -64,10 +64,8 @@ void test("Vite development composes carrier CSS maps through framework preproce
         originalOffset - source.lastIndexOf("\n", originalOffset - 1) - 1,
       );
     }
-    const carrier = result.code.match(/(?:from |import )"([^"\n]+stillwind-carrier\.css[^"\n]+)"/);
-    assert.ok(carrier, result.code);
-    const css = await server.transformRequest(carrier[1] + "&direct");
-    assert.ok(css);
+    const css = await server.environments.client.pluginContainer.load("\0stillwind:snapshot.css");
+    assert.ok(css && typeof css === "object");
     assert.ok(css.map, css.code);
     const map = new TraceMap(JSON.stringify(css.map));
     const offset = css.code.indexOf(".sw_");

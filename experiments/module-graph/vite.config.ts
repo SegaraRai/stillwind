@@ -9,6 +9,7 @@ export default defineConfig({
       verify: { command: "node scripts/verify.mjs", cache: false },
       "verify:stillwind": { command: "node scripts/verify-stillwind.mjs", cache: false },
       "verify:composition": { command: "node scripts/verify-composition.mjs", cache: false },
+      "verify:emission": { command: "node scripts/verify-emission.mjs", cache: false },
       "verify:runtime-if": { command: "node scripts/verify-runtime-if.mjs", cache: false },
       "verify:conditional": { command: "node scripts/verify-conditional.mjs", cache: false },
       "verify:animation": {

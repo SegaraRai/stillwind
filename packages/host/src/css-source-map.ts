@@ -48,7 +48,7 @@ export function cssWithSourceMap(
   output: { css: string; sourceMap: CssLocations },
   replacements: ReadonlyMap<string, string>,
   root: string,
-  upstream?: CssUpstreamMap,
+  upstream?: CssUpstreamMap | readonly CssUpstreamMap[],
   includeSourcesContent = true,
 ) {
   if (!output.css) return "";
@@ -107,8 +107,12 @@ export function cssWithSourceMap(
     result +
     "\n/*# sourceMappingURL=data:application/json;base64," +
     Buffer.from(
-      JSON.stringify(composeUpstream(toEncodedMap(map), upstream), (key, value) =>
-        key === "sourcesContent" && !includeSourcesContent ? undefined : value,
+      JSON.stringify(
+        (Array.isArray(upstream) ? upstream : [upstream]).reduce(
+          (map, source) => composeUpstream(map, source),
+          toEncodedMap(map),
+        ),
+        (key, value) => (key === "sourcesContent" && !includeSourcesContent ? undefined : value),
       ),
     ).toString("base64") +
     " */"

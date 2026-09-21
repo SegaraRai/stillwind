@@ -13,9 +13,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_compiler::{
-    ModuleArtifactKey, ModuleCompiler, ModuleResourceReference, StylesheetMapping,
-    StylesheetPlacement, StylesheetRenderer,
+    MappedStylesheet, ModuleArtifactKey, ModuleCompiler, ModuleResourceReference,
+    StylesheetMapping, StylesheetPlacement, StylesheetRenderer,
 };
+use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_semantic::ModuleId;
 use stillwind_source::{Fingerprint, Span};
@@ -38,6 +39,9 @@ pub enum StylesheetPlanError {
     /// The retained revision follows a failed load, so it is not a current plan.
     #[error("The latest design-system load failed; retained CSS is not a current output plan")]
     FailedDesignSystemLoad,
+    /// Producer dependencies contain a cycle.
+    #[error("Cyclic stylesheet producer dependencies: {0:?}")]
+    CyclicModules(BTreeSet<ModuleId>),
     /// Rendering the selected CSS failed.
     #[error("{0}")]
     Stylesheet(#[from] CompileErrorKind),
@@ -75,6 +79,8 @@ pub struct StylesheetSelection {
 /// A rendered stylesheet plus everything needed to place and attribute it.
 #[derive(Clone, Debug)]
 pub struct StylesheetPlan {
+    /// Fragments in reference order. Repeated content remains a separate entry.
+    pub parts: Vec<StylesheetPart>,
     /// Generated-to-original mappings for the rules that have a source location.
     pub mappings: Vec<StylesheetMapping>,
     /// Assets and resources the selected producers reference.
@@ -89,6 +95,23 @@ pub struct StylesheetPlan {
     pub design_system: Fingerprint,
     /// Artifact key per selected module, for cache identity and invalidation.
     pub producers: BTreeMap<ModuleId, ModuleArtifactKey>,
+}
+
+/// A shareable payload at one position in a stylesheet plan.
+#[derive(Clone, Debug)]
+pub struct StylesheetPart {
+    /// Source attribution relative to the complete wrapped fragment.
+    pub mappings: Vec<StylesheetMapping>,
+    /// Stable template node ordinal.
+    pub slot: usize,
+    /// Zero-based occurrence index for this template slot and producer set.
+    pub sequence: usize,
+    /// Producers whose source ranges contribute to this fragment. Empty means shared support.
+    pub producers: BTreeSet<ModuleId>,
+    /// Content identity, suitable for an immutable fragment cache.
+    pub key: Fingerprint,
+    /// CSS for this occurrence, including its complete enclosing context.
+    pub css: String,
 }
 
 impl ProjectSession {
@@ -112,7 +135,7 @@ impl ProjectSession {
     /// Rejects unavailable producers, incomplete coverage metadata, or invalid CSS.
     pub fn plan_stylesheet(
         &self,
-        selection: StylesheetSelection,
+        mut selection: StylesheetSelection,
         placement: StylesheetPlacement,
     ) -> Result<StylesheetPlan, StylesheetPlanError> {
         if self.load_error().is_some() {
@@ -123,6 +146,7 @@ impl ProjectSession {
         {
             return Err(StylesheetPlanError::MissingCoverageIdentity);
         }
+        let order = self.stylesheet_order(&mut selection.modules)?;
         let missing = selection
             .modules
             .iter()
@@ -152,6 +176,7 @@ impl ProjectSession {
             return Err(StylesheetPlanError::StaleModules(stale));
         }
         let mut stylesheet = ProjectStylesheet::default();
+        stylesheet.set_order(order);
         let mut producers = BTreeMap::new();
         let mut resources = Vec::new();
         for module in &selection.modules {
@@ -187,13 +212,21 @@ impl ProjectSession {
                 .clone();
             let span = Span::new(source.id(), start, end);
             Some((source, span))
-        })?;
+        });
         let renderer = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers());
-        let mapped = renderer.render_mapped_stylesheet(&utility_css, placement)?;
+        let reference = renderer.render_mapped_stylesheet(&utility_css, placement)?;
+        let mapped = if matches!(selection.coverage, StylesheetCoverage::Complete { .. }) {
+            let optimized = optimize_stylesheet(&utility_css)?;
+            renderer.render_mapped_stylesheet(&optimized, placement)?
+        } else {
+            reference.clone()
+        };
+        let parts = stylesheet_parts(&reference, &producers)?;
         // The selected producers were checked when they were published; the names this render
         // generated belong to no declaration, so they are checked against the document here.
         self.check_document_names(&renderer.take_detached_symbols())?;
         Ok(StylesheetPlan {
+            parts,
             mappings: mapped.mappings,
             resources,
             css: mapped.css,
@@ -203,6 +236,137 @@ impl ProjectSession {
             producers,
         })
     }
+
+    /// Adds transitive base producers from composition edges to `modules` and returns
+    /// their dependency order, breaking ties between ready producers by module identity.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a cyclic producer graph. Missing producers are validated by planning.
+    pub fn stylesheet_order(
+        &self,
+        modules: &mut BTreeSet<ModuleId>,
+    ) -> Result<Vec<ModuleId>, StylesheetPlanError> {
+        let mut pending: Vec<_> = modules.iter().cloned().collect();
+        while let Some(module) = pending.pop() {
+            if let Some(artifact) = self.artifacts().get(&module) {
+                for dependency in &artifact.composition {
+                    let base = ModuleId::from(dependency.base.module_path.clone());
+                    if modules.insert(base.clone()) {
+                        pending.push(base);
+                    }
+                }
+            }
+        }
+        let mut remaining = modules.clone();
+        let mut order = Vec::new();
+        while !remaining.is_empty() {
+            let ready = remaining
+                .iter()
+                .find(|module| {
+                    self.artifacts().get(*module).is_none_or(|artifact| {
+                        artifact.composition.iter().all(|edge| {
+                            edge.base.module_path == module.as_str()
+                                || !remaining.contains(edge.base.module_path.as_str())
+                        })
+                    })
+                })
+                .cloned();
+            let Some(module) = ready else {
+                return Err(StylesheetPlanError::CyclicModules(remaining));
+            };
+            remaining.remove(&module);
+            order.push(module);
+        }
+        Ok(order)
+    }
+}
+
+fn optimize_stylesheet(
+    utility_css: &MappedStylesheet,
+) -> Result<MappedStylesheet, StylesheetPlanError> {
+    let mut optimized = utility_css.clone();
+    let mut syntax = CssRule::parse(&utility_css.css).map_err(|offset| {
+        StylesheetPlanError::Stylesheet(CompileErrorKind::InvalidGeneratedCss { offset })
+    })?;
+    optimize_rules(&mut syntax);
+    optimized.css.clear();
+    optimized.mappings.clear();
+    for node in syntax {
+        let start = optimized.css.len();
+        optimized.css.push_str(&node.to_css());
+        if let Some(mapping) = utility_css.mappings.iter().find(|mapping| {
+            mapping.generated.start < node.range.end && mapping.generated.end > node.range.start
+        }) {
+            let mut mapping = mapping.clone();
+            mapping.generated = start..optimized.css.len();
+            mapping.exact = false;
+            optimized.mappings.push(mapping);
+        }
+    }
+    Ok(optimized)
+}
+
+fn stylesheet_parts(
+    reference: &MappedStylesheet,
+    producers: &BTreeMap<ModuleId, ModuleArtifactKey>,
+) -> Result<Vec<StylesheetPart>, StylesheetPlanError> {
+    let mut sequences = BTreeMap::new();
+    let parts = stylesheet_fragments(&reference.css)
+        .map_err(|offset| {
+            StylesheetPlanError::Stylesheet(CompileErrorKind::InvalidGeneratedCss { offset })
+        })?
+        .into_iter()
+        .map(|(css, range)| {
+            let owners: BTreeSet<_> = reference
+                .mappings
+                .iter()
+                .filter(|mapping| {
+                    mapping.generated.start < range.end && mapping.generated.end > range.start
+                })
+                .map(|mapping| ModuleId::from(mapping.source.path()))
+                .filter(|id| producers.contains_key(id))
+                .collect();
+            let slot = reference
+                .segments
+                .iter()
+                .filter(|(segment, _)| segment.start < range.end && segment.end > range.start)
+                .map(|(_, slot)| *slot)
+                .min()
+                .unwrap_or_default();
+            let sequence = sequences.entry((slot, owners.clone())).or_insert(0);
+            let prefix = css.rfind(&reference.css[range.clone()]).unwrap_or_default();
+            let mappings = reference
+                .mappings
+                .iter()
+                .filter_map(|mapping| {
+                    let start = mapping.generated.start.max(range.start);
+                    let end = mapping.generated.end.min(range.end);
+                    if start >= end {
+                        return None;
+                    }
+                    let mut mapped = mapping.clone();
+                    if mapped.exact {
+                        mapped.original.start += start - mapping.generated.start;
+                        mapped.original.end = mapped.original.start + end - start;
+                    }
+                    mapped.generated = prefix + start - range.start..prefix + end - range.start;
+                    Some(mapped)
+                })
+                .collect();
+            let part = StylesheetPart {
+                mappings,
+                key: Fingerprint::of(&css),
+                css,
+                producers: owners,
+                slot,
+                sequence: *sequence,
+            };
+            *sequence += 1;
+            part
+        })
+        .collect();
+    Ok(parts)
 }
 
 /// Collects identifier tokens from generated CSS.

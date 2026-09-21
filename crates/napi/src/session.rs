@@ -383,6 +383,23 @@ impl NativeProjectSession {
             }
         };
         Ok(NativeStylesheetPlan {
+            parts: plan
+                .parts
+                .into_iter()
+                .map(|part| {
+                    Ok(NativeStylesheetPart {
+                        source_map: stylesheet_locations(&part.mappings)?,
+                        slot: u32::try_from(part.slot)
+                            .map_err(|_| Error::from_reason("Stylesheet slot exceeds 32 bits"))?,
+                        sequence: u32::try_from(part.sequence).map_err(|_| {
+                            Error::from_reason("Stylesheet sequence exceeds 32 bits")
+                        })?,
+                        key: part.key.0,
+                        css: part.css,
+                        producers: part.producers.into_iter().map(|id| id.0).collect(),
+                    })
+                })
+                .collect::<napi::Result<_>>()?,
             css: plan.css,
             source_map: stylesheet_locations(&plan.mappings)?,
             resources: plan.resources.into_iter().map(Into::into).collect(),
@@ -438,19 +455,16 @@ impl NativeProjectSession {
     #[napi]
     pub fn module_css(&self, env: Env, module: String) -> napi::Result<String> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
-        let artifact = self
-            .session
-            .artifacts()
-            .get(module.as_str())
-            .ok_or_else(|| Error::from_reason(format!("Unknown Stillwind module: {module}")))?;
-        StylesheetRenderer::new(
-            &self.session.snapshot(),
-            self.session.options(),
-            self.session.identifiers(),
-        )
-        .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
-        .map(|output| output.css)
-        .map_err(|error| Error::from_reason(error.to_string()))
+        self.session
+            .plan_stylesheet(
+                StylesheetSelection {
+                    modules: [module.into()].into(),
+                    coverage: StylesheetCoverage::Observed,
+                },
+                StylesheetPlacement::Carrier,
+            )
+            .map(|output| output.css)
+            .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     /// Removes a producer, returning whether it was registered.
@@ -527,19 +541,15 @@ impl NativeProjectSession {
         let theme = SourceFile::new(FileId(2), "stillwind.css", "")
             .map_err(|error| Error::from_reason(error.to_string()))?;
         let mut modules = Vec::new();
+        let mut transaction = self.session.clone();
+        let mut attempted = Vec::new();
         for scan in scans {
-            if producer
-                .as_ref()
-                .is_some_and(|producer| producer != scan.module_id.as_str())
-            {
-                continue;
-            }
             let mut analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
             analysis.attach_asset_support(&analyses);
-            let update = self.session.update_module(analysis);
-            let mut result = self
-                .session
+            let update = transaction.update_module(analysis.clone());
+            attempted.push(analysis);
+            let mut result = transaction
                 .artifacts()
                 .get(&scan.module_id)
                 .map(|artifact| artifact.to_module_output(&snapshot))
@@ -551,6 +561,14 @@ impl NativeProjectSession {
                 scan.module_id.0,
                 binding_output(result, &scan.source, &theme),
             ));
+        }
+        if modules.iter().all(|module| module.diagnostics.is_empty()) {
+            self.session = transaction;
+            if let Some(producer) = &producer {
+                modules.retain(|module| &module.path == producer);
+            }
+        } else {
+            self.session.reject_updates(attempted);
         }
         Ok(ProjectBindingOutput { modules })
     }

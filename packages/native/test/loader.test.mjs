@@ -8,6 +8,46 @@ const bindingSpecifier =
     ? pathToFileURL(createRequire(import.meta.url).resolve("../npm/wasm32-wasi")).href
     : "../index.js";
 
+void test("failed compile transactions retain watch CSS but reject current plans", async () => {
+  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(
+    0,
+    "root.css",
+    "@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;",
+  );
+  const source = (path, utility) => ({
+    path,
+    source: `import {style} from 'stillwind/react';export const props=style(${utility});`,
+  });
+  for (const watch of [true, false]) {
+    const session = new NativeProjectSession(loader, watch);
+    session.compile([source("a.ts", "'red'"), source("b.ts", "'red'")]);
+    const css = session.css();
+    const result = session.compile([source("a.ts", "'blue'"), source("b.ts", "unknown")]);
+    assert.ok(result.modules.some((module) => module.diagnostics.length));
+    if (watch) assert.equal(session.css(), css);
+    assert.throws(
+      () =>
+        session.planStylesheet({
+          modules: ["a.ts", "b.ts"],
+          coverage: { kind: "observed" },
+          placement: "document",
+        }),
+      /stale|unregistered/,
+    );
+    session.compile([source("a.ts", "'blue'"), source("b.ts", "'red'")]);
+    assert.match(
+      session.planStylesheet({
+        modules: ["a.ts", "b.ts"],
+        coverage: { kind: "observed" },
+        placement: "document",
+      }).css,
+      /color:blue/,
+    );
+  }
+});
+
 void test("native object transport returns typed values and rejects the former JSON protocol", async () => {
   const {
     compileReact,

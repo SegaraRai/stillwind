@@ -10,15 +10,12 @@ restating the rules. Examples use short, illustrative class names (`._a`,
 - Stylesheet order and selector specificity decide the cascade. The order of
   class names in the `class` attribute never does, so Stillwind fixes rule
   order at compile time instead of relying on how a component spells classes.
-- Cascade resolution runs `layer` -> `importance` -> `specificity` -> `order`.
-  Ordering only decides ties between declarations that already agree on layer,
-  importance, and specificity.
-- Generated order must be deterministic: the same source produces the same CSS
-  order in development, production, server, and client builds, independent of
-  module arrival order.
-- Stillwind adds no global sorter. Every host already owns an order it
-  preserves (the module import graph, document order), and composition follows
-  that order instead of replacing it.
+- Origin, importance, cascade layers, specificity and scoping proximity are
+  evaluated before source order. Placement resolves remaining ties.
+- The reference order is deterministic for the same selected styles, independent
+  of module arrival order in development, production, server, and client builds.
+- The linker establishes one reference order across producers. Transports preserve
+  its cascade while optimization can reorder proven independent declarations.
 - Tailwind CSS v4 compatibility is a requirement rather than an aspiration: at
   L2 the built-in surface reproduces Tailwind's order exactly, and at L1 it is
   effectively compatible, so only orderings a user can observe must match.
@@ -30,7 +27,7 @@ restating the rules. Examples use short, illustrative class names (`._a`,
 | L1 declaration order      | declarations inside one rule          | built-in utility definition order; user definitions keep their source position                   |
 | L2 block order            | selector blocks inside one class unit | plain block first, then variant blocks in the canonical variant order, then outside-nested rules |
 | L3 unit order             | class units inside one module         | composition topology, then source order; inside a call, the base unit before conditional units   |
-| L4 module and chunk order | modules in the delivered CSS          | the host's import and concatenation order                                                        |
+| L4 module and chunk order | modules in the delivered CSS          | composition topology, then stable module identity                                                |
 
 The levels nest: L1 applies inside a block, L2 inside a class unit, L3 inside a
 module, and L4 across modules. All four sit inside the `utilities` layer; the
@@ -249,37 +246,17 @@ conditional style without re-reading the source expression.
 
 ## L4 - module and chunk order
 
-Rule: each compiled module carries its CSS through a real CSS import that
-follows that module's JavaScript dependencies (its carrier). Bundlers
-concatenate CSS in import-graph order, so a default Vite production build keeps
-a base module's CSS ahead of a derived module's CSS even when everything lands
-in one file.
+The linker closes selections over composition dependencies and places base
+producers before derived producers. Unrelated producers use stable module
+identity order. The same reference order serves development, single-file builds,
+SSR partitions and explicit CSS values.
 
-Why: no final global CSS sorter exists. Order comes from the graph the host
-already preserves, and composition is validated against that graph (a cycle
-that would require an impossible order is an error).
-
-Verified today: development and production Vite with default chunking, shared
-bases, multi-level and diamond composition, lazy routes loaded in reverse
-order, and React SSR/hydration. Base, content, and topology edits use a full
-reload; ordinary HMR stays available for unrelated modules.
-
-Not guaranteed:
-
-- custom chunk grouping that changes how CSS is concatenated,
-- independently built bundles that an outer host concatenates,
-- aggregate APIs that return one stylesheet assembled from several producers,
-- other framework SSR pipelines, and
-- a later pass that reorders the emitted CSS.
-
-Beyond that transport, every path that composes across modules delivers whatever
-order its host decides: the loader follows the bundler's module graph, an explicit
-module CSS value carries only its own module's rules, and a standalone projection
-carries only its producer's. A delivered order can therefore put a base's rules
-after one of its derived modules' rules, which is why an overlap the contract
-leaves open is reported by the `ambiguous-base-order` and
-`imported-base-interference` lints instead of being ordered; see
-[style composition](style-composition.md).
+Optimizers can change physical order only where the resulting cascade is
+preserved. Split transports use ordered occurrences from one build manifest;
+network completion and JavaScript evaluation order do not assign precedence.
+Independent builds and manually rearranged output require an application-level
+placement policy. See [CSS emission](css-emission.md) for transport APIs and
+integration boundaries.
 
 ## Reasoning about a conflict
 
@@ -311,15 +288,10 @@ Practical guidance:
 
 - Keep utilities that must compete at equal specificity in the same call, so
   the canonical variant order (L2) applies to them.
-- Composition constrains only CSS placement: base rules precede derived rules
-  within a module and across the verified host transports described in L4.
-  Specificity, importance, and layers still decide the cascade before source
-  order. A derived rule wins by placement only when those factors tie.
-- Cross-module placement is not guaranteed for custom chunk grouping,
-  independently concatenated bundles, aggregate stylesheet APIs, unverified
-  SSR pipelines, or subsequent CSS reordering. Explicit CSS values and standalone
-  projections follow the caller's insertion or import order; include each base
-  producer's CSS as well as the derived producer's CSS.
+- A derived rule wins by placement only when earlier cascade criteria tie.
+  See [style composition](style-composition.md#ordering) for base placement.
+- Use the ordered plan when loading split CSS. Independent builds and manual
+  rearrangement are outside that ordering domain.
 - Do not rely on the order of utilities inside one string to override a variant
   selector; specificity decides that case.
 
@@ -334,8 +306,8 @@ Practical guidance:
 - Variant generation order is compared against fixtures generated from Tailwind
   v4 whose candidates are deliberately spelled out of canonical order, so the
   check cannot pass by preserving the input order.
-- `vp run verify:composition` (inside `experiments/module-graph`) drives a real
+- `vp run verify:emission` (inside `experiments/module-graph`) drives a real
   browser through development, production, reverse lazy-route order, and
-  SSR/hydration, and confirms that base CSS precedes derived CSS.
+  JavaScript-disabled SSR and Shadow DOM, and checks equivalent computed styles.
 - `vp run verify:conditional` covers nested conditions, SSR/hydration class
   equality, and content reload.

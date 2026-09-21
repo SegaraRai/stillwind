@@ -112,6 +112,8 @@ pub enum NativeStylesheetPlacement {
 /// A rendered stylesheet with provenance and watch information.
 #[napi(object, object_from_js = false)]
 pub struct NativeStylesheetPlan {
+    /// Ordered occurrences. Repeated payloads retain their positions.
+    pub parts: Vec<NativeStylesheetPart>,
     /// The rendered CSS text.
     pub css: String,
     /// Source locations for the rules that have one.
@@ -126,6 +128,23 @@ pub struct NativeStylesheetPlan {
     pub design_system: String,
     /// One entry per selected producer, for cache identity.
     pub producers: Vec<NativeStylesheetProducer>,
+}
+
+/// A CSS fragment at one position in an output plan.
+#[napi(object, object_from_js = false)]
+pub struct NativeStylesheetPart {
+    /// Source locations relative to this wrapped fragment.
+    pub source_map: NativeStylesheetMap,
+    /// Stable template node ordinal.
+    pub slot: u32,
+    /// Zero-based occurrence index for this template slot and producer set.
+    pub sequence: u32,
+    /// Producer paths contributing to this occurrence; empty for shared support.
+    pub producers: Vec<String>,
+    /// Content fingerprint.
+    pub key: String,
+    /// Complete CSS including enclosing context.
+    pub css: String,
 }
 
 /// Artifact identity of one selected producer.

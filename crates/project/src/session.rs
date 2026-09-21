@@ -3,11 +3,6 @@
 //! A session is an actor: all mutation happens behind an exclusive borrow, and a
 //! request handler takes a [`ProjectSession::snapshot`] clone before doing work so it
 //! observes one revision for its whole duration.
-//!
-//! Module CSS is stored per producer and deduplicated by generated rule key, so two
-//! modules emitting the same rule contribute one copy that survives until the last user
-//! is removed. Emission order follows the contribution map, which is ordered by module
-//! id, while declaration order inside a rule is already fixed by the compiler.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -85,6 +80,7 @@ pub struct SessionReload {
 
 /// Exclusive mutation is the actor boundary. A host can put this in a mutex; request
 /// handlers pin a clone obtained from `snapshot` before doing work.
+#[derive(Clone)]
 pub struct ProjectSession {
     /// Active immutable design-system revision used for compilation.
     current: DesignSystemSnapshot,
@@ -242,7 +238,19 @@ impl ProjectSession {
     /// collides with another name in its CSS namespace.
     pub fn css(&self) -> Result<String, CompileErrorKind> {
         let renderer = StylesheetRenderer::new(&self.current, &self.options, &self.identifiers);
-        let css = self.stylesheet.serialize(&renderer)?;
+        let mut stylesheet = self.stylesheet.clone();
+        let mut modules = self.artifacts.keys().cloned().collect();
+        let order = self
+            .stylesheet_order(&mut modules)
+            .map_err(|_| CompileErrorKind::MissingRule)?;
+        if modules
+            .iter()
+            .any(|module| !self.artifacts.contains_key(module))
+        {
+            return Err(CompileErrorKind::MissingRule);
+        }
+        stylesheet.set_order(order);
+        let css = stylesheet.serialize(&renderer)?;
         self.check_document_names(&renderer.take_detached_symbols())?;
         Ok(css)
     }
@@ -313,6 +321,18 @@ impl ProjectSession {
             }
         }
         update
+    }
+
+    /// Records attempted analyses after a multi-module transaction fails.
+    /// Watch mode retains artifacts for display. Planning rejects artifacts whose keys
+    /// no longer match these analyses. Build mode retracts the affected artifacts.
+    pub fn reject_updates(&mut self, analyses: impl IntoIterator<Item = ModuleAnalysis>) {
+        for analysis in analyses {
+            if self.mode == SessionMode::Build {
+                self.remove_artifact(analysis.module_id.as_str());
+            }
+            self.analyses.insert(analysis.module_id.clone(), analysis);
+        }
     }
 
     /// Removes one producer, returning whether it was registered.
@@ -402,6 +422,13 @@ impl ProjectSession {
         let old_css = self.css();
         let mut next = Self::new(snapshot, self.mode, options, self.identifiers.clone());
         next.authored = self.authored.clone();
+        if next.current.fingerprints().content == self.current.fingerprints().content
+            && next.options == self.options
+        {
+            next.artifacts = self.artifacts.clone();
+            next.stylesheet = self.stylesheet.clone();
+            next.dependencies = self.dependencies.clone();
+        }
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
             let changed = next.update_module(analysis.clone());

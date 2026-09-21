@@ -1,5 +1,6 @@
 export interface StillwindBundlerOptions {
   css: string;
+  automatic?: boolean;
   root?: string;
   prefix?: string;
   tailwindPrefix?: string;
@@ -7,6 +8,10 @@ export interface StillwindBundlerOptions {
   forbidTailwindRelationships?: boolean;
 }
 export declare function stillwindRules(options: StillwindBundlerOptions): object[];
+/** Installs complete-graph emission for configurations using stillwindRules. */
+export declare class StillwindPlugin {
+  apply(compiler: any): void;
+}
 export declare function withStillwind<T extends object>(
   config: T,
   options: StillwindBundlerOptions,

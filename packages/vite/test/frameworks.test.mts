@@ -8,7 +8,7 @@ import { createServer } from "vite-plus";
 
 import { stillwind } from "../src/index.ts";
 
-void test("raw SFC transforms publish immutable CSS carriers and skip framework subrequests", async () => {
+void test("raw SFC transforms retain stable producer registrations and replace linked CSS", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".session-test-"));
   const css = path.join(root, "root.css");
@@ -71,28 +71,20 @@ void test("raw SFC transforms publish immutable CSS carriers and skip framework 
         const code = String(output.code);
         assert.ok(code.startsWith(extension === "astro" ? "---" : "<script"), code);
         assert.doesNotMatch(code, /import \{style\}/);
-        const carrier = code.match(/"(virtual:stillwind\/module\.css\?ref=[^"]+)"/)?.[1];
-        assert.ok(carrier, code);
-        assert.ok(!carriers.includes(carrier));
-        carriers.push(carrier);
-        const resolved: unknown = await resolveId.call(context, carrier, id, { isEntry: false });
-        assert.equal(typeof resolved, "string");
-        const loaded: unknown = await load.call(context, resolved as string);
+        const producer = code.match(/"(virtual:stillwind\/producer:[^"]+)"/)?.[1];
+        assert.ok(producer, code);
+        if (color === "blue") assert.equal(producer, carriers.at(-1));
+        carriers.push(producer);
+        const loaded: unknown = await load.call(context, "\0stillwind:snapshot.css");
         assert.ok(loaded && typeof loaded === "object" && "code" in loaded);
-        assert.ok(typeof loaded.code === "string");
-        assert.match(loaded.code, new RegExp(`color:\\s*${color}`));
-        assert.doesNotMatch(
-          loaded.code,
-          new RegExp(`color:\\s*${color === "red" ? "blue" : "red"}`),
-        );
+        assert.equal(typeof loaded.code, "string");
+        const className = code.match(/sw_[a-z0-9]+/)?.[0];
+        assert.ok(className);
+        const rule = String(loaded.code).match(new RegExp(`\\.${className}\\{([^}]+)\\}`))?.[1];
+        assert.ok(rule, String(loaded.code));
+        assert.match(rule, new RegExp(`color:\\s*${color}`));
       }
     }
-    // Loading an earlier identity after further transforms still returns its own payload.
-    const first = await resolveId.call(context, carriers[0]!, undefined, { isEntry: false });
-    const earlier = await load.call(context, first as string);
-    assert.ok(earlier && typeof earlier === "object" && "code" in earlier);
-    assert.match(earlier.code!.toString(), /color:\s*red/);
-    assert.doesNotMatch(earlier.code!.toString(), /color:\s*blue/);
   } finally {
     await server.close();
     rmSync(root, { recursive: true, force: true });

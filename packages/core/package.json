@@ -8,6 +8,7 @@
     ".": "./index.css",
     "./builtins.css": "./css/builtins.css",
     "./module-css": "./src/module-css.ts",
+    "./css": "./src/css.ts",
     "./preflight.css": "./css/preflight.css",
     "./react": "./src/index.ts",
     "./react/runtime": "./src/runtime/react.ts",

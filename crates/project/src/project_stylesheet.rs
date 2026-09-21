@@ -1,92 +1,59 @@
-//! Ownership and ordered serialization of project-wide CSS rules.
+//! Occurrence ownership and reference-order assembly.
 //!
-//! [`ProjectStylesheet::replace`] and [`ProjectStylesheet::remove`] track producer
-//! membership. Serialization keeps module-id order and each producer's rule order,
-//! emitting shared rules once. Session reload policy and stylesheet coverage planning
-//! belong to their callers.
+//! [`ProjectStylesheet::replace`] retains each producer's rule occurrences, including
+//! repeated content. [`ProjectStylesheet::serialize`] expands the design-system template.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    GeneratedRule, MappedStylesheet, ModuleCssArtifact, RuleKey, StylesheetPlacement,
-    StylesheetRenderer,
+    GeneratedRule, MappedStylesheet, ModuleCssArtifact, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_semantic::ModuleId;
 use stillwind_source::{SourceFile, Span};
 
-/// The project-wide stylesheet assembled from published module artifacts.
-///
-/// Module updates retract their previous ownership without removing rules still used
-/// by other modules.
+/// Published rule occurrences ordered by the supplied producer list.
+/// Producers absent from that list follow in module-identity order.
 #[derive(Clone, Debug, Default)]
 pub struct ProjectStylesheet {
-    /// Content-identity lookup of rules and their current producers.
-    rules: BTreeMap<RuleKey, RuleEntry>,
-    /// Rule keys per module, in that artifact's emission order, used to retract its
-    /// previous contribution.
-    contributions: BTreeMap<ModuleId, Vec<RuleKey>>,
+    contributions: BTreeMap<ModuleId, ModuleCssArtifact>,
+    order: Vec<ModuleId>,
 }
 
 impl ProjectStylesheet {
-    /// Replaces one module's contribution with the rules of `artifact`.
-    ///
-    /// Rules already contributed by another module are shared, not duplicated; keys the
-    /// module no longer claims are dropped when their last user goes.
-    /// Publicly constructed or edited rules are re-keyed from their current content.
+    /// Replaces every occurrence owned by a producer.
     pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
-        self.remove(module.as_str());
-        let mut keys = Vec::with_capacity(artifact.rules.len());
-        for rule in &artifact.rules {
-            let key = rule.content_key();
-            keys.push(key.clone());
-            self.rules
-                .entry(key.clone())
-                .or_insert_with(|| {
-                    let mut rule = rule.clone();
-                    rule.key = key;
-                    RuleEntry {
-                        rule,
-                        users: BTreeSet::new(),
-                    }
-                })
-                .users
-                .insert(module.clone());
-        }
-        self.contributions.insert(module, keys);
+        self.contributions.insert(module, artifact.clone());
     }
 
-    /// Withdraws every rule this module contributed, keeping rules that other modules
-    /// still use. Unknown modules are ignored.
+    /// Retracts one producer without changing any other producer's occurrences.
     pub fn remove(&mut self, module: &str) {
-        if let Some(keys) = self.contributions.remove(module) {
-            for key in keys {
-                if let Some(entry) = self.rules.get_mut(&key) {
-                    entry.users.remove(module);
-                    if entry.users.is_empty() {
-                        self.rules.remove(&key);
-                    }
-                }
-            }
-        }
+        self.contributions.remove(module);
+        self.order.retain(|id| id.as_str() != module);
     }
 
-    /// Number of distinct rules currently retained.
+    /// Sets the dependency order computed by the linker.
+    pub(crate) fn set_order(&mut self, order: Vec<ModuleId>) {
+        self.order = order;
+    }
+
+    /// Counts distinct content payloads, independently of occurrence count.
     pub fn rule_count(&self) -> usize {
-        self.rules.len()
+        self.contributions
+            .values()
+            .flat_map(|artifact| artifact.rules.iter().map(GeneratedRule::content_key))
+            .collect::<BTreeSet<_>>()
+            .len()
     }
 
-    /// Serializes the retained module CSS without design-system wrapper rules.
-    ///
-    /// This is the input to [`ProjectStylesheet::serialize`]; hosts that need the
-    /// module fragment alone, such as a CSS carrier module, use it directly.
+    /// Serializes keyframes followed by other rules, before template expansion.
     ///
     /// # Errors
     ///
-    /// Returns an error if a contribution refers to a missing rule.
+    /// No errors are currently produced.
     pub fn module_css(&self) -> Result<String, CompileErrorKind> {
-        let mapped = self.module_css_with_origins(|_, _| None)?;
+        let mapped = self.module_css_with_origins(|_, _| None);
         Ok(mapped
             .keyframes
             .iter()
@@ -95,136 +62,77 @@ impl ProjectStylesheet {
             .collect())
     }
 
-    /// Like [`ProjectStylesheet::module_css`] but reports a source location for each
-    /// rule so the renderer can emit accurate source maps.
-    ///
-    /// The callback receives the producing module and the rule and returns the original
-    /// file and span to attribute it to. Returning `None` leaves the rule unmapped; a
-    /// rule is never attributed to a location that belongs to a different file.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CompileErrorKind::MissingRule`] when a retained contribution has no rule.
     pub(crate) fn module_css_with_origins(
         &self,
         mut origin: impl FnMut(&ModuleId, &GeneratedRule) -> Option<(Arc<SourceFile>, Span)>,
-    ) -> Result<MappedStylesheet, CompileErrorKind> {
-        let mut emitted = BTreeSet::new();
-        let mut css = MappedStylesheet::default();
-        for (module, keys) in &self.contributions {
-            for key in keys {
-                if emitted.insert(key) {
-                    let entry = self.rules.get(key).ok_or(CompileErrorKind::MissingRule)?;
-                    entry.rule.append_to(&mut css, origin(module, &entry.rule));
+    ) -> MappedStylesheet {
+        let mut output = MappedStylesheet::default();
+        let mut modules = BTreeSet::new();
+        for module in self.order.iter().chain(self.contributions.keys()) {
+            if !modules.insert(module) {
+                continue;
+            }
+            if let Some(artifact) = self.contributions.get(module) {
+                for rule in &artifact.rules {
+                    rule.append_to(&mut output, origin(module, rule));
                 }
             }
         }
-        Ok(css)
+        output
     }
 
-    /// Renders the full project stylesheet: module CSS plus the design system's own
-    /// rules, wrappers, and authored directives.
+    /// Renders reference order through the design-system template.
     ///
     /// # Errors
     ///
-    /// Returns an error for inconsistent contributions or invalid assembled CSS.
+    /// Returns invalid template or support errors.
     pub fn serialize(&self, renderer: &StylesheetRenderer<'_>) -> Result<String, CompileErrorKind> {
         renderer
             .render_mapped_stylesheet(
-                &self.module_css_with_origins(|_, _| None)?,
+                &self.module_css_with_origins(|_, _| None),
                 StylesheetPlacement::Document,
             )
-            .map(|css| css.css)
+            .map(|mapped| mapped.css)
     }
-}
-
-/// One generated rule plus the set of producers that depend on it.
-///
-/// The rule body is shared; only the membership varies per module. Removing a producer
-/// therefore never removes a rule another producer still needs.
-#[derive(Clone, Debug)]
-struct RuleEntry {
-    /// Shared generated rule retained while at least one module uses it.
-    rule: GeneratedRule,
-    /// Module identities currently contributing this rule; set order is module-id order.
-    users: BTreeSet<ModuleId>,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use stillwind_compiler::RuleKey;
+    use stillwind_css::CssRule;
     use stillwind_source::Fingerprint;
 
+    use super::*;
+
+    fn artifact(css: &str) -> ModuleCssArtifact {
+        ModuleCssArtifact {
+            rules: CssRule::parse(css)
+                .unwrap()
+                .into_iter()
+                .map(|syntax| GeneratedRule {
+                    syntax,
+                    key: RuleKey(Fingerprint::of("untrusted")),
+                    keyframes: false,
+                    required_properties: Vec::new(),
+                })
+                .collect(),
+        }
+    }
+
     #[test]
-    fn support_metadata_participates_in_ownership_and_survives_removal() {
-        let plain = GeneratedRule {
-            key: RuleKey(Fingerprint::of("stale")),
-            prelude: ".x".into(),
-            body: Some("transform:var(--x)".into()),
-            keyframes: false,
-            required_properties: Vec::new(),
-        };
-        let mut supported = plain.clone();
-        supported.required_properties.push("--x".into());
-        let mut stylesheet = ProjectStylesheet::default();
-        stylesheet.replace("plain".into(), &ModuleCssArtifact { rules: vec![plain] });
-        stylesheet.replace(
-            "supported".into(),
-            &ModuleCssArtifact {
-                rules: vec![supported],
-            },
-        );
-        assert_eq!(stylesheet.rules.len(), 2);
+    fn identical_content_retains_each_cascade_occurrence_and_owner() {
+        let mut sheet = ProjectStylesheet::default();
+        sheet.replace("a".into(), &artifact(".x{color:red}"));
+        sheet.replace("b".into(), &artifact(".x{color:blue}"));
+        sheet.replace("c".into(), &artifact(".x{color:red}"));
+        assert_eq!(sheet.rule_count(), 2);
         assert_eq!(
-            stylesheet
-                .module_css_with_origins(|_, _| None)
-                .unwrap()
-                .required_properties,
-            ["--x"]
+            sheet.module_css().unwrap(),
+            ".x{color:red}.x{color:blue}.x{color:red}"
         );
-        stylesheet.remove("supported");
-        assert_eq!(stylesheet.rules.len(), 1);
-        assert!(
-            stylesheet
-                .module_css_with_origins(|_, _| None)
-                .unwrap()
-                .required_properties
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn missing_rule_is_a_serialization_error() {
-        let mut stylesheet = ProjectStylesheet::default();
-        stylesheet
-            .contributions
-            .insert("x".into(), vec![RuleKey(Fingerprint::of("missing"))]);
-        assert!(matches!(
-            stylesheet.module_css(),
-            Err(CompileErrorKind::MissingRule)
-        ));
-    }
-
-    #[test]
-    fn removing_one_module_does_not_drop_rules_shared_by_another() {
-        let artifact = ModuleCssArtifact {
-            rules: vec![GeneratedRule {
-                keyframes: false,
-                required_properties: Vec::new(),
-                key: RuleKey(Fingerprint::of(".x{color:red;}")),
-                prelude: ".x".into(),
-                body: Some("color:red;".into()),
-            }],
-        };
-        let mut stylesheet = ProjectStylesheet::default();
-        stylesheet.replace("a".into(), &artifact);
-        stylesheet.replace("b".into(), &artifact);
-        assert_eq!(stylesheet.rule_count(), 1);
-        stylesheet.remove("a");
-        assert_eq!(stylesheet.module_css().unwrap(), ".x{color:red;}");
-        stylesheet.remove("b");
-        assert_eq!(stylesheet.rule_count(), 0);
-        stylesheet.remove("absent");
-        assert_eq!(stylesheet.module_css().unwrap(), "");
+        sheet.remove("c");
+        assert_eq!(sheet.module_css().unwrap(), ".x{color:red}.x{color:blue}");
+        sheet.set_order(vec!["b".into(), "a".into()]);
+        assert_eq!(sheet.module_css().unwrap(), ".x{color:blue}.x{color:red}");
     }
 }

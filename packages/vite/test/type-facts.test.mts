@@ -167,7 +167,9 @@ void test("TypeScript is required for cross-module conditional ref propagation",
     coverage: typeof selection.coverage;
     producers: { module: string; sourceRevision: string; semanticRevision: string }[];
   };
-  assert.equal(plan.css, session.moduleCss("src/consumer.ts"));
+  const reference = session.planStylesheet({ ...selection, coverage: { kind: "observed" } });
+  assert.equal(reference.css, session.moduleCss("src/consumer.ts"));
+  assert.match(plan.css, /animation-iteration-count:infinite/);
   assert.match(plan.css, /@keyframes sw-kf-/);
   assert.equal(plan.css.match(/@keyframes /g)?.length, 2);
   assert.doesNotMatch(plan.css, /display:flex/);
@@ -190,7 +192,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
       }),
     /unregistered modules/,
   );
-  assert.throws(() => session.moduleCss("src/producer.ts"), /Unknown Stillwind module/);
+  assert.match(session.moduleCss("src/producer.ts"), /display:flex/);
   session.compile(
     sources.map((source) => ({
       ...source,

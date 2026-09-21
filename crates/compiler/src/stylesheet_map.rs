@@ -29,6 +29,8 @@ pub struct StylesheetMapping {
 /// Generated CSS plus the mappings that explain where each part came from.
 #[derive(Clone, Debug, Default)]
 pub struct MappedStylesheet {
+    /// Template node identity for each emitted range, stable across producer selections.
+    pub segments: Vec<(Range<usize>, usize)>,
     /// Generated keyframe contributions in emission order. Each entry's mappings
     /// address that entry's own `css`, not the parent's rule text. Producers use leaf
     /// entries; the template assembler consumes this level of contributions.
@@ -54,6 +56,12 @@ impl MappedStylesheet {
         self.required_properties
             .extend(other.required_properties.iter().cloned());
         let offset = self.css.len();
+        self.segments.extend(
+            other
+                .segments
+                .iter()
+                .map(|(range, slot)| (range.start + offset..range.end + offset, *slot)),
+        );
         self.css.push_str(&other.css);
         self.mappings
             .extend(other.mappings.iter().cloned().map(|mut mapping| {

@@ -8,7 +8,7 @@ import { runInNewContext } from "node:vm";
 
 import { TraceMap, originalPositionFor, sourceContentFor } from "@jridgewell/trace-mapping";
 import { rspack } from "@rspack/core";
-import { stillwindRules } from "@stillwind/bundler";
+import { StillwindPlugin, stillwindRules } from "@stillwind/bundler";
 import { VueLoaderPlugin } from "vue-loader";
 import webpack from "webpack";
 
@@ -54,7 +54,7 @@ for (const backend of ["webpack", "rspack"] as const) {
           extensions: [".ts", ".js", ".mjs", ".vue", ".svelte"],
           conditionNames: ["svelte", "browser", "import", "default"],
         },
-        plugins: framework === "vue" ? [new VueLoaderPlugin()] : [],
+        plugins: [new StillwindPlugin(), ...(framework === "vue" ? [new VueLoaderPlugin()] : [])],
         module: {
           rules: [
             ...stillwindRules({ css: "./root.css" }),

@@ -123,10 +123,13 @@ fn queries_share_resolved_custom_definitions_and_pin_revisions() {
     // Queries use their own synthetic producer. Compare declarations, not identities.
     assert_eq!(resolved.generated_rules.len(), compiled.css.rules.len());
     for (queried, generated) in resolved.generated_rules.iter().zip(&compiled.css.rules) {
-        assert_eq!(queried.prelude, generated.prelude);
+        assert_eq!(queried.syntax.prelude, generated.syntax.prelude);
         let declarations =
             |body: &Option<String>| body.as_ref().unwrap().split_once('{').unwrap().1.to_owned();
-        assert_eq!(declarations(&queried.body), declarations(&generated.body));
+        assert_eq!(
+            declarations(&queried.syntax.body),
+            declarations(&generated.syntax.body)
+        );
     }
     assert!(
         query

@@ -1,8 +1,11 @@
 # Module graph implementation and acceptance
 
-Verified on Windows x64 on 2026-09-10. This is the current implementation status
-for [the architecture research](module-graph-architecture-research.md). The
-research document retains the original experiments and design rationale.
+This document records the Windows x64 adapter acceptance snapshot from 2026-09-10
+for [the architecture research](module-graph-architecture-research.md). Its carrier
+transport and framework results describe that snapshot. The current transport,
+complete-graph linker and verification commands are specified in
+[CSS emission](css-emission.md) and the [Vite adapter](../packages/vite/README.md).
+Framework-specific results below require revalidation against that implementation.
 
 ## Implemented boundaries
 

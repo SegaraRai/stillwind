@@ -1,0 +1,34 @@
+import { createHash } from "node:crypto";
+
+import type { NativeStylesheetPart } from "@stillwind/native";
+
+/** Packs adjacent occurrences with the same activation set without moving any rule. */
+export function partitionStylesheet(
+  parts: readonly NativeStylesheetPart[],
+): NativeStylesheetPart[] {
+  const output: NativeStylesheetPart[] = [];
+  for (const part of parts) {
+    const previous = output.at(-1);
+    if (previous && JSON.stringify(previous.producers) === JSON.stringify(part.producers)) {
+      const byteOffset = Buffer.byteLength(previous.css);
+      const sourceOffset = previous.sourceMap.sources.length;
+      previous.sourceMap.sources.push(...part.sourceMap.sources);
+      previous.sourceMap.entries.push(
+        ...part.sourceMap.entries.map((entry) => ({
+          ...entry,
+          source: entry.source + sourceOffset,
+          generatedStart: entry.generatedStart + byteOffset,
+          generatedEnd: entry.generatedEnd + byteOffset,
+        })),
+      );
+      previous.css += part.css;
+      previous.key = createHash("sha256").update(previous.css).digest("hex");
+    } else {
+      output.push({
+        ...part,
+        sourceMap: { sources: [...part.sourceMap.sources], entries: [...part.sourceMap.entries] },
+      });
+    }
+  }
+  return output;
+}
