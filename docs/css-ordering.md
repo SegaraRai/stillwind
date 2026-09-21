@@ -57,6 +57,11 @@ Tailwind counterpart, so they are specified here instead of matched.
 
 ## L1 - declaration order inside one rule
 
+The default is definition-position ordering (`utility-order: authored`).
+`@stillwind { utility-order: tailwind; }` explicitly selects Tailwind property
+metadata ordering: property indices, descending declaration count, then
+numeric-aware candidate spelling.
+
 Rule:
 
 - The built-in surface is effectively compatible with Tailwind CSS v4's
@@ -306,8 +311,15 @@ Practical guidance:
 
 - Keep utilities that must compete at equal specificity in the same call, so
   the canonical variant order (L2) applies to them.
-- Use composition when the derived style must win over its base regardless of
-  the base's specificity.
+- Composition constrains only CSS placement: base rules precede derived rules
+  within a module and across the verified host transports described in L4.
+  Specificity, importance, and layers still decide the cascade before source
+  order. A derived rule wins by placement only when those factors tie.
+- Cross-module placement is not guaranteed for custom chunk grouping,
+  independently concatenated bundles, aggregate stylesheet APIs, unverified
+  SSR pipelines, or subsequent CSS reordering. Explicit CSS values and standalone
+  projections follow the caller's insertion or import order; include each base
+  producer's CSS as well as the derived producer's CSS.
 - Do not rely on the order of utilities inside one string to override a variant
   selector; specificity decides that case.
 

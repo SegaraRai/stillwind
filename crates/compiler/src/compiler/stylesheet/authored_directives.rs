@@ -313,6 +313,7 @@ mod tests {
             FileId(1),
             "stillwind.css",
             r#"
+                @stillwind { utility-order: tailwind; }
                 @import "stillwind/theme.css" layer(theme);
                 @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css";
                 .button { @apply px-4 bg-red-500 inline-flex; }

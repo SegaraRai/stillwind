@@ -26,10 +26,16 @@ dependencies even when they emit no rules.
 
 ## Ordering
 
-Each base's rules precede its derived call's rules, preserving ordinary CSS
-specificity, importance, and layers. This is not utility-string merging and is
-not an unconditional derived-style override. A derived normal declaration does
-not defeat a base hover declaration with higher specificity.
+Composition constrains only CSS placement: within a module, each base's rules
+precede its derived call's rules. Ordinary CSS specificity, importance, and
+layers still decide the cascade before source order. A derived normal declaration
+does not defeat a base hover declaration with higher specificity.
+
+Across modules, base-before-derived placement depends on the host transport.
+Custom chunk grouping, independently concatenated bundles, aggregate stylesheet
+APIs, unverified SSR pipelines, and later CSS reordering do not guarantee it.
+Explicit module CSS values and standalone projections follow the caller's
+insertion or import order and require the base producer's CSS separately.
 
 [CSS ordering](css-ordering.md) describes the four levels - declaration, class
 unit, module unit, and delivered CSS - that this contract sits in.

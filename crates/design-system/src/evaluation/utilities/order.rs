@@ -1,7 +1,7 @@
 //! Tailwind 4.3.3 utility ordering before CSS optimization and variant application.
 //!
-//! [`UtilityOrder`] is the sort key of one resolved rule: Tailwind property metadata in
-//! the default mode, or the authored registration position when the theme selects it.
+//! [`UtilityOrder`] is the sort key of one resolved rule: authored registration position
+//! by default, or Tailwind property metadata when the theme selects it.
 //! Property metadata follows Tailwind's `src/property-order.ts`; comparison follows
 //! `compile.ts` and `utils/compare.ts`. The adjacent data file retains upstream order.
 

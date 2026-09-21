@@ -135,34 +135,37 @@ pub(crate) fn resolve_css_utility_branches<'a>(
                     utility.name == name,
                     utility_value_types(utility),
                     resolution,
+                    utility.builtin_order,
                 )
             })
         })
         .collect::<Vec<_>>();
-    branches.sort_by_key(|(specificity, _, _, _)| std::cmp::Reverse(*specificity));
-    let has_exact = branches.iter().any(|(_, exact, _, _)| *exact);
+    branches.sort_by_key(|(specificity, _, _, _, _)| std::cmp::Reverse(*specificity));
+    let has_exact = branches.iter().any(|(_, exact, _, _, _)| *exact);
     if has_exact {
         // An exact registration defines the complete utility. Wildcard overloads are
         // alternative candidate grammar branches, not a source of extra declarations
         // for a spelling that has an exact definition.
-        branches.retain(|(_, exact, _, _)| *exact);
+        branches.retain(|(_, exact, _, _, _)| *exact);
     } else if let Some(arbitrary) = unhinted_arbitrary_value(name) {
         let available = branches
             .iter()
-            .flat_map(|(_, _, domains, _)| domains.iter().copied())
+            .flat_map(|(_, _, domains, _, _)| domains.iter().copied())
             .collect::<Vec<_>>();
         let selected = infer_arbitrary_value_type(&arbitrary, &available).or_else(|| {
+            // Emission order can give every overload of a name the same position.
+            // Type fallback needs the individual registrations to distinguish them.
             branches
                 .iter()
-                .min_by_key(|(_, _, _, resolution)| resolution.builtin_order)
-                .and_then(|(_, _, domains, _)| domains.first().copied())
+                .min_by_key(|(_, _, _, _, registration)| *registration)
+                .and_then(|(_, _, domains, _, _)| domains.first().copied())
         });
         if let Some(selected) = selected {
-            branches.retain(|(_, _, domains, _)| domains.contains(&selected));
+            branches.retain(|(_, _, domains, _, _)| domains.contains(&selected));
         }
     }
-    let (_, _, _, mut resolution) = branches.first()?.clone();
-    for (_, _, _, branch) in branches.into_iter().skip(1) {
+    let (_, _, _, mut resolution, _) = branches.first()?.clone();
+    for (_, _, _, branch, _) in branches.into_iter().skip(1) {
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
         // competing overloads cannot overwrite a more-specific property branch.

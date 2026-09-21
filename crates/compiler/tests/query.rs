@@ -29,11 +29,17 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
     for (mode, expected) in [
         ("authored", ["early", "builtin", "late"]),
         ("tailwind", ["builtin", "early", "late"]),
+        ("", ["early", "builtin", "late"]),
     ] {
+        let config = if mode.is_empty() {
+            String::new()
+        } else {
+            format!("@stillwind {{utility-order:{mode};}}")
+        };
         let source = SourceFile::new(
             FileId(1),
             "theme.css",
-            format!("{css} @stillwind {{utility-order:{mode};}} @stillwind-slot utilities;"),
+            format!("{css} {config} @stillwind-slot utilities;"),
         )
         .unwrap();
         let snapshot =
@@ -63,9 +69,10 @@ fn registration_order_mixes_user_and_builtin_definitions_without_moving_override
         assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
         let blue = compiled.css.find("color:blue").unwrap();
         let purple = compiled.css.find("color:purple").unwrap();
-        assert_eq!(purple < blue, mode == "authored", "{}", compiled.css);
+        assert_eq!(purple < blue, mode != "tailwind", "{}", compiled.css);
     }
     assert_ne!(ordering_fingerprints[0], ordering_fingerprints[1]);
+    assert_eq!(ordering_fingerprints[0], ordering_fingerprints[2]);
 }
 
 #[test]

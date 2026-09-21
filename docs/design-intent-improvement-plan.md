@@ -141,7 +141,7 @@ CLI/native、build、editor が同じ結果を扱うようにする。
 variant 順は import 展開後の CSS で built-in と user 定義を混ぜた最初の登録位置とする。
 同名 variant の上書きでは位置を移動しない。関連 variant の group 内の値比較は保持する。
 utility 順は `@stillwind { utility-order: authored; }` または `utility-order: tailwind;` で選ぶ。
-既定は `tailwind`。`authored` は variant 同様、built-in/user を混ぜた最初の登録位置を使う。
+既定は `authored`。variant 同様、built-in/user を混ぜた最初の登録位置を使う。
 `tailwind` は Tailwind CSS 4.3.3 の解決後 AST と同じキーを使う。built-in / user / 任意 property を
 区別せず、プロパティ順位の昇順列（同じ prefix の短い列は後）、宣言数の降順、数値を認識する
 UTF-16 candidate 名比較の順に比較する。未知 property は順位列に入れず、宣言数には数える。

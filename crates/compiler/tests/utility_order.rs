@@ -16,7 +16,10 @@ fn tailwind_resolved_property_sort_matches_upstream() {
     let source = css_fixture::source(
         FileId(1),
         "theme.css",
-        fixture["stillwindCss"].as_str().unwrap(),
+        format!(
+            "{} @stillwind {{ utility-order: tailwind; }}",
+            fixture["stillwindCss"].as_str().unwrap()
+        ),
     )
     .unwrap();
     let snapshot =
@@ -88,6 +91,7 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
         FileId(1),
         "theme.css",
         "
+        @stillwind { utility-order: tailwind; }
         @utility a-single { color:red; }
         @utility z-many { color:blue; --extra:; }
         @utility a-prefix { display:flex; }

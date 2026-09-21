@@ -48,7 +48,7 @@ pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
 /// CSS configuration with effective lint severities, including rule defaults.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StillwindConfig {
-    /// Uses first registration positions for utilities when true; defaults to Tailwind ordering.
+    /// Uses first registration positions for utilities when true (the default).
     pub authored_utility_order: bool,
     /// Stillwind-owned prefix, when the CSS configures one.
     pub prefix: Option<String>,
@@ -61,7 +61,7 @@ pub struct StillwindConfig {
 impl Default for StillwindConfig {
     fn default() -> Self {
         Self {
-            authored_utility_order: false,
+            authored_utility_order: true,
             prefix: None,
             tailwind_prefix: None,
             lint_rules: [
