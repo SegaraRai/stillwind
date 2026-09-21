@@ -1,5 +1,5 @@
 /**
- * Compile-time React macro surface. Calls must be consumed by `@stillwind/vite`;
+ * Compile-time React macro surface. Calls must be consumed by `@stillwind/integration/vite`;
  * executing it at runtime means the compiler integration is missing.
  */
 export type StyleAttributeName = `aria-${string}` | `data-${string}`;

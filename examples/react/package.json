@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@stillwind/vite": "workspace:*",
+    "@stillwind/integration": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "stillwind": "workspace:*"

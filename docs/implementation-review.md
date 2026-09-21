@@ -127,7 +127,7 @@ Status: 初回棚卸しの記録。B項目の不具合修正は2026-09-13に実�
 
 ホスト側の`baseCss()`利用は見当たらないが、Rustの`StylesheetRenderer::render_base_stylesheet`はN-APIの`base_css`実装から呼ばれている。両方が未使用という以前の記述は誤り。公開APIには外部の消費者があり得るため、内部の使用箇所だけを根拠に削除しない。
 
-- `packages/vite/src/index.ts:476` は `baseCssWithMap()` を使う。
+- `packages/integration/src/vite/index.ts:476` は `baseCssWithMap()` を使う。
 - `packages/native/test/loader.test.mjs:69` も `baseCssWithMap()` を使う。
 - `baseCss()` は生成された `binding.d.ts` に現れるのみ。
 

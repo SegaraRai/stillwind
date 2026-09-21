@@ -187,7 +187,7 @@ host converter は `@stillwind/projection` に配置し、各 framework を別�
 
 明示経路は `import css from 'stillwind/module-css'` とする。host は `module_css_import` に当該 module の virtual JS ID を、SFC の自動経路では `stylesheet_imports` に CSS ID を渡す。native は AST で見つけた import の source literal だけを置換し、明示 import があれば自動経路を抑制する。virtual ID が不足した明示 import は `SHIMPORT001` とする。CSS 値には当該 module と依存するルール、および document の共通 CSS を含める。
 
-Vite は raw SFC を `pre` で処理し、framework の query subrequest は処理しない。CSS ID は編集前に割り当て、native session が確定した CSS を immutable な payload として登録する。明示経路の virtual JS は Vite の CSS `?inline` を再 export するため、画像 URL のビルド時解決を維持しつつ document へ自動挿入しない。`vp run @stillwind/vite#test` は raw SFC の hook 接続、CSS ID の再読み込み、通常 JS の明示 CSS 値・runtime helper・画像出力と既存 CSS build を検証する。実 SFC bundler build と画面/HMR の検証はこれらとは別に行う。
+Vite は raw SFC を `pre` で処理し、framework の query subrequest は処理しない。CSS ID は編集前に割り当て、native session が確定した CSS を immutable な payload として登録する。明示経路の virtual JS は Vite の CSS `?inline` を再 export するため、画像 URL のビルド時解決を維持しつつ document へ自動挿入しない。`vp run @stillwind/integration#test:vite` は raw SFC の hook 接続、CSS ID の再読み込み、通常 JS の明示 CSS 値・runtime helper・画像出力と既存 CSS build を検証する。実 SFC bundler build と画面/HMR の検証はこれらとは別に行う。
 
 `compileModule` は raw SFC を投影してから native session に渡す。投影入力の checker 型情報は座標契約をまだ提供していないため取得しない。通常 JS/TS の型情報経路は従来どおり維持する。
 

@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 import { build, createServer, preview } from "vite-plus";
 
 import { stylesheetLinks } from "../../../packages/core/src/css.ts";
-import { stillwind } from "../../../packages/vite/src/index.ts";
+import { stillwind } from "../../../packages/integration/src/vite/index.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const directory = await fs.mkdtemp(path.join(root, "output/emission-"));

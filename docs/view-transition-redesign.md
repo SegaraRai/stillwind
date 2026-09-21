@@ -364,7 +364,7 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 - Rust: `cargo test --workspace`、`cargo clippy --workspace --all-targets -- -D warnings`、
   `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps`、`cargo fmt --all --check`。
 - fixture: `vp run fixtures:refresh` → `vp run fixtures:check`。
-- TS: `vp run @stillwind/core#check`、`@stillwind/host#test`、`@stillwind/vite#test`、
+- TS: `vp run @stillwind/core#check`、`@stillwind/host#test`、`@stillwind/integration#test:vite`、
   `vp run fmt`、`vp run check`。
 - 断言すべき契約:
   - 静的ケースは runtime import も style prop も出さない（純 CSS）。

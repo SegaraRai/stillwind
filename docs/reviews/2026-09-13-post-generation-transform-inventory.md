@@ -58,7 +58,7 @@ RustのCSS生成・レジストリ処理を中心に、関連するJS出力と�
 | [resource URLのplaceholder化](../../crates/compiler/src/module_compiler.rs) → [ホストでURL確定](../../packages/host/src/css-source-map.ts)                                       | placeholderは値生成時に作れる。最終URLはホスト側まで確定できない | 必要。ファイル解決・配信URL・バンドラの情報を使うため。後段処理を残す妥当な例。置換に伴うsource mapの位置調整も必要        |
 | [HTML属性内の引用符変換・import文字列の `<` エスケープ](../../crates/compiler/src/runtime.rs)                                                                                    | 埋め込み先の文脈が確定した出力時に直接エンコード可能             | 必要な文脈がある。JSの内容がHTML側の構文を壊さないため。文脈を知らない早期生成段階へ一律には移せない                       |
 | [ホストでCSS importを追加](../../packages/host/src/finalize.ts)                                                                                                                  | ホストの最終出力で直接生成可能                                   | stylesheet指定がある場合に必要。ホスト固有specifierを使うので後段にある理由がある                                          |
-| [Playgroundの `export App;` 修復](../../packages/vite/src/index.ts)                                                                                                              | 入力側を標準構文にするか、明示的な構文変換として処理可能         | 通常のコンパイラには不要。Playground独自の入力許容のため。生成後の正規表現置換として残す根拠は弱い                         |
+| [Playgroundの `export App;` 修復](../../packages/integration/src/vite/index.ts)                                                                                                  | 入力側を標準構文にするか、明示的な構文変換として処理可能         | 通常のコンパイラには不要。Playground独自の入力許容のため。生成後の正規表現置換として残す根拠は弱い                         |
 
 ## 4. 確認した重複・矛盾と改善優先度
 

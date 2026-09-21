@@ -10,13 +10,13 @@ import { projectFrameworkSource } from "../../packages/projection/src/index.ts";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const local = createRequire(import.meta.url);
 const hostRequire = createRequire(path.join(root, "packages/host/package.json"));
-const viteRequire = createRequire(path.join(root, "packages/vite/package.json"));
+const viteRequire = createRequire(path.join(root, "packages/integration/package.json"));
 const ts = local("typescript");
 const { API } = await import(pathToFileURL(hostRequire.resolve("typescript/unstable/sync")));
 const guards7 = await import(pathToFileURL(hostRequire.resolve("typescript/unstable/ast/is")));
 const { TraceMap, decodedMappings } = local("@jridgewell/trace-mapping");
 const norm = (p) => path.resolve(p).replaceAll("\\", "/");
-const workspace = norm(path.join(root, "packages/vite/test/.sfc-checker-virtual"));
+const workspace = norm(path.join(root, "packages/integration/test/.sfc-checker-virtual"));
 const report = {
   versions: {
     ts6: ts.version,

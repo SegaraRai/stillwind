@@ -14,7 +14,7 @@ vp run compare-checkers
 `checker-comparison.mjs` が fixture と仮想ファイルをメモリ内に生成し、
 `results/checker-comparison.json` に測定結果を保存する。結果を保存した後、
 候補・原文対応・診断・増分更新を assertion で検証する。
-依存は既存の実験 workspace、`packages/host`、`packages/vite`、
+依存は既存の実験 workspace、`packages/host`、`packages/integration`、
 `packages/projection` のインストールを使用する。追加インストールは行っていない。
 
 - 本番の `projectFrameworkSource` で Vue / Svelte / Astro を投影する。

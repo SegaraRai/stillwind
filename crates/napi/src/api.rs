@@ -377,7 +377,7 @@ pub fn summarize_react_input(
     ))
 }
 
-/// Native Node entrypoint used by `@stillwind/vite`.
+/// Native Node entrypoint used by `@stillwind/integration/vite`.
 ///
 /// napi-rs converts inputs and outputs directly to JavaScript values.
 ///

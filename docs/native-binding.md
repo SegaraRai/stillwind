@@ -34,8 +34,8 @@ Semantic candidates are discriminated unions: `{kind: "universe"}` or `{kind: "f
 Run these tasks from the repository root:
 
 - `vp run @stillwind/native#check`: native build, generated declaration typechecks, and public JavaScript API tests. Invalid former JSON inputs, enum values, and malformed nested records must fail.
-- `vp run @stillwind/host#test` and `vp run @stillwind/vite#test`: host source analysis, type facts, CSS maps, and Vite integration.
-- `vp run @stillwind/bundler#test` and `vp run @stillwind/vite#test:frameworks`: webpack/Rspack and official SFC builds.
+- `vp run @stillwind/host#test` and `vp run @stillwind/integration#test:vite`: host source analysis, type facts, CSS maps, and Vite integration.
+- `vp run @stillwind/integration#test:webpack` and `vp run @stillwind/integration#test:frameworks`: webpack/Rspack and official SFC builds.
 
 The native build regenerates `binding.d.ts`; do not edit it by hand. Only generated declarations are excluded from formatting. Authored binding code and the declaration typecheck remain checked.
 

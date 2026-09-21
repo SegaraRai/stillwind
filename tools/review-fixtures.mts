@@ -72,10 +72,15 @@ function loadProjects() {
 
 function compileProject(root: string, manifest: Manifest) {
   const sources = manifest.sources.map((sourcePath) => {
-    // Place virtual TS files under packages/vite so module resolution sees the
+    // Place virtual TS files under packages/integration so module resolution sees the
     // same workspace dependencies as the production checker service. The TS7
     // host virtualizes files but consults the real filesystem for directories.
-    const id = path.join(repositoryRoot, "packages/vite/.review-fixtures", manifest.id, sourcePath);
+    const id = path.join(
+      repositoryRoot,
+      "packages/integration/.review-fixtures",
+      manifest.id,
+      sourcePath,
+    );
     mkdirSync(path.dirname(id), { recursive: true });
     return {
       id,

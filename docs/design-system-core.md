@@ -176,7 +176,7 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 vp run --filter @stillwind/native check
-vp run --filter @stillwind/vite test
+vp run --filter @stillwind/integration test
 vp run fixtures:check
 vp run tailwind:parity:all
 ```

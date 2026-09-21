@@ -31,7 +31,7 @@ await write("package.json", JSON.stringify({ private: true }));
 await write("root.css", theme("rgb(11,22,33)"));
 await write(
   "next.config.js",
-  `const {withStillwind}=require(${JSON.stringify(path.join(repo, "packages/bundler/index.cjs"))}); module.exports=withStillwind({productionBrowserSourceMaps:true,turbopack:{root:${JSON.stringify(repo)}}},{css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}});`,
+  `const {withStillwind}=require(${JSON.stringify(path.join(repo, "packages/integration/src/next/index.cjs"))}); module.exports=withStillwind({productionBrowserSourceMaps:true,turbopack:{root:${JSON.stringify(repo)}}},{css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}});`,
 );
 await write(
   "app/layout.jsx",

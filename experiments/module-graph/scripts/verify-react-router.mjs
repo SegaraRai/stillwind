@@ -48,7 +48,7 @@ await write(
   "vite.config.ts",
   `import {defineConfig} from 'vite-plus';
 import {reactRouter} from '@react-router/dev/vite';
-import {stillwind} from ${JSON.stringify(path.join(repo, "packages/vite/src/index.ts").replaceAll("\\", "/"))};
+import {stillwind} from ${JSON.stringify(path.join(repo, "packages/integration/src/vite/index.ts").replaceAll("\\", "/"))};
 export default defineConfig({plugins:[stillwind({css:'root.css',types:false}),reactRouter()],build:{sourcemap:true},server:{port:${port},strictPort:true}});`,
 );
 await write("react-router.config.ts", "export default {ssr:true};");

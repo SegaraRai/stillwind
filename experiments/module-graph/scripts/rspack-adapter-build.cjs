@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { rspack } = require("@rspack/core");
-const { stillwindRules } = require("../../../packages/bundler/index.cjs");
+const { stillwindRules } = require("../../../packages/integration/src/rspack/index.cjs");
 const dir = process.argv[2];
 const compiler = rspack({
   context: dir,

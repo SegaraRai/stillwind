@@ -7,18 +7,18 @@ Run from the repository root with the workspace lockfile installed:
 ```powershell
 vp i --frozen-lockfile
 vp run @stillwind/host#test
-vp run @stillwind/vite#test
+vp run @stillwind/integration#test:vite
 $env:ASTRO_TELEMETRY_DISABLED = '1'
-vp run @stillwind/vite#test:frameworks
+vp run @stillwind/integration#test:frameworks
 ```
 
 The checks cover different boundaries:
 
-| Task                              | Evidence                                                                                                                                                                                                                   |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@stillwind/host#test`            | Actual converters, native source edits, and framework compiler acceptance; Vue quotes and two script scopes, Svelte module/instance scopes, Astro server/client scripts, explicit CSS imports, and failed-edit diagnostics |
-| `@stillwind/vite#test`            | Raw SFC hook input, immutable CSS IDs, query subrequest exclusion, ordinary JS regression tests, and an actual build executing module CSS values and runtime helpers                                                       |
-| `@stillwind/vite#test:frameworks` | Official Vue and Svelte Vite plugins and a complete Astro production build; automatic CSS contains the requested red/blue utilities, while explicitly imported green CSS remains a value until the component applies it    |
+| Task                                     | Evidence                                                                                                                                                                                                                   |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@stillwind/host#test`                   | Actual converters, native source edits, and framework compiler acceptance; Vue quotes and two script scopes, Svelte module/instance scopes, Astro server/client scripts, explicit CSS imports, and failed-edit diagnostics |
+| `@stillwind/integration#test:vite`       | Raw SFC hook input, immutable CSS IDs, query subrequest exclusion, ordinary JS regression tests, and an actual build executing module CSS values and runtime helpers                                                       |
+| `@stillwind/integration#test:frameworks` | Official Vue and Svelte Vite plugins and a complete Astro production build; automatic CSS contains the requested red/blue utilities, while explicitly imported green CSS remains a value until the component applies it    |
 
 The production fixtures use Vue 3.5.42 / plugin-vue 6.0.8, Svelte 5.57.0 / vite-plugin-svelte 7.3.0, and Astro 7.3.2, as resolved in `pnpm-lock.yaml`. Projection uses the separately pinned converters in `@stillwind/projection`; Astro's projection converter is `@astrojs/compiler` 4.0.0.
 
@@ -30,10 +30,10 @@ Start all three local fixtures:
 
 ```powershell
 $env:ASTRO_TELEMETRY_DISABLED = '1'
-vp run @stillwind/vite#dev:frameworks
+vp run @stillwind/integration#dev:frameworks
 ```
 
-The command prints each fixture directory and serves Vue at `http://127.0.0.1:5174`, Svelte at `http://127.0.0.1:5175`, and Astro at `http://127.0.0.1:5176`. Each server has its own dependency cache. Stop the command with Ctrl+C. Fixtures are generated under the ignored `packages/vite/.framework-test-*` directories.
+The command prints each fixture directory and serves Vue at `http://127.0.0.1:5174`, Svelte at `http://127.0.0.1:5175`, and Astro at `http://127.0.0.1:5176`. Each server has its own dependency cache. Stop the command with Ctrl+C. Fixtures are generated under the ignored `packages/integration/.framework-test-*` directories.
 
 On 2026-09-10, all three pages were opened and inspected in a real browser. These observations are separate from the build assertions:
 
@@ -58,7 +58,7 @@ On 2026-09-11 (JST), the final implementation passed:
 - `cargo test --workspace --locked` and `cargo clippy --workspace --all-targets --locked -- -D warnings` (use `$env:CARGO_INCREMENTAL='0'` on Windows).
 - `vp run @stillwind/native#check`: 7 public API tests and typechecking.
 - `vp run @stillwind/host#test`: 28 tests, including original SFC edits and official compiler output.
-- `vp run @stillwind/vite#test`: 15 tests; `vp run @stillwind/bundler#test`: 10 production builds.
+- `vp run @stillwind/integration#test:vite`: 15 tests; `vp run @stillwind/integration#test:webpack`: 10 production builds.
 - `vp run stillwind#check`: framework type entrypoints and 6 runtime/CSS tests.
 - `vp run crates:check`, `vp run fixtures:check`, `vp fmt --check`, and `vp lint`.
 - In `experiments/sfc-projection-research`, `vp run verify-normalization`: 32 real converter cases. `vp run verify-native` separately checks the strict raw-span mapper: 77 accepted spans and 7 expected Vue receiver rejections before normalization.
@@ -75,7 +75,7 @@ The host does not yet query checker type facts for projected input. The normal J
 
 ## webpack and Rspack
 
-Run `vp run @stillwind/bundler#test` for ten production builds: React, Preact, Solid, Vue, and Svelte on each bundler. All ten passed on 2026-09-10. Vue and Svelte use their official loaders. The tests verify automatic CSS ownership, explicit module CSS values, preserved external classes, and final JavaScript source maps back to the exact original macro line and column. The ordinary JS cases also execute the bundle and check emitted asset URLs in CSS values.
+Run `vp run @stillwind/integration#test:webpack` for ten production builds: React, Preact, Solid, Vue, and Svelte on each bundler. All ten passed on 2026-09-10. Vue and Svelte use their official loaders. The tests verify automatic CSS ownership, explicit module CSS values, preserved external classes, and final JavaScript source maps back to the exact original macro line and column. The ordinary JS cases also execute the bundle and check emitted asset URLs in CSS values.
 
 Unlike Vite, vue-loader can run the raw-SFC loader in query subrequests and clone it within a chain. Identical already-transformed output is skipped using loader metadata. SFC stylesheet and CSS-value requests include the loader and serialized configuration, so another worker can reconstruct them from the source file. The source receives only native import edits.
 

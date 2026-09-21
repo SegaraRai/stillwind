@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { stillwind } from "@stillwind/vite";
+import { stillwind } from "@stillwind/integration/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 

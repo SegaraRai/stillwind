@@ -4,7 +4,7 @@ This document records the Windows x64 adapter acceptance snapshot from 2026-09-1
 for [the architecture research](module-graph-architecture-research.md). Its carrier
 transport and framework results describe that snapshot. The current transport,
 complete-graph linker and verification commands are specified in
-[CSS emission](css-emission.md) and the [Vite adapter](../packages/vite/README.md).
+[CSS emission](css-emission.md) and the [Vite adapter](../packages/integration/src/vite/README.md).
 Framework-specific results below require revalidation against that implementation.
 
 ## Implemented boundaries

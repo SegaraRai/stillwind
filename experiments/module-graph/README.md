@@ -26,7 +26,7 @@ The CSS query carries its complete content. The CSS loader never reads a process
 Known limits: fixed-port single-run harness; no source-map validation, CSS URL rebasing, Shadow DOM, arbitrary type dependencies, real LSP, full Stillwind compilation, Rspack browser HMR, or all framework templates. Vite edit/removal may reload the page; the test does not assert state-preserving HMR. Next lazy route uses direct navigation, not client-router prefetch/streaming. The cold production build means first production build in a fresh fixture after a dev run; the warm build reuses its production cache.
 
 The real Stillwind adapter has a separate browser acceptance probe. First run
-`vp run test` from `packages/vite` to build the native addon, then run
+`vp run test` from `packages/integration` to build the native addon, then run
 `vp run verify:stillwind` here. It checks real macro compilation, CSS dependency
 edits with stable class names, macro removal and restoration. Its result is
 `results/stillwind.json`. Page reloads are allowed; it does not assert preservation

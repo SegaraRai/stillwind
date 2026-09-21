@@ -6,7 +6,7 @@
 
 | 対象                    | 現在の根拠                                                                                                                                                                                                                               | 未完了・保証しない範囲                                                                                                       |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Next/Turbopack・webpack | `packages/bundler`の本体loader。`experiments/module-graph/results/adapters-turbopack.json`と`adapters-webpack.json`で、RSC/client、hydration、CSS編集、macro削除復元、client遷移・prefetch、cold/warm本番を各6項目確認                   | 実fixtureはliteral macro中心。任意の型依存・streaming・edge環境の完全な受け入れではない                                      |
+| Next/Turbopack・webpack | `packages/integration`の本体loader。`experiments/module-graph/results/adapters-turbopack.json`と`adapters-webpack.json`で、RSC/client、hydration、CSS編集、macro削除復元、client遷移・prefetch、cold/warm本番を各6項目確認               | 実fixtureはliteral macro中心。任意の型依存・streaming・edge環境の完全な受け入れではない                                      |
 | Rspack・Rsbuild         | `rspack-real.json`と`rsbuild-real.json`で本体adapter、ブラウザーCSS・URL、別process cache復元、依存変更、未到達化、macro削除、CSS selector mapを各7項目確認                                                                              | ブラウザーHMRは別項目                                                                                                        |
 | Vite environment        | environmentごとにsnapshot/sessionを分離。route解析のようなbuildStart前のtransformも遅延初期化で扱う。CSSはframeworkが発見できる物理resource IDと自己完結payloadで輸送                                                                    | 各frameworkの受け入れは個別に実施する                                                                                        |
 | React Router 8.3.1      | `react-router-real.json`。JavaScript無効の初回SSR、hydration、client遷移、初回にはないlazy CSS、CSS編集、macro削除復元3回、server CSS projection編集、cold/warm本番。JS source mapのmacro行・列とclient成果物へのserver code非混入も検査 | `.server.js`専用producerはrouteに`?stillwind.css`の明示CSS依存を付ける。全編集でのUI状態保持は未保証。Remix v2とは区別する   |
@@ -41,7 +41,7 @@ framework前段とのCSS map合成はVite開発、TanStack/Rsbuild、Next/webpac
 - `tailwindcss` importのStillwind alias扱いを削除。parity試験だけは上流fixtureの入力をStillwind entryへ明示変換する。
 - 通常CSSのimportはnamed/anonymous layer、supportsの宣言・function・boolean条件、mediaを保持する。順序違反、空layer、未対応の`prefix`等は診断する。既存Stillwind selectorのconditional/anonymous-layer importは正しく出力できないため、今回から黙殺せず診断する。
 
-本体のVite build試験は遅延producer・dynamic import・未到達source・global CSS重複を検査する。Chromeでは本物のmacroによる表示、CSS編集でのclass維持、macro削除・復元を確認。再実行は`packages/vite`で`vp run test`、その後`experiments/module-graph`で`vp run verify:stillwind`。後者の結果は`results/stillwind.json`。ページreloadは許容しており、状態を保持するHMRの保証ではない。
+本体のVite build試験は遅延producer・dynamic import・未到達source・global CSS重複を検査する。Chromeでは本物のmacroによる表示、CSS編集でのclass維持、macro削除・復元を確認。再実行は`packages/integration`で`vp run test`、その後`experiments/module-graph`で`vp run verify:stillwind`。後者の結果は`results/stillwind.json`。ページreloadは許容しており、状態を保持するHMRの保証ではない。
 
 その後のCSSエントリ移行も実装済み。`packages/core`がpackage exportsと標準CSSを所有し、RustからCSS埋め込みとimport名の特殊扱いを撤去した。通常のホスト解決で読み込んだ定義だけをスナップショット化する。入力にimportがなければ標準utility/theme/resetを補わない。実ファイルを読み込むテストで、Rust再ビルドなしの定義変更を確認した。CLIはOxc Resolver、Vite/PlaygroundはVite resolverでCSS importを解決する。
 
@@ -311,7 +311,7 @@ transform結果にmodule全体のside-effect CSS importを足すだけで3まで
 
 従って、CSS importを実解決へ直す作業だけでbuildのCSS完全性まで保証されるわけではない。パッケージ移動と組み込みCSSの排除は進められるが、その際に単一CSSへの配置をcoreへ追加固定しないことが重要。
 
-ローカル根拠: `crates/core/src/analysis.rs`、`crates/core/src/module_compiler.rs`、`crates/core/src/session.rs`、`packages/vite/src/index.ts`、`packages/vite/src/type-facts.ts`。
+ローカル根拠: `crates/core/src/analysis.rs`、`crates/core/src/module_compiler.rs`、`crates/core/src/session.rs`、`packages/integration/src/vite/index.ts`、`packages/integration/src/type-facts.ts`。
 
 ## 設計確定前に優先する実験
 
