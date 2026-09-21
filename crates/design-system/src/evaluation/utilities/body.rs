@@ -21,7 +21,7 @@ use super::nested::{
     split_utility_selector,
 };
 use super::resolve::ResolvedUtilityTarget;
-use crate::{CustomUtility, ThemeIndex, ThemeNamespace};
+use crate::{CustomUtility, ThemeIndex, ThemeNamespace, UtilityOrderMode};
 
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -170,10 +170,9 @@ pub(crate) fn resolve_css_utility_body(
             selector: None,
             nested: Vec::new(),
             additional,
-            builtin_order: if theme.config.authored_utility_order {
-                theme.utility_positions.get(&utility.name).copied()
-            } else {
-                utility.builtin_order
+            builtin_order: match theme.config.utility_order {
+                UtilityOrderMode::Authored => theme.utility_positions.get(&utility.name).copied(),
+                UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
         })
@@ -184,10 +183,9 @@ pub(crate) fn resolve_css_utility_body(
             selector,
             nested: resolved_nested,
             additional: Vec::new(),
-            builtin_order: if theme.config.authored_utility_order {
-                theme.utility_positions.get(&utility.name).copied()
-            } else {
-                utility.builtin_order
+            builtin_order: match theme.config.utility_order {
+                UtilityOrderMode::Authored => theme.utility_positions.get(&utility.name).copied(),
+                UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
         })

@@ -170,7 +170,11 @@ pub(super) fn binding_output(
         rejected_names: result.rejected_names.into_iter().map(Into::into).collect(),
         diagnostics,
         lint_findings,
-        lint_policy: result.lint_policy,
+        lint_policy: result
+            .lint_policy
+            .into_iter()
+            .map(|(rule, severity)| (rule, severity.as_str().to_owned()))
+            .collect(),
     }
 }
 

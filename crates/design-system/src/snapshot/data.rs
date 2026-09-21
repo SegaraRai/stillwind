@@ -20,8 +20,8 @@ use stillwind_source::{Fingerprint, SourceFile, Span};
 use super::{PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry};
 use crate::{
     BuiltinDefinitions, CssFileRequest, CssSourceGraph, CssSourceName, DesignSystemLoadError,
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_definitions,
-    builtin_theme_order,
+    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, LintSeverity, ThemeIndex,
+    builtin_definitions, builtin_theme_order,
 };
 
 /// Why a snapshot could not be produced from an already supplied buffer.
@@ -242,12 +242,12 @@ impl DesignSystemSnapshot {
         semantic_template.map_origins(|_| None);
         let config_hash = Fingerprint::of(format!("{config:?}"));
         let ordering = Fingerprint::of(format!(
-            "{:?}{:?}{:?}{:?}{}",
+            "{:?}{:?}{:?}{:?}{:?}",
             semantic_template,
             builtin_theme_order(&theme),
             theme.variant_positions,
             theme.utility_positions,
-            theme.config.authored_utility_order,
+            theme.config.utility_order,
         ));
         let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
         let builtins = Some(builtin_definitions(&theme));
@@ -427,7 +427,7 @@ impl DesignSystemSnapshot {
 
     /// Authored lint severities, mapped from rule name to `warn`, `deny`, or `off`.
     /// Lint policy never changes generated CSS or generated names.
-    pub fn lint_policy(&self) -> &BTreeMap<String, String> {
+    pub fn lint_policy(&self) -> &BTreeMap<String, LintSeverity> {
         &self.inner.theme.config.lint_rules
     }
 

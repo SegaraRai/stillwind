@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use stillwind_design_system::LintSeverity;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::StyleDependency;
 use stillwind_source::SourceFile;
@@ -66,7 +67,7 @@ pub struct CompileResult {
     /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
     /// Rule name to severity map in effect for the lint findings above.
-    pub lint_policy: BTreeMap<String, String>,
+    pub lint_policy: BTreeMap<String, LintSeverity>,
 }
 
 impl CompileResult {

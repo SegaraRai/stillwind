@@ -5,6 +5,7 @@
 //! declarations that do not match a candidate.
 
 use super::*;
+use crate::UtilityOrderMode;
 
 #[test]
 fn resolves_every_upstream_static_utility_from_the_css_registry() {
@@ -265,8 +266,8 @@ fn resolves_ambiguous_backgrounds_through_typed_utility_branches() {
 #[test]
 fn ambiguous_background_type_is_independent_of_emission_order() {
     let mut theme = theme();
-    for authored in [true, false] {
-        theme.config.authored_utility_order = authored;
+    for order in [UtilityOrderMode::Authored, UtilityOrderMode::Tailwind] {
+        theme.config.utility_order = order;
         for candidate in ["bg-[var(--surface)]", "bg-(--surface)"] {
             assert_css_eq!(
                 resolve_utility(candidate, &theme).unwrap().declaration,

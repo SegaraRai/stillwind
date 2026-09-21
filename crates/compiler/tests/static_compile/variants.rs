@@ -7,6 +7,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
+use stillwind_design_system::LintSeverity;
 use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
@@ -100,7 +101,10 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
         })
         .collect::<Vec<_>>();
     assert_eq!(selectors, vec![":host", ":host-context(.dark)"]);
-    assert_eq!(result.lint_policy["require-element-scope"], "deny");
+    assert_eq!(
+        result.lint_policy["require-element-scope"],
+        LintSeverity::Deny
+    );
     assert!(
         result.css.contains(":host{display:block;}"),
         "{}",
@@ -130,7 +134,10 @@ fn a_theme_can_disable_the_element_scope_rule() {
         "{:#?}",
         result.lint_findings
     );
-    assert_eq!(result.lint_policy["require-element-scope"], "off");
+    assert_eq!(
+        result.lint_policy["require-element-scope"],
+        LintSeverity::Off
+    );
 }
 
 /// A transition class participates only through a name, so a call states exactly one source
@@ -169,8 +176,14 @@ export const doubled = style("block", title.for("hero"), "[view-transition-name:
         .collect::<Vec<_>>();
     assert_eq!(missing, 1, "{:#?}", result.lint_findings);
     assert_eq!(duplicated, vec![2], "{:#?}", result.lint_findings);
-    assert_eq!(result.lint_policy["require-view-transition-name"], "warn");
-    assert_eq!(result.lint_policy["single-view-transition-name"], "warn");
+    assert_eq!(
+        result.lint_policy["require-view-transition-name"],
+        LintSeverity::Warn
+    );
+    assert_eq!(
+        result.lint_policy["single-view-transition-name"],
+        LintSeverity::Warn
+    );
 }
 
 #[test]

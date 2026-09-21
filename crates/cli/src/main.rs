@@ -22,6 +22,7 @@
     )
 )]
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::{env, fs};
 
@@ -31,7 +32,7 @@ use stillwind_compiler::{
     CompilerOptions, GeneratedClass, Identifiers, ModuleCompiler, ModuleResourceReference,
     StylesheetRenderer,
 };
-use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_design_system::{DesignSystemSnapshot, LintSeverity};
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -93,7 +94,7 @@ struct CliOutput {
     /// Suppressible lint findings, flattened the same way.
     lint_findings: Vec<LintFindingOutput>,
     /// Effective lint policy, keyed by rule name.
-    lint_policy: std::collections::BTreeMap<String, String>,
+    lint_policy: BTreeMap<String, LintSeverity>,
 }
 
 /// One diagnostic with its primary label reduced to offsets.

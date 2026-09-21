@@ -1,6 +1,7 @@
 //! Suppressible macro contracts preserve editable output and JavaScript scope.
 
 use stillwind_compiler::Compiler;
+use stillwind_design_system::LintSeverity;
 use stillwind_diagnostics::LintKind;
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{FileId, SourceFile};
@@ -22,7 +23,10 @@ fn suspending_value_expressions_stay_in_the_original_scope() {
                     .iter()
                     .any(|finding| finding.kind == LintKind::MacroExecutionBoundary)
             );
-            assert_eq!(result.lint_policy["macro-execution-boundary"], "deny");
+            assert_eq!(
+                result.lint_policy["macro-execution-boundary"],
+                LintSeverity::Deny
+            );
             let code = result.apply_to_source(&source).unwrap();
             let generated = SourceFile::new(FileId(3), "generated.tsx", code.as_str()).unwrap();
             assert!(
@@ -52,8 +56,13 @@ fn contract_severity_and_suppression_leave_transforms_available() {
             let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &css);
             assert!(result.diagnostics.is_empty(), "{result:#?}");
             assert!(!result.transforms.is_empty());
-            assert_eq!(result.lint_policy["macro-argument-mutation"], level);
+            assert_eq!(
+                result.lint_policy["macro-argument-mutation"].as_str(),
+                level
+            );
             assert_eq!(result.lint_findings.is_empty(), suppressed);
+            let serialized = serde_json::to_value(&result).unwrap();
+            assert_eq!(serialized["lint_policy"]["macro-argument-mutation"], level);
         }
     }
 }

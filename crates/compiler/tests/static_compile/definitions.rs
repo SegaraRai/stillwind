@@ -6,6 +6,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
+use stillwind_design_system::LintSeverity;
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
@@ -297,7 +298,10 @@ export const kept = style(block, base.for("hero"));"#,
         .filter(|finding| finding.kind == LintKind::SplitViewTransitionClasses)
         .collect::<Vec<_>>();
     assert_eq!(findings.len(), 1, "{:#?}", result.lint_findings);
-    assert_eq!(result.lint_policy["single-view-transition-class"], "warn");
+    assert_eq!(
+        result.lint_policy["single-view-transition-class"],
+        LintSeverity::Warn
+    );
     assert_eq!(
         component.slice(findings[0].labels[0].span).unwrap(),
         "style(block, other.for(\"hero\"))"

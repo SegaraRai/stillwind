@@ -18,7 +18,7 @@ use super::formatting::finalize_declaration;
 use super::matching::{matching_utilities, resolve_css_utility_branches, resolve_named_utility};
 use super::nested::NestedUtilityRule;
 use super::order::{UtilityOrder, UtilityPropertySort};
-use crate::ThemeIndex;
+use crate::{ThemeIndex, UtilityOrderMode};
 
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -78,30 +78,31 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
         }
     };
-    let order = if theme.config.authored_utility_order {
-        UtilityOrder::Authored(resolution.builtin_order)
-    } else {
-        let groups = std::iter::once(resolution.declaration.as_str())
-            .chain(
-                resolution
-                    .nested
-                    .iter()
-                    .filter(|rule| !rule.compatibility)
-                    .map(|rule| rule.declaration.as_str()),
-            )
-            .chain(resolution.additional.iter().flat_map(|target| {
-                std::iter::once(target.declaration.as_str()).chain(
-                    target
+    let order = match theme.config.utility_order {
+        UtilityOrderMode::Authored => UtilityOrder::Authored(resolution.builtin_order),
+        UtilityOrderMode::Tailwind => {
+            let groups = std::iter::once(resolution.declaration.as_str())
+                .chain(
+                    resolution
                         .nested
                         .iter()
                         .filter(|rule| !rule.compatibility)
                         .map(|rule| rule.declaration.as_str()),
                 )
-            }));
-        UtilityOrder::Tailwind(UtilityPropertySort::from_groups(
-            groups,
-            resolution.tw_sort.as_deref(),
-        ))
+                .chain(resolution.additional.iter().flat_map(|target| {
+                    std::iter::once(target.declaration.as_str()).chain(
+                        target
+                            .nested
+                            .iter()
+                            .filter(|rule| !rule.compatibility)
+                            .map(|rule| rule.declaration.as_str()),
+                    )
+                }));
+            UtilityOrder::Tailwind(UtilityPropertySort::from_groups(
+                groups,
+                resolution.tw_sort.as_deref(),
+            ))
+        }
     };
     let declaration = finalize_declaration(resolution.declaration, candidate.important, theme);
     let nested: Vec<NestedUtilityRule> = resolution

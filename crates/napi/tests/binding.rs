@@ -10,28 +10,42 @@
 
 use std::error::Error;
 
+use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
+use stillwind_napi::{
+    BindingApiError, BindingRejectedIdentifier, ProjectSource, compile_react_input,
+    compile_react_project_input, compile_react_project_input_with_options, generate_react_types,
+    render_react_stylesheet, summarize_react_input,
+};
+
 /// Malformed sources are reported through the same schema a host reads.
 #[test]
 fn rejected_names_are_transported_beside_symbols() {
-    let rejected = stillwind_compiler::RejectedIdentifier {
-        kind: stillwind_compiler::IdentifierKind::RefMarker,
+    let rejected = RejectedIdentifier {
+        kind: IdentifierKind::RefMarker,
         hash: "0123456789abcdef".to_owned(),
         reason: "no name for this declaration".to_owned(),
         substituted: true,
     };
-    let native: stillwind_napi::BindingRejectedIdentifier = rejected.into();
+    let native: BindingRejectedIdentifier = rejected.into();
     let value: serde_json::Value = serde_json::to_value(&native).unwrap();
     assert_eq!(value["kind"], "ref-marker");
     assert_eq!(value["hash"], "0123456789abcdef");
     assert_eq!(value["substituted"], true);
 }
 
-use stillwind_compiler::CompilerOptions;
-use stillwind_napi::{
-    BindingApiError, ProjectSource, compile_react_input, compile_react_project_input,
-    compile_react_project_input_with_options, generate_react_types, render_react_stylesheet,
-    summarize_react_input,
-};
+#[test]
+fn lint_severities_keep_their_host_protocol_spellings() {
+    for severity in ["warn", "deny", "off"] {
+        let output = compile_react_input(
+            "import {style} from 'stillwind/react'; const props = style('flex');",
+            "entry.tsx",
+            &format!("@utility flex {{display:flex;}} @stillwind-slot utilities; @stillwind {{custom: {severity};}}"),
+        ).unwrap();
+        assert_eq!(output.lint_policy["custom"], severity);
+        let json = serde_json::to_value(output).unwrap();
+        assert_eq!(json["lint_policy"]["custom"], severity);
+    }
+}
 
 #[test]
 fn projected_runtime_imports_stay_in_their_verified_script_realms() {
