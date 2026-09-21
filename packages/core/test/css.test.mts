@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cssText, stylesheetLinks, styleSheets } from "../src/css.ts";
+import { cssText, stylesheetLinks, styleSheets } from "../dist/css.js";
 
 void test("manifest selections preserve occurrence positions across reverse requests", () => {
   const manifest = {

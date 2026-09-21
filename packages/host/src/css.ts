@@ -1,5 +1,6 @@
 import { NativeDesignSystemLoader } from "@stillwind/native";
 import type { NativeCompilerOptions, NativeCssLoadStep } from "@stillwind/native";
+
 /**
  * Host-owned CSS resolution, text loading, and dependency watch registration.
  * Resolved identifiers must be accepted by read and watch.
@@ -9,6 +10,7 @@ export interface CssHost {
   read(id: string): Promise<string>;
   watch(id: string): void;
 }
+
 /**
  * Loads a CSS dependency graph through the native loader and returns its completed
  * loader and resources. rootContent, when supplied, replaces only the initial read;

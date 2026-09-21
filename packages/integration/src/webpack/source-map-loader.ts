@@ -1,10 +1,10 @@
-module.exports = function (source, inputMap, additionalData) {
+export default function (this: any, source: string, inputMap: any, additionalData: any) {
   const callback = this.async();
   // Rspack 2 stores chain data on loaderItem; webpack exposes it directly.
   // Keep this compatibility boundary local and cover both official runners.
   const transform = this.loaders
-    .map((loader) => (loader.data ?? loader.loaderItem?.data)?.stillwindSourceTransform)
-    .find((entry) => entry?.resource === this.resourcePath);
+    .map((loader: any) => (loader.data ?? loader.loaderItem?.data)?.stillwindSourceTransform)
+    .find((entry: any) => entry?.resource === this.resourcePath);
   if (!inputMap || !transform) {
     return callback(null, source, inputMap, additionalData);
   }
@@ -16,4 +16,4 @@ module.exports = function (source, inputMap, additionalData) {
       callback(error);
     }
   }, callback);
-};
+}

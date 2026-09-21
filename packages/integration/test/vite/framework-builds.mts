@@ -4,11 +4,12 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { stillwind as astroIntegration } from "@stillwind/integration/astro";
 import { stillwind } from "@stillwind/integration/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import vue from "@vitejs/plugin-vue";
 import { build as astroBuild } from "astro";
-import { build, type PluginOption } from "vite-plus";
+import { build, type PluginOption } from "vite";
 
 import { writeFrameworkFixture, type Framework } from "../shared/framework-fixtures.mts";
 
@@ -50,9 +51,7 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
           root,
           configFile: false,
           logLevel: "silent",
-          // Official integrations publish Vite types; the workspace redirects
-          // their runtime to Vite+. Avoid recursively comparing both type trees.
-          vite: { plugins: [plugin] } as unknown as Parameters<typeof astroBuild>[0]["vite"],
+          integrations: [astroIntegration({ css: path.join(root, "root.css"), types: false })],
           build: { inlineStylesheets: "never" },
         };
         await astroBuild(config);

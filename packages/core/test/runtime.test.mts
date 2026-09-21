@@ -9,7 +9,7 @@ import {
   stillwindMerge,
   stillwindViewTransitionKey,
   stillwindViewTransitionName,
-} from "../src/runtime/react.ts";
+} from "../dist/runtime/react.js";
 
 void test("composition joins base classes, preserves delta props, and leaves inputs untouched", () => {
   const first = Object.freeze({ className: "a" });

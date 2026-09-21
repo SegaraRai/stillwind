@@ -6,8 +6,8 @@ import { runInNewContext } from "node:vm";
 
 import { chromium } from "playwright";
 
-import * as runtime from "../../../packages/core/src/runtime/react.ts";
-import { compileSource } from "../../../packages/native/index.js";
+import * as runtime from "../../../packages/core/dist/runtime/react.js";
+import { compileSource } from "../../../packages/native/dist/index.js";
 
 const source = `import {style} from "stillwind/react";
 const item = style.viewTransition({ group: "duration-100 ease-linear", old: "opacity-0", new: "opacity-100" });

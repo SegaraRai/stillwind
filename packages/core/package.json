@@ -3,29 +3,82 @@
   "version": "0.0.0",
   "description": "CSS definitions and framework adapters for Stillwind",
   "license": "MIT",
+  "files": [
+    "dist",
+    "index.css",
+    "css"
+  ],
   "type": "module",
   "exports": {
     ".": "./index.css",
     "./builtins.css": "./css/builtins.css",
-    "./module-css": "./src/module-css.ts",
-    "./css": "./src/css.ts",
+    "./module-css": {
+      "types": "./dist/module-css.d.ts",
+      "default": "./dist/module-css.js"
+    },
+    "./css": {
+      "types": "./dist/css.d.ts",
+      "default": "./dist/css.js"
+    },
     "./preflight.css": "./css/preflight.css",
-    "./react": "./src/frameworks/react.ts",
-    "./react/runtime": "./src/runtime/react.ts",
-    "./runtime/dev": "./src/runtime/dev.ts",
-    "./preact": "./src/frameworks/preact.ts",
-    "./preact/runtime": "./src/runtime/preact.ts",
-    "./vue/runtime": "./src/runtime/vue.ts",
-    "./vue": "./src/frameworks/vue.ts",
-    "./svelte/runtime": "./src/runtime/svelte.ts",
-    "./svelte": "./src/frameworks/svelte.ts",
-    "./astro/runtime": "./src/runtime/astro.ts",
-    "./astro": "./src/frameworks/astro.ts",
-    "./solid": "./src/frameworks/solid.ts",
-    "./solid/runtime": "./src/runtime/solid.ts",
+    "./react": {
+      "types": "./dist/frameworks/react.d.ts",
+      "default": "./dist/frameworks/react.js"
+    },
+    "./react/runtime": {
+      "types": "./dist/runtime/react.d.ts",
+      "default": "./dist/runtime/react.js"
+    },
+    "./runtime/dev": {
+      "types": "./dist/runtime/dev.d.ts",
+      "default": "./dist/runtime/dev.js"
+    },
+    "./preact": {
+      "types": "./dist/frameworks/preact.d.ts",
+      "default": "./dist/frameworks/preact.js"
+    },
+    "./preact/runtime": {
+      "types": "./dist/runtime/preact.d.ts",
+      "default": "./dist/runtime/preact.js"
+    },
+    "./vue/runtime": {
+      "types": "./dist/runtime/vue.d.ts",
+      "default": "./dist/runtime/vue.js"
+    },
+    "./vue": {
+      "types": "./dist/frameworks/vue.d.ts",
+      "default": "./dist/frameworks/vue.js"
+    },
+    "./svelte/runtime": {
+      "types": "./dist/runtime/svelte.d.ts",
+      "default": "./dist/runtime/svelte.js"
+    },
+    "./svelte": {
+      "types": "./dist/frameworks/svelte.d.ts",
+      "default": "./dist/frameworks/svelte.js"
+    },
+    "./astro/runtime": {
+      "types": "./dist/runtime/astro.d.ts",
+      "default": "./dist/runtime/astro.js"
+    },
+    "./astro": {
+      "types": "./dist/frameworks/astro.d.ts",
+      "default": "./dist/frameworks/astro.js"
+    },
+    "./solid": {
+      "types": "./dist/frameworks/solid.d.ts",
+      "default": "./dist/frameworks/solid.js"
+    },
+    "./solid/runtime": {
+      "types": "./dist/runtime/solid.d.ts",
+      "default": "./dist/runtime/solid.js"
+    },
     "./theme.css": "./css/theme.css",
     "./utilities.css": "./css/utilities.css",
-    "./macro": "./src/macro/index.ts"
+    "./macro": {
+      "types": "./dist/macro/index.d.ts",
+      "default": "./dist/macro/index.js"
+    }
   },
   "devDependencies": {
     "@types/node": "catalog:",

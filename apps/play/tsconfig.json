@@ -5,10 +5,11 @@
     "strict": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": { "vite": ["./node_modules/vite-plus"] },
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "skipLibCheck": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "server", "test", "vite.config.ts"]
 }

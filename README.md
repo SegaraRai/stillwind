@@ -70,7 +70,10 @@ Each app declares its Vite+ tasks under `vite.config.ts#run.tasks`; use `vp run`
 instead of package scripts. `@stillwind/native` is a napi-rs Node-API addon, so
 the Vite plugin calls Rust directly rather than spawning `cargo` for every
 transform. The interactive playground lives in [`apps/play`](./apps/play): it
-calls that binding through the Vite dev server and displays the transformed
+owns its compile API and React preview bundler in `apps/play/server`, using the
+host CSS loader and an independent native session for each request. Its Vite
+configuration enables this app-specific server plugin only during development;
+the reusable Stillwind integration serves CSS and HMR. Play displays the transformed
 source, CSS, diagnostics, and a live CSS preview. Play accepts TSX components
 that export `App` (named, default, or the shorthand `export App;`), recompiles
 them as you type, and mounts them in an opaque-origin iframe with scripts only.

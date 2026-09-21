@@ -1,7 +1,8 @@
-import type { BindingOutput } from "@stillwind/native";
 import type { ProjectSource as FrameworkSource } from "@stillwind/projection";
 
 import type { TypeFact } from "./type-facts.ts";
+
+export type { ProjectionMap } from "@stillwind/projection";
 
 export type {
   BindingOutput as CompilerOutput,
@@ -11,12 +12,6 @@ export type {
   ProjectBindingOutput as ProjectCompilerOutput,
 } from "@stillwind/native";
 
-export interface PlayOutput extends BindingOutput {
-  previewUrl: string | null;
-}
-
 export interface ProjectSource extends FrameworkSource {
   type_facts?: TypeFact[];
 }
-
-export type { ProjectionMap } from "@stillwind/projection";

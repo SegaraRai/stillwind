@@ -61,7 +61,11 @@ for (const backend of ["webpack", "rspack"] as const) {
         plugins: [new StillwindPlugin(), ...(framework === "vue" ? [new VueLoaderPlugin()] : [])],
         module: {
           rules: [
-            ...stillwindRules({ css: "./root.css" }),
+            ...stillwindRules({
+              css: "./root.css",
+              naming: { utilityClass: (_context, hash) => "custom-" + hash.toString("hex") },
+              namingRevision: "framework-test",
+            }),
             {
               test: /\.ts$/,
               use: [
@@ -137,8 +141,8 @@ for (const backend of ["webpack", "rspack"] as const) {
         assert.ok(files.some((file) => file.endsWith(".js.map")));
         const className = css.match(
           sfc
-            ? /\.(sw_[0-9a-z]+)\s*\{\s*color:\s*rgb\(201,\s*22,\s*33\)/
-            : /\.(sw_[0-9a-z]+)\s*\{\s*color:\s*blue/,
+            ? /\.(custom-[0-9a-f]+)\s*\{\s*color:\s*rgb\(201,\s*22,\s*33\)/
+            : /\.(custom-[0-9a-f]+)\s*\{\s*color:\s*blue/,
         )?.[1];
         assert.ok(className, "expected an automatic CSS class");
         const offset = code.indexOf(className);

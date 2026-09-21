@@ -4,8 +4,8 @@ import {
   summarizeSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
-} from "../index.js";
-import type { NativeProjectSource, NativeStylesheetSelection } from "../index.js";
+} from "../dist/index.js";
+import type { NativeProjectSource, NativeStylesheetSelection } from "../dist/index.js";
 
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {

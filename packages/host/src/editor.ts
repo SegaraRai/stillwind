@@ -1,11 +1,8 @@
-import { NativeProjectSession } from "@stillwind/native";
-import type { NativeDesignSystemLoader } from "@stillwind/native";
+import { NativeProjectSession, type NativeDesignSystemLoader } from "@stillwind/native";
 
-import { cleanModuleId, compileModule } from "./compiler.ts";
-import type { CompilerHost } from "./compiler.ts";
+import { cleanModuleId, compileModule, type CompilerHost } from "./compiler.ts";
 import type { CompilerOutput } from "./protocol.ts";
-import { TypeScriptFactsService } from "./type-facts.ts";
-import type { TypeScriptFactsStats } from "./type-facts.ts";
+import { TypeScriptFactsService, type TypeScriptFactsStats } from "./type-facts.ts";
 
 export interface EditorDocument {
   id: string;

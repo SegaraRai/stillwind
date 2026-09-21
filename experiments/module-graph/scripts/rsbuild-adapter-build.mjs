@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { createRsbuild } from "@rsbuild/core";
 
-import bundler from "../../../packages/integration/src/rsbuild/index.cjs";
+import * as bundler from "../../../packages/integration/dist/rsbuild/index.js";
 const dir = process.argv[2];
 const rsbuild = await createRsbuild({
   cwd: dir,

@@ -8,6 +8,7 @@ export default defineConfig({
       },
       typecheck: {
         command: "tsc --noEmit",
+        dependsOn: ["@stillwind/host#build"],
       },
       "webref:generate": {
         command: "node generate-webref-css-domains.mts",
@@ -17,11 +18,11 @@ export default defineConfig({
       },
       "review:refresh": {
         command: "node review-fixtures.mts",
-        dependsOn: ["@stillwind/native#build"],
+        dependsOn: ["@stillwind/host#build"],
       },
       "review:check": {
         command: "node review-fixtures.mts --check",
-        dependsOn: ["@stillwind/native#build"],
+        dependsOn: ["@stillwind/host#build"],
       },
       "fixtures:write": {
         command: "node regenerate-tailwind-v4-fixtures.ts --write",
@@ -62,9 +63,11 @@ export default defineConfig({
       },
       "tailwind:property-order:test": {
         command: "node --test property-order-parity.test.mts",
+        dependsOn: ["@stillwind/native#build"],
       },
       "tailwind:contract:test": {
         command: "node --test tailwind-parity-contract.test.mts",
+        dependsOn: ["@stillwind/native#build"],
       },
       "tailwind:browser": {
         command: "node tailwind-browser-contract.mts",

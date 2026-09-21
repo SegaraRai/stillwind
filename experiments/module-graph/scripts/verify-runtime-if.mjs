@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { build, preview } from "vite-plus";
 
-import { stillwind } from "../../../packages/integration/src/vite/index.ts";
+import { stillwind } from "../../../packages/integration/dist/vite/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.join(root, "output");

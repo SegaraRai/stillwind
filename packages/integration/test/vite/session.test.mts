@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer } from "vite-plus";
+import { createServer } from "vite";
 
 void test("Vite loads imported CSS and keeps a failed reload's last successful stylesheet", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");

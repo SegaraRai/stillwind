@@ -6,6 +6,8 @@ import { EditorView } from "@codemirror/view";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
+import { requestCompilation, type PlayOutput as Result } from "./compilation.ts";
+
 import "./play.css";
 
 const initialSource = `import { useState } from "react";
@@ -53,25 +55,6 @@ const initialTheme = `@import "stillwind";
   --ease-standard: cubic-bezier(.2, .8, .2, 1);
 }`;
 
-type Result = {
-  css: string;
-  code: string | null;
-  diagnostics: Array<{
-    code: string;
-    message: string;
-    file: string;
-    start: number;
-    end: number;
-    start_utf16: number;
-    end_utf16: number;
-    start_line: number;
-    start_column: number;
-    end_line: number;
-    end_column: number;
-    notes: string[];
-  }>;
-  previewUrl: string | null;
-};
 type FileTab = "component" | "theme";
 type OutputTab = "css" | "transform" | "diagnostics";
 type Viewport = "desktop" | "tablet" | "mobile";
@@ -230,16 +213,7 @@ function Play() {
     setStatus("Compiling");
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch("/__stillwind/compile", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ source, theme }),
-          signal: controller.signal,
-        });
-        const next = (await response.json()) as Result;
-        if (!response.ok) {
-          throw new Error("error" in next ? String(next.error) : "Preview compilation failed");
-        }
+        const next = await requestCompilation(source, theme, controller.signal);
         if (requestId.current !== currentRequest) {
           return;
         }

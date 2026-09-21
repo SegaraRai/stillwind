@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 const bindingSpecifier =
   process.env.STILLWIND_TEST_WASM === "1"
     ? pathToFileURL(createRequire(import.meta.url).resolve("../npm/wasm32-wasi")).href
-    : "../index.js";
+    : "../dist/index.js";
 
 void test("failed compile transactions retain watch CSS but reject current plans", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);

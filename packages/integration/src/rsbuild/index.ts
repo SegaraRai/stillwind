@@ -1,18 +1,32 @@
-const path = require("node:path");
-const { stillwindRules } = require("../shared/rules.cjs");
-const { StillwindPlugin } = require("../shared/emission.cjs");
+import { fileURLToPath } from "node:url";
 
-const cssMapLoader = path.join(__dirname, "../shared/css-map-loader.cjs");
+import type { StillwindOptions } from "../options.ts";
+import { StillwindPlugin } from "../webpack/emission.ts";
+import { stillwindRules } from "../webpack/rules.ts";
 
-function preserveLightningMaps(rules) {
+export type { StillwindOptions } from "../options.ts";
+
+function preserveLightningMaps(rules: any[]) {
   for (const rule of rules) {
     if (!rule || typeof rule !== "object") {
       continue;
     }
     if (Array.isArray(rule.use)) {
-      rule.use = rule.use.flatMap((use) => {
+      rule.use = rule.use.flatMap((use: any) => {
         const name = typeof use === "string" ? use : use?.loader;
-        return name === "builtin:lightningcss-loader" ? [{ loader: cssMapLoader }, use] : [use];
+        return name === "builtin:lightningcss-loader"
+          ? [
+              {
+                loader: fileURLToPath(
+                  new URL(
+                    "./css-map-loader.js",
+                    import.meta.resolve("@stillwind/integration/webpack"),
+                  ),
+                ),
+              },
+              use,
+            ]
+          : [use];
       });
     }
     preserveLightningMaps(rule.oneOf ?? []);
@@ -20,10 +34,10 @@ function preserveLightningMaps(rules) {
   }
 }
 
-function pluginStillwind(options) {
+function pluginStillwind(options: StillwindOptions) {
   return {
     name: "stillwind",
-    setup(api) {
+    setup(api: { modifyRspackConfig(callback: (config: any) => any): void }) {
       api.modifyRspackConfig((config) => {
         config.module ??= {};
         config.module.rules ??= [];
@@ -40,4 +54,4 @@ function pluginStillwind(options) {
   };
 }
 
-module.exports = { pluginStillwind };
+export { pluginStillwind };

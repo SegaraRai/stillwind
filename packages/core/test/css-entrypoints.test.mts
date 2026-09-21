@@ -17,10 +17,10 @@ void test("the aggregate CSS entrypoint includes the built-in registry", () => {
 
 void test("every exported CSS import stays inside the published package", () => {
   const manifest = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8")) as {
-    exports: Record<string, string>;
+    exports: Record<string, string | Record<string, string>>;
   };
   const pending = Object.values(manifest.exports)
-    .filter((target) => target.endsWith(".css"))
+    .filter((target): target is string => typeof target === "string" && target.endsWith(".css"))
     .map((target) => path.resolve(packageRoot, target));
   const visited = new Set<string>();
   while (pending.length) {

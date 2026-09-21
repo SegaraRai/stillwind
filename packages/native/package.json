@@ -4,13 +4,15 @@
   "description": "Native Node-API binding for the Stillwind compiler",
   "license": "MIT",
   "files": [
-    "index.js",
-    "index.d.ts",
-    "binding.d.ts"
+    "dist"
   ],
   "type": "module",
-  "main": "./index.js",
-  "types": "./index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.js"
+  },
   "publishConfig": {
     "access": "public"
   },

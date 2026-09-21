@@ -16,12 +16,23 @@ if (!currentTarget) {
 }
 
 export default defineConfig({
+  pack: {
+    entry: ["src/index.ts"],
+    format: ["esm"],
+    fixedExtension: false,
+    dts: true,
+    sourcemap: true,
+  },
   run: {
     tasks: {
       "sync-platform-packages": {
         command: "napi create-npm-dirs --package-json-path package.json --npm-dir npm",
       },
       build: {
+        command: "vp pack",
+        dependsOn: ["build:binding"],
+      },
+      "build:binding": {
         command: `napi build --release --platform --no-js --no-const-enum --manifest-path ../../crates/napi/Cargo.toml --output-dir npm/${currentTarget} --dts ../../binding.d.ts --package-json-path package.json`,
       },
       "build:wasm": {

@@ -1,10 +1,43 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  pack: {
+    entry: [
+      "src/css.ts",
+      "src/module-css.ts",
+      "src/macro/index.ts",
+      "src/frameworks/react.ts",
+      "src/frameworks/preact.ts",
+      "src/frameworks/solid.ts",
+      "src/frameworks/vue.ts",
+      "src/frameworks/svelte.ts",
+      "src/frameworks/astro.ts",
+      "src/runtime/react.ts",
+      "src/runtime/preact.ts",
+      "src/runtime/solid.ts",
+      "src/runtime/vue.ts",
+      "src/runtime/svelte.ts",
+      "src/runtime/astro.ts",
+      "src/runtime/dev.ts",
+    ],
+    format: ["esm"],
+    fixedExtension: false,
+    dts: true,
+    sourcemap: true,
+  },
   run: {
     tasks: {
-      typecheck: { command: "tsc --noEmit" },
-      check: { command: "node --test test/*.test.mts", dependsOn: ["typecheck"] },
+      build: {
+        command: "vp pack",
+      },
+      typecheck: {
+        command: "tsc --noEmit",
+        dependsOn: ["build"],
+      },
+      check: {
+        command: "node --test test/*.test.mts",
+        dependsOn: ["typecheck", "build"],
+      },
     },
   },
 });

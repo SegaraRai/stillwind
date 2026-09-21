@@ -1,12 +1,11 @@
 import { relative } from "node:path";
 
-import { scanSource } from "@stillwind/native";
-import type { NativeProjectSession } from "@stillwind/native";
+import { scanSource, type NativeProjectSession } from "@stillwind/native";
 import { checkerEnvironment, projectFrameworkSource } from "@stillwind/projection";
 
 import type { ModuleSummary, ProjectSource } from "./protocol.ts";
-import { TypeFactsError } from "./type-facts.ts";
-import type { TypeScriptFactsService, TypeFact } from "./type-facts.ts";
+import { TypeFactsError, type TypeScriptFactsService, type TypeFact } from "./type-facts.ts";
+
 /**
  * Host services for resolving and reading semantic dependencies, registering watches,
  * and reporting lint warnings. Resolution may exclude external modules or return null.
@@ -21,9 +20,11 @@ export interface CompilerHost {
   watch(id: string): void;
   warn(message: string): void;
 }
+
 function fail(message: string): never {
   throw new Error(message);
 }
+
 /**
  * Returns the root-relative module identity with forward slashes. Paths outside
  * root retain `..` segments; this does not validate filesystem containment.

@@ -1,10 +1,14 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { rspack } = require("@rspack/core");
-const { stillwindRules } = require("../../../packages/integration/src/rspack/index.cjs");
+const {
+  stillwindRules,
+  StillwindPlugin,
+} = require("../../../packages/integration/dist/rspack/index.js");
 const dir = process.argv[2];
 const compiler = rspack({
   context: dir,
+  plugins: [new StillwindPlugin()],
   mode: "production",
   devtool: "source-map",
   optimization: { minimize: false },

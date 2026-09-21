@@ -1,5 +1,6 @@
 {
   "mode": "turbopack",
+  "standalone": false,
   "next": "16.4.0-canary.25",
   "checks": [
     {
@@ -18,6 +19,14 @@
       "name": "next-turbopack-client-navigation",
       "passed": true,
       "color": "rgb(90, 80, 70)"
+    },
+    {
+      "name": "next-turbopack-cross-module-composition-edit",
+      "passed": true
+    },
+    {
+      "name": "next-turbopack-route-addition-deletion",
+      "passed": true
     },
     {
       "name": "next-turbopack-cold-production",

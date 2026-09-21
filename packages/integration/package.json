@@ -4,26 +4,37 @@
   "description": "Build tool integrations for Stillwind",
   "license": "MIT",
   "files": [
-    "src"
+    "dist"
   ],
   "type": "module",
   "exports": {
-    "./vite": "./src/vite/index.ts",
+    "./vite": {
+      "types": "./dist/vite/index.d.ts",
+      "default": "./dist/vite/index.js"
+    },
     "./webpack": {
-      "types": "./src/webpack/index.d.cts",
-      "default": "./src/webpack/index.cjs"
+      "types": "./dist/webpack/index.d.ts",
+      "default": "./dist/webpack/index.js"
     },
     "./rspack": {
-      "types": "./src/rspack/index.d.cts",
-      "default": "./src/rspack/index.cjs"
+      "types": "./dist/rspack/index.d.ts",
+      "default": "./dist/rspack/index.js"
     },
     "./rsbuild": {
-      "types": "./src/rsbuild/index.d.cts",
-      "default": "./src/rsbuild/index.cjs"
+      "types": "./dist/rsbuild/index.d.ts",
+      "default": "./dist/rsbuild/index.js"
     },
     "./next": {
-      "types": "./src/next/index.d.cts",
-      "default": "./src/next/index.cjs"
+      "types": "./dist/next/index.d.ts",
+      "default": "./dist/next/index.js"
+    },
+    "./astro": {
+      "types": "./dist/astro/index.d.ts",
+      "default": "./dist/astro/index.js"
+    },
+    "./turbopack": {
+      "types": "./dist/turbopack/index.d.ts",
+      "default": "./dist/turbopack/index.js"
     }
   },
   "publishConfig": {
@@ -58,10 +69,14 @@
     "webpack": "^5.111.1"
   },
   "peerDependencies": {
+    "astro": "^6.0.0 || ^7.0.0",
     "vite": "^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
     "vite": {
+      "optional": true
+    },
+    "astro": {
       "optional": true
     }
   }

@@ -8,7 +8,7 @@ import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/nativ
 import { compileModule } from "../src/compiler.ts";
 import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../vite/test");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
 function wrap(ext: string, script: string, template = "", module = false) {
   if (ext === "astro") {
     return `---\n${script}\n---\n${template}`;

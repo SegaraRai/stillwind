@@ -1,7 +1,8 @@
+export type * from "../binding.js";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const packages = {
+const packages: Record<string, string> = {
   "win32-x64": "@stillwind/native-win32-x64-msvc",
   "win32-arm64": "@stillwind/native-win32-arm64-msvc",
   "darwin-x64": "@stillwind/native-darwin-x64",
@@ -17,8 +18,8 @@ if (!packageName) {
   );
 }
 
-let binding;
-let bindingPath;
+let binding: typeof import("../binding.js");
+let bindingPath: string;
 try {
   bindingPath = require.resolve(packageName);
   binding = require(packageName);
@@ -40,3 +41,7 @@ export const generateVocabularyTypes = binding.generateVocabularyTypes;
 export const foldCalcExpressions = binding.foldCalcExpressions;
 export const NativeDesignSystemLoader = binding.NativeDesignSystemLoader;
 export const NativeProjectSession = binding.NativeProjectSession;
+
+export type NativeDesignSystemLoader = import("../binding.js").NativeDesignSystemLoader;
+
+export type NativeProjectSession = import("../binding.js").NativeProjectSession;

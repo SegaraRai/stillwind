@@ -3,15 +3,19 @@ import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileProject, renderStylesheet, summarizeSource } from "@stillwind/native";
-import type { NativeCompilerOptions } from "@stillwind/native";
+import {
+  compileProject as compileNativeProject,
+  renderStylesheet,
+  summarizeSource,
+  type NativeCompilerOptions,
+} from "@stillwind/native";
 import { format } from "prettier";
 
 import {
   TypeScriptFactsService,
   finalizeModuleWithMap,
   type FinalizedModuleEdit,
-} from "../packages/host/src/index.ts";
+} from "../packages/host/dist/index.js";
 import { resolveFixtureCss } from "./lib/stillwind-fixture-css.ts";
 
 type Manifest = {
@@ -106,7 +110,7 @@ function compileProject(root: string, manifest: Manifest) {
   const facts = service.collect(probeSources, assets);
   service.close();
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
-  const output = compileProject(
+  const output = compileNativeProject(
     sources.map(({ path: sourcePath, source }) => ({
       path: sourcePath,
       source,

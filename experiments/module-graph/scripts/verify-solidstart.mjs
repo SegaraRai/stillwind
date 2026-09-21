@@ -35,7 +35,7 @@ await write("root.css", theme("rgb(11,22,33)"));
 await write(
   "vite.config.ts",
   `import {defineConfig} from 'vite-plus'; import {solidStart} from '@solidjs/start/config'; import {nitro} from 'nitro/vite';
-import {stillwind} from ${JSON.stringify(path.join(repo, "packages/integration/src/vite/index.ts").replaceAll("\\", "/"))};
+import {stillwind} from ${JSON.stringify(path.join(repo, "packages/integration/dist/vite/index.js").replaceAll("\\", "/"))};
 export default defineConfig({plugins:[stillwind({css:'root.css',types:false}),solidStart({devOverlay:false}),nitro()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
 );
 await write(

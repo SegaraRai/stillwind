@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import * as astro from "../src/runtime/astro.ts";
+import * as astro from "../dist/runtime/astro.js";
+import * as react from "../dist/runtime/react.js";
+import * as svelte from "../dist/runtime/svelte.js";
 import { createFragmentRuntime } from "../src/runtime/fragment.ts";
-import * as react from "../src/runtime/react.ts";
-import * as svelte from "../src/runtime/svelte.ts";
 
 void test("react merges fragments, arrays, and falsy values in argument order", () => {
   const first = { [react.stillwindClassKey]: "_a", "data-state": "ready" };

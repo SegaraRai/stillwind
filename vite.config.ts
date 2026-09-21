@@ -35,7 +35,7 @@ export default defineConfig({
       },
       "perf:host": {
         command: "node experiments/performance-quick/host.mts",
-        dependsOn: ["@stillwind/native#build"],
+        dependsOn: ["@stillwind/host#build"],
         cache: false,
       },
       "perf:profile": {
@@ -86,9 +86,11 @@ export default defineConfig({
       },
       lint: {
         command: "vp lint",
+        dependsOn: ["@stillwind/integration#build"],
       },
       check: {
         command: "vp check",
+        dependsOn: ["@stillwind/integration#build"],
       },
       "ts7-shadow:poc": {
         command: "node experiments/ts7-shadow-checker/src/index.mjs",

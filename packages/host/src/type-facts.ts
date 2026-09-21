@@ -16,11 +16,17 @@ import {
   isPropertyAccessExpression,
   isElementAccessExpression,
 } from "typescript/unstable/ast/is";
-import { API, TypeFlags } from "typescript/unstable/sync";
-import type { Checker, Snapshot, Type, Diagnostic } from "typescript/unstable/sync";
+import {
+  API,
+  TypeFlags,
+  type Checker,
+  Snapshot,
+  type Type,
+  type Diagnostic,
+} from "typescript/unstable/sync";
 
-import { CheckerSource, checkerId, byteToUtf16 } from "./checker-source.ts";
-import type { TypeFactSource } from "./checker-source.ts";
+import { CheckerSource, checkerId, byteToUtf16, type TypeFactSource } from "./checker-source.ts";
+
 export type { TypeFactSource } from "./checker-source.ts";
 
 /** A failed checker contract, reported at original UTF-8 coordinates. */

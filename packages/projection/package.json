@@ -23,6 +23,7 @@
     "@vue/language-core": "^3.3.11",
     "svelte": "^5.57.1",
     "svelte2tsx": "^0.7.61",
+    "typescript": "catalog:",
     "vite-plus": "catalog:"
   },
   "peerDependencies": {

@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { TypeScriptFactsService, type ModuleSummary } from "@stillwind/host";
-import { finalizeModule, stillwind } from "@stillwind/integration/vite";
+import { stillwind } from "@stillwind/integration/vite";
 import {
   compileProject,
   foldCalcExpressions,
@@ -13,9 +13,10 @@ import {
   NativeDesignSystemLoader,
   NativeProjectSession,
 } from "@stillwind/native";
-import { build } from "vite-plus";
+import { build } from "vite";
 
 import { resolveFixtureCss } from "../../../../tools/lib/stillwind-fixture-css.ts";
+import { finalizeModule } from "../../src/vite/finalize.ts";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/type-facts");

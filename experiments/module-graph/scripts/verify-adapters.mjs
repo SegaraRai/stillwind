@@ -14,10 +14,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(root, "../..");
 const mode = process.argv[2] ?? "turbopack";
 assert(["turbopack", "webpack"].includes(mode));
-const port = mode === "webpack" ? 43175 : 43174;
+const standalone = process.argv[3] === "standalone";
+assert(!standalone || mode === "turbopack");
+const label = standalone ? "turbopack-standalone" : mode;
+const port = standalone ? 43181 : mode === "webpack" ? 43175 : 43174;
 const url = `http://localhost:${port}`;
-const dir = path.join(root, "output", `adapters-${mode}-${Date.now()}`);
-const results = { mode, next: require("next/package.json").version, checks: [] };
+const dir = path.join(root, "output", `adapters-${label}-${Date.now()}`);
+const results = { mode, standalone, next: require("next/package.json").version, checks: [] };
 const browserErrors = [];
 const write = async (name, text) => {
   const file = path.join(dir, name);
@@ -26,12 +29,18 @@ const write = async (name, text) => {
 };
 const delay = (ms) => new Promise((done) => setTimeout(done, ms).unref());
 const theme = (color) =>
-  `@import ${JSON.stringify(path.relative(dir, path.join(repo, "packages/core/index.css")).replaceAll("\\", "/"))}; @theme {--color-brand:${color};} @utility client {color:rgb(70,80,90)} @utility lazy {color:rgb(90,80,70)}`;
+  `@import ${JSON.stringify(path.relative(dir, path.join(repo, "packages/core/index.css")).replaceAll("\\", "/"))}; @theme {--color-brand:${color};} @utility client {color:rgb(70,80,90)} @utility lazy {color:rgb(90,80,70)} @utility base {margin:12px} @utility override {margin:20px} @utility retained {padding:7px} @utility picture {background-image:url("./asset.svg")}`;
 await write("package.json", JSON.stringify({ private: true }));
 await write("root.css", theme("rgb(11,22,33)"));
 await write(
+  "asset.svg",
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="red"/></svg>',
+);
+await write(
   "next.config.js",
-  `const {withStillwind}=require(${JSON.stringify(path.join(repo, "packages/integration/src/next/index.cjs"))}); module.exports=withStillwind({productionBrowserSourceMaps:true,turbopack:{root:${JSON.stringify(repo)}}},{css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}});`,
+  standalone
+    ? `const {stillwindRules}=require(${JSON.stringify(path.join(repo, "packages/integration/dist/turbopack/index.js"))}); module.exports={productionBrowserSourceMaps:true,turbopack:{root:${JSON.stringify(repo)},rules:stillwindRules({css:"root.css",root:${JSON.stringify(dir)},entries:["app/layout.jsx","app/page.jsx","app/lazy/page.jsx"]})}};`
+    : `const {withStillwind}=require(${JSON.stringify(path.join(repo, "packages/integration/dist/next/index.js"))}); module.exports=withStillwind({productionBrowserSourceMaps:true,turbopack:{root:${JSON.stringify(repo)}}},{css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}});`,
 );
 await write(
   "app/layout.jsx",
@@ -48,6 +57,31 @@ await write(
 await write(
   "app/lazy/page.jsx",
   `import {style} from 'stillwind/react';\nimport Link from 'next/link';\nexport default function Page(){return <><p id="lazy" {...style('lazy')}>Lazy</p><Link id="back" href="/">Back</Link></>}`,
+);
+await write(
+  "shared/base.ts",
+  "import {style} from 'stillwind/react';export const base=style('base retained');",
+);
+await write(
+  "shared/derived.ts",
+  "import {style} from 'stillwind/react';import {base} from './base';export const derived=style(base,'override');",
+);
+const composedSource =
+  "import {style} from 'stillwind/react';import {derived} from '../shared/derived';export default function Composed(){return <div id='composed' {...style(derived)}>composed</div>}";
+await write("app/composed.jsx", composedSource);
+await write(
+  "app/explicit.jsx",
+  "import {style} from 'stillwind/react';import {css} from 'stillwind/module-css';export default function Explicit(){return <><style>{css}</style><p id='explicit' {...style('p-[19px] picture')}>explicit</p></>}",
+);
+const home = await fs.readFile(path.join(dir, "app/page.jsx"), "utf8");
+await write(
+  "app/page.jsx",
+  home
+    .replace(
+      "import Client",
+      "import Explicit from './explicit';\nimport Composed from './composed';\nimport Client",
+    )
+    .replace("<Client/>", "<Client/><Composed/><Explicit/>"),
 );
 let browser;
 let proc;
@@ -109,6 +143,22 @@ async function verifyPage(page, color) {
   );
   await page.locator("#client").click();
   await page.waitForFunction(() => document.querySelector("#client")?.textContent === "1");
+  assert.equal(
+    await page.locator("#composed").evaluate((el) => getComputedStyle(el).marginTop),
+    "20px",
+  );
+  assert.equal(
+    await page.locator("#composed").evaluate((el) => getComputedStyle(el).paddingTop),
+    "7px",
+  );
+  assert.equal(
+    await page.locator("#explicit").evaluate((el) => getComputedStyle(el).paddingTop),
+    "19px",
+  );
+  assert.match(
+    await page.locator("#explicit").evaluate((el) => getComputedStyle(el).backgroundImage),
+    /\/_next\/static\/media\//,
+  );
   await prefetch;
   await page.locator("#link").click();
   await page.locator("#lazy").waitFor();
@@ -180,6 +230,47 @@ try {
   const color = await page.locator("#lazy").evaluate((el) => getComputedStyle(el).color);
   assert.equal(color, "rgb(90, 80, 70)");
   results.checks.push({ name: `next-${mode}-client-navigation`, passed: true, color });
+  await page.goto(url);
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector("#composed")).marginTop === "20px",
+  );
+  await write(
+    "shared/derived.ts",
+    "import {style} from 'stillwind/react';import {base} from './base';export const derived=style(base,'m-8');",
+  );
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector("#composed")).marginTop === "32px",
+  );
+  await write(
+    "shared/derived.ts",
+    "import {style} from 'stillwind/react';import {base} from './base';export const derived=style(base,'override');",
+  );
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector("#composed")).marginTop === "20px",
+  );
+  results.checks.push({ name: `next-${mode}-cross-module-composition-edit`, passed: true });
+  if (mode === "turbopack" && !standalone) {
+    const cssText = () =>
+      page.evaluate(() =>
+        [...document.styleSheets]
+          .flatMap((sheet) => [...sheet.cssRules].map((rule) => rule.cssText))
+          .join("\n"),
+      );
+    await write(
+      "app/added/page.jsx",
+      "import {style} from 'stillwind/react';export default function Added(){return <div {...style('m-[137px]')}>added</div>}",
+    );
+    for (let attempt = 0; attempt < 100 && !(await cssText()).includes("137px"); attempt++) {
+      await delay(200);
+    }
+    assert.match(await cssText(), /137px/);
+    await fs.unlink(path.join(dir, "app/added/page.jsx"));
+    for (let attempt = 0; attempt < 100 && (await cssText()).includes("137px"); attempt++) {
+      await delay(200);
+    }
+    assert.doesNotMatch(await cssText(), /137px/);
+    results.checks.push({ name: "next-turbopack-route-addition-deletion", passed: true });
+  }
   await stop();
   for (const temperature of ["cold", "warm"]) {
     proc = start(["build", `--${mode}`]);
@@ -221,7 +312,7 @@ try {
   await browser?.close();
   await stop();
   await fs.writeFile(
-    path.join(root, `results/adapters-${mode}.json`),
+    path.join(root, `results/adapters-${label}.json`),
     JSON.stringify(results, null, 2),
   );
 }

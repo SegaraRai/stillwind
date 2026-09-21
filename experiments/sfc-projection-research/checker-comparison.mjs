@@ -5,7 +5,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
-import { projectFrameworkSource } from "../../packages/projection/src/index.ts";
+import { projectFrameworkSource } from "../../packages/projection/dist/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const local = createRequire(import.meta.url);

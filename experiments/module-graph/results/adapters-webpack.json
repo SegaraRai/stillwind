@@ -1,5 +1,6 @@
 {
   "mode": "webpack",
+  "standalone": false,
   "next": "16.4.0-canary.25",
   "checks": [
     {
@@ -18,6 +19,10 @@
       "name": "next-webpack-client-navigation",
       "passed": true,
       "color": "rgb(90, 80, 70)"
+    },
+    {
+      "name": "next-webpack-cross-module-composition-edit",
+      "passed": true
     },
     {
       "name": "next-webpack-cold-production",

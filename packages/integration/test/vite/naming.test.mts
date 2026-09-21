@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { build } from "vite-plus";
+import { build } from "vite";
 
 void test("a configured generator names the classes the plugin emits", async () => {
   const root = mkdtempSync(path.join(path.dirname(fileURLToPath(import.meta.url)), ".naming-"));

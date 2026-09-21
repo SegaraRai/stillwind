@@ -1,17 +1,34 @@
-const path = require("node:path");
-const fs = require("node:fs");
-const { isBuiltin } = require("node:module");
-const { createHash } = require("node:crypto");
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import { isBuiltin } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const fingerprint = (source) => createHash("sha256").update(source).digest("hex");
+import type { LoaderContext } from "webpack";
 
-const carrierPath = path.join(__dirname, "stillwind-carrier.css");
-const relativeRequest = (from, to) => {
+import {
+  compilerOptions,
+  cssEntrypoint,
+  writeVocabulary,
+  type StillwindOptions,
+} from "../options.ts";
+import { IntegrationSession } from "../session.ts";
+import { registerEmission } from "./emission.ts";
+import { loaderOptionsId } from "./rules.ts";
+
+const fingerprint = (source: string) => createHash("sha256").update(source).digest("hex");
+
+const relativeRequest = (from: string, to: string) => {
   const value = path.relative(from, to).replaceAll("\\", "/");
   return value.startsWith(".") ? value : `./${value}`;
 };
 
-module.exports = function (source, inputMap, additionalData) {
+export default function (
+  this: LoaderContext<StillwindOptions & { stillwindOptions?: string }>,
+  source: string,
+  inputMap: any,
+  additionalData: any,
+) {
   const callback = this.async();
   const text = String(source);
   const prior = additionalData?.stillwind?.sourceTransform;
@@ -33,31 +50,33 @@ module.exports = function (source, inputMap, additionalData) {
   ) {
     return callback(null, source, inputMap);
   }
-  const context = this;
   const suppliedOptions = this.getOptions();
-  const options = suppliedOptions.stillwindOptions
+  const options: StillwindOptions = suppliedOptions.stillwindOptions
     ? JSON.parse(Buffer.from(suppliedOptions.stillwindOptions, "base64url").toString("utf8"))
     : suppliedOptions;
-  if (!options.css) {
+  if (!options.css && !options.theme) {
     return callback(new Error("Stillwind requires a CSS entrypoint"));
   }
-  let facts;
+  if (options.naming) {
+    this.cacheable(false);
+  }
+  let compiler: IntegrationSession | undefined;
   // Loader requests remain reconstructible in another worker. Their payload
   // contains configuration, not generated CSS or mutable process-local state.
-  const virtualRequest = (query) =>
+  const virtualRequest = (query: string) =>
     sfc
-      ? `!!${__filename.replaceAll("\\", "/")}?stillwindOptions=${Buffer.from(JSON.stringify(options)).toString("base64url")}!${context.resourcePath.replaceAll("\\", "/")}?${query}`
-      : `${relativeRequest(path.dirname(context.resourcePath), context.resourcePath)}?${query}`;
-  const read = (id) =>
-    new Promise((resolve, reject) =>
-      context.fs.readFile(id, (error, value) => (error ? reject(error) : resolve(String(value)))),
+      ? `!!${import.meta.filename.replaceAll("\\", "/")}${options.naming ? "??" + loaderOptionsId(options) : "?stillwindOptions=" + Buffer.from(JSON.stringify(options)).toString("base64url")}!${this.resourcePath.replaceAll("\\", "/")}?${query}`
+      : `${relativeRequest(path.dirname(this.resourcePath), this.resourcePath)}?${query}`;
+  const read = (id: string) =>
+    new Promise<string>((resolve, reject) =>
+      this.fs.readFile(id, (error, value) => (error ? reject(error) : resolve(String(value)))),
     );
-  const resolver = (settings) => {
-    const resolve = context.getResolve(settings);
-    return (specifier, importer) =>
-      new Promise((done, reject) =>
+  const resolver = (settings: Parameters<LoaderContext<StillwindOptions>["getResolve"]>[0]) => {
+    const resolve = this.getResolve(settings);
+    return (specifier: string, importer: string) =>
+      new Promise<string>((done, reject) =>
         resolve(path.dirname(importer), specifier, (error, id) =>
-          error ? reject(error) : done(id),
+          error ? reject(error) : done(id || ""),
         ),
       );
   };
@@ -71,37 +90,38 @@ module.exports = function (source, inputMap, additionalData) {
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs", ".cjs", ".json"],
   });
   const resolveAsset = resolver({});
-  const watch = (id) => context.addDependency(id);
-  watch(__filename);
+  const watch = (id: string) => this.addDependency(id);
+  watch(import.meta.filename);
   void (async () => {
     const host = await import("@stillwind/host");
-    const { NativeProjectSession, nativeBindingPath } = await import("@stillwind/native");
+    const { nativeBindingPath } = await import("@stillwind/native");
     watch(nativeBindingPath);
-    watch(require.resolve("@stillwind/native"));
-    const hostDirectory = path.dirname(require.resolve("@stillwind/host"));
+    watch(fileURLToPath(import.meta.resolve("@stillwind/native")));
+    const hostDirectory = path.dirname(fileURLToPath(import.meta.resolve("@stillwind/host")));
     for (const file of fs.readdirSync(hostDirectory)) {
       if (file.endsWith(".js")) {
         watch(path.join(hostDirectory, file));
       }
     }
-    const root = path.resolve(context.rootContext, options.root ?? ".");
-    const css = path.resolve(root, options.css);
-    const compilerOptions = { ...options };
-    delete compilerOptions.css;
-    delete compilerOptions.root;
-    delete compilerOptions.automatic;
-    const loaded = await host.loadCssGraph(css, compilerOptions, {
+    const root = path.resolve(this.rootContext, options.root ?? ".");
+    const css = path.resolve(root, cssEntrypoint(options));
+    const loaded = await host.loadCssGraph(css, compilerOptions(options), {
       resolve: resolveCss,
       read,
       watch,
     });
-    const session = new NativeProjectSession(loaded.loader, false);
-    const output = await host.compileModule(
-      session,
-      () => (facts ??= new host.TypeScriptFactsService(root)),
-      projection || cssValue ? await read(context.resourcePath) : text,
-      context.resourcePath,
+    writeVocabulary(loaded.loader, root, options);
+    compiler = new IntegrationSession(
       root,
+      loaded.loader,
+      options,
+      false,
+      this.mode === "development" ? "development" : "release",
+    );
+    const session = compiler.native;
+    const output = await compiler.compile(
+      projection || cssValue ? await read(this.resourcePath) : text,
+      this.resourcePath,
       {
         resolve: async (specifier, importer) => {
           if (specifier.startsWith("node:") && isBuiltin(specifier)) {
@@ -119,7 +139,7 @@ module.exports = function (source, inputMap, additionalData) {
         },
         read,
         watch,
-        warn: (message) => context.emitWarning(new Error(message)),
+        warn: (message) => this.emitWarning(new Error(message)),
       },
       {
         stylesheetImports:
@@ -138,7 +158,7 @@ module.exports = function (source, inputMap, additionalData) {
       placement: "document",
     });
 
-    const valueResources = [];
+    const valueResources: { placeholder: string; id: string; request: string }[] = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
       const resolved = await resolveAsset(resource.specifier, path.resolve(root, resource.owner));
       if (!resolved) {
@@ -151,11 +171,16 @@ module.exports = function (source, inputMap, additionalData) {
         valueResources.push({
           placeholder: resource.placeholder,
           id: resolved,
-          request: relativeRequest(path.dirname(context.resourcePath), resolved),
+          request: relativeRequest(path.dirname(this.resourcePath), resolved),
         });
       }
     }
-    const carrier = relativeRequest(path.dirname(context.resourcePath), carrierPath);
+    const carrier = relativeRequest(
+      path.dirname(this.resourcePath),
+      fileURLToPath(
+        new URL("./stillwind-webpack.css", import.meta.resolve("@stillwind/integration/webpack")),
+      ),
+    );
     if (cssValue) {
       const imports = plan.parts
         .map((part, index) => {
@@ -167,7 +192,14 @@ module.exports = function (source, inputMap, additionalData) {
               ),
             }),
           ).toString("base64url");
-          const request = `!!${path.join(__dirname, "fragment-loader.cjs")}!${path.join(__dirname, "stillwind-fragment.js")}?css=${payload}`;
+          const request = `!!${fileURLToPath(
+            new URL("./fragment-loader.js", import.meta.resolve("@stillwind/integration/webpack")),
+          )}!${fileURLToPath(
+            new URL(
+              "./stillwind-fragment.js",
+              import.meta.resolve("@stillwind/integration/webpack"),
+            ),
+          )}?css=${payload}`;
           return `import {css as p${index}} from ${JSON.stringify(request)};`;
         })
         .join("\n");
@@ -182,9 +214,9 @@ module.exports = function (source, inputMap, additionalData) {
     }
     const automatic = (!output.hasModuleCssImport && options.automatic !== false) || projection;
     if (automatic) {
-      require("./emission.cjs").registerEmission(context, {
+      registerEmission(this, {
         source: text,
-        id: context.resourcePath,
+        id: this.resourcePath,
         root,
         options,
         manual: false,
@@ -203,32 +235,32 @@ module.exports = function (source, inputMap, additionalData) {
     const map = host.moduleSourceMap(
       text,
       output.code,
-      context.resourcePath,
+      this.resourcePath,
       output.mappings,
       finalized.removed,
       "",
     );
     const composedMap = host.composeModuleSourceMap(map, inputMap);
-    if (sfc && context.data) {
-      context.data.stillwindSourceTransform = {
+    if (sfc && this.data) {
+      (this.data as any).stillwindSourceTransform = {
         code,
         map: composedMap,
-        resource: context.resourcePath,
+        resource: this.resourcePath,
       };
     }
-    callback(null, code, composedMap, {
+    callback(null, code, composedMap as Parameters<typeof callback>[2], {
       ...additionalData,
       stillwind: {
         coverage: plan.coverage,
         designSystem: plan.designSystem,
         producers: plan.producers,
-        sourceTransform: { resource: context.resourcePath, fingerprint: fingerprint(code) },
+        sourceTransform: { resource: this.resourcePath, fingerprint: fingerprint(code) },
       },
     });
   })()
     .catch((error) => callback(error))
-    .finally(() => facts?.close());
-};
+    .finally(() => compiler?.close());
+}
 
 // Allocate loader-chain-local data for the post-framework map bridge.
-module.exports.pitch = function () {};
+export function pitch() {}

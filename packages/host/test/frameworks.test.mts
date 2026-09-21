@@ -22,7 +22,7 @@ const examples = {
 };
 
 void test("host compiles raw SFCs and updates session CSS after edits", async (t) => {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../vite/test");
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
   const facts = new TypeScriptFactsService(root);
   t.after(() => facts.close());
   const loader = new NativeDesignSystemLoader();

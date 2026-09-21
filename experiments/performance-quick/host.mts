@@ -3,9 +3,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileModule } from "../../packages/host/src/compiler.ts";
-import { TypeScriptFactsService } from "../../packages/host/src/type-facts.ts";
-import { NativeDesignSystemLoader, NativeProjectSession } from "../../packages/native/index.js";
+import { compileModule, TypeScriptFactsService } from "../../packages/host/dist/index.js";
+import {
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+} from "../../packages/native/dist/index.js";
 
 const root = fileURLToPath(new URL("../../packages/host/test/", import.meta.url));
 const results = fileURLToPath(new URL("./results/", import.meta.url));

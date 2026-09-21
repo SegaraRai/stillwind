@@ -7,7 +7,7 @@ import { runInNewContext } from "node:vm";
 
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { stillwind } from "@stillwind/integration/vite";
-import { build } from "vite-plus";
+import { build } from "vite";
 
 void test("server-only projections emit split CSS without publishing server source contents", async () => {
   const root = mkdtempSync(

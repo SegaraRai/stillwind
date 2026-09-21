@@ -59,11 +59,11 @@ const local = (name) =>
   );
 await write(
   "vite.config.ts",
-  `import {defineConfig} from 'vite-plus';import {tanstackStart} from '@tanstack/react-start/plugin/vite';import react from '@vitejs/plugin-react';import {nitro} from 'nitro/vite';import {stillwind} from ${local("packages/integration/src/vite/index.ts")};export default defineConfig({plugins:[tanstackStart(),stillwind({css:'root.css',types:false}),nitro(),react()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
+  `import {defineConfig} from 'vite-plus';import {tanstackStart} from '@tanstack/react-start/plugin/vite';import react from '@vitejs/plugin-react';import {nitro} from 'nitro/vite';import {stillwind} from ${local("packages/integration/dist/vite/index.js")};export default defineConfig({plugins:[tanstackStart(),stillwind({css:'root.css',types:false}),nitro(),react()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
 );
 await write(
   "rsbuild.config.mjs",
-  `import {pluginReact} from '@rsbuild/plugin-react';import {tanstackStart} from '@tanstack/react-start/plugin/rsbuild';import bundler from ${local("packages/integration/src/rsbuild/index.cjs")};export default {root:${JSON.stringify(dir)},plugins:[bundler.pluginStillwind({css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}}),pluginReact(),tanstackStart()],server:{port:${port},strictPort:true},output:{sourceMap:{js:'source-map',css:true}},tools:{rspack:{cache:{type:'persistent',storage:{type:'filesystem',directory:${JSON.stringify(path.join(dir, "cache"))}}}}}};`,
+  `import {pluginReact} from '@rsbuild/plugin-react';import {tanstackStart} from '@tanstack/react-start/plugin/rsbuild';import * as bundler from ${local("packages/integration/dist/rsbuild/index.js")};export default {root:${JSON.stringify(dir)},plugins:[bundler.pluginStillwind({css:${JSON.stringify(path.join(dir, "root.css"))},root:${JSON.stringify(dir)}}),pluginReact(),tanstackStart()],server:{port:${port},strictPort:true},output:{sourceMap:{js:'source-map',css:true}},tools:{rspack:{cache:{type:'persistent',storage:{type:'filesystem',directory:${JSON.stringify(path.join(dir, "cache"))}}}}}};`,
 );
 await write(
   "src/router.tsx",
