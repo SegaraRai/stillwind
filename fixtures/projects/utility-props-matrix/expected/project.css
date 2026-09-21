@@ -430,11 +430,11 @@ Keep both selectors so the same theme values are available in either scope.
 @layer utilities {
   .sw_oqsqz {
     display: inline-flex;
+    padding-inline: var(--spacing-4);
     align-items: center;
     border-radius: var(--radius-md);
-    padding-inline: var(--spacing-4);
-    --authored-progress: 1;
     --button-progress: 0.5;
+    --authored-progress: 1;
   }
   @media (hover: hover) {
     .sw_oqsqz:hover {

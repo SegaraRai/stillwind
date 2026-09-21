@@ -57,6 +57,28 @@ function evaluate(code: string, context: Record<string, unknown>) {
   };
 }
 
+void test("guarded view transitions preserve short-circuiting through type collection", async () => {
+  const output = await compile(
+    [
+      "import {style} from 'stillwind/react'; const events = [];",
+      "const enabled = Boolean(globalThis.enabled);",
+      "const selected = style.viewTransition({old: 'red', new: 'blue'});",
+      "const base = style.viewTransition({old: 'green'});",
+      "const key = () => { events.push('key'); return 'guarded'; };",
+      "const props = style('red', enabled && selected.for(key()), base.for('base'));",
+    ].join("\n"),
+  );
+  const disabled = evaluate(output.code!, { enabled: false });
+  const enabled = evaluate(output.code!, { enabled: true });
+  assert.equal(disabled.events.length, 0);
+  assert.equal(enabled.events.join(), "key");
+  const baseClasses = String(disabled.props.className).split(" ");
+  const enabledClasses = String(enabled.props.className).split(" ");
+  assert.equal(baseClasses.length, 1);
+  assert.equal(enabledClasses.length, 2);
+  assert.ok(enabledClasses.includes(baseClasses[0]));
+});
+
 void test("pure conditional calls select one class branch", async () => {
   const output = await compile(
     [

@@ -83,6 +83,14 @@ impl<'a> MacroExtractor<'a> {
     /// deduplicates spans. Probes are what keep a module of literal utilities from
     /// asking the checker anything.
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
+        // Conjunctions are lowered with their guards. A fact for the whole expression
+        // cannot represent its falsy branch or preserve short-circuiting.
+        if matches!(
+            expression.get_inner_expression(),
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And
+        ) {
+            return;
+        }
         if matches!(
             expression,
             Expression::StringLiteral(_)
