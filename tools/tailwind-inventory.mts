@@ -7,7 +7,7 @@ import { setImmediate } from "node:timers/promises";
 import { createGzip } from "node:zlib";
 
 import {
-  compileReact,
+  compileSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
   type ProjectModuleOutput,
@@ -218,7 +218,7 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         ]).modules[0];
         actual = loaded.session.css();
         if (loaded.uses++ % 250 === 0) {
-          const direct = compileReact(source, "src/Parity.tsx", loaded.css);
+          const direct = compileSource(source, "src/Parity.tsx", loaded.css);
           assert.equal(actual, direct.css, `session differs: ${file} ${candidate}`);
           assert.deepEqual(native.classes, direct.classes);
           assert.deepEqual(native.diagnostics, direct.diagnostics);

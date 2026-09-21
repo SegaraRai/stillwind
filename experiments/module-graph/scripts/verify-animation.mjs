@@ -3,9 +3,9 @@ import { runInNewContext } from "node:vm";
 
 import { chromium } from "playwright";
 
-import { compileReact } from "../../../packages/native/index.js";
+import { compileSource } from "../../../packages/native/index.js";
 
-const output = compileReact(
+const output = compileSource(
   "import {style} from 'stillwind/react'; const fade = style.animation({from:'a', to:'b', 'motion-reduce:': {to:'c'}}); export const props = style(fade(''));",
   "animation.tsx",
   "@utility a {opacity:0;} @utility b {opacity:1;} @utility c {opacity:.5;} @variant motion-reduce {@media (prefers-reduced-motion:reduce) {@slot;}} @stillwind-slot utilities; @stillwind-slot keyframes;",

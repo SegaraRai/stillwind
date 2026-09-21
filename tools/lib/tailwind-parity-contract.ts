@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
-  compileReact,
+  compileSource,
   foldCalcExpressions,
   NativeDesignSystemLoader,
   NativeProjectSession,
@@ -209,7 +209,7 @@ export function compileParity(source: string, css: string) {
   const module = entry.session.compile([{ path: "src/Parity.tsx", source }]).modules[0];
   const output = { ...module, css: entry.session.css() };
   if (entry.uses++ % 250 === 0) {
-    const direct = compileReact(source, "src/Parity.tsx", css);
+    const direct = compileSource(source, "src/Parity.tsx", css);
     assert.equal(output.css, direct.css);
     assert.deepEqual(output.classes, direct.classes);
     assert.deepEqual(output.diagnostics, direct.diagnostics);

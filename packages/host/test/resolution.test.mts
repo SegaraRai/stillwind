@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { summarizeReact, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
+import { summarizeSource, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
 import { compileModule } from "../src/compiler.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
@@ -80,7 +80,7 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
   const tokenSource =
     "import {style} from 'stillwind/react';export const token=style.ref('token');";
   const source = (name: string, text: string) => {
-    const summary = summarizeReact(text, name);
+    const summary = summarizeSource(text, name);
     writeFileSync(path.join(root, name), text);
     return {
       id: path.join(root, name),

@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { compileReact } from "@stillwind/native";
+import { compileSource } from "@stillwind/native";
 import * as runtime from "stillwind/react/runtime";
 import { build } from "vite-plus";
 
 void test("compiled custom properties preserve evaluation order and inactive branches", () => {
-  const result = compileReact(
+  const result = compileSource(
     `import {style} from "stillwind/react";
     const props = style({"--x": next("first")}, active && {"--x": next("second"), "data-x": next("third")}, {"--y": next("last")});`,
     "src/custom.ts",

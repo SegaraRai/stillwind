@@ -162,7 +162,7 @@ vp run --filter @stillwind/tools tailwind:inventory
 vp run --filter @stillwind/tools typecheck
 ```
 
-[tailwind-inventory.mts](../../tools/tailwind-inventory.mts)はnativeをビルドしてから、入力CSSごとにdesign systemを読み込む。同一パスのモジュールを1候補ずつ差し替え、project sessionのCSSを取得する。最初と250使用ごとに既存`compileReact`経路とCSS・classes・diagnosticsを厳密に照合した。**18入力のセッション、71回の照合がすべて一致**した。例外となったimport入力も証跡に保存する。
+[tailwind-inventory.mts](../../tools/tailwind-inventory.mts)はnativeをビルドしてから、入力CSSごとにdesign systemを読み込む。同一パスのモジュールを1候補ずつ差し替え、project sessionのCSSを取得する。最初と250使用ごとに既存`compileSource`経路とCSS・classes・diagnosticsを厳密に照合した。**18入力のセッション、71回の照合がすべて一致**した。例外となったimport入力も証跡に保存する。
 
 比較前のコメント除去、`foldCalcExpressions`、Lightning CSS minify、セレクター置換、干渉しない宣言順の許容は既存ゲートに合わせている。これらは調査ツール側でありコアの出力契約ではない。追加登録例外のmetadata除去はASTで実装しているが、今回この例外による合格は0件。さらに既存ゲートの実際の追加登録判定関数で、CSSを取得できた不一致8,531件を独立に確認し、合格へ変わるものが0件であることを検証した。
 

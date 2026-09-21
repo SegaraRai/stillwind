@@ -5,11 +5,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { TypeScriptFactsService, type ModuleSummary } from "@stillwind/host";
-import { finalizeReactModule, stillwind } from "@stillwind/integration/vite";
+import { finalizeModule, stillwind } from "@stillwind/integration/vite";
 import {
-  compileReactProject,
+  compileProject,
   foldCalcExpressions,
-  summarizeReact,
+  summarizeSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
 } from "@stillwind/native";
@@ -66,18 +66,18 @@ const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   }))
   .map((source) => ({
     ...source,
-    probes: (summarizeReact(source.source, source.path) as ModuleSummary).type_probes,
+    probes: (summarizeSource(source.source, source.path) as ModuleSummary).type_probes,
   }));
 
 const summaries = new Map(
   sources.map((source) => [
     source.path,
-    summarizeReact(source.source, source.path) as ModuleSummary,
+    summarizeSource(source.source, source.path) as ModuleSummary,
   ]),
 );
 
 void test("TypeScript is required for cross-module conditional ref propagation", () => {
-  const withoutFacts = compileReactProject(
+  const withoutFacts = compileProject(
     sources.map(({ path: sourcePath, source }) => ({ path: sourcePath, source })),
     resolveFixtureCss('@import "stillwind";'),
   ) as { modules: Array<{ path: string; diagnostics: Array<{ code: string }> }> };
@@ -107,7 +107,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
     restarts: 0,
   });
   service.close();
-  const withFacts = compileReactProject(
+  const withFacts = compileProject(
     sources.map(({ path: sourcePath, source }) => ({
       path: sourcePath,
       source,
@@ -209,7 +209,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   // CSS values may retain calc() until the bundler's optimization stage.
   assert.match(foldCalcExpressions(changedPlan.css), /opacity:5%/);
 
-  const runnable = finalizeReactModule(consumer.code, false);
+  const runnable = finalizeModule(consumer.code, false);
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);
   assert.match(
     runnable,

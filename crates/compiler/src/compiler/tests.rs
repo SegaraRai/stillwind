@@ -18,7 +18,7 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
             "#,
     )
     .unwrap();
-    let css = Compiler::render_react_stylesheet(&source, "", &CompilerOptions::default()).unwrap();
+    let css = Compiler::render_stylesheet(&source, "", &CompilerOptions::default()).unwrap();
 
     assert!(
         css.contains("--default-font-feature-settings:var(--font-sans--font-feature-settings);")
@@ -34,8 +34,8 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
             "#,
     )
     .unwrap();
-    let css = Compiler::render_react_stylesheet(&without_feature, "", &CompilerOptions::default())
-        .unwrap();
+    let css =
+        Compiler::render_stylesheet(&without_feature, "", &CompilerOptions::default()).unwrap();
     assert!(!css.contains("--default-font-feature-settings:"));
 }
 
@@ -95,7 +95,7 @@ fn emits_only_used_compiler_owned_property_registrations() {
     )
     .unwrap();
 
-    let css = Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
+    let css = Compiler::render_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
     assert!(css.contains("@property --example-used"));
     assert!(!css.contains("--example-unused"));
     assert!(!css.contains("@stillwind-property"));
@@ -117,7 +117,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
     )
     .unwrap();
 
-    let css = Compiler::render_react_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
+    let css = Compiler::render_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
     assert_eq!(css.matches("@property --tw-shadow").count(), 1);
     assert!(css.contains("inherits: true"));
     assert!(!css.contains("initial-value: 0 0 #0000"));
@@ -131,7 +131,7 @@ fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
         ..CompilerOptions::default()
     };
 
-    let css = Compiler::render_react_stylesheet(
+    let css = Compiler::render_stylesheet(
         &theme,
         ".example{--internal-translate-x:0;translate:var(--internal-translate-x);}",
         &options,

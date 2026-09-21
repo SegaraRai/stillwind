@@ -14,7 +14,7 @@ import {
   cleanModuleId,
   moduleSourceMap,
   TypeScriptFactsService,
-  finalizeReactModuleWithMap as finalizeModuleWithMap,
+  finalizeModuleWithMap as finalizeHostModuleWithMap,
 } from "@stillwind/host";
 import type { CssUpstreamMap, PlayOutput } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
@@ -163,15 +163,15 @@ function readJson(request: IncomingMessage): Promise<{ source: string; theme: st
 }
 
 function previewSource(code: string): string {
-  const withRuntime = finalizeReactModule(code, false);
+  const withRuntime = finalizeModule(code, false);
   return withRuntime.replace(/\bexport\s+App\s*;/g, "export { App };");
 }
 
-export function finalizeReactModule(code: string, includeStylesheet = true) {
-  return finalizeReactModuleWithMap(code, includeStylesheet).code;
+export function finalizeModule(code: string, includeStylesheet = true) {
+  return finalizeModuleWithMap(code, includeStylesheet).code;
 }
-export function finalizeReactModuleWithMap(code: string, includeStylesheet = true) {
-  return finalizeModuleWithMap(code, includeStylesheet ? virtualCssId : undefined);
+export function finalizeModuleWithMap(code: string, includeStylesheet = true) {
+  return finalizeHostModuleWithMap(code, includeStylesheet ? virtualCssId : undefined);
 }
 
 async function bundlePreview(source: string, css: string, server: ViteDevServer): Promise<string> {
@@ -328,7 +328,7 @@ export function stillwind(options: StillwindOptions): Plugin {
   const writeTypes = (loader: NativeDesignSystemLoader) => {
     if (options.types === false) return;
     const path = resolve(projectRoot, options.types ?? "src/stillwind.generated.d.ts");
-    const types = loader.generateReactTypes();
+    const types = loader.generateVocabularyTypes();
     try {
       if (readFileSync(path, "utf8") === types) return;
     } catch {
@@ -553,7 +553,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (!output?.code) return;
       const finalized = sfc
         ? { code: output.code, removed: [], prefix: "" }
-        : finalizeReactModuleWithMap(output.code, false);
+        : finalizeModuleWithMap(output.code, false);
       const suffix =
         sfc || output.hasModuleCssImport || options.automatic === false
           ? ""

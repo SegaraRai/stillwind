@@ -9,7 +9,7 @@ import {
   cssWithSourceMap as baseline,
   decodeCssSourceMap,
 } from "../../packages/host/src/css-source-map.ts";
-import { finalizeReactModuleWithMap } from "../../packages/host/src/finalize.ts";
+import { finalizeModuleWithMap } from "../../packages/host/src/finalize.ts";
 import { moduleSourceMap, composeModuleSourceMap } from "../../packages/host/src/source-map.ts";
 import { cssWithSourceMap as candidate } from "./css-candidate.ts";
 import {
@@ -523,7 +523,7 @@ const finalEdits = [
     generated_end: finalStart + finalReplacement.length,
   },
 ];
-const finalized = finalizeReactModuleWithMap(finalCompiled, "./carrier.css");
+const finalized = finalizeModuleWithMap(finalCompiled, "./carrier.css");
 const direct = moduleSourceMap(
   finalSource,
   finalCompiled,

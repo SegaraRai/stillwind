@@ -1,7 +1,4 @@
-/**
- * Compile-time React macro surface. Calls must be consumed by `@stillwind/integration/vite`;
- * executing it at runtime means the compiler integration is missing.
- */
+/** Compile-time macro contracts shared by every framework entrypoint. */
 export type StyleAttributeName = `aria-${string}` | `data-${string}`;
 
 /** Augmented by the generated `src/stillwind.generated.d.ts` file. */
@@ -25,11 +22,6 @@ export type StillwindUtility = UtilityWithVariant<VocabularyUtility, VocabularyV
 // TypeScript's union-complexity limit in real themes.
 type UtilityString = string;
 
-export type StyleProps = {
-  className?: string;
-  style?: Record<string, string>;
-} & Partial<Record<StyleAttributeName, unknown>>;
-
 export type StyleVariant = `${string}:`;
 
 /** Values accepted by the explicit `{ class: … }` external-class entry. */
@@ -48,7 +40,7 @@ declare const refIdentity: unique symbol;
 declare const keyframesIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
 
-export type StyleResult<Id extends string = string, Props = StyleProps> = Props & {
+export type StyleResult<Id extends string = string, Props = object> = Props & {
   /** Checker-only declaration identity; macro lowering never emits this attribute. */
   readonly "data-__stillwindStyleIdentity": Id;
 };
@@ -186,7 +178,7 @@ export type StyleArgument =
  * the same value-expression contract. Declaration-identity overloads are internal
  * checker metadata.
  */
-export type StyleMacro<Props = StyleProps> = {
+export type StyleMacro<Props = object> = {
   <Id extends string>(
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, Props>;
@@ -223,21 +215,24 @@ export type StyleMacro<Props = StyleProps> = {
   ): StyleViewTransition<Id>;
 };
 
-export const style = Object.assign(
-  (..._arguments: readonly StyleArgument[]): StyleProps => {
-    throw new Error(
-      "stillwind/react style() is a compile-time macro. Add stillwind() to your Vite plugins.",
-    );
-  },
-  {
-    ref(_boundaryOrLabel?: StyleRef | string, _label?: string): StyleRef {
-      throw new Error("stillwind/react style.ref() is a compile-time macro.");
+/** Creates a macro entrypoint that reports missing compiler integration if executed. */
+export function createStyleMacro<Props>(): StyleMacro<Props> {
+  return Object.assign(
+    (): never => {
+      throw new Error(
+        "Stillwind style() is a compile-time macro. Configure the Stillwind integration for your build tool.",
+      );
     },
-    keyframes(_definition: StyleKeyframesDefinition): StyleKeyframes {
-      throw new Error("stillwind/react style.keyframes() is a compile-time macro.");
+    {
+      ref(): never {
+        throw new Error("Stillwind style.ref() is a compile-time macro.");
+      },
+      keyframes(): never {
+        throw new Error("Stillwind style.keyframes() is a compile-time macro.");
+      },
+      viewTransition(): never {
+        throw new Error("Stillwind style.viewTransition() is a compile-time macro.");
+      },
     },
-    viewTransition(_definition: StyleViewTransitionDefinition): StyleViewTransition {
-      throw new Error("stillwind/react style.viewTransition() is a compile-time macro.");
-    },
-  },
-) as StyleMacro;
+  );
+}

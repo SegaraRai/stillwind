@@ -14,7 +14,8 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_source::Span;
 
 use crate::compiler::{
-    detached_symbol, render_mapped, render_module_stylesheet, render_react_types, render_stylesheet,
+    detached_symbol, render_mapped, render_module_stylesheet, render_stylesheet,
+    render_vocabulary_types,
 };
 use crate::identifiers::{IdentifierContext, Identifiers};
 use crate::{CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet};
@@ -58,8 +59,8 @@ impl<'a> StylesheetRenderer<'a> {
     }
 
     /// Ambient TypeScript declarations for the framework vocabulary of this theme.
-    pub fn generate_react_types(&self) -> String {
-        render_react_types(self.snapshot.theme())
+    pub fn generate_vocabulary_types(&self) -> String {
+        render_vocabulary_types(self.snapshot.theme())
     }
 
     /// Produces standalone compilation output, including document CSS.

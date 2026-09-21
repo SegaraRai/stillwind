@@ -7,7 +7,7 @@ import { runInNewContext } from "node:vm";
 import { chromium } from "playwright";
 
 import * as runtime from "../../../packages/core/src/runtime/react.ts";
-import { compileReact } from "../../../packages/native/index.js";
+import { compileSource } from "../../../packages/native/index.js";
 
 const source = `import {style} from "stillwind/react";
 const item = style.viewTransition({ group: "duration-100 ease-linear", old: "opacity-0", new: "opacity-100" });
@@ -48,7 +48,7 @@ const theme = `${expand(readFileSync(resolve(coreRoot, "index.css"), "utf8"))}
 @theme { --duration-100: 100ms; --ease-linear: linear; }`;
 
 // The compiler emits the module; the runtime key and the test come from outside it.
-const output = compileReact(source, "view-transition.tsx", theme);
+const output = compileSource(source, "view-transition.tsx", theme);
 assert.deepEqual(output.diagnostics, []);
 const sandbox = { ...runtime, key: "item 1", cond: true, other: true };
 const moduleCode = output.code

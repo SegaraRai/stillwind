@@ -193,10 +193,10 @@ impl NativeDesignSystemLoader {
 
     /// Generates the TypeScript augmentation for the completed snapshot.
     #[napi]
-    pub fn generate_react_types(&self) -> napi::Result<String> {
+    pub fn generate_vocabulary_types(&self) -> napi::Result<String> {
         Ok(
             StylesheetRenderer::new(&self.completed()?, &self.options, &Identifiers::builtin())
-                .generate_react_types(),
+                .generate_vocabulary_types(),
         )
     }
 }

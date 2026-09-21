@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { compileReact } from "@stillwind/native";
+import { compileSource } from "@stillwind/native";
 import { generate, parse, walk, type Block, type CssNode, type Declaration } from "css-tree";
 import { transform } from "lightningcss";
 
@@ -390,7 +390,7 @@ export function verifyPropertyOrderParity(
       if (applicable.length < 2) continue;
 
       const source = `import { style } from "stillwind/react"; style(${JSON.stringify(applicable.join(" "))});`;
-      const native = compileReact(
+      const native = compileSource(
         source,
         "src/PropertyOrderParity.tsx",
         stillwindFixtureCss(fixtureCase.input),

@@ -50,15 +50,15 @@ void test("failed compile transactions retain watch CSS but reject current plans
 
 void test("native object transport returns typed values and rejects the former JSON protocol", async () => {
   const {
-    compileReact,
-    compileReactProject,
-    summarizeReact,
+    compileSource,
+    compileProject,
+    summarizeSource,
     NativeDesignSystemLoader,
     NativeProjectSession,
   } = await import(bindingSpecifier);
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   const css = "@utility flex {display:flex;} @stillwind-slot utilities;";
-  const output = compileReact(source, "🧭.tsx", css, {});
+  const output = compileSource(source, "🧭.tsx", css, {});
   assert.equal(typeof output, "object");
   assert.equal(Object.getPrototypeOf(output), Object.prototype);
   assert.deepEqual(output.diagnostics, []);
@@ -66,10 +66,10 @@ void test("native object transport returns typed values and rejects the former J
   assert.equal(typeof output.mappings[0].original_start, "number");
   const sources = [{ path: "🧭.tsx", source }];
   assert.deepEqual(
-    compileReactProject(sources, css).modules.map((module) => module.path),
+    compileProject(sources, css).modules.map((module) => module.path),
     ["🧭.tsx"],
   );
-  const summary = summarizeReact(
+  const summary = summarizeSource(
     "import {style} from 'stillwind/react'; export const handle=style.ref();",
     "🧭.tsx",
   );
@@ -77,14 +77,14 @@ void test("native object transport returns typed values and rejects the former J
   assert.equal(handle.kind, "refs");
   assert.equal(handle.value[0].reference.module_path, "🧭.tsx");
   assert.equal(handle.value[0].permitted_boundaries, null);
-  const reserved = summarizeReact(
+  const reserved = summarizeSource(
     "import {style} from 'stillwind/react'; export const __proto__=style.ref();",
     "reserved.ts",
   );
   assert.equal(reserved.exports[0].name, "__proto__");
   assert.equal(reserved.export_imports[0].name, "__proto__");
-  assert.throws(() => compileReactProject("[]", css), /array/i);
-  assert.throws(() => compileReact(source, "x.ts", css, "{}"));
+  assert.throws(() => compileProject("[]", css), /array/i);
+  assert.throws(() => compileSource(source, "x.ts", css, "{}"));
   assert.throws(() => new NativeDesignSystemLoader('{"prefix":"--x-"}'));
   const loader = new NativeDesignSystemLoader();
   assert.equal(loader.provide(0, "root", css).kind, "complete");
@@ -135,9 +135,9 @@ void test("removal reports producer presence independently of shared CSS", async
 });
 
 void test("native semantic unions validate nested asset kinds and candidate payloads", async () => {
-  const { compileReactProject } = await import(bindingSpecifier);
+  const { compileProject } = await import(bindingSpecifier);
   const compile = (value) =>
-    compileReactProject(
+    compileProject(
       [{ path: "facts.ts", source: "export {};", type_facts: [{ start: 0, end: 0, value }] }],
       "",
     );
@@ -199,9 +199,9 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
   const {
     NativeDesignSystemLoader,
     NativeProjectSession,
-    compileReact,
-    compileReactProject,
-    renderReactStylesheet,
+    compileSource,
+    compileProject,
+    renderStylesheet,
   } = await import(bindingSpecifier);
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   const css = "@utility flex {display:flex;}";
@@ -213,7 +213,7 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
   assert.match(result.modules[0].css, /display:flex/);
   assert.match(result.modules[0].code, /className/);
   assert.deepEqual(
-    compileReactProject([{ path: "button.tsx", source }], css).modules[0].diagnostics,
+    compileProject([{ path: "button.tsx", source }], css).modules[0].diagnostics,
     [],
   );
   assert.throws(() => session.css(), /@stillwind-slot/);
@@ -227,8 +227,8 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
       }),
     /@stillwind-slot/,
   );
-  assert.throws(() => renderReactStylesheet(result.modules[0].css, css), /@stillwind-slot/);
-  const standalone = compileReact(source, "button.tsx", css);
+  assert.throws(() => renderStylesheet(result.modules[0].css, css), /@stillwind-slot/);
+  const standalone = compileSource(source, "button.tsx", css);
   assert.equal(standalone.diagnostics[0].code, "SHCSS001");
   assert.equal(standalone.diagnostics[0].start, 0);
   assert.equal(standalone.diagnostics[0].end, Buffer.byteLength(source));
@@ -297,8 +297,8 @@ void test("projected session edits original SFC text and preserves watch recover
 
 void test("loads the selected package through its public entry", async () => {
   const binding = await import(bindingSpecifier);
-  assert.equal(typeof binding.compileReact, "function");
-  assert.equal(typeof binding.compileReactProject, "function");
+  assert.equal(typeof binding.compileSource, "function");
+  assert.equal(typeof binding.compileProject, "function");
 });
 
 void test("session reload applies code generation options independently of CSS definitions", async () => {
@@ -396,7 +396,7 @@ void test("native loader accepts partial and reversed batches", async () => {
   ]);
   assert.equal(done.kind, "complete");
   assert.deepEqual(new Set(done.sources), new Set(["root", "a", "b", "c"]));
-  assert.match(loader.generateReactTypes(), /brand/);
+  assert.match(loader.generateVocabularyTypes(), /brand/);
   assert.throws(() => loader.provideMany([]), /after completion/);
 });
 
@@ -433,7 +433,7 @@ void test("native watch reload reports compilation errors without publishing a p
 });
 
 void test("native sessions join supplied type facts with another module's asset metadata", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession, summarizeReact } = await import(
+  const { NativeDesignSystemLoader, NativeProjectSession, summarizeSource } = await import(
     bindingSpecifier
   );
   const loader = new NativeDesignSystemLoader();
@@ -447,7 +447,7 @@ void test("native sessions join supplied type facts with another module's asset 
     source:
       "import { style } from 'stillwind/react'; import { marker } from './producer'; const props = style(marker);",
   };
-  const summary = summarizeReact(producer.source, producer.path);
+  const summary = summarizeSource(producer.source, producer.path);
   const start = consumer.source.lastIndexOf("marker");
   const session = new NativeProjectSession(loader, true);
   const without = session.compile([consumer, producer]);

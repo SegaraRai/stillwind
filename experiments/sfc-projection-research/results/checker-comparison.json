@@ -253,7 +253,7 @@
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 659.2792999999999
+        "elapsedMs": 451.36740000000003
       },
       "ts7": {
         "probes": [
@@ -494,7 +494,7 @@
           "Producer.vue",
           "helper.ts"
         ],
-        "elapsedMs": 124.0793000000001
+        "elapsedMs": 115.0453
       }
     },
     {
@@ -767,7 +767,7 @@
             "original": 1253
           }
         ],
-        "elapsedMs": 655.5775999999998
+        "elapsedMs": 286.8066000000001
       },
       "ts7": {
         "probes": [
@@ -1035,7 +1035,7 @@
           "Producer.vue",
           "helper.ts"
         ],
-        "elapsedMs": 470.95600000000013
+        "elapsedMs": 85.80340000000001
       }
     },
     {
@@ -1254,32 +1254,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1395,
-              1402
+              1359,
+              1366
             ],
             "originalByteRange": [
-              1403,
-              1410
+              1367,
+              1374
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1555,
-              1564
+              1483,
+              1492
             ],
             "originalByteRange": [
-              1563,
-              1572
+              1491,
+              1500
             ]
           },
           {
@@ -1295,12 +1295,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1708,
-              1723
+              1636,
+              1651
             ],
             "originalByteRange": [
-              1716,
-              1731
+              1644,
+              1659
             ]
           },
           {
@@ -1316,17 +1316,17 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1800,
-              1804
+              1728,
+              1732
             ],
             "originalByteRange": [
-              1808,
-              1812
+              1736,
+              1740
             ]
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 288.9630000000002
+        "elapsedMs": 254.7097000000001
       },
       "ts7": {
         "probes": [
@@ -1534,32 +1534,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1395,
-              1402
+              1359,
+              1366
             ],
             "originalByteRange": [
-              1403,
-              1410
+              1367,
+              1374
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1555,
-              1564
+              1483,
+              1492
             ],
             "originalByteRange": [
-              1563,
-              1572
+              1491,
+              1500
             ]
           },
           {
@@ -1575,12 +1575,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1708,
-              1723
+              1636,
+              1651
             ],
             "originalByteRange": [
-              1716,
-              1731
+              1644,
+              1659
             ]
           },
           {
@@ -1596,12 +1596,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1800,
-              1804
+              1728,
+              1732
             ],
             "originalByteRange": [
-              1808,
-              1812
+              1736,
+              1740
             ]
           }
         ],
@@ -1612,7 +1612,7 @@
           "Producer.vue",
           "helper.ts"
         ],
-        "elapsedMs": 88.31190000000015
+        "elapsedMs": 96.41489999999999
       }
     },
     {
@@ -1877,7 +1877,7 @@
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 272.3675000000003
+        "elapsedMs": 188.8007
       },
       "ts7": {
         "probes": [
@@ -2137,7 +2137,7 @@
           "Producer.svelte",
           "helper.ts"
         ],
-        "elapsedMs": 193.43939999999975
+        "elapsedMs": 66.59790000000021
       }
     },
     {
@@ -2402,7 +2402,7 @@
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 459.4598000000001
+        "elapsedMs": 193.52120000000014
       },
       "ts7": {
         "probes": [
@@ -2662,7 +2662,7 @@
           "Producer.svelte",
           "helper.ts"
         ],
-        "elapsedMs": 77.97739999999976
+        "elapsedMs": 66.5268000000001
       }
     },
     {
@@ -2954,7 +2954,7 @@
             "original": 1270
           }
         ],
-        "elapsedMs": 425.3687999999993
+        "elapsedMs": 193.36389999999983
       },
       "ts7": {
         "probes": [
@@ -3241,7 +3241,7 @@
           "Producer.svelte",
           "helper.ts"
         ],
-        "elapsedMs": 251.98429999999917
+        "elapsedMs": 91.52520000000004
       }
     },
     {
@@ -3533,7 +3533,7 @@
             "original": 1270
           }
         ],
-        "elapsedMs": 244.21889999999985
+        "elapsedMs": 166.39840000000004
       },
       "ts7": {
         "probes": [
@@ -3820,7 +3820,7 @@
           "Producer.svelte",
           "helper.ts"
         ],
-        "elapsedMs": 79.33439999999973
+        "elapsedMs": 77.01609999999982
       }
     },
     {
@@ -4039,32 +4039,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1418,
-              1425
+              1379,
+              1386
             ],
             "originalByteRange": [
-              1426,
-              1433
+              1387,
+              1394
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1584,
-              1593
+              1506,
+              1515
             ],
             "originalByteRange": [
-              1592,
-              1601
+              1514,
+              1523
             ]
           },
           {
@@ -4080,12 +4080,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1821,
-              1827
+              1743,
+              1749
             ],
             "originalByteRange": [
-              1829,
-              1835
+              1751,
+              1757
             ]
           },
           {
@@ -4101,12 +4101,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1904,
-              1908
+              1826,
+              1830
             ],
             "originalByteRange": [
-              1912,
-              1916
+              1834,
+              1838
             ]
           },
           {
@@ -4120,17 +4120,17 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1966,
-              1974
+              1888,
+              1896
             ],
             "originalByteRange": [
-              1974,
-              1982
+              1896,
+              1904
             ]
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 437.9368999999997
+        "elapsedMs": 223.63459999999986
       },
       "ts7": {
         "probes": [
@@ -4338,32 +4338,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1418,
-              1425
+              1379,
+              1386
             ],
             "originalByteRange": [
-              1426,
-              1433
+              1387,
+              1394
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1584,
-              1593
+              1506,
+              1515
             ],
             "originalByteRange": [
-              1592,
-              1601
+              1514,
+              1523
             ]
           },
           {
@@ -4379,12 +4379,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1821,
-              1827
+              1743,
+              1749
             ],
             "originalByteRange": [
-              1829,
-              1835
+              1751,
+              1757
             ]
           },
           {
@@ -4400,12 +4400,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1904,
-              1908
+              1826,
+              1830
             ],
             "originalByteRange": [
-              1912,
-              1916
+              1834,
+              1838
             ]
           },
           {
@@ -4419,12 +4419,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1966,
-              1974
+              1888,
+              1896
             ],
             "originalByteRange": [
-              1974,
-              1982
+              1896,
+              1904
             ]
           }
         ],
@@ -4435,7 +4435,7 @@
           "Producer.svelte",
           "helper.ts"
         ],
-        "elapsedMs": 288.21509999999944
+        "elapsedMs": 77.8394000000003
       }
     },
     {
@@ -4654,32 +4654,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1418,
-              1425
+              1379,
+              1386
             ],
             "originalByteRange": [
-              1426,
-              1433
+              1387,
+              1394
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1584,
-              1593
+              1506,
+              1515
             ],
             "originalByteRange": [
-              1592,
-              1601
+              1514,
+              1523
             ]
           },
           {
@@ -4695,12 +4695,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1821,
-              1827
+              1743,
+              1749
             ],
             "originalByteRange": [
-              1829,
-              1835
+              1751,
+              1757
             ]
           },
           {
@@ -4716,12 +4716,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1904,
-              1908
+              1826,
+              1830
             ],
             "originalByteRange": [
-              1912,
-              1916
+              1834,
+              1838
             ]
           },
           {
@@ -4735,17 +4735,17 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1966,
-              1974
+              1888,
+              1896
             ],
             "originalByteRange": [
-              1974,
-              1982
+              1896,
+              1904
             ]
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 491.03530000000046
+        "elapsedMs": 204.10069999999996
       },
       "ts7": {
         "probes": [
@@ -4953,32 +4953,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1418,
-              1425
+              1379,
+              1386
             ],
             "originalByteRange": [
-              1426,
-              1433
+              1387,
+              1394
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1584,
-              1593
+              1506,
+              1515
             ],
             "originalByteRange": [
-              1592,
-              1601
+              1514,
+              1523
             ]
           },
           {
@@ -4994,12 +4994,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1821,
-              1827
+              1743,
+              1749
             ],
             "originalByteRange": [
-              1829,
-              1835
+              1751,
+              1757
             ]
           },
           {
@@ -5015,12 +5015,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1904,
-              1908
+              1826,
+              1830
             ],
             "originalByteRange": [
-              1912,
-              1916
+              1834,
+              1838
             ]
           },
           {
@@ -5034,12 +5034,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1966,
-              1974
+              1888,
+              1896
             ],
             "originalByteRange": [
-              1974,
-              1982
+              1896,
+              1904
             ]
           }
         ],
@@ -5050,7 +5050,7 @@
           "Producer.svelte",
           "helper.ts"
         ],
-        "elapsedMs": 344.77120000000014
+        "elapsedMs": 65.92290000000003
       }
     },
     {
@@ -5296,7 +5296,7 @@
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 3484.0447999999988
+        "elapsedMs": 826.9164000000001
       },
       "ts7": {
         "probes": [
@@ -5537,7 +5537,7 @@
           "Producer.astro",
           "helper.ts"
         ],
-        "elapsedMs": 30058.064199999997
+        "elapsedMs": 264.4245000000001
       }
     },
     {
@@ -5810,7 +5810,7 @@
             "original": 1209
           }
         ],
-        "elapsedMs": 1434.359199999999
+        "elapsedMs": 655.0702000000001
       },
       "ts7": {
         "probes": [
@@ -6078,7 +6078,7 @@
           "Producer.astro",
           "helper.ts"
         ],
-        "elapsedMs": 6664.276000000005
+        "elapsedMs": 254.00900000000001
       }
     },
     {
@@ -6297,32 +6297,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1355,
-              1362
+              1317,
+              1324
             ],
             "originalByteRange": [
-              1363,
-              1370
+              1325,
+              1332
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1519,
-              1528
+              1443,
+              1452
             ],
             "originalByteRange": [
-              1527,
-              1536
+              1451,
+              1460
             ]
           },
           {
@@ -6338,12 +6338,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1663,
-              1678
+              1587,
+              1602
             ],
             "originalByteRange": [
-              1671,
-              1686
+              1595,
+              1610
             ]
           },
           {
@@ -6359,17 +6359,17 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1753,
-              1757
+              1677,
+              1681
             ],
             "originalByteRange": [
-              1761,
-              1765
+              1685,
+              1689
             ]
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 1122.9381999999969
+        "elapsedMs": 620.5626000000002
       },
       "ts7": {
         "probes": [
@@ -6577,32 +6577,32 @@
           },
           {
             "name": "widened",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1355,
-              1362
+              1317,
+              1324
             ],
             "originalByteRange": [
-              1363,
-              1370
+              1325,
+              1332
             ]
           },
           {
             "name": "erased-parameter",
-            "type": "StyleResult<string, StyleProps>",
+            "type": "StyleResult<string>",
             "candidates": null,
             "expected": null,
             "mappingValid": true,
             "originalRange": [
-              1519,
-              1528
+              1443,
+              1452
             ],
             "originalByteRange": [
-              1527,
-              1536
+              1451,
+              1460
             ]
           },
           {
@@ -6618,12 +6618,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1663,
-              1678
+              1587,
+              1602
             ],
             "originalByteRange": [
-              1671,
-              1686
+              1595,
+              1610
             ]
           },
           {
@@ -6639,12 +6639,12 @@
             ],
             "mappingValid": true,
             "originalRange": [
-              1753,
-              1757
+              1677,
+              1681
             ],
             "originalByteRange": [
-              1761,
-              1765
+              1685,
+              1689
             ]
           }
         ],
@@ -6655,7 +6655,7 @@
           "Producer.astro",
           "helper.ts"
         ],
-        "elapsedMs": 463.10399999999936
+        "elapsedMs": 278.46849999999995
       }
     }
   ],
@@ -6763,7 +6763,7 @@
             "original": 87
           }
         ],
-        "elapsedMs": 823.8243000000002
+        "elapsedMs": 604.5218999999997
       },
       "ts7": {
         "probes": [
@@ -6804,7 +6804,7 @@
         "loaded": [
           "Client.astro"
         ],
-        "elapsedMs": 304.47009999999864
+        "elapsedMs": 289.79269999999997
       }
     },
     {
@@ -6832,7 +6832,7 @@
           }
         ],
         "diagnostics": [],
-        "elapsedMs": 841.2085000000006
+        "elapsedMs": 605.6039000000001
       },
       "ts7": {
         "probes": [
@@ -6861,7 +6861,7 @@
           "Client.astro#script",
           "Client.astro"
         ],
-        "elapsedMs": 334.6157000000021
+        "elapsedMs": 262.72659999999996
       }
     }
   ]

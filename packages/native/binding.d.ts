@@ -22,7 +22,7 @@ export declare class NativeDesignSystemLoader {
    */
   provideMany(files: Array<NativeCssFileInput>): NativeCssLoadStep
   /** Generates the TypeScript augmentation for the completed snapshot. */
-  generateReactTypes(): string
+  generateVocabularyTypes(): string
 }
 
 /** Mutable project state for one Vite or CLI session. */
@@ -169,7 +169,16 @@ export interface BindingRejectedIdentifier {
 }
 
 /**
- * Native Node entrypoint used by `@stillwind/integration/vite`.
+ * Compiles a resolved module graph in one native invocation.
+ *
+ * # Errors
+ *
+ * Returns a JavaScript error for invalid input or an unresolved graph edge.
+ */
+export declare function compileProject(sources: Array<NativeProjectSource>, theme: string, options?: NativeCompilerOptions | undefined | null): ProjectBindingOutput
+
+/**
+ * Compiles one source module through the native Node entrypoint.
  *
  * napi-rs converts inputs and outputs directly to JavaScript values.
  *
@@ -177,16 +186,7 @@ export interface BindingRejectedIdentifier {
  *
  * Returns a JavaScript error for invalid source or options.
  */
-export declare function compileReact(source: string, sourcePath: string | undefined | null, theme: string, options?: NativeCompilerOptions | undefined | null): BindingOutput
-
-/**
- * Compiles a resolved React module graph in one native invocation.
- *
- * # Errors
- *
- * Returns a JavaScript error for invalid input or an unresolved graph edge.
- */
-export declare function compileReactProject(sources: Array<NativeProjectSource>, theme: string, options?: NativeCompilerOptions | undefined | null): ProjectBindingOutput
+export declare function compileSource(source: string, sourcePath: string | undefined | null, theme: string, options?: NativeCompilerOptions | undefined | null): BindingOutput
 
 /**
  * Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
@@ -197,7 +197,7 @@ export declare function compileReactProject(sources: Array<NativeProjectSource>,
 export declare function foldCalcExpressions(css: string): string
 
 /** Generates the TypeScript vocabulary augmentation for one CSS-first theme. */
-export declare function generateReactTypes(theme: string): string
+export declare function generateVocabularyTypes(theme: string): string
 
 /** Source offsets in the host transport are UTF-16; native spans are bytes. */
 export interface HostRealm {
@@ -922,7 +922,7 @@ export interface ProjectModuleOutput {
  *
  * Returns a JavaScript error when the theme or compiler options are invalid.
  */
-export declare function renderReactStylesheet(moduleCss: string, theme: string, options?: NativeCompilerOptions | undefined | null): string
+export declare function renderStylesheet(moduleCss: string, theme: string, options?: NativeCompilerOptions | undefined | null): string
 
 /**
  * Scans plain or projected input and returns original UTF-8 summary coordinates.
@@ -940,4 +940,4 @@ export declare function scanSource(source: NativeProjectSource): NativeModuleSum
  *
  * Returns a JavaScript error for invalid source coordinates.
  */
-export declare function summarizeReact(source: string, sourcePath?: string | undefined | null): NativeModuleSummary
+export declare function summarizeSource(source: string, sourcePath?: string | undefined | null): NativeModuleSummary

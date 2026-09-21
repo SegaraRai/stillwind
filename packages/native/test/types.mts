@@ -1,7 +1,7 @@
 import {
-  compileReact,
-  compileReactProject,
-  summarizeReact,
+  compileSource,
+  compileProject,
+  summarizeSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
 } from "../index.js";
@@ -10,11 +10,11 @@ import type { NativeProjectSource, NativeStylesheetSelection } from "../index.js
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {
   const sources: NativeProjectSource[] = [{ path: "x.ts", source: "export {};" }];
-  const output = compileReact("export {};", "x.ts", "", {});
+  const output = compileSource("export {};", "x.ts", "", {});
   const code: string | null = output.code;
-  const project = compileReactProject(sources, "");
+  const project = compileProject(sources, "");
   const modulePath: string = project.modules[0].path;
-  const summary = summarizeReact("export {};", "x.ts");
+  const summary = summarizeSource("export {};", "x.ts");
   const loader = new NativeDesignSystemLoader({ prefix: "--custom-" });
   const step = loader.provide(0, "root.css", "");
   if (step.kind === "needFile") step.requests.map((request) => request.id);

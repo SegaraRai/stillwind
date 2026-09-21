@@ -61,16 +61,16 @@ impl From<BindingApiError> for Error {
 /// # Errors
 ///
 /// Returns invalid source coordinates or compiler options.
-pub fn compile_react_input(
+pub fn compile_source_input(
     source: &str,
     source_path: &str,
     theme: &str,
 ) -> Result<BindingOutput, BindingApiError> {
-    compile_react_input_with_options(source, source_path, theme, &CompilerOptions::default())
+    compile_source_input_with_options(source, source_path, theme, &CompilerOptions::default())
 }
 
 /// Compiles one module with explicitly chosen compiler options.
-pub fn compile_react_input_with_options(
+pub fn compile_source_input_with_options(
     source: &str,
     source_path: &str,
     theme: &str,
@@ -195,15 +195,15 @@ pub(super) fn binding_output(
 /// # Errors
 ///
 /// Returns invalid sources, options, or unresolved module edges.
-pub fn compile_react_project_input(
+pub fn compile_project_input(
     input: &[ProjectSource],
     theme: &str,
 ) -> Result<ProjectBindingOutput, BindingApiError> {
-    compile_react_project_input_with_options(input, theme, &CompilerOptions::default())
+    compile_project_input_with_options(input, theme, &CompilerOptions::default())
 }
 
 /// Compiles a whole source graph with explicitly chosen compiler options.
-pub fn compile_react_project_input_with_options(
+pub fn compile_project_input_with_options(
     input: &[ProjectSource],
     theme: &str,
     options: &CompilerOptions,
@@ -348,12 +348,12 @@ pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSumm
     Ok(result)
 }
 
-/// Extracts the versioned cross-module summary for a React source module.
+/// Extracts the versioned cross-module summary for a source module.
 ///
 /// # Errors
 ///
 /// Returns invalid source coordinates.
-pub fn summarize_react_input(
+pub fn summarize_source_input(
     source: &str,
     source_path: &str,
 ) -> Result<NativeModuleSummary, BindingApiError> {
@@ -377,22 +377,22 @@ pub fn summarize_react_input(
     ))
 }
 
-/// Native Node entrypoint used by `@stillwind/integration/vite`.
+/// Compiles one source module through the native Node entrypoint.
 ///
 /// napi-rs converts inputs and outputs directly to JavaScript values.
 ///
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid source or options.
-#[napi(js_name = "compileReact", strict)]
-pub fn compile_react(
+#[napi(js_name = "compileSource", strict)]
+pub fn compile_source(
     source: String,
     source_path: Option<String>,
     theme: String,
     options: Option<NativeCompilerOptions>,
 ) -> napi::Result<BindingOutput> {
     let options = compiler_options(options)?;
-    compile_react_input_with_options(
+    compile_source_input_with_options(
         &source,
         source_path.as_deref().unwrap_or("Component.tsx"),
         &theme,
@@ -401,13 +401,13 @@ pub fn compile_react(
     .map_err(|error| Error::from_reason(error.to_string()))
 }
 
-/// Compiles a resolved React module graph in one native invocation.
+/// Compiles a resolved module graph in one native invocation.
 ///
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid input or an unresolved graph edge.
-#[napi(js_name = "compileReactProject", strict)]
-pub fn compile_react_project(
+#[napi(js_name = "compileProject", strict)]
+pub fn compile_project(
     sources: Vec<NativeProjectSource>,
     theme: String,
     options: Option<NativeCompilerOptions>,
@@ -417,7 +417,7 @@ pub fn compile_react_project(
         .into_iter()
         .map(TryInto::try_into)
         .collect::<napi::Result<Vec<ProjectSource>>>()?;
-    compile_react_project_input_with_options(&sources, &theme, &options)
+    compile_project_input_with_options(&sources, &theme, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
@@ -426,8 +426,8 @@ pub fn compile_react_project(
 /// # Errors
 ///
 /// Returns a JavaScript error when the theme or compiler options are invalid.
-#[napi(js_name = "renderReactStylesheet", strict)]
-pub fn render_react_stylesheet(
+#[napi(js_name = "renderStylesheet", strict)]
+pub fn render_stylesheet(
     module_css: String,
     theme: String,
     options: Option<NativeCompilerOptions>,
@@ -435,7 +435,7 @@ pub fn render_react_stylesheet(
     let options = compiler_options(options)?;
     let theme =
         SourceFile::new(FileId(1), "stillwind.css", theme).map_err(BindingApiError::from)?;
-    Compiler::render_react_stylesheet(&theme, &module_css, &options)
+    Compiler::render_stylesheet(&theme, &module_css, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
@@ -444,21 +444,22 @@ pub fn render_react_stylesheet(
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid source coordinates.
-#[napi(js_name = "summarizeReact")]
-pub fn summarize_react(
+#[napi(js_name = "summarizeSource")]
+pub fn summarize_source(
     source: String,
     source_path: Option<String>,
 ) -> napi::Result<NativeModuleSummary> {
-    summarize_react_input(&source, source_path.as_deref().unwrap_or("Component.tsx"))
+    summarize_source_input(&source, source_path.as_deref().unwrap_or("Component.tsx"))
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
-#[napi(js_name = "generateReactTypes")]
-pub fn generate_react_types(theme: String) -> napi::Result<String> {
+#[napi(js_name = "generateVocabularyTypes")]
+pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
     let source =
         SourceFile::new(FileId(2), "stillwind.css", theme).map_err(BindingApiError::from)?;
-    Compiler::generate_react_types(&source).map_err(|error| Error::from_reason(error.to_string()))
+    Compiler::generate_vocabulary_types(&source)
+        .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.

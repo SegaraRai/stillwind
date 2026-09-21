@@ -3,13 +3,13 @@ import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileReactProject, renderReactStylesheet, summarizeReact } from "@stillwind/native";
+import { compileProject, renderStylesheet, summarizeSource } from "@stillwind/native";
 import type { NativeCompilerOptions } from "@stillwind/native";
 import { format } from "prettier";
 
 import {
   TypeScriptFactsService,
-  finalizeReactModuleWithMap,
+  finalizeModuleWithMap,
   type FinalizedModuleEdit,
 } from "../packages/host/src/index.ts";
 import { resolveFixtureCss } from "./lib/stillwind-fixture-css.ts";
@@ -89,7 +89,7 @@ function compileProject(root: string, manifest: Manifest) {
     };
   });
   const summaries = new Map(
-    sources.map((source) => [source.path, summarizeReact(source.source, source.path)]),
+    sources.map((source) => [source.path, summarizeSource(source.source, source.path)]),
   );
   const service = new TypeScriptFactsService(repositoryRoot);
   const assets = new Map(
@@ -106,7 +106,7 @@ function compileProject(root: string, manifest: Manifest) {
   const facts = service.collect(probeSources, assets);
   service.close();
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
-  const output = compileReactProject(
+  const output = compileProject(
     sources.map(({ path: sourcePath, source }) => ({
       path: sourcePath,
       source,
@@ -127,7 +127,7 @@ function compileProject(root: string, manifest: Manifest) {
   );
   return {
     modules: output.modules,
-    projectCss: renderReactStylesheet(
+    projectCss: renderStylesheet(
       output.modules.map((module) => module.css).join("\n"),
       theme,
       manifest.compilerOptions,
@@ -197,7 +197,7 @@ function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: Finaliz
 }
 
 function runnableOutput(module: ModuleOutput, fixture: string) {
-  const finalized = finalizeReactModuleWithMap(module.code!);
+  const finalized = finalizeModuleWithMap(module.code!);
   const output = finalized.code;
   const runtimeImport = output.match(
     /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/react\/runtime["']/,

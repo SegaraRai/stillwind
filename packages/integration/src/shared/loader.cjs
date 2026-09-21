@@ -177,7 +177,7 @@ module.exports = function (source, inputMap, additionalData) {
       });
     const cssImport = `import ${JSON.stringify(carrier + "?stillwind-document")};\n`;
     if (projection) return callback(null, cssImport);
-    const finalized = host.finalizeReactModuleWithMap(output.code);
+    const finalized = host.finalizeModuleWithMap(output.code);
     // Append synthetic imports so RSC directives remain the first statements.
     const code =
       sfc || !automatic

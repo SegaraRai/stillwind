@@ -1,8 +1,8 @@
 //! End-to-end tests for the pure Rust entry points behind the Node binding.
 //!
 //! The binding itself is a thin conversion layer, so these tests drive
-//! `compile_react_*`, [`summarize_react_input`], [`render_react_stylesheet`], and
-//! [`generate_react_types`] directly and serialize the result the way a JavaScript
+//! `compile_source_*`, [`summarize_source_input`], [`render_stylesheet`], and
+//! [`generate_vocabulary_types`] directly and serialize the result the way a JavaScript
 //! caller would see it. They pin the transport contract that is easy to break without a
 //! JavaScript test: projected runtime imports stay inside their verified script realms,
 //! invalid projection metadata fails the compile instead of producing partial code, and
@@ -12,9 +12,9 @@ use std::error::Error;
 
 use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
 use stillwind_napi::{
-    BindingApiError, BindingRejectedIdentifier, ProjectSource, compile_react_input,
-    compile_react_project_input, compile_react_project_input_with_options, generate_react_types,
-    render_react_stylesheet, summarize_react_input,
+    BindingApiError, BindingRejectedIdentifier, ProjectSource, compile_project_input,
+    compile_project_input_with_options, compile_source_input, generate_vocabulary_types,
+    render_stylesheet, summarize_source_input,
 };
 
 /// Malformed sources are reported through the same schema a host reads.
@@ -36,7 +36,7 @@ fn rejected_names_are_transported_beside_symbols() {
 #[test]
 fn lint_severities_keep_their_host_protocol_spellings() {
     for severity in ["warn", "deny", "off"] {
-        let output = compile_react_input(
+        let output = compile_source_input(
             "import {style} from 'stillwind/react'; const props = style('flex');",
             "entry.tsx",
             &format!("@utility flex {{display:flex;}} @stillwind-slot utilities; @stillwind {{custom: {severity};}}"),
@@ -70,7 +70,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     });
     let compile = |input: &serde_json::Value| -> serde_json::Value {
         serde_json::to_value(
-            compile_react_project_input(
+            compile_project_input(
                 &sources_from_value(serde_json::json!([input])),
                 "@utility flex {display:flex;} @stillwind-slot utilities;",
             )
@@ -124,7 +124,7 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
         "import_realms":[{"id":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}],
         "regions":[{"import_realm":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}]
     });
-    let output = compile_react_project_input(
+    let output = compile_project_input(
         &sources_from_value(serde_json::json!([source])),
         "@utility flex {display:flex;} @stillwind-slot utilities;",
     )
@@ -150,7 +150,7 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
 fn serializes_a_layered_compile_result_for_node_consumers() {
     let source = r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90");"#;
-    let output = compile_react_input(
+    let output = compile_source_input(
         source,
         "Button.tsx",
         &css_fixture::with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
@@ -182,7 +182,7 @@ const props = style("bg-accent hover:bg-accent/90");"#;
 
 #[test]
 fn exposes_generated_symbols_for_build_wide_collision_checks() {
-    let output = compile_react_input(
+    let output = compile_source_input(
         r#"import { style } from "stillwind/react";
 const menu = style.ref();
 const props = style(menu.anchor);"#,
@@ -203,7 +203,7 @@ const props = style(menu.anchor);"#,
 
 #[test]
 fn serializes_cross_module_ref_summaries() {
-    let output = summarize_react_input(
+    let output = summarize_source_input(
         r#"import { style } from "stillwind/react";
 export const menu = style.ref("menu");
 export const trigger = style.ref(menu, "trigger");"#,
@@ -246,7 +246,7 @@ import { menu } from "./Parent";
 export const child = style({ [menu`hover:`]: "text-white" });"#
         }
     ]);
-    let output = compile_react_project_input(
+    let output = compile_project_input(
         &sources_from_value(sources),
         &css_fixture::with_defaults("@theme { --color-white: white; }"),
     )
@@ -280,7 +280,7 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
         r#"@import "stillwind";
 @theme { --color-white: white; }"#,
     );
-    let output = compile_react_project_input(&sources_from_value(sources), &theme).unwrap();
+    let output = compile_project_input(&sources_from_value(sources), &theme).unwrap();
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     let fragments = value["modules"]
         .as_array()
@@ -301,7 +301,7 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
             .sum::<usize>(),
         2
     );
-    let stylesheet = render_react_stylesheet(fragments.join("\n"), theme.to_owned(), None).unwrap();
+    let stylesheet = render_stylesheet(fragments.join("\n"), theme.to_owned(), None).unwrap();
     assert_eq!(
         stylesheet
             .matches("@layer properties, theme, base, components, utilities;")
@@ -315,7 +315,7 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
 
 #[test]
 fn serializes_editor_positions_for_diagnostics() {
-    let output = compile_react_input(
+    let output = compile_source_input(
         "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
         "Button.tsx",
         &css_fixture::with_defaults("@theme { --color-accent: red; }"),
@@ -329,13 +329,13 @@ fn serializes_editor_positions_for_diagnostics() {
 }
 
 #[test]
-fn generates_theme_backed_react_type_augmentations() {
-    let output = generate_react_types(css_fixture::with_defaults(
+fn generates_theme_backed_shared_vocabulary_augmentations() {
+    let output = generate_vocabulary_types(css_fixture::with_defaults(
         "@theme { --color-accent: red; }",
     ))
     .unwrap();
 
-    assert!(output.contains("declare module \"stillwind/react\""));
+    assert!(output.contains("declare module \"stillwind/macro\""));
     assert!(output.contains("\"bg-accent\": true"));
 }
 
@@ -345,7 +345,7 @@ fn project_api_preserves_configuration_errors() {
         prefix: "invalid".into(),
         ..CompilerOptions::default()
     };
-    let error = compile_react_project_input_with_options(&[], "", &options)
+    let error = compile_project_input_with_options(&[], "", &options)
         .err()
         .unwrap();
     assert!(matches!(error, BindingApiError::Options(_)));

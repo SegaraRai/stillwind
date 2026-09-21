@@ -3,7 +3,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { summarizeReact } from "@stillwind/native";
+import { summarizeSource } from "@stillwind/native";
 
 import type { ModuleSummary } from "../src/protocol.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
@@ -18,7 +18,7 @@ const unrelated = tuple(123);
 const token = style.keyframes({from: 'opacity-0', to: 'opacity-100'});
 const selected = token;
 export const props = style(selected('infinite'));`;
-  const summary = summarizeReact(source, "probe-document.ts") as ModuleSummary;
+  const summary = summarizeSource(source, "probe-document.ts") as ModuleSummary;
   const service = new TypeScriptFactsService(root);
   try {
     const facts = service

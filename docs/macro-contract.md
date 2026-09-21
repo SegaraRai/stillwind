@@ -3,6 +3,17 @@
 Stillwind のマクロは UI を記述するための宣言である。値を計算する式は同じ入力から同じ意味の値を返し、外部へ観測可能な変更を起こさない。
 この条件はコンポーネント全体だけでなく、**マクロ内の各引数式**に適用する。
 
+## フレームワークの入口と共通型
+
+`style` は `stillwind/react`、`stillwind/preact`、`stillwind/solid`、`stillwind/vue`、
+`stillwind/svelte`、`stillwind/astro` から取得する。各入口は `packages/core/src/frameworks/`
+にあり、React は `className`、その他は `class` を返す。`style` 属性は Svelte と Astro では
+文字列、React・Preact・Solid・Vue ではオブジェクトになる。
+
+共通の引数型・宣言 identity・語彙は `stillwind/macro`（`packages/core/src/macro/`）が所有する。
+生成された語彙ファイルはこのモジュールを拡張し、各フレームワークの型に共通で反映される。
+コンパイル後の props 合成は `packages/core/src/runtime/` が担当する。
+
 ## 実行時の値式
 
 `style()` の条件式、`class`、カスタムプロパティ、`aria-*` / `data-*` の値、合成元 style、
@@ -93,7 +104,7 @@ build host は有効 policy が `deny` の finding が残っていれば失敗�
 通常の関数呼び出しの本体や入力オブジェクト内部の実装までは証明しない。
 診断がないことは純粋性の証明ではなく、ユーザーが契約を満たす責任を持つ。
 
-API は `packages/core/src/index.ts`、検証は `crates/js-oxc/src/contract.rs`、
+API は `packages/core/src/macro/index.ts`、検証は `crates/js-oxc/src/contract.rs`、
 出力形式の選択は [fragment folding](style-fragment-folding.md) を参照。
 
 ## Animation の条件分岐

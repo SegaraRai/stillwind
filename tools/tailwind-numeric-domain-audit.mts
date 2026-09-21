@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { compileReact } from "@stillwind/native";
+import { compileSource } from "@stillwind/native";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
 import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
@@ -83,7 +83,7 @@ for (const file of readdirSync(caseRoot)
         if (!hasGeneratedUtility(tailwind, baseline)) continue;
         acceptedByTailwind += 1;
         const source = `import { style } from "stillwind/react"; style(${JSON.stringify(candidate)});`;
-        const result = compileReact(
+        const result = compileSource(
           source,
           "src/NumericDomainAudit.tsx",
           stillwindFixtureCss(fixtureCase.input),

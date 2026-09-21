@@ -1,11 +1,11 @@
 //! Verifies the actual coordinate units crossing the binding output boundary.
 
-use stillwind_napi::compile_react_input;
+use stillwind_napi::compile_source_input;
 
 #[test]
 fn transform_mappings_use_utf16_even_with_multibyte_source_and_replacements() {
     let source = "const emoji = '😀'; import { style } from 'stillwind/react'; export const x = style('flex');";
-    let output = compile_react_input(
+    let output = compile_source_input(
         source,
         "entry.tsx",
         "@utility flex { display:flex; } @stillwind-slot utilities;",

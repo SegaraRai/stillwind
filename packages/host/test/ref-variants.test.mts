@@ -3,7 +3,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { compileReactProject, summarizeReact } from "@stillwind/native";
+import { compileProject, summarizeSource } from "@stillwind/native";
 
 import type { ModuleSummary } from "../src/protocol.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
@@ -35,13 +35,13 @@ export const props = style(${expression});`;
       ].map((source) => ({
         ...source,
         id: path.join(root, source.path),
-        summary: summarizeReact(source.source, source.path) as ModuleSummary,
+        summary: summarizeSource(source.source, source.path) as ModuleSummary,
       }));
       const facts = service.collect(
         sources.map((source) => ({ ...source, probes: source.summary.type_probes })),
         new Map(sources.map((source) => [source.path, source.summary.assets])),
       );
-      const result = compileReactProject(
+      const result = compileProject(
         sources.map((source) => ({ ...source, type_facts: facts.get(source.path) ?? [] })),
         `@variant hover { @media (hover:hover) { &:hover { @slot; } } }
 @variant active { &:active { @slot; } }

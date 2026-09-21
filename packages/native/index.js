@@ -30,12 +30,12 @@ try {
 
 export const nativeBindingPath = bindingPath;
 
-export const compileReact = binding.compileReact;
-export const compileReactProject = binding.compileReactProject;
-export const renderReactStylesheet = binding.renderReactStylesheet;
-export const summarizeReact = binding.summarizeReact;
+export const compileSource = binding.compileSource;
+export const compileProject = binding.compileProject;
+export const renderStylesheet = binding.renderStylesheet;
+export const summarizeSource = binding.summarizeSource;
 export const scanSource = binding.scanSource;
-export const generateReactTypes = binding.generateReactTypes;
+export const generateVocabularyTypes = binding.generateVocabularyTypes;
 export const foldCalcExpressions = binding.foldCalcExpressions;
 export const NativeDesignSystemLoader = binding.NativeDesignSystemLoader;
 export const NativeProjectSession = binding.NativeProjectSession;

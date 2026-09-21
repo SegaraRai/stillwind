@@ -5,11 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { transform as compileAstro } from "@astrojs/compiler";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
-import {
-  compileReactProject,
-  NativeDesignSystemLoader,
-  NativeProjectSession,
-} from "@stillwind/native";
+import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { projectFrameworkSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
@@ -69,7 +65,7 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
 void test("SFC output fails on residual macros or mismatched attribute context", async () => {
   const compile = (input: Awaited<ReturnType<typeof projectFrameworkSource>>) =>
     (
-      compileReactProject(
+      compileProject(
         [input],
         "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
       ) as ProjectCompilerOutput
@@ -195,7 +191,7 @@ for (const { extension, source, name, imports } of [
     assert.equal(projected.fw_code, source);
     assert.ok(projected.converter?.version);
     assert.ok(projected.import_realms?.length);
-    const output = compileReactProject(
+    const output = compileProject(
       [projected],
       "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
     ) as ProjectCompilerOutput;

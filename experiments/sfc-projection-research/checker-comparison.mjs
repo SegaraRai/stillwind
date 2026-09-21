@@ -99,9 +99,9 @@ function fixtures(framework, variant) {
   if (variant === "erased") {
     body += `const erased: any = a;\n`;
     add("erased", "erased", null);
-    body += `const widened: import('stillwind/${framework}').StyleResult<string, import('stillwind/${framework}').StyleProps> = a;\n`;
+    body += `const widened: import('stillwind/${framework}').StyleResult<string> = a;\n`;
     add("widened", "widened", null);
-    body += `function forget(value: import('stillwind/${framework}').StyleResult<string, import('stillwind/${framework}').StyleProps>) { return value; }\n`;
+    body += `function forget(value: import('stillwind/${framework}').StyleResult<string>) { return value; }\n`;
     add("erased-parameter", "forget(a)", null);
   }
   if (framework === "vue")
@@ -245,7 +245,7 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
       shadow = shadow.slice(0, e.at) + e.text + shadow.slice(e.end);
     if (stripTemplateSymbols)
       shadow +=
-        '\ndeclare function __researchProps<T>(value:T): Omit<T, keyof import("stillwind/svelte").StyleResult<never, {}>>;\n';
+        '\ndeclare function __researchProps<T>(value:T): Omit<T, keyof import("stillwind/macro").StyleResult<never, {}>>;\n';
     const toProjected = (offset) => {
       let delta = 0;
       for (const e of edits) {

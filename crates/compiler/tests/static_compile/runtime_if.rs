@@ -292,7 +292,7 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
             prefix: "--test-".into(),
             ..CompilerOptions::default()
         };
-        let css = Compiler::render_react_stylesheet(&source, "", &options).unwrap();
+        let css = Compiler::render_stylesheet(&source, "", &options).unwrap();
         assert!(
             !css.contains("--if(") && !css.contains("@variant") && !css.contains("@apply"),
             "{css}"

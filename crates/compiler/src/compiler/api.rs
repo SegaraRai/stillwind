@@ -19,7 +19,7 @@ use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
 use stillwind_source::{Fingerprint, SourceFile};
 
-use super::react::declarations::render_react_types;
+use super::vocabulary::render_vocabulary_types;
 use super::{CompileResult, Compiler};
 use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
 
@@ -45,8 +45,8 @@ impl Compiler {
     ///
     /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
     /// Failures retain the supplied theme source identity and typed cause.
-    pub fn generate_react_types(source: &SourceFile) -> Result<String, CompileError> {
-        Ok(render_react_types(&Self::read_theme(source)?))
+    pub fn generate_vocabulary_types(source: &SourceFile) -> Result<String, CompileError> {
+        Ok(render_vocabulary_types(&Self::read_theme(source)?))
     }
 
     /// Renders a standalone stylesheet for a theme buffer and utility rules.
@@ -59,7 +59,7 @@ impl Compiler {
     /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
     /// Also rejects missing output slots, malformed property requirements or usage CSS,
     /// and unresolved authored theme references.
-    pub fn render_react_stylesheet(
+    pub fn render_stylesheet(
         source: &SourceFile,
         module_css: &str,
         options: &CompilerOptions,

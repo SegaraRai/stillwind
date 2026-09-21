@@ -336,7 +336,7 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 - `crates/compiler/src/compiler/emission/`（`{v}` literal、静的 CSS、
   `stillwindViewTransitionName` 呼び出し、`--sw-vt-*` と `stillwindViewTransitionStyle` の削除）
 - `crates/diagnostics/src/compilation.rs`（SHVIEW002 の緩和、SHVIEW004 の削除）
-- `packages/core/src/runtime/shared.ts`（helper の入れ替え）、`packages/core/src/index.ts`（`for(key?)`）
+- `packages/core/src/runtime/shared.ts`（helper の入れ替え）、`packages/core/src/macro/index.ts`（`for(key?)`）
 
 **Phase 3: 動的 identity**
 

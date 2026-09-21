@@ -76,7 +76,7 @@ for (const [name, css] of [
   ["full-registry", full],
 ]) {
   const compiled = measure(`stateless/${name}/8-calls`, () =>
-    output(native.compileReact(representative.source, representative.path, css, input(options))),
+    output(native.compileSource(representative.source, representative.path, css, input(options))),
   );
   assert.equal(compiled.diagnostics.length, 0);
   assert.ok(compiled.code.includes("className"));
@@ -90,7 +90,7 @@ for (const calls of [1, 100, 1000]) {
   assert.ok(first.modules[0].mappings.length >= calls);
   measure(`session/unchanged/${calls}-calls`, () => compile(session, data));
   measure(`summary/${calls}-calls`, () =>
-    output(native.summarizeReact(data[0].source, data[0].path)),
+    output(native.summarizeSource(data[0].source, data[0].path)),
   );
 }
 for (const count of [10, 100, 300, 1000]) {
