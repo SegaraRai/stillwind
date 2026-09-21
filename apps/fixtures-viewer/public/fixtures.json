@@ -23,50 +23,50 @@
           "path": "src/Popover.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nconst menu = style.ref(\"menu\");\nconst trigger = style.ref(menu, \"trigger\");\n\nexport function Popover() {\n  return (\n    <section {...style(menu)}>\n      <div {...style(trigger.anchorScope, trigger.container(\"inline-size\"))}>\n        <button {...style(trigger, trigger.anchor, \"relative inline-flex\")}>Open</button>\n        <div\n          {...style(\n            trigger.positionAnchor,\n            { [trigger.at(\"width >= 40rem\")]: \"grid-cols-2\" },\n            `${trigger`hover:`}:text-accent`,\n            \"absolute\",\n          )}\n        />\n      </div>\n    </section>\n  );\n}\n",
-          "after": "import { stillwindClassKey, stillwindClsx, stillwindMerge } from \"stillwind/react/runtime\";\n\nconst menu = undefined;\nconst trigger = {c:\"sw_trigger_3s561\"};\n\nexport function Popover() {\n  return (\n    <section {...{className:\"sw_menu_fwm3k\"}}>\n      <div {...stillwindMerge({[stillwindClassKey]:stillwindClsx(({\"sw_trigger_3s561\":\"sw_j56sq sw_trigger_3s561\"})[(trigger).c],({\"sw_trigger_3s561\":\"sw_bn36f sw_trigger_3s561\"})[(trigger).c])})}>\n        <button {...{className:stillwindClsx(\"sw_na86c sw_trigger_3s561\",({\"sw_trigger_3s561\":\"sw_a26st sw_trigger_3s561\"})[(trigger).c])}}>Open</button>\n        <div\n          {...{className:stillwindClsx(\"sw_fh7co\",({\"sw_trigger_3s561\":\"sw_0beuo sw_trigger_3s561\"})[(trigger).c])}}\n        />\n      </div>\n    </section>\n  );\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/react/runtime\";\n\nconst menu = undefined;\nconst trigger = {c:\"sw_trigger_3s561\"};\n\nexport function Popover() {\n  return (\n    <section {...{className:\"sw_menu_fwm3k\"}}>\n      <div {...{className:stillwindClsx(({\"sw_trigger_3s561\":\"sw_j56sq sw_trigger_3s561\"})[(trigger).c],({\"sw_trigger_3s561\":\"sw_bn36f sw_trigger_3s561\"})[(trigger).c])}}>\n        <button {...{className:stillwindClsx(\"sw_na86c sw_trigger_3s561\",({\"sw_trigger_3s561\":\"sw_a26st sw_trigger_3s561\"})[(trigger).c])}}>Open</button>\n        <div\n          {...{className:stillwindClsx(\"sw_fh7co\",({\"sw_trigger_3s561\":\"sw_0beuo sw_trigger_3s561\"})[(trigger).c])}}\n        />\n      </div>\n    </section>\n  );\n}\n",
           "css": ".sw_j56sq {\n  anchor-scope: --sw-a-trigger-3s561;\n}\n.sw_bn36f {\n  container-name: sw-c-trigger-3s561;\n  container-type: inline-size;\n}\n.sw_na86c {\n  position: relative;\n  display: inline-flex;\n}\n.sw_a26st {\n  anchor-name: --sw-a-trigger-3s561;\n}\n.sw_fh7co {\n  position: absolute;\n}\n@container sw-c-trigger-3s561 (width >= 40rem) {\n  .sw_fh7co {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }\n}\n@media (hover: hover) {\n  .sw_menu_fwm3k:has(.sw_trigger_3s561:where(:hover)) .sw_fh7co {\n    color: var(--color-accent);\n  }\n}\n.sw_0beuo {\n  position-anchor: --sw-a-trigger-3s561;\n}\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 91
+              "toB": 56
             },
             {
               "fromA": 55,
               "toA": 72,
-              "fromB": 106,
-              "toB": 115
+              "fromB": 71,
+              "toB": 80
             },
             {
               "fromA": 90,
               "toA": 116,
-              "fromB": 133,
-              "toB": 155
+              "fromB": 98,
+              "toB": 120
             },
             {
               "fromA": 175,
               "toA": 186,
-              "fromB": 214,
-              "toB": 241
+              "fromB": 179,
+              "toB": 206
             },
             {
               "fromA": 204,
               "toA": 264,
-              "fromB": 259,
-              "toB": 439
+              "fromB": 224,
+              "toB": 378
             },
             {
               "fromA": 287,
               "toA": 341,
-              "fromB": 462,
-              "toB": 580
+              "fromB": 401,
+              "toB": 519
             },
             {
               "fromA": 384,
               "toA": 571,
-              "fromB": 623,
-              "toB": 724
+              "fromB": 562,
+              "toB": 663
             }
           ]
         }
@@ -212,7 +212,7 @@
           "path": "src/Conditions.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...style(\n        \"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\",\n        { \"--enabled\": enabled, \"--second\": second },\n      )}\n    >\n      <div {...style(\"grid if(!--enabled):flex w-[--if(!--enabled,40px,80px)]\")} />\n      <div\n        {...style(\"grid if(--mode:compact):flex w-[--if(--mode:compact,40px,80px)]\", {\n          \"--mode\": \"compact\",\n        })}\n      />\n    </section>\n  );\n}\n",
-          "after": "import { stillwindCssValue } from \"stillwind/react/runtime\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"sw_j49u5\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"sw_b4phk\"}} />\n      <div\n        {...{className:\"sw_80mrb\",style:{\"--mode\":stillwindCssValue(\"compact\")}}}\n      />\n    </section>\n  );\n}\n",
+          "after": "import { stillwindCssValue } from \"stillwind/react/runtime\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"sw_j49u5\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"sw_b4phk\"}} />\n      <div\n        {...{className:\"sw_80mrb\",style:{\"--mode\":\"compact\"}}}\n      />\n    </section>\n  );\n}\n",
           "css": ".sw_j49u5 {\n  display: grid;\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (color: revert-rule) and (--sw-ifr-cb7fn: 0) {\n  .sw_j49u5 {\n    display: if(style(--enabled): flex;else: revert-rule);\n  }\n}\n@supports (color: revert-rule) and (--sw-ifr-7lwrw: 0) {\n  .sw_j49u5 {\n    --sw-ifg-qhl3x: var(--second) var(--enabled);\n    opacity: if(style(--sw-ifg-qhl3x): calc(50 * 1%) ;else: revert-rule) !important;\n  }\n}\n.sw_b4phk {\n  display: grid;\n  width: if(style(--enabled): 80px;else: 40px);\n}\n@supports (color: revert-rule) and (--sw-ifr-m9y9i: 0) {\n  .sw_b4phk {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n.sw_80mrb {\n  display: grid;\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n@supports (color: revert-rule) and (--sw-ifr-j9jyf: 0) {\n  .sw_80mrb {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n",
           "diff": [
             {
@@ -237,7 +237,7 @@
               "fromA": 515,
               "toA": 631,
               "fromB": 364,
-              "toB": 432
+              "toB": 413
             }
           ]
         }
@@ -377,32 +377,32 @@
           "path": "src/consumer.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nimport { selectedBoundary, selectedRef } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\nexport const anchorProvider = style(selectedRef.anchor);\nexport const attachedBoundary = style(selectedBoundary);\n",
-          "after": "import { stillwindClassKey, stillwindMerge } from \"stillwind/react/runtime\";\n\nimport { selectedBoundary, selectedRef } from \"./barrel\";\n\nexport const attachedRef = stillwindMerge({[stillwindClassKey]:((selectedRef).c)});\nexport const anchorProvider = stillwindMerge({[stillwindClassKey]:(({\"sw_primary_bphz3\":\"sw_l3dxv\",\"sw_secondary_fmhru\":\"sw_aqvyw\"})[(selectedRef).c])});\nexport const attachedBoundary = stillwindMerge({[stillwindClassKey]:((selectedBoundary).c)});\n",
+          "after": "\n\nimport { selectedBoundary, selectedRef } from \"./barrel\";\n\nexport const attachedRef = {className:((selectedRef).c)};\nexport const anchorProvider = {className:(({\"sw_primary_bphz3\":\"sw_l3dxv\",\"sw_secondary_fmhru\":\"sw_aqvyw\"})[(selectedRef).c])};\nexport const attachedBoundary = {className:((selectedBoundary).c)};\n",
           "css": ".sw_l3dxv {\n  anchor-name: --sw-a-primary-bphz3;\n}\n.sw_aqvyw {\n  anchor-name: --sw-a-secondary-fmhru;\n}\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 76
+              "toB": 0
             },
             {
               "fromA": 128,
               "toA": 146,
-              "fromB": 164,
-              "toB": 219
+              "fromB": 88,
+              "toB": 117
             },
             {
               "fromA": 178,
               "toA": 203,
-              "fromB": 251,
-              "toB": 373
+              "fromB": 149,
+              "toB": 245
             },
             {
               "fromA": 237,
               "toA": 260,
-              "fromB": 407,
-              "toB": 467
+              "fromB": 279,
+              "toB": 313
             }
           ]
         }
@@ -474,98 +474,98 @@
           "path": "src/transitions.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nexport const pageTitle = style.viewTransition({\n  label: \"page-title\",\n  old: \"opacity-0\",\n  new: \"opacity-100\",\n});\nexport const pageCard = style.viewTransition({\n  old: \"opacity-100 motion-reduce:opacity-75\",\n  new: \"opacity-0\",\n  imagePair: \"isolation-auto\",\n});\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\n// Static and conditional identities, each used with and without a key.\nexport const staticTransition = style(pageTitle);\nexport const staticKeyedTransition = style(pageTitle.for(transitionKey));\nexport const staticLiteralKey = style(\"block\", pageTitle.for(\"hero\"));\nexport const conditionalTransition = style(selectedTransition);\nexport const conditionalKeyedTransition = style(selectedTransition.for(transitionKey));\nexport const conditionalLiteralKey = style(\"block\", selectedTransition.for(\"hero\"));\n\n// A key applied where the transition was declared travels in the value.\nexport const keyedOutside = pageTitle.for(\"outside\");\nexport const keyedDynamically = pageCard.for(transitionKey);\nexport const usesKeyedOutside = style(\"block\", keyedOutside);\n\n// A name another declaration states, and several transitions in one call.\nexport const namedExplicitly = style(\"block\", pageTitle, \"[view-transition-name:hero]\");\nexport const unioned = style(\"block\", pageTitle.for(\"one\"), pageCard.for(\"two\"));\n\n// A guarded use fills a slot its own class carries, beside the unconditional classes.\nexport const guarded = style(\"block\", compact && pageCard.for(\"guarded\"), pageTitle.for(\"base\"));\n",
-          "after": "import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindStyleKey, stillwindViewTransitionName, stillwindViewTransitionKey } from \"stillwind/react/runtime\";\n\nexport const pageTitle = {v:\"sw-vt-page-title-vtl83\"};\nexport const pageCard = {v:\"sw-vt-woqm1\"};\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\n// Static and conditional identities, each used with and without a key.\nexport const staticTransition = stillwindMerge({[stillwindClassKey]:(({\"sw-vt-page-title-vtl83\":\"sw_1ucjt\"})[(pageTitle).v])});\nexport const staticKeyedTransition = stillwindMerge({[stillwindClassKey]:\"sw_rylqx\"},{[stillwindStyleKey]:{\"view-transition-name\":stillwindViewTransitionName(\"sw-vt-page-title-vtl83\",transitionKey)}});\nexport const staticLiteralKey = {className:\"sw_2qlao\"};\nexport const conditionalTransition = stillwindMerge({[stillwindClassKey]:(({\"sw-vt-page-title-vtl83\":\"sw_itpxj\",\"sw-vt-woqm1\":\"sw_7gx3z\"})[(selectedTransition).v])});\nexport const conditionalKeyedTransition = stillwindMerge({[stillwindClassKey]:(({\"sw-vt-page-title-vtl83\":\"sw_gfnst\",\"sw-vt-woqm1\":\"sw_qsx45\"})[(selectedTransition).v])},{[stillwindStyleKey]:{\"view-transition-name\":stillwindViewTransitionName(selectedTransition,transitionKey)}});\nexport const conditionalLiteralKey = {className:stillwindClsx(\"sw_43hgg\",({\"sw-vt-page-title-vtl83\":\"sw_3oyfk\",\"sw-vt-woqm1\":\"sw_556g5\"})[(selectedTransition).v])};\n\n// A key applied where the transition was declared travels in the value.\nexport const keyedOutside = {v:\"sw-vt-page-title-vtl83\",w:\"outside\"};\nexport const keyedDynamically = stillwindViewTransitionKey(pageCard,transitionKey);\nexport const usesKeyedOutside = stillwindMerge({[stillwindClassKey]:\"sw_8pa1h\"},{[stillwindStyleKey]:{\"view-transition-name\":stillwindViewTransitionName(keyedOutside)}});\n\n// A name another declaration states, and several transitions in one call.\nexport const namedExplicitly = {className:stillwindClsx(\"sw_0j70v\",({\"sw-vt-page-title-vtl83\":\"sw_uieoj\"})[(pageTitle).v])};\nexport const unioned = {className:\"sw_j0jnc\"};\n\n// A guarded use fills a slot its own class carries, beside the unconditional classes.\nexport const guarded = stillwindMerge({[stillwindClassKey]:\"sw_mo7p2\"},(compact) && ({[stillwindClassKey]:\"sw_wiq0e\"}));\n",
+          "after": "import { stillwindClsx, stillwindViewTransitionName, stillwindViewTransitionKey } from \"stillwind/react/runtime\";\n\nexport const pageTitle = {v:\"sw-vt-page-title-vtl83\"};\nexport const pageCard = {v:\"sw-vt-woqm1\"};\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\n// Static and conditional identities, each used with and without a key.\nexport const staticTransition = {className:(({\"sw-vt-page-title-vtl83\":\"sw_1ucjt\"})[(pageTitle).v])};\nexport const staticKeyedTransition = {className:\"sw_rylqx\",style:{\"view-transition-name\":stillwindViewTransitionName(\"sw-vt-page-title-vtl83\",transitionKey)}};\nexport const staticLiteralKey = {className:\"sw_2qlao\"};\nexport const conditionalTransition = {className:(({\"sw-vt-page-title-vtl83\":\"sw_itpxj\",\"sw-vt-woqm1\":\"sw_7gx3z\"})[(selectedTransition).v])};\nexport const conditionalKeyedTransition = {className:(({\"sw-vt-page-title-vtl83\":\"sw_gfnst\",\"sw-vt-woqm1\":\"sw_qsx45\"})[(selectedTransition).v]),style:{\"view-transition-name\":stillwindViewTransitionName(selectedTransition,transitionKey)}};\nexport const conditionalLiteralKey = {className:stillwindClsx(\"sw_43hgg\",({\"sw-vt-page-title-vtl83\":\"sw_3oyfk\",\"sw-vt-woqm1\":\"sw_556g5\"})[(selectedTransition).v])};\n\n// A key applied where the transition was declared travels in the value.\nexport const keyedOutside = {v:\"sw-vt-page-title-vtl83\",w:\"outside\"};\nexport const keyedDynamically = stillwindViewTransitionKey(pageCard,transitionKey);\nexport const usesKeyedOutside = {className:\"sw_8pa1h\",style:{\"view-transition-name\":stillwindViewTransitionName(keyedOutside)}};\n\n// A name another declaration states, and several transitions in one call.\nexport const namedExplicitly = {className:stillwindClsx(\"sw_0j70v\",({\"sw-vt-page-title-vtl83\":\"sw_uieoj\"})[(pageTitle).v])};\nexport const unioned = {className:\"sw_j0jnc\"};\n\n// A guarded use fills a slot its own class carries, beside the unconditional classes.\nexport const guarded = {className:stillwindClsx(\"sw_mo7p2\",(compact) && (\"sw_wiq0e\"))};\n",
           "css": "::view-transition-old(.sw-vt-page-title-vtl83) {\n  opacity: calc(0 * 1%);\n}\n::view-transition-new(.sw-vt-page-title-vtl83) {\n  opacity: calc(100 * 1%);\n}\n::view-transition-old(.sw-vt-woqm1) {\n  opacity: calc(100 * 1%);\n}\n@media (prefers-reduced-motion: reduce) {\n  ::view-transition-old(.sw-vt-woqm1) {\n    opacity: calc(75 * 1%);\n  }\n}\n::view-transition-new(.sw-vt-woqm1) {\n  opacity: calc(0 * 1%);\n}\n::view-transition-image-pair(.sw-vt-woqm1) {\n  isolation: auto;\n}\n.sw_rylqx {\n  view-transition-class: sw-vt-page-title-vtl83;\n}\n.sw_2qlao {\n  display: block;\n}\n.sw_2qlao {\n  view-transition-class: sw-vt-page-title-vtl83;\n}\n.sw_2qlao {\n  view-transition-name: sw-vt-page-title-vtl83-hero;\n}\n.sw_43hgg {\n  display: block;\n}\n.sw_3oyfk {\n  view-transition-name: sw-vt-page-title-vtl83-hero;\n}\n.sw_556g5 {\n  view-transition-name: sw-vt-woqm1-hero;\n}\n.sw_8pa1h {\n  display: block;\n}\n.sw_8pa1h {\n  view-transition-class: sw-vt-page-title-vtl83;\n}\n.sw_0j70v {\n  display: block;\n  view-transition-name: hero;\n}\n.sw_j0jnc {\n  display: block;\n}\n.sw_j0jnc {\n  view-transition-class: sw-vt-page-title-vtl83 sw-vt-woqm1;\n}\n.sw_j0jnc {\n  view-transition-name: sw-vt-page-title-vtl83-one;\n}\n.sw_j0jnc {\n  view-transition-name: sw-vt-woqm1-two;\n}\n.sw_mo7p2 {\n  display: block;\n}\n.sw_mo7p2 {\n  view-transition-class: sw-vt-page-title-vtl83 var(--sw-vtc-sgapg,);\n}\n.sw_mo7p2 {\n  view-transition-name: sw-vt-page-title-vtl83-base;\n}\n.sw_wiq0e {\n  --sw-vtc-sgapg: sw-vt-woqm1;\n}\n.sw_wiq0e {\n  view-transition-name: sw-vt-woqm1-guarded;\n}\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 167
+              "toB": 113
             },
             {
               "fromA": 67,
               "toA": 157,
-              "fromB": 194,
-              "toB": 222
+              "fromB": 140,
+              "toB": 168
             },
             {
               "fromA": 183,
               "toA": 306,
-              "fromB": 248,
-              "toB": 265
+              "fromB": 194,
+              "toB": 211
             },
             {
               "fromA": 573,
               "toA": 589,
-              "fromB": 532,
-              "toB": 626
+              "fromB": 478,
+              "toB": 546
             },
             {
               "fromA": 628,
               "toA": 663,
-              "fromB": 665,
-              "toB": 828
+              "fromB": 585,
+              "toB": 706
             },
             {
               "fromA": 697,
               "toA": 734,
-              "fromB": 862,
-              "toB": 884
+              "fromB": 740,
+              "toB": 762
             },
             {
               "fromA": 773,
               "toA": 798,
-              "fromB": 923,
-              "toB": 1051
+              "fromB": 801,
+              "toB": 903
             },
             {
               "fromA": 842,
               "toA": 886,
-              "fromB": 1095,
-              "toB": 1332
+              "fromB": 947,
+              "toB": 1142
             },
             {
               "fromA": 925,
               "toA": 971,
-              "fromB": 1371,
-              "toB": 1497
+              "fromB": 1181,
+              "toB": 1307
             },
             {
               "fromA": 1075,
               "toA": 1099,
-              "fromB": 1601,
-              "toB": 1641
+              "fromB": 1411,
+              "toB": 1451
             },
             {
               "fromA": 1133,
               "toA": 1160,
-              "fromB": 1675,
-              "toB": 1725
+              "fromB": 1485,
+              "toB": 1535
             },
             {
               "fromA": 1194,
               "toA": 1222,
-              "fromB": 1759,
-              "toB": 1896
+              "fromB": 1569,
+              "toB": 1664
             },
             {
               "fromA": 1331,
               "toA": 1387,
-              "fromB": 2005,
-              "toB": 2097
+              "fromB": 1773,
+              "toB": 1865
             },
             {
               "fromA": 1412,
               "toA": 1469,
-              "fromB": 2122,
-              "toB": 2144
+              "fromB": 1890,
+              "toB": 1912
             },
             {
               "fromA": 1582,
               "toA": 1655,
-              "fromB": 2257,
-              "toB": 2353
+              "fromB": 2025,
+              "toB": 2088
             }
           ]
         },
@@ -573,26 +573,26 @@
           "path": "src/Card.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = style(pageTitle);\nexport const selectedCardTransition = style(selectedTransition);\n",
-          "after": "import { stillwindClassKey, stillwindMerge } from \"stillwind/react/runtime\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = stillwindMerge({[stillwindClassKey]:(({\"sw-vt-page-title-vtl83\":\"sw_rtuzf\"})[(pageTitle).v])});\nexport const selectedCardTransition = stillwindMerge({[stillwindClassKey]:(({\"sw-vt-page-title-vtl83\":\"sw_vffuv\",\"sw-vt-woqm1\":\"sw_06qde\"})[(selectedTransition).v])});\n",
+          "after": "\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = {className:(({\"sw-vt-page-title-vtl83\":\"sw_rtuzf\"})[(pageTitle).v])};\nexport const selectedCardTransition = {className:(({\"sw-vt-page-title-vtl83\":\"sw_vffuv\",\"sw-vt-woqm1\":\"sw_06qde\"})[(selectedTransition).v])};\n",
           "css": "\n",
           "diff": [
             {
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 76
+              "toB": 0
             },
             {
               "fromA": 243,
               "toA": 259,
-              "fromB": 279,
-              "toB": 373
+              "fromB": 203,
+              "toB": 271
             },
             {
               "fromA": 299,
               "toA": 324,
-              "fromB": 413,
-              "toB": 541
+              "fromB": 311,
+              "toB": 413
             }
           ]
         }

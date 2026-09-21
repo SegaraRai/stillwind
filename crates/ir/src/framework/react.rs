@@ -9,6 +9,7 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     runtime_import: "stillwind/react/runtime",
     runtime_import_dev: "stillwind/runtime/dev",
     class_property: "className",
+    style_property: "style",
     style_format: StyleFormat::Object,
     projected_input: false,
     normalize: preserve,

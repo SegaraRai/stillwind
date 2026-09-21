@@ -36,6 +36,8 @@ pub(crate) enum RuntimeHelper {
     Merge,
     /// The `stillwindStyleKey` runtime export.
     StyleKey,
+    /// The `stillwindStyleValue` runtime export.
+    StyleValue,
     /// The `stillwindToFragment` runtime export.
     ToFragment,
     /// The `stillwindViewTransitionName` runtime export.
@@ -55,6 +57,7 @@ impl RuntimeHelper {
             Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
             Self::Merge => "stillwindMerge",
             Self::StyleKey => "stillwindStyleKey",
+            Self::StyleValue => "stillwindStyleValue",
             Self::ToFragment => "stillwindToFragment",
             Self::ViewTransitionName => "stillwindViewTransitionName",
             Self::ViewTransitionKey => "stillwindViewTransitionKey",

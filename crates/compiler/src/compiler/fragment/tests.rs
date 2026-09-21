@@ -22,6 +22,7 @@ use crate::runtime::{RuntimeBindings, RuntimeHelper};
 /// The short span is not an exact text mapping for `render_transforms`.
 fn property(name: &str, index: u32) -> Property {
     Property {
+        static_value: None,
         name: name.into(),
         value: format!("value({index})"),
         span: Span::new(FileId(1), index, index + 1),
@@ -216,7 +217,7 @@ fn folded_javascript_matches_runtime_materialization() {
                 &emission(
                     vec![
                         StyleEmissionPart::Class {
-                            emitted: Emitted::Expression("value(1)".into()),
+                            emitted: Emitted::Expression("String(value(1))".into()),
                             position: 1,
                         },
                         custom("--x", 2),
@@ -365,8 +366,9 @@ fn execute_cases(cases: &[serde_json::Value]) {
     );
 }
 
-/// Appends one optimized/reference pair, allocating independent helper bindings for each.
-/// `analysis` supplies the module naming context; `fw` selects materialization semantics.
+/// Appends one optimized/reference pair, allocating independent helper bindings for
+/// each. `analysis` supplies the module naming context; `fw` selects materialization
+/// semantics.
 fn append_case(
     cases: &mut Vec<serde_json::Value>,
     input: &StyleEmission,
@@ -380,4 +382,125 @@ fn append_case(
         "optimized": optimized.text,
         "reference": reference.text,
     }));
+}
+
+#[test]
+fn class_branches_and_single_style_payloads_materialize_without_merge() {
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "fold.tsx",
+            "import { style } from 'stillwind/react'; style('flex');",
+        )
+        .unwrap(),
+    );
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let class = |name: &str| StyleEmissionPart::Class {
+        emitted: Emitted::Leaf {
+            names: vec![name.into()],
+        },
+        position: 1,
+    };
+    let mut cases = Vec::new();
+    for fw in FRAMEWORKS {
+        for base in [false, true] {
+            for kind in [ConditionalKind::LogicalAnd, ConditionalKind::Ternary] {
+                let parts = vec![StyleEmissionPart::Conditional {
+                    test: "test()".into(),
+                    kind,
+                    consequent: vec![class("selected")],
+                    alternate: if kind == ConditionalKind::Ternary {
+                        vec![class("other")]
+                    } else {
+                        vec![]
+                    },
+                    position: 1,
+                }];
+                let input = emission(parts, base);
+                let fragment = Fragment::from_emission(&input);
+                let folded = fold(fragment, fw);
+                assert_eq!(fold(folded.clone(), fw), folded);
+                let output = render_style_call(&input, fw, &mut RuntimeBindings::new(&analysis));
+                assert!(!output.text.contains("stillwindMerge"), "{}", output.text);
+                assert!(
+                    !output.text.contains("stillwindClassKey"),
+                    "{}",
+                    output.text
+                );
+                append_case(&mut cases, &input, fw, &analysis);
+            }
+            for payload in [
+                ValueExpr::Source("payload()".into()),
+                ValueExpr::Entry {
+                    property: "--x".into(),
+                    value: Box::new(ValueExpr::Source("value(1)".into())),
+                },
+                ValueExpr::Entry {
+                    property: "view-transition-name".into(),
+                    value: Box::new(ValueExpr::Call {
+                        helper: RuntimeHelper::ViewTransitionName,
+                        arguments: vec!["'token'".into(), "'key'".into()],
+                        span: Span::new(FileId(1), 1, 2),
+                    }),
+                },
+            ] {
+                let input = emission(
+                    vec![StyleEmissionPart::Style {
+                        expression: payload,
+                        position: 2,
+                    }],
+                    base,
+                );
+                let output = render_style_call(&input, fw, &mut RuntimeBindings::new(&analysis));
+                assert!(!output.text.contains("stillwindMerge"), "{}", output.text);
+                assert!(
+                    !output.text.contains("stillwindStyleKey"),
+                    "{}",
+                    output.text
+                );
+                append_case(&mut cases, &input, fw, &analysis);
+            }
+        }
+    }
+    execute_cases(&cases);
+}
+
+#[test]
+fn style_fields_follow_framework_specification() {
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            "fold.tsx",
+            "import { style } from 'stillwind/react'; style('flex');",
+        )
+        .unwrap(),
+    );
+    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let original = AdapterKind::React.spec();
+    let framework = FrameworkSpec {
+        id: original.id,
+        macro_import: original.macro_import,
+        runtime_import: original.runtime_import,
+        runtime_import_dev: original.runtime_import_dev,
+        class_property: original.class_property,
+        style_property: "inlineStyle",
+        style_format: original.style_format,
+        projected_input: original.projected_input,
+        normalize: original.normalize,
+    };
+    for part in [
+        custom("--x", 1),
+        StyleEmissionPart::Style {
+            expression: "payload()".into(),
+            position: 1,
+        },
+    ] {
+        let output = render_style_call(
+            &emission(vec![part], false),
+            &framework,
+            &mut RuntimeBindings::new(&analysis),
+        );
+        assert!(output.text.contains("inlineStyle:"), "{}", output.text);
+        assert!(!output.text.contains("style:"), "{}", output.text);
+    }
 }

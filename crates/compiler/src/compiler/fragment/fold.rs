@@ -7,7 +7,7 @@
 
 use std::collections::BTreeSet;
 
-use stillwind_ir::{ConditionalKind, FrameworkSpec, StyleFormat};
+use stillwind_ir::{FrameworkSpec, StyleFormat};
 
 use super::expression::{Atom, Emitted, Fragment, ValueExpr};
 
@@ -16,7 +16,7 @@ use super::expression::{Atom, Emitted, Fragment, ValueExpr};
 pub(super) enum Demand {
     /// Symbolic channels that a parent fragment can still compose.
     Fragment,
-    /// Final framework keys and object/string style format, with runtime key presence/order.
+    /// Final framework keys and object/string style format.
     Props,
 }
 
@@ -40,12 +40,18 @@ pub(super) enum Field {
     ),
 }
 
-/// Plans output fields for `atoms` under the consumer's representation and framework.
+/// Plans a shared field layout for a record under the requested consumer.
 ///
-/// Returned indices address this exact atom slice and preserve order within each
-/// channel. Inputs must satisfy the macro purity contract. Final props retain runtime
-/// field presence and insertion order. Returns `None` for unsupported shapes, special
-/// property names, empty-class uncertainty, or incompatible style serialization.
+/// Inputs must satisfy the macro purity contract and the class-atom invariants of
+/// [`Fragment::from_emission`]. Returned indices address this exact slice and preserve
+/// contribution order within each channel. Props layouts group class, ordinary, and
+/// custom-property fields in that order. Dynamic class fields can remain present when
+/// empty.
+///
+/// Returns `None` for ordinary `__proto__` or framework class keys, or an opaque source
+/// class sharing a field with another class. Props demand additionally rejects custom
+/// properties beside an ordinary framework style field and duplicate custom names in
+/// string style format. An empty record yields an empty layout.
 #[allow(clippy::too_many_lines)] // One proof over record fields and their runtime channels.
 pub(super) fn record_fields(
     atoms: &[Atom],
@@ -82,22 +88,15 @@ pub(super) fn record_fields(
     if atoms
         .iter()
         .any(|atom| matches!(atom, Atom::Class(Emitted::Expression(ValueExpr::Source(_)))))
-        && (demand == Demand::Props || classes.len() > 1)
+        && classes.len() > 1
     {
         return None;
     }
     if demand == Demand::Props {
-        if !classes.is_empty()
-            && !classes
-                .iter()
-                .any(|i| matches!(&atoms[*i], Atom::Class(value) if nonempty_class(value)))
-        {
-            return None;
-        }
         if !custom.is_empty()
             && atoms
                 .iter()
-                .any(|atom| matches!(atom, Atom::Attribute(p) if p.name == "style"))
+                .any(|atom| matches!(atom, Atom::Attribute(p) if p.name == fw.style_property))
         {
             return None;
         }
@@ -122,12 +121,13 @@ pub(super) fn record_fields(
     Some(fields)
 }
 
-/// Reduces children before combining adjacent record contributions.
+/// Combines adjacent contributions and moves class-only branches into class values.
 ///
-/// Flattens nested sequences, drops empty records inside sequences, and groups
-/// compatible adjacent atoms. Branch tests, opaque props, and style payloads remain
-/// boundaries. Failed combinations stay separate; the result still requires a
-/// representation proof when rendered and never materializes framework props here.
+/// Requires the macro purity contract and the class-atom invariants established by
+/// [`Fragment::from_emission`]. Preserves contribution order within channels and the
+/// conditions selecting retained values. Opaque props and whole-style payloads remain
+/// boundaries. The result still needs [`record_fields`] validation for its consumer,
+/// because grouping alone does not establish a valid final-props layout.
 pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
     match fragment {
         Fragment::Sequence(children) => {
@@ -175,12 +175,25 @@ pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
             kind,
             consequent,
             alternate,
-        } => Fragment::Branch {
-            test,
-            kind,
-            consequent: Box::new(fold(*consequent, fw)),
-            alternate: Box::new(fold(*alternate, fw)),
-        },
+        } => {
+            let consequent = fold(*consequent, fw);
+            let alternate = fold(*alternate, fw);
+            if let (Some(yes), Some(no)) = (class_branch(&consequent), class_branch(&alternate)) {
+                Fragment::Record(vec![Atom::Class(Emitted::Conditional {
+                    code: test,
+                    kind,
+                    consequent: Some(Box::new(yes)),
+                    alternate: Some(Box::new(no)),
+                })])
+            } else {
+                Fragment::Branch {
+                    test,
+                    kind,
+                    consequent: Box::new(consequent),
+                    alternate: Box::new(alternate),
+                }
+            }
+        }
         other => other,
     }
 }
@@ -241,22 +254,27 @@ pub(super) fn static_class(value: &Emitted) -> Option<String> {
     }
 }
 
-/// Conservatively proves a class field cannot disappear for any branch selection.
-/// Nonempty leaves, arrays containing a proven value, and ternaries with both arms
-/// proven qualify; opaque values and logical conjunctions remain unproven.
-fn nonempty_class(value: &Emitted) -> bool {
-    match value {
-        Emitted::Leaf { names } => names.iter().any(|name| !name.is_empty()),
-        Emitted::Array(items) => items.iter().flatten().any(nonempty_class),
-        Emitted::Conditional {
-            kind: ConditionalKind::Ternary,
-            consequent,
-            alternate,
-            ..
-        } => {
-            consequent.as_deref().is_some_and(nonempty_class)
-                && alternate.as_deref().is_some_and(nonempty_class)
-        }
-        _ => false,
+/// Extracts an ordered class value from a record or sequence of records.
+///
+/// Requires class atoms with the invariants established by [`Fragment::from_emission`].
+/// Returns `None` for other fragment nodes, non-class atoms, or a top-level opaque
+/// source class atom. Those opaque values cannot be moved into clsx because fragment
+/// collection ignores nonstrings that clsx can interpret. Empty input yields an empty
+/// class array. Retained values are cloned without normalization or runtime type
+/// checks.
+fn class_branch(fragment: &Fragment) -> Option<Emitted> {
+    let atoms = known_record(fragment)?;
+    let mut values = atoms
+        .into_iter()
+        .map(|atom| match atom {
+            Atom::Class(Emitted::Expression(ValueExpr::Source(_))) => None,
+            Atom::Class(value) => Some(Some(value)),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if values.len() == 1 {
+        values.pop().flatten()
+    } else {
+        Some(Emitted::Array(values))
     }
 }

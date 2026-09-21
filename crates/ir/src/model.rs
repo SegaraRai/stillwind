@@ -475,6 +475,9 @@ pub enum GroupEntry {
 pub struct CustomPropertyEntry {
     /// Decoded CSS property name, beginning with `--`.
     pub name: Spanned<String>,
-    /// Original expression evaluated once and converted to CSS text at runtime.
+    /// Original expression whose value is converted to CSS text.
     pub value: Span,
+    /// Decoded CSS text when a literal can be converted without evaluating user code.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub static_value: Option<String>,
 }

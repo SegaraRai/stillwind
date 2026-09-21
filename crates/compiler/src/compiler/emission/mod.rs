@@ -5,16 +5,16 @@
 //! contribution are omitted under the macro purity contract. It does not choose final
 //! framework keys or allocate runtime helper imports.
 //!
-//! [`ClassUnits`](super::class_units::ClassUnits) owns class identities and
-//! base-before-conditional CSS publication.
-//! [`LiteralContribution`](super::literal::LiteralContribution) resolves utility text, and
-//! fragment rendering later chooses a representation without changing those CSS identities
-//! or declaration order.
+//! [`ClassUnits`] owns class identities and base-before-conditional CSS publication.
+//! [`LiteralContribution`](super::literal::LiteralContribution) resolves utility text,
+//! and fragment rendering later chooses a representation without changing those CSS
+//! identities or declaration order.
 //!
-//! [`CallEmitter`] declares the walk state here so every file in this directory can read
-//! the private fields while the rest of the compiler cannot. `call` runs the walk and
-//! dispatches one style input; `class_value` lowers class expressions; `ref_projection`,
-//! `keyframes_use`, and `view_transition` hold the arms of one contribution kind each.
+//! [`CallEmitter`] declares the walk state here so every file in this directory can
+//! read the private fields while the rest of the compiler cannot. `call` runs the walk
+//! and dispatches one style input; `class_value` lowers class expressions;
+//! `ref_projection`, `keyframes_use`, and `view_transition` hold the arms of one
+//! contribution kind each.
 
 mod call;
 mod class_value;

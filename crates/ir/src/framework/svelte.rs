@@ -9,6 +9,7 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     runtime_import: "stillwind/svelte/runtime",
     runtime_import_dev: "stillwind/runtime/dev",
     class_property: "class",
+    style_property: "style",
     style_format: StyleFormat::String,
     projected_input: true,
     normalize: preserve,

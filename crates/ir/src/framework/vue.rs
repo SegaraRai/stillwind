@@ -13,6 +13,7 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     runtime_import: "stillwind/vue/runtime",
     runtime_import_dev: "stillwind/runtime/dev",
     class_property: "class",
+    style_property: "style",
     style_format: StyleFormat::Object,
     projected_input: true,
     normalize,

@@ -81,8 +81,10 @@ pub struct FrameworkSpec {
     /// the compiler, so a condition here would resolve twice, once for the module and
     /// once for the name.
     pub runtime_import_dev: &'static str,
-    /// Attribute name the framework expects for classes: `className` or `class`.
+    /// Property name the framework expects for classes: `className` or `class`.
     pub class_property: &'static str,
+    /// Property name the framework expects for inline styles. `style` for now.
+    pub style_property: &'static str,
     /// How the framework runtime materializes the style payload of a fragment.
     pub style_format: StyleFormat,
     /// Enabled only after the original-source projection path is validated.

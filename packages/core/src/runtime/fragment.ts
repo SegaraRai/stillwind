@@ -22,6 +22,8 @@ export interface FragmentRuntime {
   readonly stillwindStyleKey: symbol;
   /** Custom properties merge individually, with later entries winning. */
   readonly stillwindCustomPropertiesKey: symbol;
+  /** Converts a whole-style payload to the framework format; nullish values yield undefined. */
+  readonly stillwindStyleValue: (value: unknown) => unknown;
   /**
    * Flattens arrays left-to-right, ignoring falsy and nonobject values. Class
    * contributions are joined without deduplication; later enumerable props win.
@@ -193,6 +195,7 @@ export function createFragmentRuntime(options: FragmentRuntimeOptions): Fragment
     stillwindClassKey,
     stillwindStyleKey,
     stillwindCustomPropertiesKey,
+    stillwindStyleValue: (value) => (value == null ? undefined : serialize(value)),
     stillwindMerge: merge,
     stillwindToFragment: toFragment,
   };

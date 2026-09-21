@@ -142,7 +142,7 @@ const detail = style(title);"#,
         "{transformed}"
     );
     assert!(
-        transformed.contains("{[stillwindStyleKey]:{\"view-transition-name\":"),
+        transformed.contains("style:{\"view-transition-name\":"),
         "{transformed}"
     );
     assert_eq!(

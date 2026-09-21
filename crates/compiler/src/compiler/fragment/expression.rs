@@ -112,6 +112,8 @@ impl From<&str> for ValueExpr {
 /// A source-owned property whose value has not been converted or serialized.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Property {
+    /// Preconverted CSS text for literal custom-property values.
+    pub static_value: Option<String>,
     /// Decoded property name, without JavaScript quoting.
     pub name: String,
     /// Verbatim UTF-8 expression text equal to the original source slice at `span`.

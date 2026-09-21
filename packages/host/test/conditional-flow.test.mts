@@ -604,3 +604,86 @@ void test("external class arrays flatten while spread keeps iterable semantics",
     assert.equal(evaluate(output.code!, { enabled: true }).props.className, expected, output.code);
   }
 });
+
+void test("transition class branches and complete style payloads avoid fragment merge", async () => {
+  for (const framework of ["react", "svelte"]) {
+    for (const input of ["enabled && a", "enabled ? a : b", "a.for(key)"]) {
+      const output = await compile(
+        [
+          `import {style} from 'stillwind/${framework}'; const events = [];`,
+          "const enabled = Boolean(globalThis.enabled), key = globalThis.key;",
+          "const a = style.viewTransition({old:'red'}), b = style.viewTransition({old:'blue'});",
+          `const props = style('green', ${input});`,
+        ].join("\n"),
+      );
+      assert.doesNotMatch(output.code!, /stillwindMerge|stillwindClassKey|stillwindStyleKey/);
+      for (const enabled of [false, true]) {
+        const { props } = evaluate(output.code!, {
+          ...(framework === "svelte" ? svelteRuntime : runtime),
+          enabled,
+          key: "selected",
+        });
+        const classes = String(props[framework === "svelte" ? "class" : "className"]).split(" ");
+        assert.equal(
+          classes.length,
+          input === "a.for(key)" || (input === "enabled && a" && !enabled) ? 1 : 2,
+        );
+        if (input === "a.for(key)") {
+          assert.ok(JSON.stringify(props.style).includes("-selected"));
+        }
+      }
+    }
+  }
+});
+
+void test("style strings fold static segments and convert only dynamic values", async () => {
+  for (const framework of ["svelte", "astro"]) {
+    const output = await compile(
+      [
+        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        "const amount = globalThis.amount;",
+        "const props = style({'--static':'foo','--dynamic':amount,'--tail':'bar','--end':false});",
+      ].join("\n"),
+    );
+    assert.match(
+      output.code!,
+      /style:"--static:foo;--dynamic:"\+stillwindCssValue\(amount\)\+";--tail:bar;--end:initial"/,
+    );
+    assert.equal((output.code!.match(/stillwindCssValue\(/g) ?? []).length, 1);
+    for (const amount of [3, false, "a;b", new URL("https://example.test/")]) {
+      const { props } = evaluate(output.code!, { ...svelteRuntime, amount });
+      assert.equal(
+        props.style,
+        `--static:foo;--dynamic:${svelteRuntime.stillwindCssValue(amount)};--tail:bar;--end:initial`,
+      );
+    }
+    const literal = await compile(
+      [
+        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        "const props = style({'--foo':'bar','--bar':`baz`,'--tiny':1e-7,'--large':1e21,'--negative':-2,'--flag':true});",
+      ].join("\n"),
+    );
+    assert.match(
+      literal.code!,
+      /style:"--foo:bar;--bar:baz;--tiny:1e-7;--large:1e\+21;--negative:-2;--flag: "/,
+    );
+    assert.doesNotMatch(literal.code!, /stillwindCssValue|stillwindMerge/);
+  }
+});
+
+void test("class-only conditional props use the framework field even when empty", async () => {
+  for (const framework of ["react", "svelte"]) {
+    const output = await compile(
+      [
+        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        "const enabled = Boolean(globalThis.enabled);",
+        "const props = style(enabled && 'red');",
+      ].join("\n"),
+    );
+    assert.doesNotMatch(output.code!, /stillwindClassProps|stillwindMerge/);
+    const { props } = evaluate(output.code!, { ...svelteRuntime, enabled: false });
+    const key = framework === "react" ? "className" : "class";
+    assert.ok(Object.hasOwn(props, key));
+    assert.equal(props[key], "");
+  }
+});

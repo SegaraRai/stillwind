@@ -15,7 +15,8 @@ use oxc::ast::ast::{
     ObjectPropertyKind, PropertyKind,
 };
 use oxc::span::GetSpan;
-use oxc::syntax::operator::LogicalOperator;
+use oxc::syntax::number::ToJsString;
+use oxc::syntax::operator::{LogicalOperator, UnaryOperator};
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
@@ -362,6 +363,7 @@ impl<'a> MacroExtractor<'a> {
                 entries.push(GroupEntry::CustomProperty(CustomPropertyEntry {
                     name,
                     value: self.source_span(property.value.span()),
+                    static_value: static_css_value(&property.value),
                 }));
                 continue;
             }
@@ -524,5 +526,36 @@ fn variant_compatible(expression: &ClassExpression) -> bool {
         ClassExpression::ClassValue { .. }
         | ClassExpression::RefProjection { .. }
         | ClassExpression::DynamicRefProjection { .. } => false,
+    }
+}
+
+/// Preconverts a custom-property literal to the text produced by the CSS-value helper.
+///
+/// Unwraps source parentheses and type wrappers. Strings and expression-free templates
+/// use their decoded text, numbers use JavaScript number formatting, and booleans
+/// become one space or `initial`. Unary negation is supported only for a numeric
+/// literal operand. Returns `None` for other expressions or an unavailable cooked
+/// template value, leaving conversion to runtime even when the expression could be
+/// constant.
+fn static_css_value(expression: &Expression<'_>) -> Option<String> {
+    match expression.get_inner_expression() {
+        Expression::StringLiteral(value) => Some(value.value.to_string()),
+        Expression::BooleanLiteral(value) => Some(if value.value { " " } else { "initial" }.into()),
+        Expression::NumericLiteral(value) => Some(value.value.to_js_string()),
+        Expression::UnaryExpression(value) if value.operator == UnaryOperator::UnaryNegation => {
+            if let Expression::NumericLiteral(number) = value.argument.get_inner_expression() {
+                Some((-number.value).to_js_string())
+            } else {
+                None
+            }
+        }
+        Expression::TemplateLiteral(value) if value.expressions.is_empty() => value
+            .quasis
+            .first()?
+            .value
+            .cooked
+            .as_ref()
+            .map(ToString::to_string),
+        _ => None,
     }
 }

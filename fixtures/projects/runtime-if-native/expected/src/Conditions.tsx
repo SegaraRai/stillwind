@@ -7,7 +7,7 @@ export function Conditions({ enabled, second }: { enabled: boolean; second: bool
     >
       <div {...{className:"sw_b4phk"}} />
       <div
-        {...{className:"sw_80mrb",style:{"--mode":stillwindCssValue("compact")}}}
+        {...{className:"sw_80mrb",style:{"--mode":"compact"}}}
       />
     </section>
   );

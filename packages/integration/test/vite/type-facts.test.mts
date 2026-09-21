@@ -217,7 +217,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);
   assert.match(
     runnable,
-    /^import \{ stillwindClassKey, stillwindMerge, stillwindStyleKey, stillwindViewTransitionName, stillwindViewTransitionKey \} from "stillwind\/react\/runtime";/,
+    /^import \{ stillwindViewTransitionName, stillwindViewTransitionKey \} from "stillwind\/react\/runtime";/,
   );
   for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
     assert.match(runnable, new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));

@@ -258,6 +258,7 @@ impl<'a> CallEmitter<'a> {
         property: &CustomPropertyEntry,
     ) -> Option<Property> {
         Some(Property {
+            static_value: property.static_value.clone(),
             name: property.name.value.clone(),
             value: self.slice(property.value)?,
             span: property.value,
@@ -269,6 +270,7 @@ impl<'a> CallEmitter<'a> {
     /// value span, without appending a diagnostic here.
     pub(super) fn render_attribute(&self, attribute: &AttributeEntry) -> Option<Property> {
         Some(Property {
+            static_value: None,
             name: attribute.name.value.clone(),
             value: self.slice(attribute.value)?,
             span: attribute.value,

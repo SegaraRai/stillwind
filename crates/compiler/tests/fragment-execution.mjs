@@ -73,6 +73,14 @@ for (const mode of ["development", "production"]) {
               "state",
               `return (${code});`,
             )(...Object.values(runtime), value, test, base, payload, state);
+            // Direct props may retain empty class and undefined style fields.
+            const classProperty = item.framework === "react" ? "className" : "class";
+            if (result[classProperty] === "" || result[classProperty] === undefined) {
+              delete result[classProperty];
+            }
+            if (result.style === undefined) {
+              delete result.style;
+            }
             return {
               result: JSON.parse(
                 JSON.stringify(result, (_key, entry) =>

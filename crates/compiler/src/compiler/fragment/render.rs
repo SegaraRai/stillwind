@@ -1,9 +1,10 @@
 //! JavaScript materialization of selected style-fragment plans.
 //!
-//! [`render_style_call`] tries direct framework props, then renders a folded symbolic
-//! tree through the merge runtime. Source-owned fragments retain occurrence mappings;
-//! synthetic keys and helpers receive the enclosing transform's fallback location.
-//! The caller supplies finalized CSS identities and validates the macro contract.
+//! [`render_style_call`] selects direct framework props before and after folding.
+//! Remaining symbolic contributions use the merge runtime. Source-owned fragments
+//! retain occurrence mappings; synthetic keys and helpers receive the enclosing
+//! transform's fallback location. The caller supplies finalized CSS identities and
+//! validates the macro contract.
 
 use stillwind_ir::{ConditionalKind, FrameworkSpec, StyleFormat};
 use stillwind_source::Span;
@@ -15,12 +16,13 @@ use super::fold::{Demand, Field, fold, known_record, record_fields, static_class
 use crate::generated::{Code, code, js_string};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
-/// Returns code for one finalized call, registering helpers only for the selected output.
+/// Materializes a finalized style call as one framework-props expression.
 ///
-/// Uses direct framework props when the whole record is representable; otherwise
-/// folds subtrees and wraps symbolic values in the merge runtime. The input must
-/// satisfy the macro value-expression contract, which permits evaluation reordering.
-/// All source-owned expressions keep their occurrence mappings.
+/// The emission must satisfy the macro purity contract and the class-atom invariants
+/// of [`Fragment::from_emission`]. Layout selection can reorder evaluations and omit
+/// empty contributions. Direct props may retain empty class or undefined style fields.
+/// Registers helpers only for the chosen output. Retained dynamic code keeps its source
+/// mappings, while folded literal text is generated syntax.
 pub(in super::super) fn render_style_call(
     emission: &StyleEmission,
     fw: &FrameworkSpec,
@@ -38,6 +40,14 @@ pub(in super::super) fn render_style_call(
         return renderer.record(&atoms, &fields, Demand::Props);
     }
     let folded = fold(source, fw);
+    if let Some(atoms) = known_record(&folded)
+        && let Some(fields) = record_fields(&atoms, Demand::Props, fw)
+    {
+        return renderer.record(&atoms, &fields, Demand::Props);
+    }
+    if let Some(result) = renderer.style_props(&folded) {
+        return result;
+    }
     let arguments = match &folded {
         Fragment::Sequence(children) => children
             .iter()
@@ -62,9 +72,15 @@ struct Renderer<'a, 'b> {
 }
 
 impl Renderer<'_, '_> {
-    /// Renders a subtree as symbolic fragment input, retaining guards and source mappings.
-    /// Empty records become `null`; a record that cannot share fields becomes an array
-    /// of singleton contributions. Required helpers are registered while rendering.
+    /// Renders a subtree for consumption by the fragment runtime.
+    ///
+    /// Class atoms must satisfy the invariants of [`Fragment::from_emission`]. An empty
+    /// record becomes `null`, and records that cannot share fields become arrays of
+    /// singleton fragments. Registers helpers for emitted branches and values.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a retained class argument violates the contract of [`Self::classes`].
     fn fragment(&mut self, fragment: &Fragment) -> Code {
         match fragment {
             Fragment::Record(atoms) => {
@@ -146,21 +162,31 @@ impl Renderer<'_, '_> {
         }
     }
 
-    /// Renders a selected field layout in fragment or final-props form.
-    /// `fields` must refer to matching atom variants from this exact slice and satisfy
-    /// the representation proof for `demand` and `fw`. Source mappings are preserved;
-    /// required key, class, and value-conversion helpers are registered as used.
+    /// Wraps the entries from [`Self::record_entries`] in an object literal.
+    /// Requires that method's field-layout preconditions and registers its selected helpers.
     ///
     /// # Panics
     ///
-    /// Panics when a field names an atom index outside `atoms`, because field indices are
-    /// used to index the slice directly, and when a class subtree cannot be rendered as a
-    /// class value, which [`Self::classes`] explains.
-    ///
-    /// Callers must pass fields that `record_fields` produced for this exact atom slice
-    /// and demand, or a single field whose index they just computed; a layout kept across
-    /// a rebuilt atom list panics.
+    /// Panics under the conditions documented by [`Self::record_entries`].
     fn record(&mut self, atoms: &[Atom], fields: &[Field], demand: Demand) -> Code {
+        let entries = self.record_entries(atoms, fields, demand);
+        code!["{", Code::join(entries, ","), "}"]
+    }
+
+    /// Renders fields in layout order without object braces, omitting empty static
+    /// classes.
+    ///
+    /// Indices must address matching atom variants in this exact slice. The layout must
+    /// come from [`record_fields`] for the same demand and framework, or describe a
+    /// single fragment channel. Reusing indices after changing the atoms can select
+    /// wrong values. Class atoms must satisfy [`Self::classes`]' structural
+    /// precondition. Registers helpers for emitted values and symbolic keys.
+    ///
+    /// # Panics
+    ///
+    /// Panics for out-of-bounds indices or a retained class argument that
+    /// [`Self::classes`] cannot render.
+    fn record_entries(&mut self, atoms: &[Atom], fields: &[Field], demand: Demand) -> Vec<Code> {
         let mut entries = Vec::new();
         for field in fields {
             match field {
@@ -177,38 +203,9 @@ impl Renderer<'_, '_> {
                             _ => None,
                         })
                         .collect::<Vec<_>>();
-                    let value = if let Some(strings) = values
-                        .iter()
-                        .map(|value| static_class(value))
-                        .collect::<Option<Vec<_>>>()
-                    {
-                        let text = strings
-                            .into_iter()
-                            .filter(|s| !s.is_empty())
-                            .collect::<Vec<_>>()
-                            .join(" ");
-                        if text.is_empty() {
-                            continue;
-                        }
-                        js_string(&text).into()
-                    } else if values.len() == 1 && demand == Demand::Fragment {
-                        if let Emitted::Expression(expression) = values[0] {
-                            code!["(", expression.render(self.runtime), ")"]
-                        } else {
-                            self.classes(&values)
-                        }
-                    } else {
-                        self.classes(&values)
-                    };
-                    let key = if demand == Demand::Props {
-                        self.fw.class_property.into()
-                    } else {
-                        format!(
-                            "[{}]",
-                            self.runtime.require(RuntimeHelper::ClassKey, self.span)
-                        )
-                    };
-                    entries.push(code![key, ":", value]);
+                    if let Some(entry) = self.class_field(&values, demand) {
+                        entries.push(entry);
+                    }
                 }
                 Field::Custom(indices) => {
                     let properties = indices
@@ -220,19 +217,7 @@ impl Renderer<'_, '_> {
                         .collect::<Vec<_>>();
                     let value =
                         if demand == Demand::Props && self.fw.style_format == StyleFormat::String {
-                            Code::join(
-                                properties
-                                    .iter()
-                                    .map(|p| {
-                                        code![
-                                            js_string(&format!("{}:", p.name)),
-                                            "+",
-                                            self.custom_value(p)
-                                        ]
-                                    })
-                                    .collect::<Vec<_>>(),
-                                "+\";\"+",
-                            )
+                            self.custom_style_string(&properties)
                         } else {
                             code![
                                 "{",
@@ -247,7 +232,7 @@ impl Renderer<'_, '_> {
                             ]
                         };
                     let key = if demand == Demand::Props {
-                        "style".into()
+                        self.fw.style_property.into()
                     } else {
                         format!(
                             "[{}]",
@@ -259,21 +244,144 @@ impl Renderer<'_, '_> {
                 }
             }
         }
-        code!["{", Code::join(entries, ","), "}"]
+        entries
     }
 
-    /// Joins renderable class values through clsx without changing argument provenance.
-    /// Deferred clsx calls become arguments of the surrounding clsx under the macro
-    /// purity contract; guards remain single expressions.
+    /// Renders one symbolic or framework class field from ordered class contributions.
+    ///
+    /// Returns `None` without registering helpers when the slice is empty or consists
+    /// only of empty static names. Dynamic values retain the field even when empty at
+    /// runtime. A lone opaque expression is emitted directly, so its caller must
+    /// guarantee a value valid for the selected consumer. Other trees must satisfy
+    /// [`Self::classes`].
     ///
     /// # Panics
     ///
-    /// Panics when a value is a class tree that `render_plain` refuses, which happens only
-    /// for a group holding attribute or custom-property entries, or a group with no
-    /// retained class entry.
+    /// Panics if a retained class argument violates the contract of [`Self::classes`].
+    fn class_field(&mut self, values: &[&Emitted], demand: Demand) -> Option<Code> {
+        let value = if let Some(strings) = values
+            .iter()
+            .map(|value| static_class(value))
+            .collect::<Option<Vec<_>>>()
+        {
+            let text = strings
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+            if text.is_empty() {
+                return None;
+            }
+            js_string(&text).into()
+        } else if values.len() == 1 {
+            if let Emitted::Expression(expression) = values[0] {
+                code!["(", expression.render(self.runtime), ")"]
+            } else {
+                self.classes(values)
+            }
+        } else {
+            self.classes(values)
+        };
+        let key = if demand == Demand::Props {
+            self.fw.class_property.into()
+        } else {
+            format!(
+                "[{}]",
+                self.runtime.require(RuntimeHelper::ClassKey, self.span)
+            )
+        };
+        Some(code![key, ":", value])
+    }
+
+    /// Attempts direct props for one whole-style payload and representable record
+    /// siblings.
     ///
-    /// Callers must build class atoms through the fragment lowering in
-    /// `fragment::expression`, which keeps those groups out of class values.
+    /// The payload must be a direct child of the input sequence or the input itself.
+    /// Returns `None` without registering helpers for missing or multiple payloads,
+    /// non-record siblings, custom-property overlays, an ordinary framework style field,
+    /// or a rejected props layout. Success registers helpers and appends the framework
+    /// style field after the record fields. Unknown payloads use runtime format conversion
+    /// and can leave that field present with an undefined value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a retained class argument violates the contract of [`Self::classes`].
+    fn style_props(&mut self, fragment: &Fragment) -> Option<Code> {
+        let children = match fragment {
+            Fragment::Sequence(children) => children.as_slice(),
+            other => std::slice::from_ref(other),
+        };
+        let mut atoms = Vec::new();
+        let mut payload = None;
+        for child in children {
+            match child {
+                Fragment::StylePayload(value) if payload.is_none() => payload = Some(value),
+                other => atoms.extend(known_record(other)?),
+            }
+        }
+        let payload = payload?;
+        if atoms.iter().any(|atom| {
+            matches!(atom, Atom::Custom(_))
+                || matches!(atom, Atom::Attribute(p) if p.name == self.fw.style_property)
+        }) {
+            return None;
+        }
+        let fields = record_fields(&atoms, Demand::Props, self.fw)?;
+        let style = match payload {
+            ValueExpr::Entry { property, value }
+                if property != "__proto__"
+                    && (self.fw.style_format == StyleFormat::Object
+                        || matches!(
+                            value.as_ref(),
+                            ValueExpr::Call {
+                                helper: RuntimeHelper::ViewTransitionName
+                                    | RuntimeHelper::CssValue
+                                    | RuntimeHelper::Clsx,
+                                ..
+                            }
+                        )) =>
+            {
+                let value = if self.fw.style_format == StyleFormat::String {
+                    code![
+                        js_string(&format!("{property}:")),
+                        "+(",
+                        value.render(self.runtime),
+                        ")"
+                    ]
+                } else {
+                    payload.render(self.runtime)
+                };
+                code![self.fw.style_property, ":", value]
+            }
+            _ => {
+                let helper = self.runtime.require(RuntimeHelper::StyleValue, self.span);
+                code![
+                    self.fw.style_property,
+                    ":",
+                    helper,
+                    "(",
+                    payload.render(self.runtime),
+                    ")"
+                ]
+            }
+        };
+        let mut entries = self.record_entries(&atoms, &fields, Demand::Props);
+        entries.push(style);
+        Some(code!["{", Code::join(entries, ","), "}"])
+    }
+
+    /// Normalizes ordered class contributions into a string-valued expression.
+    ///
+    /// Input trees must contain only class contributions. Argument collection can drop
+    /// empty trees and flatten arrays, class groups, and deferred clsx calls under the
+    /// macro purity contract. Returns `""` without registering helpers when no
+    /// arguments remain. Otherwise registers clsx and any deferred helpers, retaining
+    /// dynamic code mappings.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a retained argument contains a group that [`render_plain`] rejects,
+    /// including a property-bearing group or a group with no retained class entries.
     #[allow(clippy::expect_used)] // Atom::Class is constructed only after render_plain succeeds.
     fn classes(&mut self, values: &[&Emitted]) -> Code {
         let mut arguments = Vec::new();
@@ -306,25 +414,64 @@ impl Renderer<'_, '_> {
         ]
     }
 
-    /// Wraps one unconverted property value in the CSS-value helper.
-    /// Registers the helper at the property's span and maps only the authored value
-    /// exactly; the generated call syntax remains synthetic.
+    /// Serializes ordered custom properties as a JavaScript string expression.
+    ///
+    /// Names must be unique and valid CSS property names. Values must satisfy
+    /// [`Self::custom_value`]'s conversion contract. Joins declarations with semicolons
+    /// without CSS escaping, coalescing static text around dynamic conversions. Empty input
+    /// produces `""`. Only dynamic values register conversion helpers and retain mappings.
+    fn custom_style_string(&mut self, properties: &[&Property]) -> Code {
+        let mut text = String::new();
+        let mut parts = Vec::new();
+        for (index, property) in properties.iter().enumerate() {
+            if index > 0 {
+                text.push(';');
+            }
+            text.push_str(&property.name);
+            text.push(':');
+            if let Some(value) = &property.static_value {
+                text.push_str(value);
+            } else {
+                parts.push(js_string(&text).into());
+                text.clear();
+                parts.push(self.custom_value(property));
+            }
+        }
+        if !text.is_empty() || parts.is_empty() {
+            parts.push(js_string(&text).into());
+        }
+        Code::join(parts, "+")
+    }
+
+    /// Produces a JavaScript expression for one custom property's CSS text.
+    ///
+    /// `static_value`, when present, must already match the runtime CSS-value
+    /// conversion of `value`. It is trusted and emitted without a helper or an exact
+    /// source mapping. Otherwise `value` must match the source at `span` and yield an
+    /// accepted CSS-value input. Registers the conversion helper in that span's import
+    /// realm and maps the original expression.
     fn custom_value(&mut self, p: &Property) -> Code {
+        if let Some(value) = &p.static_value {
+            return js_string(value).into();
+        }
         let helper = self.runtime.require(RuntimeHelper::CssValue, p.span);
         code![helper, "(", Code::source(p.value.clone(), p.span), ")"]
     }
 
-    /// Pairs the property's quoted name with an already-rendered value.
-    /// The name is synthetic; `value` retains its existing source mappings and must
-    /// already have any custom-property conversion required by its consumer.
+    /// Builds an object-literal entry with an already-converted value expression.
+    ///
+    /// Preserves the value's mappings and generates the quoted key without CSS
+    /// conversion. Uses ordinary key syntax, so `__proto__` retains JavaScript's
+    /// prototype-setter semantics.
     fn property(p: &Property, value: Code) -> Code {
         code![js_string(&p.name), ":", value]
     }
 }
 
-/// Builds runtime materialization without combining adjacent records for comparison tests.
-/// Uses the same emission-to-fragment conversion and leaf renderer as optimized code,
-/// but always retains the outer merge. Helper bindings are allocated in `runtime`.
+/// Builds runtime materialization without combining adjacent records for comparison
+/// tests. Uses the same emission-to-fragment conversion and leaf renderer as optimized
+/// code, but always retains the outer merge. Helper bindings are allocated in
+/// `runtime`.
 #[cfg(test)]
 pub(super) fn render_reference(
     emission: &StyleEmission,
