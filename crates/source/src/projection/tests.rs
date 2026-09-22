@@ -1,20 +1,18 @@
-//! End-to-end tests for [`ProjectionIndex`] over both transport formats.
+//! Behaviour of the two transport formats a host converter produces.
 //!
-//! Each test builds a real map (v3 through [`SourceMapBuilder`], Volar through
+//! Each test builds a real map (v3 through a source map builder, Volar through
 //! hand-written offset tables), loads it against a generated and an original
-//! [`SourceFile`], and asserts the accept and reject behaviour callers rely on:
-//! exact-text verification, ambiguity rejection, file identity, and surrogate handling
-//! in both formats.
+//! source file, and asserts the accept and reject behaviour callers rely on:
+//! exact-text verification, ambiguity rejection, file identity, and surrogate handling.
 
 use oxc_sourcemap::SourceMapBuilder;
 
-use stillwind_source::{
-    BytePos, FileId, ProjectionIndex, ProjectionMap, SourceFile, Span, VolarMapping,
-};
+use super::*;
+use crate::{BytePos, FileId, SourceFile, Span};
 
-/// Builds a v3 map whose tokens all name `original` as their source, one token per
-/// `(generated, original)` UTF-16 pair. `None` emits an unmapped token, so tests can
-/// mix mapped and unmapped positions in one map.
+/// Builds a v3 map whose tokens all name the original as their source, one token per
+/// (generated, original) UTF-16 pair. A `None` original emits an unmapped token, so
+/// tests can mix mapped and unmapped positions in one map.
 fn point_map(points: &[(u32, Option<u32>)], original: &str) -> ProjectionMap {
     let mut builder = SourceMapBuilder::default();
     let source = builder.set_source_and_content("component", original);
@@ -61,7 +59,7 @@ fn exact_range_requires_two_anchors_and_preserves_file_identity() {
 }
 
 /// Interior gaps, disagreeing duplicate tokens and non-monotonic mappings all fail
-/// verification, and `sourcesContent` that no longer matches the original is a
+/// verification, and sourcesContent that no longer matches the original is a
 /// construction error rather than a silently ignored field.
 #[test]
 fn refuses_unmapped_interior_conflicting_duplicates_and_wrong_contents() {
@@ -187,6 +185,7 @@ fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
     assert!(ProjectionIndex::new(&generated, &original, &malformed).is_err());
 }
 
+/// An empty span verifies only at a boundary both sides agree on.
 #[test]
 fn empty_spans_require_an_exact_mapped_boundary() {
     let original = SourceFile::new(FileId(1), "component", "<x>''</x>").unwrap();
@@ -201,4 +200,26 @@ fn empty_spans_require_an_exact_mapped_boundary() {
         Span::new(FileId(1), 4, 4)
     );
     assert!(index.verify_exact(Span::new(FileId(2), 0, 0)).is_err());
+}
+
+/// Overlapping intervals that agree on the text they cover stay usable: an interior
+/// position resolves, and the whole span verifies.
+#[test]
+fn agreeing_overlapping_projection_ranges_are_accepted() {
+    let original = SourceFile::new(FileId(1), "original", "abcd").unwrap();
+    let generated = SourceFile::new(FileId(2), "generated", "abcd").unwrap();
+    let map = ProjectionMap::Volar {
+        mappings: vec![VolarMapping {
+            source_offsets: vec![0, 1],
+            generated_offsets: vec![0, 1],
+            lengths: vec![3, 3],
+            generated_lengths: None,
+        }],
+    };
+    let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
+    assert_eq!(index.original_byte(BytePos(2)), Some(BytePos(2)));
+    assert_eq!(
+        index.verify_exact(generated.full_span()).unwrap().original,
+        original.full_span()
+    );
 }

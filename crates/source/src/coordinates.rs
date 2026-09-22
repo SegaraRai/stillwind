@@ -180,4 +180,24 @@ mod tests {
                 .is_err()
         );
     }
+
+    /// Every scalar boundary is addressable, including the ones around CRLF and the
+    /// end of the buffer, while interior offsets and out-of-range lines are not.
+    #[test]
+    fn line_terminators_and_eof_are_addressable_scalar_boundaries() {
+        let source = SourceFile::new(FileId(1), "x", "😀\r\n").unwrap();
+        let index = CoordinateIndex::new(&source);
+        for (line, utf16_column, expected) in [(0, 2, 4), (0, 3, 5), (1, 0, 6)] {
+            assert_eq!(
+                index.at_position(Position { line, utf16_column }).unwrap(),
+                BytePos(expected)
+            );
+        }
+        for (line, utf16_column) in [(0, 4), (0, 1), (1, 1)] {
+            assert!(
+                index.at_position(Position { line, utf16_column }).is_err(),
+                "{line}:{utf16_column}"
+            );
+        }
+    }
 }

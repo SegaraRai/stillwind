@@ -44,7 +44,3 @@ pub use project_stylesheet::ProjectStylesheet;
 pub use reserved::ReservedNames;
 pub use session::*;
 pub use stylesheet_plan::*;
-
-#[cfg(test)]
-#[path = "../../test-support/css.rs"]
-mod css_fixture;

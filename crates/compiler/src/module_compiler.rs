@@ -365,3 +365,61 @@ fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BT
         _ => {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+    use stillwind_diagnostics::CompileErrorKind;
+    use stillwind_ir::SourceAnalyzer;
+    use stillwind_js_oxc::OxcSourceAnalyzer;
+    use stillwind_semantic::{ModuleId, TypeFacts};
+    use stillwind_source::{FileId, Fingerprint, SourceFile};
+
+    use super::*;
+
+    /// Facts whose revisions no longer match the scan cannot be used, and the compiler
+    /// reports that as a diagnostic with no CSS or transforms.
+    #[test]
+    fn unusable_checker_facts_become_a_compilation_error() {
+        let source = Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "entry.tsx",
+                "import { style } from 'stillwind/react'; export const x = style('flex');",
+            )
+            .unwrap(),
+        );
+        let scan = OxcSourceAnalyzer.scan(source);
+        let facts = TypeFacts {
+            schema: TypeFacts::SCHEMA,
+            module_id: ModuleId::from("entry.tsx"),
+            source_revision: Fingerprint::of("stale"),
+            semantic_revision: Fingerprint::of("facts"),
+            facts: vec![],
+            assets: BTreeMap::new(),
+        };
+        let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
+        assert!(analysis.semantic_revision.is_none());
+        assert_eq!(analysis.integration_diagnostics.len(), 1);
+        let theme = crate::css_fixture::source(
+            FileId(90),
+            "theme.css",
+            "@utility flex { display:flex; } @stillwind-slot utilities;",
+        )
+        .unwrap();
+        let design =
+            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+        let compiled = ModuleCompiler::new(design, CompilerOptions::default()).compile(&analysis);
+        assert!(
+            compiled
+                .diagnostics
+                .iter()
+                .any(|d| d.kind == CompileErrorKind::InvalidTypeScriptFacts)
+        );
+        assert!(compiled.css.rules.is_empty());
+        assert!(compiled.code_transforms.is_empty());
+    }
+}

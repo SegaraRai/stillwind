@@ -530,6 +530,20 @@ mod tests {
                 .as_str()
                 .starts_with("sw_")
         );
+        let namespaced = |namespace: &str| ClassContext {
+            module: "src/x.tsx".to_owned(),
+            namespace: namespace.to_owned(),
+            call: 0,
+            branch: "flex".to_owned(),
+        };
+        assert_eq!(
+            identifiers.class_name(&namespaced("app")),
+            identifiers.class_name(&namespaced("app"))
+        );
+        assert_ne!(
+            identifiers.class_name(&namespaced("app")),
+            identifiers.class_name(&namespaced("other"))
+        );
     }
 
     #[test]
@@ -560,6 +574,7 @@ mod tests {
             assert_ne!(symbol.name, shifted_name);
         }
     }
+
     #[test]
     fn labels_preserve_punctuation_and_replace_whitespace() {
         assert_eq!(Label::new("項目-🧭").unwrap().as_str(), "項目-🧭");

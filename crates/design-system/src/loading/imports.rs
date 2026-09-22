@@ -212,11 +212,12 @@ mod tests {
 
     #[test]
     fn imports_ignore_comments_strings_and_nested_rules_but_resolve_all_packages() {
-        let css = "/* @import 'no'; */ .x{content:\"@import 'no';\";} @import 'stillwind'; @import 'a.css';";
+        let css = "/* @import 'no'; */ .x{content:\"@import 'no';\";} @import 'stillwind'; @import 'a.css'; @import url(\"b.css\");";
         let found = imports(css).unwrap();
-        assert_eq!(found.len(), 2);
+        assert_eq!(found.len(), 3);
         assert_eq!(found[0].specifier, "stillwind");
         assert_eq!(found[1].specifier, "a.css");
+        assert_eq!(found[2].specifier, "b.css");
         assert_eq!(&css[found[1].start..found[1].end], "@import 'a.css';");
         assert!(matches!(
             imports("@import 42;"),

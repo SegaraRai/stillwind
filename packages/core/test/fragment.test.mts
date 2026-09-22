@@ -7,6 +7,31 @@ import * as svelte from "../dist/runtime/svelte.js";
 import { createFragmentRuntime } from "../src/runtime/fragment.ts";
 
 void test("react merges fragments, arrays, and falsy values in argument order", () => {
+  const frozenBase = Object.freeze({ className: "a" });
+  const frozenNext = Object.freeze({ className: "b" });
+  const delta = Object.freeze({ [react.stillwindClassKey]: "own", "data-state": "ready" });
+  assert.deepEqual(
+    react.stillwindMerge(
+      react.stillwindToFragment(frozenBase),
+      react.stillwindToFragment(frozenNext),
+      delta,
+    ),
+    {
+      className: "a b own",
+      "data-state": "ready",
+    },
+  );
+  assert.deepEqual(
+    react.stillwindMerge(
+      react.stillwindToFragment(frozenBase),
+      react.stillwindToFragment(frozenNext),
+    ),
+    { className: "a b" },
+  );
+  assert.deepEqual(
+    Object.getOwnPropertySymbols(react.stillwindMerge(react.stillwindToFragment(frozenBase))),
+    [],
+  );
   const first = { [react.stillwindClassKey]: "_a", "data-state": "ready" };
   const second = { [react.stillwindClassKey]: "_b" };
   assert.deepEqual(

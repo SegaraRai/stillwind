@@ -21,3 +21,6 @@ mod volar;
 
 pub use index::{ProjectionError, ProjectionIndex, ProjectionMap, SourceProvenance};
 pub use volar::VolarMapping;
+
+#[cfg(test)]
+mod tests;

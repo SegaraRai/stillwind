@@ -323,6 +323,15 @@ impl SourceFile {
 mod tests {
     use super::*;
 
+    /// A spanned value compares its range as well as its value.
+    #[test]
+    fn spanned_equality_includes_the_source_range() {
+        let a = Spanned::new("same", Span::new(FileId(1), 0, 4));
+        let b = Spanned::new("same", Span::new(FileId(1), 5, 9));
+        assert_ne!(a, b);
+        assert_eq!(a.value, b.value);
+    }
+
     #[test]
     fn reversed_spans_and_oversized_offsets_are_checked() {
         assert_eq!(Span::new(FileId(1), 2, 1).len(), None);

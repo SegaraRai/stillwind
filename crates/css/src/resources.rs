@@ -112,5 +112,9 @@ mod tests {
         assert_eq!(&css[urls[0].range.clone()], "'a.png'");
         assert_eq!(&css[urls[1].range.clone()], "url(\"b.png\")");
         assert_eq!(&css[urls[2].range.clone()], "url(c.png)");
+
+        // An escaped space is part of the specifier, not a separator.
+        let escaped = relative_css_urls(r"a{background:url('./a\20 b.svg')}");
+        assert_eq!(escaped[0].specifier, "./a b.svg");
     }
 }

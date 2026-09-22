@@ -1,8 +1,8 @@
-//! Composition-order lints through a real session.
+//! The one composition-order lint case that needs cross-module checker facts.
 //!
-//! These drive the public session API with analyses from the Oxc frontend, so they cover
-//! the whole path a host sees: the overlap is read from published rules, the finding is
-//! attached to the derived module's artifact, and `swlint-*` directives suppress it.
+//! The rule itself and the same-module session wiring are covered by the unit tests in
+//! `composition_lint`; a frontend-only analysis cannot supply facts for a base that
+//! lives in another module, so this stays an integration target.
 
 use std::sync::Arc;
 
@@ -41,127 +41,8 @@ fn session() -> ProjectSession {
     )
 }
 
-#[test]
-fn independent_bases_that_share_a_property_are_reported() {
-    let mut session = session();
-    session.update_module(analysis(
-        "app.tsx",
-        r"import { style } from 'stillwind/react';
-const a = style('p-10');
-const b = style('p-4');
-const c = style(a, b, 'text-brand');
-",
-    ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
-    assert!(
-        artifact
-            .lint_findings
-            .iter()
-            .any(|finding| finding.code() == "ambiguous-base-order"),
-        "expected ambiguous-base-order, got {:?}",
-        artifact
-            .lint_findings
-            .iter()
-            .map(stillwind_diagnostics::LintFinding::code)
-            .collect::<Vec<_>>()
-    );
-}
-
-#[test]
-fn independent_bases_with_disjoint_properties_stay_silent() {
-    let mut session = session();
-    session.update_module(analysis(
-        "app.tsx",
-        r"import { style } from 'stillwind/react';
-const a = style('p-10');
-const b = style('text-brand');
-const c = style(a, b, 'm-2');
-",
-    ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
-    assert!(
-        !artifact
-            .lint_findings
-            .iter()
-            .any(|finding| finding.code() == "ambiguous-base-order"),
-        "unexpected finding"
-    );
-}
-
-#[test]
-fn base_pseudo_class_and_attribute_variants_stay_independent() {
-    let mut session = session();
-    session.update_module(analysis(
-        "app.tsx",
-        r"import { style } from 'stillwind/react';
-const base = style('p-3');
-const disabled = style('disabled:p-1');
-const icon = style('data-[type=icon]:p-2');
-const composed = style(base, disabled, icon, 'text-brand');
-",
-    ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
-    assert!(
-        !artifact
-            .lint_findings
-            .iter()
-            .any(|finding| finding.code() == "ambiguous-base-order"),
-        "unexpected findings: {:?}",
-        artifact.lint_findings
-    );
-}
-
-#[test]
-fn a_shorthand_base_and_a_longhand_base_are_reported() {
-    let mut session = session();
-    session.update_module(analysis(
-        "app.tsx",
-        r"import { style } from 'stillwind/react';
-const a = style('p-10');
-const b = style('pt-4');
-const c = style(a, b, 'text-brand');
-",
-    ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
-    assert!(
-        artifact
-            .lint_findings
-            .iter()
-            .any(|finding| finding.code() == "ambiguous-base-order"),
-        "expected ambiguous-base-order, got {:?}",
-        artifact
-            .lint_findings
-            .iter()
-            .map(stillwind_diagnostics::LintFinding::code)
-            .collect::<Vec<_>>()
-    );
-}
-
-#[test]
-fn a_logical_base_and_a_physical_base_are_reported() {
-    let mut session = session();
-    session.update_module(analysis(
-        "app.tsx",
-        r"import { style } from 'stillwind/react';
-const a = style('mt-4');
-const b = style('ms-4');
-const c = style(a, b, 'text-brand');
-",
-    ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
-    let findings = artifact
-        .lint_findings
-        .iter()
-        .filter(|finding| finding.code() == "ambiguous-base-order")
-        .collect::<Vec<_>>();
-    assert_eq!(findings.len(), 1, "{findings:?}");
-    let message = findings[0].kind.to_string();
-    assert!(message.contains("margin"), "{message}");
-}
-
 /// Cross-module composition needs checker facts, which this frontend-only test cannot
-/// supply. The rule itself is covered by the unit tests in `composition_lint`, and the
-/// session wiring by the same-module cases here.
+/// supply.
 #[test]
 fn imported_base_composition_requires_checker_facts() {
     let mut session = session();
@@ -188,6 +69,31 @@ export const derived = style(base, 'p-4');
     );
 }
 
+/// A logical and a physical member of one property group interfere. The synthetic
+/// artifacts above cannot express this because their bodies encode one property each.
+#[test]
+fn a_logical_base_and_a_physical_base_are_reported() {
+    let mut session = session();
+    session.update_module(analysis(
+        "app.tsx",
+        r"import { style } from 'stillwind/react';
+const a = style('mt-4');
+const b = style('ms-4');
+const c = style(a, b, 'text-brand');
+",
+    ));
+    let artifact = session.artifacts().get("app.tsx").expect("published");
+    let findings = artifact
+        .lint_findings
+        .iter()
+        .filter(|finding| finding.code() == "ambiguous-base-order")
+        .collect::<Vec<_>>();
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    let message = findings[0].kind.to_string();
+    assert!(message.contains("margin"), "{message}");
+}
+
+/// A `swlint-*` directive on the derived call removes the finding.
 #[test]
 fn suppression_directives_remove_the_findings() {
     let mut session = session();

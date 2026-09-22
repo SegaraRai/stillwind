@@ -292,6 +292,49 @@ mod tests {
                 .as_deref(),
             Some("var(--color-new)")
         );
+        // Reset then redefinition keeps the last value, in name order.
+        let ordered = ThemeIndex {
+            tokens: extract_theme_declarations(
+                FileId(1),
+                "--color-z:red;--color-a:blue;--color-*:initial;--color-z:green;--color-a:black;",
+                0,
+                ThemeTokenMode::Default,
+            )
+            .unwrap(),
+            ..ThemeIndex::default()
+        };
+        let tokens = ordered.active_tokens();
+        assert_eq!(
+            tokens
+                .iter()
+                .map(|token| token.name.value.as_str())
+                .collect::<Vec<_>>(),
+            ["--color-a", "--color-z"]
+        );
+        assert_eq!(tokens[1].value.value, "green");
+    }
+
+    /// Only tokens a declaration actually references survive pruning; `static` tokens
+    /// are emitted whether or not anything uses them.
+    #[test]
+    fn ordinary_project_tokens_are_pruned_but_static_tokens_are_retained() {
+        let theme = crate::parse_theme(
+            &stillwind_source::SourceFile::new(
+                FileId(1),
+                "theme.css",
+                "@theme { --color-unused: red; } @theme static { --color-static: blue; }",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            theme
+                .tokens_required_by("", false)
+                .iter()
+                .map(|token| token.name.value.as_str())
+                .collect::<Vec<_>>(),
+            ["--color-static"]
+        );
     }
 
     #[test]

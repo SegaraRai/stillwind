@@ -236,3 +236,43 @@ impl UtilityFailure {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use stillwind_source::SourceError;
+
+    use super::*;
+    use crate::{CompileErrorKind, SourceFailureContext};
+
+    /// One message template can carry several codes, including codes shared with fatal
+    /// errors for the same source-coordinate cause.
+    #[test]
+    fn one_message_template_can_report_multiple_codes() {
+        let findings = [UtilityFailure::Invalid, UtilityFailure::Unknown].map(|classification| {
+            LintKind::UnresolvedUtility {
+                utility: "hover:[".into(),
+                classification,
+            }
+        });
+        assert_eq!(findings[0].code(), "invalid-utility");
+        assert_eq!(findings[1].code(), "unknown-utility");
+        assert_eq!(findings[0].to_string(), findings[1].to_string());
+        assert_eq!(
+            findings[0].to_string(),
+            "unknown or unavailable utility `hover:[`"
+        );
+
+        for (context, code) in [
+            (SourceFailureContext::Utility, "SHSPAN001"),
+            (SourceFailureContext::Projection, "SHPRJ001"),
+            (SourceFailureContext::Stylesheet, "SHCSS001"),
+        ] {
+            let error = CompileErrorKind::source_failure(
+                &SourceError::InvalidRange { start: 9, end: 2 },
+                context,
+            );
+            assert_eq!(error.code(), code);
+            assert_eq!(error.to_string(), "invalid source byte range 9..2");
+        }
+    }
+}

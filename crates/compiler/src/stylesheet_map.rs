@@ -109,15 +109,11 @@ mod tests {
 
     use super::*;
 
-    fn source() -> Arc<SourceFile> {
-        Arc::new(
-            SourceFile::new(FileId(7), "日本語.css", "/* 🧭 */  .日本 { color: red; }").unwrap(),
-        )
-    }
-
     #[test]
     fn text_preserves_exact_authored_bytes_and_source_identity() {
-        let source = source();
+        let source = Arc::new(
+            SourceFile::new(FileId(7), "日本語.css", "/* 🧭 */  .日本 { color: red; }").unwrap(),
+        );
         let start = source.text().find("  .").unwrap();
         let span = Span::new(
             source.id(),
@@ -189,7 +185,9 @@ mod tests {
 
     #[test]
     fn append_offsets_all_generated_ranges_without_mutating_originals() {
-        let source = source();
+        let source = Arc::new(
+            SourceFile::new(FileId(7), "日本語.css", "/* 🧭 */  .日本 { color: red; }").unwrap(),
+        );
         let span = source.full_span();
         let mut first = MappedStylesheet::default();
         first.text(source.text(), Some((source.clone(), span)));

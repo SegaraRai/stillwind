@@ -207,3 +207,109 @@ impl<'a> StylesheetRenderer<'a> {
         self.render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use stillwind_design_system::DesignSystemOptions;
+    use stillwind_ir::SourceAnalyzer;
+    use stillwind_js_oxc::OxcSourceAnalyzer;
+    use stillwind_source::{FileId, SourceFile};
+
+    use super::*;
+    use crate::{CompilerOptions, Identifiers, ModuleCompiler};
+
+    fn snapshot(css: &str) -> DesignSystemSnapshot {
+        DesignSystemSnapshot::from_source(
+            &crate::css_fixture::source(FileId(90), "theme.css", css).unwrap(),
+            DesignSystemOptions::default(),
+        )
+        .unwrap()
+    }
+
+    /// Rendering a compilation keeps the module fragment separate from the document CSS.
+    #[test]
+    fn document_rendering_keeps_the_module_fragment() {
+        let design = snapshot("@utility flex { display:flex; } @stillwind-slot utilities;");
+        let source = Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "entry.tsx",
+                "import { style } from 'stillwind/react'; export const x = style('flex');",
+            )
+            .unwrap(),
+        );
+        let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+        let options = CompilerOptions::default();
+        let compiled = ModuleCompiler::new(design.clone(), options.clone()).compile(&analysis);
+        assert!(compiled.is_success());
+        let output = StylesheetRenderer::new(&design, &options, &Identifiers::builtin())
+            .render_compilation(&compiled, source.full_span());
+        assert!(output.diagnostics.is_empty());
+        assert!(!output.module_css.is_empty());
+        assert_eq!(output.module_css, compiled.css.to_css());
+    }
+    /// Authored CSS reached through an import keeps the physical file and byte range it
+    /// came from, and the same stylesheet renders identically with and without mappings.
+    #[test]
+    fn imported_authored_css_and_theme_tokens_keep_their_physical_sources() {
+        use stillwind_design_system::{
+            CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
+        };
+
+        use crate::{CompilerOptions, Identifiers, StylesheetRenderer};
+
+        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let entry = "@import 'child.css' layer(parts) supports(display:grid) screen;\n\
+                     @theme { --color-brand: red; } :root,:host { @stillwind-slot theme; }";
+        let DesignSystemLoadStep::NeedFile(requests) =
+            loader.provide(0, CssSourceName::from("entry.css"), entry.into())
+        else {
+            panic!("import")
+        };
+        let child = "/* 日本語 🧭 */\n.imported { color:var(--color-brand); }";
+        let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+            requests[0].id,
+            CssSourceName::from("child.css"),
+            child.into(),
+        ) else {
+            panic!("complete")
+        };
+        let output = StylesheetRenderer::new(
+            &snapshot,
+            &CompilerOptions::default(),
+            &Identifiers::builtin(),
+        )
+        .render_base_stylesheet_with_map()
+        .unwrap();
+        assert_eq!(
+            output.css,
+            StylesheetRenderer::new(
+                &snapshot,
+                &CompilerOptions::default(),
+                &Identifiers::builtin()
+            )
+            .render_base_stylesheet()
+            .unwrap()
+        );
+        let authored = output
+            .mappings
+            .iter()
+            .find(|mapping| mapping.source.path() == "child.css")
+            .unwrap();
+        assert!(authored.exact);
+        assert_eq!(
+            &output.css[authored.generated.clone()],
+            &child[authored.original.clone()]
+        );
+        assert!(
+            output
+                .mappings
+                .iter()
+                .any(|mapping| mapping.source.path() == "entry.css"
+                    && output.css[mapping.generated.clone()].contains("--color-brand"))
+        );
+        assert!(output.css.contains("@supports (display:grid)"));
+    }
+}

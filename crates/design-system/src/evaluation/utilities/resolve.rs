@@ -270,4 +270,26 @@ mod tests {
             );
         }
     }
+
+    /// A user branch that fails its value domain falls through to the built-in
+    /// definition instead of resolving partially.
+    #[test]
+    fn failed_user_branch_can_resolve_through_the_builtin_registry() {
+        let theme = crate::parse_theme(
+            &stillwind_source::SourceFile::new(
+                stillwind_source::FileId(1),
+                "theme.css",
+                "@stillwind-utility x-* { color: --value([color]); } @utility x-* { width: --value([length]); }",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let resolved = resolve_utility("x-[red]", &theme).unwrap();
+        assert!(
+            resolved.declaration.contains("color:red"),
+            "{}",
+            resolved.declaration
+        );
+        assert!(!resolved.declaration.contains("width:"));
+    }
 }

@@ -3,28 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  stillwindClassKey,
   stillwindEscapedIdentifier,
-  stillwindToFragment,
-  stillwindMerge,
   stillwindViewTransitionKey,
   stillwindViewTransitionName,
 } from "../dist/runtime/react.js";
-
-void test("composition joins base classes, preserves delta props, and leaves inputs untouched", () => {
-  const first = Object.freeze({ className: "a" });
-  const second = Object.freeze({ className: "b" });
-  const delta = Object.freeze({ [stillwindClassKey]: "own", "data-state": "ready" });
-  assert.deepEqual(stillwindMerge(stillwindToFragment(first), stillwindToFragment(second), delta), {
-    className: "a b own",
-    "data-state": "ready",
-  });
-  assert.deepEqual(stillwindMerge(stillwindToFragment(first), stillwindToFragment(second)), {
-    className: "a b",
-  });
-  assert.deepEqual(stillwindMerge(), {});
-  assert.deepEqual(Object.getOwnPropertySymbols(stillwindMerge(stillwindToFragment(first))), []);
-});
 
 void test("view transition names pair a class token with a key", () => {
   assert.equal(stillwindViewTransitionName("sw-vt-card"), "");

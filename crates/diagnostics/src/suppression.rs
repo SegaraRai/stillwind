@@ -211,7 +211,7 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
-    use crate::LintKind;
+    use crate::{Label, LintKind};
 
     #[test]
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
@@ -303,5 +303,30 @@ mod tests {
                 "{text}"
             );
         }
+    }
+
+    /// Suppression reads the primary label and the typed rule, not the message or the
+    /// secondary labels.
+    #[test]
+    fn suppression_uses_primary_label_and_typed_rule_only() {
+        let source = SourceFile::new(
+            FileId(1),
+            "entry.ts",
+            "// swlint-disable-next-line require-anchor-provider\nx\ny",
+        )
+        .unwrap();
+        let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
+        let primary = Span::new(source.id(), x, x + 1);
+        let secondary = Span::new(source.id(), x + 2, x + 3);
+        let mut suppressed =
+            LintFinding::new(LintKind::MissingAnchor { name: "a".into() }, primary);
+        suppressed.labels.push(Label {
+            span: secondary,
+            message: None,
+        });
+        let retained = LintFinding::new(LintKind::MissingContainer { name: "a".into() }, primary);
+        let mut findings = vec![suppressed, retained.clone()];
+        filter_lint_findings(&source, &mut findings);
+        assert_eq!(findings, vec![retained]);
     }
 }

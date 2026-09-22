@@ -135,4 +135,33 @@ mod tests {
         sheet.set_order(vec!["b".into(), "a".into()]);
         assert_eq!(sheet.module_css().unwrap(), ".x{color:blue}.x{color:red}");
     }
+
+    /// Replacing a producer keeps one occurrence per content payload, so editing a body
+    /// adds a payload while a repeat of one spelling can still be removed alone.
+    #[test]
+    fn publication_rekeys_publicly_edited_rules_before_sharing_them() {
+        let key = RuleKey(Fingerprint::of("stale"));
+        let mut artifact = ModuleCssArtifact {
+            rules: vec![GeneratedRule {
+                keyframes: false,
+                required_properties: Vec::new(),
+                key,
+                syntax: CssRule {
+                    range: 0..0,
+                    prelude: ".x".into(),
+                    body: Some("color:red;".into()),
+                },
+            }],
+        };
+        let mut sheet = ProjectStylesheet::default();
+        sheet.replace("a".into(), &artifact);
+        artifact.rules[0].syntax.body = Some("color:blue;".into());
+        sheet.replace("b".into(), &artifact);
+        assert_eq!(sheet.rule_count(), 2);
+        assert!(sheet.module_css().unwrap().contains("color:red;"));
+        assert!(sheet.module_css().unwrap().contains("color:blue;"));
+        sheet.remove("a");
+        assert_eq!(sheet.rule_count(), 1);
+        assert!(!sheet.module_css().unwrap().contains("color:red;"));
+    }
 }
