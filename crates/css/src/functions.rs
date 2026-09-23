@@ -311,4 +311,98 @@ mod tests {
         );
         assert_eq!(split_css_function_arguments(""), ("", None));
     }
+
+    /// The recursive scanner descends into blocks, requires a complete name match, and
+    /// reports closed and unclosed invocations differently.
+    #[test]
+    fn recursive_scan_descends_into_blocks_and_requires_complete_names() {
+        let value = "@media x { --xy(1) } [--x(2)] ({--x(3)}) --x(4";
+        let mut found = Vec::new();
+        collect_functions(
+            &mut Parser::new(value),
+            value,
+            &["--x"],
+            0,
+            true,
+            &mut found,
+        );
+        assert_eq!(
+            found
+                .iter()
+                .map(|m| &value[m.arguments.clone()])
+                .collect::<Vec<_>>(),
+            ["2", "3", "4"]
+        );
+        assert_eq!(&value[found[0].start..found[0].end.unwrap()], "--x(2)");
+        assert_eq!(&value[found[1].start..found[1].end.unwrap()], "--x(3)");
+        assert_eq!(found[2].end, None);
+        assert_eq!(&value[found[0].start..found[0].start + 4], "--x(");
+    }
+
+    /// A name that only starts with a requested one is not a match, and the name
+    /// comparison is case-sensitive outside `url(` handling.
+    #[test]
+    fn scan_does_not_match_a_longer_or_differently_cased_name() {
+        let value = "--xy(1) --x(2) CALC(3) calc(4)";
+        let found = find_css_functions(value, &["--x", "calc"], 0);
+        assert_eq!(
+            found
+                .iter()
+                .map(|m| &value[m.start..m.end.unwrap()])
+                .collect::<Vec<_>>(),
+            ["--x(2)", "calc(4)"]
+        );
+        for (value, name) in [
+            ("--xy(1)", "--x"),
+            ("CALC(1)", "calc"),
+            ("--x (1)", "--x"),
+            (r"\--x(1)", "--x"),
+        ] {
+            assert_eq!(
+                find_css_function(value, name, 0),
+                None,
+                "{value:?} must not match {name:?}"
+            );
+        }
+    }
+
+    proptest::proptest! {
+        /// Reported matches stay inside the buffer and name a real invocation. The
+        /// generated text always starts one invocation, so at least one match exists.
+        #[test]
+        fn reported_matches_are_well_formed(text in proptest::collection::vec(
+            proptest::sample::select(vec!["(", ")", "--x", "1", " ", "'a'", "/* c */", "[", "]", "{", "}"]),
+            0..24,
+        )) {
+            let value = format!("--x({}", text.concat());
+            let founds = find_css_functions(&value, &["--x"], 0);
+            proptest::prop_assert!(!founds.is_empty());
+            for found in founds {
+                proptest::prop_assert!(value.is_char_boundary(found.start));
+                proptest::prop_assert!(value[found.start..].starts_with("--x("));
+                proptest::prop_assert!(found.arguments.start >= found.start);
+                proptest::prop_assert!(found.arguments.end <= value.len());
+                proptest::prop_assert!(found.arguments.start <= found.arguments.end);
+                if let Some(end) = found.end {
+                    proptest::prop_assert!(end <= value.len());
+                    proptest::prop_assert!(value[found.start..end].ends_with(')'));
+                }
+            }
+        }
+
+        /// Splitting at the first top-level comma reconstructs the original argument
+        /// list. The generated list always starts with one, so a split always happens.
+        #[test]
+        fn argument_splitting_reconstructs_the_input(text in proptest::collection::vec(
+            proptest::sample::select(vec!["a", ",", "(", ")", "[", "]", "'", "\"", "\\", " "]),
+            0..16,
+        )) {
+            let arguments = format!("a,{}", text.concat());
+            let (head, tail) = split_css_function_arguments(&arguments);
+            proptest::prop_assert!(tail.is_some());
+            let tail = tail.unwrap();
+            proptest::prop_assert_eq!(head, "a");
+            proptest::prop_assert_eq!(format!("{head},{tail}"), arguments.as_str());
+        }
+    }
 }

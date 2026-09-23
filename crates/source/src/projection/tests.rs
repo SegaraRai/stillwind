@@ -223,3 +223,87 @@ fn agreeing_overlapping_projection_ranges_are_accepted() {
         original.full_span()
     );
 }
+
+/// Fragments that are ordered, mapped, and text-identical verify as one provenance.
+#[test]
+fn fragment_verification_accepts_contiguous_fragments() {
+    let original = SourceFile::new(FileId(1), "component", "xbarx").unwrap();
+    let generated = SourceFile::new(FileId(2), "component.ts", "foo(xbarx)").unwrap();
+    let map = point_map(
+        &[
+            (4, Some(0)),
+            (5, Some(1)),
+            (6, Some(2)),
+            (7, Some(3)),
+            (8, Some(4)),
+        ],
+        original.text(),
+    );
+    let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
+    let provenance = index
+        .verify_fragments(&[Span::new(FileId(2), 5, 6), Span::new(FileId(2), 6, 9)])
+        .unwrap();
+    assert_eq!(provenance.projected, Span::new(FileId(2), 5, 9));
+    assert_eq!(provenance.original, Span::new(FileId(1), 1, 5));
+    // An empty fragment verifies at a mapped boundary and produces an empty original.
+    let provenance = index
+        .verify_fragments(&[Span::new(FileId(2), 5, 5)])
+        .unwrap();
+    assert!(provenance.projected.is_empty());
+    assert!(provenance.original.is_empty());
+    assert_eq!(provenance.original.start, BytePos(1));
+}
+
+/// An empty fragment list, overlapping or unmapped fragments, a mismatched original
+/// text, and an unmapped boundary are all rejected.
+#[test]
+fn fragment_verification_rejects_unusable_fragments() {
+    let original = SourceFile::new(FileId(1), "component", "xbarx").unwrap();
+    let generated = SourceFile::new(FileId(2), "component.ts", "foo(xbarx)").unwrap();
+    let map = point_map(
+        &[
+            (4, Some(0)),
+            (5, Some(1)),
+            (6, Some(2)),
+            (7, Some(3)),
+            (8, Some(4)),
+        ],
+        original.text(),
+    );
+    let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
+    assert!(matches!(
+        index.verify_fragments(&[]),
+        Err(ProjectionError::Map(_))
+    ));
+    assert!(matches!(
+        index.verify_fragments(&[Span::new(FileId(2), 5, 7), Span::new(FileId(2), 6, 9),]),
+        Err(ProjectionError::Unmapped(_))
+    ));
+    let gapped = point_map(
+        &[
+            (4, Some(0)),
+            (5, Some(1)),
+            (6, None),
+            (7, Some(3)),
+            (8, Some(4)),
+        ],
+        original.text(),
+    );
+    let index = ProjectionIndex::new(&generated, &original, &gapped).unwrap();
+    assert!(matches!(
+        index.verify_fragments(&[Span::new(FileId(2), 5, 9)]),
+        Err(ProjectionError::Unmapped(_))
+    ));
+    let wrong_text = SourceFile::new(FileId(2), "component.ts", "foo(xbaz)").unwrap();
+    let index = ProjectionIndex::new(&wrong_text, &original, &map).unwrap();
+    assert!(matches!(
+        index.verify_fragments(&[Span::new(FileId(2), 5, 9)]),
+        Err(ProjectionError::Content(_))
+    ));
+    let boundary = point_map(&[(5, Some(1))], original.text());
+    let index = ProjectionIndex::new(&generated, &original, &boundary).unwrap();
+    assert!(matches!(
+        index.verify_fragments(&[Span::new(FileId(2), 6, 6)]),
+        Err(ProjectionError::Unmapped(_))
+    ));
+}

@@ -205,4 +205,134 @@ mod tests {
         );
         assert_eq!(body, "1 1 '--x(a)' /* --x(a) */");
     }
+
+    /// Each invocation is replaced in source order, surrounding text is kept, and the
+    /// remaining budget is spent once per executed replacement.
+    #[test]
+    fn expand_matches_replaces_in_source_order_and_spends_the_budget() {
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 3,
+            active: BTreeSet::new(),
+        };
+        let input = "pre --x(1) --x(2) post";
+        let matches = find_css_functions(input, &["--x"], 0);
+        let output = expansion
+            .expand_matches(input, matches.iter(), &mut |arguments| {
+                Some(arguments.to_owned())
+            })
+            .unwrap();
+        assert_eq!(output, "pre 1 2 post");
+        assert_eq!(expansion.remaining, 1);
+        assert!(expansion.active.is_empty());
+    }
+
+    /// An exhausted budget, an unclosed invocation, and a missing replacement all fail
+    /// the whole expansion instead of returning partial output; the caller only sees
+    /// `None`, so these cases cannot be told apart from the outside.
+    #[test]
+    fn expand_matches_rejects_exhausted_budget_and_unusable_invocations() {
+        let input = "--x(1) --x(2)";
+        let matches = find_css_functions(input, &["--x"], 0);
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 1,
+            active: BTreeSet::new(),
+        };
+        assert!(
+            expansion
+                .expand_matches(input, matches.iter(), &mut |arguments| Some(
+                    arguments.to_owned()
+                ))
+                .is_none()
+        );
+        let unclosed = "--x(1";
+        let matches = find_css_functions(unclosed, &["--x"], 0);
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 4,
+            active: BTreeSet::new(),
+        };
+        assert!(
+            expansion
+                .expand_matches(unclosed, matches.iter(), &mut |_| Some(String::new()))
+                .is_none()
+        );
+        let input = "--x(1)";
+        let matches = find_css_functions(input, &["--x"], 0);
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 4,
+            active: BTreeSet::new(),
+        };
+        assert!(
+            expansion
+                .expand_matches(input, matches.iter(), &mut |_| None)
+                .is_none()
+        );
+    }
+
+    /// A replacement that re-invokes the same invocation is a cycle, while an outer
+    /// invocation consumes the nested matches inside its own arguments.
+    #[test]
+    fn expand_matches_rejects_recursion_and_consumes_nested_matches() {
+        let input = "--x(a)";
+        let matches = find_css_functions(input, &["--x"], 0);
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 8,
+            active: BTreeSet::new(),
+        };
+        assert!(
+            expansion
+                .expand_matches(input, matches.iter(), &mut |arguments| Some(format!(
+                    "--x({arguments})"
+                )))
+                .is_none()
+        );
+        let input = "--x(--x(1))";
+        let matches = find_css_functions(input, &["--x"], 0);
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 8,
+            active: BTreeSet::new(),
+        };
+        let mut calls = 0;
+        let output = expansion
+            .expand_matches(input, matches.iter(), &mut |_| {
+                calls += 1;
+                Some("R".to_owned())
+            })
+            .unwrap();
+        assert_eq!(output, "R");
+        assert_eq!(calls, 1);
+    }
+
+    /// Oversized input and a full recursion stack are rejected before any work. The
+    /// literals below are the implementation limits (1 MiB, 64 frames) plus one, since
+    /// the guards are private to `expand_matches`.
+    #[test]
+    fn expand_matches_rejects_oversized_input_and_a_full_stack() {
+        let long = "a".repeat(1_048_577);
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 4,
+            active: BTreeSet::new(),
+        };
+        assert!(
+            expansion
+                .expand_matches(&long, std::iter::empty(), &mut |_| Some(String::new()))
+                .is_none()
+        );
+        let mut expansion = Expansion {
+            name: "--x",
+            remaining: 4,
+            active: (0..64).map(|index| index.to_string()).collect(),
+        };
+        assert!(
+            expansion
+                .expand_matches("--x(1)", std::iter::empty(), &mut |_| Some(String::new()))
+                .is_none()
+        );
+    }
 }

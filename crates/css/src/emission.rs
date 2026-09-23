@@ -314,6 +314,16 @@ mod tests {
     }
 
     #[test]
+    fn fragments_keep_anonymous_layers_and_unknown_groups_atomic() {
+        let css = "@layer a,b;@layer a{@media screen{.a{color:red}.b{color:blue}}}@layer{.a{color:red}.b{color:blue}}";
+        let parts = stylesheet_fragments(css).unwrap();
+        assert_eq!(parts.len(), 4);
+        assert_eq!(parts[1].0, "@layer a{@media screen{.a{color:red}}}");
+        assert_eq!(parts[3].0, "@layer{.a{color:red}.b{color:blue}}");
+        assert_eq!(&css[parts[1].1.clone()], ".a{color:red}");
+    }
+
+    #[test]
     fn occurrences_roundtrip_opaque_syntax_and_unicode() {
         for css in [
             "",
@@ -365,16 +375,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn fragments_keep_anonymous_layers_and_unknown_groups_atomic() {
-        let css = "@layer a,b;@layer a{@media screen{.a{color:red}.b{color:blue}}}@layer{.a{color:red}.b{color:blue}}";
-        let parts = stylesheet_fragments(css).unwrap();
-        assert_eq!(parts.len(), 4);
-        assert_eq!(parts[1].0, "@layer a{@media screen{.a{color:red}}}");
-        assert_eq!(parts[3].0, "@layer{.a{color:red}.b{color:blue}}");
-        assert_eq!(&css[parts[1].1.clone()], ".a{color:red}");
-    }
-
     fn cascade(css: &str, classes: &[&str]) -> BTreeMap<String, String> {
         let mut result = BTreeMap::new();
         for rule in CssRule::parse(css).unwrap() {
@@ -407,5 +407,91 @@ mod tests {
                 proptest::prop_assert_eq!(cascade(&css, &classes), cascade(&optimized, &classes));
             }
         }
+    }
+
+    fn optimize_nested_css(css: &str) -> String {
+        let mut rules = CssRule::parse(css).unwrap();
+        optimize_nested(&mut rules, 0);
+        rules.iter().map(CssRule::to_css).collect()
+    }
+
+    /// Declarations are re-serialized with one trailing semicolon each, and a group
+    /// rule is recursed into instead of being read as declarations.
+    #[test]
+    fn optimize_nested_normalizes_declarations_and_recurses_into_groups() {
+        assert_eq!(optimize_nested_css(".a{color:red}"), ".a{color:red;}");
+        assert_eq!(
+            optimize_nested_css("@media x{.a{color:red}}"),
+            "@media x{.a{color:red;}}"
+        );
+        assert_eq!(
+            optimize_nested_css("@layer a;.b{color:red}"),
+            "@layer a;.b{color:red;}"
+        );
+        assert_eq!(
+            optimize_nested_css(".x{color:red;color:blue;}"),
+            ".x{color:red;color:blue;}"
+        );
+    }
+
+    /// Rules with equal bodies merge into a comma list at the earlier position, the
+    /// backward search stops at an interfering declaration, and a group rule blocks it.
+    #[test]
+    fn optimize_nested_merges_equal_bodies_within_the_interference_window() {
+        assert_eq!(
+            optimize_nested_css(".a{color:red}.b{padding:0}.c{color:red}"),
+            ".a,.c{color:red;}.b{padding:0;}"
+        );
+        assert_eq!(
+            optimize_nested_css(".a{color:red}.b{color:blue}.c{color:red}"),
+            ".a{color:red;}.b{color:blue;}.c{color:red;}"
+        );
+        assert_eq!(
+            optimize_nested_css(".a{color:red}@media x{.b{padding:0}}.c{color:red}"),
+            ".a{color:red;}@media x{.b{padding:0;}}.c{color:red;}"
+        );
+    }
+
+    /// The backward search is bounded to 64 rules, so a duplicate body further away
+    /// stays a separate occurrence.
+    #[test]
+    fn optimize_nested_merges_only_within_its_lookback_window() {
+        let fillers = |count: usize| {
+            (0..count).fold(String::new(), |mut css, index| {
+                use std::fmt::Write;
+                write!(css, ".f{index}{{--v{index}:{index};}}").unwrap();
+                css
+            })
+        };
+        let near = format!(".a{{color:red}}{}.dup{{color:red}}", fillers(63));
+        let optimized = optimize_nested_css(&near);
+        assert!(
+            optimized.contains(".a,.dup{color:red;}"),
+            "distance 64 must merge: {optimized}"
+        );
+        let far = format!(".a{{color:red}}{}.dup{{color:red}}", fillers(64));
+        let optimized = optimize_nested_css(&far);
+        assert!(
+            optimized.contains(".a{color:red;}") && optimized.contains(".dup{color:red;}"),
+            "distance 65 must stay separate: {optimized}"
+        );
+    }
+
+    /// Recursion stops past the documented depth: one level inside the limit still
+    /// merges the equal bodies, one level past it leaves the authored text alone.
+    #[test]
+    fn optimize_nested_stops_at_the_depth_limit() {
+        let body = ".a{color:red}.b{color:red}";
+        let shallow = format!("{}{}{}", "@media a{".repeat(63), body, "}".repeat(63));
+        assert!(
+            optimize_nested_css(&shallow).contains(".a,.b{color:red;}"),
+            "at the limit the inner rules are optimized"
+        );
+        let deep = format!("{}{}{}", "@media a{".repeat(64), body, "}".repeat(64));
+        assert_eq!(
+            optimize_nested_css(&deep),
+            deep,
+            "past the limit nothing inside is rewritten"
+        );
     }
 }

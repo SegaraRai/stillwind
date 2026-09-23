@@ -470,3 +470,155 @@ pub(crate) fn encode_projected_edits(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod runtime_anchor_tests {
+    use std::sync::Arc;
+
+    use stillwind_ir::{
+        ConverterIdentity, FrameworkProjection, ImportRealm, ModuleAnalysis, ProjectionRegion,
+        SourceAnalyzer,
+    };
+    use stillwind_js_oxc::OxcSourceAnalyzer;
+    use stillwind_source::{FileId, ProjectionMap, SourceFile};
+
+    use super::*;
+
+    fn analysis(text: &str) -> stillwind_ir::ModuleAnalysis {
+        let source = SourceFile::new(FileId(1), "entry.ts", text).unwrap();
+        OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source)), None)
+    }
+
+    /// A module without a projection anchors on its first macro import, and a module
+    /// without any macro import is reported instead of guessing an anchor.
+    #[test]
+    fn runtime_anchor_uses_the_first_macro_import_without_a_projection() {
+        let module = analysis("import { style } from 'stillwind/react'; const x = style('flex');");
+        let at = module.source.full_span();
+        assert!(matches!(runtime_anchor(&module, at), Ok(0)));
+        let module = analysis("export const x = 1;");
+        assert!(matches!(
+            runtime_anchor(&module, module.source.full_span()),
+            Err(CompileError {
+                kind: CompileErrorKind::MissingRuntimeAnchor { .. },
+                ..
+            })
+        ));
+    }
+
+    /// One analyzed module whose input carries a framework projection with the given
+    /// realms and regions. The macro import lives at the start of the buffer.
+    fn projected(realms: Vec<ImportRealm>, regions: Vec<ProjectionRegion>) -> ModuleAnalysis {
+        let source = Arc::new(
+            SourceFile::new(
+                FileId(1),
+                "Card.vue",
+                "import { style } from 'stillwind/vue'; const x = style('flex');",
+            )
+            .unwrap(),
+        );
+        let mut analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+        analysis.input.projection = Some(FrameworkProjection {
+            original: source.clone(),
+            map: ProjectionMap::Volar { mappings: vec![] },
+            converter: ConverterIdentity {
+                name: "test-converter".to_owned(),
+                version: "0".to_owned(),
+                options_fingerprint: "none".to_owned(),
+            },
+            analysis_id: FileId(2),
+            realms,
+            regions,
+        });
+        analysis
+    }
+
+    fn region(import_realm: u32, start: u32, end: u32) -> ProjectionRegion {
+        ProjectionRegion {
+            source: Span::new(FileId(1), start, end),
+            import_realm,
+            attribute_quote: None,
+        }
+    }
+
+    fn realm(id: u32, start: u32, end: u32, parent: Option<u32>) -> ImportRealm {
+        ImportRealm {
+            id,
+            source: Span::new(FileId(1), start, end),
+            parent,
+        }
+    }
+
+    /// A realm without a macro import of its own anchors on the enclosing realm that
+    /// owns one, and a chain that ends without one is reported instead.
+    #[test]
+    fn runtime_anchor_follows_the_realm_chain_outward() {
+        let at = Span::new(FileId(1), 50, 55);
+        let nested = projected(
+            vec![realm(1, 45, 60, Some(2)), realm(2, 0, 44, None)],
+            vec![region(1, 45, 60)],
+        );
+        assert_eq!(runtime_anchor(&nested, at).unwrap(), 0);
+        let orphan = projected(vec![realm(1, 45, 60, None)], vec![region(1, 45, 60)]);
+        assert!(matches!(
+            runtime_anchor(&orphan, at),
+            Err(CompileError {
+                kind: CompileErrorKind::MissingRuntimeAnchor { .. },
+                ..
+            })
+        ));
+    }
+
+    /// A realm cycle and a duplicated realm id are invalid metadata rather than an
+    /// arbitrary anchor.
+    #[test]
+    fn runtime_anchor_rejects_cycles_and_duplicate_realm_ids() {
+        let cycle = projected(
+            vec![realm(1, 45, 60, Some(2)), realm(2, 45, 60, Some(1))],
+            vec![region(1, 45, 60)],
+        );
+        assert!(matches!(
+            runtime_anchor(&cycle, Span::new(FileId(1), 50, 55)),
+            Err(CompileError {
+                kind: CompileErrorKind::InvalidImportMetadata { .. },
+                ..
+            })
+        ));
+        let duplicated = projected(
+            vec![realm(1, 0, 44, None), realm(1, 0, 44, None)],
+            vec![region(1, 50, 55)],
+        );
+        assert!(matches!(
+            runtime_anchor(&duplicated, Span::new(FileId(1), 52, 53)),
+            Err(CompileError {
+                kind: CompileErrorKind::InvalidImportMetadata { .. },
+                ..
+            })
+        ));
+    }
+
+    /// A query outside every region, and a query inside two regions, are reported
+    /// instead of picking an order-dependent anchor.
+    #[test]
+    fn runtime_anchor_reports_queries_outside_or_between_regions() {
+        let single = projected(vec![realm(1, 45, 60, None)], vec![region(1, 45, 60)]);
+        assert!(matches!(
+            runtime_anchor(&single, Span::new(FileId(1), 0, 5)),
+            Err(CompileError {
+                kind: CompileErrorKind::MissingRuntimeAnchor { .. },
+                ..
+            })
+        ));
+        let overlapping = projected(
+            vec![realm(1, 45, 60, None)],
+            vec![region(1, 45, 60), region(1, 50, 55)],
+        );
+        assert!(matches!(
+            runtime_anchor(&overlapping, Span::new(FileId(1), 52, 53)),
+            Err(CompileError {
+                kind: CompileErrorKind::InvalidImportMetadata { .. },
+                ..
+            })
+        ));
+    }
+}

@@ -226,3 +226,157 @@ fn render_utility_steps(
         Ok(rule)
     }
 }
+
+#[cfg(test)]
+mod render_step_tests {
+    use stillwind_design_system::{UtilityOrder, VariantDeclaration};
+
+    use super::*;
+    use crate::identifiers::IdentifierContext;
+
+    fn utility(selector: Option<&str>, declaration: &str) -> CompiledUtility {
+        CompiledUtility {
+            variants: Vec::new(),
+            variant_applications: Vec::new(),
+            declaration: declaration.to_owned(),
+            required_properties: Vec::new(),
+            selector: selector.map(str::to_owned),
+            container: None,
+            nested: Vec::new(),
+            order: UtilityOrder::Authored(None),
+            candidate: "x".into(),
+        }
+    }
+
+    /// The class selector is used directly, and a utility selector template is
+    /// instantiated against it.
+    #[test]
+    fn render_utility_steps_uses_the_utility_selector_template() {
+        let identifiers = IdentifierContext::builtin();
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                None,
+                &[],
+                &identifiers
+            )
+            .unwrap(),
+            ".sw_x{color:red;}"
+        );
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(Some("&:hover"), "color:red;"),
+                "color:red;",
+                None,
+                &[],
+                &identifiers
+            )
+            .unwrap(),
+            ".sw_x:hover{color:red;}"
+        );
+    }
+
+    /// Selector steps rewrite the selector in place.
+    #[test]
+    fn render_utility_steps_rewrites_the_selector_in_place() {
+        let identifiers = IdentifierContext::builtin();
+        let steps = [VariantStep::SelectorSuffix(":hover")];
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                None,
+                &steps,
+                &identifiers
+            )
+            .unwrap(),
+            ".sw_x:hover{color:red;}"
+        );
+    }
+
+    /// Condition steps wrap the rule from the inside out.
+    #[test]
+    fn render_utility_steps_wraps_conditions_in_order() {
+        let identifiers = IdentifierContext::builtin();
+        let steps = [
+            VariantStep::Media("(min-width: 40rem)"),
+            VariantStep::Supports("display:grid"),
+            VariantStep::Container("(width > 10px)"),
+            VariantStep::StartingStyle,
+        ];
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                None,
+                &steps,
+                &identifiers
+            )
+            .unwrap(),
+            "@starting-style{@container (width > 10px){@media (min-width: 40rem){@supports (display:grid){.sw_x{color:red;}}}}}"
+        );
+    }
+
+    /// A variant's declarations are only prepended when the body does not already set
+    /// that property, and a nested rule wraps the whole result.
+    #[test]
+    fn render_utility_steps_prepends_missing_declarations_and_wraps_nested_rules() {
+        let identifiers = IdentifierContext::builtin();
+        let declarations = [VariantDeclaration {
+            property: "color".to_owned(),
+            value: "blue".to_owned(),
+        }];
+        let steps = [VariantStep::SelectorRule {
+            selector: "&:hover",
+            declarations: &declarations,
+        }];
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                None,
+                &steps,
+                &identifiers
+            )
+            .unwrap(),
+            ".sw_x:hover{color:red;}"
+        );
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(None, "padding:0;"),
+                "padding:0;",
+                None,
+                &steps,
+                &identifiers
+            )
+            .unwrap(),
+            ".sw_x:hover{color:blue;padding:0;}"
+        );
+        let nested = NestedUtilityRule {
+            compatibility: false,
+            at_rule: NestedUtilityAtRule::Supports,
+            condition: "display:grid".to_owned(),
+            declaration: "display:grid;".to_owned(),
+            inside: false,
+        };
+        assert_eq!(
+            render_utility_steps(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                Some(&nested),
+                &[],
+                &identifiers
+            )
+            .unwrap(),
+            "@supports (display:grid){.sw_x{color:red;}}"
+        );
+    }
+}

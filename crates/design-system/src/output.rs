@@ -342,6 +342,107 @@ mod tests {
         );
     }
 
+    /// Each slot keyword maps to its node, statements keep their own form, and the
+    /// origin span covers the whole directive.
+    #[test]
+    fn parse_nodes_maps_every_slot_and_statement_form() {
+        let nodes = parse_output_template("@layer a, b; .x{color:red}", &[]).unwrap();
+        assert!(matches!(&nodes.nodes[0], CssOutputNode::LayerOrder { .. }));
+        assert!(matches!(&nodes.nodes[1], CssOutputNode::Authored { .. }));
+        // The origin covers the whole directive, not just its header.
+        assert_eq!(
+            nodes.nodes[0],
+            CssOutputNode::LayerOrder {
+                css: "@layer a, b;".to_owned(),
+                origin: Some(Span::new(
+                    FileId(0),
+                    0,
+                    u32::try_from("@layer a, b;".len()).unwrap(),
+                )),
+            }
+        );
+        // Declaration slots require a style rule and keep it as a Style node.
+        for slot in ["theme", "property-initials"] {
+            let css = format!("@media print{{.scope{{before:1;@stillwind-slot {slot};after:2;}}}}");
+            let nodes = parse_output_template(&css, &[])
+                .unwrap_or_else(|error| panic!("{slot}: {error:?}"));
+            assert!(
+                matches!(
+                    &nodes.nodes[0],
+                    CssOutputNode::Group { children, .. } if matches!(&children[0], CssOutputNode::Style { .. })
+                ),
+                "{slot}"
+            );
+        }
+        // Structural slots are document-level statements with their own node kind.
+        for (slot, expected) in [
+            ("utilities", CssOutputNode::Utilities),
+            ("keyframes", CssOutputNode::Keyframes),
+            ("properties", CssOutputNode::Properties),
+        ] {
+            let css = format!("@stillwind-slot {slot};");
+            let nodes = parse_output_template(&css, &[])
+                .unwrap_or_else(|error| panic!("{slot}: {error:?}"));
+            assert_eq!(nodes.nodes, [expected], "{slot}");
+        }
+        // A declaration slot outside a style rule is a context error.
+        assert!(matches!(
+            parse_output_template("@stillwind-slot theme;", &[]),
+            Err(CompileErrorKind::InvalidOutputSlotContext { slot }) if slot == "theme"
+        ));
+    }
+
+    /// Unknown slots, block-form slots, statement-form themes, and definitions under a
+    /// condition are rejected with the offset of the offending directive.
+    #[test]
+    fn parse_nodes_rejects_invalid_directive_forms() {
+        let css = "@stillwind-slot unknown;";
+        assert!(matches!(
+            parse_output_template(css, &[]),
+            Err(CompileErrorKind::UnsupportedOutputSlot { offset, slot })
+                if offset == 0 && slot == "unknown"
+        ));
+        for (css, expected) in [
+            ("@stillwind-slot theme {}", "InvalidCssOutputBlock"),
+            ("@theme ;", "InvalidCssOutputBlock"),
+            (
+                "@media print { @theme { --a: 1; } }",
+                "ConditionalDefinition",
+            ),
+            (
+                "@supports (display:grid) { @utility x { color: red; } }",
+                "ConditionalDefinition",
+            ),
+        ] {
+            let error = parse_output_template(css, &[]).expect_err(css);
+            assert!(format!("{error:?}").contains(expected), "{css}: {error:?}");
+        }
+        assert!(matches!(
+            parse_output_template("@media print { @theme { --a: 1; } }", &[]),
+            Err(CompileErrorKind::ConditionalDefinition { directive, .. }) if directive == "theme"
+        ));
+    }
+
+    /// Group nesting is bounded, and the limit is reported as a nesting error.
+    #[test]
+    fn parse_nodes_bounds_group_nesting() {
+        let shallow = format!(
+            "{}.x{{color:red}}{}",
+            "@media a{".repeat(MAX_BLOCK_NESTING),
+            "}".repeat(2)
+        );
+        assert!(parse_output_template(&shallow, &[]).is_ok());
+        let deep = format!(
+            "{}.x{{color:red}}{}",
+            "@media a{".repeat(MAX_BLOCK_NESTING + 1),
+            "}".repeat(MAX_BLOCK_NESTING + 1)
+        );
+        assert!(matches!(
+            parse_output_template(&deep, &[]),
+            Err(CompileErrorKind::CssNestingTooDeep { limit, .. }) if limit == MAX_BLOCK_NESTING
+        ));
+    }
+
     #[test]
     fn preserves_conditions_and_rules_after_metadata_statements() {
         let template = parse_output_template("@stillwind-marker group; .before{content:'@theme { ; }';} @layer x { @supports (display:grid) { @stillwind-slot utilities; } .after{color:red} }", &[]).unwrap();

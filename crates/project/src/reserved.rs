@@ -477,4 +477,25 @@ mod tests {
         assert!(reserved.container_names.is_empty());
         assert!(reserved.view_transition_classes.is_empty());
     }
+
+    /// The recursive walk keeps the declaration position across nested rules and
+    /// semicolons, so only property positions contribute custom properties.
+    #[test]
+    fn walk_tracks_the_declaration_position_across_blocks() {
+        let mut reserved = ReservedNames::default();
+        let css = "--a:1; .nested { --b:2; content:'--c:3'; } margin:calc(1px - -2px); --d:4;";
+        walk(&mut reserved, &mut Parser::new(css), true);
+        assert_eq!(
+            reserved
+                .custom_properties
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>(),
+            ["--a", "--b", "--d"]
+        );
+        // Starting outside a declaration position reads the value as text.
+        let mut reserved = ReservedNames::default();
+        walk(&mut reserved, &mut Parser::new("--a:1;"), false);
+        assert!(reserved.custom_properties.is_empty());
+    }
 }

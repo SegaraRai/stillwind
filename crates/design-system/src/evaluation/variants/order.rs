@@ -298,7 +298,12 @@ pub fn compare_variant_sequences(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use stillwind_syntax::parse_candidate;
+
     use super::*;
+    use crate::BuiltinDefinitions;
 
     #[test]
     fn sorting_compares_magnitudes_only_within_the_same_unit() {
@@ -318,6 +323,73 @@ mod tests {
         );
     }
 
+    /// Stacks are ordered by the highest registration position first, and the
+    /// comparison is total: equal stacks compare equal and every pair is antisymmetric.
+    #[test]
+    fn compare_variant_sequences_orders_by_registry_position() {
+        let theme = ThemeIndex {
+            registry: Arc::new(BuiltinDefinitions::from_css(
+                "@stillwind-variant early { &:hover { @slot; } }\n@stillwind-variant late { &:focus { @slot; } }",
+            )),
+            ..ThemeIndex::default()
+        };
+        let variant = |text: &str| parse_candidate(text).unwrap().variants[0].clone();
+        let early = variant("early:flex");
+        let late = variant("late:flex");
+        assert_eq!(
+            compare_variant_sequences(
+                std::slice::from_ref(&early),
+                std::slice::from_ref(&early),
+                &theme
+            ),
+            Ordering::Equal
+        );
+        assert_eq!(
+            compare_variant_sequences(
+                std::slice::from_ref(&late),
+                std::slice::from_ref(&early),
+                &theme
+            ),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_variant_sequences(
+                std::slice::from_ref(&early),
+                std::slice::from_ref(&late),
+                &theme
+            ),
+            Ordering::Less
+        );
+        assert_eq!(
+            compare_variant_sequences(
+                &[early.clone(), late.clone()],
+                std::slice::from_ref(&early),
+                &theme
+            ),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_variant_sequences(
+                std::slice::from_ref(&late),
+                &[late.clone(), early.clone()],
+                &theme
+            ),
+            Ordering::Less
+        );
+        for (left, right) in [
+            (vec![early.clone()], vec![late.clone()]),
+            (vec![late.clone()], vec![late.clone(), early.clone()]),
+            (vec![], vec![early.clone()]),
+        ] {
+            assert_eq!(
+                compare_variant_sequences(&left, &right, &theme),
+                compare_variant_sequences(&right, &left, &theme).reverse(),
+                "{left:?} vs {right:?}"
+            );
+        }
+        assert_eq!(compare_variant_sequences(&[], &[], &theme), Ordering::Equal);
+    }
+
     proptest::proptest! {
         #[test]
         fn same_unit_numeric_comparison_is_antisymmetric(a in 0u16..1000, b in 0u16..1000) {
@@ -331,6 +403,79 @@ mod tests {
                 compare_sort_values(&left, &right, BuiltinVariantSortDirection::Ascending),
                 compare_sort_values(&right, &left, BuiltinVariantSortDirection::Ascending).reverse()
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod sequence_property_tests {
+    use std::sync::Arc;
+
+    use stillwind_syntax::parse_candidate;
+
+    use super::*;
+    use crate::BuiltinDefinitions;
+
+    fn theme() -> ThemeIndex {
+        ThemeIndex {
+            registry: Arc::new(BuiltinDefinitions::from_css(
+                "@stillwind-variant early { &:hover { @slot; } }\n@stillwind-variant late { &:focus { @slot; } }",
+            )),
+            ..ThemeIndex::default()
+        }
+    }
+
+    fn registered_variants() -> Vec<Variant> {
+        ["early:flex", "late:flex", "missing:flex"]
+            .iter()
+            .map(|text| parse_candidate(text).unwrap().variants[0].clone())
+            .collect()
+    }
+
+    /// A repeated variant contributes one position, so the tie-break compares equal
+    /// variants and the stacks stay equal.
+    #[test]
+    fn repeated_variants_share_one_position_and_compare_equal() {
+        let theme = theme();
+        let early = registered_variants()[0].clone();
+        let repeated = [early.clone(), early.clone()];
+        assert_eq!(
+            compare_variant_sequences(&repeated, std::slice::from_ref(&early), &theme),
+            Ordering::Equal
+        );
+        assert_eq!(
+            compare_variant_sequences(&repeated, &repeated, &theme),
+            Ordering::Equal
+        );
+    }
+
+    proptest::proptest! {
+        /// The comparison is a total preorder over generated stacks of the same
+        /// registered variants: reflexive, antisymmetric, and transitive.
+        #[test]
+        fn comparison_is_a_total_preorder(
+            left in proptest::collection::vec(0usize..3, 0..5),
+            middle in proptest::collection::vec(0usize..3, 0..5),
+            right in proptest::collection::vec(0usize..3, 0..5),
+        ) {
+            let theme = theme();
+            let variants = registered_variants();
+            let stack = |indices: &Vec<usize>| {
+                indices
+                    .iter()
+                    .map(|index| variants[*index].clone())
+                    .collect::<Vec<_>>()
+            };
+            let (a, b, c) = (stack(&left), stack(&middle), stack(&right));
+            let ab = compare_variant_sequences(&a, &b, &theme);
+            let ba = compare_variant_sequences(&b, &a, &theme);
+            proptest::prop_assert_eq!(compare_variant_sequences(&a, &a, &theme), Ordering::Equal);
+            proptest::prop_assert_eq!(ab, ba.reverse());
+            if ab != Ordering::Greater
+                && compare_variant_sequences(&b, &c, &theme) != Ordering::Greater
+            {
+                proptest::prop_assert_ne!(compare_variant_sequences(&a, &c, &theme), Ordering::Greater);
+            }
         }
     }
 }

@@ -346,3 +346,90 @@ fn map_variant<E>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use stillwind_source::FileId;
+
+    use super::*;
+    use crate::ConditionalKind;
+
+    fn utilities(text: &str, start: u32) -> ClassExpression {
+        ClassExpression::Utilities(Spanned::new(
+            text.to_owned(),
+            Span::new(FileId(1), start, start + u32::try_from(text.len()).unwrap()),
+        ))
+    }
+
+    /// Every span-bearing node is visited in source order, and each mapped span
+    /// replaces the original.
+    #[test]
+    fn maps_every_span_in_the_tree() {
+        let mut expression = ClassExpression::Array(vec![
+            utilities("a", 0),
+            ClassExpression::Conditional {
+                test: Span::new(FileId(1), 10, 14),
+                kind: ConditionalKind::Ternary,
+                consequent: vec![ClassExpression::Array(vec![utilities("b", 20)])],
+                alternate: vec![utilities("c", 30)],
+            },
+        ]);
+        let mut seen = Vec::new();
+        map_class_expression(&mut expression, &mut |span| {
+            seen.push(span.start.0);
+            Ok::<_, ()>(Span::new(span.file, span.start.0 + 100, span.end.0 + 100))
+        })
+        .unwrap();
+        assert_eq!(seen, [0, 10, 20, 30]);
+        let ClassExpression::Array(elements) = &expression else {
+            panic!("array")
+        };
+        let ClassExpression::Utilities(first) = &elements[0] else {
+            panic!("utilities")
+        };
+        assert_eq!(first.span, Span::new(FileId(1), 100, 101));
+        let ClassExpression::Conditional {
+            test, consequent, ..
+        } = &elements[1]
+        else {
+            panic!("conditional")
+        };
+        assert_eq!(*test, Span::new(FileId(1), 110, 114));
+        let ClassExpression::Array(inner) = &consequent[0] else {
+            panic!("array")
+        };
+        let ClassExpression::Utilities(nested) = &inner[0] else {
+            panic!("utilities")
+        };
+        assert_eq!(nested.span, Span::new(FileId(1), 120, 121));
+    }
+
+    /// The walk stops at the first failure; nodes mapped before it keep their new
+    /// spans, so a failed mapping must be discarded by the caller.
+    #[test]
+    fn stops_at_the_first_mapping_failure() {
+        let mut expression = ClassExpression::Array(vec![utilities("a", 0), utilities("b", 10)]);
+        let mut visited = 0;
+        let result = map_class_expression(&mut expression, &mut |span| {
+            visited += 1;
+            if span.start.0 == 10 {
+                Err(())
+            } else {
+                Ok(Span::new(span.file, span.start.0 + 1, span.end.0 + 1))
+            }
+        });
+        assert_eq!(result, Err(()));
+        assert_eq!(visited, 2);
+        let ClassExpression::Array(elements) = &expression else {
+            panic!("array")
+        };
+        let ClassExpression::Utilities(first) = &elements[0] else {
+            panic!("utilities")
+        };
+        assert_eq!(first.span, Span::new(FileId(1), 1, 2));
+        let ClassExpression::Utilities(second) = &elements[1] else {
+            panic!("utilities")
+        };
+        assert_eq!(second.span, Span::new(FileId(1), 10, 11));
+    }
+}

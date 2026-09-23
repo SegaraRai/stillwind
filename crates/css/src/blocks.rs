@@ -473,11 +473,56 @@ mod tests {
         );
         assert_eq!(matching_brace("x}", 0), Err(ScanError::Unclosed));
     }
-}
 
-#[cfg(test)]
-mod requirement_tests {
-    use super::take_property_requirements;
+    /// Statements and blocks are recorded in source order with their trimmed header,
+    /// optional body, and the offset of the directive's own `@`.
+    #[test]
+    fn scan_directives_records_statements_and_blocks_in_source_order() {
+        let css = "@foo  spaced header; .x{color:red} @foo block header { body content }";
+        let mut rules = Vec::new();
+        scan_directives(&mut Parser::new(css), css, "foo", &mut rules);
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].start, 0);
+        assert_eq!(rules[0].header, "spaced header");
+        assert_eq!(rules[0].body, None);
+        assert_eq!(rules[1].start, css.find("@foo block").unwrap());
+        assert_eq!(rules[1].header, "block header");
+        assert_eq!(rules[1].body.as_deref(), Some("body content"));
+    }
+
+    /// A directive is found inside nested rule blocks, while directive-shaped text in a
+    /// function, parenthesis, bracket, or string is consumed without being searched.
+    #[test]
+    fn scan_directives_descends_into_rule_blocks_only() {
+        let css = "@layer x { @foo nested; } .a{background:url(@foo no;);content:'@foo no;';} (@foo no;) [@foo no;]";
+        let mut rules = Vec::new();
+        scan_directives(&mut Parser::new(css), css, "foo", &mut rules);
+        assert_eq!(rules.len(), 1, "{:?}", rules.len());
+        assert_eq!(rules[0].header, "nested");
+        assert_eq!(rules[0].body, None);
+    }
+
+    /// An unterminated statement or block is dropped, and the directive name is matched
+    /// exactly.
+    #[test]
+    fn scan_directives_skips_unterminated_directives_and_other_names() {
+        for css in ["@foo unterminated", "@foo open { body"] {
+            let mut rules = Vec::new();
+            scan_directives(&mut Parser::new(css), css, "foo", &mut rules);
+            assert!(rules.is_empty(), "{css:?} must not record a rule");
+        }
+        // A statement with an empty prelude is still a statement.
+        let mut rules = Vec::new();
+        scan_directives(&mut Parser::new("@foo ;"), "@foo ;", "foo", &mut rules);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].header, "");
+        assert_eq!(rules[0].body, None);
+        let css = "@foobar x; @Foo x; @foo y;";
+        let mut rules = Vec::new();
+        scan_directives(&mut Parser::new(css), css, "foo", &mut rules);
+        assert_eq!(rules.len(), 1, "{:?}", rules.len());
+        assert_eq!(rules[0].header, "y");
+    }
 
     #[test]
     fn requirements_are_lexical_and_reject_non_names() {

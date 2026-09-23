@@ -281,4 +281,179 @@ mod tests {
         parser.skip_whitespace();
         assert_eq!(parser.peek(), Some('+'));
     }
+
+    /// One atom at a time: a parenthesized sum, a literal with its unit, an opaque
+    /// token, and a nested `calc()` that is parsed through instead of kept verbatim.
+    #[test]
+    fn parses_one_atom_and_leaves_the_rest_of_the_input() {
+        for (input, expected) in [
+            ("(2 + 3)", "5"),
+            ("(1 + 2) * 3", "3"),
+            (".5", ".5"),
+            ("12.5px", "12.5px"),
+            ("25%", "25%"),
+            ("var(--x)", "var(--x)"),
+            ("--custom-prop", "--custom-prop"),
+            ("calc(1 + 2)", "3"),
+            ("CALC(1 + 2)", "3"),
+            ("min(1px, 2px)", "min(1px, 2px)"),
+        ] {
+            let mut parser = MathParser::new(input);
+            assert_eq!(
+                parser.parse_atom().unwrap().serialize(0),
+                expected,
+                "{input}"
+            );
+        }
+        let mut parser = MathParser::new("1px + 2px");
+        assert_eq!(parser.parse_atom().unwrap().serialize(0), "1px");
+        parser.skip_whitespace();
+        assert_eq!(parser.peek(), Some('+'));
+    }
+
+    /// A construct the parser cannot read fails the atom instead of consuming part of
+    /// it, so folding never rewrites invalid input.
+    #[test]
+    fn atom_rejects_unreadable_or_unclosed_input() {
+        for input in [
+            "", ")", "*", "+", ";", "(", "var(--x", "rgb(1,2", "calc(1 +",
+        ] {
+            assert!(
+                MathParser::new(input).parse_atom().is_none(),
+                "{input:?} must not parse"
+            );
+        }
+    }
+
+    /// The nesting limit counts the parsers a value enters, so it bounds both explicit
+    /// parentheses and nested `calc()` calls.
+    #[test]
+    fn atom_nesting_is_bounded_by_the_value_limit() {
+        let at_limit = format!(
+            "{}1{}",
+            "(".repeat(MAX_VALUE_NESTING),
+            ")".repeat(MAX_VALUE_NESTING)
+        );
+        assert!(MathParser::new(&at_limit).parse().is_some());
+        let past_limit = format!(
+            "{}1{}",
+            "(".repeat(MAX_VALUE_NESTING + 1),
+            ")".repeat(MAX_VALUE_NESTING + 1)
+        );
+        assert!(MathParser::new(&past_limit).parse().is_none());
+        let nested_calc = format!(
+            "{}1{}",
+            "calc(".repeat(MAX_VALUE_NESTING),
+            ")".repeat(MAX_VALUE_NESTING)
+        );
+        assert!(MathParser::new(&nested_calc).parse().is_some());
+        let past_nested_calc = format!(
+            "{}1{}",
+            "calc(".repeat(MAX_VALUE_NESTING + 1),
+            ")".repeat(MAX_VALUE_NESTING + 1)
+        );
+        assert!(MathParser::new(&past_nested_calc).parse().is_none());
+    }
+
+    /// Products fold left to right, scale units, and keep every division except a
+    /// division by the literal one.
+    #[test]
+    fn parses_products_and_collapses_only_division_by_one() {
+        for (input, expected) in [
+            ("2 * 3 * 4", "24"),
+            ("2 * 3 + 4", "6"),
+            ("-2 * 3", "-6"),
+            ("1px * 2 * 3", "6px"),
+            ("25% * 2", "50%"),
+            ("0 * 1px", "0px"),
+            ("1 * var(--x)", "var(--x)"),
+            ("6 / 1", "6"),
+            ("6 / 1.0", "6"),
+            ("var(--x) / 1", "var(--x)"),
+            ("6 / 2", "6 / 2"),
+            ("6 / 2 / 3", "6 / 2 / 3"),
+        ] {
+            let mut parser = MathParser::new(input);
+            assert_eq!(
+                parser.parse_product().unwrap().serialize(0),
+                expected,
+                "{input}"
+            );
+        }
+    }
+
+    #[test]
+    fn product_stops_before_an_operator_it_does_not_own_and_rejects_a_missing_operand() {
+        let mut parser = MathParser::new("2 + 3");
+        assert_eq!(parser.parse_product().unwrap().serialize(0), "2");
+        parser.skip_whitespace();
+        assert_eq!(parser.peek(), Some('+'));
+        for input in ["2 *", "2 /", "* 3", "2 * )", "2 * * 3"] {
+            assert!(
+                MathParser::new(input).parse_product().is_none(),
+                "{input:?} must not parse"
+            );
+        }
+    }
+
+    /// Sums are left-associative, treat a leading `--` as a custom property name
+    /// rather than a sign, and fold only values of the same kind.
+    #[test]
+    fn parses_sums_left_associatively_and_keeps_mixed_operands_symbolic() {
+        for (input, expected) in [
+            ("1 + 2 + 3", "6"),
+            ("10 - 2 - 3", "5"),
+            ("10 - (2 - 3)", "11"),
+            ("1 - -2", "3"),
+            ("2rem + 3rem", "5rem"),
+            ("2rem + 3px", "2rem + 3px"),
+            ("25% + 25%", "50%"),
+            ("--x + 1px", "--x + 1px"),
+            ("　1　+　2", "3"),
+        ] {
+            let mut parser = MathParser::new(input);
+            assert_eq!(
+                parser.parse_sum().unwrap().serialize(0),
+                expected,
+                "{input}"
+            );
+        }
+        let mut parser = MathParser::new("1)");
+        assert_eq!(parser.parse_sum().unwrap().serialize(0), "1");
+        assert_eq!(parser.peek(), Some(')'));
+        for input in ["1 +", "1 -", "+", "- -", "1 + )"] {
+            assert!(
+                MathParser::new(input).parse_sum().is_none(),
+                "{input:?} must not parse"
+            );
+        }
+    }
+
+    proptest::proptest! {
+        /// Integer literals round-trip through parsing and serialization.
+        #[test]
+        fn integer_literals_round_trip(value in -100_000i32..100_000) {
+            let text = value.to_string();
+            let parsed = MathParser::new(&text).parse().unwrap();
+            proptest::prop_assert_eq!(parsed.serialize(0), text);
+        }
+
+        /// Folding a sum does not depend on the order of its operands.
+        #[test]
+        fn folded_sums_are_commutative(left in -1000i32..1000, right in -1000i32..1000) {
+            let forward = MathParser::new(&format!("{left} + {right}")).parse().unwrap();
+            let backward = MathParser::new(&format!("{right} + {left}")).parse().unwrap();
+            proptest::prop_assert_eq!(forward.serialize(0), backward.serialize(0));
+        }
+
+        /// Parenthesis nesting is accepted up to the documented limit and rejected past it.
+        #[test]
+        fn parenthesis_nesting_respects_the_value_limit(depth in 0usize..80) {
+            let text = format!("{}1{}", "(".repeat(depth), ")".repeat(depth));
+            proptest::prop_assert_eq!(
+                MathParser::new(&text).parse().is_some(),
+                depth <= MAX_VALUE_NESTING
+            );
+        }
+    }
 }

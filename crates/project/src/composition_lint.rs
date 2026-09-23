@@ -670,4 +670,120 @@ mod tests {
         assert_eq!(findings.len(), 1, "{}", codes(&findings));
         assert_eq!(findings[0].code(), "ambiguous-base-order");
     }
+
+    fn declaration(property: &str) -> DeclarationKey {
+        DeclarationKey {
+            property: property.to_owned(),
+            context: String::new(),
+        }
+    }
+
+    /// Declaration keys carry the nested selector and at-rule context, normalize the
+    /// property spelling, and skip entries that are not declarations.
+    #[test]
+    fn collect_keys_tracks_nested_contexts_and_normalizes_names() {
+        let mut keys = BTreeSet::new();
+        collect_keys(
+            "PADDING: 1px; color:red; @media (hover: hover) { .x:hover { padding-top: 1px; } } ; not-a-declaration",
+            "",
+            ".sw_a",
+            &mut keys,
+        );
+        let has = |property: &str| keys.iter().any(|key| key.property == property);
+        // A fragment without a colon is not a declaration and contributes no key.
+        assert!(
+            has("padding") && has("color") && has("padding-top"),
+            "{keys:?}"
+        );
+        assert!(!has("not-a-declaration"), "{keys:?}");
+        assert_eq!(keys.len(), 3, "{keys:?}");
+        let top = keys
+            .iter()
+            .find(|key| key.property == "color")
+            .expect("color");
+        assert_eq!(top.context, "");
+        let nested = keys
+            .iter()
+            .find(|key| key.property == "padding-top")
+            .expect("padding-top");
+        assert_eq!(nested.context, "@media (hover: hover) .x:hover");
+    }
+
+    /// Two unrelated bases that share a declaration slot are reported once; related,
+    /// repeated, and disjoint bases stay silent.
+    #[test]
+    fn ambiguous_base_order_reports_only_independent_bases() {
+        let left = IdentityId::new(AssetKind::Style, "a.tsx", 0, 8, "");
+        let right = IdentityId::new(AssetKind::Style, "b.tsx", 0, 8, "");
+        let span = Span::new(FileId(1), 0, 4);
+        let interfering = [
+            (&left, BTreeSet::from([declaration("padding")])),
+            (&right, BTreeSet::from([declaration("padding-top")])),
+        ];
+        let findings = ambiguous_base_order(&BTreeMap::new(), &interfering, span);
+        assert_eq!(findings.len(), 1, "{}", codes(&findings));
+        assert_eq!(findings[0].code(), "ambiguous-base-order");
+        assert!(findings[0].notes[0].contains("independent bases"));
+        let disjoint = [
+            (&left, BTreeSet::from([declaration("padding")])),
+            (&right, BTreeSet::from([declaration("color")])),
+        ];
+        assert!(ambiguous_base_order(&BTreeMap::new(), &disjoint, span).is_empty());
+        let repeated = [
+            (&left, BTreeSet::from([declaration("padding")])),
+            (&left, BTreeSet::from([declaration("padding")])),
+        ];
+        assert!(ambiguous_base_order(&BTreeMap::new(), &repeated, span).is_empty());
+        // A base that composes the other is ordered, not ambiguous.
+        let graph = BTreeMap::from([(identity_key(&left), BTreeSet::from([identity_key(&right)]))]);
+        assert!(ambiguous_base_order(&graph, &interfering, span).is_empty());
+    }
+
+    /// An imported base competing with the call's own or sibling rules is reported once,
+    /// while a base in the derived module or a disjoint slot stays silent.
+    #[test]
+    fn imported_base_interference_reports_the_first_competing_base() {
+        let own = BTreeSet::from([declaration("padding")]);
+        let module = ModuleId::from("app.tsx");
+        let span = Span::new(FileId(1), 0, 4);
+        let imported = [(
+            &IdentityId::new(AssetKind::Style, "base.tsx", 0, 8, ""),
+            BTreeSet::from([declaration("padding-top")]),
+        )];
+        let findings = imported_base_interference(&own, &[], &imported, &module, span);
+        assert_eq!(findings.len(), 1, "{}", codes(&findings));
+        assert_eq!(findings[0].code(), "imported-base-interference");
+        assert!(findings[0].notes[0].contains("selector and at-rule contexts"));
+        let same_module = [(
+            &IdentityId::new(AssetKind::Style, "app.tsx", 0, 8, ""),
+            BTreeSet::from([declaration("padding-top")]),
+        )];
+        assert!(imported_base_interference(&own, &[], &same_module, &module, span).is_empty());
+        let disjoint = [(
+            &IdentityId::new(AssetKind::Style, "base.tsx", 16, 24, ""),
+            BTreeSet::from([declaration("color")]),
+        )];
+        assert!(imported_base_interference(&own, &[], &disjoint, &module, span).is_empty());
+        // Another imported base contributes its slots to the competition.
+        let siblings = [
+            (
+                &IdentityId::new(AssetKind::Style, "first.tsx", 0, 8, ""),
+                BTreeSet::from([declaration("color")]),
+            ),
+            (
+                &IdentityId::new(AssetKind::Style, "second.tsx", 0, 8, ""),
+                BTreeSet::from([declaration("padding-top")]),
+            ),
+        ];
+        let findings = imported_base_interference(&own, &[], &siblings, &module, span);
+        assert_eq!(findings.len(), 1, "{}", codes(&findings));
+        assert!(
+            matches!(
+                &findings[0].kind,
+                LintKind::ImportedBaseInterference { module, .. } if module == "second.tsx"
+            ),
+            "{:?}",
+            findings[0].kind
+        );
+    }
 }

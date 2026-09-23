@@ -206,4 +206,56 @@ mod tests {
 
         assert!(parse(&source).diagnostics.is_empty());
     }
+
+    /// The coordinate entry produces the same analysis as the plain entry when there
+    /// are no type facts, and an empty buffer is a valid module.
+    #[test]
+    fn coordinate_entry_matches_the_plain_entry_without_facts() {
+        let source = SourceFile::new(
+            FileId(1),
+            "Button.tsx",
+            "import { style } from 'stillwind/react'; export const x = style('flex');",
+        )
+        .unwrap();
+        let plain = parse(&source);
+        assert!(plain.diagnostics.is_empty());
+        assert_eq!(plain.module.adapter, AdapterKind::React);
+        assert_eq!(plain.module.style_calls.len(), 1);
+        assert_eq!(plain.framework, Some(AdapterKind::React));
+        let located = parse_with_coordinates(
+            &source,
+            &[],
+            &BTreeMap::new(),
+            ScriptLanguage::Tsx,
+            &source,
+            &|_| None,
+        );
+        assert!(located.diagnostics.is_empty());
+        assert_eq!(located.module.style_calls.len(), 1);
+        assert_eq!(located.module.adapter, AdapterKind::React);
+        assert_eq!(plain.summary.module_path, located.summary.module_path);
+        let empty = SourceFile::new(FileId(2), "Empty.tsx", "").unwrap();
+        let parsed = parse(&empty);
+        assert!(parsed.diagnostics.is_empty());
+        assert!(parsed.module.style_calls.is_empty());
+        assert_eq!(parsed.framework, None);
+    }
+
+    /// A syntax error becomes one parse diagnostic that keeps the parser's own detail
+    /// as a note and points at the whole buffer.
+    #[test]
+    fn syntax_errors_keep_the_parser_detail_as_a_note() {
+        let source = SourceFile::new(FileId(1), "Broken.tsx", "const = ;").unwrap();
+        let parsed = parse(&source);
+        assert_eq!(parsed.diagnostics.len(), 1);
+        let diagnostic = &parsed.diagnostics[0];
+        assert_eq!(diagnostic.kind, CompileErrorKind::JavaScriptParse);
+        assert_eq!(diagnostic.labels[0].span, source.full_span());
+        // The parser's own wording is retained as a note rather than rewritten.
+        assert!(
+            diagnostic.notes[0].contains("Unexpected"),
+            "{}",
+            diagnostic.notes[0]
+        );
+    }
 }

@@ -487,3 +487,89 @@ mod tests {
         assert!(!lower_builtin(&guarded, false).unwrap().contains("--if("));
     }
 }
+
+#[cfg(test)]
+mod declaration_value_tests {
+    use super::declaration_values;
+
+    fn slices(css: &str) -> Vec<(String, String)> {
+        declaration_values(css)
+            .into_iter()
+            .map(|(property, value)| {
+                (
+                    css[property].trim().to_owned(),
+                    css[value].trim().to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    /// Declarations are split at token-level semicolons, and empty or colon-less
+    /// fragments contribute nothing.
+    #[test]
+    fn declaration_values_split_semicolon_separated_declarations() {
+        assert_eq!(
+            slices("a:1;b:2;"),
+            [
+                ("a".to_owned(), "1".to_owned()),
+                ("b".to_owned(), "2".to_owned())
+            ]
+        );
+        assert_eq!(slices("a:1;b:2"), slices("a:1;b:2;"));
+        assert!(slices("").is_empty());
+        assert!(slices("no-colon;").is_empty());
+        // Surrounding whitespace is retained in both ranges.
+        let css = "  a : 1 ; ";
+        let values = declaration_values(css);
+        assert_eq!(values.len(), 1);
+        assert!(css[values[0].0.clone()].starts_with("  a "));
+        assert!(css[values[0].1.clone()].starts_with(" 1 "));
+    }
+
+    /// Custom-property brace values, functions, and URLs are opaque.
+    #[test]
+    fn declaration_values_treat_braces_functions_and_urls_as_opaque() {
+        assert_eq!(
+            slices("--x:{a:1};y:2;"),
+            [
+                ("--x".to_owned(), "{a:1}".to_owned()),
+                ("y".to_owned(), "2".to_owned())
+            ]
+        );
+        assert_eq!(
+            slices("x:url(a;b);y:calc(1;2);"),
+            [
+                ("x".to_owned(), "url(a;b)".to_owned()),
+                ("y".to_owned(), "calc(1;2)".to_owned())
+            ]
+        );
+        assert_eq!(
+            slices("x:fn({a:1});y:2;"),
+            [
+                ("x".to_owned(), "fn({a:1})".to_owned()),
+                ("y".to_owned(), "2".to_owned())
+            ]
+        );
+    }
+
+    /// Rule bodies are searched, and the results stay in source order without
+    /// overlaps.
+    #[test]
+    fn declaration_values_descend_into_rule_bodies_in_source_order() {
+        assert_eq!(
+            slices("@media x{a:1;}b:2;"),
+            [
+                ("a".to_owned(), "1".to_owned()),
+                ("b".to_owned(), "2".to_owned())
+            ]
+        );
+        let css = "@media x{a:1;}b:2;";
+        let values = declaration_values(css);
+        let mut previous = 0;
+        for (property, value) in &values {
+            assert!(property.start >= previous);
+            assert!(property.start <= value.start);
+            previous = value.end;
+        }
+    }
+}

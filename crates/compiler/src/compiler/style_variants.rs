@@ -427,3 +427,234 @@ fn reference_path(
     });
     conditions
 }
+
+#[cfg(test)]
+mod reference_path_tests {
+    use super::*;
+
+    /// Non-selector steps become their own applications in path order, and the last
+    /// application is the reference selector the target is combined with.
+    #[test]
+    fn reference_path_collects_conditions_in_order() {
+        let marker = RefMarker::new("menu").unwrap();
+        let path = [
+            VariantStep::Media("(min-width: 40rem)"),
+            VariantStep::Container("(width > 10px)"),
+            VariantStep::Supports("display:grid"),
+            VariantStep::StartingStyle,
+        ];
+        let applications = reference_path(&marker, None, &path);
+        assert_eq!(applications.len(), 5, "{applications:?}");
+        assert!(matches!(applications[0], VariantApplication::Media(_)));
+        assert!(matches!(applications[1], VariantApplication::Container(_)));
+        assert!(matches!(applications[2], VariantApplication::Supports(_)));
+        assert!(matches!(applications[3], VariantApplication::StartingStyle));
+        assert_eq!(
+            applications[4],
+            VariantApplication::SelectorTemplate(".menu &".to_owned())
+        );
+    }
+
+    /// The reference element keeps its specificity: a trailing pseudo-class suffix
+    /// stays inside `:where()`, any other selector folds the whole reference, and a
+    /// boundary has to contain the reference.
+    #[test]
+    fn reference_path_builds_the_marker_selector_and_boundary() {
+        let marker = RefMarker::new("menu").unwrap();
+        assert_eq!(
+            reference_path(&marker, None, &[]),
+            [VariantApplication::SelectorTemplate(".menu &".to_owned())]
+        );
+        assert_eq!(
+            reference_path(&marker, None, &[VariantStep::SelectorSuffix(":hover")]),
+            [VariantApplication::SelectorTemplate(
+                ".menu:where(:hover) &".to_owned()
+            )]
+        );
+        assert_eq!(
+            reference_path(&marker, None, &[VariantStep::SelectorSuffix(" > *")]),
+            [VariantApplication::SelectorTemplate(
+                ":where(.menu > *) &".to_owned()
+            )]
+        );
+        assert_eq!(
+            reference_path(
+                &marker,
+                Some(".b"),
+                &[VariantStep::SelectorSuffix(":hover")]
+            ),
+            [VariantApplication::SelectorTemplate(
+                ".b:has(.menu:where(:hover)) &".to_owned()
+            )]
+        );
+    }
+}
+
+#[cfg(test)]
+mod add_ref_tests {
+    use std::sync::Arc;
+
+    use stillwind_source::{FileId, Span};
+
+    use super::*;
+    use crate::identifiers::{
+        DeclarationContext, GeneratedName, GeneratorSet, IdentifierGenerator, IdentifierHash,
+    };
+
+    fn plan() -> StyleVariantPlan {
+        StyleVariantPlan {
+            prefix: String::new(),
+            canonical: String::new(),
+            has_refs: false,
+            variants: Vec::new(),
+            paths: vec![Vec::new()],
+            ordinary_count: 0,
+        }
+    }
+
+    fn definition(module: &str, binding: &str, call_start: u32) -> RefDefinition {
+        RefDefinition {
+            module_path: module.to_owned(),
+            binding: Spanned::new(binding.to_owned(), Span::new(FileId(1), 0, 3)),
+            label: None,
+            boundary: None,
+            call_span: Span::new(FileId(1), call_start, call_start + 4),
+        }
+    }
+
+    fn prefix(value: &str) -> Spanned<String> {
+        Spanned::new(
+            value.to_owned(),
+            Span::new(FileId(1), 90, 90 + u32::try_from(value.len()).unwrap()),
+        )
+    }
+
+    /// Rejects every ref marker so the generator failure path is observable.
+    #[derive(Debug)]
+    struct RejectingGenerator;
+
+    impl IdentifierGenerator for RejectingGenerator {
+        fn ref_marker(
+            &self,
+            _context: &DeclarationContext,
+            _hash: &IdentifierHash,
+        ) -> Result<GeneratedName<RefMarker>, String> {
+            Err("no marker for this ref".to_owned())
+        }
+    }
+
+    /// Each ref contributes one alternative path carrying its own marker, and the
+    /// canonical spelling records the identities and the authored prefix.
+    #[test]
+    fn add_ref_expands_one_alternative_per_ref() {
+        let context = IdentifierContext::builtin();
+        let theme = ThemeIndex::default();
+        let mut diagnostics = Vec::new();
+        let mut plan = plan();
+        let first = definition("src/a.tsx", "menu", 10);
+        let second = definition("src/b.tsx", "panel", 20);
+        let added = plan.add_ref(
+            &context,
+            &theme,
+            &[first.clone(), second.clone()],
+            &prefix(""),
+            &mut diagnostics,
+        );
+        assert!(added.is_some(), "{diagnostics:?}");
+        assert!(diagnostics.is_empty());
+        assert!(plan.has_refs);
+        let first_marker = ref_marker_name(&context, &first).unwrap();
+        let second_marker = ref_marker_name(&context, &second).unwrap();
+        let identities = format!(
+            "[({:?}, None), ({:?}, None)]",
+            first_marker.as_str(),
+            second_marker.as_str()
+        );
+        assert_eq!(plan.canonical, format!("ref({identities};0:):"));
+        let expected = vec![
+            vec![VariantApplication::SelectorTemplate(format!(
+                "{} &",
+                first_marker.selector()
+            ))],
+            vec![VariantApplication::SelectorTemplate(format!(
+                "{} &",
+                second_marker.selector()
+            ))],
+        ];
+        assert_eq!(plan.applications(), expected.as_slice());
+    }
+
+    /// A wrapper without a known ref identity is an error instead of a fallthrough to
+    /// an unbounded selector.
+    #[test]
+    fn add_ref_rejects_a_missing_ref_identity() {
+        let context = IdentifierContext::builtin();
+        let theme = ThemeIndex::default();
+        let mut diagnostics = Vec::new();
+        let mut plan = plan();
+        let prefix = prefix("");
+        assert!(
+            plan.add_ref(&context, &theme, &[], &prefix, &mut diagnostics)
+                .is_none()
+        );
+        assert!(!plan.has_refs);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].kind, CompileErrorKind::UnidentifiedRef);
+        assert_eq!(diagnostics[0].labels[0].span, prefix.span);
+    }
+
+    /// A prefix that is not a complete name list is rejected before any ref work.
+    #[test]
+    fn add_ref_rejects_an_incomplete_prefix() {
+        let context = IdentifierContext::builtin();
+        let theme = ThemeIndex::default();
+        let mut diagnostics = Vec::new();
+        let mut plan = plan();
+        assert!(
+            plan.add_ref(
+                &context,
+                &theme,
+                &[definition("src/a.tsx", "menu", 10)],
+                &prefix("hover"),
+                &mut diagnostics,
+            )
+            .is_none()
+        );
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].kind, CompileErrorKind::InvalidVariantPrefix);
+        assert!(!plan.has_refs);
+    }
+
+    /// A generator that rejects the marker family reports the ref that failed.
+    #[test]
+    fn add_ref_reports_a_rejected_marker() {
+        let context = IdentifierContext::new(GeneratorSet::new(Arc::new(RejectingGenerator)), 5);
+        let theme = ThemeIndex::default();
+        let mut diagnostics = Vec::new();
+        let mut plan = plan();
+        let definition = definition("src/a.tsx", "menu", 10);
+        let call_span = definition.call_span;
+        assert!(
+            plan.add_ref(
+                &context,
+                &theme,
+                &[definition],
+                &prefix(""),
+                &mut diagnostics
+            )
+            .is_none()
+        );
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].labels[0].span, call_span);
+        assert!(
+            matches!(
+                &diagnostics[0].kind,
+                CompileErrorKind::IdentifierGenerationFailed(family, message)
+                    if family.as_ref() == "ref-marker"
+                        && message.as_ref() == "no marker for this ref"
+            ),
+            "{:?}",
+            diagnostics[0].kind
+        );
+    }
+}
